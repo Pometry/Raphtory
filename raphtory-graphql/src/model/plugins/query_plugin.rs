@@ -1,30 +1,28 @@
+use super::{operation::NoOpQuery, RegisterFunction};
 use crate::model::plugins::{entry_point::EntryPoint, operation::Operation};
-use async_graphql::{dynamic::FieldValue, Context};
+use async_graphql::{dynamic::FieldValue, indexmap::IndexMap, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
 use std::{
     borrow::Cow,
-    collections::HashMap,
     sync::{Mutex, MutexGuard},
 };
 
-use super::{operation::NoOpQuery, RegisterFunction};
-
-pub static QUERY_PLUGINS: Lazy<Mutex<HashMap<String, RegisterFunction>>> =
-    Lazy::new(|| Mutex::new(HashMap::new()));
+pub static QUERY_PLUGINS: Lazy<Mutex<IndexMap<String, RegisterFunction>>> =
+    Lazy::new(|| Mutex::new(IndexMap::new()));
 
 #[derive(Clone, Default)]
 pub struct QueryPlugin;
 
 impl<'a> EntryPoint<'a> for QueryPlugin {
-    fn predefined_operations() -> HashMap<&'static str, RegisterFunction> {
-        HashMap::from([(
+    fn predefined_operations() -> IndexMap<&'static str, RegisterFunction> {
+        IndexMap::from([(
             "NoOps",
             Box::new(NoOpQuery::register_operation) as RegisterFunction,
         )])
     }
 
-    fn lock_plugins() -> MutexGuard<'static, HashMap<String, RegisterFunction>> {
+    fn lock_plugins() -> MutexGuard<'static, IndexMap<String, RegisterFunction>> {
         QUERY_PLUGINS.lock().unwrap()
     }
 }

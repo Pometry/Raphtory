@@ -292,7 +292,7 @@ fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
     }
 }
 
-pub trait PropCol: Send + Sync {
+trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
 
     fn as_array(&self) -> ArrayRef;

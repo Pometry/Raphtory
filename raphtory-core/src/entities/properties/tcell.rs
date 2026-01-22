@@ -23,7 +23,7 @@ enum TCellVariants<Empty, TCell1, TCellCap, TCellN> {
     TCellN(TCellN),
 }
 
-const BTREE_CUTOFF: usize = 32;
+const BTREE_CUTOFF: usize = 128;
 
 impl<A: PartialEq> TCell<A> {
     pub fn new(t: EventTime, value: A) -> Self {
@@ -118,14 +118,8 @@ impl<A: Sync + Send> TCell<A> {
         match self {
             TCell::Empty => None,
             TCell::TCell1(t2, v) => (*t2 < t).then_some((*t2, v)),
-            TCell::TCellCap(map) => map
-                .range(EventTime::MIN..t)
-                .last()
-                .map(|(ti, v)| (*ti, v)),
-            TCell::TCellN(map) => map
-                .range(EventTime::MIN..t)
-                .last()
-                .map(|(ti, v)| (*ti, v)),
+            TCell::TCellCap(map) => map.range(EventTime::MIN..t).last().map(|(ti, v)| (*ti, v)),
+            TCell::TCellN(map) => map.range(EventTime::MIN..t).last().map(|(ti, v)| (*ti, v)),
         }
     }
 

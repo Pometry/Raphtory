@@ -7,7 +7,7 @@
 use crate::{
     core::{
         entities::{edges::edge_ref::EdgeRef, LayerIds, VID},
-        utils::{iter::GenLockedIter, time::IntoTime},
+        utils::iter::GenLockedIter,
     },
     db::{
         api::{
@@ -20,9 +20,9 @@ use crate::{
                 Metadata, Properties,
             },
             view::{
-                internal::{EdgeTimeSemanticsOps, OneHopFilter, Static},
-                BaseEdgeViewOps, BoxableGraphView, BoxedLIter, DynamicGraph, IntoDynBoxed,
-                IntoDynamic, StaticGraphViewOps,
+                internal::{EdgeTimeSemanticsOps, GraphView, InternalFilter, Static},
+                BaseEdgeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
+                StaticGraphViewOps,
             },
         },
         graph::{edges::Edges, node::NodeView, views::layer_graph::LayeredGraph},
@@ -34,6 +34,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
+    utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::graph::tgraph::InvalidLayer;
 use raphtory_storage::{
@@ -54,79 +55,58 @@ use std::{
 
 /// A view of an edge in the graph.
 #[derive(Copy, Clone)]
-pub struct EdgeView<G, GH = G> {
-    pub base_graph: G,
+pub struct EdgeView<G> {
     /// A view of an edge in the graph.
-    pub graph: GH,
+    pub graph: G,
     /// A reference to the edge.
     pub edge: EdgeRef,
 }
 
-pub(crate) fn edge_valid_layer<G: BoxableGraphView + Clone>(graph: &G, e: EdgeRef) -> bool {
+pub(crate) fn edge_valid_layer<G: GraphView>(graph: &G, e: EdgeRef) -> bool {
     match e.layer() {
         None => true,
         Some(layer) => graph.layer_ids().contains(&layer),
     }
 }
 
-impl<G, GH> Static for EdgeView<G, GH> {}
+impl<G> Static for EdgeView<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> EdgeView<G, G> {
+impl<'graph, G: GraphViewOps<'graph>> EdgeView<G> {
     pub fn new(graph: G, edge: EdgeRef) -> Self {
-        let base_graph = graph.clone();
-        Self {
-            base_graph,
-            graph,
-            edge,
-        }
+        Self { graph, edge }
     }
 }
 
-impl<G: Clone, GH: Clone> EdgeView<&G, &GH> {
-    pub fn cloned(&self) -> EdgeView<G, GH> {
-        let graph = self.graph.clone();
-        let base_graph = self.base_graph.clone();
-        let edge = self.edge;
+impl<G: Clone> EdgeView<&G> {
+    pub fn cloned(&self) -> EdgeView<G> {
         EdgeView {
-            base_graph,
-            graph,
-            edge,
-        }
-    }
-}
-
-impl<G, GH> EdgeView<G, GH> {
-    pub fn as_ref(&self) -> EdgeView<&G, &GH> {
-        let graph = &self.graph;
-        let base_graph = &self.base_graph;
-        let edge = self.edge;
-        EdgeView {
-            base_graph,
-            graph,
-            edge,
-        }
-    }
-}
-
-impl<G: IntoDynamic, GH: IntoDynamic> EdgeView<G, GH> {
-    pub fn into_dynamic(self) -> EdgeView<DynamicGraph, DynamicGraph> {
-        let base_graph = self.base_graph.into_dynamic();
-        let graph = self.graph.into_dynamic();
-        EdgeView {
-            base_graph,
-            graph,
+            graph: self.graph.clone(),
             edge: self.edge,
         }
     }
 }
 
-impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> EdgeView<G, GH> {
-    pub(crate) fn new_filtered(base_graph: G, graph: GH, edge: EdgeRef) -> Self {
-        Self {
-            base_graph,
-            graph,
-            edge,
+impl<G> EdgeView<G> {
+    pub fn as_ref(&self) -> EdgeView<&G> {
+        EdgeView {
+            graph: &self.graph,
+            edge: self.edge,
         }
+    }
+}
+
+impl<G: IntoDynamic> EdgeView<G> {
+    pub fn into_dynamic(self) -> EdgeView<DynamicGraph> {
+        EdgeView {
+            graph: self.graph.into_dynamic(),
+            edge: self.edge,
+        }
+    }
+}
+
+impl<G: GraphView> EdgeView<G> {
+    pub(crate) fn new_filtered(graph: G, edge: EdgeRef) -> Self {
+        Self { graph, edge }
     }
 
     pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, usize)> {
@@ -177,9 +157,9 @@ impl<
             + InternalAdditionOps<Error = GraphError>
             + InternalPropertyAdditionOps<Error = GraphError>
             + InternalDeletionOps<Error = GraphError>,
-    > EdgeView<G, G>
+    > EdgeView<G>
 {
-    pub fn delete<T: IntoTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+    pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
         let t = time_from_input(&self.graph, t)?;
         let layer = self.resolve_layer(layer, true)?;
         self.graph
@@ -188,30 +168,18 @@ impl<
     }
 }
 
-impl<
-        'graph_1,
-        'graph_2,
-        G1: GraphViewOps<'graph_1>,
-        GH1: GraphViewOps<'graph_1>,
-        G2: GraphViewOps<'graph_2>,
-        GH2: GraphViewOps<'graph_2>,
-    > PartialEq<EdgeView<G2, GH2>> for EdgeView<G1, GH1>
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, G2: GraphViewOps<'graph_2>>
+    PartialEq<EdgeView<G2>> for EdgeView<G1>
 {
-    fn eq(&self, other: &EdgeView<G2, GH2>) -> bool {
+    fn eq(&self, other: &EdgeView<G2>) -> bool {
         self.id() == other.id() && self.edge.time() == other.edge.time()
     }
 }
 
-impl<
-        'graph_1,
-        'graph_2,
-        G1: GraphViewOps<'graph_1>,
-        GH1: GraphViewOps<'graph_1>,
-        G2: GraphViewOps<'graph_2>,
-        GH2: GraphViewOps<'graph_2>,
-    > PartialOrd<EdgeView<G2, GH2>> for EdgeView<G1, GH1>
+impl<'graph_1, 'graph_2, G1: GraphViewOps<'graph_1>, G2: GraphViewOps<'graph_2>>
+    PartialOrd<EdgeView<G2>> for EdgeView<G1>
 {
-    fn partial_cmp(&self, other: &EdgeView<G2, GH2>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &EdgeView<G2>) -> Option<Ordering> {
         Some(
             self.id()
                 .cmp(&other.id())
@@ -220,32 +188,24 @@ impl<
     }
 }
 
-impl<'graph_1, G1: GraphViewOps<'graph_1>, GH1: GraphViewOps<'graph_1>> Ord for EdgeView<G1, GH1> {
-    fn cmp(&self, other: &EdgeView<G1, GH1>) -> Ordering {
+impl<'graph_1, G1: GraphViewOps<'graph_1>> Ord for EdgeView<G1> {
+    fn cmp(&self, other: &EdgeView<G1>) -> Ordering {
         self.id()
             .cmp(&other.id())
             .then(self.edge.time().cmp(&other.edge.time()))
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> ResetFilter<'graph>
-    for EdgeView<G, GH>
-{
-}
-
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<'graph>
-    for EdgeView<G, GH>
-{
-    type BaseGraph = G;
-    type Graph = GH;
+impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
+    type Graph = G;
 
     type ValueType<T>
         = T
     where
         T: 'graph;
     type PropType = Self;
-    type Nodes = NodeView<'graph, G, G>;
-    type Exploded = Edges<'graph, G, GH>;
+    type Nodes = NodeView<'graph, G>;
+    type Exploded = Edges<'graph, G>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -267,7 +227,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
         op: F,
     ) -> Self::Nodes {
         let vid = op(&self.graph, self.edge);
-        NodeView::new_internal(self.base_graph.clone(), vid)
+        NodeView::new_internal(self.graph.clone(), vid)
     }
 
     fn map_exploded<
@@ -278,19 +238,14 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> BaseEdgeViewOps<
         op: F,
     ) -> Self::Exploded {
         let graph1 = self.graph.clone();
-        let graph = self.graph.clone();
-        let base_graph = self.base_graph.clone();
+        let base_graph = self.graph.clone();
         let edge = self.edge;
         let edges = Arc::new(move || op(&graph1, edge).into_dyn_boxed());
-        Edges {
-            graph,
-            base_graph,
-            edges,
-        }
+        Edges { base_graph, edges }
     }
 }
 
-impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
+impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
     fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
         let layer_id = match layer {
             Some(name) => match self.edge.layer() {
@@ -452,9 +407,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G, G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadataOps
-    for EdgeView<G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> InternalMetadataOps for EdgeView<G> {
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
         self.graph.edge_meta().metadata_mapper().get_id(name)
     }
@@ -505,9 +458,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalMetadata
     }
 }
 
-impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporalPropertyViewOps
-    for EdgeView<G, GH>
-{
+impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     fn dtype(&self, id: usize) -> PropType {
         self.graph
             .edge_meta()
@@ -639,24 +590,21 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
         }
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
             let edge = self.graph.core_edge(self.edge.pid());
 
             match self.edge.time() {
                 None => match self.edge.layer() {
-                    None => time_semantics.temporal_edge_prop_last_at(
-                        edge.as_ref(),
-                        &self.graph,
-                        id,
-                        EventTime::start(t),
-                    ),
+                    None => {
+                        time_semantics.temporal_edge_prop_last_at(edge.as_ref(), &self.graph, id, t)
+                    }
                     Some(layer) => time_semantics.temporal_edge_prop_last_at(
                         edge.as_ref(),
                         LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                         id,
-                        EventTime::start(t),
+                        t,
                     ),
                 },
                 Some(ti) => {
@@ -667,7 +615,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
                         ti,
                         layer,
                         id,
-                        EventTime::start(t),
+                        t,
                     )
                 }
             }
@@ -677,9 +625,7 @@ impl<G: BoxableGraphView + Clone, GH: BoxableGraphView + Clone> InternalTemporal
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporalPropertiesOps
-    for EdgeView<G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for EdgeView<G> {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.graph.edge_meta().temporal_prop_mapper().get_id(name)
     }
@@ -710,16 +656,16 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalTemporal
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Eq for EdgeView<G, GH> {}
+impl<'graph, G: GraphViewOps<'graph>> Eq for EdgeView<G> {}
 
-impl<'graph, G1: GraphViewOps<'graph>, GH1: GraphViewOps<'graph>> Hash for EdgeView<G1, GH1> {
+impl<'graph, G1: GraphViewOps<'graph>> Hash for EdgeView<G1> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id().hash(state);
         self.edge.time().hash(state);
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> Debug for EdgeView<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EdgeView")
             .field("src", &self.src().id())
@@ -731,31 +677,27 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Debug for EdgeVi
     }
 }
 
-impl<G, GH> From<EdgeView<G, GH>> for EdgeRef {
-    fn from(value: EdgeView<G, GH>) -> Self {
+impl<G> From<EdgeView<G>> for EdgeRef {
+    fn from(value: EdgeView<G>) -> Self {
         value.edge
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> OneHopFilter<'graph>
-    for EdgeView<G, GH>
+impl<'graph, Current> InternalFilter<'graph> for EdgeView<Current>
+where
+    Current: GraphViewOps<'graph>,
 {
-    type BaseGraph = G;
-    type FilteredGraph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = EdgeView<G, GHH>;
+    type Graph = Current;
+    type Filtered<Next: GraphViewOps<'graph>> = EdgeView<Next>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.graph
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.base_graph
-    }
-
-    fn one_hop_filtered<GHH: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
         &self,
-        filtered_graph: GHH,
-    ) -> Self::Filtered<GHH> {
-        EdgeView::new_filtered(self.base_graph.clone(), filtered_graph, self.edge)
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
+        EdgeView::new_filtered(filtered_graph, self.edge)
     }
 }

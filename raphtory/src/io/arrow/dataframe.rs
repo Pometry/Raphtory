@@ -1,4 +1,5 @@
 use crate::{
+    api::core::utils::time::TryIntoTime,
     errors::{into_load_err, GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
@@ -9,7 +10,7 @@ use arrow::{
 };
 use either::Either;
 use itertools::Itertools;
-use raphtory_core::utils::time::TryIntoTime;
+use raphtory_api::core::storage::timeindex::AsTime;
 use rayon::prelude::*;
 use std::{
     fmt::{Debug, Formatter},
@@ -19,14 +20,20 @@ use std::{
 pub struct DFView<I> {
     pub names: Vec<String>,
     pub chunks: I,
-    pub num_rows: usize,
+    pub num_rows: Option<usize>,
 }
 
 impl<I> Debug for DFView<I> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DFView")
             .field("names", &self.names)
-            .field("num_rows", &self.num_rows)
+            .field(
+                "num_rows",
+                &self
+                    .num_rows
+                    .map(|x| x.to_string())
+                    .unwrap_or("Unknown".to_string()),
+            )
             .finish()
     }
 }
@@ -53,11 +60,12 @@ impl<I> DFView<I> {
         self.names.iter().position(|n| n == name)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.num_rows == 0
+    /// Returns Some(_) only if we know the total number of rows.
+    pub fn is_empty(&self) -> Option<bool> {
+        self.num_rows.map(|x| x == 0)
     }
 
-    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+    pub fn new(names: Vec<String>, chunks: I, num_rows: Option<usize>) -> Self {
         Self {
             names,
             chunks,
@@ -87,7 +95,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))
@@ -98,7 +106,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))
@@ -109,7 +117,7 @@ impl TimeCol {
                 let timestamps = strings
                     .iter()
                     .flatten()
-                    .map(|v| v.try_into_time().map_err(into_load_err))
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
                     .collect::<Result<Vec<i64>, LoadError>>()?;
                 let arr = PrimitiveArray::<Int64Type>::from(timestamps);
                 Ok(Self(arr))

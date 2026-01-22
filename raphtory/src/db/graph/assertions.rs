@@ -1,22 +1,22 @@
 use crate::{
-    db::{
-        api::view::StaticGraphViewOps,
-        graph::views::filter::{
-            internal::{CreateEdgeFilter, CreateNodeFilter},
-            model::{AsEdgeFilter, AsNodeFilter},
-        },
-    },
-    prelude::{
-        EdgePropertyFilterOps, EdgeViewOps, Graph, GraphViewOps, NodePropertyFilterOps, NodeViewOps,
-    },
+    db::api::view::{filter_ops::Filter, StaticGraphViewOps},
+    prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
-
-#[cfg(feature = "search")]
-use crate::prelude::IndexMutationOps;
-use raphtory_api::core::Direction;
+use std::ops::Range;
 
 #[cfg(feature = "search")]
 pub use crate::db::api::view::SearchableGraphOps;
+#[cfg(feature = "search")]
+use crate::prelude::IndexMutationOps;
+use crate::{
+    db::graph::views::{
+        filter::{model::TryAsCompositeFilter, CreateFilter},
+        window_graph::WindowedGraph,
+    },
+    errors::GraphError,
+    prelude::TimeOps,
+};
+use raphtory_api::core::Direction;
 
 pub enum TestGraphVariants {
     Graph,
@@ -53,16 +53,25 @@ pub trait GraphTransformer {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G>;
 }
 
+pub struct WindowGraphTransformer(pub Range<i64>);
+
+impl GraphTransformer for WindowGraphTransformer {
+    type Return<G: StaticGraphViewOps> = WindowedGraph<G>;
+    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
+        graph.window(self.0.start, self.0.end)
+    }
+}
+
 pub trait ApplyFilter {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String>;
 }
 
-pub struct FilterNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(F);
+pub struct FilterNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNodes<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNodes<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
-            .filter_nodes(self.0.clone())
+            .filter(self.0.clone())
             .unwrap()
             .nodes()
             .iter()
@@ -73,14 +82,14 @@ impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNodes<F> 
     }
 }
 
-pub struct FilterNeighbours<F: AsNodeFilter + CreateNodeFilter + Clone>(F, String, Direction);
+pub struct FilterNeighbours<F: TryAsCompositeFilter + CreateFilter + Clone>(F, String, Direction);
 
-impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNeighbours<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNeighbours<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let filter_applied = graph
             .node(self.1.clone())
             .unwrap()
-            .filter_nodes(self.0.clone())
+            .filter(self.0.clone())
             .unwrap();
 
         let mut results = match self.2 {
@@ -96,12 +105,32 @@ impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for FilterNeighbour
     }
 }
 
-pub struct FilterEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(F);
+pub struct SearchNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
 
-impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for FilterEdges<F> {
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchNodes<F> {
+    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+        #[cfg(feature = "search")]
+        {
+            let mut results = graph
+                .search_nodes(self.0.clone(), 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|nv| nv.name())
+                .collect::<Vec<_>>();
+            results.sort();
+            return results;
+        }
+        #[cfg(not(feature = "search"))]
+        Vec::<String>::new()
+    }
+}
+
+pub struct FilterEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
+
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterEdges<F> {
     fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
         let mut results = graph
-            .filter_edges(self.0.clone())
+            .filter(self.0.clone())
             .unwrap()
             .edges()
             .iter()
@@ -112,11 +141,31 @@ impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for FilterEdges<F> 
     }
 }
 
+pub struct SearchEdges<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
+
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SearchEdges<F> {
+    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+        #[cfg(feature = "search")]
+        {
+            let mut results = graph
+                .search_edges(self.0.clone(), 20, 0)
+                .unwrap()
+                .into_iter()
+                .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
+                .collect::<Vec<_>>();
+            results.sort();
+            return results;
+        }
+        #[cfg(not(feature = "search"))]
+        Vec::<String>::new()
+    }
+}
+
 #[track_caller]
 pub fn assert_filter_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -130,13 +179,82 @@ pub fn assert_filter_nodes_results(
     )
 }
 
+fn assert_filter_err_contains<E>(err: GraphError, expected: E)
+where
+    E: AsRef<str>,
+{
+    match err {
+        GraphError::InvalidFilter(msg) => {
+            assert!(
+                msg.contains(expected.as_ref()),
+                "unexpected InvalidFilter message.\nexpected to contain: {}\nactual: {}",
+                expected.as_ref(),
+                msg
+            );
+        }
+        other => panic!("expected InvalidFilter, got: {other:?}"),
+    }
+}
+
+pub fn assert_filter_nodes_err(
+    init_graph: fn(Graph) -> Graph,
+    transform: impl GraphTransformer,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
+    expected: &str,
+    variants: impl Into<Vec<TestGraphVariants>>,
+) {
+    let graph = init_graph(Graph::new());
+    let variants = variants.into();
+
+    for v in variants {
+        match v {
+            TestGraphVariants::Graph => {
+                let graph = transform.apply(graph.clone());
+                let res = graph.filter(filter.clone());
+                assert!(res.is_err(), "expected error, filter was accepted");
+                assert_filter_err_contains(res.err().unwrap(), expected);
+            }
+            TestGraphVariants::PersistentGraph => {
+                let base = graph.persistent_graph();
+                let graph = transform.apply(base);
+                let res = graph.filter(filter.clone());
+                assert!(res.is_err(), "expected error, filter was accepted");
+                assert_filter_err_contains(res.err().unwrap(), expected);
+            }
+            TestGraphVariants::EventDiskGraph => {
+                #[cfg(feature = "storage")]
+                {
+                    let tmp = TempDir::new().unwrap();
+                    let graph = graph.persist_as_disk_graph(tmp.path()).unwrap();
+                    let graph = transform.apply(graph);
+                    let res = graph.filter(filter.clone());
+                    assert!(res.is_err(), "expected error, filter was accepted");
+                    assert_filter_err_contains(res.err().unwrap(), expected);
+                }
+            }
+            TestGraphVariants::PersistentDiskGraph => {
+                #[cfg(feature = "storage")]
+                {
+                    let tmp = TempDir::new().unwrap();
+                    let disk = DiskGraphStorage::from_graph(&graph, &tmp).unwrap();
+                    let graph = disk.into_graph().persistent_graph();
+                    let graph = transform.apply(graph);
+                    let res = graph.filter(filter.clone());
+                    assert!(res.is_err(), "expected error, filter was accepted");
+                    assert_filter_err_contains(res.err().unwrap(), expected);
+                }
+            }
+        }
+    }
+}
+
 #[track_caller]
 pub fn assert_filter_neighbours_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
     node_name: impl AsRef<str>,
     direction: Direction,
-    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -154,7 +272,7 @@ pub fn assert_filter_neighbours_results(
 pub fn assert_search_nodes_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsNodeFilter + CreateNodeFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -175,7 +293,7 @@ pub fn assert_search_nodes_results(
 pub fn assert_filter_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsEdgeFilter + CreateEdgeFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -193,7 +311,7 @@ pub fn assert_filter_edges_results(
 pub fn assert_search_edges_results(
     init_graph: impl FnOnce(Graph) -> Graph,
     transform: impl GraphTransformer,
-    filter: impl AsEdgeFilter + CreateEdgeFilter + Clone,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
     expected: &[&str],
     variants: impl Into<Vec<TestGraphVariants>>,
 ) {
@@ -219,20 +337,33 @@ fn assert_results(
     variants: Vec<TestGraphVariants>,
     apply: impl ApplyFilter,
 ) {
+    fn sorted<I, S>(iter: I) -> Vec<String>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let mut v: Vec<String> = iter.into_iter().map(|s| s.as_ref().to_string()).collect();
+        v.sort();
+        v
+    }
+
     let graph = init_graph(Graph::new());
+
+    let expected = sorted(expected.iter());
+
     for v in variants {
         match v {
             TestGraphVariants::Graph => {
                 pre_transform(&graph);
                 let graph = transform.apply(graph.clone());
-                let result = apply.apply(graph);
+                let result = sorted(apply.apply(graph));
                 assert_eq!(expected, result);
             }
             TestGraphVariants::PersistentGraph => {
                 pre_transform(&graph);
                 let base = graph.persistent_graph();
                 let graph = transform.apply(base);
-                let result = apply.apply(graph);
+                let result = sorted(apply.apply(graph));
                 assert_eq!(expected, result);
             }
             TestGraphVariants::EventDiskGraph => {}
@@ -241,9 +372,9 @@ fn assert_results(
     }
 }
 
-pub fn filter_nodes(graph: &Graph, filter: impl CreateNodeFilter) -> Vec<String> {
+pub fn filter_nodes(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
     let mut results = graph
-        .filter_nodes(filter)
+        .filter(filter)
         .unwrap()
         .nodes()
         .iter()
@@ -253,9 +384,21 @@ pub fn filter_nodes(graph: &Graph, filter: impl CreateNodeFilter) -> Vec<String>
     results
 }
 
-pub fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String> {
+#[cfg(feature = "search")]
+pub fn search_nodes(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<String> {
     let mut results = graph
-        .filter_edges(filter)
+        .search_nodes(filter, 10, 0)
+        .expect("Failed to search nodes")
+        .into_iter()
+        .map(|v| v.name())
+        .collect::<Vec<_>>();
+    results.sort();
+    results
+}
+
+pub fn filter_edges(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
+    let mut results = graph
+        .filter(filter)
         .unwrap()
         .edges()
         .iter()
@@ -266,61 +409,57 @@ pub fn filter_edges(graph: &Graph, filter: impl CreateEdgeFilter) -> Vec<String>
 }
 
 #[cfg(feature = "search")]
-mod search {
-    use super::*;
+pub fn search_edges(graph: &Graph, filter: impl TryAsCompositeFilter) -> Vec<String> {
+    let mut results = graph
+        .search_edges(filter, 10, 0)
+        .expect("Failed to filter edges")
+        .into_iter()
+        .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
+        .collect::<Vec<_>>();
+    results.sort();
+    results
+}
 
-    pub struct SearchNodes<F: AsNodeFilter + CreateNodeFilter + Clone>(pub F);
+pub type EdgeRow = (u64, u64, i64, String, i64);
 
-    impl<F: AsNodeFilter + CreateNodeFilter + Clone> ApplyFilter for SearchNodes<F> {
-        fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-            let mut results = graph
-                .search_nodes(self.0.clone(), 20, 0)
-                .unwrap()
-                .into_iter()
-                .map(|nv| nv.name())
-                .collect::<Vec<_>>();
-            results.sort();
-            results
+pub fn assert_ok_or_missing_edges<T>(
+    edges: &[EdgeRow],
+    res: Result<T, GraphError>,
+    on_ok: impl FnOnce(T),
+) {
+    match res {
+        Ok(v) => on_ok(v),
+        Err(GraphError::PropertyMissingError(name)) => {
+            assert!(
+                edges.is_empty(),
+                "PropertyMissingError({name}) on non-empty graph"
+            );
         }
-    }
-
-    pub struct SearchEdges<F: AsEdgeFilter + CreateEdgeFilter + Clone>(pub F);
-
-    impl<F: AsEdgeFilter + CreateEdgeFilter + Clone> ApplyFilter for SearchEdges<F> {
-        fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
-            let mut results = graph
-                .search_edges(self.0.clone(), 20, 0)
-                .unwrap()
-                .into_iter()
-                .map(|ev| format!("{}->{}", ev.src().name(), ev.dst().name()))
-                .collect::<Vec<_>>();
-            results.sort();
-            results
-        }
-    }
-
-    pub fn search_nodes(graph: &Graph, filter: impl AsNodeFilter) -> Vec<String> {
-        let mut results = graph
-            .search_nodes(filter, 10, 0)
-            .expect("Failed to search nodes")
-            .into_iter()
-            .map(|v| v.name())
-            .collect::<Vec<_>>();
-        results.sort();
-        results
-    }
-
-    pub fn search_edges(graph: &Graph, filter: impl AsEdgeFilter) -> Vec<String> {
-        let mut results = graph
-            .search_edges(filter, 10, 0)
-            .expect("Failed to filter edges")
-            .into_iter()
-            .map(|e| format!("{}->{}", e.src().name(), e.dst().name()))
-            .collect::<Vec<_>>();
-        results.sort();
-        results
+        Err(err) => panic!("Unexpected error from filter: {err:?}"),
     }
 }
 
-#[cfg(feature = "search")]
-pub use search::*;
+pub fn assert_ok_or_missing_nodes<T>(
+    nodes: &[(u64, Option<String>, Option<i64>)],
+    res: Result<T, GraphError>,
+    on_ok: impl FnOnce(T),
+) {
+    match res {
+        Ok(v) => on_ok(v),
+
+        Err(GraphError::PropertyMissingError(name)) => {
+            let property_really_missing = match name.as_str() {
+                "int_prop" => nodes.iter().all(|(_, _, iv)| iv.is_none()),
+                "str_prop" => nodes.iter().all(|(_, sv, _)| sv.is_none()),
+                _ => panic!("Unexpected property {name}"),
+            };
+
+            assert!(
+                property_really_missing,
+                "PropertyMissingError({name}) but at least one node had that property"
+            );
+        }
+
+        Err(err) => panic!("Unexpected error from filter: {err:?}"),
+    }
+}

@@ -248,6 +248,17 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
             .iter_inner_rev(range)
             .filter(move |(t, _)| view.internal_filter_exploded_edge(eid, *t, view.layer_ids()))
     }
+
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
+        if self
+            .view
+            .internal_filter_exploded_edge(self.eid, *ti, self.view.layer_ids())
+        {
+            self.props.at(ti)
+        } else {
+            None
+        }
+    }
 }
 
 pub trait FilteredEdgeStorageOps<'a> {

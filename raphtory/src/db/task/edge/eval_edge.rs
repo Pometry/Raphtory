@@ -7,7 +7,7 @@ use crate::{
         api::{
             properties::Properties,
             state::Index,
-            view::{internal::OneHopFilter, *},
+            view::{internal::InternalFilter, *},
         },
         graph::edge::EdgeView,
         task::{
@@ -23,27 +23,21 @@ use crate::db::{api::properties::Metadata, task::eval_graph::EvalGraph};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 
-pub struct EvalEdgeView<'graph, 'a, G, GH, CS: Clone, S> {
+pub struct EvalEdgeView<'graph, 'a, G, CS: Clone, S> {
     pub(crate) ss: usize,
-    pub(crate) edge: EdgeView<&'graph G, GH>,
+    pub(crate) edge: EdgeView<G>,
     pub(crate) storage: &'graph GraphStorage,
     pub(crate) index: &'graph Index<VID>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
 
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-    > EvalEdgeView<'graph, 'a, G, GH, CS, S>
+impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
+    EvalEdgeView<'graph, 'a, G, CS, S>
 {
     pub(crate) fn new(
         ss: usize,
-        edge: EdgeView<&'graph G, GH>,
+        edge: EdgeView<G>,
         storage: &'graph GraphStorage,
         index: &'graph Index<VID>,
         node_state: Rc<RefCell<EVState<'a, CS>>>,
@@ -60,35 +54,17 @@ impl<
     }
 }
 
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-    > ResetFilter<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
+impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState + 'a>
+    BaseEdgeViewOps<'graph> for EvalEdgeView<'graph, 'a, G, CS, S>
 {
-}
-
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-    > BaseEdgeViewOps<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
-{
-    type BaseGraph = &'graph G;
-    type Graph = GH;
+    type Graph = G;
     type ValueType<T>
         = T
     where
         T: 'graph;
-    type PropType = EdgeView<&'graph G, GH>;
-    type Nodes = EvalNodeView<'graph, 'a, G, S, &'graph G, CS>;
-    type Exploded = EvalEdges<'graph, 'a, G, GH, CS, S>;
+    type PropType = EdgeView<G>;
+    type Nodes = EvalNodeView<'graph, 'a, G, S, CS>;
+    type Exploded = EvalEdges<'graph, 'a, G, CS, S>;
 
     fn map<O: 'graph, F: Fn(&Self::Graph, EdgeRef) -> O + Send + Sync + Clone + 'graph>(
         &self,
@@ -114,7 +90,7 @@ impl<
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
         let storage = self.storage;
-        let base_graph = self.edge.base_graph;
+        let base_graph = self.edge.graph.clone();
         let eval_graph = EvalGraph {
             ss,
             base_graph,
@@ -160,14 +136,8 @@ impl<
     }
 }
 
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-    > Clone for EvalEdgeView<'graph, 'a, G, GH, CS, S>
+impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Clone
+    for EvalEdgeView<'graph, 'a, G, CS, S>
 {
     fn clone(&self) -> Self {
         Self {
@@ -181,32 +151,25 @@ impl<
     }
 }
 
-impl<
-        'graph,
-        'a: 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-        S,
-        CS: ComputeState + 'a,
-    > OneHopFilter<'graph> for EvalEdgeView<'graph, 'a, G, GH, CS, S>
+impl<'graph, 'a: 'graph, Current, S, CS> InternalFilter<'graph>
+    for EvalEdgeView<'graph, 'a, Current, CS, S>
+where
+    'a: 'graph,
+    Current: GraphViewOps<'graph>,
+    CS: ComputeState + 'a,
 {
-    type BaseGraph = &'graph G;
-    type FilteredGraph = GH;
-    type Filtered<GHH: GraphViewOps<'graph>> = EvalEdgeView<'graph, 'a, G, GHH, CS, S>;
+    type Graph = Current;
+    type Filtered<Next: GraphViewOps<'graph>> = EvalEdgeView<'graph, 'a, Next, CS, S>;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn base_graph(&self) -> &Self::Graph {
         &self.edge.graph
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        &self.edge.base_graph
-    }
-
-    fn one_hop_filtered<GHH: GraphViewOps<'graph>>(
+    fn apply_filter<Next: GraphViewOps<'graph>>(
         &self,
-        filtered_graph: GHH,
-    ) -> Self::Filtered<GHH> {
-        let edge = self.edge.one_hop_filtered(filtered_graph);
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
+        let edge = self.edge.apply_filter(filtered_graph);
         EvalEdgeView::new(
             self.ss,
             edge,

@@ -3,9 +3,16 @@ use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
 use rand::{prelude::*, rng};
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
-    db::graph::graph::assert_graph_equal, prelude::*, test_storage, test_utils::test_graph,
+    db::graph::{graph::assert_graph_equal, views::window_graph::WindowedGraph},
+    prelude::*,
+    test_storage,
+    test_utils::test_graph,
 };
-use raphtory_api::core::{entities::GID, utils::logging::global_info_logger};
+use raphtory_api::core::{
+    entities::GID,
+    storage::timeindex::AsTime,
+    utils::{logging::global_info_logger, time::IntoTime},
+};
 use rayon::prelude::*;
 use std::ops::Range;
 use tracing::{error, info};
@@ -384,9 +391,9 @@ fn test_reference() {
     graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
 
     test_storage!(&graph, |graph| {
-        let mut w = graph.window(0, 1);
+        let mut w = WindowedGraph::new(&graph, Some(0.into_time()), Some(1.into_time()));
         assert_eq!(w, graph);
-        w = graph.window(1, 2);
+        w = WindowedGraph::new(&graph, Some(1.into_time()), Some(2.into_time()));
         assert_eq!(w, Graph::new());
     });
 }
@@ -423,7 +430,7 @@ fn test_view_resetting() {
             .edges()
             .window(1, 9)
             .earliest_time()
-            .map(|it| it.collect_vec())
+            .map(|it| it.map(|t_opt| t_opt.map(|t| t.t())).collect_vec())
             .collect_vec();
         assert_eq!(
             res,
@@ -520,24 +527,11 @@ fn test_entity_history() {
     });
 }
 
-pub(crate) mod test_filters_window_graph {
+mod test_filters_window_graph {
     use raphtory::{
-        db::{
-            api::view::StaticGraphViewOps,
-            graph::{assertions::GraphTransformer, views::window_graph::WindowedGraph},
-        },
+        db::{api::view::StaticGraphViewOps, graph::assertions::GraphTransformer},
         prelude::TimeOps,
     };
-    use std::ops::Range;
-
-    struct WindowGraphTransformer(Range<i64>);
-
-    impl GraphTransformer for WindowGraphTransformer {
-        type Return<G: StaticGraphViewOps> = WindowedGraph<G>;
-        fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
-            graph.window(self.0.start, self.0.end)
-        }
-    }
 
     mod test_nodes_filters_window_graph {
         use raphtory::{
@@ -548,21 +542,31 @@ pub(crate) mod test_filters_window_graph {
                         assert_filter_nodes_results, assert_search_nodes_results,
                         TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::{
-                        ComposableFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
-                    },
+                    views::filter::model::ComposableFilter,
                 },
             },
-            prelude::{AdditionOps, PropertyAdditionOps, PropertyFilter},
+            prelude::{AdditionOps, PropertyAdditionOps},
         };
         use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
         use raphtory_storage::mutation::{
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
 
-        use raphtory::prelude::GraphViewOps;
-
-        use crate::test_filters_window_graph::WindowGraphTransformer;
+        use raphtory::{
+            db::{
+                api::view::filter_ops::Filter,
+                graph::{
+                    assertions::WindowGraphTransformer,
+                    views::filter::model::{
+                        node_filter::{ops::NodeFilterOps, NodeFilter},
+                        property_filter::ops::PropertyFilterOps,
+                        PropertyFilterFactory,
+                    },
+                },
+            },
+            errors::GraphError,
+            prelude::{Graph, GraphViewOps, TimeOps},
+        };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {
             let nodes = vec![
@@ -1170,7 +1174,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_property_eq() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1187,7 +1191,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").eq(2i64);
+            let filter = NodeFilter.property("k1").eq(2i64);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1204,7 +1208,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
+            let filter = NodeFilter.property("k2").eq("Paper_Airplane");
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1221,7 +1225,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k3").eq(true);
+            let filter = NodeFilter.property("k3").eq(true);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1238,7 +1242,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").eq(6.0f64);
+            let filter = NodeFilter.property("k4").eq(6.0f64);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1255,7 +1259,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
+            let filter = NodeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
@@ -1288,7 +1292,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_property_eq() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1305,7 +1309,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").eq(2i64);
+            let filter = NodeFilter.property("k1").eq(2i64);
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1322,7 +1326,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
+            let filter = NodeFilter.property("k2").eq("Paper_Airplane");
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1340,7 +1344,7 @@ pub(crate) mod test_filters_window_graph {
             );
 
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("k3").eq(true);
+            let filter = NodeFilter.property("k3").eq(true);
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1357,7 +1361,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").eq(6.0f64);
+            let filter = NodeFilter.property("k4").eq(6.0f64);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1374,7 +1378,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
+            let filter = NodeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
@@ -1408,7 +1412,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_property_ne() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").ne(1u64);
+            let filter = NodeFilter.property("p1").ne(1u64);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1425,7 +1429,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").ne(2i64);
+            let filter = NodeFilter.property("k1").ne(2i64);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1442,7 +1446,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
+            let filter = NodeFilter.property("k2").ne("Paper_Airplane");
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1459,7 +1463,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k3").ne(true);
+            let filter = NodeFilter.property("k3").ne(true);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1476,7 +1480,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k4").ne(6.0f64);
+            let filter = NodeFilter.property("k4").ne(6.0f64);
             let expected_results = vec!["N2", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1492,33 +1496,11 @@ pub(crate) mod test_filters_window_graph {
                 &expected_results,
                 vec![TestGraphVariants::Graph],
             );
-
-            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ]));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_nodes_results(
-                init_graph,
-                WindowGraphTransformer(6..9),
-                filter.clone(),
-                &expected_results,
-                vec![TestGraphVariants::Graph],
-            );
-            // TODO: Search APIs don't support list yet
-            // assert_search_nodes_results(
-            //     init_graph,
-            //     WindowGraphTransformer(6..9),
-            //     filter,
-            //     &expected_results,
-            //     TestVariants::EventOnly,
-            // );
         }
 
         #[test]
         fn test_nodes_filters_pg_for_property_ne() {
-            let filter = PropertyFilter::property("p1").ne(1u64);
+            let filter = NodeFilter.property("p1").ne(1u64);
             let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1535,7 +1517,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").ne(2i64);
+            let filter = NodeFilter.property("k1").ne(2i64);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1552,7 +1534,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
+            let filter = NodeFilter.property("k2").ne("Paper_Airplane");
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1569,7 +1551,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k3").ne(true);
+            let filter = NodeFilter.property("k3").ne(true);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1586,7 +1568,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").ne(6.0f64);
+            let filter = NodeFilter.property("k4").ne(6.0f64);
             let expected_results = vec!["N12", "N2", "N5", "N6", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1602,34 +1584,12 @@ pub(crate) mod test_filters_window_graph {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-
-            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ]));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_nodes_results(
-                init_graph,
-                WindowGraphTransformer(1..9),
-                filter.clone(),
-                &expected_results,
-                vec![TestGraphVariants::PersistentGraph],
-            );
-            // TODO: Search APIs don't support list yet
-            // assert_search_nodes_results(
-            //     init_graph,
-            //     WindowGraphTransformer(1..9),
-            //     filter,
-            //     &expected_results,
-            //     vec![TestGraphVariants::PersistentGraph],
-            // );
         }
 
         #[test]
         fn test_nodes_filters_for_property_lt() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").lt(3u64);
+            let filter = NodeFilter.property("p1").lt(3u64);
             let expected_results = vec!["N1", "N2", "N3", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1646,7 +1606,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").lt(3i64);
+            let filter = NodeFilter.property("k1").lt(3i64);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1663,7 +1623,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k4").lt(10.0f64);
+            let filter = NodeFilter.property("k4").lt(10.0f64);
             let expected_results = vec!["N1", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1683,7 +1643,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_property_lt() {
-            let filter = PropertyFilter::property("p1").lt(3u64);
+            let filter = NodeFilter.property("p1").lt(3u64);
             let expected_results = vec!["N1", "N2", "N3", "N5", "N6", "N7", "N8", "N9"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1700,7 +1660,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").lt(3i64);
+            let filter = NodeFilter.property("k1").lt(3i64);
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1717,7 +1677,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").lt(10.0f64);
+            let filter = NodeFilter.property("k4").lt(10.0f64);
             let expected_results = vec!["N1", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1738,7 +1698,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_property_le() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = NodeFilter.property("p1").le(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1755,7 +1715,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").le(2i64);
+            let filter = NodeFilter.property("k1").le(2i64);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1772,7 +1732,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k4").le(6.0f64);
+            let filter = NodeFilter.property("k4").le(6.0f64);
             let expected_results = vec!["N1", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1792,7 +1752,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_property_le() {
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = NodeFilter.property("p1").le(1u64);
             let expected_results = vec!["N1", "N3", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1809,7 +1769,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").le(2i64);
+            let filter = NodeFilter.property("k1").le(2i64);
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1826,7 +1786,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").le(6.0f64);
+            let filter = NodeFilter.property("k4").le(6.0f64);
             let expected_results = vec!["N1", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1842,34 +1802,12 @@ pub(crate) mod test_filters_window_graph {
                 &expected_results,
                 TestVariants::PersistentOnly,
             );
-
-            let filter = PropertyFilter::property("x").le(Prop::list(vec![
-                Prop::U64(1),
-                Prop::U64(2),
-                Prop::U64(3),
-            ]));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_nodes_results(
-                init_graph,
-                WindowGraphTransformer(1..9),
-                filter.clone(),
-                &expected_results,
-                TestVariants::PersistentOnly,
-            );
-            // TODO: Search APIs don't support list yet
-            // assert_search_nodes_results(
-            //     init_graph,
-            //     WindowGraphTransformer(1..9),
-            //     filter,
-            //     &expected_results,
-            //     TestVariants::PersistentOnly,
-            // );
         }
 
         #[test]
         fn test_nodes_filters_for_property_gt() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = NodeFilter.property("p1").gt(1u64);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1886,7 +1824,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").gt(2i64);
+            let filter = NodeFilter.property("k1").gt(2i64);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1903,7 +1841,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k4").gt(6.0f64);
+            let filter = NodeFilter.property("k4").gt(6.0f64);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1920,32 +1858,25 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("x").gt(Prop::list(vec![
+            let filter = NodeFilter.property("x").gt(Prop::List(Arc::new(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ]));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_nodes_results(
-                init_graph,
-                WindowGraphTransformer(6..9),
-                filter.clone(),
-                &expected_results,
-                vec![TestGraphVariants::Graph],
-            );
-            // TODO: Search APIs don't support list yet
-            // assert_search_nodes_results(
-            //     init_graph,
-            //     WindowGraphTransformer(6..9),
-            //     filter,
-            //     &expected_results,
-            //     TestVariants::EventOnly,
-            // );
+            ])));
+            let graph = init_graph(Graph::new());
+            assert!(matches!(
+                graph.window(1, 9).filter(filter.clone()).unwrap_err(),
+                GraphError::PropertyMissingError(ref name) if name == "x"
+            ));
+            assert!(matches!(
+                graph.persistent_graph().window(1, 9).filter(filter).unwrap_err(),
+                GraphError::PropertyMissingError(ref name) if name == "x"
+            ));
         }
 
         #[test]
         fn test_nodes_filters_pg_for_property_gt() {
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = NodeFilter.property("p1").gt(1u64);
             let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1962,7 +1893,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").gt(2i64);
+            let filter = NodeFilter.property("k1").gt(2i64);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1979,7 +1910,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").gt(6.0f64);
+            let filter = NodeFilter.property("k4").gt(6.0f64);
             let expected_results = vec!["N12", "N2", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2000,7 +1931,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_property_ge() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").ge(1u64);
+            let filter = NodeFilter.property("p1").ge(1u64);
             let expected_results = vec!["N1", "N2", "N3", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2017,7 +1948,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").ge(2i64);
+            let filter = NodeFilter.property("k1").ge(2i64);
             let expected_results = vec!["N1", "N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2034,7 +1965,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k4").ge(6.0f64);
+            let filter = NodeFilter.property("k4").ge(6.0f64);
             let expected_results = vec!["N1", "N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2054,7 +1985,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_property_ge() {
-            let filter = PropertyFilter::property("p1").ge(1u64);
+            let filter = NodeFilter.property("p1").ge(1u64);
             let expected_results = vec![
                 "N1", "N10", "N11", "N12", "N13", "N2", "N3", "N5", "N6", "N7", "N8", "N9",
             ];
@@ -2073,7 +2004,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").ge(2i64);
+            let filter = NodeFilter.property("k1").ge(2i64);
             let expected_results = vec!["N1", "N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2090,7 +2021,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").ge(6.0f64);
+            let filter = NodeFilter.property("k4").ge(6.0f64);
             let expected_results = vec!["N1", "N12", "N2", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2111,7 +2042,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_property_in() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
+            let filter = NodeFilter.property("p1").is_in(vec![2u64.into()]);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2128,7 +2059,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
+            let filter = NodeFilter.property("k1").is_in(vec![2i64.into()]);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2145,7 +2076,9 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
+            let filter = NodeFilter
+                .property("k2")
+                .is_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2162,7 +2095,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
+            let filter = NodeFilter.property("k3").is_in(vec![true.into()]);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2179,7 +2112,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
+            let filter = NodeFilter.property("k4").is_in(vec![6.0f64.into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2199,7 +2132,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_property_in() {
-            let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
+            let filter = NodeFilter.property("p1").is_in(vec![2u64.into()]);
             let expected_results = vec!["N2", "N5", "N8", "N9"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2216,7 +2149,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
+            let filter = NodeFilter.property("k1").is_in(vec![2i64.into()]);
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2233,7 +2166,9 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
+            let filter = NodeFilter
+                .property("k2")
+                .is_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2251,7 +2186,7 @@ pub(crate) mod test_filters_window_graph {
             );
 
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
+            let filter = NodeFilter.property("k3").is_in(vec![true.into()]);
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2268,7 +2203,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
+            let filter = NodeFilter.property("k4").is_in(vec![6.0f64.into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2289,7 +2224,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_property_not_in() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
+            let filter = NodeFilter.property("p1").is_not_in(vec![1u64.into()]);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2306,7 +2241,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
+            let filter = NodeFilter.property("k1").is_not_in(vec![2i64.into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2323,7 +2258,9 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
+            let filter = NodeFilter
+                .property("k2")
+                .is_not_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2340,7 +2277,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
+            let filter = NodeFilter.property("k3").is_not_in(vec![true.into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2357,7 +2294,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
+            let filter = NodeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
             let expected_results = vec!["N2", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2377,7 +2314,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_property_not_in() {
-            let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
+            let filter = NodeFilter.property("p1").is_not_in(vec![1u64.into()]);
             let expected_results = vec!["N10", "N11", "N12", "N13", "N2", "N5", "N8", "N9"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2394,7 +2331,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
+            let filter = NodeFilter.property("k1").is_not_in(vec![2i64.into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2411,7 +2348,9 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
+            let filter = NodeFilter
+                .property("k2")
+                .is_not_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N12", "N2", "N5", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2428,7 +2367,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
+            let filter = NodeFilter.property("k3").is_not_in(vec![true.into()]);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2445,7 +2384,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
+            let filter = NodeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
             let expected_results = vec!["N12", "N2", "N5", "N6", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2466,7 +2405,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_property_is_some() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").is_some();
+            let filter = NodeFilter.property("p1").is_some();
             let expected_results = vec!["N1", "N2", "N3", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2517,7 +2456,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_property_is_some() {
-            let filter = PropertyFilter::property("p1").is_some();
+            let filter = NodeFilter.property("p1").is_some();
             let expected_results = vec![
                 "N1", "N10", "N11", "N12", "N13", "N2", "N3", "N5", "N6", "N7", "N8", "N9",
             ];
@@ -2573,9 +2512,10 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_for_props_added_at_different_times() {
-            let filter = PropertyFilter::property("q1")
+            let filter = NodeFilter
+                .property("q1")
                 .eq(0u64)
-                .and(PropertyFilter::property("p1").eq(3u64));
+                .and(NodeFilter.property("p1").eq(3u64));
             let expected_results = vec!["N10", "N11", "N12", "N13"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2595,9 +2535,10 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_props_added_at_different_times() {
-            let filter = PropertyFilter::property("q1")
+            let filter = NodeFilter
+                .property("q1")
                 .eq(0u64)
-                .and(PropertyFilter::property("p1").eq(3u64));
+                .and(NodeFilter.property("p1").eq(3u64));
             let expected_results = vec!["N10", "N11", "N12", "N13"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2618,7 +2559,9 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_fuzzy_search() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("k2").fuzzy_search("Paper_Airpla", 2, false);
+            let filter = NodeFilter
+                .property("k2")
+                .fuzzy_search("Paper_Airpla", 2, false);
             let expected_results = vec!["N1"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2638,7 +2581,9 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_fuzzy_search() {
-            let filter = PropertyFilter::property("k2").fuzzy_search("Paper_Air", 5, false);
+            let filter = NodeFilter
+                .property("k2")
+                .fuzzy_search("Paper_Air", 5, false);
             let expected_results = vec!["N1", "N2", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2659,7 +2604,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_fuzzy_search_prefix_match() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
+            let filter = NodeFilter.property("k2").fuzzy_search("Pa", 2, true);
             let expected_results = vec!["N1", "N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2676,7 +2621,7 @@ pub(crate) mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
+            let filter = NodeFilter.property("k2").fuzzy_search("Pa", 2, false);
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_graph,
@@ -2696,7 +2641,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_fuzzy_search_prefix_match() {
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
+            let filter = NodeFilter.property("k2").fuzzy_search("Pa", 2, true);
             let expected_results = vec!["N1", "N2", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -2713,7 +2658,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
+            let filter = NodeFilter.property("k2").fuzzy_search("Pa", 2, false);
             let expected_results = Vec::<&str>::new();
             assert_filter_nodes_results(
                 init_graph,
@@ -2735,22 +2680,23 @@ pub(crate) mod test_filters_window_graph {
     mod test_edges_filters_window_graph {
         use raphtory::{
             db::{
-                api::view::StaticGraphViewOps,
+                api::view::{filter_ops::Filter, StaticGraphViewOps},
                 graph::{
                     assertions::{
                         assert_filter_edges_results, assert_search_edges_results,
-                        TestGraphVariants, TestVariants,
+                        TestGraphVariants, TestVariants, WindowGraphTransformer,
                     },
                     views::filter::model::{
-                        ComposableFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                        edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
+                        property_filter::ops::PropertyFilterOps, ComposableFilter,
+                        PropertyFilterFactory,
                     },
                 },
             },
-            prelude::{AdditionOps, GraphViewOps, PropertyAdditionOps, PropertyFilter},
+            errors::GraphError,
+            prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, TimeOps, NO_PROPS},
         };
         use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
-
-        use crate::test_filters_window_graph::WindowGraphTransformer;
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {
             let edges = vec![
@@ -2963,6 +2909,10 @@ pub(crate) mod test_filters_window_graph {
                     .add_metadata(props, layer)
                     .unwrap();
             }
+
+            graph.add_node(1, "N1", NO_PROPS, None).unwrap();
+            graph.add_node(2, "N2", NO_PROPS, None).unwrap();
+            graph.add_node(3, "N3", NO_PROPS, None).unwrap();
 
             graph
         }
@@ -3201,7 +3151,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_eq() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3218,7 +3168,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").eq(2i64);
+            let filter = EdgeFilter.property("k1").eq(2i64);
             let expected_results = vec!["N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -3235,7 +3185,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
+            let filter = EdgeFilter.property("k2").eq("Paper_Airplane");
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3252,7 +3202,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k3").eq(true);
+            let filter = EdgeFilter.property("k3").eq(true);
             let expected_results = vec!["N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -3269,7 +3219,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").eq(6.0f64);
+            let filter = EdgeFilter.property("k4").eq(6.0f64);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3286,7 +3236,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
+            let filter = EdgeFilter.property("x").eq(Prop::List(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
@@ -3321,7 +3271,7 @@ pub(crate) mod test_filters_window_graph {
         fn test_edges_filters_pg_for_property_eq() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -3338,7 +3288,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").eq(2i64);
+            let filter = EdgeFilter.property("k1").eq(2i64);
 
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
@@ -3356,7 +3306,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").eq("Paper_Airplane");
+            let filter = EdgeFilter.property("k2").eq("Paper_Airplane");
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3373,7 +3323,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k3").eq(true);
+            let filter = EdgeFilter.property("k3").eq(true);
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -3390,7 +3340,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").eq(6.0f64);
+            let filter = EdgeFilter.property("k4").eq(6.0f64);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3407,7 +3357,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").eq(Prop::list(vec![
+            let filter = EdgeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
@@ -3440,7 +3390,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_ne() {
-            let filter = PropertyFilter::property("p1").ne(1u64);
+            let filter = EdgeFilter.property("p1").ne(1u64);
             let expected_results = vec!["N2->N3", "N5->N6"];
             assert_filter_edges_results(
                 init_graph,
@@ -3457,7 +3407,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").ne(2i64);
+            let filter = EdgeFilter.property("k1").ne(2i64);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3474,7 +3424,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
+            let filter = EdgeFilter.property("k2").ne("Paper_Airplane");
             let expected_results = vec!["N2->N3", "N5->N6"];
             assert_filter_edges_results(
                 init_graph,
@@ -3491,7 +3441,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k3").ne(true);
+            let filter = EdgeFilter.property("k3").ne(true);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3508,7 +3458,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").ne(6.0f64);
+            let filter = EdgeFilter.property("k4").ne(6.0f64);
             let expected_results = vec!["N2->N3", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3524,34 +3474,12 @@ pub(crate) mod test_filters_window_graph {
                 &expected_results,
                 TestVariants::EventOnly,
             );
-
-            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ]));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_edges_results(
-                init_graph,
-                WindowGraphTransformer(1..9),
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            // TODO: Search APIs don't support list yet
-            // assert_search_edges_results(
-            //     init_graph2,
-            //     WindowGraphTransformer(1..9),
-            //     filter.clone(),
-            //     &expected_results,
-            //     TestVariants::EventOnly,
-            // );
         }
 
         #[test]
         fn test_edges_filters_pg_for_property_ne() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").ne(1u64);
+            let filter = EdgeFilter.property("p1").ne(1u64);
             let expected_results = vec![
                 "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                 "N9->N10",
@@ -3571,7 +3499,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").ne(2i64);
+            let filter = EdgeFilter.property("k1").ne(2i64);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3588,7 +3516,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").ne("Paper_Airplane");
+            let filter = EdgeFilter.property("k2").ne("Paper_Airplane");
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -3605,7 +3533,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k3").ne(true);
+            let filter = EdgeFilter.property("k3").ne(true);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3622,7 +3550,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").ne(6.0f64);
+            let filter = EdgeFilter.property("k4").ne(6.0f64);
             let expected_results =
                 vec!["N12->N13", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
@@ -3640,7 +3568,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("x").ne(Prop::list(vec![
+            let filter = EdgeFilter.property("x").ne(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
@@ -3665,7 +3593,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_lt() {
-            let filter = PropertyFilter::property("p1").lt(3u64);
+            let filter = EdgeFilter.property("p1").lt(3u64);
             let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3682,7 +3610,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").lt(3i64);
+            let filter = EdgeFilter.property("k1").lt(3i64);
             let expected_results = vec!["N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -3699,7 +3627,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").lt(10.0f64);
+            let filter = EdgeFilter.property("k4").lt(10.0f64);
             let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3720,7 +3648,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_edges_filters_pg_for_property_lt() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").lt(3u64);
+            let filter = EdgeFilter.property("p1").lt(3u64);
             let expected_results = vec![
                 "N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
             ];
@@ -3739,7 +3667,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").lt(3i64);
+            let filter = EdgeFilter.property("k1").lt(3i64);
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -3756,7 +3684,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").lt(10.0f64);
+            let filter = EdgeFilter.property("k4").lt(10.0f64);
             let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3776,7 +3704,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_le() {
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = EdgeFilter.property("p1").le(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3793,7 +3721,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").le(2i64);
+            let filter = EdgeFilter.property("k1").le(2i64);
             let expected_results = vec!["N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -3810,7 +3738,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").le(6.0f64);
+            let filter = EdgeFilter.property("k4").le(6.0f64);
             let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3831,7 +3759,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_edges_filters_pg_for_property_le() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = EdgeFilter.property("p1").le(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -3848,7 +3776,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").le(2i64);
+            let filter = EdgeFilter.property("k1").le(2i64);
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -3865,7 +3793,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").le(6.0f64);
+            let filter = EdgeFilter.property("k4").le(6.0f64);
             let expected_results = vec!["N1->N2", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3885,7 +3813,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_gt() {
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = EdgeFilter.property("p1").gt(1u64);
             let expected_results = vec!["N2->N3", "N5->N6"];
             assert_filter_edges_results(
                 init_graph,
@@ -3902,7 +3830,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").gt(2i64);
+            let filter = EdgeFilter.property("k1").gt(2i64);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3919,7 +3847,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").gt(6.0f64);
+            let filter = EdgeFilter.property("k4").gt(6.0f64);
             let expected_results = vec!["N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -3936,31 +3864,26 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("x").gt(Prop::List(
-                vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)].into(),
+            let filter = EdgeFilter.property("x").gt(Prop::List(Arc::new(vec![
+                Prop::U64(1),
+                Prop::U64(6),
+                Prop::U64(9),
+            ])));
+            let graph = init_graph(Graph::new());
+            assert!(matches!(
+                graph.window(1, 9).filter(filter.clone()).unwrap_err(),
+                GraphError::PropertyMissingError(ref name) if name == "x"
             ));
-            let expected_results = Vec::<&str>::new();
-            assert_filter_edges_results(
-                init_graph,
-                WindowGraphTransformer(1..9),
-                filter.clone(),
-                &expected_results,
-                TestVariants::EventOnly,
-            );
-            // TODO: Search APIs don't support list yet
-            // assert_search_edges_results(
-            //     init_graph,
-            //     WindowGraphTransformer(1..9),
-            //     filter,
-            //     &expected_results,
-            //     TestVariants::EventOnly,
-            // );
+            assert!(matches!(
+                graph.persistent_graph().window(1, 9).filter(filter).unwrap_err(),
+                GraphError::PropertyMissingError(ref name) if name == "x"
+            ));
         }
 
         #[test]
         fn test_edges_filters_pg_for_property_gt() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = EdgeFilter.property("p1").gt(1u64);
             let expected_results = vec![
                 "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                 "N9->N10",
@@ -3980,7 +3903,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").gt(2i64);
+            let filter = EdgeFilter.property("k1").gt(2i64);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3997,7 +3920,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").gt(6.0f64);
+            let filter = EdgeFilter.property("k4").gt(6.0f64);
             let expected_results = vec!["N12->N13", "N2->N3", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -4017,7 +3940,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_ge() {
-            let filter = PropertyFilter::property("p1").ge(1u64);
+            let filter = EdgeFilter.property("p1").ge(1u64);
             let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -4034,7 +3957,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").ge(2i64);
+            let filter = EdgeFilter.property("k1").ge(2i64);
             let expected_results = vec!["N1->N2", "N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -4051,7 +3974,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").ge(6.0f64);
+            let filter = EdgeFilter.property("k4").ge(6.0f64);
             let expected_results = vec!["N1->N2", "N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -4072,7 +3995,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_edges_filters_pg_for_property_ge() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").ge(1u64);
+            let filter = EdgeFilter.property("p1").ge(1u64);
             let expected_results = vec![
                 "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N3->N4",
                 "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
@@ -4092,7 +4015,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").ge(2i64);
+            let filter = EdgeFilter.property("k1").ge(2i64);
             let expected_results =
                 vec!["N1->N2", "N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
@@ -4110,7 +4033,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").ge(6.0f64);
+            let filter = EdgeFilter.property("k4").ge(6.0f64);
             let expected_results = vec!["N1->N2", "N12->N13", "N2->N3", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -4130,7 +4053,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_in() {
-            let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
+            let filter = EdgeFilter.property("p1").is_in(vec![2u64.into()]);
             let expected_results = vec!["N2->N3", "N5->N6"];
             assert_filter_edges_results(
                 init_graph,
@@ -4147,7 +4070,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
+            let filter = EdgeFilter.property("k1").is_in(vec![2i64.into()]);
             let expected_results = vec!["N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -4164,7 +4087,9 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
+            let filter = EdgeFilter
+                .property("k2")
+                .is_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4181,7 +4106,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
+            let filter = EdgeFilter.property("k3").is_in(vec![true.into()]);
             let expected_results = vec!["N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -4198,7 +4123,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
+            let filter = EdgeFilter.property("k4").is_in(vec![6.0f64.into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4219,7 +4144,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_edges_filters_pg_for_property_in() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").is_in(vec![2u64.into()]);
+            let filter = EdgeFilter.property("p1").is_in(vec![2u64.into()]);
             let expected_results = vec!["N2->N3", "N5->N6", "N8->N9", "N9->N10"];
             assert_filter_edges_results(
                 init_graph,
@@ -4236,7 +4161,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").is_in(vec![2i64.into()]);
+            let filter = EdgeFilter.property("k1").is_in(vec![2i64.into()]);
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -4253,7 +4178,9 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").is_in(vec!["Paper_Airplane".into()]);
+            let filter = EdgeFilter
+                .property("k2")
+                .is_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4270,7 +4197,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k3").is_in(vec![true.into()]);
+            let filter = EdgeFilter.property("k3").is_in(vec![true.into()]);
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -4287,7 +4214,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").is_in(vec![6.0f64.into()]);
+            let filter = EdgeFilter.property("k4").is_in(vec![6.0f64.into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4307,7 +4234,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_not_in() {
-            let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
+            let filter = EdgeFilter.property("p1").is_not_in(vec![1u64.into()]);
             let expected_results = vec!["N2->N3", "N5->N6"];
             assert_filter_edges_results(
                 init_graph,
@@ -4324,7 +4251,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
+            let filter = EdgeFilter.property("k1").is_not_in(vec![2i64.into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4341,7 +4268,9 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
+            let filter = EdgeFilter
+                .property("k2")
+                .is_not_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N2->N3", "N5->N6"];
             assert_filter_edges_results(
                 init_graph,
@@ -4358,7 +4287,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
+            let filter = EdgeFilter.property("k3").is_not_in(vec![true.into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4375,7 +4304,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
+            let filter = EdgeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
             let expected_results = vec!["N2->N3", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -4396,7 +4325,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_edges_filters_pg_for_property_not_in() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").is_not_in(vec![1u64.into()]);
+            let filter = EdgeFilter.property("p1").is_not_in(vec![1u64.into()]);
             let expected_results = vec![
                 "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N8->N9",
                 "N9->N10",
@@ -4416,7 +4345,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k1").is_not_in(vec![2i64.into()]);
+            let filter = EdgeFilter.property("k1").is_not_in(vec![2i64.into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4433,7 +4362,9 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").is_not_in(vec!["Paper_Airplane".into()]);
+            let filter = EdgeFilter
+                .property("k2")
+                .is_not_in(vec!["Paper_Airplane".into()]);
             let expected_results = vec!["N12->N13", "N2->N3", "N5->N6", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
                 init_graph,
@@ -4450,7 +4381,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k3").is_not_in(vec![true.into()]);
+            let filter = EdgeFilter.property("k3").is_not_in(vec![true.into()]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4467,7 +4398,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k4").is_not_in(vec![6.0f64.into()]);
+            let filter = EdgeFilter.property("k4").is_not_in(vec![6.0f64.into()]);
             let expected_results =
                 vec!["N12->N13", "N2->N3", "N5->N6", "N6->N7", "N7->N8", "N8->N9"];
             assert_filter_edges_results(
@@ -4488,7 +4419,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_property_is_some() {
-            let filter = PropertyFilter::property("p1").is_some();
+            let filter = EdgeFilter.property("p1").is_some();
             let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -4509,7 +4440,7 @@ pub(crate) mod test_filters_window_graph {
         #[test]
         fn test_edges_filters_pg_for_property_is_some() {
             // TODO: Const properties not supported for disk_graph.
-            let filter = PropertyFilter::property("p1").is_some();
+            let filter = EdgeFilter.property("p1").is_some();
             let expected_results = vec![
                 "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N2->N3", "N3->N4",
                 "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",
@@ -4555,7 +4486,9 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_fuzzy_search() {
-            let filter = PropertyFilter::property("k2").fuzzy_search("Paper_Airpla", 2, false);
+            let filter = EdgeFilter
+                .property("k2")
+                .fuzzy_search("Paper_Airpla", 2, false);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -4577,7 +4510,7 @@ pub(crate) mod test_filters_window_graph {
         #[ignore]
         fn test_edges_filters_pg_fuzzy_search() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("k2").fuzzy_search("Paper_", 2, false);
+            let filter = EdgeFilter.property("k2").fuzzy_search("Paper_", 2, false);
             let expected_results = vec!["N1->N2", "N2->N3", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -4598,7 +4531,7 @@ pub(crate) mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_fuzzy_search_prefix_match() {
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
+            let filter = EdgeFilter.property("k2").fuzzy_search("Pa", 2, true);
             let expected_results = vec!["N1->N2", "N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -4615,7 +4548,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
+            let filter = EdgeFilter.property("k2").fuzzy_search("Pa", 2, true);
             let expected_results = vec!["N1->N2", "N2->N3"];
             assert_filter_edges_results(
                 init_graph,
@@ -4637,7 +4570,7 @@ pub(crate) mod test_filters_window_graph {
         #[ignore]
         fn test_edges_filters_pg_fuzzy_search_prefix_match() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, true);
+            let filter = EdgeFilter.property("k2").fuzzy_search("Pa", 2, true);
             let expected_results = vec![
                 "N1->N2", "N12->N13", "N13->N14", "N2->N3", "N5->N6", "N7->N8", "N8->N9",
             ];
@@ -4649,7 +4582,7 @@ pub(crate) mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = PropertyFilter::property("k2").fuzzy_search("Pa", 2, false);
+            let filter = EdgeFilter.property("k2").fuzzy_search("Pa", 2, false);
             let expected_results = Vec::<&str>::new();
             assert_search_edges_results(
                 init_graph,

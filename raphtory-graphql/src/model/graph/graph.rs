@@ -4,11 +4,12 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{EdgeFilter, GraphViewCollection, NodeFilter},
+            filtering::{GqlEdgeFilter, GqlNodeFilter, GraphViewCollection},
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
             property::{GqlMetadata, GqlProperties},
+            timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlGraphWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
@@ -42,6 +43,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
@@ -201,12 +203,15 @@ impl GqlGraph {
     }
 
     /// Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
-    async fn window(&self, start: i64, end: i64) -> GqlGraph {
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> GqlGraph {
+        let start = start.into_time();
+        let end = end.into_time();
         self.apply(|g| g.window(start, end))
     }
 
     /// Creates a view including all events at a specified time.
-    async fn at(&self, time: i64) -> GqlGraph {
+    async fn at(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.at(time))
     }
 
@@ -217,7 +222,8 @@ impl GqlGraph {
     }
 
     /// Create a view including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> GqlGraph {
+    async fn snapshot_at(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.snapshot_at(time))
     }
 
@@ -227,27 +233,33 @@ impl GqlGraph {
     }
 
     /// Create a view including all events before a specified end (exclusive).
-    async fn before(&self, time: i64) -> GqlGraph {
+    async fn before(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.before(time))
     }
 
     /// Create a view including all events after a specified start (exclusive).
-    async fn after(&self, time: i64) -> GqlGraph {
+    async fn after(&self, time: GqlTimeInput) -> GqlGraph {
+        let time = time.into_time();
         self.apply(|g| g.after(time))
     }
 
     /// Shrink both the start and end of the window.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
+    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        let start = start.into_time();
+        let end = end.into_time();
         self.apply(|g| g.shrink_window(start, end))
     }
 
     /// Set the start of the window to the larger of the specified value or current start.
-    async fn shrink_start(&self, start: i64) -> Self {
+    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+        let start = start.into_time();
         self.apply(|g| g.shrink_start(start))
     }
 
     /// Set the end of the window to the smaller of the specified value or current end.
-    async fn shrink_end(&self, end: i64) -> Self {
+    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+        let end = end.into_time();
         self.apply(|g| g.shrink_end(end))
     }
 
@@ -270,30 +282,30 @@ impl GqlGraph {
         Ok(self.path.last_updated_async().await?)
     }
 
-    /// Returns the timestamp of the earliest activity in the graph.
-    async fn earliest_time(&self) -> Option<i64> {
+    /// Returns the time entry of the earliest activity in the graph.
+    async fn earliest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.earliest_time()).await
+        blocking_compute(move || self_clone.graph.earliest_time().into()).await
     }
 
-    /// Returns the timestamp of the latest activity in the graph.
-    async fn latest_time(&self) -> Option<i64> {
+    /// Returns the time entry of the latest activity in the graph.
+    async fn latest_time(&self) -> GqlEventTime {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.latest_time()).await
+        blocking_compute(move || self_clone.graph.latest_time().into()).await
     }
 
     /// Returns the start time of the window. Errors if there is no window.
-    async fn start(&self) -> Option<i64> {
-        self.graph.start()
+    async fn start(&self) -> GqlEventTime {
+        self.graph.start().into()
     }
 
     /// Returns the end time of the window. Errors if there is no window.
-    async fn end(&self) -> Option<i64> {
-        self.graph.end()
+    async fn end(&self) -> GqlEventTime {
+        self.graph.end().into()
     }
 
     /// Returns the earliest time that any edge in this graph is valid.
-    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+    async fn earliest_edge_time(&self, include_negative: Option<bool>) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -302,15 +314,16 @@ impl GqlGraph {
                 .edges()
                 .earliest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
-                .min();
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
+                .min()
+                .into();
             all_edges
         })
         .await
     }
 
-    /// /// Returns the latest time that any edge in this graph is valid.
-    async fn latest_edge_time(&self, include_negative: Option<bool>) -> Option<i64> {
+    /// Returns the latest time that any edge in this graph is valid.
+    async fn latest_edge_time(&self, include_negative: Option<bool>) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -319,8 +332,9 @@ impl GqlGraph {
                 .edges()
                 .latest_time()
                 .into_iter()
-                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time >= 0))
-                .max();
+                .filter_map(|edge_time| edge_time.filter(|&time| include_negative || time.t() >= 0))
+                .max()
+                .into();
 
             all_edges
         })
@@ -385,12 +399,20 @@ impl GqlGraph {
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
-    async fn nodes(&self, ids: Option<Vec<String>>) -> GqlNodes {
-        let nodes = self.graph.nodes();
-        match ids {
-            None => GqlNodes::new(nodes),
-            Some(ids) => GqlNodes::new(blocking_compute(move || nodes.id_filter(ids)).await),
+    async fn nodes(&self, select: Option<GqlNodeFilter>) -> Result<GqlNodes, GraphError> {
+        let nn = self.graph.nodes();
+
+        if let Some(sel) = select {
+            let nf: CompositeNodeFilter = sel.try_into()?;
+            let narrowed = blocking_compute({
+                let nn_clone = nn.clone();
+                move || nn_clone.select(nf)
+            })
+            .await?;
+            return Ok(GqlNodes::new(narrowed));
         }
+
+        Ok(GqlNodes::new(nn))
     }
 
     /// Gets the edge with the specified source and destination nodes.
@@ -399,8 +421,16 @@ impl GqlGraph {
     }
 
     /// Gets the edges in the graph.
-    async fn edges<'a>(&self) -> GqlEdges {
-        GqlEdges::new(self.graph.edges_unlocked())
+    async fn edges<'a>(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+        let base = self.graph.edges_unlocked();
+
+        if let Some(sel) = select {
+            let ef: CompositeEdgeFilter = sel.try_into()?;
+            let narrowed = blocking_compute(move || base.select(ef)).await?;
+            return Ok(GqlEdges::new(narrowed));
+        }
+
+        Ok(GqlEdges::new(base))
     }
 
     ////////////////////////
@@ -497,11 +527,11 @@ impl GqlGraph {
         .await
     }
 
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
+    async fn filter_nodes(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_graph = self_clone.graph.filter_nodes(filter)?;
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),
@@ -510,11 +540,11 @@ impl GqlGraph {
         .await
     }
 
-    async fn edge_filter(&self, filter: EdgeFilter) -> Result<Self, GraphError> {
+    async fn filter_edges(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            let filter: CompositeEdgeFilter = filter.try_into()?;
-            let filtered_graph = self_clone.graph.filter_edges(filter)?;
+            let filter: CompositeEdgeFilter = expr.try_into()?;
+            let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(GqlGraph::new(
                 self_clone.path.clone(),
                 filtered_graph.into_dynamic(),
@@ -552,7 +582,7 @@ impl GqlGraph {
     /// Uses Tantivy's exact search.
     async fn search_nodes(
         &self,
-        filter: NodeFilter,
+        filter: GqlNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlNode>, GraphError> {
@@ -578,7 +608,7 @@ impl GqlGraph {
     /// Uses Tantivy's exact search.
     async fn search_edges(
         &self,
-        filter: EdgeFilter,
+        filter: GqlEdgeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlEdge>, GraphError> {
@@ -616,7 +646,6 @@ impl GqlGraph {
                 GraphViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
                 }
-                GraphViewCollection::Layer(layer) => return_view.layer(layer).await,
                 GraphViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 GraphViewCollection::Subgraph(nodes) => return_view.subgraph(nodes).await,
                 GraphViewCollection::SubgraphNodeTypes(node_types) => {
@@ -656,8 +685,8 @@ impl GqlGraph {
                 }
                 GraphViewCollection::ShrinkStart(start) => return_view.shrink_start(start).await,
                 GraphViewCollection::ShrinkEnd(end) => return_view.shrink_end(end).await,
-                GraphViewCollection::NodeFilter(filter) => return_view.node_filter(filter).await?,
-                GraphViewCollection::EdgeFilter(filter) => return_view.edge_filter(filter).await?,
+                GraphViewCollection::NodeFilter(filter) => return_view.filter_nodes(filter).await?,
+                GraphViewCollection::EdgeFilter(filter) => return_view.filter_edges(filter).await?,
             };
         }
         Ok(return_view)

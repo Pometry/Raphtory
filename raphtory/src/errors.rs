@@ -7,14 +7,12 @@ use itertools::Itertools;
 use parquet::errors::ParquetError;
 use raphtory_api::core::entities::{
     properties::prop::{PropError, PropType},
+    properties::prop::{DeserialisationError, InvalidPropertyTypeErr},
     GidType, GID, VID,
 };
-use raphtory_core::{
-    entities::{
-        graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        properties::props::{MetadataError, TPropError},
-    },
-    utils::time::ParseTimeError,
+use raphtory_core::entities::{
+    graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
+    properties::props::{MetadataError, TPropError},
 };
 use raphtory_storage::mutation::MutationError;
 use std::{
@@ -25,10 +23,11 @@ use std::{
     sync::Arc,
     time::SystemTimeError,
 };
+use tracing::error;
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-
+use raphtory_api::core::utils::time::ParseTimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
@@ -219,6 +218,9 @@ pub enum GraphError {
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
 
+    #[error("Metadata {0} does not exist")]
+    MetadataMissingError(String),
+
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
@@ -312,6 +314,13 @@ pub enum GraphError {
     #[error("The time function is only available once an edge has been exploded via .explode(). You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")]
     TimeAPIError,
 
+    #[error("Timestamp '{timestamp}' is out of range for DateTime conversion.")]
+    DateTimeConversionError {
+        #[source]
+        source: TimeError,
+        timestamp: i64,
+    },
+
     #[error("Illegal set error {0}")]
     IllegalSet(String),
 
@@ -375,6 +384,9 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
+    #[error("Node filter expected")]
+    NotNodeFilter,
+
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
 
@@ -398,6 +410,9 @@ pub enum GraphError {
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
+
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
 
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
@@ -487,6 +502,17 @@ impl<A: Debug> From<IllegalSet<A>> for GraphError {
     }
 }
 
+impl From<TimeError> for GraphError {
+    fn from(error: TimeError) -> Self {
+        match error {
+            TimeError::OutOfRange(timestamp) => Self::DateTimeConversionError {
+                source: error,
+                timestamp,
+            },
+        }
+    }
+}
+
 impl From<GraphError> for io::Error {
     fn from(error: GraphError) -> Self {
         io::Error::other(error)
@@ -532,5 +558,17 @@ mod test {
 
         let res = inner().err().unwrap();
         println!("{}", res);
+    }
+}
+
+impl From<InvalidPropertyTypeErr> for LoadError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        LoadError::InvalidPropertyType(value.0)
+    }
+}
+
+impl From<InvalidPropertyTypeErr> for GraphError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        GraphError::from(LoadError::from(value))
     }
 }

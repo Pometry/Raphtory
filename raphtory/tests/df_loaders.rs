@@ -69,7 +69,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
@@ -112,7 +112,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
@@ -705,7 +705,10 @@ mod parquet_tests {
     use chrono::{DateTime, Utc};
     use proptest::prelude::*;
     use raphtory::{
-        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        db::graph::{
+            graph::{assert_graph_equal, assert_graph_equal_timestamps},
+            views::deletion_graph::PersistentGraph,
+        },
         prelude::*,
         test_utils::{
             build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn, build_props_dyn,
@@ -1072,14 +1075,14 @@ mod parquet_tests {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     fn check_parquet_encoding_deletions(g: PersistentGraph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = PersistentGraph::decode_parquet(&temp_dir, None).unwrap();
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     #[test]
@@ -1110,7 +1113,7 @@ mod parquet_tests {
         build_and_check_parquet_encoding(nodes.into());
     }
 
-    fn check_graph_props(nf: PropUpdatesFixture) {
+    fn check_graph_props(nf: PropUpdatesFixture, only_timestamps: bool) {
         let g = Graph::new();
         let temp_dir = tempfile::tempdir().unwrap();
         for (t, props) in nf.t_props {
@@ -1120,7 +1123,11 @@ mod parquet_tests {
         g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
-        assert_graph_equal(&g, &g2);
+        if only_timestamps {
+            assert_graph_equal_timestamps(&g, &g2)
+        } else {
+            assert_graph_equal(&g, &g2);
+        }
     }
 
     #[test]
@@ -1129,7 +1136,7 @@ mod parquet_tests {
             t_props: vec![(0, vec![("a".to_string(), Prop::U8(5))])],
             c_props: vec![("b".to_string(), Prop::str("baa"))],
         };
-        check_graph_props(props)
+        check_graph_props(props, true)
     }
 
     #[test]
@@ -1153,7 +1160,7 @@ mod parquet_tests {
     #[test]
     fn write_graph_props_to_parquet() {
         proptest!(|(props in build_props_dyn(0..=10))| {
-            check_graph_props(props);
+            check_graph_props(props, true);
         });
     }
 
@@ -1163,7 +1170,7 @@ mod parquet_tests {
             t_props: vec![(1, vec![])],
             c_props: vec![],
         };
-        check_graph_props(nf);
+        check_graph_props(nf, false);
     }
 
     #[test]

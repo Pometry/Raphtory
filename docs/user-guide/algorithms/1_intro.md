@@ -21,8 +21,8 @@ df = pd.read_csv("../data/lotr.csv")
 print(df)
 
 lotr_graph = rp.Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df,time="time", src="src", dst="dst"
+lotr_graph.load_edges(
+    data=df, time="time", src="src", dst="dst"
 )
 ```
 ///

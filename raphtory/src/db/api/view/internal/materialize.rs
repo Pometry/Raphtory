@@ -133,11 +133,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.edge_time_semantics())
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<EventTime> {
         for_all!(self, g => g.view_start())
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<EventTime> {
         for_all!(self, g => g.view_end())
     }
 
@@ -149,11 +149,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.latest_time_global())
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         for_all!(self, g => g.earliest_time_window(start, end))
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         for_all!(self, g => g.latest_time_window(start, end))
     }
 
@@ -165,15 +165,15 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.temporal_prop_iter(prop_id))
     }
 
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
         for_all!(self, g => g.has_temporal_prop_window(prop_id, w))
     }
 
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: EventTime,
+        end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
     }
@@ -181,8 +181,8 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
     fn temporal_prop_iter_window_rev(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: EventTime,
+        end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window_rev(prop_id, start, end))
     }
@@ -199,95 +199,9 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         &self,
         prop_id: usize,
         t: EventTime,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_last_at_window(prop_id, t, w))
-    }
-}
-
-impl NodeHistoryFilter for MaterializedGraph {
-    fn is_node_prop_update_available(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-    ) -> bool {
-        for_all!(self, g => g.is_node_prop_update_available(prop_id, node_id, time))
-    }
-
-    fn is_node_prop_update_available_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        for_all!(self, g => g.is_node_prop_update_available_window(prop_id, node_id, time, w))
-    }
-
-    fn is_node_prop_update_latest(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-    ) -> bool {
-        for_all!(self, g =>g.is_node_prop_update_latest(prop_id, node_id, time))
-    }
-
-    fn is_node_prop_update_latest_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        for_all!(self, g => g.is_node_prop_update_latest_window(prop_id, node_id, time, w))
-    }
-}
-
-impl EdgeHistoryFilter for MaterializedGraph {
-    fn is_edge_prop_update_available(
-        &self,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_available(layer_id, prop_id, edge_id, time))
-    }
-
-    fn is_edge_prop_update_available_window(
-        &self,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_available_window(layer_id, prop_id, edge_id, time, w))
-    }
-
-    fn is_edge_prop_update_latest(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time))
-    }
-
-    fn is_edge_prop_update_latest_window(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        for_all!(self, g => g.is_edge_prop_update_latest_window(layer_ids, layer_id, prop_id, edge_id, time, w))
     }
 }
 

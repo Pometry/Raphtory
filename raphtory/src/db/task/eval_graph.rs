@@ -20,18 +20,18 @@ use std::{cell::RefCell, rc::Rc};
 #[derive(Debug)]
 pub struct EvalGraph<'graph, 'a, G, S, CS: Clone = ComputeStateVec> {
     pub(crate) ss: usize,
-    pub(crate) base_graph: &'graph G,
+    pub(crate) base_graph: G,
     pub(crate) storage: &'graph GraphStorage,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
     pub(crate) index: &'graph Index<VID>,
 }
 
-impl<'graph, 'a, G, S, CS: Clone> Clone for EvalGraph<'graph, 'a, G, S, CS> {
+impl<'graph, 'a, G: Clone, S, CS: Clone> Clone for EvalGraph<'graph, 'a, G, S, CS> {
     fn clone(&self) -> Self {
         Self {
             ss: self.ss,
-            base_graph: self.base_graph,
+            base_graph: self.base_graph.clone(),
             storage: self.storage,
             local_state_prev: self.local_state_prev,
             node_state: self.node_state.clone(),
@@ -43,7 +43,7 @@ impl<'graph, 'a, G, S, CS: Clone> Clone for EvalGraph<'graph, 'a, G, S, CS> {
 impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState + Clone>
     EvalGraph<'graph, 'a, G, S, CS>
 {
-    pub fn node(&self, n: impl AsNodeRef) -> Option<EvalNodeView<'graph, 'a, G, S, &'graph G, CS>> {
+    pub fn node(&self, n: impl AsNodeRef) -> Option<EvalNodeView<'graph, 'a, G, S, CS>> {
         let node = (&self.base_graph).node(n)?;
         let state_pos = self.index.index(&node.node).unwrap_or_else(|| {
             panic!("Internal Error, node {:?} needs to be in index", node.node);
@@ -56,19 +56,28 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         ))
     }
 
-    pub fn edge<N: AsNodeRef>(
-        &self,
-        src: N,
-        dst: N,
-    ) -> Option<EvalEdgeView<'graph, 'a, G, &'graph G, CS, S>> {
+    pub fn edge<N: AsNodeRef>(&self, src: N, dst: N) -> Option<EvalEdgeView<'graph, 'a, G, CS, S>> {
         let edge = (&self.base_graph).edge(src, dst)?;
         Some(EvalEdgeView::new(
             self.ss,
-            edge,
+            edge.clone(),
             self.storage,
             self.index,
             self.node_state.clone(),
             self.local_state_prev,
         ))
+    }
+
+    pub fn apply_filter<Next: GraphViewOps<'graph>>(
+        &self,
+        graph: Next,
+    ) -> EvalGraph<'graph, 'a, Next, S, CS> {
+        EvalGraph {
+            ss: self.ss,
+            base_graph: graph,
+            node_state: self.node_state.clone(),
+            local_state_prev: self.local_state_prev,
+            storage: self.storage,
+        }
     }
 }

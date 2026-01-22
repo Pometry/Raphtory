@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::{nodes::node_ref::AsNodeRef, VID},
-        utils::time::TryIntoTime,
-    },
+    core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::api::{
         state::{Index, NodeState},
         view::StaticGraphViewOps,
@@ -10,6 +7,12 @@ use crate::{
     prelude::*,
 };
 use indexmap::IndexSet;
+use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
+use rand_distr::{Distribution, Exp};
+use raphtory_api::core::{
+    storage::timeindex::AsTime,
+    utils::time::{ParseTimeError, TryIntoTime},
+};
 use rand::{
     distr::{Bernoulli, Distribution},
     seq::IteratorRandom,
@@ -208,7 +211,7 @@ where
         .into_iter()
         .map(|v| {
             Reverse(Infection {
-                time: initial_infection,
+                time: initial_infection.t(),
                 node: v,
             })
         })
@@ -238,7 +241,7 @@ where
                         if infection_dist.sample(rng) {
                             event_queue.push(Reverse(Infection {
                                 node: neighbour,
-                                time: ee.time().unwrap(),
+                                time: ee.time().unwrap().t(),
                             }));
                             break;
                         }
@@ -249,7 +252,6 @@ where
     }
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
     Ok(NodeState::new(
-        g.clone(),
         g.clone(),
         values.into(),
         Index::Partial(index.into()),

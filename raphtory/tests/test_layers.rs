@@ -149,7 +149,7 @@ pub mod test_filters_layer_graph {
     };
     use std::ops::Range;
 
-    pub struct LayeredGraphTransformer(Vec<String>);
+    struct LayeredGraphTransformer(Vec<String>);
 
     impl GraphTransformer for LayeredGraphTransformer {
         type Return<G: StaticGraphViewOps> = LayeredGraph<G>;
@@ -172,18 +172,26 @@ pub mod test_filters_layer_graph {
 
     pub mod test_nodes_filters_layer_graph {
         use raphtory::{
-            db::{api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{AdditionOps, PropertyFilter},
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
+            },
+            prelude::AdditionOps,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
-        use raphtory::db::graph::assertions::{
-            assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
-            TestVariants,
-        };
-
         use crate::test_filters_layer_graph::{
             LayeredGraphTransformer, LayeredGraphWindowTransformer,
+        };
+        use raphtory::{
+            db::graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+                    TestVariants,
+                },
+                views::filter::model::PropertyFilterFactory,
+            },
+            prelude::NodeFilter,
         };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -239,7 +247,7 @@ pub mod test_filters_layer_graph {
         #[test]
         fn test_nodes_filters() {
             let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -257,7 +265,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").ge(2u64);
+            let filter = NodeFilter.property("p1").ge(2u64);
             let expected_results = vec!["N2", "N5", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -275,7 +283,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = NodeFilter.property("p1").le(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -293,7 +301,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").lt(2u64);
+            let filter = NodeFilter.property("p1").lt(2u64);
             let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -311,7 +319,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = NodeFilter.property("p1").gt(1u64);
             let expected_results = vec!["N2", "N5", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -333,7 +341,7 @@ pub mod test_filters_layer_graph {
         fn test_nodes_filters_w() {
             // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
             let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -351,7 +359,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").ge(2u64);
+            let filter = NodeFilter.property("p1").ge(2u64);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -369,7 +377,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").lt(2u64);
+            let filter = NodeFilter.property("p1").lt(2u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -390,7 +398,7 @@ pub mod test_filters_layer_graph {
         #[test]
         fn test_nodes_filters_pg_w() {
             let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -408,7 +416,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").lt(2u64);
+            let filter = NodeFilter.property("p1").lt(2u64);
             let expected_results = vec!["N1", "N3", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -426,7 +434,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = NodeFilter.property("p1").gt(1u64);
             let expected_results = vec!["N2", "N5", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -451,12 +459,15 @@ pub mod test_filters_layer_graph {
                 api::view::StaticGraphViewOps,
                 graph::{
                     assertions::{
-                        assert_filter_edges_results, assert_search_edges_results, TestVariants,
+                        assert_filter_edges_results, assert_search_edges_results,
+                        TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::PropertyFilterOps,
+                    views::filter::model::{
+                        property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    },
                 },
             },
-            prelude::{AdditionOps, PropertyFilter},
+            prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -495,7 +506,7 @@ pub mod test_filters_layer_graph {
         fn test_edges_filters() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
             let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -513,7 +524,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = EdgeFilter.property("p1").le(1u64);
             let expected_results = vec![
                 "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1",
             ];
@@ -533,7 +544,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").ge(2u64);
+            let filter = EdgeFilter.property("p1").ge(2u64);
             let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
             assert_filter_edges_results(
                 init_graph,
@@ -551,7 +562,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").lt(2u64);
+            let filter = EdgeFilter.property("p1").lt(2u64);
             let expected_results = vec![
                 "N2->N3", "N3->N4", "N4->N5", "N5->N6", "N6->N7", "N7->N8", "N8->N1",
             ];
@@ -571,7 +582,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = EdgeFilter.property("p1").gt(1u64);
             let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
             assert_filter_edges_results(
                 init_graph,
@@ -596,7 +607,7 @@ pub mod test_filters_layer_graph {
             // 2. However, when asked for a value of a particular property for an edge, the latest update
             // across all specified layers (or all layers if no layers specified) is returned!
             let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -617,7 +628,7 @@ pub mod test_filters_layer_graph {
             // When filtering by specific layer, filter criteria (p1==1) and latest semantics is applicable
             // only to that specific layer.
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").lt(2u64);
+            let filter = EdgeFilter.property("p1").lt(2u64);
             let expected_results = vec!["N2->N3", "N3->N4"];
             assert_filter_edges_results(
                 init_graph,
@@ -635,7 +646,7 @@ pub mod test_filters_layer_graph {
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").gt(1u64);
+            let filter = EdgeFilter.property("p1").gt(1u64);
             let expected_results = vec!["N2->N3", "N5->N6"];
             assert_filter_edges_results(
                 init_graph,
@@ -657,7 +668,7 @@ pub mod test_filters_layer_graph {
         fn test_edges_filters_pg_w() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
             let layers: Vec<String> = vec!["layer1".into(), "layer2".into()];
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
 
             // Why is the edge N8 -> N1 included in the results?
             // The reason edge N8 -> N1 is included as part of the results because of following two semantic reasons:
@@ -675,50 +686,50 @@ pub mod test_filters_layer_graph {
                 LayeredGraphWindowTransformer(layers.clone(), 6..9),
                 filter.clone(),
                 &expected_results,
-                vec![],
+                vec![TestGraphVariants::PersistentGraph],
             );
             assert_search_edges_results(
                 init_graph,
                 LayeredGraphWindowTransformer(layers, 6..9),
                 filter,
                 &expected_results,
-                TestVariants::PersistentOnly,
+                vec![TestGraphVariants::PersistentGraph],
             );
 
             let layers: Vec<String> = vec!["layer1".into()];
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = EdgeFilter.property("p1").le(1u64);
             let expected_results = vec!["N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N1"];
             assert_filter_edges_results(
                 init_graph,
                 LayeredGraphWindowTransformer(layers.clone(), 6..9),
                 filter.clone(),
                 &expected_results,
-                vec![],
+                vec![TestGraphVariants::PersistentGraph],
             );
             assert_search_edges_results(
                 init_graph,
                 LayeredGraphWindowTransformer(layers, 6..9),
                 filter,
                 &expected_results,
-                TestVariants::PersistentOnly,
+                vec![TestGraphVariants::PersistentGraph],
             );
 
             let layers: Vec<String> = vec!["layer2".into()];
-            let filter = PropertyFilter::property("p1").ge(2u64);
+            let filter = EdgeFilter.property("p1").ge(2u64);
             let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
             assert_filter_edges_results(
                 init_graph,
                 LayeredGraphWindowTransformer(layers.clone(), 6..9),
                 filter.clone(),
                 &expected_results,
-                vec![],
+                vec![TestGraphVariants::PersistentGraph],
             );
             assert_search_edges_results(
                 init_graph,
                 LayeredGraphWindowTransformer(layers, 6..9),
                 filter,
                 &expected_results,
-                TestVariants::PersistentOnly,
+                vec![TestGraphVariants::PersistentGraph],
             );
         }
     }

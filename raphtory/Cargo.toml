@@ -53,7 +53,8 @@ walkdir = { workspace = true }
 uuid = { workspace = true }
 parquet = { workspace = true }
 arrow-json = { workspace = true }
-arrow = { workspace = true }
+arrow-csv = { workspace = true }
+arrow = { workspace = true, features = ["chrono-tz"]}
 
 # io optional dependencies
 csv = { workspace = true, optional = true }

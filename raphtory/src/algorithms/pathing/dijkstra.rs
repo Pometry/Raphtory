@@ -3,7 +3,7 @@ use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGra
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::{
-        api::state::{Index, NodeState},
+        api::state::{ops::filter::NO_FILTER, Index, NodeState},
         graph::nodes::Nodes,
     },
     errors::GraphError,
@@ -193,12 +193,11 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         .into_iter()
         .map(|(id, (cost, path))| {
             let nodes =
-                Nodes::new_filtered(g.clone(), g.clone(), Index::Partial(path.into()), None);
+                Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Index::Partial(path.into()));
             (id, (cost, nodes))
         })
         .unzip();
     Ok(NodeState::new(
-        g.clone(),
         g.clone(),
         values.into(),
         Index::Partial(index.into()),

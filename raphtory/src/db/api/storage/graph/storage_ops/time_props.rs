@@ -61,13 +61,13 @@ impl InternalTemporalPropertyViewOps for GraphStorage {
             .map(|(_, prop)| prop)
     }
 
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         let graph_entry = self.graph_entry();
 
         graph_entry
             .as_ref()
             .get_temporal_prop(id)
-            .last_before(EventTime::start(t.saturating_add(1)))
+            .last_before(t.next())
             .map(|(_, prop)| prop)
     }
 }

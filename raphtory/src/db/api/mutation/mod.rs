@@ -7,7 +7,6 @@ mod import_ops;
 pub mod index_ops;
 mod property_addition_ops;
 
-use crate::errors::{into_graph_err, GraphError};
 pub use addition_ops::AdditionOps;
 pub use deletion_ops::DeletionOps;
 pub use import_ops::ImportOps;

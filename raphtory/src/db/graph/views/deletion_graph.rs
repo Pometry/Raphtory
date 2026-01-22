@@ -16,7 +16,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::{
-    core::entities::{properties::tprop::TPropOps, EID, VID},
+    core::entities::properties::tprop::TPropOps,
     inherit::Base,
     iter::{BoxedLIter, IntoDynBoxed},
     GraphType,
@@ -44,7 +44,7 @@ use storage::{
 ///
 /// Note that the graph will give you access to all edges that were added at any point in time, even those that are marked as deleted.
 /// The deletion only has an effect on the exploded edge view that are returned. An edge is included in a windowed view of the graph if
-/// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by secondary index) is a deletion,
+/// it is considered active at any point in the window. Note that this means that if the last event at the start of the window (by event id) is a deletion,
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
 ///
 ///
@@ -204,11 +204,11 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         TimeSemantics::persistent()
     }
 
-    fn view_start(&self) -> Option<i64> {
+    fn view_start(&self) -> Option<EventTime> {
         self.0.view_start()
     }
 
-    fn view_end(&self) -> Option<i64> {
+    fn view_end(&self) -> Option<EventTime> {
         self.0.view_end()
     }
 
@@ -220,18 +220,18 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.latest_time_global()
     }
 
-    fn earliest_time_window(&self, start: i64, end: i64) -> Option<i64> {
+    fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.earliest_time_global()
-            .map(|t| t.max(start))
-            .filter(|&t| t < end)
+            .map(|t| t.max(start.t()))
+            .filter(|&t| t < end.t())
     }
 
-    fn latest_time_window(&self, start: i64, end: i64) -> Option<i64> {
-        if self.0.earliest_time_global()? >= end {
+    fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
+        if self.0.earliest_time_global()? >= end.t() {
             return None;
         }
         self.latest_time_global()
-            .map(|t| t.min(end.saturating_sub(1)).max(start))
+            .map(|t| t.min(end.t().saturating_sub(1)).max(start.t()))
     }
 
     #[inline]
@@ -244,7 +244,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     }
 
     #[inline]
-    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<i64>) -> bool {
+    fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
         self.temporal_prop_iter_window(prop_id, w.start, w.end)
             .next()
             .is_some()
@@ -257,8 +257,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: EventTime,
+        end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
         let graph_entry = self.core_graph().graph_entry();
 
@@ -266,14 +266,14 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             let tprop = entry.as_ref().get_temporal_prop(prop_id);
 
             // Get the property value that was active at the start of the window.
-            let first = persisted_prop_value_at(start, tprop, &TimeIndex::Empty)
+            let first = persisted_prop_value_at(start.t(), tprop, &TimeIndex::Empty)
                 .map(|prop_value| (EventTime::start(start), prop_value));
 
             // Chain the initial prop with the rest of the props that occur
             // within the window.
             first
                 .into_iter()
-                .chain(tprop.iter_window(EventTime::range(start..end)))
+                .chain(tprop.iter_window(start..end))
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -282,8 +282,8 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn temporal_prop_iter_window_rev(
         &self,
         prop_id: usize,
-        start: i64,
-        end: i64,
+        start: EventTime,
+        end: EventTime,
     ) -> BoxedLIter<'_, (EventTime, Prop)> {
         let graph_entry = self.core_graph().graph_entry();
 
@@ -291,13 +291,13 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             let tprop = entry.as_ref().get_temporal_prop(prop_id);
 
             // Get the property value that was active at the start of the window.
-            let first = persisted_prop_value_at(start, tprop, &TimeIndex::Empty)
+            let first = persisted_prop_value_at(start.t(), tprop, &TimeIndex::Empty)
                 .map(|prop_value| (EventTime::start(start), prop_value));
 
             // Chain the initial prop with the rest of the props that occur
             // within the window, in reverse order.
             tprop
-                .iter_window_rev(EventTime::range(start..end))
+                .iter_window_rev(start..end)
                 .chain(first)
                 .into_dyn_boxed()
         })
@@ -316,149 +316,14 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         &self,
         prop_id: usize,
         t: EventTime,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
-        let w = EventTime::range(w);
         if w.contains(&t) {
             self.0
                 .temporal_prop_last_at(prop_id, t)
                 .map(|(t, v)| (t.max(w.start), v))
         } else {
             None
-        }
-    }
-}
-
-impl NodeHistoryFilter for PersistentGraph {
-    fn is_node_prop_update_available(
-        &self,
-        _prop_id: usize,
-        _node_id: VID,
-        _time: EventTime,
-    ) -> bool {
-        true
-    }
-
-    fn is_node_prop_update_available_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        if time.t() >= w.end {
-            false
-        } else if w.contains(&time.t()) {
-            true
-        } else {
-            let nse = self.0.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .last_before(EventTime::start(w.start))
-                .map(|(t, _)| t.t().eq(&time.t()))
-                .unwrap_or(false);
-            x
-        }
-    }
-
-    fn is_node_prop_update_latest(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-    ) -> bool {
-        self.0.is_node_prop_update_latest(prop_id, node_id, time)
-    }
-
-    fn is_node_prop_update_latest_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        time.t() < w.end && {
-            let nse = self.0.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .active(time.next()..EventTime::start(w.end));
-            !x
-        }
-    }
-}
-
-impl EdgeHistoryFilter for PersistentGraph {
-    fn is_edge_prop_update_available(
-        &self,
-        _layer_id: usize,
-        _prop_id: usize,
-        _edge_id: EID,
-        _time: EventTime,
-    ) -> bool {
-        // let nse = self.0.core_node(node_id);
-        // nse.tprop(prop_id).at(&time).is_some()
-        true
-    }
-
-    fn is_edge_prop_update_available_window(
-        &self,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        if time.t() >= w.end {
-            false
-        } else if w.contains(&time.t()) {
-            true
-        } else {
-            let ese = self.core_edge(edge_id);
-            let bool = ese
-                .temporal_prop_layer(layer_id, prop_id)
-                .last_before(EventTime::start(w.start))
-                .map(|(t, _)| time.t().eq(&t.t()))
-                .unwrap_or(false);
-            bool
-        }
-    }
-
-    fn is_edge_prop_update_latest(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-    ) -> bool {
-        self.0
-            .is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
-    }
-
-    fn is_edge_prop_update_latest_window(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<i64>,
-    ) -> bool {
-        time.t() < w.end && {
-            let time = time.next();
-            let ese = self.core_edge(edge_id);
-
-            if layer_ids.contains(&layer_id) {
-                // Check if any layer has an active update beyond `time`
-                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
-                    ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..EventTime::start(w.end))
-                });
-
-                // If no layer has a future update, return true
-                return !has_future_update;
-            };
-            false
         }
     }
 }
@@ -474,23 +339,23 @@ mod test {
         let g = PersistentGraph::new();
         let e = g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
         assert_eq!(g.start(), None);
-        assert_eq!(g.timeline_start(), Some(0));
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
         assert_eq!(g.end(), None);
-        assert_eq!(g.timeline_end(), Some(1));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(1));
         e.delete(2, None).unwrap();
-        assert_eq!(g.timeline_start(), Some(0));
-        assert_eq!(g.timeline_end(), Some(3));
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(3));
         let w = g.window(g.timeline_start().unwrap(), g.timeline_end().unwrap());
         assert!(g.has_edge(1, 2));
         assert!(w.has_edge(1, 2));
-        assert_eq!(w.start(), Some(0));
-        assert_eq!(w.timeline_start(), Some(0));
-        assert_eq!(w.end(), Some(3));
-        assert_eq!(w.timeline_end(), Some(3));
+        assert_eq!(w.start().map(|t| t.t()), Some(0));
+        assert_eq!(w.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(w.end().map(|t| t.t()), Some(3));
+        assert_eq!(w.timeline_end().map(|t| t.t()), Some(3));
 
         e.add_updates(4, NO_PROPS, None).unwrap();
-        assert_eq!(g.timeline_start(), Some(0));
-        assert_eq!(g.timeline_end(), Some(5));
+        assert_eq!(g.timeline_start().map(|t| t.t()), Some(0));
+        assert_eq!(g.timeline_end().map(|t| t.t()), Some(5));
     }
     #[test]
     fn test_materialize_window_earliest_time() {
@@ -504,20 +369,20 @@ mod test {
         let wg = g.window(3, 5);
 
         let e = wg.edge(1, 2).unwrap();
-        assert_eq!(e.earliest_time(), Some(3));
-        assert_eq!(e.latest_time(), Some(3));
+        assert_eq!(e.earliest_time().map(|t| t.t()), Some(3));
+        assert_eq!(e.latest_time().map(|t| t.t()), Some(3));
         let n1 = wg.node(1).unwrap();
-        assert_eq!(n1.earliest_time(), Some(3));
-        assert_eq!(n1.latest_time(), Some(3));
+        assert_eq!(n1.earliest_time().unwrap().t(), 3);
+        assert_eq!(n1.latest_time().unwrap().t(), 3);
         let n2 = wg.node(2).unwrap();
-        assert_eq!(n2.earliest_time(), Some(3));
-        assert_eq!(n2.latest_time(), Some(3));
+        assert_eq!(n2.earliest_time().unwrap().t(), 3);
+        assert_eq!(n2.latest_time().unwrap().t(), 3);
 
         let actual_lt = wg.latest_time();
-        assert_eq!(actual_lt, Some(3));
+        assert_eq!(actual_lt.unwrap().t(), 3);
 
         let actual_et = wg.earliest_time();
-        assert_eq!(actual_et, Some(3));
+        assert_eq!(actual_et.unwrap().t(), 3);
 
         let gm = g
             .window(3, 5)

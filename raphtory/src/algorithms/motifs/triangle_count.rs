@@ -74,7 +74,7 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
     let count = accumulators::sum::<usize>(1);
     ctx.global_agg(count);
 
-    let step1 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, NborState>| {
+    let step1 = ATask::new(move |s: &mut EvalNodeView<_, NborState>| {
         let mut nbors = FxHashSet::default();
         for t in s.neighbours() {
             if s.node < t.node {
@@ -86,7 +86,7 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
         Step::Continue
     });
 
-    let step2 = ATask::new(move |s: &mut EvalNodeView<NodeSubgraph<G>, NborState>| {
+    let step2 = ATask::new(move |s: &mut EvalNodeView<_, NborState>| {
         let mut intersection_count = 0;
         let nbors = &s.get().nbors;
         for t in s.neighbours() {

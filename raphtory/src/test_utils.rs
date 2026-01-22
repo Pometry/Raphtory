@@ -570,6 +570,26 @@ pub fn build_graph_from_edge_list<'a>(
     g
 }
 
+pub(crate) fn build_graph_from_edge_list_with_event_id<'a>(
+    edge_list: impl IntoIterator<Item = (u64, u64, i64, usize, &'a String, i64)>,
+) -> Graph {
+    let g = Graph::new();
+    for (src, dst, time, event_id, str_prop, int_prop) in edge_list {
+        g.add_edge(
+            (time, event_id),
+            src,
+            dst,
+            [
+                ("str_prop", str_prop.into_prop()),
+                ("int_prop", int_prop.into_prop()),
+            ],
+            None,
+        )
+        .unwrap();
+    }
+    g
+}
+
 pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     let g = Arc::new(Storage::default());
     for ((src, dst, layer), updates) in graph_fix.edges() {
@@ -604,6 +624,7 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
 
 pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
     let g = Arc::new(Storage::default());
+    let mut counter = 0usize;
     let actual_layer_set: HashSet<_> = graph_fix
         .edges()
         .filter(|(_, updates)| !updates.deletions.is_empty() || !updates.props.t_props.is_empty())
@@ -637,7 +658,9 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
 
         if layers.contains(layer.unwrap_or("_default")) {
             for (t, props) in updates.props.t_props.iter() {
-                g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
+                g.add_edge((*t, counter), src, dst, props.clone(), layer)
+                    .unwrap();
+                counter += 1;
             }
             if let Some(e) = g.edge(src, dst) {
                 if !updates.props.c_props.is_empty() {
@@ -646,14 +669,19 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
                 }
             }
             for t in updates.deletions.iter() {
-                g.delete_edge(*t, src, dst, layer).unwrap();
+                g.delete_edge((*t, counter), src, dst, layer).unwrap();
+                counter += 1;
             }
+        } else {
+            counter += updates.props.t_props.len() + updates.deletions.len();
         }
     }
 
     for (node, updates) in graph_fix.nodes() {
         for (t, props) in updates.props.t_props.iter() {
-            g.add_node(*t, node, props.clone(), None).unwrap();
+            g.add_node((*t, counter), node, props.clone(), None)
+                .unwrap();
+            counter += 1;
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
@@ -680,6 +708,21 @@ pub fn add_node_props<'a>(
     }
 }
 
+pub(crate) fn add_node_props_with_event_id<'a>(
+    graph: &'a Graph,
+    nodes: impl IntoIterator<Item = (u64, usize, Option<&'a String>, Option<i64>)>,
+) {
+    for (node, event_id, str_prop, int_prop) in nodes {
+        let props = [
+            str_prop.as_ref().map(|v| ("str_prop", v.into_prop())),
+            int_prop.as_ref().map(|v| ("int_prop", (*v).into())),
+        ]
+        .into_iter()
+        .flatten();
+        graph.add_node((0, event_id), node, props, None).unwrap();
+    }
+}
+
 pub fn node_filtered_graph(
     edge_list: &[(u64, u64, i64, String, i64)],
     nodes: &[(u64, Option<String>, Option<i64>)],
@@ -689,16 +732,26 @@ pub fn node_filtered_graph(
         .iter()
         .map(|(n, str_v, int_v)| (n, (str_v.as_ref(), int_v.as_ref())))
         .collect();
-    let g = build_graph_from_edge_list(edge_list.iter().filter(|(src, dst, ..)| {
-        let (src_str_v, src_int_v) = node_map.get(src).copied().unwrap_or_default();
-        let (dst_str_v, dst_int_v) = node_map.get(dst).copied().unwrap_or_default();
-        filter(src_str_v, src_int_v) && filter(dst_str_v, dst_int_v)
-    }));
-    add_node_props(
+    let g = build_graph_from_edge_list_with_event_id(
+        edge_list
+            .iter()
+            .enumerate()
+            .map(|(idx, (src, dst, t, str, v))| (*src, *dst, *t, idx, str, *v))
+            .filter(|(src, dst, ..)| {
+                let (src_str_v, src_int_v) = node_map.get(src).copied().unwrap_or_default();
+                let (dst_str_v, dst_int_v) = node_map.get(dst).copied().unwrap_or_default();
+                filter(src_str_v, src_int_v) && filter(dst_str_v, dst_int_v)
+            }),
+    );
+    add_node_props_with_event_id(
         &g,
         nodes
             .iter()
-            .filter(|(_, str_v, int_v)| filter(str_v.as_ref(), int_v.as_ref())),
+            .enumerate()
+            .map(|(event_id, (n, str_v, int_v))| {
+                (*n, event_id + edge_list.len(), str_v.as_ref(), *int_v)
+            })
+            .filter(|(.., str_v, int_v)| filter(*str_v, int_v.as_ref())),
     );
     g
 }

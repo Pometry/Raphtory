@@ -2,8 +2,12 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::node_state_ops::NodeStateOps,
+            state::{node_state_ops::NodeStateOps, ops::Const},
             view::{
+                history::{
+                    compose_history_from_items, CompositeHistory, History, HistoryDateTime,
+                    HistoryEventId, HistoryTimestamp,
+                },
                 internal::{FilterOps, NodeList},
                 DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
@@ -13,6 +17,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use indexmap::IndexSet;
+use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{iter::Either, prelude::*};
 use std::{
     borrow::Borrow,
@@ -160,20 +165,15 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
 }
 
 #[derive(Clone)]
-pub struct NodeState<'graph, V, G, GH = G> {
+pub struct NodeState<'graph, V, G> {
     base_graph: G,
-    graph: GH,
     values: Arc<[V]>,
     keys: Index<VID>,
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<
-        'graph,
-        V: Debug + Clone + Send + Sync + 'graph,
-        G: GraphViewOps<'graph>,
-        GH: Debug + GraphViewOps<'graph>,
-    > Debug for NodeState<'graph, V, G, GH>
+impl<'graph, V: Debug + Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> Debug
+    for NodeState<'graph, V, G>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map()
@@ -182,16 +182,16 @@ impl<
     }
 }
 
-impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
-    PartialEq<Vec<RHS>> for NodeState<'graph, V, G, GH>
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G>
+    PartialEq<Vec<RHS>> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values.par_iter().eq(other)
     }
 }
 
-impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G, GH>
-    PartialEq<&[RHS]> for NodeState<'graph, V, G, GH>
+impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph, G>
+    PartialEq<&[RHS]> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &&[RHS]) -> bool {
         self.values.par_iter().eq(*other)
@@ -202,9 +202,8 @@ impl<
         'graph,
         V: Clone + Send + Sync + PartialEq + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
         RHS: NodeStateOps<'graph, OwnedValue = V>,
-    > PartialEq<RHS> for NodeState<'graph, V, G, GH>
+    > PartialEq<RHS> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &RHS) -> bool {
         self.len() == other.len()
@@ -223,9 +222,8 @@ impl<
         RHS: Send + Sync,
         V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
         S,
-    > PartialEq<HashMap<K, RHS, S>> for NodeState<'graph, V, G, GH>
+    > PartialEq<HashMap<K, RHS, S>> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &HashMap<K, RHS, S>) -> bool {
         other.len() == self.len()
@@ -235,14 +233,9 @@ impl<
     }
 }
 
-impl<'graph, V, G: IntoDynamic, GH: IntoDynamic> NodeState<'graph, V, G, GH> {
+impl<'graph, V, G: IntoDynamic> NodeState<'graph, V, G> {
     pub fn into_dyn(self) -> NodeState<'graph, V, DynamicGraph> {
-        NodeState::new(
-            self.base_graph.into_dynamic(),
-            self.graph.into_dynamic(),
-            self.values,
-            self.keys,
-        )
+        NodeState::new(self.base_graph.into_dynamic(), self.values, self.keys)
     }
 }
 
@@ -258,7 +251,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     {
         let index = Index::for_graph(graph.clone());
         // Values are already in flat index order from TaskRunner
-        Self::new(graph.clone(), graph, values.into(), index)
+        Self::new(graph, values.into(), index)
     }
 
     /// Construct a node state from an eval result
@@ -272,7 +265,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
         V: Clone,
     {
         // Values are already in flat index order from TaskRunner
-        Self::new(graph.clone(), graph, values.into(), index)
+        Self::new(graph, values.into(), index)
     }
 
     /// Construct a node state from an eval result, mapping values
@@ -292,7 +285,7 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     {
         // Values are already in flat index order from TaskRunner, just map them
         let values = values.into_iter().map(map).collect();
-        Self::new(graph.clone(), graph, values, index)
+        Self::new(graph, values, index)
     }
 
     /// Construct a node state from an eval result, mapping values
@@ -308,20 +301,20 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
         let index = Index::for_graph(graph.clone());
         // Values are already in flat index order from TaskRunner, just map them
         let values = values.into_iter().map(map).collect();
-        Self::new(graph.clone(), graph, values, index)
+        Self::new(graph, values, index)
     }
 
     /// create a new empty NodeState
     pub fn new_empty(graph: G) -> Self {
         let index = Index::for_graph(&graph);
-        Self::new(graph.clone(), graph, [].into(), index)
+        Self::new(graph, [].into(), index)
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
     /// node filtering when needed)
     pub fn new_from_values(graph: G, values: impl Into<Arc<[V]>>) -> Self {
         let index = Index::for_graph(&graph);
-        Self::new(graph.clone(), graph, values.into(), index)
+        Self::new(graph, values.into(), index)
     }
 
     /// create a new NodeState from a HashMap of values
@@ -357,11 +350,10 @@ impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
     }
 }
 
-impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'graph, V, G, GH> {
-    pub fn new(base_graph: G, graph: GH, values: Arc<[V]>, keys: Index<VID>) -> Self {
+impl<'graph, V, G: GraphViewOps<'graph>> NodeState<'graph, V, G> {
+    pub fn new(base_graph: G, values: Arc<[V]>, keys: Index<VID>) -> Self {
         Self {
             base_graph,
-            graph,
             values,
             keys,
             _marker: PhantomData,
@@ -371,16 +363,16 @@ impl<'graph, V, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> NodeState<'gr
     pub fn values(&self) -> &Arc<[V]> {
         &self.values
     }
+
+    pub fn ids(&self) -> &Option<Index<VID>> {
+        &self.keys
+    }
 }
 
-impl<
-        'graph,
-        V: Send + Sync + Clone + 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > IntoIterator for NodeState<'graph, V, G, GH>
+impl<'graph, V: Send + Sync + Clone + 'graph, G: GraphViewOps<'graph>> IntoIterator
+    for NodeState<'graph, V, G>
 {
-    type Item = (NodeView<'graph, G, GH>, V);
+    type Item = (NodeView<'graph, G>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -392,15 +384,12 @@ impl<
     }
 }
 
-impl<
-        'graph,
-        V: Clone + Send + Sync + 'graph,
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > NodeStateOps<'graph> for NodeState<'graph, V, G, GH>
+impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeStateOps<'graph>
+    for NodeState<'graph, V, G>
 {
-    type Graph = GH;
     type BaseGraph = G;
+    type Graph = G;
+    type Select = Const<bool>;
     type Value<'a>
         = &'a V
     where
@@ -408,10 +397,6 @@ impl<
     type OwnedValue = V;
 
     fn graph(&self) -> &Self::Graph {
-        &self.graph
-    }
-
-    fn base_graph(&self) -> &Self::BaseGraph {
         &self.base_graph
     }
 
@@ -441,29 +426,24 @@ impl<
 
     fn iter<'a>(
         &'a self,
-    ) -> impl Iterator<
-        Item = (
-            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
-            Self::Value<'a>,
-        ),
-    > + 'a
+    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value<'a>)> + 'a
     where
         'graph: 'a,
     {
         self.keys.iter().zip(self.values.iter()).map(move |(n, v)| {
             (
-                NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
+                NodeView::new_internal(&self.base_graph, n),
                 v,
             )
         })
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
+    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph, Self::Select> {
         Nodes::new_filtered(
             self.base_graph.clone(),
-            self.graph.clone(),
+            self.base_graph.clone(),
+            Const(true),
             self.keys.clone(),
-            None,
         )
     }
 
@@ -471,11 +451,7 @@ impl<
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<
-                'a,
-                &'a <Self as NodeStateOps<'graph>>::BaseGraph,
-                &'a <Self as NodeStateOps<'graph>>::Graph,
-            >,
+            NodeView<'a, &'a <Self as NodeStateOps<'graph>>::Graph>,
             <Self as NodeStateOps<'graph>>::Value<'a>,
         ),
     >
@@ -484,7 +460,7 @@ impl<
     {
         self.keys.par_iter().map(move |(val_id, n)| {
             (
-                NodeView::new_one_hop_filtered(&self.base_graph, &self.graph, n),
+                NodeView::new_internal(&self.base_graph, n),
                 &self.values[val_id],
             )
         })
@@ -497,6 +473,66 @@ impl<
 
     fn len(&self) -> usize {
         self.values.len()
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>>
+    NodeState<'graph, History<'graph, NodeView<'graph, DynamicGraph>>, G>
+{
+    pub fn t(&self) -> NodeState<'graph, HistoryTimestamp<NodeView<'graph, DynamicGraph>>, G> {
+        let values = self
+            .values
+            .iter()
+            .map(|h| h.clone().t())
+            .collect::<Vec<HistoryTimestamp<NodeView<DynamicGraph>>>>()
+            .into();
+        NodeState::new(self.base_graph.clone(), values, self.keys.clone())
+    }
+
+    pub fn dt(&self) -> NodeState<'graph, HistoryDateTime<NodeView<'graph, DynamicGraph>>, G> {
+        let values = self
+            .values
+            .iter()
+            .map(|h| h.clone().dt())
+            .collect::<Vec<HistoryDateTime<NodeView<DynamicGraph>>>>()
+            .into();
+        NodeState::new(self.base_graph.clone(), values, self.keys.clone())
+    }
+
+    pub fn event_id(&self) -> NodeState<'graph, HistoryEventId<NodeView<'graph, DynamicGraph>>, G> {
+        let values = self
+            .values
+            .iter()
+            .map(|h| h.clone().event_id())
+            .collect::<Vec<HistoryEventId<NodeView<DynamicGraph>>>>()
+            .into();
+        NodeState::new(self.base_graph.clone(), values, self.keys.clone())
+    }
+
+    pub fn earliest_time(&self) -> Option<EventTime> {
+        self.values.iter().filter_map(|h| h.earliest_time()).min()
+    }
+
+    pub fn latest_time(&self) -> Option<EventTime> {
+        self.values.iter().filter_map(|h| h.latest_time()).max()
+    }
+
+    /// Collect and return all the contained time entries as a sorted list
+    pub fn collect_time_entries(&self) -> Vec<EventTime> {
+        let mut entries: Vec<EventTime> = self
+            .par_iter_values()
+            .flat_map_iter(|hist| hist.iter())
+            .collect();
+        entries.par_sort_unstable();
+        entries
+    }
+
+    /// Flattens all history objects into a single history object with all time entries ordered.
+    pub fn flatten(
+        &self,
+    ) -> History<'graph, CompositeHistory<'graph, NodeView<'graph, DynamicGraph>>> {
+        let histories: Vec<_> = self.par_iter_values().map(|hist| hist.0.clone()).collect();
+        compose_history_from_items(histories)
     }
 }
 

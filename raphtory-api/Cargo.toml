@@ -50,7 +50,7 @@ proptest.workspace = true
 [features]
 # Enables generating the pyo3 python bindings
 python = [
-    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
+    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain", "dep:arrow-schema"
 ]
 
 proto = []

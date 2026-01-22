@@ -1,5 +1,4 @@
-use crate::{core::storage::timeindex::AsTime, db::api::view::BoxedLIter};
-use chrono::{DateTime, Utc};
+use crate::db::api::view::BoxedLIter;
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropType},
@@ -15,21 +14,12 @@ pub trait InternalTemporalPropertyViewOps {
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)>;
 
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)>;
-
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<'_, i64> {
-        self.temporal_iter(id).map(|(t, _)| t.t()).into_dyn_boxed()
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<'_, EventTime> {
+        self.temporal_iter(id).map(|(t, _)| t).into_dyn_boxed()
     }
 
-    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<'_, i64> {
-        self.temporal_iter_rev(id)
-            .map(|(t, _)| t.t())
-            .into_dyn_boxed()
-    }
-
-    fn temporal_history_date_time(&self, id: usize) -> Option<Vec<DateTime<Utc>>> {
-        self.temporal_history_iter(id)
-            .map(|t| t.dt())
-            .collect::<Option<Vec<_>>>()
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<'_, EventTime> {
+        self.temporal_iter_rev(id).map(|(t, _)| t).into_dyn_boxed()
     }
 
     /// Return the latest temporal prop value.
@@ -43,8 +33,7 @@ pub trait InternalTemporalPropertyViewOps {
         self.temporal_iter_rev(id).map(|(_, v)| v).into_dyn_boxed()
     }
 
-    /// Return the temporal prop value at the given time.
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop>;
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop>;
 }
 
 pub trait TemporalPropertiesRowView {
@@ -125,12 +114,12 @@ where
     }
 
     #[inline]
-    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<'_, i64> {
+    fn temporal_history_iter(&self, id: usize) -> BoxedLIter<'_, EventTime> {
         self.base().temporal_history_iter(id)
     }
 
     #[inline]
-    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<'_, i64> {
+    fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<'_, EventTime> {
         self.base().temporal_history_iter_rev(id)
     }
 
@@ -150,7 +139,7 @@ where
     }
 
     #[inline]
-    fn temporal_value_at(&self, id: usize, t: i64) -> Option<Prop> {
+    fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         self.base().temporal_value_at(id, t)
     }
 }

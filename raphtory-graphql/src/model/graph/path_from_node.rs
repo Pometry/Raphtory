@@ -1,6 +1,9 @@
 use crate::{
     model::graph::{
-        filtering::PathFromNodeViewCollection, node::GqlNode, windowset::GqlPathFromNodeWindowSet,
+        filtering::{GqlNodeFilter, PathFromNodeViewCollection},
+        node::GqlNode,
+        timeindex::{GqlEventTime, GqlTimeInput},
+        windowset::GqlPathFromNodeWindowSet,
         GqlAlignmentUnit, WindowDuration,
     },
     rayon::blocking_compute,
@@ -8,27 +11,29 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::time::TryIntoInterval,
-    db::{api::view::DynamicGraph, graph::path::PathFromNode},
+    db::{
+        api::view::{filter_ops::NodeSelect, DynamicGraph, Filter},
+        graph::{path::PathFromNode, views::filter::model::CompositeNodeFilter},
+    },
     errors::GraphError,
     prelude::*,
 };
+use raphtory_api::core::utils::time::IntoTime;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PathFromNode")]
 pub(crate) struct GqlPathFromNode {
-    pub(crate) nn: PathFromNode<'static, DynamicGraph, DynamicGraph>,
+    pub(crate) nn: PathFromNode<'static, DynamicGraph>,
 }
 
 impl GqlPathFromNode {
-    fn update<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(&self, nodes: N) -> Self {
+    fn update<N: Into<PathFromNode<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
         GqlPathFromNode::new(nodes)
     }
 }
 
 impl GqlPathFromNode {
-    pub(crate) fn new<N: Into<PathFromNode<'static, DynamicGraph, DynamicGraph>>>(
-        nodes: N,
-    ) -> Self {
+    pub(crate) fn new<N: Into<PathFromNode<'static, DynamicGraph>>>(nodes: N) -> Self {
         Self { nn: nodes.into() }
     }
 
@@ -113,13 +118,13 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events between a specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.window(start, end))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.window(start.into_time(), end.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events at time.
-    async fn at(&self, time: i64) -> Self {
-        self.update(self.nn.at(time))
+    async fn at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.at(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the latest time.
@@ -129,8 +134,8 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> Self {
-        self.update(self.nn.snapshot_at(time))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.snapshot_at(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events at the latest time.
@@ -140,28 +145,28 @@ impl GqlPathFromNode {
     }
 
     /// Create a view of the PathFromNode including all events before the specified end (exclusive).
-    async fn before(&self, time: i64) -> Self {
-        self.update(self.nn.before(time))
+    async fn before(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.before(time.into_time()))
     }
 
     /// Create a view of the PathFromNode including all events after the specified start (exclusive).
-    async fn after(&self, time: i64) -> Self {
-        self.update(self.nn.after(time))
+    async fn after(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.after(time.into_time()))
     }
 
     /// Shrink both the start and end of the window.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.shrink_window(start, end))
+    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_window(start.into_time(), end.into_time()))
     }
 
     /// Set the start of the window to the larger of the specified start and self.start().
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.update(self.nn.shrink_start(start))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_start(start.into_time()))
     }
 
     /// Set the end of the window to the smaller of the specified end and self.end().
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.update(self.nn.shrink_end(end))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_end(end.into_time()))
     }
 
     /// Filter nodes by type.
@@ -175,13 +180,13 @@ impl GqlPathFromNode {
     ////////////////////////
 
     /// Returns the earliest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn start(&self) -> Option<i64> {
-        self.nn.start()
+    async fn start(&self) -> GqlEventTime {
+        self.nn.start().into()
     }
 
     /// Returns the latest time that this PathFromNode is valid or None if the PathFromNode is valid for all times.
-    async fn end(&self) -> Option<i64> {
-        self.nn.end()
+    async fn end(&self) -> GqlEventTime {
+        self.nn.end().into()
     }
 
     /////////////////
@@ -235,8 +240,6 @@ impl GqlPathFromNode {
                 PathFromNodeViewCollection::ExcludeLayers(layers) => {
                     return_view.exclude_layers(layers).await
                 }
-                PathFromNodeViewCollection::Layer(layer) => return_view.layer(layer).await,
-
                 PathFromNodeViewCollection::ExcludeLayer(layer) => {
                     return_view.exclude_layer(layer).await
                 }
@@ -271,5 +274,27 @@ impl GqlPathFromNode {
             }
         }
         Ok(return_view)
+    }
+
+    /// Returns a filtered view that applies to list down the chain
+    async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
+    }
+
+    /// Returns filtered list of neighbour nodes
+    async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.select(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
     }
 }

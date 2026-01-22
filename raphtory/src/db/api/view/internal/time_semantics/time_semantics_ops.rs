@@ -12,40 +12,53 @@ pub trait NodeTimeSemanticsOps {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64>;
+    ) -> Option<EventTime>;
 
     fn node_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> Option<i64>;
+    ) -> Option<EventTime>;
 
     fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64>;
+        w: Range<EventTime>,
+    ) -> Option<EventTime>;
 
     fn node_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64>;
+        w: Range<EventTime>,
+    ) -> Option<EventTime>;
 
     fn node_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph;
+
+    fn node_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph;
 
     fn node_history_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
-    ) -> impl Iterator<Item = i64> + Send + Sync + 'graph;
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph;
+
+    fn node_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph;
 
     fn node_edge_history_count<'graph, G: GraphView + 'graph>(
         self,
@@ -57,7 +70,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> usize;
 
     fn node_edge_history<'graph, G: GraphView + 'graph>(
@@ -70,7 +83,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph;
 
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
@@ -83,7 +96,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph;
 
     fn node_updates<'graph, G: GraphView + 'graph>(
@@ -96,7 +109,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     /// Check if the node is part of the graph based on the history
@@ -110,7 +123,7 @@ pub trait NodeTimeSemanticsOps {
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool;
 
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
@@ -132,7 +145,7 @@ pub trait NodeTimeSemanticsOps {
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
 
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
@@ -140,7 +153,7 @@ pub trait NodeTimeSemanticsOps {
         node: NodeStorageRef<'graph>,
         view: G,
         prop_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
@@ -157,7 +170,7 @@ pub trait NodeTimeSemanticsOps {
         view: G,
         prop_id: usize,
         t: EventTime,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)>;
 }
 
@@ -177,7 +190,7 @@ pub trait EdgeTimeSemanticsOps {
         edge: EdgeEntryRef,
         view: G,
         layer_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool;
 
     /// Check if exploded edge update should be included
@@ -189,7 +202,7 @@ pub trait EdgeTimeSemanticsOps {
         elid: ELID,
         t: EventTime,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool;
 
     /// returns the update history of an edge
@@ -204,6 +217,18 @@ pub trait EdgeTimeSemanticsOps {
         layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
 
+    /// returns the update history of an edge in reverse
+    ///
+    /// # Returns
+    ///
+    /// An iterator over timestamp and layer pairs
+    fn edge_history_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeStorageRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+
     /// returns the update history of an edge in a window
     ///
     /// # Returns
@@ -214,7 +239,20 @@ pub trait EdgeTimeSemanticsOps {
         edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+
+    /// returns the update history of an edge in a window in reverse
+    ///
+    /// # Returns
+    ///
+    /// An iterator over timestamp and layer pairs
+    fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        edge: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
 
     /// The number of exploded edge events for the `edge`
@@ -229,7 +267,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         edge: EdgeEntryRef,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> usize;
 
     /// Exploded edge iterator for edge `e`
@@ -254,7 +292,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
@@ -263,7 +301,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'graph;
 
     /// Get the time of the earliest activity of an edge
@@ -271,15 +309,15 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeEntryRef,
         view: G,
-    ) -> Option<i64>;
+    ) -> Option<EventTime>;
 
     /// Get the time of the earliest activity of an edge `e` in window `w`
     fn edge_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64>;
+        w: Range<EventTime>,
+    ) -> Option<EventTime>;
 
     fn edge_exploded_earliest_time<'graph, G: GraphView + 'graph>(
         &self,
@@ -287,7 +325,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-    ) -> Option<i64>;
+    ) -> Option<EventTime>;
 
     fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
         &self,
@@ -295,23 +333,23 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-        w: Range<i64>,
-    ) -> Option<i64>;
+        w: Range<EventTime>,
+    ) -> Option<EventTime>;
 
     /// Get the time of the latest activity of an edge
     fn edge_latest_time<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
-    ) -> Option<i64>;
+    ) -> Option<EventTime>;
 
     /// Get the time of the latest activity of an edge `e` in window `w`
     fn edge_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
         e: EdgeEntryRef,
         view: G,
-        w: Range<i64>,
-    ) -> Option<i64>;
+        w: Range<EventTime>,
+    ) -> Option<EventTime>;
 
     fn edge_exploded_latest_time<'graph, G: GraphView + 'graph>(
         &self,
@@ -319,7 +357,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-    ) -> Option<i64>;
+    ) -> Option<EventTime>;
 
     fn edge_exploded_latest_time_window<'graph, G: GraphView + 'graph>(
         &self,
@@ -327,11 +365,19 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-        w: Range<i64>,
-    ) -> Option<i64>;
+        w: Range<EventTime>,
+    ) -> Option<EventTime>;
 
     /// Get the edge deletions for use with materialize
     fn edge_deletion_history<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+
+    /// Get the edge deletions in reverse order for use with materialize
+    fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,
         view: G,
@@ -344,7 +390,16 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-        w: Range<i64>,
+        w: Range<EventTime>,
+    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+
+    /// Get the edge deletions in reverse order for use with materialize restricted to window `w`
+    fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
+        self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        layer_ids: &'graph LayerIds,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
 
     /// Check if  edge `e` is currently valid in any layer included in the view
@@ -360,7 +415,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
-        r: Range<i64>,
+        r: Range<EventTime>,
     ) -> bool;
 
     fn edge_is_deleted<'graph, G: GraphView + 'graph>(
@@ -373,7 +428,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool;
 
     fn edge_is_active<'graph, G: GraphView + 'graph>(
@@ -386,7 +441,7 @@ pub trait EdgeTimeSemanticsOps {
         &self,
         e: EdgeEntryRef<'graph>,
         view: G,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool;
 
     fn edge_is_active_exploded<'graph, G: GraphView + 'graph>(
@@ -403,7 +458,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool;
 
     fn edge_is_valid_exploded<'graph, G: GraphView + 'graph>(
@@ -420,7 +475,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool;
 
     fn edge_exploded_deletion<'graph, G: GraphView + 'graph>(
@@ -437,7 +492,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<EventTime>;
 
     fn edge_is_deleted_exploded<'graph, G: GraphView + 'graph>(
@@ -456,7 +511,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         t: EventTime,
         layer: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> bool {
         self.edge_exploded_deletion_window(e, view, t, layer, w)
             .is_some()
@@ -490,7 +545,7 @@ pub trait EdgeTimeSemanticsOps {
         layer_id: usize,
         prop_id: usize,
         at: EventTime,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<Prop>;
 
     /// Return the last value of a temporal edge property at or before a given point in time
@@ -508,7 +563,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         prop_id: usize,
         t: EventTime,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<Prop>;
 
     /// Return property history of an edge in temporal order
@@ -550,7 +605,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph;
 
     /// Return temporal property history for a window of an edge in reverse-temporal order
@@ -562,7 +617,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph;
 
     /// Get edge metadata
@@ -584,6 +639,6 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         prop_id: usize,
-        w: Range<i64>,
+        w: Range<EventTime>,
     ) -> Option<Prop>;
 }

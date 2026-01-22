@@ -1,5 +1,5 @@
 use crate::python::types::repr::Repr;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 impl Repr for Prop {
     fn repr(&self) -> String {
         match &self {
@@ -23,4 +23,4 @@ impl Repr for Prop {
 }
 
 pub type PropValue = Option<Prop>;
-pub type PropHistItems = Vec<(i64, Prop)>;
+pub type PropHistItems = Vec<(EventTime, Prop)>;
