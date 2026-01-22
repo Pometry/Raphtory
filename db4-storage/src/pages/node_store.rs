@@ -9,7 +9,10 @@ use crate::{
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
         row_group_par_iter,
     },
-    persist::strategy::PersistenceStrategy,
+    persist::{
+        config::ConfigOps,
+        strategy::PersistenceStrategy,
+    },
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
@@ -161,7 +164,7 @@ impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     }
 
     pub fn max_segment_len(&self) -> u32 {
-        self.ext.max_node_page_len()
+        self.ext.config().persistence().max_node_page_len
     }
 }
 
@@ -335,7 +338,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
-        let max_page_len = ext.max_node_page_len();
+        let max_page_len = ext.config().persistence().max_node_page_len;
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !nodes_path.exists() {

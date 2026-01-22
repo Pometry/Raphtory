@@ -602,11 +602,13 @@ mod test {
         wal::no_wal::NoWal, Extension, Layer,
     };
     use chrono::DateTime;
+    use crate::persist::config::NoOpConfig;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
     use rayon::iter::ParallelIterator;
     use std::sync::Arc;
+    use tempfile;
 
     #[test]
     fn test_iterleave() {
@@ -637,11 +639,7 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            use crate::persist::strategy::NoOpConfig;
-            let config = NoOpConfig {
-                max_node_page_len: chunk_size,
-                max_edge_page_len: chunk_size,
-            };
+            let config = NoOpConfig::new(chunk_size, chunk_size);
             Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
@@ -652,11 +650,7 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            use crate::persist::strategy::NoOpConfig;
-            let config = NoOpConfig {
-                max_node_page_len: chunk_size,
-                max_edge_page_len: chunk_size,
-            };
+            let config = NoOpConfig::new(chunk_size, chunk_size);
             Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
@@ -729,11 +723,7 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        use crate::persist::strategy::NoOpConfig;
-        let config = NoOpConfig {
-            max_node_page_len: 32,
-            max_edge_page_len: 32,
-        };
+        let config = NoOpConfig::new(32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
             Extension::new(config, Arc::new(NoWal)),
@@ -745,11 +735,7 @@ mod test {
     #[test]
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
-        use crate::persist::strategy::NoOpConfig;
-        let config = NoOpConfig {
-            max_node_page_len: 32,
-            max_edge_page_len: 32,
-        };
+        let config = NoOpConfig::new(32, 32);
         let g = GraphStore::new(
             Some(graph_dir.path()),
             Extension::new(config, Arc::new(NoWal)),
@@ -795,11 +781,7 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        use crate::persist::strategy::NoOpConfig;
-        let config = NoOpConfig {
-            max_node_page_len: 32,
-            max_edge_page_len: 32,
-        };
+        let config = NoOpConfig::new(32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
             Extension::new(config, Arc::new(NoWal)),
@@ -1606,22 +1588,14 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            use crate::persist::strategy::NoOpConfig;
-            let config = NoOpConfig {
-                max_node_page_len: node_page_len,
-                max_edge_page_len: edge_page_len,
-            };
+            let config = NoOpConfig::new(node_page_len, edge_page_len);
             Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            use crate::persist::strategy::NoOpConfig;
-            let config = NoOpConfig {
-                max_node_page_len: node_page_len,
-                max_edge_page_len: edge_page_len,
-            };
+            let config = NoOpConfig::new(node_page_len, edge_page_len);
             Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }

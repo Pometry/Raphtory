@@ -22,7 +22,7 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::{PersistenceStrategy},
+    PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::WalOps,

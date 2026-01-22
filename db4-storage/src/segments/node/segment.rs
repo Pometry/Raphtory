@@ -4,7 +4,10 @@ use crate::{
     error::StorageError,
     loop_lock_write,
     pages::node_store::increment_and_clamp,
-    persist::strategy::PersistenceStrategy,
+    persist::{
+        config::ConfigOps,
+        strategy::PersistenceStrategy,
+    },
     segments::{
         HasRow, SegmentContainer,
         node::entry::{MemNodeEntry, MemNodeRef},
@@ -13,6 +16,7 @@ use crate::{
 };
 use either::Either;
 use parking_lot::lock_api::ArcRwLockReadGuard;
+use parking_lot::RwLock;
 use raphtory_api::core::{
     Direction,
     entities::{
@@ -439,7 +443,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     fn load(
-        _page_id: usize,
+        _segment_id: usize,
         _node_meta: Arc<Meta>,
         _edge_meta: Arc<Meta>,
         _path: impl AsRef<std::path::Path>,
@@ -454,17 +458,19 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     fn new(
-        page_id: usize,
+        segment_id: usize,
         meta: Arc<Meta>,
         _edge_meta: Arc<Meta>,
         _path: Option<PathBuf>,
         ext: Self::Extension,
     ) -> Self {
-        let max_page_len = ext.config().max_node_page_len;
+        let max_page_len = ext.config().persistence().max_node_page_len;
+        let inner = RwLock::new(MemNodeSegment::new(segment_id, max_page_len, meta));
+        let inner = Arc::new(inner);
+
         Self {
-            inner: parking_lot::RwLock::new(MemNodeSegment::new(page_id, max_page_len, meta))
-                .into(),
-            segment_id: page_id,
+            inner,
+            segment_id,
             _ext: ext,
             max_num_node: AtomicU32::new(0),
             est_size: AtomicUsize::new(0),
@@ -586,8 +592,9 @@ mod test {
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::strategy::{
-            NoOpConfig, NoOpStrategy, PersistenceStrategy,
+            NoOpStrategy, PersistenceStrategy,
         },
+        persist::config::NoOpConfig,
         wal::no_wal::NoWal,
     };
     use raphtory_api::core::entities::properties::{

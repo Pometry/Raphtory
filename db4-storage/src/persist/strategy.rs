@@ -1,5 +1,6 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    persist::config::{ConfigOps, NoOpConfig},
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
@@ -7,12 +8,7 @@ use crate::{
     },
     wal::{WalOps, no_wal::NoWal},
 };
-use crate::error::StorageError;
-use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, ops::DerefMut, path::Path, sync::Arc};
-
-pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
-pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
+use std::{fmt::Debug, ops::DerefMut, sync::Arc};
 
 pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
@@ -52,47 +48,10 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     fn disk_storage_enabled() -> bool;
 }
 
-pub trait ConfigOps: Serialize + Deserialize<'static> {
-    fn load_from_dir(dir: impl AsRef<Path>) -> Result<Self, StorageError>;
-
-    fn save_to_dir(&self, dir: impl AsRef<Path>) -> Result<(), StorageError>;
-}
-
 #[derive(Debug, Clone)]
 pub struct NoOpStrategy {
     config: NoOpConfig,
     wal: Arc<NoWal>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NoOpConfig {
-    pub max_node_page_len: u32,
-    pub max_edge_page_len: u32,
-}
-
-impl NoOpConfig {
-    pub fn new(max_node_page_len: u32, max_edge_page_len: u32) -> Self {
-        Self { max_node_page_len, max_edge_page_len }
-    }
-}
-
-impl Default for NoOpConfig {
-    fn default() -> Self {
-        Self {
-            max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
-            max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
-        }
-    }
-}
-
-impl ConfigOps for NoOpConfig {
-    fn load_from_dir(_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
-        Ok(Self::default())
-    }
-
-    fn save_to_dir(&self, _dir: impl AsRef<Path>) -> Result<(), StorageError> {
-        Ok(())
-    }
 }
 
 impl PersistenceStrategy for NoOpStrategy {

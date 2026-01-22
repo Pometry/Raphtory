@@ -40,12 +40,14 @@ use storage::{
     transaction::TransactionManager,
     wal::{GraphWalOps, WalOps, LSN},
     Wal,
-    ConfigOps,
+    persist::config::ConfigOps,
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
-    Extension, Config, PersistenceStrategy
+    Extension, Config,
+    persist::strategy::PersistenceStrategy,
+    persist::config::PersistenceConfig
 };
 
 #[cfg(feature = "search")]

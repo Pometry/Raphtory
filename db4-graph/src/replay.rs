@@ -15,10 +15,11 @@ use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::resolve_pos,
-    persist::strategy::PersistenceStrategy,
+    PersistenceStrategy,
     resolver::GIDResolverOps,
     wal::{GraphReplay, TransactionID, LSN},
     ES, GS, NS,
+    persist::config::ConfigOps,
 };
 
 impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
@@ -43,8 +44,8 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let temporal_graph = self.graph();
-        let node_max_page_len = temporal_graph.extension().max_node_page_len();
-        let edge_max_page_len = temporal_graph.extension().max_edge_page_len();
+        let node_max_page_len = temporal_graph.extension().config().persistence().max_node_page_len;
+        let edge_max_page_len = temporal_graph.extension().config().persistence().max_edge_page_len;
 
         // 1. Insert prop ids into edge meta.
         // No need to validate props again since they are already validated before

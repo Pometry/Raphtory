@@ -22,7 +22,7 @@ use raphtory_core::{
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
-    persist::strategy::PersistenceStrategy,
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
@@ -220,7 +220,7 @@ impl InternalAdditionOps for TemporalGraph {
                         self.event_counter
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                     );
-                    pos.as_vid(seg, self.extension().max_node_page_len())
+                    pos.as_vid(seg, self.extension().config().persistence().max_node_page_len)
                 })?;
 
                 Ok(id)
