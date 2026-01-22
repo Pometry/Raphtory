@@ -11,52 +11,52 @@ pub enum FastMerge<I: Iterator, F: MergePredicate<I::Item>> {
 }
 
 impl<I: Iterator, P: MergePredicate<I::Item> + Clone> FastMerge<I, P> {
-    pub(crate) fn new(iters: impl Iterator<Item = I>, predicate: P) -> Self {
-        let mut merged = Self::Zero;
-        for iter in iters.map(|iter| iter.into_iter()) {
-            match merged {
-                FastMerge::Zero => {
-                    merged = Self::One(iter);
-                }
-                FastMerge::One(old_iter) => {
-                    merged = Self::Two(MergeBy::new(old_iter, iter, predicate.clone()))
-                }
-                FastMerge::Two(old_iter) => {
-                    merged = Self::Three(MergeBy::new(old_iter, iter, predicate.clone()))
-                }
-                FastMerge::Three(old_iter) => {
-                    let (left, right, _) = old_iter.into_inner();
-                    merged = Self::Four(MergeBy::new(
-                        left,
-                        MergeBy::new(right, iter, predicate.clone()),
-                        predicate.clone(),
-                    ));
-                }
-                FastMerge::Four(old_iter) => {
-                    let (left, right, _) = old_iter.into_inner();
-                    let (left_left, left_right, _) = left.into_inner();
-                    let (right_left, right_right, _) = right.into_inner();
-                    let mut kmerge = KMergeBy::new(iter.size_hint().0 + 5, predicate.clone());
-                    kmerge.push(left_left);
-                    kmerge.push(left_right);
-                    kmerge.push(right_left);
-                    kmerge.push(right_right);
-                    kmerge.push(iter);
-                    merged = Self::Many(kmerge);
-                }
-                FastMerge::Many(mut kmerge) => {
-                    kmerge.push(iter);
-                    merged = Self::Many(kmerge);
-                }
+    pub(crate) fn new(mut iters: impl Iterator<Item = I>, predicate: P) -> Self {
+        let (lower, _) = iters.size_hint();
+        if lower > 4 {
+            let mut kmerge = KMergeBy::new(lower, predicate);
+            for iter in iters {
+                kmerge.push(iter);
             }
+            kmerge.heapify();
+            return Self::Many(kmerge);
         }
-        match &mut merged {
-            FastMerge::Many(kmerge) => {
-                kmerge.heapify();
-            }
-            _ => {}
+        match iters.next() {
+            None => return Self::Zero,
+            Some(iter1) => match iters.next() {
+                None => Self::One(iter1),
+                Some(iter2) => match iters.next() {
+                    None => Self::Two(MergeBy::new(iter1, iter2, predicate)),
+                    Some(iter3) => match iters.next() {
+                        None => Self::Three(MergeBy::new(
+                            MergeBy::new(iter1, iter2, predicate.clone()),
+                            iter3,
+                            predicate,
+                        )),
+                        Some(iter4) => match iters.next() {
+                            None => Self::Four(MergeBy::new(
+                                MergeBy::new(iter1, iter2, predicate.clone()),
+                                MergeBy::new(iter3, iter4, predicate.clone()),
+                                predicate,
+                            )),
+                            Some(iter5) => {
+                                let mut kmerge = KMergeBy::new(5, predicate);
+                                kmerge.push(iter1);
+                                kmerge.push(iter2);
+                                kmerge.push(iter3);
+                                kmerge.push(iter4);
+                                kmerge.push(iter5);
+                                for iter in iters {
+                                    kmerge.push(iter);
+                                }
+                                kmerge.heapify();
+                                Self::Many(kmerge)
+                            }
+                        },
+                    },
+                },
+            },
         }
-        merged
     }
 }
 
