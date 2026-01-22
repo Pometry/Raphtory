@@ -464,7 +464,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         _path: Option<PathBuf>,
         ext: Self::Extension,
     ) -> Self {
-        let max_page_len = ext.config().persistence().max_node_page_len;
+        let max_page_len = ext.config().persistence().max_node_page_len();
         let inner = RwLock::new(MemNodeSegment::new(segment_id, max_page_len, meta));
         let inner = Arc::new(inner);
 

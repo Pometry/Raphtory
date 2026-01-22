@@ -15,11 +15,11 @@ pub trait ConfigOps: Serialize + Deserialize<'static> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PersistenceConfig {
-    pub max_node_page_len: u32,
-    pub max_edge_page_len: u32,
-    pub max_memory_bytes: usize,
-    pub bg_flush_enabled: bool,
-    pub node_types: Vec<String>,
+    max_node_page_len: u32,
+    max_edge_page_len: u32,
+    max_memory_bytes: usize,
+    bg_flush_enabled: bool,
+    node_types: Vec<String>,
 }
 
 impl Default for PersistenceConfig {
@@ -36,20 +36,6 @@ impl Default for PersistenceConfig {
 
 impl PersistenceConfig {
     const CONFIG_FILE: &str = "persistence_config.json";
-
-    pub fn load_from_dir(dir: impl AsRef<Path>) -> Result<Self, StorageError> {
-        let config_file = dir.as_ref().join(Self::CONFIG_FILE);
-        let config_file = std::fs::File::open(config_file)?;
-        let config = serde_json::from_reader(config_file)?;
-        Ok(config)
-    }
-
-    pub fn save_to_dir(&self, dir: impl AsRef<Path>) -> Result<(), StorageError> {
-        let config_file = dir.as_ref().join(Self::CONFIG_FILE);
-        let config_file = std::fs::File::create(&config_file)?;
-        serde_json::to_writer_pretty(config_file, self)?;
-        Ok(())
-    }
 
     pub fn new_with_memory(max_memory_bytes: usize) -> Self {
         Self {
@@ -71,13 +57,23 @@ impl PersistenceConfig {
         }
     }
 
+    pub fn load_from_dir(dir: impl AsRef<Path>) -> Result<Self, StorageError> {
+        let config_file = dir.as_ref().join(Self::CONFIG_FILE);
+        let config_file = std::fs::File::open(config_file)?;
+        let config = serde_json::from_reader(config_file)?;
+        Ok(config)
+    }
+
+    pub fn save_to_dir(&self, dir: impl AsRef<Path>) -> Result<(), StorageError> {
+        let config_file = dir.as_ref().join(Self::CONFIG_FILE);
+        let config_file = std::fs::File::create(&config_file)?;
+        serde_json::to_writer_pretty(config_file, self)?;
+        Ok(())
+    }
+
     pub fn with_bg_flush(mut self) -> Self {
         self.bg_flush_enabled = true;
         self
-    }
-
-    pub fn node_types(&self) -> &[String] {
-        &self.node_types
     }
 
     pub fn with_node_types(&self, types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
@@ -87,6 +83,26 @@ impl PersistenceConfig {
             node_types,
             ..*self
         }
+    }
+
+    pub fn max_node_page_len(&self) -> u32 {
+        self.max_node_page_len
+    }
+
+    pub fn max_edge_page_len(&self) -> u32 {
+        self.max_edge_page_len
+    }
+
+    pub fn max_memory_bytes(&self) -> usize {
+        self.max_memory_bytes
+    }
+
+    pub fn bg_flush_enabled(&self) -> bool {
+        self.bg_flush_enabled
+    }
+
+    pub fn node_types(&self) -> &[String] {
+        &self.node_types
     }
 }
 
