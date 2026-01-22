@@ -1525,7 +1525,7 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
 
     df = pd.read_csv(p, usecols=cols, engine="c")
     # Expect string/object dtype for time
-    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+    assert "str" in str(df["time"].dtype) or df["time"].dtype == object
 
     g = Graph()
     # this line should not raise an exception
