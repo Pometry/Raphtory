@@ -2074,7 +2074,6 @@ def test_datetime_add_node():
 
 def test_datetime_with_timezone():
     import pytz
-    from raphtory import Graph
 
     g = Graph()
     # testing zones east and west of UK
