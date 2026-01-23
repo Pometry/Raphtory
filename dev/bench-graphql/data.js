@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1768859514635,
+  "lastUpdate": 1769175669672,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3401,6 +3401,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1568,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f494701d402d628a7a0087c5b43a08de48fd3a0f",
+          "message": "Fix test issues revealed by pandas 3.0 (#2448)\n\n* remove unused import of pandas internals\n\n* attempt to fix tox tests for pandas>=3\n\n* fix test for renamed pandas dtype\n\n* rejig tests and dependency management\n\n* make dev install everything\n\n* make doc tests cleanup the output\n\n* use duckdb to read the files instead of interfacing with pandas",
+          "timestamp": "2026-01-23T14:04:27+01:00",
+          "tree_id": "a2c46ffa1252bafcea8e7096912074e424b58e31",
+          "url": "https://github.com/Pometry/Raphtory/commit/f494701d402d628a7a0087c5b43a08de48fd3a0f"
+        },
+        "date": 1769175665773,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1413,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 199,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 166,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1122,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 890,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1400,
             "unit": "req/s"
           }
         ]
