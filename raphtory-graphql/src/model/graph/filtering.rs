@@ -18,7 +18,7 @@ use raphtory::{
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        DynView, DynViewFilter,
+        DynView, DynViewFilter, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -1306,79 +1306,56 @@ impl TryFrom<GqlGraphFilter> for DynView {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(Windowed::new(w.start.0, w.end.0, inner))
+                inner.window(w.start, w.end)
             }
-
             GqlGraphFilter::At(t) => {
                 let inner: DynView = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                let et: EventTime = t.time.0;
-                Arc::new(Windowed::new(
-                    et,
-                    EventTime::end(et.t().saturating_add(1)),
-                    inner,
-                ))
+                inner.at(t.time)
             }
-
             GqlGraphFilter::Before(t) => {
                 let inner: DynView = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(Windowed::new(
-                    EventTime::start(i64::MIN),
-                    EventTime::end(t.time.0.t()),
-                    inner,
-                ))
+                inner.before(t.time)
             }
-
             GqlGraphFilter::After(t) => {
                 let inner: DynView = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                let start = EventTime::start(t.time.0.t().saturating_add(1));
-                Arc::new(Windowed::new(start, EventTime::end(i64::MAX), inner))
+                inner.after(t.time)
             }
-
             GqlGraphFilter::Latest(u) => {
                 let inner: DynView = match u.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(LatestWrap::new(inner))
+                Arc::new(inner.latest())
             }
-
             GqlGraphFilter::SnapshotAt(t) => {
                 let inner: DynView = match t.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(SnapshotAtWrap::new(t.time.0, inner))
+                Arc::new(inner.snapshot_at(t.time))
             }
-
             GqlGraphFilter::SnapshotLatest(u) => {
                 let inner: DynView = match u.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                Arc::new(SnapshotLatestWrap::new(inner))
+                Arc::new(inner.snapshot_latest())
             }
-
             GqlGraphFilter::Layers(l) => {
-                if l.names.is_empty() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "GraphFilter.layers.names must be non-empty".into(),
-                    ));
-                }
                 let inner: DynView = match l.expr {
                     Some(e) => e.deref().clone().try_into()?,
                     None => default_inner,
                 };
-                let layer = Layer::from(l.names);
-                Arc::new(Layered::new(layer, inner))
+                Arc::new(inner.layer(l.names))
             }
         })
     }
