@@ -4,7 +4,7 @@ use raphtory::{
     db::{
         api::view::Filter,
         graph::{
-            assertions::assert_ok_or_missing_edges,
+            assertions::{assert_ok_or_missing_edges, EdgeRow},
             graph::{assert_graph_equal, assert_persistent_materialize_graph_equal},
             views::{
                 deletion_graph::PersistentGraph,
@@ -264,25 +264,47 @@ fn test_graph_materialise_window() {
     })
 }
 
+fn check_persistent_graph_mat_window(
+    edges: &[EdgeRow],
+    edge_deletions: Vec<(u64, u64, i64)>,
+    v: i64,
+    (start, end): (i64, i64),
+) {
+    let g = build_graph_from_edge_list(edges);
+    let g = g.persistent_graph();
+    for (src, dst, t) in edge_deletions {
+        g.delete_edge(t, src, dst, None).unwrap();
+    }
+    let filter = EdgeFilter.property("int_prop").gt(v);
+    assert_ok_or_missing_edges(
+        edges,
+        g.window(start, end).filter(filter.clone()),
+        |filtered| {
+            let gwfm = filtered.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&filtered, &gwfm);
+        },
+    );
+    assert_ok_or_missing_edges(edges, g.filter(filter.clone()), |filtered| {
+        let gfw = filtered.window(start, end);
+        let gfwm = gfw.materialize().unwrap();
+        assert_persistent_materialize_graph_equal(&gfw, &gfwm);
+    });
+}
+
 #[test]
 fn test_persistent_graph_materialise_window() {
     proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
-        let g = build_graph_from_edge_list(&edges);
-        let g = g.persistent_graph();
-        for (src, dst, t) in edge_deletions {
-            g.delete_edge(t, src, dst, None).unwrap();
-        }
-        let filter = EdgeFilter.property("int_prop").gt(v);
-        assert_ok_or_missing_edges(&edges, g.window(start, end).filter(filter.clone()), |filtered| {
-            let gwfm = filtered.materialize().unwrap();
-            assert_persistent_materialize_graph_equal(&filtered, &gwfm);
-        });
-        assert_ok_or_missing_edges(&edges, g.filter(filter.clone()), |filtered| {
-            let gfw = filtered.window(start, end);
-            let gfwm = gfw.materialize().unwrap();
-            assert_persistent_materialize_graph_equal(&gfw, &gfwm);
-        });
+        check_persistent_graph_mat_window(&edges, edge_deletions, v, (start, end));
     })
+}
+
+#[test]
+fn simplte_graph_materialize_window() {
+    let edges = [(0, 0, 0, "".to_owned(), 0), (0, 0, 0, "".to_owned(), 0)];
+    let edge_deletions = vec![];
+    let start_end = (1, 2);
+    let v = -1;
+    check_persistent_graph_mat_window(&edges, edge_deletions, v, start_end);
 }
 
 #[test]

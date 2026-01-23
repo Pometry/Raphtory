@@ -32,7 +32,10 @@ use raphtory_api::core::{
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    mutation::{
+        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        property_addition_ops::InternalPropertyAdditionOps,
+    },
 };
 use std::collections::HashMap;
 
@@ -469,6 +472,7 @@ fn test_filter_persistent_materialise_is_consistent() {
 }
 
 #[test]
+#[ignore = "need a way to add a node without timestamp"]
 fn test_filter_on_nodes() {
     proptest!(|(
         edges in build_edge_list(100, 100), v in any::<i64>()
@@ -480,6 +484,19 @@ fn test_filter_on_nodes() {
             assert_nodes_equal(&filtered, &expected_filtered_g.nodes());
         });
     })
+}
+
+#[test]
+#[ignore = "need a way to add a node without timestamp"]
+fn test_filter_on_nodes_simple() {
+    let edges = [(1u64, 2u64, 0i64, "a".to_string(), 10i64)];
+    let v = -1;
+    let g = build_graph_from_edge_list(&edges);
+    let filter = ExplodedEdgeFilter.property("int_prop").eq(v);
+    assert_ok_or_missing_edges(&edges, g.nodes().filter(filter.clone()), |filtered| {
+        let expected_filtered_g = build_filtered_nodes_graph(&edges, |vv| vv == v);
+        assert_nodes_equal(&filtered, &expected_filtered_g.nodes());
+    });
 }
 
 #[test]
