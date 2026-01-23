@@ -2411,6 +2411,16 @@ Export all nodes and edges from this graph view to another existing graph
 <td></td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="graph.filter">filter</strong></td>
+<td valign="top"><a href="#graph">Graph</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">expr</td>
+<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="graph.filternodes">filterNodes</strong></td>
 <td valign="top"><a href="#graph">Graph</a>!</td>
 <td></td>
@@ -6834,6 +6844,127 @@ Edge filter
 </tbody>
 </table>
 
+### GraphFilter
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.window">window</strong></td>
+<td valign="top"><a href="#graphwindowexpr">GraphWindowExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.at">at</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.before">before</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.after">after</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.latest">latest</strong></td>
+<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.snapshotat">snapshotAt</strong></td>
+<td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.snapshotlatest">snapshotLatest</strong></td>
+<td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphfilter.layers">layers</strong></td>
+<td valign="top"><a href="#graphlayersexpr">GraphLayersExpr</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### GraphLayersExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="graphlayersexpr.names">names</strong></td>
+<td valign="top">[<a href="#string">String</a>!]!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphlayersexpr.expr">expr</strong></td>
+<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### GraphTimeExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="graphtimeexpr.time">time</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphtimeexpr.expr">expr</strong></td>
+<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### GraphUnaryExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="graphunaryexpr.expr">expr</strong></td>
+<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### GraphViewCollection
 
 <table>
@@ -7024,6 +7155,35 @@ Node filter.
 Edge filter.
 
 </td>
+</tr>
+</tbody>
+</table>
+
+### GraphWindowExpr
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="graphwindowexpr.start">start</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphwindowexpr.end">end</strong></td>
+<td valign="top"><a href="#timeinput">TimeInput</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="graphwindowexpr.expr">expr</strong></td>
+<td valign="top"><a href="#graphfilter">GraphFilter</a></td>
+<td></td>
 </tr>
 </tbody>
 </table>
