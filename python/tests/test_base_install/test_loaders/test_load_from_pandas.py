@@ -1587,7 +1587,7 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
     p.write_text(csv_3)
     cols = ["id", "time"]
     df = pd.read_csv(p, usecols=cols, engine="c")
-    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+    assert "str" in str(df["time"].dtype) or df["time"].dtype == object
     g.load_nodes_from_pandas(df=df, time="time", id="id", properties=["time"])
     expected_node_times = {
         100: datetime.datetime(2020, 1, 7, tzinfo=datetime.timezone.utc),
@@ -1615,7 +1615,7 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
     p.write_text(csv_mixed)
     cols = ["src", "dst", "time", "value"]
     df = pd.read_csv(p, usecols=cols, engine="c")
-    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+    assert "str" in str(df["time"].dtype) or df["time"].dtype == object
     g.load_edges_from_pandas(
         df=df, time="time", src="src", dst="dst", properties=["value", "time"]
     )
@@ -1656,7 +1656,7 @@ def test_load_edges_from_pandas_csv_c_engine_time_utf8(tmp_path):
     p.write_text(csv_mixed_2)
     cols = ["id", "time"]
     df = pd.read_csv(p, usecols=cols, engine="c")
-    assert "string" in str(df["time"].dtype) or df["time"].dtype == object
+    assert "str" in str(df["time"].dtype) or df["time"].dtype == object
     g.load_nodes_from_pandas(df=df, time="time", id="id", properties=["time"])
     expected_node_times[10_000] = datetime.datetime(
         2022, 1, 1, tzinfo=datetime.timezone.utc
