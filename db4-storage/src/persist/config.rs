@@ -28,7 +28,7 @@ impl Default for PersistenceConfig {
             max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
             max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
             max_memory_bytes: DEFAULT_MAX_MEMORY_BYTES,
-            bg_flush_enabled: true,
+            bg_flush_enabled: false,
             node_types: Vec::new(),
         }
     }
@@ -113,29 +113,24 @@ pub struct NoOpConfig {
 
 impl NoOpConfig {
     pub fn new(max_node_page_len: u32, max_edge_page_len: u32) -> Self {
-        let persistence = PersistenceConfig {
-            max_node_page_len,
-            max_edge_page_len,
-            max_memory_bytes: usize::MAX,
-            bg_flush_enabled: false,
-            node_types: Vec::new(),
-        };
-
-        Self { persistence }
+        Self {
+            persistence: PersistenceConfig {
+                max_node_page_len,
+                max_edge_page_len,
+                ..NoOpConfig::default().persistence
+            }
+        }
     }
 }
 
 impl Default for NoOpConfig {
     fn default() -> Self {
-        let persistence = PersistenceConfig {
-            max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
-            max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
-            max_memory_bytes: usize::MAX,
-            bg_flush_enabled: false,
-            node_types: Vec::new(),
-        };
-
-        Self { persistence }
+        Self {
+            persistence: PersistenceConfig {
+                max_memory_bytes: usize::MAX,
+                ..PersistenceConfig::default()
+            },
+        }
     }
 }
 
