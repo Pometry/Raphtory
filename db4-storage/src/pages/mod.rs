@@ -482,8 +482,10 @@ impl<
     pub fn vacuum(self: &Arc<Self>) -> Result<(), StorageError> {
         let mut locked_nodes = self.nodes.write_locked();
         let mut locked_edges = self.edges.write_locked();
+
         locked_nodes.vacuum()?;
         locked_edges.vacuum()?;
+
         Ok(())
     }
 }
