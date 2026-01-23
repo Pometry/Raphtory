@@ -118,7 +118,7 @@ impl NoOpConfig {
                 max_node_page_len,
                 max_edge_page_len,
                 ..NoOpConfig::default().persistence
-            }
+            },
         }
     }
 }
