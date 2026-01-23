@@ -8,7 +8,7 @@ use crate::{
             properties::{internal::InternalPropertiesOps, TemporalPropertyView},
             state::{
                 ops,
-                ops::{node::NodeOp, HistoryOp},
+                ops::{node::NodeOp, HistoryOp, NodeFilterOp},
                 LazyNodeState,
             },
             view::{
@@ -478,8 +478,8 @@ impl InternalHistoryOps for EmptyHistory {
 
 impl IntoArcDynHistoryOps for EmptyHistory {}
 
-impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + Send + Sync>
-    InternalHistoryOps for NodeView<'graph, G, GH>
+impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistoryOps
+    for NodeView<'graph, G>
 {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
         let semantics = self.graph.node_time_semantics();
@@ -505,23 +505,20 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync, GH: GraphViewOps<'graph> + S
 
     fn earliest_time(&self) -> Option<EventTime> {
         ops::EarliestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .apply(self.graph.core_graph(), self.node)
     }
 
     fn latest_time(&self) -> Option<EventTime> {
         ops::LatestTime {
-            graph: self.graph().clone(),
+            view: self.graph().clone(),
         }
         .apply(self.graph.core_graph(), self.node)
     }
 }
 
-impl<G: GraphViewOps<'static> + Send + Sync, GH: GraphViewOps<'static> + Send + Sync>
-    IntoArcDynHistoryOps for NodeView<'static, G, GH>
-{
-}
+impl<G: GraphViewOps<'static> + Send + Sync> IntoArcDynHistoryOps for NodeView<'static, G> {}
 
 impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
@@ -626,8 +623,12 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
 
 impl<G: BoxableGraphView + Clone + 'static> IntoArcDynHistoryOps for EdgeView<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
-    for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH>
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        F: NodeFilterOp + Clone + 'graph,
+    > InternalHistoryOps for LazyNodeState<'graph, HistoryOp<'graph, GH>, G, GH, F>
 {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
         // consuming the history objects is fine here because they get recreated on subsequent iter() calls
@@ -658,8 +659,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 }
 
-impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
-    for LazyNodeState<'static, HistoryOp<'static, GH>, G, GH>
+impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>, F: NodeFilterOp + Clone + 'static>
+    IntoArcDynHistoryOps for LazyNodeState<'static, HistoryOp<'static, GH>, G, GH, F>
 {
 }
 
@@ -689,9 +690,7 @@ impl<P: InternalPropertiesOps> InternalHistoryOps for TemporalPropertyView<P> {
 
 impl<P: InternalPropertiesOps + 'static> IntoArcDynHistoryOps for TemporalPropertyView<P> {}
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
-    for PathFromNode<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromNode<'graph, G> {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.iter()
             .map(|nodeview| GenLockedIter::from(nodeview, move |node| node.iter()))
@@ -719,14 +718,9 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 }
 
-impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
-    for PathFromNode<'static, G, GH>
-{
-}
+impl<G: GraphViewOps<'static>> IntoArcDynHistoryOps for PathFromNode<'static, G> {}
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryOps
-    for PathFromGraph<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromGraph<'graph, G> {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
         self.iter()
             .map(|path_from_node| {
@@ -758,10 +752,7 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> InternalHistoryO
     }
 }
 
-impl<G: GraphViewOps<'static>, GH: GraphViewOps<'static>> IntoArcDynHistoryOps
-    for PathFromGraph<'static, G, GH>
-{
-}
+impl<G: GraphViewOps<'static>> IntoArcDynHistoryOps for PathFromGraph<'static, G> {}
 
 /// Reverses the order of items returned by iter() and iter_rev() (as such, also reverses first() and last()).
 #[derive(Debug, Clone, Copy)]

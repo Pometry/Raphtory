@@ -69,6 +69,7 @@ prost-types = { workspace = true, optional = true }
 # arrow otional dependencies
 parquet = { workspace = true, optional = true }
 arrow-json = { workspace = true, optional = true }
+arrow-csv = { workspace = true, optional = true}
 #arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
 #arrow-buffer = { workspace = true, optional = true }
 #arrow-cast = { workspace = true, optional = true }
@@ -113,6 +114,8 @@ dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
 raphtory = { path = ".", features = ["test-utils"] } # enable test-utils for integration tests (version is not set to make cargo publish work)
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
@@ -179,6 +182,7 @@ arrow = [
     "raphtory-core/arrow",
     "dep:parquet",
     "dep:arrow-json",
+    "dep:arrow-csv",
     "dep:arrow",
 ]
 

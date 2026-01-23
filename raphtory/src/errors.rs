@@ -31,7 +31,10 @@ use pometry_storage::RAError;
 use {
     arrow::{datatypes::DataType, error::ArrowError},
     parquet::errors::ParquetError,
-    raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
+    raphtory_api::core::entities::{
+        properties::prop::{DeserialisationError, InvalidPropertyTypeErr},
+        GidType, VID,
+    },
 };
 
 #[cfg(feature = "python")]
@@ -223,6 +226,10 @@ pub enum GraphError {
 
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
+
+    #[error("Metadata {0} does not exist")]
+    MetadataMissingError(String),
+
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
@@ -394,6 +401,9 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
+    #[error("Node filter expected")]
+    NotNodeFilter,
+
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
 
@@ -417,6 +427,9 @@ pub enum GraphError {
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
+
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
 
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
@@ -509,5 +522,19 @@ impl From<TimeError> for GraphError {
 impl From<GraphError> for io::Error {
     fn from(error: GraphError) -> Self {
         io::Error::other(error)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<InvalidPropertyTypeErr> for LoadError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        LoadError::InvalidPropertyType(value.0)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<InvalidPropertyTypeErr> for GraphError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        GraphError::from(LoadError::from(value))
     }
 }

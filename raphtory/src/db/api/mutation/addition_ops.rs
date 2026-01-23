@@ -44,7 +44,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self>, GraphError>;
 
     fn create_node<V: AsNodeRef, T: TryIntoInputTime, PI: CollectProperties>(
         &self,
@@ -52,7 +52,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
         &self,
@@ -61,7 +61,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, Self, Self>, GraphError> {
+    ) -> Result<NodeView<'static, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_node(time, v, props, node_type)
     }
@@ -93,7 +93,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self, Self>, GraphError>;
+    ) -> Result<EdgeView<Self>, GraphError>;
 
     fn add_edge_with_custom_time_format<V: AsNodeRef, PI: CollectProperties>(
         &self,
@@ -103,7 +103,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self, Self>, GraphError> {
+    ) -> Result<EdgeView<Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
@@ -116,7 +116,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, G, G>, GraphError> {
+    ) -> Result<NodeView<'static, G>, GraphError> {
         let ti = time_from_input(self, t)?;
         let properties = props.collect_properties(|name, dtype| {
             Ok(self
@@ -148,7 +148,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PI,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, G, G>, GraphError> {
+    ) -> Result<NodeView<'static, G>, GraphError> {
         let ti = time_from_input(self, t)?;
         let v_id = match node_type {
             None => self.resolve_node(v.as_node_ref()).map_err(into_graph_err)?,
@@ -186,7 +186,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         dst: V,
         props: PI,
         layer: Option<&str>,
-    ) -> Result<EdgeView<G, G>, GraphError> {
+    ) -> Result<EdgeView<G>, GraphError> {
         let ti = time_from_input(self, t)?;
         let src_id = self
             .resolve_node(src.as_node_ref())

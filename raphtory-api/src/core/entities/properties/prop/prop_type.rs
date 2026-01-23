@@ -1,3 +1,5 @@
+#[cfg(any(feature = "arrow", feature = "storage", feature = "python"))]
+use arrow_schema::DataType;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -78,6 +80,13 @@ impl Display for PropType {
 }
 
 impl PropType {
+    pub fn inner(&self) -> Option<&PropType> {
+        match self {
+            PropType::List(inner) => Some(inner.as_ref()),
+            _ => None,
+        }
+    }
+
     pub fn map(fields: impl IntoIterator<Item = (impl Into<String>, PropType)>) -> Self {
         let map: HashMap<_, _> = fields.into_iter().map(|(k, v)| (k.into(), v)).collect();
         PropType::Map(Arc::from(map))
@@ -134,6 +143,54 @@ impl PropType {
         None
     }
 }
+
+#[cfg(any(feature = "arrow", feature = "storage", feature = "python"))]
+pub fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, InvalidPropertyTypeErr> {
+    match dt {
+        DataType::Boolean => Ok(PropType::Bool),
+        DataType::Int32 => Ok(PropType::I32),
+        DataType::Int64 => Ok(PropType::I64),
+        DataType::UInt8 => Ok(PropType::U8),
+        DataType::UInt16 => Ok(PropType::U16),
+        DataType::UInt32 => Ok(PropType::U32),
+        DataType::UInt64 => Ok(PropType::U64),
+        DataType::Float32 => Ok(PropType::F32),
+        DataType::Float64 => Ok(PropType::F64),
+        DataType::Utf8 => Ok(PropType::Str),
+        DataType::LargeUtf8 => Ok(PropType::Str),
+        DataType::Utf8View => Ok(PropType::Str),
+        DataType::Struct(fields) => Ok(PropType::map(fields.iter().filter_map(|f| {
+            data_type_as_prop_type(f.data_type())
+                .ok()
+                .map(move |pt| (f.name(), pt))
+        }))),
+        DataType::List(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
+            v.data_type(),
+        )?))),
+        DataType::FixedSizeList(v, _) => Ok(PropType::List(Box::new(data_type_as_prop_type(
+            v.data_type(),
+        )?))),
+        DataType::LargeList(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
+            v.data_type(),
+        )?))),
+        DataType::Timestamp(_, v) => match v {
+            None => Ok(PropType::NDTime),
+            Some(_) => Ok(PropType::DTime),
+        },
+        DataType::Date32 => Ok(PropType::NDTime),
+        DataType::Date64 => Ok(PropType::NDTime),
+        DataType::Decimal128(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
+            scale: *scale as i64,
+        }),
+        DataType::Null => Ok(PropType::Empty),
+        _ => Err(InvalidPropertyTypeErr(dt.clone())),
+    }
+}
+
+#[cfg(any(feature = "arrow", feature = "storage", feature = "python"))]
+#[derive(thiserror::Error, Debug)]
+#[error("{0:?} not supported as property type")]
+pub struct InvalidPropertyTypeErr(pub DataType);
 
 #[cfg(any(feature = "arrow", feature = "storage"))]
 mod arrow {

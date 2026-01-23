@@ -139,15 +139,17 @@ pub mod prelude {
                 state::{
                     AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
                 },
-                view::{
-                    EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
-                    GraphViewOps, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,
-                    TimeOps,
-                },
+                view::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
             },
-            graph::{graph::Graph, views::filter::model::property_filter::PropertyFilter},
+            graph::graph::Graph,
         },
     };
+
+    pub use crate::db::graph::views::filter::model::{
+        filter::Filter, property_filter::PropertyFilter,
+    };
+
+    pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
     #[cfg(feature = "storage")]
     pub use {

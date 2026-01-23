@@ -1,131 +1,250 @@
 use crate::{
     db::graph::views::filter::model::{
-        EdgeEndpointFilter, EdgeFilter, EdgeFilterOps, InternalEdgeFilterBuilderOps,
+        edge_filter::{EdgeEndpointWrapper, EdgeFilter},
+        node_filter::{
+            builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
+            ops::{NodeFilterOps, NodeIdFilterOps},
+            NodeFilter,
+        },
+        property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+        PropertyFilterFactory, ViewWrapOps,
     },
+    impl_node_text_filter_builder,
     python::{
-        filter::filter_expr::{PyFilterExpr, PyInnerFilterExpr},
+        filter::{
+            filter_expr::PyFilterExpr,
+            property_filter_builders::{
+                PyPropertyExprBuilder, PyPropertyFilterBuilder, PyViewPropsFilterBuilder,
+            },
+        },
         types::iterable::FromIterable,
     },
 };
-use pyo3::{pyclass, pymethods};
+use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "EdgeFilterOp", module = "raphtory.filter")]
+#[pyclass(frozen, name = "EdgeEndpointIdFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeFilterOp(Arc<dyn InternalEdgeFilterBuilderOps>);
-
-impl<T: InternalEdgeFilterBuilderOps + 'static> From<T> for PyEdgeFilterOp {
-    fn from(value: T) -> Self {
-        PyEdgeFilterOp(Arc::new(value))
-    }
-}
+pub struct PyEdgeEndpointIdFilterBuilder(pub EdgeEndpointWrapper<NodeIdFilterBuilder>);
 
 #[pymethods]
-impl PyEdgeFilterOp {
-    /// Returns a filter expression that checks if a specified string is equal to a given value.
+impl PyEdgeEndpointIdFilterBuilder {
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is equal to the given value.
     ///
     /// Arguments:
-    ///     value (str):
-    ///  
+    ///     value (int): Node ID to compare against.
+    ///
     /// Returns:
-    ///     filter expression
-    fn __eq__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.eq(value);
-        PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
+    ///     filter.FilterExpr: A filter expression evaluating equality.
+    fn __eq__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.eq(value)))
     }
 
-    /// Returns a filter expression that checks if a specified string is not equal to a given value.
-    ///  
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is not equal to the given value.
+    ///
     /// Arguments:
-    ///     value (str):
+    ///     value (int): Node ID to compare against.
     ///
     /// Returns:
-    ///     filter expression
-    fn __ne__(&self, value: String) -> PyFilterExpr {
-        let field = self.0.ne(value);
-        PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
+    ///     filter.FilterExpr: A filter expression evaluating inequality.
+    fn __ne__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ne(value)))
     }
 
-    /// Returns a filter expression that checks if a given value is contained within the specified iterable of strings.
-    ///  
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is less than the given value.
+    ///
     /// Arguments:
-    ///     values (list[str]):
+    ///     value (int): Upper bound (exclusive) for the node ID.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.is_in(values);
-        PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
+    ///     filter.FilterExpr: A filter expression evaluating a `<` comparison.
+    fn __lt__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.lt(value)))
     }
 
-    /// Returns a filter expression that checks if a given value is not contained within the provided iterable of strings.
-    ///  
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is less than or equal to the given value.
+    ///
     /// Arguments:
-    ///     values (list[str]):
+    ///     value (int): Upper bound (inclusive) for the node ID.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
-    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-        let field = self.0.is_not_in(values);
-        PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
+    ///     filter.FilterExpr: A filter expression evaluating a `<=` comparison.
+    fn __le__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.le(value)))
     }
 
-    /// Returns a filter expression that checks if a given value contains the specified string.
-    ///  
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is greater than the given value.
+    ///
     /// Arguments:
-    ///     value (str):
+    ///     value (int): Lower bound (exclusive) for the node ID.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating a `>` comparison.
+    fn __gt__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.gt(value)))
+    }
+
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is greater than or equal to the given value.
+    ///
+    /// Arguments:
+    ///     value (int): Lower bound (inclusive) for the node ID.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating a `>=` comparison.
+    fn __ge__(&self, value: GID) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ge(value)))
+    }
+
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is contained within the specified iterable of IDs.
+    ///
+    /// Arguments:
+    ///     values (list[int]): Iterable of node IDs to match against.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating membership.
+    fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.is_in(values)))
+    }
+
+    /// Returns a filter expression that checks whether the endpoint ID
+    /// is **not** contained within the specified iterable of IDs.
+    ///
+    /// Arguments:
+    ///     values (list[int]): Iterable of node IDs to exclude.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating non-membership.
+    fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.is_not_in(values)))
+    }
+
+    /// Returns a filter expression that checks whether the string
+    /// representation of the endpoint ID starts with the given prefix.
+    ///
+    /// Arguments:
+    ///     value (str): Prefix to check for.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating prefix matching.
+    fn starts_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.starts_with(value)))
+    }
+
+    /// Returns a filter expression that checks whether the string
+    /// representation of the endpoint ID ends with the given suffix.
+    ///
+    /// Arguments:
+    ///     value (str): Suffix to check for.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating suffix matching.
+    fn ends_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(self.0.ends_with(value)))
+    }
+
+    /// Returns a filter expression that checks whether the string
+    /// representation of the endpoint ID contains the given substring.
+    ///
+    /// Arguments:
+    ///     value (str): Substring to search for.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr: A filter expression evaluating substring search.
     fn contains(&self, value: String) -> PyFilterExpr {
-        let field = self.0.contains(value);
-        PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
+        PyFilterExpr(Arc::new(self.0.contains(value)))
     }
 
-    /// Returns a filter expression that checks if a given value does not contain the specified string.
-    ///  
+    /// Returns a filter expression that checks whether the string
+    /// representation of the endpoint ID **does not** contain the given substring.
+    ///
     /// Arguments:
-    ///     value (str):
+    ///     value (str): Substring to exclude.
     ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression evaluating substring exclusion.
     fn not_contains(&self, value: String) -> PyFilterExpr {
-        let field = self.0.not_contains(value);
-        PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
+        PyFilterExpr(Arc::new(self.0.not_contains(value)))
     }
 
-    /// Returns a filter expression that checks if the specified properties approximately match the specified string.
+    /// Returns a filter expression that performs fuzzy matching
+    /// against the string representation of the endpoint ID.
     ///
     /// Uses a specified Levenshtein distance and optional prefix matching.
     ///
     /// Arguments:
-    ///     prop_value (str): Property to match against.
-    ///     levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-    ///     prefix_match (bool): Enable prefix matching.
-    ///  
+    ///     value (str): String to approximately match against.
+    ///     levenshtein_distance (int): Maximum allowed Levenshtein distance.
+    ///     prefix_match (bool): Whether to require a matching prefix.
+    ///
     /// Returns:
-    ///     filter.FilterExpr:
+    ///     filter.FilterExpr: A filter expression performing approximate text matching.
     fn fuzzy_search(
         &self,
         value: String,
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        let field = self
-            .0
-            .fuzzy_search(value, levenshtein_distance, prefix_match);
-        PyFilterExpr(PyInnerFilterExpr::Edge(Arc::new(field)))
+        PyFilterExpr(Arc::new(self.0.fuzzy_search(
+            value,
+            levenshtein_distance,
+            prefix_match,
+        )))
     }
 }
 
+#[pyclass(frozen, name = "EdgeEndpointNameFilter", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilterBuilder>);
+
+#[pyclass(frozen, name = "EdgeEndpointTypeFilter", module = "raphtory.filter")]
+#[derive(Clone)]
+pub struct PyEdgeEndpointTypeFilterBuilder(pub EdgeEndpointWrapper<NodeTypeFilterBuilder>);
+
+impl_node_text_filter_builder!(PyEdgeEndpointNameFilterBuilder);
+impl_node_text_filter_builder!(PyEdgeEndpointTypeFilterBuilder);
+
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpoint(pub EdgeEndpointFilter);
+pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
 
 #[pymethods]
 impl PyEdgeEndpoint {
-    fn name(&self) -> PyEdgeFilterOp {
-        PyEdgeFilterOp(self.0.name())
+    fn id(&self) -> PyEdgeEndpointIdFilterBuilder {
+        PyEdgeEndpointIdFilterBuilder(self.0.id())
+    }
+
+    fn name(&self) -> PyEdgeEndpointNameFilterBuilder {
+        PyEdgeEndpointNameFilterBuilder(self.0.name())
+    }
+
+    fn node_type(&self) -> PyEdgeEndpointTypeFilterBuilder {
+        PyEdgeEndpointTypeFilterBuilder(self.0.node_type())
+    }
+
+    fn property<'py>(
+        &self,
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
+        let b = PropertyFilterFactory::property(&self.0, name);
+        b.into_pyobject(py)
+    }
+
+    fn metadata<'py>(
+        &self,
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
+        let b = PropertyFilterFactory::metadata(&self.0, name);
+        b.into_pyobject(py)
     }
 }
 
@@ -143,5 +262,67 @@ impl PyEdgeFilter {
     #[staticmethod]
     fn dst() -> PyEdgeEndpoint {
         PyEdgeEndpoint(EdgeFilter::dst())
+    }
+
+    #[staticmethod]
+    fn property<'py>(
+        py: Python<'py>,
+        name: String,
+    ) -> PyResult<Bound<'py, PyPropertyFilterBuilder>> {
+        let b: PropertyFilterBuilder<EdgeFilter> =
+            PropertyFilterFactory::property(&EdgeFilter, name);
+        b.into_pyobject(py)
+    }
+
+    #[staticmethod]
+    fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
+        let b: MetadataFilterBuilder<EdgeFilter> =
+            PropertyFilterFactory::metadata(&EdgeFilter, name);
+        b.into_pyobject(py)
+    }
+
+    #[staticmethod]
+    fn window(start: EventTime, end: EventTime) -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.window(start, end)))
+    }
+
+    #[staticmethod]
+    fn at(time: EventTime) -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.at(time)))
+    }
+
+    #[staticmethod]
+    fn after(time: EventTime) -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.after(time)))
+    }
+
+    #[staticmethod]
+    fn before(time: EventTime) -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.before(time)))
+    }
+
+    #[staticmethod]
+    fn latest() -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.latest()))
+    }
+
+    #[staticmethod]
+    fn snapshot_at(time: EventTime) -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.snapshot_at(time)))
+    }
+
+    #[staticmethod]
+    fn snapshot_latest() -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.snapshot_latest()))
+    }
+
+    #[staticmethod]
+    fn layer(layer: String) -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.layer(layer)))
+    }
+
+    #[staticmethod]
+    fn layers(layers: FromIterable<String>) -> PyViewPropsFilterBuilder {
+        PyViewPropsFilterBuilder(Arc::new(EdgeFilter.layer(layers)))
     }
 }

@@ -517,14 +517,14 @@ fn test_deletions() {
     );
 }
 
-fn check_valid<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(e: &EdgeView<G, GH>) {
+fn check_valid<'graph, G: GraphViewOps<'graph>>(e: &EdgeView<G>) {
     assert!(e.is_valid());
     assert!(!e.is_deleted());
     assert!(e.graph.has_edge(e.src(), e.dst()));
     assert!(e.graph.edge(e.src(), e.dst()).is_some());
 }
 
-fn check_deleted<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(e: &EdgeView<G, GH>) {
+fn check_deleted<'graph, G: GraphViewOps<'graph>>(e: &EdgeView<G>) {
     assert!(!e.is_valid());
     assert!(e.is_deleted());
     let t = e.latest_time().map(|t| t.t()).unwrap_or(i64::MAX);

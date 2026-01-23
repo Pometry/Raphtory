@@ -1,7 +1,7 @@
 use crate::{
     model::{
         graph::{
-            filtering::{NodeFilter, NodesViewCollection},
+            filtering::{GqlNodeFilter, NodesViewCollection},
             node::GqlNode,
             timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlNodesWindowSet,
@@ -16,8 +16,14 @@ use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::{state::Index, view::DynamicGraph},
-        graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
+        api::{
+            state::{ops::DynNodeFilter, Index},
+            view::{filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter},
+        },
+        graph::{
+            nodes::{IntoDynNodes, Nodes},
+            views::filter::model::node_filter::CompositeNodeFilter,
+        },
     },
     errors::GraphError,
     prelude::*,
@@ -28,18 +34,20 @@ use std::cmp::Ordering;
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Nodes")]
 pub(crate) struct GqlNodes {
-    pub(crate) nn: Nodes<'static, DynamicGraph>,
+    pub(crate) nn: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }
 
 impl GqlNodes {
-    fn update<N: Into<Nodes<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
+    fn update<N: IntoDynNodes>(&self, nodes: N) -> Self {
         GqlNodes::new(nodes)
     }
 }
 
 impl GqlNodes {
-    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(nodes: N) -> Self {
-        Self { nn: nodes.into() }
+    pub(crate) fn new<N: IntoDynNodes>(nodes: N) -> Self {
+        Self {
+            nn: nodes.into_dyn(),
+        }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
@@ -184,17 +192,6 @@ impl GqlNodes {
         blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
     }
 
-    /// Returns a view of the node types.
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_nodes = self_clone.nn.filter_nodes(filter)?;
-            Ok(self_clone.update(filtered_nodes.into_dyn()))
-        })
-        .await
-    }
-
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {
         let mut return_view: GqlNodes = GqlNodes::new(self.nn.clone());
         for view in views {
@@ -206,7 +203,6 @@ impl GqlNodes {
                         return_view
                     }
                 }
-                NodesViewCollection::Layer(layer) => return_view.layer(layer).await,
                 NodesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 NodesViewCollection::Layers(layers) => return_view.layers(layers).await,
                 NodesViewCollection::ExcludeLayers(layers) => {
@@ -239,7 +235,7 @@ impl GqlNodes {
                 NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 NodesViewCollection::NodeFilter(node_filter) => {
-                    return_view.node_filter(node_filter).await?
+                    return_view.filter(node_filter).await?
                 }
                 NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
             }
@@ -355,5 +351,27 @@ impl GqlNodes {
     async fn ids(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.iter_unlocked().map(|nn| nn.name()).collect()).await
+    }
+
+    /// Returns a filtered view that applies to list down the chain
+    async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
+    }
+
+    /// Returns filtered list of nodes
+    async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.select(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
     }
 }

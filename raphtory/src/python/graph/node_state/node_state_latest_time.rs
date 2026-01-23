@@ -1,14 +1,13 @@
 use crate::{
     db::{
         api::{
-            state::{ops, LazyNodeState, NodeGroups, NodeOp, NodeState},
-            view::{internal::Static, DynamicGraph, IntoDynHop, IntoDynamic, StaticGraphViewOps},
+            state::{ops, ops::DynNodeFilter, LazyNodeState, NodeGroups, NodeOp, NodeState},
+            view::DynamicGraph,
         },
         graph::{node::NodeView, nodes::Nodes},
     },
     impl_lazy_node_state, impl_lazy_node_state_ord, impl_node_state_group_by_ops,
-    impl_node_state_ops, impl_node_state_ord_ops, impl_one_hop,
-    prelude::*,
+    impl_node_state_ops, impl_node_state_ord_ops,
     python::{
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -26,12 +25,22 @@ use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::prelude::*;
 use std::{cmp::Ordering, collections::HashMap};
 
+use crate::db::graph::nodes::IntoDynNodes;
+pub(crate) use crate::{
+    db::api::{
+        state::{ops::IntoDynNodeOp, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps},
+        view::GraphViewOps,
+    },
+    prelude::*,
+    py_borrowing_iter,
+    python::graph::node_state::node_state::ops::NodeFilterOp,
+};
+
 impl_lazy_node_state_ord!(
     LatestTimeView<ops::LatestTime<DynamicGraph>>,
     "NodeStateOptionI64",
     "Optional[int]"
 );
-impl_one_hop!(LatestTimeView<ops::LatestTime>, "LatestTimeView");
 impl_node_state_group_by_ops!(LatestTimeView, Option<EventTime>);
 // Custom time functions for LazyNodeState<LatestTime>
 #[pymethods]
@@ -43,7 +52,13 @@ impl LatestTimeView {
     #[getter]
     fn t(
         &self,
-    ) -> LazyNodeState<'static, LatestTimestamp<DynamicGraph>, DynamicGraph, DynamicGraph> {
+    ) -> LazyNodeState<
+        'static,
+        LatestTimestamp<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         self.inner.t()
     }
 
@@ -59,6 +74,7 @@ impl LatestTimeView {
         ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         self.inner.dt()
     }
@@ -70,7 +86,13 @@ impl LatestTimeView {
     #[getter]
     fn event_id(
         &self,
-    ) -> LazyNodeState<'static, LatestEventId<DynamicGraph>, DynamicGraph, DynamicGraph> {
+    ) -> LazyNodeState<
+        'static,
+        LatestEventId<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         self.inner.event_id()
     }
 }
@@ -80,14 +102,12 @@ impl_lazy_node_state_ord!(
     "NodeStateOptionI64",
     "Optional[int]"
 );
-impl_one_hop!(LatestTimestampView<LatestTimestamp>, "LatestTimestampView");
 impl_node_state_group_by_ops!(LatestTimestampView, Option<i64>);
 impl_lazy_node_state_ord!(
     LatestEventIdView<LatestEventId<DynamicGraph>>,
     "NodeStateOptionUsize",
     "Optional[int]"
 ); // usize gets converted to int in python
-impl_one_hop!(LatestEventIdView<LatestEventId>, "LatestEventIdView");
 impl_node_state_group_by_ops!(LatestEventIdView, Option<usize>);
 
 type LatestEventId<G> = ops::Map<ops::LatestTime<G>, Option<usize>>;
@@ -100,13 +120,25 @@ type LatestDateTimeOutput = <LatestDateTime<DynamicGraph> as NodeOp>::Output;
 /// A lazy view over EarliestDateTime values for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct LatestDateTimeView {
-    inner: LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+    inner: LazyNodeState<
+        'static,
+        LatestDateTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >,
 }
 
 impl LatestDateTimeView {
     pub fn inner(
         &self,
-    ) -> &LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph> {
+    ) -> &LazyNodeState<
+        'static,
+        LatestDateTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
         &self.inner
     }
 
@@ -123,8 +155,7 @@ impl LatestDateTimeView {
     ///     NodeStateOptionDateTime: the computed `NodeState`
     fn compute(
         &self,
-    ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph, DynamicGraph>, TimeError>
-    {
+    ) -> Result<NodeState<'static, Option<DateTime<Utc>>, DynamicGraph>, TimeError> {
         self.inner.compute_result_type()
     }
 
@@ -132,9 +163,7 @@ impl LatestDateTimeView {
     ///
     /// Returns:
     ///     NodeStateOptionDateTime: the computed `NodeState`
-    fn compute_valid(
-        &self,
-    ) -> NodeState<'static, Option<DateTime<Utc>>, DynamicGraph, DynamicGraph> {
+    fn compute_valid(&self) -> NodeState<'static, Option<DateTime<Utc>>, DynamicGraph> {
         self.inner.compute_valid_results()
     }
 
@@ -169,8 +198,8 @@ impl LatestDateTimeView {
     ///
     /// Returns:
     ///     Nodes: The nodes
-    fn nodes(&self) -> Nodes<'static, DynamicGraph> {
-        self.inner.nodes()
+    fn nodes(&self) -> Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
+        self.inner.nodes().into_dyn()
     }
 
     fn __eq__<'py>(
@@ -223,7 +252,13 @@ impl LatestDateTimeView {
     fn __iter__(&self) -> PyBorrowingIterator {
         py_borrowing_iter_result!(
             self.inner.clone(),
-            LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            LazyNodeState<
+                'static,
+                LatestDateTime<DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
             |inner| inner.iter_values()
         )
     }
@@ -235,7 +270,13 @@ impl LatestDateTimeView {
     fn iter_valid(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            LazyNodeState<
+                'static,
+                LatestDateTime<DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
             |inner| inner.iter_values().filter_map(|r| r.ok().flatten())
         )
     }
@@ -289,7 +330,13 @@ impl LatestDateTimeView {
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter_tuple_result!(
             self.inner.clone(),
-            LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            LazyNodeState<
+                'static,
+                LatestDateTime<DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
             |inner| inner.iter().map(|(n, v)| (n.cloned(), v))
         )
     }
@@ -301,7 +348,13 @@ impl LatestDateTimeView {
     fn items_valid(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
-            LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+            LazyNodeState<
+                'static,
+                LatestDateTime<DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
             |inner| inner
                 .iter()
                 .filter(|(_, v)| v.as_ref().is_ok_and(|opt| opt.is_some()))
@@ -540,18 +593,38 @@ impl LatestDateTimeView {
     }
 }
 
-impl From<LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>>
-    for LatestDateTimeView
+impl
+    From<
+        LazyNodeState<
+            'static,
+            LatestDateTime<DynamicGraph>,
+            DynamicGraph,
+            DynamicGraph,
+            DynNodeFilter,
+        >,
+    > for LatestDateTimeView
 {
     fn from(
-        inner: LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>,
+        inner: LazyNodeState<
+            'static,
+            LatestDateTime<DynamicGraph>,
+            DynamicGraph,
+            DynamicGraph,
+            DynNodeFilter,
+        >,
     ) -> Self {
         LatestDateTimeView { inner }
     }
 }
 
 impl<'py> pyo3::IntoPyObject<'py>
-    for LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>
+    for LazyNodeState<
+        'static,
+        LatestDateTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >
 {
     type Target = LatestDateTimeView;
     type Output = Bound<'py, Self::Target>;
@@ -563,11 +636,15 @@ impl<'py> pyo3::IntoPyObject<'py>
 }
 
 impl<'py> FromPyObject<'py>
-    for LazyNodeState<'static, LatestDateTime<DynamicGraph>, DynamicGraph, DynamicGraph>
+    for LazyNodeState<
+        'static,
+        LatestDateTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >
 {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         Ok(ob.downcast::<LatestDateTimeView>()?.get().inner().clone())
     }
 }
-
-impl_one_hop!(LatestDateTimeView<LatestDateTime>, "LatestDateTimeView");

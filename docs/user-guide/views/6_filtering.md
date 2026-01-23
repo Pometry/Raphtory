@@ -52,8 +52,8 @@ server_nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
 
 traffic_graph = Graph()
-traffic_graph.load_edges_from_pandas(
-    df=server_edges_df,
+traffic_graph.load_edges(
+    data=server_edges_df,
     src="source",
     dst="destination",
     time="timestamp",
@@ -62,8 +62,8 @@ traffic_graph.load_edges_from_pandas(
     metadata=["is_encrypted"],
     shared_metadata={"datasource": "../data/network_traffic_edges.csv"},
 )
-traffic_graph.load_nodes_from_pandas(
-    df=server_nodes_df,
+traffic_graph.load_nodes(
+    data=server_nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
@@ -71,9 +71,9 @@ traffic_graph.load_nodes_from_pandas(
     shared_metadata={"datasource": "../data/network_traffic_edges.csv"},
 )
 
-my_filter = filter.Property("OS_version").is_in(["Ubuntu 20.04", "Red Hat 8.1"]) & filter.Property("primary_function").is_in(["Web Server", "Application Server"])
+my_filter = filter.Node.property("OS_version").is_in(["Ubuntu 20.04", "Red Hat 8.1"]) & filter.Node.property("primary_function").is_in(["Web Server", "Application Server"])
 
-cve_view = traffic_graph.filter_nodes(my_filter)
+cve_view = traffic_graph.filter(my_filter)
 
 print(cve_view.nodes)
 

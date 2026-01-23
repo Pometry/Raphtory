@@ -1,6 +1,4 @@
 import tempfile
-
-from pandas.core.generic import gc
 from raphtory.graphql import GraphServer, RaphtoryClient
 
 
@@ -11,8 +9,7 @@ def test_snapshot():
         client = RaphtoryClient("http://localhost:1736")
 
         def query(graph: str, window: str):
-            return client.query(
-                f"""{{
+            return client.query(f"""{{
                 graph(path: "{graph}") {{
                     window: {window} {{
                         edges {{
@@ -27,8 +24,7 @@ def test_snapshot():
                         }}
                     }}
                 }}
-            }}"""
-            )
+            }}""")
 
         client.new_graph("event", "EVENT")
         g = client.remote_graph("event")

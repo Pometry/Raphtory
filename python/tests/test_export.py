@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 import numpy as np
 from datetime import datetime, timezone
-import pytz
 
 base_dir = Path(__file__).parent
 
@@ -22,7 +21,7 @@ def build_graph():
         "datetime64[ms, UTC]"
     )
     g = Graph()
-    g.load_edges_from_pandas(
+    g.load_edges(
         edges_df,
         time="timestamp",
         src="source",
@@ -32,8 +31,8 @@ def build_graph():
         metadata=["is_encrypted"],
         shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
-    g.load_nodes_from_pandas(
-        df=nodes_df,
+    g.load_nodes(
+        data=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
@@ -51,7 +50,7 @@ def build_graph_without_datetime_type():
     nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
     g = Graph()
-    g.load_edges_from_pandas(
+    g.load_edges(
         edges_df,
         time="timestamp",
         src="source",
@@ -61,8 +60,8 @@ def build_graph_without_datetime_type():
         metadata=["is_encrypted"],
         shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
-    g.load_nodes_from_pandas(
-        df=nodes_df,
+    g.load_nodes(
+        data=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
@@ -95,7 +94,7 @@ def test_graph_timestamp_list_properties():
     df["date_column_ns"] = df["date_column"].astype("datetime64[ns]")
 
     g = Graph()
-    g.load_nodes_from_pandas(
+    g.load_nodes(
         df,
         time="date_column",
         id="string_column",

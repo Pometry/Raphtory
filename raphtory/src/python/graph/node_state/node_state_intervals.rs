@@ -2,14 +2,17 @@ use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
         api::{
-            state::{ops, ops::HistoryOp, LazyNodeState, NodeOp, NodeState},
+            state::{
+                ops,
+                ops::{DynNodeFilter, HistoryOp},
+                LazyNodeState, NodeOp, NodeState,
+            },
             view::{DynamicGraph, GraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
     },
     impl_lazy_node_state, impl_lazy_node_state_ord, impl_node_state, impl_node_state_ops,
     impl_node_state_ord_ops,
-    prelude::*,
     python::{
         graph::history::PyIntervals,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
@@ -23,6 +26,14 @@ use pyo3::{
     IntoPyObjectExt,
 };
 use std::collections::HashMap;
+
+use crate::db::graph::nodes::IntoDynNodes;
+pub(crate) use crate::{
+    db::api::state::{ops::IntoDynNodeOp, NodeStateOps, OrderedNodeStateOps},
+    prelude::*,
+    py_borrowing_iter,
+    python::graph::node_state::node_state::ops::NodeFilterOp,
+};
 
 type HistoryIntervals<G> = ops::Map<HistoryOp<'static, G>, PyIntervals>;
 impl_lazy_node_state!(
@@ -50,6 +61,7 @@ impl IntervalsView {
         ops::Map<HistoryIntervals<DynamicGraph>, Option<f64>>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.mean());
         LazyNodeState::new(op, self.inner.nodes())
@@ -66,6 +78,7 @@ impl IntervalsView {
         ops::Map<HistoryIntervals<DynamicGraph>, Option<i64>>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.median());
         LazyNodeState::new(op, self.inner.nodes())
@@ -82,6 +95,7 @@ impl IntervalsView {
         ops::Map<HistoryIntervals<DynamicGraph>, Option<i64>>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.max());
         LazyNodeState::new(op, self.inner.nodes())
@@ -98,6 +112,7 @@ impl IntervalsView {
         ops::Map<HistoryIntervals<DynamicGraph>, Option<i64>>,
         DynamicGraph,
         DynamicGraph,
+        DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.min());
         LazyNodeState::new(op, self.inner.nodes())
@@ -126,76 +141,56 @@ impl NodeStateIntervals {
     ///
     /// Returns:
     ///     NodeStateOptionF64: A NodeState with the computed mean interval between consecutive timestamps for each node. The mean is None if there is fewer than 1 interval.
-    pub fn mean(&self) -> NodeState<'static, Option<f64>, DynamicGraph, DynamicGraph> {
+    pub fn mean(&self) -> NodeState<'static, Option<f64>, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|v| v.mean())
             .collect::<Vec<Option<f64>>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Calculate the median interval in milliseconds for each node.
     ///
     /// Returns:
     ///     NodeStateOptionI64: A NodeState with the computed median interval between consecutive timestamps for each node. The median is None if there is fewer than 1 interval.
-    pub fn median(&self) -> NodeState<'static, Option<i64>, DynamicGraph, DynamicGraph> {
+    pub fn median(&self) -> NodeState<'static, Option<i64>, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|v| v.median())
             .collect::<Vec<Option<i64>>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Calculate the maximum interval in milliseconds for each node.
     ///
     /// Returns:
     ///     NodeStateOptionI64: A NodeState with the computed maximum interval between consecutive timestamps for each node. The maximum is None if there is fewer than 1 interval.
-    pub fn max(&self) -> NodeState<'static, Option<i64>, DynamicGraph, DynamicGraph> {
+    pub fn max(&self) -> NodeState<'static, Option<i64>, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|v| v.max())
             .collect::<Vec<Option<i64>>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Calculate the minimum interval in milliseconds for each node.
     ///
     /// Returns:
     ///     NodeStateOptionI64: A NodeState with the computed minimum interval between consecutive timestamps for each node. The minimum is None if there is fewer than 1 interval.
-    pub fn min(&self) -> NodeState<'static, Option<i64>, DynamicGraph, DynamicGraph> {
+    pub fn min(&self) -> NodeState<'static, Option<i64>, DynamicGraph> {
         let values = self
             .inner
             .iter_values()
             .map(|v| v.min())
             .collect::<Vec<Option<i64>>>()
             .into();
-        NodeState::new(
-            self.inner.base_graph().clone(),
-            self.inner.graph().clone(),
-            values,
-            self.inner.ids().clone(),
-        )
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
     }
 
     /// Collect all intervals in milliseconds into a list for each node.

@@ -51,7 +51,7 @@ print(f"{nodes_df.head(2)}\n")
     1       Web Server           45  
     ```
 
-Next, to ingest these dataframes into Raphtory, we use the `load_edges_from_pandas()` and `load_nodes_from_pandas()`
+Next, to ingest these dataframes into Raphtory, we use the `load_edges()` and `load_nodes()`
 functions. These functions have optional arguments to cover everything we have seen in the
 prior [direct updates example](2_direct-updates.md).
 
@@ -95,8 +95,8 @@ edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     time="timestamp",
     src="source",
     dst="destination",
@@ -105,8 +105,8 @@ g.load_edges_from_pandas(
     metadata=["is_encrypted"],
     shared_metadata={"datasource": "../data/network_traffic_edges.csv"},
 )
-g.load_nodes_from_pandas(
-    df=nodes_df,
+g.load_nodes(
+    data=nodes_df,
     time="timestamp",
     id="server_id",
     properties=["OS_version", "primary_function", "uptime_days"],
@@ -138,7 +138,7 @@ assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal
 
 ## Creating a graph from a Parquet file
 
-Similarly for Parquet you can use `from_parquet()`, or `load_edges_from_parquet()` and `load_nodes_from_parquet()` to load data from files in the common [Apache Parquet](https://parquet.apache.org/) format.
+Similarly for Parquet you can use `load_edges()` and `load_nodes()` with a file path to load data from files in the common [Apache Parquet](https://parquet.apache.org/) format.
 
 /// tab | :fontawesome-brands-python: Python
 
@@ -147,22 +147,22 @@ from raphtory import Graph
 
 h=Graph()
 
-h.load_edges_from_parquet(
+h.load_edges(
+    data="../data/net_edges.parquet",
     time="timestamp",
     src="source",
     dst="destination",
     properties=["data_size_MB"],
     layer_col="transaction_type",
     metadata=["is_encrypted"],
-    parquet_path="../data/net_edges_parquet"
 )
 
-h.load_nodes_from_parquet(
+h.load_nodes(
+    data="../data/net_nodes.parquet",
     time="timestamp",
     id="server_id",
     properties=["OS_version", "primary_function", "uptime_days"],
     metadata=["server_name", "hardware_type"],
-    parquet_path="../data/net_nodes_parquet"
 )
 
 print(h)
@@ -188,7 +188,7 @@ same two dataframes for brevity but in real instances these would probably be fo
 function call.
 
 There may be instances where you are adding a dataset which has no timestamps. To handle this when ingesting via
-dataframes, the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions which are shown in this example.
+dataframes, the graph has the `load_edge_metadata()` and `load_node_metadata()` functions which are shown in this example.
 
 !!! warning
     Metadata can only be added to nodes and edges which are part of the graph. If you attempt to add a metadata without first adding the node/edge then Raphtory will throw an error.
@@ -206,8 +206,8 @@ edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="source",
     dst="destination",
     time="timestamp",
@@ -215,15 +215,15 @@ g.load_edges_from_pandas(
     layer_col="transaction_type",
 )
 
-g.load_nodes_from_pandas(
-    df=nodes_df,
+g.load_nodes(
+    data=nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
 )
 
-g.load_edge_props_from_pandas(
-    df=edges_df,
+g.load_edge_metadata(
+    data=edges_df,
     src="source",
     dst="destination",
     layer_col="transaction_type",
@@ -231,8 +231,8 @@ g.load_edge_props_from_pandas(
     shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
-g.load_node_props_from_pandas(
-    df=nodes_df,
+g.load_node_metadata(
+    data=nodes_df,
     id="server_id",
     metadata=["server_name", "hardware_type"],
     shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},

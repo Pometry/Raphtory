@@ -90,7 +90,7 @@ build-python-public: deactivate-storage
 	cd python && maturin develop -r --extras=dev
 
 build-python: activate-storage
-	cd python && maturin develop -r --features=storage --extras=dev
+	cd python && maturin develop -r --features=storage,extension-module --extras=dev
 
 # Testing
 

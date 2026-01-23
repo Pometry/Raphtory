@@ -24,7 +24,7 @@ readme = "README.md"
 homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
-rust-version = "1.88.0"
+rust-version = "1.89.0"
 edition = "2021"
 
 # debug symbols are using a lot of resources
@@ -116,6 +116,7 @@ bigdecimal = { version = "0.4.7", features = ["serde"] }
 kdam = "0.6.3"
 hashbrown = "0.15.1"
 pretty_assertions = "1.4.0"
+quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
 streaming-stats = "0.2.3"
 proptest = "1.4.0"
@@ -162,6 +163,7 @@ parquet = { version = "56.2.0" }
 arrow-json = { version = "56.2.0" }
 arrow-buffer = { version = "56.2.0" }
 arrow-schema = { version = "56.2.0" }
+arrow-csv = { version = "56.2.0" }
 arrow-array = { version = "56.2.0", features = ["chrono-tz"] }
 arrow-cast = { version = "56.2.0" }
 arrow-ipc = { version = "56.2.0" }

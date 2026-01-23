@@ -24,6 +24,7 @@ import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
+from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
@@ -34,7 +35,6 @@ __all__ = [
     "Graph",
     "PersistentGraph",
     "Node",
-    "NodeFilterBuilder",
     "Nodes",
     "PathFromNode",
     "PathFromGraph",
@@ -45,6 +45,7 @@ __all__ = [
     "MutableEdge",
     "Properties",
     "PyPropValueList",
+    "PropType",
     "Metadata",
     "MetadataView",
     "TemporalProperties",
@@ -60,6 +61,7 @@ __all__ = [
     "WindowSet",
     "IndexSpecBuilder",
     "IndexSpec",
+    "Prop",
     "version",
     "graphql",
     "algorithms",
@@ -286,34 +288,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> GraphView:
+    def filter(self, filter: Any) -> GraphView:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            GraphView: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> GraphView:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            GraphView: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> GraphView:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             GraphView: The filtered view
@@ -1163,7 +1143,7 @@ class Graph(GraphView):
            Graph: the loaded graph with initialised cache
         """
 
-    def load_edge_metadata_from_df(
+    def load_edge_metadata(
         self,
         data: Any,
         src: str,
@@ -1172,11 +1152,17 @@ class Graph(GraphView):
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing edge information.
@@ -1186,6 +1172,8 @@ class Graph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): The edge layer name. Defaults to None.
             layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1194,65 +1182,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_pandas(
-        self,
-        df: DataFrame,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edge properties from a Pandas DataFrame.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing edge information.
-            src (str): The column name for the source node.
-            dst (str): The column name for the destination node.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): The edge layer name. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edge_props_from_parquet(
-        self,
-        parquet_path: str,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edge properties from parquet file
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
-            src (str): The column name for the source node.
-            dst (str): The column name for the destination node.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): The edge layer name. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edges_from_df(
+    def load_edges(
         self,
         data: Any,
         time: str,
@@ -1263,91 +1193,33 @@ class Graph(GraphView):
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing the edges.
             time (str): The column name for the update timestamps.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
+            src (str): The column name for the source node IDs.
+            dst (str): The column name for the destination node IDs.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
             layer_col (str, optional): The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edges_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edges from a Pandas DataFrame into the graph.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing the edges.
-            time (str): The column name for the update timestamps.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
-            properties (List[str], optional): List of edge property column names. Defaults to None.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Cannot be used in combination with layer. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edges_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edges from a Parquet file into the graph.
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files path containing edges
-            time (str): The column name for the update timestamps.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
-            properties (List[str], optional): List of edge property column names. Defaults to None.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Cannot be used in combination with layer. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -1365,7 +1237,7 @@ class Graph(GraphView):
            Graph:
         """
 
-    def load_node_metadata_from_df(
+    def load_node_metadata(
         self,
         data: Any,
         id: str,
@@ -1373,11 +1245,17 @@ class Graph(GraphView):
         node_type_col: Optional[str] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing node information.
@@ -1386,6 +1264,8 @@ class Graph(GraphView):
             node_type_col (str, optional): The node type column name in a dataframe. Cannot be used in combination with node_type. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1394,61 +1274,7 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_pandas(
-        self,
-        df: DataFrame,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load node properties from a Pandas DataFrame.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing node information.
-            id(str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_node_props_from_parquet(
-        self,
-        parquet_path: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load node properties from a parquet file.
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files path containing node information.
-            id(str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_nodes_from_df(
+    def load_nodes(
         self,
         data: Any,
         time: str,
@@ -1458,11 +1284,17 @@ class Graph(GraphView):
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing the nodes.
@@ -1473,71 +1305,11 @@ class Graph(GraphView):
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_nodes_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load nodes from a Pandas DataFrame into the graph.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing the nodes.
-            time (str): The column name for the timestamps.
-            id (str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            properties (List[str], optional): List of node property column names. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_nodes_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load nodes from a Parquet file into the graph.
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files containing the nodes
-            time (str): The column name for the timestamps.
-            id (str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            properties (List[str], optional): List of node property column names. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -2034,7 +1806,7 @@ class PersistentGraph(GraphView):
            PersistentGraph: the loaded graph with initialised cache
         """
 
-    def load_edge_deletions_from_df(
+    def load_edge_deletions(
         self,
         data: Any,
         time: str,
@@ -2042,11 +1814,17 @@ class PersistentGraph(GraphView):
         dst: str,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load edge deletions into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load edge deletions into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing the edges.
@@ -2055,6 +1833,8 @@ class PersistentGraph(GraphView):
             dst (str): The column name for the destination node ids.
             layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
             layer_col (str, optional): The edge layer col name in the data source. Cannot be used in combination with layer. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -2063,61 +1843,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_deletions_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        src: str,
-        dst: str,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edges deletions from a Pandas DataFrame into the graph.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing the edges.
-            time (str): The column name for the update timestamps.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
-            layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Cannot be used in combination with layer. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edge_deletions_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        src: str,
-        dst: str,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edges deletions from a Parquet file into the graph.
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files path containing node information.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
-            time (str): The column name for the update timestamps.
-            layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Cannot be used in combination with layer. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edge_metadata_from_df(
+    def load_edge_metadata(
         self,
         data: Any,
         src: str,
@@ -2126,11 +1852,17 @@ class PersistentGraph(GraphView):
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing edge information.
@@ -2140,6 +1872,8 @@ class PersistentGraph(GraphView):
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): The edge layer name. Defaults to None.
             layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -2148,65 +1882,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_edge_props_from_pandas(
-        self,
-        df: DataFrame,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edge properties from a Pandas DataFrame.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing edge information.
-            src (str): The column name for the source node.
-            dst (str): The column name for the destination node.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): The edge layer name. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edge_props_from_parquet(
-        self,
-        parquet_path: str,
-        src: str,
-        dst: str,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edge properties from parquet file
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
-            src (str): The column name for the source node.
-            dst (str): The column name for the destination node.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): The edge layer name. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edges_from_df(
+    def load_edges(
         self,
         data: Any,
         time: str,
@@ -2217,91 +1893,33 @@ class PersistentGraph(GraphView):
         shared_metadata: Optional[PropInput] = None,
         layer: Optional[str] = None,
         layer_col: Optional[str] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing the edges.
             time (str): The column name for the update timestamps.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
+            src (str): The column name for the source node IDs.
+            dst (str): The column name for the destination node IDs.
             properties (List[str], optional): List of edge property column names. Defaults to None.
             metadata (List[str], optional): List of edge metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
             layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
             layer_col (str, optional): The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edges_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edges from a Pandas DataFrame into the graph.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing the edges.
-            time (str): The column name for the update timestamps.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
-            properties (List[str], optional): List of edge property column names. Defaults to None.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Cannot be used in combination with layer. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_edges_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        src: str,
-        dst: str,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-        layer: Optional[str] = None,
-        layer_col: Optional[str] = None,
-    ) -> None:
-        """
-        Load edges from a Parquet file into the graph.
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files path containing edges
-            time (str): The column name for the update timestamps.
-            src (str): The column name for the source node ids.
-            dst (str): The column name for the destination node ids.
-            properties (List[str], optional): List of edge property column names. Defaults to None.
-            metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-            layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
-            layer_col (str, optional): The edge layer col name in dataframe. Cannot be used in combination with layer. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -2319,7 +1937,7 @@ class PersistentGraph(GraphView):
            PersistentGraph:
         """
 
-    def load_node_metadata_from_df(
+    def load_node_metadata(
         self,
         data: Any,
         id: str,
@@ -2327,11 +1945,17 @@ class PersistentGraph(GraphView):
         node_type_col: Optional[str] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing node information.
@@ -2340,6 +1964,8 @@ class PersistentGraph(GraphView):
             node_type_col (str, optional): The node type column name in a dataframe. Cannot be used in combination with node_type. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -2348,61 +1974,7 @@ class PersistentGraph(GraphView):
             GraphError: If the operation fails.
         """
 
-    def load_node_props_from_pandas(
-        self,
-        df: DataFrame,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load node properties from a Pandas DataFrame.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing node information.
-            id(str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_node_props_from_parquet(
-        self,
-        parquet_path: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load node properties from a parquet file.
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files path containing node information.
-            id(str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_nodes_from_df(
+    def load_nodes(
         self,
         data: Any,
         time: str,
@@ -2412,11 +1984,17 @@ class PersistentGraph(GraphView):
         properties: Optional[List[str]] = None,
         metadata: Optional[List[str]] = None,
         shared_metadata: Optional[PropInput] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        csv_options: Optional[dict[str, str | bool]] = None,
     ) -> None:
         """
-        Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method).
-        This includes, but is not limited to: Pandas dataframes, FireDucks(.pandas) dataframes,
-        Polars dataframes, Arrow tables, DuckDB (eg. DuckDBPyRelation obtained from running an SQL query)
+        Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
 
         Arguments:
             data (Any): The data source containing the nodes.
@@ -2427,71 +2005,11 @@ class PersistentGraph(GraphView):
             properties (List[str], optional): List of node property column names. Defaults to None.
             metadata (List[str], optional): List of node metadata column names. Defaults to None.
             shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_nodes_from_pandas(
-        self,
-        df: DataFrame,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load nodes from a Pandas DataFrame into the graph.
-
-        Arguments:
-            df (DataFrame): The Pandas DataFrame containing the nodes.
-            time (str): The column name for the timestamps.
-            id (str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            properties (List[str], optional): List of node property column names. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
-
-        Raises:
-            GraphError: If the operation fails.
-        """
-
-    def load_nodes_from_parquet(
-        self,
-        parquet_path: str,
-        time: str,
-        id: str,
-        node_type: Optional[str] = None,
-        node_type_col: Optional[str] = None,
-        properties: Optional[List[str]] = None,
-        metadata: Optional[List[str]] = None,
-        shared_metadata: Optional[PropInput] = None,
-    ) -> None:
-        """
-        Load nodes from a Parquet file into the graph.
-
-        Arguments:
-            parquet_path (str): Parquet file or directory of Parquet files containing the nodes
-            time (str): The column name for the timestamps.
-            id (str): The column name for the node IDs.
-            node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
-            node_type_col (str, optional): The node type col name in dataframe. Cannot be used in combination with node_type. Defaults to None.
-            properties (List[str], optional): List of node property column names. Defaults to None.
-            metadata (List[str], optional): List of node metadata column names. Defaults to None.
-            shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-
-        Returns:
-            None: This function does not return a value, if the operation is successful.
 
         Raises:
             GraphError: If the operation fails.
@@ -2745,34 +2263,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> Node:
+    def filter(self, filter: Any) -> Node:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            Node: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> Node:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            Node: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> Node:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Node: The filtered view
@@ -3081,93 +2577,6 @@ class Node(object):
             Optional[int]:
         """
 
-class NodeFilterBuilder(object):
-    """
-    A builder for constructing node filters
-
-    To create a filter builder see [Node][raphtory.filter.Node].
-    """
-
-    def __eq__(self, value):
-        """Return self==value."""
-
-    def __ge__(self, value):
-        """Return self>=value."""
-
-    def __gt__(self, value):
-        """Return self>value."""
-
-    def __le__(self, value):
-        """Return self<=value."""
-
-    def __lt__(self, value):
-        """Return self<value."""
-
-    def __ne__(self, value):
-        """Return self!=value."""
-
-    def contains(self, value: str) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if the specified iterable of strings contains a given value.
-
-        Arguments:
-            value (str):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def fuzzy_search(
-        self, value, levenshtein_distance: int, prefix_match: bool
-    ) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if the specified properties approximately match the specified string.
-
-        Uses a specified Levenshtein distance and optional prefix matching.
-
-        Arguments:
-            prop_value (str): Property to match against.
-            levenshtein_distance (int): Maximum levenshtein distance between the specified prop_value and the result.
-            prefix_match (bool): Enable prefix matching.
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def is_in(self, values: list[str]) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if a specified value is contained within a given iterable of strings.
-
-        Arguments:
-            values (list[str]):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def is_not_in(self, values: list[str]) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if specified value is not contained within a given iterable of strings.
-
-        Arguments:
-            values (list[str]):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
-    def not_contains(self, value: str) -> filter.FilterExpr:
-        """
-        Returns a filter expression that checks if the specified iterable of strings does not contain a given value.
-
-
-        Arguments:
-            value (str):
-
-        Returns:
-            filter.FilterExpr:
-        """
-
 class Nodes(object):
     """A list of nodes that can be iterated over."""
 
@@ -3360,34 +2769,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> Nodes:
+    def filter(self, filter: Any) -> Nodes:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            Nodes: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> Nodes:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            Nodes: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> Nodes:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Nodes: The filtered view
@@ -3427,7 +2814,7 @@ class Nodes(object):
         Returns the number of in edges of the nodes.
 
         Returns:
-            DegreeView: a view of the in-degrees of the nodes.
+            DegreeView: a view of the in-degrees of the nodes
         """
 
     @property
@@ -3681,7 +3068,7 @@ class Nodes(object):
             node_types (list[str]): the list of node types to keep.
 
         Returns:
-            Nodes: the filtered view of the nodes.
+            Nodes: the filtered view of the nodes
         """
 
     def valid_layers(self, names: list[str]) -> Nodes:
@@ -3720,6 +3107,9 @@ class Nodes(object):
 class PathFromNode(object):
     def __bool__(self):
         """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -3894,34 +3284,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> PathFromNode:
+    def filter(self, filter: Any) -> PathFromNode:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            PathFromNode: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> PathFromNode:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            PathFromNode: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> PathFromNode:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromNode: The filtered view
@@ -4227,6 +3595,9 @@ class PathFromGraph(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __getitem__(self, key):
+        """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -4400,34 +3771,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter_edges(self, filter: filter.FilterExpr) -> PathFromGraph:
+    def filter(self, filter: Any) -> PathFromGraph:
         """
-        Return a filtered view that only includes edges that satisfy the filter
+        Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (filter.FilterExpr): The filter to apply to the edges.
-
-        Returns:
-            PathFromGraph: The filtered view
-        """
-
-    def filter_exploded_edges(self, filter: filter.FilterExpr) -> PathFromGraph:
-        """
-        Return a filtered view that only includes exploded edges that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the exploded edge properties.
-
-        Returns:
-            PathFromGraph: The filtered view
-        """
-
-    def filter_nodes(self, filter: filter.FilterExpr) -> PathFromGraph:
-        """
-        Return a filtered view that only includes nodes that satisfy the filter
-
-        Arguments:
-            filter (filter.FilterExpr): The filter to apply to the nodes.
+            filter (FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromGraph: The filtered view
@@ -5289,6 +4638,9 @@ class Edges(object):
     def __bool__(self):
         """True if self else False"""
 
+    def __getitem__(self, key):
+        """Return self[key]."""
+
     def __iter__(self):
         """Implement iter(self)."""
 
@@ -5791,6 +5143,9 @@ class Edges(object):
 class NestedEdges(object):
     def __bool__(self):
         """True if self else False"""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
 
     def __iter__(self):
         """Implement iter(self)."""
@@ -6393,6 +5748,17 @@ class Properties(object):
             PropValue:
         """
 
+    def get_dtype_of(self, key: str) -> PropType:
+        """
+        Get the PropType of a property. Specifically, returns the PropType of the latest value for this property if it exists.
+
+        Arguments:
+            key (str): the name of the property.
+
+        Returns:
+            PropType:
+        """
+
     def items(self) -> list[Tuple[str, PropValue]]:
         """
         Get a list of key-value pairs
@@ -6511,6 +5877,69 @@ class PyPropValueList(object):
         Returns:
             PropValue:
         """
+
+class PropType(object):
+    """
+    PropType provides access to the types used by Raphtory. They can be used to specify the data type of different properties,
+    which is especially useful if one wishes to cast some input column from one type to another during ingestion.
+    PropType can be used to define the schema in the various load_* functions used for data ingestion
+    (i.e. Graph.load_nodes(...)/Graph.load_edges(...) etc.)
+    """
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def __str__(self):
+        """Return str(self)."""
+
+    @staticmethod
+    def array(p): ...
+    @staticmethod
+    def bool(): ...
+    @staticmethod
+    def datetime(): ...
+    @staticmethod
+    def f32(): ...
+    @staticmethod
+    def f64(): ...
+    @staticmethod
+    def i32(): ...
+    @staticmethod
+    def i64(): ...
+    @staticmethod
+    def list(p): ...
+    @staticmethod
+    def map(hash_map): ...
+    @staticmethod
+    def naive_datetime(): ...
+    @staticmethod
+    def str(): ...
+    @staticmethod
+    def u16(): ...
+    @staticmethod
+    def u32(): ...
+    @staticmethod
+    def u64(): ...
+    @staticmethod
+    def u8(): ...
 
 class Metadata(object):
     """A view of metadata of an entity"""
@@ -7750,6 +7179,36 @@ class IndexSpec(object):
         Returns:
             list[str]:
         """
+
+class Prop(object):
+    def __repr__(self):
+        """Return repr(self)."""
+
+    @staticmethod
+    def bool(value): ...
+    def dtype(self): ...
+    @staticmethod
+    def f32(value): ...
+    @staticmethod
+    def f64(value): ...
+    @staticmethod
+    def i32(value): ...
+    @staticmethod
+    def i64(value): ...
+    @staticmethod
+    def list(values): ...
+    @staticmethod
+    def map(dict): ...
+    @staticmethod
+    def str(value): ...
+    @staticmethod
+    def u16(value): ...
+    @staticmethod
+    def u32(value): ...
+    @staticmethod
+    def u64(value): ...
+    @staticmethod
+    def u8(value): ...
 
 def version() -> str:
     """

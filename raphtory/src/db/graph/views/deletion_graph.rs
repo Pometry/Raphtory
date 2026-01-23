@@ -1,6 +1,5 @@
 use crate::{
     core::{
-        entities::LayerIds,
         storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
         utils::iter::GenLockedDIter,
     },
@@ -14,18 +13,12 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::{
-    core::entities::{properties::tprop::TPropOps, EID, VID},
+    core::entities::properties::tprop::TPropOps,
     inherit::Base,
     iter::{BoxedLDIter, IntoDynDBoxed},
     GraphType,
 };
-use raphtory_storage::{
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-        nodes::node_storage_ops::NodeStorageOps,
-    },
-    mutation::InheritMutationOps,
-};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
@@ -242,133 +235,6 @@ impl GraphTimeSemanticsOps for PersistentGraph {
                 .map(|(t, v)| (t.max(w.start), v))
         } else {
             None
-        }
-    }
-}
-
-impl NodeHistoryFilter for PersistentGraph {
-    fn is_node_prop_update_available(
-        &self,
-        _prop_id: usize,
-        _node_id: VID,
-        _time: EventTime,
-    ) -> bool {
-        true
-    }
-
-    fn is_node_prop_update_available_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        if time >= w.end {
-            false
-        } else if w.contains(&time) {
-            true
-        } else {
-            let nse = self.0.core_node(node_id);
-            let x = nse
-                .tprop(prop_id)
-                .last_before(w.start)
-                .map(|(t, _)| t.eq(&time))
-                .unwrap_or(false);
-            x
-        }
-    }
-
-    fn is_node_prop_update_latest(&self, prop_id: usize, node_id: VID, time: EventTime) -> bool {
-        self.0.is_node_prop_update_latest(prop_id, node_id, time)
-    }
-
-    fn is_node_prop_update_latest_window(
-        &self,
-        prop_id: usize,
-        node_id: VID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        time < w.end && {
-            let nse = self.0.core_node(node_id);
-            let x = nse.tprop(prop_id).active(time.next()..w.end);
-            !x
-        }
-    }
-}
-
-impl EdgeHistoryFilter for PersistentGraph {
-    fn is_edge_prop_update_available(
-        &self,
-        _layer_id: usize,
-        _prop_id: usize,
-        _edge_id: EID,
-        _time: EventTime,
-    ) -> bool {
-        // let nse = self.0.core_node(node_id);
-        // nse.tprop(prop_id).at(&time).is_some()
-        true
-    }
-
-    fn is_edge_prop_update_available_window(
-        &self,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        if time >= w.end {
-            false
-        } else if w.contains(&time) {
-            true
-        } else {
-            let ese = self.core_edge(edge_id);
-            let bool = ese
-                .temporal_prop_layer(layer_id, prop_id)
-                .last_before(w.start)
-                .map(|(t, _)| time.eq(&t))
-                .unwrap_or(false);
-            bool
-        }
-    }
-
-    fn is_edge_prop_update_latest(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-    ) -> bool {
-        self.0
-            .is_edge_prop_update_latest(layer_ids, layer_id, prop_id, edge_id, time)
-    }
-
-    fn is_edge_prop_update_latest_window(
-        &self,
-        layer_ids: &LayerIds,
-        layer_id: usize,
-        prop_id: usize,
-        edge_id: EID,
-        time: EventTime,
-        w: Range<EventTime>,
-    ) -> bool {
-        time < w.end && {
-            let time = time.next();
-            let ese = self.core_edge(edge_id);
-
-            if layer_ids.contains(&layer_id) {
-                // Check if any layer has an active update beyond `time`
-                let has_future_update = ese.layer_ids_iter(layer_ids).any(|layer_id| {
-                    ese.temporal_prop_layer(layer_id, prop_id)
-                        .active(time..w.end)
-                });
-
-                // If no layer has a future update, return true
-                return !has_future_update;
-            };
-            false
         }
     }
 }

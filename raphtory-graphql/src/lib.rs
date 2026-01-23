@@ -116,9 +116,10 @@ mod graphql_test {
                         {
                           property: {
                             name: "p1",
-                            operator: GREATER_THAN,
-                            value: {
-                              u64: 2
+                            where: {
+                              gt: {
+                                u64: 2
+                              }
                             }
                           }
                         },
@@ -127,27 +128,30 @@ mod graphql_test {
                         {
                           node: {
                                 field: NODE_NAME,
-                                operator: EQUAL,
-                                value: {
-                                  str: "N1"
+                            		where: {
+                                  eq: {
+                                    str: "N1"
+                                  }
                                 }
                             }
                         },
                         {
                           node: {
                             field: NODE_TYPE,
-                            operator: NOT_EQUAL,
-                            value: {
-                              str: "air_nomads"
+                            where: {
+                              ne: {
+                                str: "air_nomads"
+                              }
                             }
                           }
                         },
                         {
                           property: {
                             name: "p1",
-                            operator: LESS_THAN,
-                            value: {
-                              u64: 5
+                            where: {
+                              lt: {
+                                u64: 5
+                              }
                             }
                           }
                         }
@@ -167,6 +171,7 @@ mod graphql_test {
         "#;
         let req = Request::new(query);
         let res = schema.execute(req).await;
+        assert_eq!(res.errors, []);
         let mut data = res.data.into_json().unwrap();
 
         if let Some(nodes) = data["graph"]["searchNodes"].as_array_mut() {

@@ -50,8 +50,8 @@ The dataframe can then be used to create a Raphtory graph:
 ```{.python continuation}
 G = Graph()
 
-G.load_edges_from_pandas(
-    df=edges_df,
+G.load_edges(
+    data=edges_df,
     src="source",
     dst="target",
     time="time",

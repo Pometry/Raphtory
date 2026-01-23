@@ -1,15 +1,12 @@
 //! Defines the `ViewApi` trait, which represents the API for querying a view of the graph.
 
 mod edge;
-mod edge_property_filter;
-pub mod exploded_edge_property_filter;
+pub mod filter_ops;
 pub(crate) mod graph;
 pub mod history;
 pub mod internal;
 mod layer;
 pub(crate) mod node;
-mod node_property_filter;
-mod reset_filter;
 pub(crate) mod time;
 
 pub(crate) use edge::BaseEdgeViewOps;
@@ -17,9 +14,8 @@ pub use edge::EdgeViewOps;
 use ouroboros::self_referencing;
 use std::marker::PhantomData;
 
-use crate::db::api::view::internal::filtered_node::FilteredNodeStorageOps;
-pub use edge_property_filter::EdgePropertyFilterOps;
-pub use exploded_edge_property_filter::ExplodedEdgePropertyFilterOps;
+use crate::db::api::view::internal::{filtered_node::FilteredNodeStorageOps, GraphView};
+pub use filter_ops::{EdgeSelect, Filter};
 pub use graph::*;
 pub use internal::{
     BoxableGraphView, DynamicGraph, InheritViewOps, IntoDynHop, IntoDynamic, MaterializedGraph,
@@ -27,7 +23,6 @@ pub use internal::{
 pub use layer::*;
 pub(crate) use node::BaseNodeViewOps;
 pub use node::NodeViewOps;
-pub use node_property_filter::NodePropertyFilterOps;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, VID},
     Direction,
@@ -37,7 +32,6 @@ pub use raphtory_api::{
     iter::{BoxedIter, BoxedLDIter, BoxedLIter, IntoDynBoxed},
 };
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_entry::NodeStorageEntry};
-pub use reset_filter::*;
 pub use time::*;
 
 #[self_referencing]
@@ -65,7 +59,7 @@ impl<'graph, G: GraphViewOps<'graph>> Iterator for EdgesIter<'graph, G> {
     }
 }
 
-pub(crate) fn node_edges<'graph, G: BoxableGraphView + Clone + 'graph>(
+pub(crate) fn node_edges<'graph, G: GraphView + 'graph>(
     storage: GraphStorage,
     view: G,
     node: VID,

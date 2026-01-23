@@ -2,8 +2,11 @@ use crate::model::schema::{property_schema::PropertySchema, DEFAULT_NODE_TYPE};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::{
-        api::view::DynamicGraph,
-        graph::views::filter::node_type_filtered_graph::NodeTypeFilteredGraph,
+        api::{
+            state::ops::{filter::MaskOp, TypeId},
+            view::DynamicGraph,
+        },
+        graph::views::filter::node_filtered_graph::NodeFilteredGraph,
     },
     prelude::*,
 };
@@ -80,8 +83,9 @@ impl NodeSchema {
                     let mut node_types_filter =
                         vec![false; self.graph.node_meta().node_type_meta().len()];
                     node_types_filter[self.type_id] = true;
+                    let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
-                        NodeTypeFilteredGraph::new(self.graph.clone(), node_types_filter.into())
+                        NodeFilteredGraph::new(self.graph.clone(), filter)
                             .nodes()
                             .properties()
                             .into_iter_values()
@@ -134,8 +138,9 @@ impl NodeSchema {
                     let mut node_types_filter =
                         vec![false; self.graph.node_meta().node_type_meta().len()];
                     node_types_filter[self.type_id] = true;
+                    let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
-                        NodeTypeFilteredGraph::new(self.graph.clone(), node_types_filter.into())
+                        NodeFilteredGraph::new(self.graph.clone(), filter)
                             .nodes()
                             .metadata()
                             .into_iter_values()
