@@ -33,7 +33,7 @@ pyvis = ["pyvis >= 0.3.2"]
 networkx = ["networkx >= 2.6.3"]
 export = ["raphtory[pyvis,networkx]"]
 all = ["raphtory[export,plot]"]
-dev = ["raphtory[all]", "docstring_parser >= 0.16", "pandas-stubs", "pyarrow-stubs", "maturin>=1.8.3", "tox>=4.25"]
+dev = ["raphtory[all,test,tox]", "docstring_parser >= 0.16", "pandas-stubs", "pyarrow-stubs", "maturin>=1.8.3", "tox>=4.25"]
 test = ["requests >= 2.31.0", "pyjwt[crypto] >= 2.10.1", "pytz>=2025.2",
     "polars >= 1.35.2", "fireducks; sys_platform != 'win32' and python_version < '3.14'", "duckdb >= 1.4.2"]
 tox = ["nbmake", "pytest >= 8", "pytest-benchmark >= 5.1.0"]
