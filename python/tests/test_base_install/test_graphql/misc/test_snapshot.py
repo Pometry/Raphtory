@@ -1,6 +1,4 @@
 import tempfile
-
-from pandas.core.generic import gc
 from raphtory.graphql import GraphServer, RaphtoryClient
 
 
