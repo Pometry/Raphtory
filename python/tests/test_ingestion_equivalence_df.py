@@ -28,8 +28,8 @@ def dataframes():
     df_nodes_pd = pd.read_csv(NODES_FILE)
 
     con = duckdb.connect(database=":memory:")
-    con.register("edges_df", df_edges_pd)
-    con.register("nodes_df", df_nodes_pd)
+    con.read_csv(EDGES_FILE).create("edges_df")
+    con.read_csv(NODES_FILE).create("nodes_df")
 
     data = {
         "pandas": {"edges": df_edges_pd, "nodes": df_nodes_pd},
