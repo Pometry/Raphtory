@@ -67,6 +67,7 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
             if create_edge {
                 latest_time += 1;
                 graph.add_edge(latest_time, &source_id, &dst_id, NO_PROPS, None)?;
+                graph.add_edge(latest_time, &dst_id, &source_id, NO_PROPS, None)?;
             } 
         }
     }  
@@ -88,7 +89,7 @@ mod tests {
         let edge_count = graph.edges().into_iter().count();
         assert_eq!(node_count, n_nodes);
         assert!(edge_count > 0);
-        assert!(edge_count <= n_nodes * (n_nodes - 1) / 2);
+        assert!(edge_count <= n_nodes * (n_nodes - 1));
     }
 
     #[test]
@@ -112,6 +113,6 @@ mod tests {
         let edge_count = graph.edges().into_iter().count();
         let node_count = graph.nodes().id().iter_values().count();
         assert_eq!(node_count, n_nodes);
-        assert_eq!(edge_count, (n_nodes * (n_nodes - 1))/2);
+        assert_eq!(edge_count, (n_nodes * (n_nodes - 1)));
     }
 }
