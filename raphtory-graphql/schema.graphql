@@ -989,6 +989,7 @@ type Graph {
 	Export all nodes and edges from this graph view to another existing graph
 	"""
 	exportTo(path: String!): Boolean!
+	filter(expr: GraphFilter): Graph!
 	filterNodes(expr: NodeFilter!): Graph!
 	filterEdges(expr: EdgeFilter!): Graph!
 	"""
@@ -1019,9 +1020,30 @@ type GraphAlgorithmPlugin {
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
+input GraphFilter @oneOf {
+	window: GraphWindowExpr
+	at: GraphTimeExpr
+	before: GraphTimeExpr
+	after: GraphTimeExpr
+	latest: GraphUnaryExpr
+	snapshotAt: GraphTimeExpr
+	snapshotLatest: GraphUnaryExpr
+	layers: GraphLayersExpr
+}
+
+input GraphLayersExpr {
+	names: [String!]!
+	expr: GraphFilter
+}
+
 type GraphSchema {
 	nodes: [NodeSchema!]!
 	layers: [LayerSchema!]!
+}
+
+input GraphTimeExpr {
+	time: TimeInput!
+	expr: GraphFilter
 }
 
 enum GraphType {
@@ -1033,6 +1055,10 @@ enum GraphType {
 	Event.
 	"""
 	EVENT
+}
+
+input GraphUnaryExpr {
+	expr: GraphFilter
 }
 
 input GraphViewCollection @oneOf {
@@ -1116,6 +1142,12 @@ input GraphViewCollection @oneOf {
 	Edge filter.
 	"""
 	edgeFilter: EdgeFilter
+}
+
+input GraphWindowExpr {
+	start: TimeInput!
+	end: TimeInput!
+	expr: GraphFilter
 }
 
 type GraphWindowSet {
@@ -2864,4 +2896,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-
