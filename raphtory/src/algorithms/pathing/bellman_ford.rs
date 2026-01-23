@@ -76,6 +76,7 @@ fn find_shortest_paths<G: StaticGraphViewOps>(g: &G, source_node_vid: VID, cost_
 pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
     g: &G,
     source: T,
+    targets: Vec<T>,
     weight: Option<&str>,
     direction: Direction,
 ) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
@@ -96,6 +97,13 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
             weight_type = dtype;
         } else {
             return Err(GraphError::PropertyMissingError(weight.to_string()));
+        }
+    }
+
+    let mut target_nodes = vec![false; g.unfiltered_num_nodes()];
+    for target in targets {
+        if let Some(target_node) = g.node(target) {
+            target_nodes[target_node.node.index()] = true;
         }
     }
 
@@ -148,17 +156,23 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
         find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, shortest_paths);
         shortest_paths
         .iter_mut()
-        .map(|(id, nodes_path_hashmap)| {
+        .filter_map(|(id, nodes_path_hashmap)| {
+            if !target_nodes[id.index()] {
+                return None;
+            }
             let (cost, path) = nodes_path_hashmap.remove(&(n_nodes - 1)).unwrap();
             let nodes =
                 Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::new(path)));
-            (id, (cost.as_f64().unwrap(), nodes))
+            Some((id, (cost.as_f64().unwrap(), nodes)))
         })
         .unzip()
     } else {
         find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, &mut incoming_shortest_paths);
         find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, &mut outgoing_shortest_paths);
-        incoming_shortest_paths.iter_mut().map(|(id, nodes_path_hashmap_in)| {
+        incoming_shortest_paths.iter_mut().filter_map(|(id, nodes_path_hashmap_in)| {
+            if !target_nodes[id.index()] {
+                return None;
+            }
             let nodes_path_hashmap_out = outgoing_shortest_paths.get_mut(id).unwrap();
             let (cost_out, path_out) = nodes_path_hashmap_out.remove(&(n_nodes - 1)).unwrap();
             let (cost_in, path_in) = nodes_path_hashmap_in.remove(&(n_nodes - 1)).unwrap();
@@ -169,7 +183,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
             }; 
             let nodes =
                 Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::new(path)));
-            (id, (cost.as_f64().unwrap(), nodes))
+            Some((id, (cost.as_f64().unwrap(), nodes)))
         }).unzip()
     };
     
