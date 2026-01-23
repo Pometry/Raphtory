@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 import numpy as np
 from datetime import datetime, timezone
-import pytz
 
 base_dir = Path(__file__).parent
 
