@@ -6,6 +6,7 @@ use crate::python::{
         },
         exploded_edge_filter_builder::PyExplodedEdgeFilter,
         filter_expr::PyFilterExpr,
+        graph_filter::PyGraphFilter,
         node_filter_builders::{
             PyNodeFilter, PyNodeIdFilterBuilder, PyNodeNameFilterBuilder, PyNodeTypeFilterBuilder,
         },
@@ -22,6 +23,7 @@ use raphtory_api::core::entities::Layer;
 pub mod edge_filter_builders;
 pub mod exploded_edge_filter_builder;
 pub mod filter_expr;
+pub mod graph_filter;
 pub mod node_filter_builders;
 pub mod property_filter_builders;
 
@@ -50,6 +52,7 @@ pub fn base_filter_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> 
     filter_module.add_class::<PyEdgeEndpointTypeFilterBuilder>()?;
 
     filter_module.add_class::<PyExplodedEdgeFilter>()?;
+    filter_module.add_class::<PyGraphFilter>()?;
 
     Ok(filter_module)
 }

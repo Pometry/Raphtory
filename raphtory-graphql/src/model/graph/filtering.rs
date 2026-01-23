@@ -11,12 +11,14 @@ use raphtory::{
         edge_filter::{CompositeEdgeFilter, EdgeFilter},
         filter::{Filter, FilterValue},
         filter_operator::FilterOperator,
+        graph_filter::GraphFilter,
         latest_filter::Latest as LatestWrap,
         layered_filter::Layered,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
+        DynView, DynViewFilter, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -357,6 +359,45 @@ impl PropCondition {
             Len(_) => "len",
         }
     }
+}
+
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphWindowExpr {
+    pub start: GqlTimeInput,
+    pub end: GqlTimeInput,
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphTimeExpr {
+    pub time: GqlTimeInput,
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphUnaryExpr {
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphLayersExpr {
+    pub names: Vec<String>,
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(OneOfInput, Clone, Debug)]
+#[graphql(name = "GraphFilter")]
+pub enum GqlGraphFilter {
+    Window(GraphWindowExpr),
+    At(GraphTimeExpr),
+    Before(GraphTimeExpr),
+    After(GraphTimeExpr),
+
+    Latest(GraphUnaryExpr),
+    SnapshotAt(GraphTimeExpr),
+    SnapshotLatest(GraphUnaryExpr),
+
+    Layers(GraphLayersExpr),
 }
 
 #[derive(OneOfInput, Clone, Debug)]
@@ -1250,5 +1291,72 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 ))))
             }
         }
+    }
+}
+
+impl TryFrom<GqlGraphFilter> for DynView {
+    type Error = GraphError;
+
+    fn try_from(f: GqlGraphFilter) -> Result<Self, Self::Error> {
+        let default_inner: DynView = Arc::new(GraphFilter);
+
+        Ok(match f {
+            GqlGraphFilter::Window(w) => {
+                let inner: DynView = match w.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.window(w.start, w.end)
+            }
+            GqlGraphFilter::At(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.at(t.time)
+            }
+            GqlGraphFilter::Before(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.before(t.time)
+            }
+            GqlGraphFilter::After(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.after(t.time)
+            }
+            GqlGraphFilter::Latest(u) => {
+                let inner: DynView = match u.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.latest())
+            }
+            GqlGraphFilter::SnapshotAt(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.snapshot_at(t.time))
+            }
+            GqlGraphFilter::SnapshotLatest(u) => {
+                let inner: DynView = match u.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.snapshot_latest())
+            }
+            GqlGraphFilter::Layers(l) => {
+                let inner: DynView = match l.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.layer(l.names))
+            }
+        })
     }
 }
