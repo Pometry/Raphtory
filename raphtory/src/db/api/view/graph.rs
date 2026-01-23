@@ -58,9 +58,7 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-use storage::{
-    persist::strategy::PersistenceStrategy, wal::WalOps, Extension, Wal,
-};
+use storage::{persist::strategy::PersistenceStrategy, wal::WalOps, Extension, Wal};
 
 #[cfg(feature = "search")]
 use crate::{

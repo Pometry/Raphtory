@@ -9,10 +9,7 @@ use crate::{
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
         row_group_par_iter,
     },
-    persist::{
-        config::ConfigOps,
-        strategy::PersistenceStrategy,
-    },
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};

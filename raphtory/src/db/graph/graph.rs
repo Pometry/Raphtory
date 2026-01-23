@@ -48,10 +48,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use storage::{
-    persist::strategy::PersistenceStrategy,
-    Extension, Config,
-};
+use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]

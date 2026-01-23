@@ -2,10 +2,7 @@ use crate::{
     LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
-    persist::{
-        config::ConfigOps,
-        strategy::PersistenceStrategy,
-    },
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::PropMutEntry,
     segments::{
         HasRow, SegmentContainer,
@@ -562,8 +559,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 #[cfg(test)]
 mod test {
     use super::*;
-    use raphtory_api::core::entities::properties::meta::Meta;
-    use raphtory_api::core::entities::properties::prop::PropType;
+    use raphtory_api::core::entities::properties::{meta::Meta, prop::PropType};
     use raphtory_core::storage::timeindex::TimeIndexEntry;
 
     fn create_test_segment() -> MemEdgeSegment {

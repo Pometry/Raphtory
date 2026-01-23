@@ -62,10 +62,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type Config = NoOpConfig;
 
     fn new(config: Self::Config, wal: Arc<Self::Wal>) -> Self {
-        Self {
-            config,
-            wal,
-        }
+        Self { config, wal }
     }
 
     fn config(&self) -> &Self::Config {

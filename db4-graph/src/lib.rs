@@ -26,7 +26,7 @@ use storage::{
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::WalOps,
-    Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, GS, NS, Config,
+    Config, Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, GS, NS,
 };
 use tempfile::TempDir;
 

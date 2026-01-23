@@ -9,10 +9,7 @@ use crate::{
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
         row_group_par_iter,
     },
-    persist::{
-        config::ConfigOps,
-        strategy::PersistenceStrategy,
-    },
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};

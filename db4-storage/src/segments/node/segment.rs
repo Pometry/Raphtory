@@ -4,10 +4,7 @@ use crate::{
     error::StorageError,
     loop_lock_write,
     pages::node_store::increment_and_clamp,
-    persist::{
-        config::ConfigOps,
-        strategy::PersistenceStrategy,
-    },
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
         HasRow, SegmentContainer,
         node::entry::{MemNodeEntry, MemNodeRef},
@@ -15,8 +12,7 @@ use crate::{
     wal::LSN,
 };
 use either::Either;
-use parking_lot::lock_api::ArcRwLockReadGuard;
-use parking_lot::RwLock;
+use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
     Direction,
     entities::{
@@ -591,10 +587,10 @@ mod test {
         LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
-        persist::strategy::{
-            NoOpStrategy, PersistenceStrategy,
+        persist::{
+            config::NoOpConfig,
+            strategy::{NoOpStrategy, PersistenceStrategy},
         },
-        persist::config::NoOpConfig,
         wal::no_wal::NoWal,
     };
     use raphtory_api::core::entities::properties::{

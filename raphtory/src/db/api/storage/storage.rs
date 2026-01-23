@@ -37,17 +37,16 @@ use std::{
     sync::Arc,
 };
 use storage::{
+    persist::config::ConfigOps,
     transaction::TransactionManager,
     wal::{GraphWalOps, WalOps, LSN},
     Wal,
-    persist::config::ConfigOps,
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{
-    Extension, Config,
-    persist::strategy::PersistenceStrategy,
-    persist::config::PersistenceConfig
+    persist::{config::PersistenceConfig, strategy::PersistenceStrategy},
+    Config, Extension,
 };
 
 #[cfg(feature = "search")]
@@ -145,8 +144,7 @@ impl Storage {
     }
 
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let config = Config::load_from_dir(path.as_ref())
-            .unwrap_or_else(|_| Config::default());
+        let config = Config::load_from_dir(path.as_ref()).unwrap_or_else(|_| Config::default());
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
         let wal = Arc::new(Wal::load(Some(wal_dir.as_path()))?);

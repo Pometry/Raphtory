@@ -590,15 +590,17 @@ pub fn row_group_par_iter<I: From<usize>>(
 mod test {
     use super::GraphStore;
     use crate::{
-        api::nodes::{NodeEntryOps, NodeRefOps}, pages::test_utils::{
-            check_edges_support, check_graph_with_nodes_support, check_graph_with_props_support,
-            edges_strat, edges_strat_with_layers, make_edges, make_nodes, AddEdge, Fixture, NodeFixture
+        Extension, Layer,
+        api::nodes::{NodeEntryOps, NodeRefOps},
+        pages::test_utils::{
+            AddEdge, Fixture, NodeFixture, check_edges_support, check_graph_with_nodes_support,
+            check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
+            make_nodes,
         },
-        persist::strategy::{PersistenceStrategy},
-        wal::no_wal::NoWal, Extension, Layer,
+        persist::{config::NoOpConfig, strategy::PersistenceStrategy},
+        wal::no_wal::NoWal,
     };
     use chrono::DateTime;
-    use crate::persist::config::NoOpConfig;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
