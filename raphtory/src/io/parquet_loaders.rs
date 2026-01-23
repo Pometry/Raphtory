@@ -497,28 +497,6 @@ pub(crate) fn cast_columns(
     Ok(RecordBatch::from(casted_struct))
 }
 
-#[cfg(feature = "storage")]
-pub fn read_struct_arrays(
-    path: &Path,
-    col_names: Option<&[&str]>,
-) -> Result<impl Iterator<Item = Result<StructArray, RAError>>, GraphError> {
-    let readers = get_parquet_file_paths(path)?
-        .into_iter()
-        .map(|path| {
-            read_parquet_file(path, col_names)
-                .and_then(|(_, reader, _)| Ok::<_, GraphError>(reader.build()?))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-
-    let chunks = readers.into_iter().flat_map(|iter| {
-        iter.map(move |cols| {
-            cols.map(|col| StructArray::from(col))
-                .map_err(RAError::ArrowRs)
-        })
-    });
-    Ok(chunks)
-}
-
 #[cfg(test)]
 mod test {
     use super::*;

@@ -601,7 +601,7 @@ impl PyPersistentGraph {
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
-    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///     event_id (str, optional): The column name for the secondary index.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -634,7 +634,6 @@ impl PyPersistentGraph {
                 &self.graph,
                 data,
                 time,
-                event_id,
                 id,
                 node_type,
                 node_type_col,
@@ -642,6 +641,7 @@ impl PyPersistentGraph {
                 &metadata,
                 shared_metadata.as_ref(),
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -665,6 +665,7 @@ impl PyPersistentGraph {
                     &self.graph,
                     path.as_path(),
                     time,
+                    event_id,
                     id,
                     node_type,
                     node_type_col,
@@ -672,6 +673,7 @@ impl PyPersistentGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
+                    true,
                     arced_schema.clone(),
                 )?;
             }
@@ -688,6 +690,7 @@ impl PyPersistentGraph {
                     shared_metadata.as_ref(),
                     csv_options.as_ref(),
                     arced_schema,
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -716,7 +719,7 @@ impl PyPersistentGraph {
     ///     layer_col (str, optional): The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
-    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///     event_id (str, optional): The column name for the secondary index.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -724,7 +727,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, secondary_index = None)
+        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
     )]
     fn load_edges(
         &self,
@@ -740,7 +743,7 @@ impl PyPersistentGraph {
         layer_col: Option<&str>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
-        secondary_index: Option<&str>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -758,6 +761,7 @@ impl PyPersistentGraph {
                 layer,
                 layer_col,
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -780,14 +784,12 @@ impl PyPersistentGraph {
                 load_edges_from_parquet(
                     &self.graph,
                     &path,
-                    time,
-                    src,
-                    dst,
+                    ColumnNames::new(time, event_id, src, dst, layer_col),
+                    true,
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
                     layer,
-                    layer_col,
                     None,
                     arced_schema.clone(),
                 )?;
@@ -806,6 +808,7 @@ impl PyPersistentGraph {
                     layer_col,
                     csv_options.as_ref(),
                     arced_schema.clone(),
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -831,14 +834,14 @@ impl PyPersistentGraph {
     ///     layer_col (str, optional): The edge layer col name in the data source. Cannot be used in combination with layer. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
-    ///     secondary_index (str, optional): The column name for the secondary index.
+    ///     event_id (str, optional): The column name for the secondary index.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (data, time, src, dst, layer = None, layer_col = None, schema = None, csv_options = None, secondary_index = None))]
+    #[pyo3(signature = (data, time, src, dst, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None))]
     fn load_edge_deletions(
         &self,
         data: &Bound<PyAny>,
@@ -850,7 +853,7 @@ impl PyPersistentGraph {
         layer_col: Option<&str>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
-        secondary_index: Option<&str>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let column_schema = convert_py_schema(schema)?;
         if data.hasattr("__arrow_c_stream__")? {
@@ -885,11 +888,9 @@ impl PyPersistentGraph {
                 load_edge_deletions_from_parquet(
                     &self.graph,
                     path.as_path(),
-                    time,
-                    src,
-                    dst,
+                    ColumnNames::new(time, event_id, src, dst, layer_col),
                     layer,
-                    layer_col,
+                    true,
                     None,
                     arced_schema.clone(),
                 )?;
@@ -905,6 +906,7 @@ impl PyPersistentGraph {
                     layer_col,
                     csv_options.as_ref(),
                     arced_schema,
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -987,6 +989,8 @@ impl PyPersistentGraph {
                     id,
                     node_type,
                     node_type_col,
+                    None,
+                    None,
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
@@ -1094,6 +1098,7 @@ impl PyPersistentGraph {
                     layer_col,
                     None,
                     arced_schema.clone(),
+                    true,
                 )?;
             }
             if is_csv {

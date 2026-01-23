@@ -31,7 +31,10 @@ use raphtory::{
     db::{
         api::{
             properties::dyn_props::DynProperties,
-            view::{DynamicGraph, IntoDynamic, NodeViewOps, StaticGraphViewOps, TimeOps},
+            view::{
+                filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
+                StaticGraphViewOps, TimeOps,
+            },
         },
         graph::{
             node::NodeView,

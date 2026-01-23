@@ -231,7 +231,7 @@ impl PyHistory {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyHistory>() {
+        if let Ok(py_hist) = other.cast::<PyHistory>() {
             return self.history.eq(&py_hist.get().history);
         }
         // compare timestamps only
@@ -298,7 +298,7 @@ impl<'py, T: IntoArcDynHistoryOps> IntoPyObject<'py> for History<'_, T> {
 impl<'py> FromPyObject<'_, 'py> for History<'static, Arc<dyn InternalHistoryOps>> {
     type Error = PyErr;
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        let py_history = ob.downcast::<PyHistory>()?;
+        let py_history = ob.cast::<PyHistory>()?;
         Ok(py_history.get().history.clone())
     }
 }
@@ -398,7 +398,7 @@ impl PyHistoryTimestamp {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyHistoryTimestamp>() {
+        if let Ok(py_hist) = other.cast::<PyHistoryTimestamp>() {
             return self.history_t.iter().eq(py_hist.get().history_t.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {
@@ -584,7 +584,7 @@ impl PyHistoryDateTime {
             }
             None
         };
-        if let Ok(py_hist) = other.downcast::<PyHistoryDateTime>() {
+        if let Ok(py_hist) = other.cast::<PyHistoryDateTime>() {
             return self.history_dt.iter().eq(py_hist.get().history_dt.iter());
         }
         if let Some(iterator) = dt_iter_opt {
@@ -747,7 +747,7 @@ impl PyHistoryEventId {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyHistoryEventId>() {
+        if let Ok(py_hist) = other.cast::<PyHistoryEventId>() {
             return self.history_s.iter().eq(py_hist.get().history_s.iter());
         }
         if let Ok(list) = other.extract::<Vec<usize>>() {
@@ -910,7 +910,7 @@ impl PyIntervals {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyIntervals>() {
+        if let Ok(py_hist) = other.cast::<PyIntervals>() {
             return self.intervals.iter().eq(py_hist.get().intervals.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {

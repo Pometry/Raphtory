@@ -1,10 +1,7 @@
 #[cfg(feature = "io")]
 use crate::serialise::GraphPaths;
 use crate::{
-    core::{
-        entities::LayerIds,
-        storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
-    },
+    core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
         api::{
             properties::internal::InheritPropertiesOps, storage::storage::Storage,
@@ -22,13 +19,7 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-        nodes::node_storage_ops::NodeStorageOps,
-    },
-    mutation::InheritMutationOps,
-};
+use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::{
     fmt::{Display, Formatter},
     ops::Range,

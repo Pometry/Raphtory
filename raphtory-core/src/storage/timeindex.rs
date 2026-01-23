@@ -308,7 +308,7 @@ where
     }
 
     fn range(&self, w: Range<T>) -> Self {
-        let range = match self {
+        match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::Range { timeindex, range } => {
                 let start = max(range.start, w.start);
@@ -326,8 +326,7 @@ where
                 timeindex: *timeindex,
                 range: w,
             },
-        };
-        range
+        }
     }
 
     fn first(&self) -> Option<T> {

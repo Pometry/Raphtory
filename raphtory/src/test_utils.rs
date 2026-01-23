@@ -580,7 +580,7 @@ pub(crate) fn build_graph_from_edge_list_with_event_id<'a>(
             src,
             dst,
             [
-                ("str_prop", str_prop.into_prop()),
+                ("str_prop", Prop::str(str_prop.as_ref())),
                 ("int_prop", int_prop.into_prop()),
             ],
             None,
@@ -714,7 +714,7 @@ pub(crate) fn add_node_props_with_event_id<'a>(
 ) {
     for (node, event_id, str_prop, int_prop) in nodes {
         let props = [
-            str_prop.as_ref().map(|v| ("str_prop", v.into_prop())),
+            str_prop.map(|v| ("str_prop", Prop::str(v.as_ref()))),
             int_prop.as_ref().map(|v| ("int_prop", (*v).into())),
         ]
         .into_iter()

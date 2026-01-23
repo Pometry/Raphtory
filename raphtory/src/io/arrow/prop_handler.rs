@@ -1,8 +1,4 @@
-use crate::{
-    errors::{GraphError, LoadError},
-    io::arrow::dataframe::DFChunk,
-    prelude::Prop,
-};
+use crate::{errors::GraphError, io::arrow::dataframe::DFChunk, prelude::Prop};
 use arrow::{
     array::{
         Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
@@ -250,7 +246,7 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
     }
 }
 
-trait PropCol: Send + Sync {
+pub(crate) trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
 
     fn as_array(&self) -> ArrayRef;
@@ -450,7 +446,7 @@ impl PropCol for EmptyCol {
     }
 }
 
-pub fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
+pub(crate) fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
     match arr.data_type() {
         DataType::Boolean => Box::new(arr.as_boolean().clone()),
         DataType::Int32 => Box::new(arr.as_primitive::<Int32Type>().clone()),

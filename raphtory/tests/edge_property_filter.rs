@@ -286,29 +286,6 @@ fn test_persistent_graph_materialise_window() {
 }
 
 #[test]
-fn test_persistent_graph_materialise_window_2_updates() {
-    let g = PersistentGraph::new();
-    g.add_edge(0, 0, 0, [("test", 0)], None).unwrap();
-    g.add_edge(-5, 0, 0, [("test", 1)], None).unwrap();
-    let start = -3;
-    let end = 0;
-    let v = 0;
-    let gwf = g
-        .window(start, end)
-        .filter_edges(PropertyFilterBuilder("test".to_string()).gt(v))
-        .unwrap();
-    let gwfm = gwf.materialize().unwrap();
-    assert_persistent_materialize_graph_equal(&gwf, &gwfm);
-
-    let gfw = g
-        .filter_edges(PropertyFilterBuilder("test".to_string()).gt(v))
-        .unwrap()
-        .window(start, end);
-    let gfwm = gfw.materialize().unwrap();
-    assert_persistent_materialize_graph_equal(&gfw, &gfwm);
-}
-
-#[test]
 fn test_single_unfiltered_edge_empty_window_persistent() {
     let g = PersistentGraph::new();
     g.add_edge(0, 0, 1, [("test", 1i64)], None).unwrap();

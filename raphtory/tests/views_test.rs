@@ -1858,11 +1858,9 @@ mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = NodeFilter.property("x").gt(Prop::List(Arc::new(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ])));
+            let filter = NodeFilter.property("x").gt(Prop::List(
+                vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)].into(),
+            ));
             let graph = init_graph(Graph::new());
             assert!(matches!(
                 graph.window(1, 9).filter(filter.clone()).unwrap_err(),
@@ -3236,7 +3234,7 @@ mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = EdgeFilter.property("x").eq(Prop::List(vec![
+            let filter = EdgeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
@@ -3864,11 +3862,9 @@ mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = EdgeFilter.property("x").gt(Prop::List(Arc::new(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ])));
+            let filter = EdgeFilter.property("x").gt(Prop::List(
+                vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)].into(),
+            ));
             let graph = init_graph(Graph::new());
             assert!(matches!(
                 graph.window(1, 9).filter(filter.clone()).unwrap_err(),

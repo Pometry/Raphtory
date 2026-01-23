@@ -23,7 +23,10 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
     test_storage,
-    test_utils::{EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, PropUpdatesFixture},
+    test_utils::{
+        build_graph, build_graph_strat, EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture,
+        PropUpdatesFixture,
+    },
 };
 use raphtory_api::core::{
     entities::{GID, VID},
@@ -1157,13 +1160,12 @@ fn temporal_node_rows_nodes() {
             .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
-            let expected = vec![(
-                EventTime::new(id as i64, id),
-                vec![Some(Prop::U64((id as u64) + 1))],
-            )];
-            assert_eq!(actual, expected);
-        }
-    });
+        let expected = vec![(
+            EventTime::new(id as i64, id),
+            vec![Prop::U64((id as u64) + 1)],
+        )];
+        assert_eq!(actual, expected);
+    }
 }
 
 #[test]
@@ -1191,15 +1193,15 @@ fn temporal_node_rows_window() {
         };
         let actual = get_rows(VID(0), EventTime::new(2, 0)..EventTime::new(3, 0));
 
-        let expected = vec![(EventTime::new(2, 2), vec![Some(Prop::U64(3))])];
+        let expected = vec![(EventTime::new(2, 2), vec![Prop::U64(3)])];
 
         assert_eq!(actual, expected);
 
         let actual = get_rows(VID(0), EventTime::new(0, 0)..EventTime::new(3, 0));
         let expected = vec![
-            (EventTime::new(0, 0), vec![Some(Prop::U64(1))]),
-            (EventTime::new(1, 1), vec![Some(Prop::U64(2))]),
-            (EventTime::new(2, 2), vec![Some(Prop::U64(3))]),
+            (EventTime::new(0, 0), vec![Prop::U64(1)]),
+            (EventTime::new(1, 1), vec![Prop::U64(2)]),
+            (EventTime::new(2, 2), vec![Prop::U64(3)]),
         ];
 
         assert_eq!(actual, expected);
@@ -1749,34 +1751,32 @@ fn node_history_rows() {
         .add_node(1, 1, [("cool".to_string(), 3u64)], None)
         .unwrap();
 
-    test_storage!(&graph, |graph| {
-        let node = graph.node(1).unwrap();
+    let node = graph.node(1).unwrap();
 
-        let actual = node
-            .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
-            .collect::<Vec<_>>();
+    let actual = node
+        .rows()
+        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .collect::<Vec<_>>();
 
-        let expected = vec![
-            (EventTime::new(0, 1), vec![Prop::U64(1)]),
-            (EventTime::new(1, 2), vec![Prop::Bool(true), Prop::I64(2)]),
-            (EventTime::new(1, 4), vec![Prop::U64(3)]),
-            (EventTime::new(2, 3), vec![]),
-        ];
+    let expected = vec![
+        (EventTime::new(0, 1), vec![Prop::U64(1)]),
+        (EventTime::new(1, 2), vec![Prop::Bool(true), Prop::I64(2)]),
+        (EventTime::new(1, 4), vec![Prop::U64(3)]),
+        (EventTime::new(2, 3), vec![]),
+    ];
 
-        assert_eq!(actual, expected);
+    assert_eq!(actual, expected);
 
-        let node = graph.node(2).unwrap();
+    let node = graph.node(2).unwrap();
 
-        let actual = node
-            .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
-            .collect::<Vec<_>>();
+    let actual = node
+        .rows()
+        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .collect::<Vec<_>>();
 
-        let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
+    let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
 
-        assert_eq!(actual, expected);
-    });
+    assert_eq!(actual, expected);
 }
 
 #[test]
@@ -1788,17 +1788,14 @@ fn check_node_history_str() {
     graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
     graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
-    // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
-    test_graph(&graph, |graph| {
-        let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
+    let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
 
-        assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
+    assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
-        let view = graph.window(1, 8);
+    let view = graph.window(1, 8);
 
-        let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
-        assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
-    });
+    let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
+    assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
 }
 
 #[test]
@@ -1811,17 +1808,14 @@ fn check_node_history_num() {
     graph.add_node(4, 1, NO_PROPS, None).unwrap();
     graph.add_node(8, 1, NO_PROPS, None).unwrap();
 
-    // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
-    test_graph(&graph, |graph| {
-        let times_of_one = graph.node(1).unwrap().history();
+    let times_of_one = graph.node(1).unwrap().history();
 
-        assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
+    assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
 
-        let view = graph.window(1, 8);
+    let view = graph.window(1, 8);
 
-        let windowed_times_of_one = view.node(1).unwrap().history();
-        assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
-    });
+    let windowed_times_of_one = view.node(1).unwrap().history();
+    assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
 }
 
 #[test]
@@ -1832,17 +1826,15 @@ fn check_edge_history() {
     graph.add_edge(2, 1, 3, NO_PROPS, None).unwrap();
     graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
     graph.add_edge(4, 1, 4, NO_PROPS, None).unwrap();
-    test_storage!(&graph, |graph| {
-        let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-        let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
-        let view = graph.window(2, 5);
-        let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 4).history();
+    let times_of_onetwo = graph.edge(1, 2).unwrap().history();
+    let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
+    let view = graph.window(2, 5);
+    let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 4).history();
 
-        assert_eq!(times_of_onetwo, [1, 3]);
-        assert_eq!(times_of_four, [4]);
-        assert!(windowed_times_of_four.is_empty());
-        assert_eq!(graph.node(1).unwrap().edge_history_count(), 4);
-    });
+    assert_eq!(times_of_onetwo, [1, 3]);
+    assert_eq!(times_of_four, [4]);
+    assert!(windowed_times_of_four.is_empty());
+    assert_eq!(graph.node(1).unwrap().edge_history_count(), 4);
 }
 
 #[test]
@@ -1851,12 +1843,10 @@ fn check_node_edge_history_count() {
     graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
     graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
 
-    test_storage!(&graph, |graph| {
-        let node = graph.node(0).unwrap();
-        assert_eq!(node.edge_history_count(), 2);
-        assert_eq!(node.after(1).edge_history_count(), 1);
-        assert_eq!(node.after(3).edge_history_count(), 0);
-    });
+    let node = graph.node(0).unwrap();
+    assert_eq!(node.edge_history_count(), 2);
+    assert_eq!(node.after(1).edge_history_count(), 1);
+    assert_eq!(node.after(3).edge_history_count(), 0);
 }
 
 use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
@@ -1876,23 +1866,21 @@ fn check_edge_history_on_multiple_shards() {
     graph.add_edge(9, 1, 4, NO_PROPS, None).unwrap();
     graph.add_edge(10, 1, 4, NO_PROPS, None).unwrap();
 
-    test_storage!(&graph, |graph| {
-        let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-        let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
-        let times_of_outside_window = graph.edge(1, 4).unwrap().window(1, 4).history();
-        let times_of_four_higher = graph.edge(1, 4).unwrap().window(6, 11).history();
+    let times_of_onetwo = graph.edge(1, 2).unwrap().history();
+    let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
+    let times_of_outside_window = graph.edge(1, 4).unwrap().window(1, 4).history();
+    let times_of_four_higher = graph.edge(1, 4).unwrap().window(6, 11).history();
 
-        let view = graph.window(1, 11);
-        let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 5).history();
-        let windowed_times_of_four_higher = view.edge(1, 4).unwrap().window(8, 11).history();
+    let view = graph.window(1, 11);
+    let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 5).history();
+    let windowed_times_of_four_higher = view.edge(1, 4).unwrap().window(8, 11).history();
 
-        assert_eq!(times_of_onetwo, [1, 3]);
-        assert_eq!(times_of_four, [4]);
-        assert_eq!(times_of_four_higher, [6, 7, 8, 9, 10]);
-        assert!(times_of_outside_window.is_empty());
-        assert_eq!(windowed_times_of_four, [4]);
-        assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
-    });
+    assert_eq!(times_of_onetwo, [1, 3]);
+    assert_eq!(times_of_four, [4]);
+    assert_eq!(times_of_four_higher, [6, 7, 8, 9, 10]);
+    assert!(times_of_outside_window.is_empty());
+    assert_eq!(windowed_times_of_four, [4]);
+    assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
 }
 
 #[derive(Debug)]
@@ -2268,37 +2256,35 @@ fn test_node_early_late_times() {
     graph.add_node(3, 1, NO_PROPS, None).unwrap();
 
     // FIXME: Node add without properties not showing up (Issue #46)
-    test_graph(&graph, |graph| {
-        assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
-        assert_eq!(graph.node(1).unwrap().latest_time().unwrap().t(), 3);
+    assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
+    assert_eq!(graph.node(1).unwrap().latest_time().unwrap().t(), 3);
 
-        assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().t(), 2);
-        assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().t(), 2);
+    assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().t(), 2);
+    assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().t(), 2);
 
-        assert_eq!(
-            graph
-                .before(2)
-                .node(1)
-                .unwrap()
-                .earliest_time()
-                .unwrap()
-                .t(),
-            1
-        );
-        assert_eq!(
-            graph.before(2).node(1).unwrap().latest_time().unwrap().t(),
-            1
-        );
+    assert_eq!(
+        graph
+            .before(2)
+            .node(1)
+            .unwrap()
+            .earliest_time()
+            .unwrap()
+            .t(),
+        1
+    );
+    assert_eq!(
+        graph.before(2).node(1).unwrap().latest_time().unwrap().t(),
+        1
+    );
 
-        assert_eq!(
-            graph.after(2).node(1).unwrap().earliest_time().unwrap().t(),
-            3
-        );
-        assert_eq!(
-            graph.after(2).node(1).unwrap().latest_time().unwrap().t(),
-            3
-        );
-    })
+    assert_eq!(
+        graph.after(2).node(1).unwrap().earliest_time().unwrap().t(),
+        3
+    );
+    assert_eq!(
+        graph.after(2).node(1).unwrap().latest_time().unwrap().t(),
+        3
+    );
 }
 
 #[test]
@@ -2308,16 +2294,13 @@ fn test_node_ids() {
     graph.add_node(1, 2, NO_PROPS, None).unwrap();
     graph.add_node(2, 3, NO_PROPS, None).unwrap();
 
-    // FIXME: Node add without properties not showing up (Issue #46)
-    test_graph(&graph, |graph| {
-        assert_eq!(
-            graph.nodes().id().collect::<Vec<_>>(),
-            vec![1u64, 2u64, 3u64]
-        );
+    assert_eq!(
+        graph.nodes().id().collect::<Vec<_>>(),
+        vec![1u64, 2u64, 3u64]
+    );
 
-        let g_at = graph.at(1);
-        assert_eq!(g_at.nodes().id().collect::<Vec<_>>(), vec![1u64, 2u64]);
-    });
+    let g_at = graph.at(1);
+    assert_eq!(g_at.nodes().id().collect::<Vec<_>>(), vec![1u64, 2u64]);
 }
 
 #[test]

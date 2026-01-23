@@ -690,6 +690,7 @@ impl PyGraph {
                 &metadata,
                 shared_metadata.as_ref(),
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -738,6 +739,7 @@ impl PyGraph {
                     shared_metadata.as_ref(),
                     csv_options.as_ref(),
                     arced_schema,
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -807,6 +809,7 @@ impl PyGraph {
                 layer,
                 layer_col,
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -829,14 +832,12 @@ impl PyGraph {
                 load_edges_from_parquet(
                     &self.graph,
                     &path,
-                    time,
-                    src,
-                    dst,
+                    ColumnNames::new(time, event_id, src, dst, layer_col),
+                    true,
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
                     layer,
-                    layer_col,
                     None,
                     arced_schema.clone(),
                 )?;
@@ -855,6 +856,7 @@ impl PyGraph {
                     layer_col,
                     csv_options.as_ref(),
                     arced_schema.clone(),
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -937,6 +939,8 @@ impl PyGraph {
                     id,
                     node_type,
                     node_type_col,
+                    None,
+                    None,
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
@@ -1044,6 +1048,7 @@ impl PyGraph {
                     layer_col,
                     None,
                     arced_schema.clone(),
+                    true,
                 )?;
             }
             if is_csv {

@@ -207,7 +207,7 @@ impl LatestDateTimeView {
         other: &Bound<'py, PyAny>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) = other.extract::<Vec<Option<DateTime<Utc>>>>() {
@@ -219,7 +219,7 @@ impl LatestDateTimeView {
                 && other
                     .into_iter()
                     .all(|(node, value)| self.inner.get_by_node(node) == Some(Ok(value)))
-        } else if let Ok(other) = other.downcast::<PyDict>() {
+        } else if let Ok(other) = other.cast::<PyDict>() {
             self.inner.len() == other.len()
                 && other.items().iter().all(|item| {
                     if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()

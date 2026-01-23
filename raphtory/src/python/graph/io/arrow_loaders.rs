@@ -18,6 +18,7 @@ use crate::{
 use arrow::{
     array::{RecordBatch, RecordBatchReader},
     datatypes::SchemaRef,
+    error::ArrowError,
 };
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
@@ -42,6 +43,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use storage::utils::Iter3;
 use tracing::error;
 
 const CHUNK_SIZE: usize = 1_000_000; // split large chunks so progress bar updates reasonably
@@ -66,12 +68,11 @@ pub(crate) fn convert_py_schema(
 
 pub(crate) fn load_nodes_from_arrow_c_stream<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     data: &Bound<'py, PyAny>,
     time: &str,
-    event_id: Option<&str>,
     id: &str,
     node_type: Option<&str>,
     node_type_col: Option<&str>,
@@ -79,11 +80,12 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     schema: Option<HashMap<String, PropType>>,
+    event_id: Option<&str>,
 ) -> Result<(), GraphError> {
     let cols_to_check = [id, time]
         .into_iter()
-        .chain(properties.iter())
-        .chain(metadata)
+        .chain(properties.iter().copied())
+        .chain(metadata.iter().copied())
         .chain(node_type_col)
         .chain(event_id)
         .collect::<Vec<_>>();
@@ -93,8 +95,8 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     load_nodes_from_df(
         df_view,
         time,
-        id,
         event_id,
+        id,
         properties,
         metadata,
         shared_metadata,
@@ -124,8 +126,8 @@ pub(crate) fn load_edges_from_arrow_c_stream<
 ) -> Result<(), GraphError> {
     let mut cols_to_check = [src, dst, time]
         .into_iter()
-        .chain(properties)
-        .chain(metadata)
+        .chain(properties.iter().copied())
+        .chain(metadata.iter().copied())
         .chain(layer_col)
         .chain(event_id)
         .collect::<Vec<_>>();
@@ -147,7 +149,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
 
 pub(crate) fn load_node_metadata_from_arrow_c_stream<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     data: &Bound<'py, PyAny>,
@@ -160,7 +162,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
 ) -> Result<(), GraphError> {
     let mut cols_to_check = [id]
         .into_iter()
-        .chain(metadata)
+        .chain(metadata.iter().copied())
         .chain(node_type_col)
         .collect::<Vec<_>>();
 
@@ -196,7 +198,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     let mut cols_to_check = [src, dst]
         .into_iter()
         .chain(layer_col)
-        .chain(metadata)
+        .chain(metadata.iter().copied())
         .collect::<Vec<_>>();
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
@@ -452,7 +454,7 @@ fn collect_csv_paths(path: &PathBuf) -> Result<Vec<PathBuf>, GraphError> {
 // Load from CSV files using arrow-csv
 pub(crate) fn load_nodes_from_csv_path<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     path: &PathBuf,
@@ -469,8 +471,8 @@ pub(crate) fn load_nodes_from_csv_path<
 ) -> Result<(), GraphError> {
     let mut cols_to_check = [id, time]
         .into_iter()
-        .chain(properties)
-        .chain(metadata)
+        .chain(properties.iter().copied())
+        .chain(metadata.iter().copied())
         .chain(node_type_col)
         .chain(event_id)
         .collect::<Vec<_>>();
@@ -514,8 +516,8 @@ pub(crate) fn load_edges_from_csv_path<
 ) -> Result<(), GraphError> {
     let mut cols_to_check = [src, dst, time]
         .into_iter()
-        .chain(properties)
-        .chain(metadata)
+        .chain(properties.iter().copied())
+        .chain(metadata.iter().copied())
         .chain(layer_col)
         .collect::<Vec<_>>();
 
@@ -538,7 +540,7 @@ pub(crate) fn load_edges_from_csv_path<
 
 pub(crate) fn load_node_metadata_from_csv_path<
     'py,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     graph: &G,
     path: &PathBuf,
@@ -552,7 +554,7 @@ pub(crate) fn load_node_metadata_from_csv_path<
 ) -> Result<(), GraphError> {
     let cols_to_check = [id]
         .into_iter()
-        .chain(metadata)
+        .chain(metadata.iter().copied())
         .chain(node_type_col)
         .collect::<Vec<_>>();
 
@@ -590,7 +592,7 @@ pub(crate) fn load_edge_metadata_from_csv_path<
 ) -> Result<(), GraphError> {
     let cols_to_check = [src, dst]
         .into_iter()
-        .chain(metadata)
+        .chain(metadata.iter().copied())
         .chain(layer_col)
         .collect::<Vec<_>>();
 
@@ -644,7 +646,7 @@ pub(crate) fn load_edge_deletions_from_csv_path<
     )
 }
 
-fn get_csv_reader(filename: &str, file: File) -> Box<dyn std::io::Read> {
+fn get_csv_reader(filename: &str, file: File) -> Box<dyn std::io::Read + Send> {
     // Support bz2 and gz compression
     if filename.ends_with(".csv.gz") {
         Box::new(GzDecoder::new(file))
@@ -659,7 +661,7 @@ fn get_csv_reader(filename: &str, file: File) -> Box<dyn std::io::Read> {
 fn build_csv_reader(
     path: &Path,
     csv_options: Option<&CsvReadOptions>,
-) -> Result<arrow_csv::reader::Reader<Box<dyn std::io::Read>>, GraphError> {
+) -> Result<arrow_csv::reader::Reader<Box<dyn std::io::Read + Send>>, GraphError> {
     let file = File::open(path)?;
     let path_str = path.to_string_lossy();
 
@@ -752,21 +754,21 @@ fn process_csv_paths_df<'a>(
     col_names: &'a [&'a str],
     csv_options: Option<&'a CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
-) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + 'a>, GraphError> {
+) -> Result<DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send + 'a>, GraphError> {
     if paths.is_empty() {
         return Err(GraphError::LoadFailure(
             "No CSV files found at the provided path".to_string(),
         ));
     }
     // BoxedLIter couldn't be used because it has Send + Sync bound
-    type ChunkIter<'b> = Box<dyn Iterator<Item = Result<DFChunk, GraphError>> + 'b>;
+    // type ChunkIter<'b> = Box<dyn Iterator<Item = Result<DFChunk, GraphError>> + 'b>;
 
     let names = col_names.iter().map(|&name| name.to_string()).collect();
     let chunks = paths.iter().flat_map(move |path| {
         let schema = schema.clone();
         let csv_reader = match build_csv_reader(path.as_path(), csv_options) {
             Ok(r) => r,
-            Err(e) => return Box::new(iter::once(Err(e))) as ChunkIter<'a>,
+            Err(e) => return Iter3::I(iter::once(Err(e))),
         };
         let mut indices = Vec::with_capacity(col_names.len());
         for required_col in col_names {
@@ -779,12 +781,12 @@ fn process_csv_paths_df<'a>(
             {
                 indices.push(idx);
             } else {
-                return Box::new(iter::once(Err(GraphError::ColumnDoesNotExist(
+                return Iter3::J(iter::once(Err(GraphError::ColumnDoesNotExist(
                     required_col.to_string(),
-                )))) as ChunkIter<'a>;
+                ))));
             }
         }
-        Box::new(
+        Iter3::K(
             csv_reader
                 .into_iter()
                 .map(move |batch_res| match batch_res {
@@ -805,7 +807,7 @@ fn process_csv_paths_df<'a>(
                         path.display()
                     ))),
                 }),
-        ) as ChunkIter<'a>
+        )
     });
 
     // we don't know the total number of rows until we read all files

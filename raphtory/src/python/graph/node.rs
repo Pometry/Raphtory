@@ -454,7 +454,8 @@ impl<'py> FromPyObject<'_, 'py> for Nodes<'static, DynamicGraph, DynamicGraph, D
 impl<'py> FromPyObject<'_, 'py> for Nodes<'static, DynamicGraph> {
     type Error = PyErr;
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
-        let nodes = &ob.cast::<PyNodes>()?.get().nodes;
+        let bound = ob.cast::<PyNodes>()?;
+        let nodes = &bound.get().nodes;
         if nodes.predicate.is_filtered() {
             Err(PyTypeError::new_err("Expected unfiltered nodes"))
         } else {

@@ -151,12 +151,6 @@ pub mod prelude {
 
     pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
-    #[cfg(feature = "storage")]
-    pub use {
-        crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
-        raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols},
-    };
-
     #[cfg(feature = "io")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},

@@ -4664,41 +4664,39 @@ mod test_node_property_filter_agg {
     use std::{sync::Arc, vec};
 
     fn list_u8(xs: &[u8]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U8).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U8))
     }
     fn list_u16(xs: &[u16]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U16).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U16))
     }
     fn list_u32(xs: &[u32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U32))
     }
     fn list_u64(xs: &[u64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U64))
     }
     fn list_i32(xs: &[i32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::I32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::I32))
     }
     fn list_i64(xs: &[i64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::I64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::I64))
     }
     fn list_f32(xs: &[f32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::F32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::F32))
     }
     fn list_f64(xs: &[f64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::F64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::F64))
     }
     fn list_str(xs: &[&str]) -> Prop {
-        Prop::List(Arc::new(
-            xs.iter().map(|s| Prop::Str(ArcStr::from(*s))).collect(),
-        ))
+        Prop::list(xs.iter().map(|s| Prop::Str(ArcStr::from(*s))))
     }
     fn list_bool(xs: &[bool]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::Bool).collect()))
+        Prop::list(xs.iter().copied().map(Prop::Bool))
     }
 
     #[inline]
     fn list(v: Vec<Prop>) -> Prop {
-        Prop::List(Arc::new(v))
+        Prop::List(v.into())
     }
 
     pub fn init_nodes_graph<

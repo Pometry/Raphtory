@@ -61,8 +61,8 @@ impl<I> DFView<I> {
     }
 
     /// Returns Some(_) only if we know the total number of rows.
-    pub fn is_empty(&self) -> Option<bool> {
-        self.num_rows.map(|x| x == 0)
+    pub fn is_empty(&self) -> bool {
+        self.num_rows.is_some_and(|num_rows| num_rows > 0)
     }
 
     pub fn new(names: Vec<String>, chunks: I, num_rows: Option<usize>) -> Self {

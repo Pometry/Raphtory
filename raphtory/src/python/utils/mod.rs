@@ -15,13 +15,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use numpy::{IntoPyArray, PyArray};
-use pyo3::{
-    exceptions::{PyRuntimeError, PyTypeError},
-    prelude::*,
-    pybacked::PyBackedStr,
-    types::PyDateTime,
-    Borrowed, BoundObject,
-};
+use pyo3::{exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, Borrowed, BoundObject};
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
     VID,

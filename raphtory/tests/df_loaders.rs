@@ -10,15 +10,12 @@ mod io_tests {
     use raphtory::{
         db::graph::graph::assert_graph_equal,
         errors::GraphError,
-        io::{
-            arrow::{
-                dataframe::{DFChunk, DFView},
-                df_loaders::{
-                    edges::{load_edges_from_df, ColumnNames},
-                    nodes::{load_node_props_from_df, load_nodes_from_df},
-                },
+        io::arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::{
+                edges::{load_edges_from_df, ColumnNames},
+                nodes::{load_node_props_from_df, load_nodes_from_df},
             },
-            parquet_loaders::load_node_props_from_parquet,
         },
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
@@ -162,7 +159,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
@@ -209,7 +206,7 @@ mod io_tests {
                 "node_type".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: nodes.len(),
+            num_rows: Some(nodes.len()),
         }
     }
 
@@ -289,7 +286,7 @@ mod io_tests {
                 "marbles".to_owned(),
             ],
             chunks: vec![Ok(DFChunk { chunk })].into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         };
 
         // Load edges into graph

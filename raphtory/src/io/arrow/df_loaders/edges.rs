@@ -1,11 +1,13 @@
+#[cfg(feature = "python")]
+use crate::io::arrow::df_loaders::build_progress_bar;
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
-            build_progress_bar, extract_secondary_index_col, process_shared_properties,
-            resolve_nodes_with_cache, GidKey,
+            extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
+            GidKey,
         },
         layer_col::lift_layer_col,
         node_col::NodeCol,

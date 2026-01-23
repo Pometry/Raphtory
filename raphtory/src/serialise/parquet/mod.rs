@@ -424,7 +424,7 @@ pub fn decode_graph_metadata(
         c_props.iter().map(|s| (s.to_string(), None)).collect();
 
     for path in get_parquet_file_paths(&c_graph_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&c_props), None)?;
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&c_props), None, None)?;
         for chunk in df_view.chunks {
             let chunk = chunk?;
             for (col, res) in chunk.chunk.into_iter().zip(&mut result) {
@@ -463,6 +463,7 @@ fn decode_graph_storage(
             &[],
             &c_props,
             batch_size,
+            None,
         )?;
     }
 
@@ -481,6 +482,7 @@ fn decode_graph_storage(
             &t_props,
             &[],
             batch_size,
+            None,
         )?;
     }
 
@@ -494,7 +496,7 @@ fn decode_graph_storage(
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
-        load_node_props_from_parquet(
+        load_node_metadata_from_parquet(
             &graph,
             &c_node_path,
             NODE_ID_COL,
@@ -505,6 +507,7 @@ fn decode_graph_storage(
             &c_prop_columns,
             None,
             batch_size,
+            None,
         )?;
     }
 
@@ -531,6 +534,7 @@ fn decode_graph_storage(
             None,
             batch_size,
             false,
+            None,
         )?;
     }
 
@@ -570,6 +574,7 @@ fn decode_graph_storage(
             None,
             None,
             batch_size,
+            None,
         )?;
     }
 
@@ -591,6 +596,7 @@ fn decode_graph_storage(
             None,
             false,
             batch_size,
+            None,
         )?;
     }
 
@@ -604,7 +610,7 @@ fn decode_graph_storage(
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
-        load_edge_props_from_parquet(
+        load_edge_metadata_from_parquet(
             &graph,
             &c_edge_path,
             SRC_COL_ID,
@@ -614,6 +620,7 @@ fn decode_graph_storage(
             None,
             Some(LAYER_COL),
             batch_size,
+            None,
             false,
         )?;
     }
