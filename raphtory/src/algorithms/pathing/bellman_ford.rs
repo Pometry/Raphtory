@@ -17,11 +17,12 @@ use raphtory_api::core::{
     },
     Direction,
 };
+use std::panic;
 use std::{
     collections::{HashMap},
 };
 
-fn find_shortest_paths<G: StaticGraphViewOps>(g: &G, source_node_vid: VID, cost_val: Prop, max_val: Prop, weight: Option<&str>, shortest_paths: &mut HashMap<VID, HashMap<usize, (Prop, IndexSet<VID, ahash::RandomState>)>>) {
+fn find_shortest_paths<G: StaticGraphViewOps>(g: &G, source_node_vid: VID, cost_val: Prop, max_val: Prop, weight: Option<&str>, direction: Direction, shortest_paths: &mut HashMap<VID, HashMap<usize, (Prop, IndexSet<VID, ahash::RandomState>)>>) {
     let n_nodes = g.count_nodes();
     let mut source_shortest_paths_hashmap = HashMap::new();
     for i in 0..n_nodes {
@@ -38,14 +39,17 @@ fn find_shortest_paths<G: StaticGraphViewOps>(g: &G, source_node_vid: VID, cost_
         shortest_paths.insert(node.node, node_shortest_paths_hashmap);
     }
 
-    for i in 0..(n_nodes - 1) {
+    for i in 1..(n_nodes) {
         for node in g.nodes() {
             if node.node == source_node_vid {
                 continue;
             }
-            let mut min_cost = max_val.clone();
-            let mut min_path= IndexSet::default();
-            let edges = g.node(node.node).unwrap().out_edges();
+            let (mut min_cost, mut min_path) = shortest_paths.get(&node.node).unwrap().get(&(i - 1)).unwrap().clone();
+            let edges = match direction {
+                Direction::IN => node.in_edges(),
+                Direction::OUT => node.out_edges(),
+                _ => panic!("Unsupported direction"),
+            };
             for edge in edges {
                 let edge_val = match weight {
                     None => Prop::U8(1),
@@ -153,7 +157,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
             },
             _ => unreachable!(),
         };
-        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, shortest_paths);
+        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, direction, shortest_paths);
         shortest_paths
         .iter_mut()
         .filter_map(|(id, nodes_path_hashmap)| {
@@ -167,8 +171,8 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
         })
         .unzip()
     } else {
-        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, &mut incoming_shortest_paths);
-        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, &mut outgoing_shortest_paths);
+        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, Direction::IN, &mut incoming_shortest_paths);
+        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, Direction::OUT, &mut outgoing_shortest_paths);
         incoming_shortest_paths.iter_mut().filter_map(|(id, nodes_path_hashmap_in)| {
             if !target_nodes[id.index()] {
                 return None;
