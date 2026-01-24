@@ -1,3 +1,4 @@
+/// Bellman-Ford algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
@@ -21,6 +22,21 @@ use std::{
 };
 
 
+/// Finds the shortest paths from a single source to multiple targets in a graph.
+///
+/// # Arguments
+///
+/// * `graph`: The graph to search in.
+/// * `source`: The source node.
+/// * `targets`: A vector of target nodes.
+/// * `weight`: Option, The name of the weight property for the edges. If not set then defaults all edges to weight=1.
+/// * `direction`: The direction of the edges of the shortest path. Defaults to both directions (undirected graph).
+///
+/// # Returns
+///
+/// Returns a `HashMap` where the key is the target node and the value is a tuple containing
+/// the total cost and a vector of nodes representing the shortest path.
+///
 pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
     g: &G,
     source: T,

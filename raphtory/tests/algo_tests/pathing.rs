@@ -326,7 +326,7 @@ mod bellman_ford_tests {
             (1, "A", "C", vec![("weight", 4.0f32)]),
             (2, "B", "C", vec![("weight", 2.0f32)]),
             (3, "C", "D", vec![("weight", 3.0f32)]),
-            (4, "C", "E", vec![("weight", 1.0f32)]),
+            (4, "C", "E", vec![("weight", -2.0f32)]),
             (5, "C", "F", vec![("weight", 6.0f32)]),
             (6, "D", "F", vec![("weight", 2.0f32)]),
             (7, "E", "F", vec![("weight", 3.0f32)]),
@@ -355,7 +355,7 @@ mod bellman_ford_tests {
                 vec!["A", "C", "D"]
             );
 
-            assert_eq!(results.get_by_node("F").unwrap().0, 8.0f64);
+            assert_eq!(results.get_by_node("F").unwrap().0, 5.0f64);
             assert_eq!(
                 results.get_by_node("F").unwrap().1.name(),
                 vec!["A", "C", "E", "F"]
@@ -371,8 +371,8 @@ mod bellman_ford_tests {
             );
             let results = results.unwrap();
             assert_eq!(results.get_by_node("D").unwrap().0, 5.0f64);
-            assert_eq!(results.get_by_node("E").unwrap().0, 3.0f64);
-            assert_eq!(results.get_by_node("F").unwrap().0, 6.0f64);
+            assert_eq!(results.get_by_node("E").unwrap().0, 0.0f64);
+            assert_eq!(results.get_by_node("F").unwrap().0, 3.0f64);
             assert_eq!(
                 results.get_by_node("D").unwrap().1.name(),
                 vec!["B", "C", "D"]
@@ -412,14 +412,14 @@ mod bellman_ford_tests {
     #[test]
     fn test_bellman_ford_multiple_targets_node_ids() {
         let edges = vec![
-            (0, 1, 2, vec![("weight", 4u64)]),
-            (1, 1, 3, vec![("weight", 4u64)]),
-            (2, 2, 3, vec![("weight", 2u64)]),
-            (3, 3, 4, vec![("weight", 3u64)]),
-            (4, 3, 5, vec![("weight", 1u64)]),
-            (5, 3, 6, vec![("weight", 6u64)]),
-            (6, 4, 6, vec![("weight", 2u64)]),
-            (7, 5, 6, vec![("weight", 3u64)]),
+            (0, 1, 2, vec![("weight", 4i64)]),
+            (1, 1, 3, vec![("weight", 4i64)]),
+            (2, 2, 3, vec![("weight", 2i64)]),
+            (3, 3, 4, vec![("weight", 3i64)]),
+            (4, 3, 5, vec![("weight", -2i64)]),
+            (5, 3, 6, vec![("weight", 6i64)]),
+            (6, 4, 6, vec![("weight", 2i64)]),
+            (7, 5, 6, vec![("weight", 3i64)]),
         ];
 
         let graph = Graph::new();
@@ -443,7 +443,7 @@ mod bellman_ford_tests {
                 vec!["1", "3", "4"]
             );
 
-            assert_eq!(results.get_by_node("6").unwrap().0, 8f64);
+            assert_eq!(results.get_by_node("6").unwrap().0, 5f64);
             assert_eq!(
                 results.get_by_node("6").unwrap().1.name(),
                 vec!["1", "3", "5", "6"]
@@ -459,8 +459,8 @@ mod bellman_ford_tests {
             );
             let results = results.unwrap();
             assert_eq!(results.get_by_node("4").unwrap().0, 5f64);
-            assert_eq!(results.get_by_node("5").unwrap().0, 3f64);
-            assert_eq!(results.get_by_node("6").unwrap().0, 6f64);
+            assert_eq!(results.get_by_node("5").unwrap().0, 0f64);
+            assert_eq!(results.get_by_node("6").unwrap().0, 3f64);
             assert_eq!(
                 results.get_by_node("4").unwrap().1.name(),
                 vec!["2", "3", "4"]
@@ -477,16 +477,16 @@ mod bellman_ford_tests {
     }
 
     #[test]
-    fn test_bellman_ford_multiple_targets_u64() {
+    fn test_bellman_ford_multiple_targets_i64() {
         let edges = vec![
-            (0, "A", "B", vec![("weight", 4u64)]),
-            (1, "A", "C", vec![("weight", 4u64)]),
-            (2, "B", "C", vec![("weight", 2u64)]),
-            (3, "C", "D", vec![("weight", 3u64)]),
-            (4, "C", "E", vec![("weight", 1u64)]),
-            (5, "C", "F", vec![("weight", 6u64)]),
-            (6, "D", "F", vec![("weight", 2u64)]),
-            (7, "E", "F", vec![("weight", 3u64)]),
+            (0, "A", "B", vec![("weight", 4i64)]),
+            (1, "A", "C", vec![("weight", 4i64)]),
+            (2, "B", "C", vec![("weight", 2i64)]),
+            (3, "C", "D", vec![("weight", 3i64)]),
+            (4, "C", "E", vec![("weight", -2i64)]),
+            (5, "C", "F", vec![("weight", 6i64)]),
+            (6, "D", "F", vec![("weight", 2i64)]),
+            (7, "E", "F", vec![("weight", 3i64)]),
         ];
 
         let graph = Graph::new();
@@ -511,7 +511,7 @@ mod bellman_ford_tests {
                 vec!["A", "C", "D"]
             );
 
-            assert_eq!(results.get_by_node("F").unwrap().0, 8f64);
+            assert_eq!(results.get_by_node("F").unwrap().0, 5f64);
             assert_eq!(
                 results.get_by_node("F").unwrap().1.name(),
                 vec!["A", "C", "E", "F"]
@@ -527,8 +527,8 @@ mod bellman_ford_tests {
             );
             let results = results.unwrap();
             assert_eq!(results.get_by_node("D").unwrap().0, 5f64);
-            assert_eq!(results.get_by_node("E").unwrap().0, 3f64);
-            assert_eq!(results.get_by_node("F").unwrap().0, 6f64);
+            assert_eq!(results.get_by_node("E").unwrap().0, 0f64);
+            assert_eq!(results.get_by_node("F").unwrap().0, 3f64);
             assert_eq!(
                 results.get_by_node("D").unwrap().1.name(),
                 vec!["B", "C", "D"]
