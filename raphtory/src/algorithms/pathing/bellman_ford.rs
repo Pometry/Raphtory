@@ -1,4 +1,3 @@
-use crate::db::graph::nodes;
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
@@ -17,64 +16,9 @@ use raphtory_api::core::{
     },
     Direction,
 };
-use std::panic;
 use std::{
     collections::{HashMap},
 };
-
-fn find_shortest_paths<G: StaticGraphViewOps>(g: &G, source_node_vid: VID, cost_val: Prop, max_val: Prop, weight: Option<&str>, direction: Direction, shortest_paths: &mut HashMap<VID, HashMap<usize, (Prop, IndexSet<VID, ahash::RandomState>)>>) {
-    let n_nodes = g.count_nodes();
-    let mut source_shortest_paths_hashmap = HashMap::new();
-    for i in 0..n_nodes {
-        source_shortest_paths_hashmap.insert(i, (cost_val.clone(), IndexSet::default()));
-    }
-    shortest_paths.insert(source_node_vid, source_shortest_paths_hashmap);
-
-    for node in g.nodes() {
-        if node.node == source_node_vid {
-            continue;
-        }
-        let mut node_shortest_paths_hashmap = HashMap::new();
-        node_shortest_paths_hashmap.insert(0, (max_val.clone(), IndexSet::default()));
-        shortest_paths.insert(node.node, node_shortest_paths_hashmap);
-    }
-
-    for i in 1..(n_nodes) {
-        for node in g.nodes() {
-            if node.node == source_node_vid {
-                continue;
-            }
-            let (mut min_cost, mut min_path) = shortest_paths.get(&node.node).unwrap().get(&(i - 1)).unwrap().clone();
-            let edges = match direction {
-                Direction::IN => node.in_edges(),
-                Direction::OUT => node.out_edges(),
-                _ => panic!("Unsupported direction"),
-            };
-            for edge in edges {
-                let edge_val = match weight {
-                    None => Prop::U8(1),
-                    Some(weight) => match edge.properties().get(weight) {
-                        Some(prop) => prop,
-                        _ => continue,
-                    },
-                };
-                let neighbor_vid = edge.nbr().node;
-                let neighbor_shortest_paths = shortest_paths.get(&neighbor_vid).unwrap();
-                let (neighbor_shortest_path_cost, neighbor_shortest_path) =
-                    neighbor_shortest_paths.get(&(i - 1)).unwrap();
-                let new_cost = neighbor_shortest_path_cost.clone().add(edge_val).unwrap();
-                if new_cost < min_cost {
-                    min_cost = new_cost;
-                    min_path = neighbor_shortest_path.clone();
-                    min_path.insert(node.node);
-                }
-            }
-            if let Some(node_shortest_paths_hashmap) = shortest_paths.get_mut(&node.node) {
-                node_shortest_paths_hashmap.insert(i, (min_cost, min_path));
-            }
-        }
-    }
-}
 
 
 pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
@@ -143,22 +87,63 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
             })
         }
     };
-    let mut incoming_shortest_paths: HashMap<VID, HashMap<usize, (Prop, IndexSet<VID, ahash::RandomState>)>> = HashMap::new();
-    let mut outgoing_shortest_paths: HashMap<VID, HashMap<usize, (Prop, IndexSet<VID, ahash::RandomState>)>> = HashMap::new();
+    let mut shortest_paths: HashMap<VID, HashMap<usize, (Prop, IndexSet<VID, ahash::RandomState>)>> = HashMap::new();
     let n_nodes = g.count_nodes();
+    let mut source_shortest_paths_hashmap = HashMap::new();
+    let mut source_path = IndexSet::default();
+    source_path.insert(source_node.node);
+    for i in 0..n_nodes {
+        source_shortest_paths_hashmap.insert(i, (cost_val.clone(), source_path.clone()));
+    }
+    shortest_paths.insert(source_node.node, source_shortest_paths_hashmap);
 
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = if matches!(direction, Direction::IN | Direction::OUT) {
-        let shortest_paths = match direction {
-            Direction::IN => {
-                &mut incoming_shortest_paths
-            },
-            Direction::OUT => {
-                &mut outgoing_shortest_paths
-            },
-            _ => unreachable!(),
-        };
-        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, direction, shortest_paths);
-        shortest_paths
+    for node in g.nodes() {
+        if node.node == source_node.node {
+            continue;
+        }
+        let mut node_shortest_paths_hashmap = HashMap::new();
+        node_shortest_paths_hashmap.insert(0, (max_val.clone(), IndexSet::default()));
+        shortest_paths.insert(node.node, node_shortest_paths_hashmap);
+    }
+
+    for i in 1..(n_nodes) {
+        for node in g.nodes() {
+            if node.node == source_node.node {
+                continue;
+            }
+            let (mut min_cost, mut min_path) = shortest_paths.get(&node.node).unwrap().get(&(i - 1)).unwrap().clone();
+            let edges = match direction {
+                Direction::IN => node.out_edges(),
+                Direction::OUT => node.in_edges(),
+                Direction::BOTH => node.edges(),
+            };
+            for edge in edges {
+                let edge_val = match weight {
+                    None => Prop::U8(1),
+                    Some(weight) => match edge.properties().get(weight) {
+                        Some(prop) => prop,
+                        _ => continue,
+                    },
+                };
+                let neighbor_vid = edge.nbr().node;
+                let neighbor_shortest_paths = shortest_paths.get(&neighbor_vid).unwrap();
+                let (neighbor_shortest_path_cost, neighbor_shortest_path) =
+                    neighbor_shortest_paths.get(&(i - 1)).unwrap();
+                if neighbor_shortest_path_cost == &max_val {
+                    continue;
+                }
+                let new_cost = neighbor_shortest_path_cost.clone().add(edge_val).unwrap();
+                if new_cost < min_cost {
+                    min_cost = new_cost;
+                    min_path = neighbor_shortest_path.clone();
+                    min_path.insert(node.node);
+                }
+            }
+            shortest_paths.get_mut(&node.node).unwrap().insert(i, (min_cost, min_path));
+        }
+    }
+
+    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = shortest_paths
         .iter_mut()
         .filter_map(|(id, nodes_path_hashmap)| {
             if !target_nodes[id.index()] {
@@ -169,27 +154,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
                 Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::new(path)));
             Some((id, (cost.as_f64().unwrap(), nodes)))
         })
-        .unzip()
-    } else {
-        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, Direction::IN, &mut incoming_shortest_paths);
-        find_shortest_paths(g, source_node.node, cost_val.clone(), max_val.clone(), weight, Direction::OUT, &mut outgoing_shortest_paths);
-        incoming_shortest_paths.iter_mut().filter_map(|(id, nodes_path_hashmap_in)| {
-            if !target_nodes[id.index()] {
-                return None;
-            }
-            let nodes_path_hashmap_out = outgoing_shortest_paths.get_mut(id).unwrap();
-            let (cost_out, path_out) = nodes_path_hashmap_out.remove(&(n_nodes - 1)).unwrap();
-            let (cost_in, path_in) = nodes_path_hashmap_in.remove(&(n_nodes - 1)).unwrap();
-            let (cost, path) = if cost_in < cost_out {
-                (cost_in, path_in)
-            } else {
-                (cost_out, path_out)
-            }; 
-            let nodes =
-                Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::new(path)));
-            Some((id, (cost.as_f64().unwrap(), nodes)))
-        }).unzip()
-    };
+        .unzip();
     
     Ok(NodeState::new(
         g.clone(),
