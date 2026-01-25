@@ -602,6 +602,32 @@ mod bellman_ford_tests {
             );
         });
     }
+
+    #[test]
+    fn test_bellman_ford_negative_cycle() {
+        let edges = vec![
+            (0, "A", "B", vec![("weight", 1i64)]),
+            (1, "B", "C", vec![("weight", -5i64)]),
+            (2, "C", "A", vec![("weight", 2i64)]),
+        ];
+
+        let graph = Graph::new();
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        test_storage!(&graph, |graph| {
+            let targets: Vec<&str> = vec!["C"];
+            let result = bellman_ford_single_source_shortest_paths(
+                graph,
+                "A",
+                targets,
+                Some("weight"),
+                Direction::OUT,
+            );
+            assert!(result.is_err());
+        });
+    }
 }
 
 #[cfg(test)]
