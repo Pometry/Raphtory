@@ -1,6 +1,6 @@
 use crate::{db::graph::views::filter::model::Op, prelude::PropertyFilter};
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
-use std::{borrow::Borrow, sync::Arc};
+use std::borrow::Borrow;
 
 enum ValueType {
     Seq(Vec<Prop>),

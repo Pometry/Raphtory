@@ -22,11 +22,7 @@ use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
 use pyo3::{
-    exceptions::PyValueError,
-    ffi::c_str,
-    prelude::*,
-    pybacked::PyBackedStr,
-    types::{PyCapsule, PyDict},
+    exceptions::PyValueError, ffi::c_str, prelude::*, pybacked::PyBackedStr, types::PyDict,
 };
 use pyo3_arrow::PyRecordBatchReader;
 use raphtory_api::core::entities::properties::prop::{Prop, PropType};
@@ -89,19 +85,21 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
 
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_nodes_from_df(
-        df_view,
-        time,
-        event_id,
-        id,
-        properties,
-        metadata,
-        shared_metadata,
-        node_type,
-        node_type_col,
-        graph,
-        true,
-    )
+    data.py().detach(|| {
+        load_nodes_from_df(
+            df_view,
+            time,
+            event_id,
+            id,
+            properties,
+            metadata,
+            shared_metadata,
+            node_type,
+            node_type_col,
+            graph,
+            true,
+        )
+    })
 }
 
 pub(crate) fn load_edges_from_arrow_c_stream<
@@ -167,17 +165,19 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
 
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_node_props_from_df(
-        df_view,
-        id,
-        node_type,
-        node_type_col,
-        None,
-        None,
-        metadata,
-        shared_metadata,
-        graph,
-    )
+    data.py().detach(|| {
+        load_node_props_from_df(
+            df_view,
+            id,
+            node_type,
+            node_type_col,
+            None,
+            None,
+            metadata,
+            shared_metadata,
+            graph,
+        )
+    })
 }
 
 pub(crate) fn load_edge_metadata_from_arrow_c_stream<
@@ -201,17 +201,19 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
         .collect::<Vec<_>>();
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_props_from_df(
-        df_view,
-        src,
-        dst,
-        metadata,
-        shared_metadata,
-        layer,
-        layer_col,
-        graph,
-        true,
-    )
+    data.py().detach(|| {
+        load_edges_props_from_df(
+            df_view,
+            src,
+            dst,
+            metadata,
+            shared_metadata,
+            layer,
+            layer_col,
+            graph,
+            true,
+        )
+    })
 }
 
 pub(crate) fn load_edge_deletions_from_arrow_c_stream<
@@ -233,13 +235,15 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
         .collect::<Vec<_>>();
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edge_deletions_from_df(
-        df_view,
-        ColumnNames::new(time, None, src, dst, layer_col),
-        true,
-        layer,
-        graph.core_graph(),
-    )
+    data.py().detach(|| {
+        load_edge_deletions_from_df(
+            df_view,
+            ColumnNames::new(time, None, src, dst, layer_col),
+            true,
+            layer,
+            graph.core_graph(),
+        )
+    })
 }
 
 /// Can handle any object that provides the \_\_arrow_c_stream__() interface

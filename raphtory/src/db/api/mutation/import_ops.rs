@@ -3,7 +3,6 @@ use crate::{
     db::{
         api::{
             mutation::time_from_input_session,
-            properties::internal::InternalTemporalPropertiesOps,
             view::{
                 internal::{GraphView, InternalMaterialize},
                 StaticGraphViewOps,

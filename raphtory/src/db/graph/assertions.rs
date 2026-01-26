@@ -21,16 +21,12 @@ use raphtory_api::core::Direction;
 pub enum TestGraphVariants {
     Graph,
     PersistentGraph,
-    EventDiskGraph,
-    PersistentDiskGraph,
 }
 
 pub enum TestVariants {
     All,
     EventOnly,
     PersistentOnly,
-    NonDiskOnly,
-    DiskOnly,
 }
 
 impl From<TestVariants> for Vec<TestGraphVariants> {
@@ -38,12 +34,10 @@ impl From<TestVariants> for Vec<TestGraphVariants> {
         use TestGraphVariants::*;
         match variants {
             TestVariants::All => {
-                vec![Graph, PersistentGraph, EventDiskGraph, PersistentDiskGraph]
+                vec![Graph, PersistentGraph]
             }
-            TestVariants::EventOnly => vec![Graph, EventDiskGraph],
-            TestVariants::PersistentOnly => vec![PersistentGraph, PersistentDiskGraph],
-            TestVariants::NonDiskOnly => vec![Graph, PersistentGraph],
-            TestVariants::DiskOnly => vec![EventDiskGraph, PersistentDiskGraph],
+            TestVariants::EventOnly => vec![Graph],
+            TestVariants::PersistentOnly => vec![PersistentGraph],
         }
     }
 }
@@ -221,29 +215,6 @@ pub fn assert_filter_nodes_err(
                 assert!(res.is_err(), "expected error, filter was accepted");
                 assert_filter_err_contains(res.err().unwrap(), expected);
             }
-            TestGraphVariants::EventDiskGraph => {
-                #[cfg(feature = "storage")]
-                {
-                    let tmp = TempDir::new().unwrap();
-                    let graph = graph.persist_as_disk_graph(tmp.path()).unwrap();
-                    let graph = transform.apply(graph);
-                    let res = graph.filter(filter.clone());
-                    assert!(res.is_err(), "expected error, filter was accepted");
-                    assert_filter_err_contains(res.err().unwrap(), expected);
-                }
-            }
-            TestGraphVariants::PersistentDiskGraph => {
-                #[cfg(feature = "storage")]
-                {
-                    let tmp = TempDir::new().unwrap();
-                    let disk = DiskGraphStorage::from_graph(&graph, &tmp).unwrap();
-                    let graph = disk.into_graph().persistent_graph();
-                    let graph = transform.apply(graph);
-                    let res = graph.filter(filter.clone());
-                    assert!(res.is_err(), "expected error, filter was accepted");
-                    assert_filter_err_contains(res.err().unwrap(), expected);
-                }
-            }
         }
     }
 }
@@ -366,8 +337,6 @@ fn assert_results(
                 let result = sorted(apply.apply(graph));
                 assert_eq!(expected, result);
             }
-            TestGraphVariants::EventDiskGraph => {}
-            TestGraphVariants::PersistentDiskGraph => {}
         }
     }
 }

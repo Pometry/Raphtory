@@ -193,6 +193,10 @@ impl PyProp {
 impl<'py> FromPyObject<'_, 'py> for Prop {
     type Error = PyErr;
     fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        if let Ok(pyref) = ob.extract::<PyRef<PyProp>>() {
+            return Ok(pyref.0.clone());
+        }
+
         if ob.is_instance_of::<PyBool>() {
             return Ok(Prop::Bool(ob.extract()?));
         }

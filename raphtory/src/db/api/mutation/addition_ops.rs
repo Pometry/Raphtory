@@ -15,7 +15,6 @@ use raphtory_storage::mutation::{
 
 use raphtory_api::core::{
     entities::properties::prop::Prop,
-    storage::dict_mapper::MaybeNew::{Existing, New},
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use storage::wal::{GraphWal, Wal};

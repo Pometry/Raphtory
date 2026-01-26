@@ -12,7 +12,6 @@ use crate::{
             },
             view::{
                 history::{History, HistoryDateTime, HistoryEventId, HistoryTimestamp, Intervals},
-                internal::NodeList,
                 BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },

@@ -11,7 +11,7 @@ use crate::{
     },
     prelude::PropertyFilter,
 };
-use raphtory_api::core::{entities::VID, storage::arc_str::OptionAsStr};
+use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
 use std::sync::Arc;
 

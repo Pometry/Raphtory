@@ -16,10 +16,8 @@ use crate::{
             node::NodeView,
             nodes::Nodes,
             views::{
-                cached_view::CachedView,
-                filter::{model::TryAsCompositeFilter, node_filtered_graph::NodeFilteredGraph},
-                node_subgraph::NodeSubgraph,
-                valid_graph::ValidGraph,
+                cached_view::CachedView, filter::node_filtered_graph::NodeFilteredGraph,
+                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
             },
         },
     },
@@ -27,7 +25,6 @@ use crate::{
     prelude::*,
 };
 use ahash::HashSet;
-use chrono::{DateTime, Utc};
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
 use raphtory_api::{

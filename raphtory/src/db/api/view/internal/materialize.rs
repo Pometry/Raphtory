@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::{LayerIds, EID, VID},
-        storage::timeindex::EventTime,
-    },
+    core::storage::timeindex::EventTime,
     db::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
