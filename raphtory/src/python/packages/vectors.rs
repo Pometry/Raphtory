@@ -86,22 +86,9 @@ impl EmbeddingFunction for Arc<Py<PyFunction>> {
 }
 
 #[pyfunction]
-pub fn embedding_server(address: String) -> EmbeddingServerDecorator {
-    EmbeddingServerDecorator { address }
-}
-
-#[pyclass]
-struct EmbeddingServerDecorator {
-    address: String,
-}
-
-#[pymethods]
-impl EmbeddingServerDecorator {
-    fn __call__(&self, function: Py<PyFunction>) -> PyEmbeddingServer {
-        PyEmbeddingServer {
-            function: function.into(),
-            address: self.address.clone(),
-        }
+pub fn embedding_server(function: Py<PyFunction>) -> PyEmbeddingServer {
+    PyEmbeddingServer {
+        function: function.into(),
     }
 }
 
@@ -113,33 +100,28 @@ impl EmbeddingServerDecorator {
 #[pyclass(name = "EmbeddingServer")]
 pub struct PyEmbeddingServer {
     function: Arc<Py<PyFunction>>,
-    address: String,
-    // running: Option<RunningServer>, // TODO: use all of these ideas for the GraphServer implementation
 }
-// TODO: ideally, I should allow users to provide this server object as embedding model, so the  fact it has an OpenAI  like API is transparent to the user
+// TODO: ideally, we should allow users to provide this server object as embedding model, so the  fact it has an OpenAI  like API is transparent to the user
 
 impl PyEmbeddingServer {
-    fn create_running_server(&self) -> (Runtime, EmbeddingServer) {
+    fn create_running_server(&self, host: Option<&str>, port: u16) -> (Runtime, EmbeddingServer) {
         let runtime = tokio::runtime::Runtime::new().unwrap();
-        // let runtime = tokio::runtime::Builder::new_multi_thread()
-        //     .enable_all()
-        //     .build()
-        //     .unwrap();
-        let execution =
-            runtime.block_on(serve_custom_embedding(&self.address, self.function.clone()));
+        let execution = runtime.block_on(serve_custom_embedding(host, port, self.function.clone()));
         (runtime, execution)
     }
 }
 
 #[pymethods]
 impl PyEmbeddingServer {
-    fn run(&self) {
-        let (runtime, execution) = self.create_running_server();
+    #[pyo3(signature = (port, host=None))]
+    fn run(&self, port: u16, host: Option<&str>) {
+        let (runtime, execution) = self.create_running_server(host, port);
         runtime.block_on(execution.wait());
     }
 
-    fn start(&self) -> PyRunningEmbeddingServer {
-        let (runtime, execution) = self.create_running_server();
+    #[pyo3(signature = (port, host=None))]
+    fn start(&self, port: u16, host: Option<&str>) -> PyRunningEmbeddingServer {
+        let (runtime, execution) = self.create_running_server(host, port);
         PyRunningEmbeddingServer {
             runtime,
             execution: Some(execution),

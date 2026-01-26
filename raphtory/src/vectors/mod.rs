@@ -59,7 +59,7 @@ mod vector_tests {
 
     async fn use_fake_model() -> CachedEmbeddingModel {
         tokio::spawn(async {
-            let running = serve_custom_embedding("0.0.0.0:3070", fake_embedding).await;
+            let running = serve_custom_embedding(None, 3070, fake_embedding).await;
             running.wait().await;
         });
         tokio::time::sleep(Duration::from_secs(1)).await;
@@ -81,7 +81,7 @@ mod vector_tests {
 
     async fn use_panicking_model_config() -> OpenAIEmbeddings {
         tokio::spawn(async {
-            serve_custom_embedding("0.0.0.0:3071", panicking_embedding).await;
+            serve_custom_embedding(None, 3071, panicking_embedding).await;
         });
         OpenAIEmbeddings {
             api_base: Some("http://localhost:3071".to_owned()),

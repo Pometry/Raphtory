@@ -8,6 +8,7 @@ use axum::{
 };
 use serde::Deserialize;
 use std::{
+    net::{IpAddr, SocketAddr},
     panic::{catch_unwind, AssertUnwindSafe},
     sync::Arc,
 };
@@ -67,18 +68,24 @@ impl EmbeddingServer {
     }
 }
 
-/// Runs the embedding server on the given port based on the provided function. The address can be for instance "0.0.0.0:3000"
+/// Runs the embedding server on the given host and port based on the provided function. Host is "0.0.0.0" by default.
 pub async fn serve_custom_embedding(
-    address: &str,
+    host: Option<&str>,
+    port: u16,
     function: impl EmbeddingFunction,
 ) -> EmbeddingServer {
+    let ip_addr: IpAddr = host
+        .unwrap_or("0.0.0.0")
+        .parse()
+        .expect("invalid IP address");
     let state = Arc::new(function);
     let app = Router::new()
         .route("/embeddings", post(embeddings)) // TODO: this should be /v1/embeddings if we were to support multiple versions
         .with_state(state);
     // since the listener is created at this point, when this function returns the server is already available,
     // might just take some time to answer for the first time, but no requests should be rejected
-    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
+    let socket_addr = SocketAddr::new(ip_addr, port);
+    let listener = tokio::net::TcpListener::bind(socket_addr).await.unwrap();
     let (sender, mut receiver) = mpsc::channel(1);
     let execution = tokio::spawn(async {
         axum::serve(listener, app)

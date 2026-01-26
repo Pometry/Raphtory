@@ -19,11 +19,11 @@ embedding_map = {
 
 @pytest.fixture(autouse=True)
 def test_server():
-    @embedding_server(address="0.0.0.0:7340")  # TODO: ask only for PORT!!!
+    @embedding_server
     def custom_embeddings(text: str):
         return embedding_map[text]
 
-    with custom_embeddings.start():
+    with custom_embeddings.start(7340):
         yield
 
 
@@ -43,11 +43,11 @@ def post_json(url, payload):
 
 
 def test_failing_python_embeddings():
-    @embedding_server(address="0.0.0.0:7342")
+    @embedding_server
     def failing_embeddings(text: str):
         assert False
 
-    with failing_embeddings.start():
+    with failing_embeddings.start(7342):
         payload = {"model": "whatever", "input": ["Hello world"]}
         status, _ = post_json("http://localhost:7342/embeddings", payload)
         assert status == 500
@@ -87,11 +87,11 @@ def create_graph() -> VectorisedGraph:
 
 
 def test_embedding_sever_context_manager():
-    @embedding_server(address="0.0.0.0:7341")
+    @embedding_server
     def constant(text: str):
         return [1.0]
 
-    with constant.start():
+    with constant.start(7341):
         payload = {
             # "model": "whatever",
             "input": ["The text to vectorise"]
@@ -249,7 +249,7 @@ def test_filtering_by_entity_type():
     assert contents == ["edge1", "edge2", "edge3"]
 
 
-@embedding_server(address="0.0.0.0:7341")
+@embedding_server
 def constant_embedding(_text):
     return [1.0, 0.0, 0.0]
 
@@ -259,7 +259,7 @@ def test_default_template():
     g.add_node(1, "node1")
     g.add_edge(2, "node1", "node1")
 
-    running = constant_embedding.start()
+    running = constant_embedding.start(7341)
 
     vg = g.vectorise(OpenAIEmbeddings(api_base="http://localhost:7341"))
 

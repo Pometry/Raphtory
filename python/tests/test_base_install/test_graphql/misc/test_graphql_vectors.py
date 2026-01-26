@@ -4,7 +4,7 @@ from raphtory import Graph
 from raphtory.vectors import OpenAIEmbeddings, embedding_server
 
 
-@embedding_server(address="0.0.0.0:7340")
+@embedding_server
 def embeddings(text: str):
     return [text.count("a"), text.count("b")]
 
@@ -59,7 +59,7 @@ def test_new_graph():
     print("test_new_graph")
     work_dir = tempfile.TemporaryDirectory()
     server = GraphServer(work_dir.name)
-    with embeddings.start():
+    with embeddings.start(7340):
         with server.start():
             client = RaphtoryClient("http://localhost:1736")
             client.new_graph("abb", "EVENT")
@@ -78,7 +78,7 @@ def test_upload_graph():
     work_dir = tempfile.TemporaryDirectory()
     temp_dir = tempfile.TemporaryDirectory()
     server = GraphServer(work_dir.name)
-    with embeddings.start():
+    with embeddings.start(7340):
         with server.start():
             client = RaphtoryClient("http://localhost:1736")
             g = Graph()
@@ -104,7 +104,7 @@ def test_include_graph():
     setup_graph(g)
     g.save_to_file(g_path)
     server = GraphServer(work_dir.name)
-    with embeddings.start():
+    with embeddings.start(7340):
         embedding_client = OpenAIEmbeddings(api_base="http://localhost:7340")
         server.vectorise_graph(
             name=GRAPH_NAME,

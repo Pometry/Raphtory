@@ -639,8 +639,7 @@ mod tests {
             edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
         };
 
-        let address = format!("0.0.0.0:{port}");
-        let embedding_server = serve_custom_embedding(&address, fake_embedding).await;
+        let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
 
         let api_base = format!("http://localhost:{port}");
         let config = OpenAIEmbeddings {
