@@ -1,12 +1,12 @@
 import datetime
 import os
 import re
+import tempfile
+
+import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
-import tempfile
-import pandas as pd
-
 from raphtory import Graph, PersistentGraph
 
 
@@ -68,7 +68,11 @@ def parquet_files():
         )
     )
 
-    yield nodes_parquet_file_path, edges_parquet_file_path, edge_deletions_parquet_file_path
+    yield (
+        nodes_parquet_file_path,
+        edges_parquet_file_path,
+        edge_deletions_parquet_file_path,
+    )
 
     # Cleanup the temporary directory after tests
     dirname.cleanup()
@@ -515,7 +519,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     g = Graph()
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edges(
             edges_parquet_file_path,
@@ -528,7 +532,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edge_metadata(
             edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
@@ -625,7 +629,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     g = PersistentGraph()
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edges(
             edges_parquet_file_path,
@@ -638,7 +642,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edge_metadata(
             edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
@@ -646,7 +650,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
+        match=r"You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
         g.load_edge_deletions(
             edges_parquet_file_path,
@@ -787,7 +791,7 @@ def test_node_both_option_failures_parquet(parquet_files):
     with pytest.raises(
         Exception,
         match=re.escape(
-            r"Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
+            r"You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
         ),
     ):
         g = Graph()
@@ -802,7 +806,7 @@ def test_node_both_option_failures_parquet(parquet_files):
     with pytest.raises(
         Exception,
         match=re.escape(
-            r"Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
+            r"You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
         ),
     ):
         g = Graph()

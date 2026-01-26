@@ -1,17 +1,16 @@
 import json
+import os
 import re
 import tempfile
 import time
 from datetime import datetime
-from typing import TypeVar, Callable
-import os
-import pytest
 from functools import wraps
+from typing import Callable, TypeVar
 
+import pytest
 from dateutil import parser
-
-from raphtory.graphql import GraphServer
 from raphtory import Graph, PersistentGraph
+from raphtory.graphql import GraphServer
 
 B = TypeVar("B")
 
@@ -65,9 +64,9 @@ def with_disk_variants(init_fn, variants=None):
         @wraps(func)
         def wrapper():
             check = func()
-            assert callable(
-                check
-            ), f"Expected test function to return a callable, got {type(check)}"
+            assert callable(check), (
+                f"Expected test function to return a callable, got {type(check)}"
+            )
 
             if "graph" in variants:
                 g = init_fn(Graph())
@@ -132,9 +131,9 @@ def run_graphql_test(query, expected_output, graph):
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
-        assert (
-            response_dict == expected_output
-        ), f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
+        assert response_dict == expected_output, (
+            f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
+        )
 
 
 def run_group_graphql_test(queries_and_expected_outputs, graph):
@@ -150,7 +149,9 @@ def run_group_graphql_test(queries_and_expected_outputs, graph):
             )
             assert sort_dict_recursive(response_dict) == sort_dict_recursive(
                 expected_output
-            ), f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
+            ), (
+                f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
+            )
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
@@ -166,9 +167,9 @@ def run_graphql_error_test(query, expected_error_message, graph):
         match = re.search(r'"message":"(.*?)"', full_error_message)
         error_message = match.group(1) if match else ""
 
-        assert (
-            error_message == expected_error_message
-        ), f"Expected '{expected_error_message}', but got '{error_message}'"
+        assert error_message == expected_error_message, (
+            f"Expected '{expected_error_message}', but got '{error_message}'"
+        )
 
 
 def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
@@ -183,9 +184,9 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
             full_error_message = str(excinfo.value)
             match = re.search(r'"message":"(.*?)"', full_error_message)
             error_message = match.group(1) if match else ""
-            assert (
-                error_message == expected_error_message
-            ), f"Expected '{expected_error_message}', but got '{error_message}'"
+            assert error_message == expected_error_message, (
+                f"Expected '{expected_error_message}', but got '{error_message}'"
+            )
 
 
 def run_graphql_error_test_contains(query, expected_substrings, graph):
@@ -249,8 +250,11 @@ def assert_has_metadata(entity, props):
 
 
 def expect_unify_error(fn):
-    with pytest.raises(BaseException, match="Cannot unify"):
+    with pytest.raises(BaseException) as e:
+        # check the message
         fn()
+    print(e.value)
+    assert "Failed to unify props" in str(e.value)
 
 
 def assert_in_all(haystack: str, needles):

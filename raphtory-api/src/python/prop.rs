@@ -252,8 +252,9 @@ impl<'py> FromPyObject<'_, 'py> for Prop {
         }
 
         Err(PyTypeError::new_err(format!(
-            "Could not convert {:?} to Prop",
-            ob
+            "Could not convert {:?} of type {:?} to Prop",
+            ob,
+            ob.get_type()
         )))
     }
 }
