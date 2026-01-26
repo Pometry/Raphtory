@@ -111,7 +111,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
         }
     }
 
-    for i in 1..n_nodes {
+    for _ in 1..n_nodes {
         for node in g.nodes() {
             if node.node == source_node.node {
                 continue;
