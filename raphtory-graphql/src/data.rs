@@ -55,7 +55,7 @@ pub(crate) fn get_relative_path(
 #[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
-    cache: Cache<PathBuf, GraphWithVectors>,
+    pub(crate) cache: Cache<PathBuf, GraphWithVectors>,
     pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
 }
