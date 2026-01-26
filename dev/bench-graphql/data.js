@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769190096883,
+  "lastUpdate": 1769418818205,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3509,6 +3509,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1425,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "127566471+DanielLacina@users.noreply.github.com",
+            "name": "Daniel Lacina",
+            "username": "DanielLacina"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aee2d6137362052e17be686758ff35309b79fe17",
+          "message": "implemented Erdos-Renyi model generation (#2253)",
+          "timestamp": "2026-01-26T09:37:20+01:00",
+          "tree_id": "3d2ca886c7a5e9207acc5cadea78e121c051ac1b",
+          "url": "https://github.com/Pometry/Raphtory/commit/aee2d6137362052e17be686758ff35309b79fe17"
+        },
+        "date": 1769418814210,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1457,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 211,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 174,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1166,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 1000,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1304,
             "unit": "req/s"
           }
         ]
