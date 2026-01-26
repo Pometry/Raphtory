@@ -126,7 +126,7 @@ mod serialise_test {
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
-        let deletions = edge.deletions().to_vec();
+        let deletions = edge.deletions().t().iter().collect::<Vec<_>>();
         assert_eq!(deletions, vec![19]);
     }
 
