@@ -1,5 +1,3 @@
-#[cfg(feature = "search")]
-use crate::search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes};
 #[cfg(feature = "io")]
 use crate::serialise::GraphPaths;
 use crate::{
@@ -59,8 +57,8 @@ use storage::{persist::strategy::PersistentStrategy, Extension};
 
 #[cfg(feature = "search")]
 use crate::{
-    db::graph::views::filter::model::{AsEdgeFilter, AsNodeFilter},
-    search::{fallback_filter_edges, fallback_filter_nodes},
+    db::graph::views::filter::model::TryAsCompositeFilter,
+    search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes},
 };
 
 /// This trait GraphViewOps defines operations for accessing

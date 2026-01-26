@@ -84,7 +84,7 @@ async fn main() -> IoResult<()> {
         let schema = App::create_schema().finish().unwrap();
         println!("{}", schema.sdl());
     } else {
-        let builder = AppConfigBuilder::new()
+        let mut builder = AppConfigBuilder::new()
             .with_cache_capacity(args.cache_capacity)
             .with_cache_tti_seconds(args.cache_tti_seconds)
             .with_log_level(args.log_level)

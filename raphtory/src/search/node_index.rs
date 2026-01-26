@@ -216,7 +216,7 @@ impl NodeIndex {
         let node_name = node.name();
         let node_type = node.node_type();
 
-        let node_doc = self.create_document(node_id, node_name.clone(), node_type.clone());
+        let node_doc = self.create_document(node_id, node_name.clone(), node_type.as_deref());
         writer.add_document(node_doc)?;
 
         Ok(())

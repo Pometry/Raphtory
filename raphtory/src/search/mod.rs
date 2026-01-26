@@ -188,7 +188,7 @@ mod test_index {
                 api::view::{internal::InternalStorageOps, ResolvedIndexSpec},
                 graph::views::filter::model::{
                     node_filter::{ops::NodeFilterOps, NodeFilter},
-                    AsNodeFilter, NodeFilter, NodeFilterBuilderOps, TryAsCompositeFilter,
+                    TryAsCompositeFilter,
                 },
             },
             errors::GraphError,
@@ -420,7 +420,7 @@ mod test_index {
 
         #[test]
         fn test_mutable_graph_index_persistence() {
-            let graph = init_graph(Graph::new());
+            let graph = init_graph();
             graph.create_index().unwrap();
 
             let binding = TempDir::new().unwrap();
