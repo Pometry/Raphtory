@@ -9,7 +9,7 @@ use crate::{
             views::filter::model::{filter::Filter, node_filter::NodeFilter},
         },
     },
-    prelude::PropertyFilter,
+    prelude::{GraphViewOps, PropertyFilter},
 };
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
@@ -45,6 +45,25 @@ impl<Op: NodeOp<Output = usize>> MaskOp for Op {
 }
 
 pub const NO_FILTER: Const<bool> = Const(true);
+
+#[derive(Debug, Clone)]
+pub struct NodeExistsOp<G> {
+    graph: G,
+}
+
+impl<G: GraphView> NodeExistsOp<G> {
+    pub(crate) fn new(graph: G) -> Self {
+        Self { graph }
+    }
+}
+
+impl<G: GraphView> NodeOp for NodeExistsOp<G> {
+    type Output = bool;
+
+    fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
+        self.graph.has_node(node)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct NodeIdFilterOp {

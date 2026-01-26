@@ -4,7 +4,7 @@ use crate::{
         graph::{
             edge::GqlEdge,
             edges::GqlEdges,
-            filtering::{GqlEdgeFilter, GqlNodeFilter, GraphViewCollection},
+            filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphViewCollection},
             index::GqlIndexSpec,
             node::GqlNode,
             nodes::GqlNodes,
@@ -38,8 +38,12 @@ use raphtory::{
         },
         graph::{
             node::NodeView,
-            views::filter::model::{
-                edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter,
+            views::filter::{
+                model::{
+                    edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
+                    node_filter::CompositeNodeFilter, DynView, DynViewFilter,
+                },
+                CreateFilter,
             },
         },
     },
@@ -51,7 +55,7 @@ use std::{
     collections::HashSet,
     convert::{Into, TryInto},
 };
-
+use std::sync::Arc;
 use crate::{
     graph::GraphWithVectors,
     paths::{PathValidationError, ValidGraphPaths},
@@ -526,6 +530,22 @@ impl GqlGraph {
             other_g.import_nodes(g.nodes(), true)?;
             other_g.import_edges(g.edges(), true)?;
             Ok(true)
+        })
+        .await
+    }
+
+    async fn filter(&self, expr: Option<GqlGraphFilter>) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: DynView = match expr {
+                Some(f) => f.try_into()?,
+                None => Arc::new(GraphFilter),
+            };
+            let filtered_graph = self_clone.graph.filter(filter)?;
+            Ok(GqlGraph::new(
+                self_clone.path.clone(),
+                filtered_graph.into_dynamic(),
+            ))
         })
         .await
     }
