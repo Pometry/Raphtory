@@ -160,13 +160,13 @@ impl GraphServer {
     pub async fn vectorise_graph(
         &self,
         path: &str,
-        template: DocumentTemplate,
+        template: &DocumentTemplate,
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
         let vetor_cache = self.data.vector_cache.resolve();
         let model = vetor_cache.await?.openai(embeddings).await?;
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
-        self.data.vectorise_folder(&folder, &template, model).await
+        self.data.vectorise_folder(&folder, template, model).await
     }
 
     /// Start the server on the default port and return a handle to it.

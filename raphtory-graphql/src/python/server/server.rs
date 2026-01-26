@@ -47,11 +47,16 @@ impl<'py> IntoPyObject<'py> for GraphServer {
     }
 }
 
-fn template_from_python(nodes: TemplateConfig, edges: TemplateConfig) -> Option<DocumentTemplate> {
+fn template_from_python(
+    nodes: TemplateConfig,
+    edges: TemplateConfig,
+) -> PyResult<DocumentTemplate> {
     if nodes.is_disabled() && edges.is_disabled() {
-        None
+        Err(PyAttributeError::new_err(
+            "at least one of nodes and edges has to be set to True or some string",
+        ))
     } else {
-        Some(DocumentTemplate {
+        Ok(DocumentTemplate {
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         })
@@ -139,11 +144,9 @@ impl PyGraphServer {
     ///
     /// Arguments:
     ///     name (list[str]): the name of the graph to vectorise.
+    ///     embeddings (OpenAIEmbeddings): the embeddings to use
     ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///
-    /// Returns:
-    ///     GraphServer: A new server object containing the vectorised graphs.
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -151,26 +154,51 @@ impl PyGraphServer {
         &self,
         py: Python,
         name: &str,
-        embeddings: PyOpenAIEmbeddings, // FIXME: this will create a breaking change once there are more options
+        embeddings: PyOpenAIEmbeddings,
         nodes: TemplateConfig,
         edges: TemplateConfig,
     ) -> PyResult<()> {
-        let template = template_from_python(nodes, edges).ok_or(PyAttributeError::new_err(
-            "at least one of nodes and edges has to be set to True or some string",
-        ))?;
+        let template = template_from_python(nodes, edges)?;
         let rt = tokio::runtime::Runtime::new().unwrap();
         // allow threads just in case the embedding server is using the same python runtime
         py.allow_threads(|| {
             rt.block_on(async move {
                 self.0
-                    .vectorise_graph(name, template, embeddings.into())
+                    .vectorise_graph(name, &template, embeddings.into())
                     .await?;
                 Ok(())
             })
         })
     }
 
-    // TODO: vectorise all graphs
+    /// Vectorise all graphs in the server working directory.
+    ///
+    /// Arguments:
+    ///     embeddings (OpenAIEmbeddings): the embeddings to use
+    ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    #[pyo3(
+        signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
+    )]
+    fn vectorise_all_graphs(
+        &self,
+        py: Python,
+        embeddings: PyOpenAIEmbeddings,
+        nodes: TemplateConfig,
+        edges: TemplateConfig,
+    ) -> PyResult<()> {
+        let template = template_from_python(nodes, edges)?;
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        // allow threads just in case the embedding server is using the same python runtime
+        py.allow_threads(|| {
+            rt.block_on(async move {
+                self.0
+                    .vectorise_all_graphs(&template, embeddings.into())
+                    .await?;
+                Ok(())
+            })
+        })
+    }
 
     /// Start the server and return a handle to it.
     ///
