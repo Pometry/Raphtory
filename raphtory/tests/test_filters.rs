@@ -4904,7 +4904,7 @@ mod test_node_property_filter_agg {
             graph::{
                 assertions::{
                     assert_filter_nodes_err, assert_filter_nodes_results,
-                    assert_search_nodes_results,
+                    assert_search_nodes_results, TestVariants::All,
                 },
                 views::filter::{
                     model::{
@@ -4926,7 +4926,6 @@ mod test_node_property_filter_agg {
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
     use std::{sync::Arc, vec};
-    use raphtory::db::graph::assertions::TestVariants::All;
 
     fn list_u8(xs: &[u8]) -> Prop {
         Prop::list(xs.iter().copied().map(Prop::U8))

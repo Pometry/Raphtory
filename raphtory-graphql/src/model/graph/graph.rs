@@ -1,5 +1,6 @@
 use crate::{
     data::Data,
+    graph::GraphWithVectors,
     model::{
         graph::{
             edge::GqlEdge,
@@ -16,13 +17,15 @@ use crate::{
         plugins::graph_algorithm_plugin::GraphAlgorithmPlugin,
         schema::graph_schema::GraphSchema,
     },
-    paths::ExistingGraphFolder,
+    paths::{ExistingGraphFolder, PathValidationError, ValidGraphPaths},
     rayon::blocking_compute,
     GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use itertools::Itertools;
+#[cfg(feature = "search")]
+use raphtory::db::api::view::SearchableGraphOps;
 use raphtory::{
     core::{
         entities::nodes::node_ref::{AsNodeRef, NodeRef},
@@ -54,14 +57,8 @@ use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
 use std::{
     collections::HashSet,
     convert::{Into, TryInto},
+    sync::Arc,
 };
-use std::sync::Arc;
-use crate::{
-    graph::GraphWithVectors,
-    paths::{PathValidationError, ValidGraphPaths},
-};
-#[cfg(feature = "search")]
-use raphtory::db::api::view::SearchableGraphOps;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Graph")]
