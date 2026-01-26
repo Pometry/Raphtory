@@ -138,9 +138,6 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
                 }
                 let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
                 if new_dist < min_dist {
-                    if i == n_nodes {
-                        return Err(GraphError::InvalidProperty { reason: "Negative cycle detected".to_string() });
-                    }
                     min_dist = new_dist;
                     min_node = neighbor_vid;
                 }
