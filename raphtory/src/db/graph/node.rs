@@ -30,10 +30,7 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{properties::prop::PropType, ELID},
-    storage::{
-        arc_str::ArcStr,
-        timeindex::{AsTime, EventTime},
-    },
+    storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
 use raphtory_storage::{

@@ -3,10 +3,7 @@ use crate::search::{fallback_filter_edges, fallback_filter_exploded_edges, fallb
 #[cfg(feature = "io")]
 use crate::serialise::GraphPaths;
 use crate::{
-    core::{
-        entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
-    },
+    core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
         api::{
             properties::{internal::InternalMetadataOps, Metadata, Properties},

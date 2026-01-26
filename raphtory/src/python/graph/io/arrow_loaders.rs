@@ -13,17 +13,14 @@ use crate::{
         parquet_loaders::cast_columns,
     },
     prelude::{AdditionOps, PropertyAdditionOps},
-    test_utils::prop,
 };
 use arrow::{
     array::{RecordBatch, RecordBatchReader},
     datatypes::SchemaRef,
-    error::ArrowError,
 };
 use arrow_csv::{reader::Format, ReaderBuilder};
 use bzip2::read::BzDecoder;
 use flate2::read::GzDecoder;
-use itertools::chain;
 use pyo3::{
     exceptions::PyValueError,
     ffi::c_str,
@@ -134,17 +131,19 @@ pub(crate) fn load_edges_from_arrow_c_stream<
 
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_from_df(
-        df_view,
-        ColumnNames::new(time, event_id, src, dst, layer_col),
-        true,
-        properties,
-        metadata,
-        shared_metadata,
-        layer,
-        graph,
-        false,
-    )
+    data.py().detach(|| {
+        load_edges_from_df(
+            df_view,
+            ColumnNames::new(time, event_id, src, dst, layer_col),
+            true,
+            properties,
+            metadata,
+            shared_metadata,
+            layer,
+            graph,
+            false,
+        )
+    })
 }
 
 pub(crate) fn load_node_metadata_from_arrow_c_stream<
@@ -160,7 +159,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
     shared_metadata: Option<&HashMap<String, Prop>>,
     schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = [id]
+    let cols_to_check = [id]
         .into_iter()
         .chain(metadata.iter().copied())
         .chain(node_type_col)
@@ -195,7 +194,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     layer_col: Option<&str>,
     schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = [src, dst]
+    let cols_to_check = [src, dst]
         .into_iter()
         .chain(layer_col)
         .chain(metadata.iter().copied())
@@ -228,7 +227,7 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     layer_col: Option<&str>,
     schema: Option<HashMap<String, PropType>>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = [src, dst, time]
+    let cols_to_check = [src, dst, time]
         .into_iter()
         .chain(layer_col)
         .collect::<Vec<_>>();
@@ -252,34 +251,14 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
     let py = data.py();
     is_jupyter(py);
 
-    if !data.hasattr("__arrow_c_stream__")? {
-        return Err(PyErr::from(GraphError::LoadFailure(
-            "Object must implement __arrow_c_stream__".to_string(),
-        )));
-    }
+    let reader: PyRecordBatchReader = data.extract()?;
 
-    let stream_capsule_any: Bound<'a, PyAny> = data.call_method0("__arrow_c_stream__")?;
-    let stream_capsule: &Bound<'a, PyCapsule> = stream_capsule_any.cast::<PyCapsule>()?;
-
-    if !stream_capsule.is_valid() {
-        return Err(PyErr::from(GraphError::LoadFailure(
-            "Stream capsule is not valid".to_string(),
-        )));
-    }
-    let reader = PyRecordBatchReader::from_arrow_pycapsule(stream_capsule)
-        .map_err(|e| {
-            PyErr::from(GraphError::LoadFailure(format!(
-                "Arrow stream error while creating the reader: {}",
-                e
-            )))
-        })?
-        .into_reader()
-        .map_err(|e| {
-            PyErr::from(GraphError::LoadFailure(format!(
-                "Arrow stream error while creating the reader: {}",
-                e
-            )))
-        })?;
+    let reader = reader.into_reader().map_err(|e| {
+        PyErr::from(GraphError::LoadFailure(format!(
+            "Arrow stream error while creating the reader: {}",
+            e
+        )))
+    })?;
 
     // Get column names and indices once only
     let mut names: Vec<String> = Vec::with_capacity(col_names.len());
@@ -302,10 +281,7 @@ pub(crate) fn process_arrow_c_stream_df<'a>(
         .into_iter()
         .flat_map(move |batch_res: Result<RecordBatch, _>| {
             let batch: RecordBatch = match batch_res.map_err(|e| {
-                GraphError::LoadFailure(format!(
-                    "Arrow stream error while reading a batch: {}",
-                    e.to_string()
-                ))
+                GraphError::LoadFailure(format!("Arrow stream error while reading a batch: {}", e))
             }) {
                 Ok(batch) => batch,
                 Err(e) => return vec![Err(e)],
@@ -469,7 +445,7 @@ pub(crate) fn load_nodes_from_csv_path<
     schema: Option<Arc<HashMap<String, PropType>>>,
     event_id: Option<&str>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = [id, time]
+    let cols_to_check = [id, time]
         .into_iter()
         .chain(properties.iter().copied())
         .chain(metadata.iter().copied())
@@ -514,7 +490,7 @@ pub(crate) fn load_edges_from_csv_path<
     schema: Option<Arc<HashMap<String, PropType>>>,
     event_id: Option<&str>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = [src, dst, time]
+    let cols_to_check = [src, dst, time]
         .into_iter()
         .chain(properties.iter().copied())
         .chain(metadata.iter().copied())

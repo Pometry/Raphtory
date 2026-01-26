@@ -5,20 +5,11 @@ use crate::{
     prelude::Prop,
 };
 use raphtory_api::{
-    core::{
-        entities::{properties::tprop::TPropOps, EID, VID},
-        storage::timeindex::{AsTime, EventTime},
-    },
+    core::{entities::properties::tprop::TPropOps, storage::timeindex::EventTime},
     iter::{BoxedLIter, IntoDynBoxed},
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, locked::LockedGraph,
-        nodes::node_storage_ops::NodeStorageOps,
-    },
-};
+use raphtory_storage::graph::{locked::LockedGraph, nodes::node_storage_ops::NodeStorageOps};
 use rayon::iter::ParallelIterator;
 use std::ops::Range;
 use storage::{

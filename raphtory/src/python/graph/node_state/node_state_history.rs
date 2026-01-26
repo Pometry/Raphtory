@@ -436,8 +436,6 @@ impl<'py> FromPyObject<'_, 'py>
     }
 }
 
-type HistoryOpType<G> = HistoryOp<'static, G>;
-
 /// A NodeState of History objects for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct NodeStateHistory {

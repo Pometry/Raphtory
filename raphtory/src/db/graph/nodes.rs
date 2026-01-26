@@ -19,7 +19,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_storage::{core_ops::is_view_compatible, graph::graph::GraphStorage};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::ParallelIterator;
 use std::{
     collections::HashSet,
     fmt::{Debug, Formatter},
