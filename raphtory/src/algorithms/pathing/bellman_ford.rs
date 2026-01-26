@@ -35,7 +35,7 @@ use std::{
 /// # Returns
 ///
 /// Returns a `HashMap` where the key is the target node and the value is a tuple containing
-/// the total cost and a vector of nodes representing the shortest path.
+/// the total dist and a vector of nodes representing the shortest path.
 ///
 pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
     g: &G,
@@ -66,7 +66,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
 
     // Turn below into a generic function, then add a closure to ensure the prop is correctly unwrapped
     // after the calc is done
-    let cost_val = match weight_type {
+    let dist_val = match weight_type {
         PropType::F32 => Prop::F32(0f32),
         PropType::F64 => Prop::F64(0f64),
         PropType::U8 => Prop::U8(0u8),
@@ -105,7 +105,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
     for node in g.nodes() {
         predecessor.insert(node.node, node.node);   
         if node.node == source_node.node {
-            dist.insert(source_node.node, cost_val.clone());
+            dist.insert(source_node.node, dist_val.clone());
         } else {
             dist.insert(node.node, max_val.clone());
         }
@@ -116,7 +116,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
             if node.node == source_node.node {
                 continue;
             }
-            let mut min_cost = dist.get(&node.node).unwrap().clone();
+            let mut min_dist = dist.get(&node.node).unwrap().clone();
             let mut min_node = predecessor.get(&node.node).unwrap().clone();
             let edges = match direction {
                 Direction::IN => node.out_edges(),
@@ -136,19 +136,43 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
                 if neighbor_dist == &max_val {
                     continue;
                 }
-                let new_cost = neighbor_dist.clone().add(edge_val).unwrap();
-                if new_cost < min_cost {
+                let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
+                if new_dist < min_dist {
                     if i == n_nodes {
                         return Err(GraphError::InvalidProperty { reason: "Negative cycle detected".to_string() });
                     }
-                    min_cost = new_cost;
+                    min_dist = new_dist;
                     min_node = neighbor_vid;
                 }
             }
-            dist.insert(node.node, min_cost);
+            dist.insert(node.node, min_dist);
             predecessor.insert(node.node, min_node);
         }
     }
+
+    for node in g.nodes() {
+        let edges = match direction {
+            Direction::IN => node.out_edges(),
+            Direction::OUT => node.in_edges(),
+            Direction::BOTH => node.edges(),
+        };
+        let node_dist = dist.get(&node.node).unwrap();
+        for edge in edges {
+            let edge_val = match weight {
+                None => Prop::U8(1),
+                Some(weight) => match edge.properties().get(weight) {
+                    Some(prop) => prop,
+                    _ => continue,
+                },
+            };
+            let neighbor_vid = edge.nbr().node;
+            let neighbor_dist = dist.get(&neighbor_vid).unwrap(); 
+            let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
+            if new_dist < *node_dist {
+                return Err(GraphError::InvalidProperty { reason: "Negative cycle detected".to_string() });
+            }
+        }
+    } 
 
     for target in targets.into_iter() {
         let target_ref = target.as_node_ref();
@@ -181,10 +205,10 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
 
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = shortest_paths
         .into_iter()
-        .map(|(id, (cost, path))| {
+        .map(|(id, (dist, path))| {
             let nodes =
                 Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::new(path)));
-            (id, (cost, nodes))
+            (id, (dist, nodes))
         })
         .unzip();
     
