@@ -112,6 +112,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
     }
 
     for _ in 1..n_nodes {
+        let mut changed = false;
         for node in g.nodes() {
             if node.node == source_node.node {
                 continue;
@@ -140,10 +141,14 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
                 if new_dist < min_dist {
                     min_dist = new_dist;
                     min_node = neighbor_vid;
+                    changed = true;
                 }
             }
             dist.insert(node.node, min_dist);
             predecessor.insert(node.node, min_node);
+        }
+        if !changed {
+            break;
         }
     }
 
