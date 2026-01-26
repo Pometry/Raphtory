@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "fast_merge"
-version = "0.16.4"
+version = "0.17.0"
 dependencies = [
  "criterion",
  "itertools 0.13.0",
