@@ -18,7 +18,7 @@ pub struct PersistenceConfig {
     max_node_page_len: u32,
     max_edge_page_len: u32,
     max_memory_bytes: usize,
-    bg_flush_enabled: bool,
+    bg_flush: bool,
     node_types: Vec<String>,
 }
 
@@ -28,7 +28,7 @@ impl Default for PersistenceConfig {
             max_node_page_len: DEFAULT_MAX_PAGE_LEN_NODES,
             max_edge_page_len: DEFAULT_MAX_PAGE_LEN_EDGES,
             max_memory_bytes: DEFAULT_MAX_MEMORY_BYTES,
-            bg_flush_enabled: false,
+            bg_flush: false,
             node_types: Vec::new(),
         }
     }
@@ -72,7 +72,7 @@ impl PersistenceConfig {
     }
 
     pub fn with_bg_flush(mut self) -> Self {
-        self.bg_flush_enabled = true;
+        self.bg_flush = true;
         self
     }
 
@@ -97,8 +97,8 @@ impl PersistenceConfig {
         self.max_memory_bytes
     }
 
-    pub fn bg_flush_enabled(&self) -> bool {
-        self.bg_flush_enabled
+    pub fn bg_flush(&self) -> bool {
+        self.bg_flush
     }
 
     pub fn node_types(&self) -> &[String] {

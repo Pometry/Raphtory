@@ -324,7 +324,6 @@ fn materialize_impl(
         .set_event_id(storage.read_event_id());
 
     let temporal_graph = Arc::new(temporal_graph);
-
     let graph_storage = GraphStorage::from(temporal_graph.clone());
 
     {

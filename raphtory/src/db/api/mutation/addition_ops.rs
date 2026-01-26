@@ -303,7 +303,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
 
         let src_id = src_id.inner();
         let dst_id = dst_id.inner();
-
         let layer_id = layer_id.inner();
 
         // Hold all locks for src node, dst node and edge until add_edge_op goes out of scope.

@@ -241,6 +241,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             let lock_slot = self.free_segments[slot_idx].read_recursive();
             let page_id = *lock_slot;
             let page = self.segments.get(page_id);
+
             page.and_then(|page| {
                 self.reserve_segment_row(page)
                     .map(|pos| (page.segment_id(), LocalPOS(pos)))

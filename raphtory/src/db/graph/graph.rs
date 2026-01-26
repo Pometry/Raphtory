@@ -429,14 +429,17 @@ pub fn assert_nodes_equal_layer<
     persistent: bool,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
-    nodes1.sort();
     let mut nodes2: Vec<_> = nodes2.collect();
+
+    nodes1.sort();
     nodes2.sort();
+
     assert_eq!(
         nodes1.len(),
         nodes2.len(),
         "mismatched number of nodes{layer_tag}",
     );
+
     for (n1, n2) in nodes1.into_iter().zip(nodes2) {
         assert_node_equal_layer(n1, n2, layer_tag, persistent);
     }
@@ -623,8 +626,10 @@ fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
 ) {
     black_box({
         assert_graph_equal_layer(g1, g2, None, persistent);
+
         let left_layers: HashSet<_> = g1.unique_layers().collect();
         let right_layers: HashSet<_> = g2.unique_layers().collect();
+
         assert_eq!(
             left_layers, right_layers,
             "mismatched layers: left {:?}, right {:?}",
