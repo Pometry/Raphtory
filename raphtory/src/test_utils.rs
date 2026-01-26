@@ -16,7 +16,7 @@ use raphtory_api::core::{
     entities::properties::prop::{PropType, DECIMAL_MAX},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
-        timeindex::AsTime,
+        timeindex::{AsTime, EventTime},
     },
 };
 use raphtory_storage::{
@@ -29,7 +29,6 @@ use std::{
     ops::{Range, RangeInclusive},
     sync::Arc,
 };
-use raphtory_api::core::storage::timeindex::EventTime;
 
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
@@ -45,7 +44,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
     };
 
     // compare histories as multiset as order for values with the same timestamp is ambiguous!
-    let get_fixture_t_prop_map =
+    let get_fixture_t_prop_counts =
         |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
             let mut grouped: HashMap<ArcStr, HashMap<i64, HashMap<Prop, usize>>> = HashMap::new();
             for (t, props) in t_props {
@@ -69,7 +68,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                         .iter()
                         .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
                         .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt == rt {
+                            if lt.t() == rt.t() {
                                 for (v, count) in rv {
                                     lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                                 }
@@ -77,14 +76,15 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                             } else {
                                 Err(((lt, lv), (rt, rv)))
                             }
-                        }).map(|(t, v)| (t.t(), v))
+                        })
+                        .map(|(t, v)| (t.t(), v))
                         .collect();
                     (key, runs)
                 })
                 .collect();
             out
         };
-    let get_edge_t_prop_map =
+    let get_edge_t_prop_counts =
         |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
             let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
                 .properties()
@@ -96,7 +96,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                         .iter()
                         .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
                         .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt == rt {
+                            if lt.t() == rt.t() {
                                 for (v, count) in rv {
                                     lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                                 }
@@ -129,24 +129,27 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             .entry(src)
             .or_default()
             .extend(updates.props.t_props.iter().map(|(t, _)| *t));
-        expected_node_histories
-            .entry(dst)
-            .or_default()
-            .extend(updates.props.t_props.iter().map(|(t, _)| *t));
+        if src != dst {
+            expected_node_histories
+                .entry(dst)
+                .or_default()
+                .extend(updates.props.t_props.iter().map(|(t, _)| *t));
+        }
         // deletions are part of history as well
         expected_node_histories
             .entry(src)
             .or_default()
             .extend(updates.deletions.iter().copied());
-        expected_node_histories
-            .entry(dst)
-            .or_default()
-            .extend(updates.deletions.iter().copied());
+        if src != dst {
+            expected_node_histories
+                .entry(dst)
+                .or_default()
+                .extend(updates.deletions.iter().copied());
+        }
     }
     // sort history vecs to match node.history()
     for values in expected_node_histories.values_mut() {
         values.sort();
-        values.dedup(); // FIXME: remove when updating to the new history apis
     }
     let expected_edge_pairs: std::collections::HashSet<(u64, u64)> = fixture
         .edges()
@@ -257,7 +260,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                     "mismatched node metadata for node {node_id}"
                 );
 
-                let expected_temporal = get_fixture_t_prop_map(&updates.props.t_props);
+                let expected_temporal = get_fixture_t_prop_counts(&updates.props.t_props);
                 let actual_temporal = get_node_t_prop_map(&node);
                 assert_eq!(
                     actual_temporal, expected_temporal,
@@ -317,8 +320,8 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                 layer_name
             );
 
-            let expected_temporal = get_fixture_t_prop_map(&updates.props.t_props);
-            let actual_temporal = get_edge_t_prop_map(&e_layered);
+            let actual_temporal = get_edge_t_prop_counts(&e_layered);
+            let expected_temporal = get_fixture_t_prop_counts(&updates.props.t_props);
             assert_eq!(
                 actual_temporal, expected_temporal,
                 "mismatched edge temporal properties for {src}->{dst} in layer {:?}",
