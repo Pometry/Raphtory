@@ -1,10 +1,12 @@
 use std::{ops::Deref, path::Path, sync::Arc};
 
+use arrow::array::{FixedSizeListBuilder, Float32Builder};
 use arrow_array::{
     types::{Float32Type, UInt64Type},
     ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
     RecordBatchIterator, UInt64Array,
 };
+use chrono::format::Fixed;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 use lancedb::{
@@ -84,25 +86,14 @@ impl VectorCollection for LanceDbCollection {
         ids: Vec<u64>,
         vectors: impl IntoIterator<Item = Embedding>,
     ) -> crate::errors::GraphResult<()> {
+        let mut builder = FixedSizeListBuilder::new(Float32Builder::new(), self.dim as i32);
+        for vector in vectors {
+            builder.values().append_slice(&vector);
+        }
         let batches = RecordBatchIterator::new(
             vec![RecordBatch::try_new(
                 self.schema(),
-                vec![
-                    Arc::new(UInt64Array::from(ids)),
-                    Arc::new(
-                        FixedSizeListArray::from_iter_primitive::<Float32Type, _, _>(
-                            vectors.into_iter().map(|vector| {
-                                Some(
-                                    vector
-                                        .into_iter()
-                                        .map(|value| Some(*value))
-                                        .collect::<Vec<_>>(), // TODO: ideally avoid this collect
-                                )
-                            }),
-                            self.dim as i32,
-                        ),
-                    ),
-                ],
+                vec![Arc::new(UInt64Array::from(ids)), Arc::new(builder.finish())],
             )],
             self.schema(),
         );
@@ -114,11 +105,10 @@ impl VectorCollection for LanceDbCollection {
         let query = self.table.query().only_if(format!("id = {id}"));
         let result = query.execute().await?;
         let batches: Vec<_> = result.try_collect().await?;
-        if let Some(batch) = batches.get(0) {
+        if let Some(batch) = batches.first() {
             let array = get_vector_array_from_simple_batch(batch)
                 .ok_or(GraphError::InvalidVectorDbSchema)?;
-            let vector = array.values().iter().copied().collect();
-            Ok(Some(vector))
+            Ok(Some(array.into()))
         } else {
             Ok(None)
         }
