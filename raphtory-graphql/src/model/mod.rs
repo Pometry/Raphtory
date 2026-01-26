@@ -45,7 +45,6 @@ pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
 
-// TODO: move somewhere else
 #[derive(InputObject, Debug, Clone, Default)]
 pub struct OpenAIConfig {
     model: String,
