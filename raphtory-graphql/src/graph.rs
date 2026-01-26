@@ -15,7 +15,9 @@ use raphtory::{
     prelude::{CacheOps, EdgeViewOps, IndexMutationOps},
     serialise::GraphFolder,
     storage::core_ops::CoreGraphOps,
-    vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
+    vectors::{
+        cache::VectorCache, storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph,
+    },
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
@@ -76,9 +78,9 @@ impl GraphWithVectors {
         }
     }
 
-    pub(crate) fn read_from_folder(
+    pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
-        cache: Option<VectorCache>,
+        cache: &LazyDiskVectorCache,
         create_index: bool,
     ) -> Result<Self, GraphError> {
         let graph_path = &folder.get_graph_path();
@@ -87,9 +89,11 @@ impl GraphWithVectors {
         } else {
             MaterializedGraph::load_cached(folder.clone())?
         };
-        let vectors = cache.and_then(|cache| {
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
-        });
+        let vectors =
+            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache)
+                .await
+                .ok();
+
         println!("Graph loaded = {}", folder.get_original_path_str());
         if create_index {
             graph.create_index()?;

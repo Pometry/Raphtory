@@ -24,14 +24,16 @@ jobs:
       - name: Install maturin
         run: pip install maturin==1.8.3
       - name: Build raphtory
-        run: make install-python
+        run: cd python && maturin build --strip --out /tmp/wheels # double-check --strip acutally makes sense
+      - run: rm -fr target
+      - run: pip install /tmp/wheels/*.whl
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
       - uses: grafana/setup-k6-action@v1
         with:
-          k6-version: '1.0.0'
+          k6-version: "1.0.0"
       - name: Run stress test
         run: |
           cd graphql-bench
