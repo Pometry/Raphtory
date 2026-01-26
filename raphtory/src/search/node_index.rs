@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::VID,
-        storage::timeindex::{AsTime, TimeIndexEntry},
+        storage::timeindex::{AsTime, EventTime},
     },
     db::{api::view::IndexSpec, graph::node::NodeView},
     errors::GraphError,
@@ -207,9 +207,9 @@ impl NodeIndex {
         document
     }
 
-    fn index_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
+    fn index_node<'graph, G: GraphViewOps<'graph>>(
         &self,
-        node: NodeView<'graph, G, GH>,
+        node: NodeView<'graph, G>,
         writer: &IndexWriter,
     ) -> Result<(), GraphError> {
         let node_id: u64 = usize::from(node.node) as u64;
@@ -217,6 +217,10 @@ impl NodeIndex {
         let node_type = node.node_type();
 
         let node_doc = self.create_document(node_id, node_name.clone(), node_type.clone());
+        // println!(
+        //     "Indexing Node Document: {}",
+        //     node_doc.to_json(&self.entity_index.index.schema()) // assumes `self.index` has `schema() -> &Schema`
+        // );
         writer.add_document(node_doc)?;
 
         Ok(())
@@ -254,7 +258,7 @@ impl NodeIndex {
     pub(crate) fn add_node_update(
         &self,
         graph: &GraphStorage,
-        t: TimeIndexEntry,
+        t: EventTime,
         node_id: MaybeNew<VID>,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {

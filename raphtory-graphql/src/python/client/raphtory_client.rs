@@ -40,30 +40,39 @@ impl PyRaphtoryClient {
         variables: HashMap<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
         let client = self.clone();
-        let (graphql_query, graphql_result) = self.execute_async_task(move || async move {
+        let (graphql_query, mut graphql_result) = self.execute_async_task(move || async move {
             client.send_graphql_query(query, variables).await
         })?;
-        let mut graphql_result = graphql_result;
+
+        match graphql_result.remove("errors") {
+            None => {}
+            Some(errors) => {
+                let exception = match errors {
+                    JsonValue::Array(errors) => {
+                        let formatted_errors = errors
+                            .iter()
+                            .map(|err| format!("{}", err))
+                            .collect::<Vec<_>>()
+                            .join("\n\t");
+
+                        PyException::new_err(format!(
+                            "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
+                            graphql_query.to_string(),
+                            formatted_errors
+                        ))
+                    }
+                    _ => PyException::new_err(format!(
+                        "Error while reading server response for query:\n\t{graphql_query}"
+                    )),
+                };
+                return Err(exception);
+            }
+        }
         match graphql_result.remove("data") {
             Some(JsonValue::Object(data)) => Ok(data.into_iter().collect()),
-            _ => match graphql_result.remove("errors") {
-                Some(JsonValue::Array(errors)) => {
-                    let formatted_errors = errors
-                        .iter()
-                        .map(|err| format!("{}", err))
-                        .collect::<Vec<_>>()
-                        .join("\n\t");
-
-                    Err(PyException::new_err(format!(
-                        "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
-                        graphql_query.to_string(),
-                        formatted_errors
-                    )))
-                }
-                _ => Err(PyException::new_err(format!(
-                    "Error while reading server response for query:\n\t{graphql_query}"
-                ))),
-            },
+            _ => Err(PyException::new_err(format!(
+                "Error while reading server response for query:\n\t{graphql_query}"
+            ))),
         }
     }
 

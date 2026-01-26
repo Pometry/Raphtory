@@ -1,27 +1,35 @@
 use crate::{
-    errors::{GraphError, LoadError},
+    api::core::utils::time::TryIntoTime,
+    errors::{into_load_err, GraphError, LoadError},
     io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},
     compute::cast,
-    datatypes::{DataType, Int64Type, TimeUnit, TimestampMillisecondType},
+    datatypes::{DataType, Date64Type, Int64Type, TimeUnit, TimestampMillisecondType},
 };
 use itertools::Itertools;
+use raphtory_api::core::storage::timeindex::AsTime;
 use rayon::prelude::*;
 use std::fmt::{Debug, Formatter};
 
 pub struct DFView<I> {
     pub names: Vec<String>,
     pub chunks: I,
-    pub num_rows: usize,
+    pub num_rows: Option<usize>,
 }
 
 impl<I> Debug for DFView<I> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DFView")
             .field("names", &self.names)
-            .field("num_rows", &self.num_rows)
+            .field(
+                "num_rows",
+                &self
+                    .num_rows
+                    .map(|x| x.to_string())
+                    .unwrap_or("Unknown".to_string()),
+            )
             .finish()
     }
 }
@@ -49,11 +57,12 @@ where
             .ok_or_else(|| GraphError::ColumnDoesNotExist(name.to_string()))
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.num_rows == 0
+    /// Returns Some(_) only if we know the total number of rows.
+    pub fn is_empty(&self) -> Option<bool> {
+        self.num_rows.map(|x| x == 0)
     }
 
-    pub fn new(names: Vec<String>, chunks: I, num_rows: usize) -> Self {
+    pub fn new(names: Vec<String>, chunks: I, num_rows: Option<usize>) -> Self {
         Self {
             names,
             chunks,
@@ -71,6 +80,45 @@ impl TimeCol {
         }
         match arr.data_type() {
             DataType::Int64 => Ok(Self(arr.as_primitive::<Int64Type>().clone())),
+            DataType::Date32 => {
+                let arr = cast(arr, &DataType::Date64)?
+                    .as_primitive::<Date64Type>()
+                    .clone();
+                Ok(Self(arr.reinterpret_cast()))
+            }
+            DataType::Utf8 => {
+                let strings = arr.as_string::<i32>();
+                // filters out None values in the array
+                let timestamps = strings
+                    .iter()
+                    .flatten()
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
+                    .collect::<Result<Vec<i64>, LoadError>>()?;
+                let arr = PrimitiveArray::<Int64Type>::from(timestamps);
+                Ok(Self(arr))
+            }
+            DataType::LargeUtf8 => {
+                let strings = arr.as_string::<i64>();
+                // filters out None values in the array
+                let timestamps = strings
+                    .iter()
+                    .flatten()
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
+                    .collect::<Result<Vec<i64>, LoadError>>()?;
+                let arr = PrimitiveArray::<Int64Type>::from(timestamps);
+                Ok(Self(arr))
+            }
+            DataType::Utf8View => {
+                let strings = arr.as_string_view();
+                // filters out None values in the array
+                let timestamps = strings
+                    .iter()
+                    .flatten()
+                    .map(|v| v.try_into_time().map(|t| t.t()).map_err(into_load_err))
+                    .collect::<Result<Vec<i64>, LoadError>>()?;
+                let arr = PrimitiveArray::<Int64Type>::from(timestamps);
+                Ok(Self(arr))
+            }
             DataType::Timestamp(_, _) => {
                 let arr = cast(
                     arr,

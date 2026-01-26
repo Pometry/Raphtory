@@ -12,7 +12,7 @@ use crate::{
     },
     storage::{
         raw_edges::EdgeWGuard,
-        timeindex::{AsTime, TimeIndexEntry},
+        timeindex::{AsTime, EventTime},
         NodeEntry, PairEntryMut,
     },
 };
@@ -54,10 +54,10 @@ pub struct TemporalGraph {
 }
 
 #[derive(Error, Debug)]
-#[error("Invalid layer: {invalid_layer}. Valid layers: {valid_layers}")]
+#[error("Invalid layer: {invalid_layer}. Valid layers: {valid_layers:?}")]
 pub struct InvalidLayer {
     invalid_layer: ArcStr,
-    valid_layers: String,
+    valid_layers: Vec<String>,
 }
 
 #[derive(Error, Debug)]
@@ -65,8 +65,7 @@ pub struct InvalidLayer {
 pub struct TooManyLayers;
 
 impl InvalidLayer {
-    pub fn new(invalid_layer: ArcStr, valid: Vec<String>) -> Self {
-        let valid_layers = valid.join(", ");
+    pub fn new(invalid_layer: ArcStr, valid_layers: Vec<String>) -> Self {
         Self {
             invalid_layer,
             valid_layers,
@@ -237,7 +236,7 @@ impl TemporalGraph {
     }
 
     #[inline]
-    pub fn update_time(&self, time: TimeIndexEntry) {
+    pub fn update_time(&self, time: EventTime) {
         let t = time.t();
         self.earliest_time.update(t);
         self.latest_time.update(t);
@@ -247,7 +246,7 @@ impl TemporalGraph {
         &self,
         node_pair: &mut PairEntryMut,
         edge_id: EID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         is_deletion: bool,
     ) {
@@ -270,7 +269,7 @@ impl TemporalGraph {
     pub fn link_edge(
         &self,
         eid: EID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         is_deletion: bool,
     ) -> EdgeWGuard<'_> {
@@ -289,7 +288,7 @@ impl TemporalGraph {
         &self,
         src_id: VID,
         dst_id: VID,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         is_deletion: bool,
     ) -> MaybeNew<EdgeWGuard<'_>> {

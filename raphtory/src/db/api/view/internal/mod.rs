@@ -16,22 +16,22 @@ use std::{
 };
 
 mod edge_filter_ops;
+mod filter;
 mod filter_ops;
 mod into_dynamic;
 mod list_ops;
 mod materialize;
 mod node_filter_ops;
-mod one_hop_filter;
 pub(crate) mod time_semantics;
 mod wrapped_graph;
 
 pub use edge_filter_ops::*;
+pub use filter::*;
 pub use filter_ops::*;
 pub use into_dynamic::{IntoDynHop, IntoDynamic};
 pub use list_ops::*;
 pub use materialize::*;
 pub use node_filter_ops::*;
-pub use one_hop_filter::*;
 pub use raphtory_api::inherit::Base;
 pub use raphtory_storage::{
     core_ops::{CoreGraphOps, InheritCoreGraphOps},
@@ -55,8 +55,6 @@ pub trait BoxableGraphView:
     + InternalPropertiesOps
     + InternalMetadataOps
     + InternalStorageOps
-    + NodeHistoryFilter
-    + EdgeHistoryFilter
     + Send
     + Sync
 {
@@ -75,8 +73,6 @@ impl<
             + InternalPropertiesOps
             + InternalMetadataOps
             + InternalStorageOps
-            + NodeHistoryFilter
-            + EdgeHistoryFilter
             + Send
             + Sync,
     > BoxableGraphView for G

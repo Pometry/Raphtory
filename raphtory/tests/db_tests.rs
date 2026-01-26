@@ -4,10 +4,6 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
 #[cfg(feature = "proto")]
 use raphtory::serialise::StableDecode;
-use raphtory::test_utils::{
-    build_graph, build_graph_strat, test_graph, EdgeFixture, EdgeUpdatesFixture, GraphFixture,
-    NodeFixture, PropUpdatesFixture,
-};
 use raphtory::{
     algorithms::components::weakly_connected_components,
     db::{
@@ -15,11 +11,7 @@ use raphtory::{
             properties::internal::InternalMetadataOps,
             view::{
                 internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
-                // time::internal::InternalTimeOps,
-                EdgeViewOps,
-                LayerOps,
-                NodeViewOps,
-                TimeOps,
+                EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
             },
         },
         graph::{
@@ -31,16 +23,19 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
     test_storage,
+    test_utils::{EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, PropUpdatesFixture},
 };
 use raphtory_api::core::{
     entities::{GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
-        timeindex::TimeIndexEntry,
+        timeindex::{AsTime, EventTime},
     },
-    utils::logging::global_info_logger,
+    utils::{
+        logging::global_info_logger,
+        time::{ParseTimeError, TryIntoTime, TryIntoTimeNeedsEventId},
+    },
 };
-use raphtory_core::utils::time::{ParseTimeError, TryIntoTime};
 use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
 use rayon::{join, prelude::*};
 use std::{
@@ -127,24 +122,20 @@ fn test_empty_graph() {
 
         assert!(graph.start().is_none());
         assert!(graph.end().is_none());
-        assert!(graph.earliest_date_time().is_none());
         assert_eq!(graph.earliest_time(), None);
-        assert!(graph.end_date_time().is_none());
         // assert!(graph.timeline_end().is_none());
 
         assert!(graph.is_empty());
 
         assert!(graph.nodes().collect().is_empty());
-        assert_eq!(
-            graph.edges().collect(),
-            Vec::<EdgeView<Graph, Graph>>::new()
-        );
+        assert_eq!(graph.edges().collect(), Vec::<EdgeView<Graph>>::new());
         assert!(!graph.internal_edge_filtered());
         assert!(graph.edge(1, 2).is_none());
         assert!(graph.latest_time_global().is_none());
-        assert!(graph.latest_time_window(1, 2).is_none());
+        assert!(graph
+            .latest_time_window(EventTime::start(1), EventTime::start(2))
+            .is_none());
         assert!(graph.latest_time().is_none());
-        assert!(graph.latest_date_time().is_none());
         assert!(graph.latest_time_global().is_none());
         assert!(graph.earliest_time_global().is_none());
     });
@@ -382,7 +373,7 @@ fn import_node_as() {
     let y = gg.node("Y").unwrap();
 
     assert_eq!(y.name(), "Y");
-    assert_eq!(y.history(), vec![1]);
+    assert_eq!(y.history().t(), vec![1]);
     assert_eq!(y.properties().get("temp"), None);
     assert_eq!(y.metadata().get("con"), None);
 }
@@ -405,7 +396,7 @@ fn import_node_as_merge() {
 
     let res = gg.import_node_as(&g_b, "Y", true).unwrap();
     assert_eq!(res.name(), "Y");
-    assert_eq!(res.history(), vec![1]);
+    assert_eq!(res.history(), vec![1, 1]);
     assert_eq!(res.properties().get("temp").unwrap(), Prop::Bool(true));
     assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
 }
@@ -464,7 +455,7 @@ fn import_nodes_as_merge() {
     assert_eq!(nodes, vec!["P", "Q"]);
     let y = gg.node("Q").unwrap();
     assert_eq!(y.name(), "Q");
-    assert_eq!(y.history(), vec![1]);
+    assert_eq!(y.history().t().collect(), vec![1, 1]);
     assert_eq!(y.properties().get("temp").unwrap(), Prop::Bool(true));
     assert_eq!(y.metadata().get("con").unwrap(), Prop::I64(11));
 }
@@ -873,14 +864,14 @@ fn test_explode_layers_time() {
         .map_err(|err| error!("{:?}", err))
         .ok();
 
-    assert_eq!(g.latest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 5);
 
     let earliest_times = g
         .edge(1, 2)
         .unwrap()
         .explode_layers()
         .earliest_time()
-        .map(|t| t.unwrap())
+        .map(|t| t.unwrap().t())
         .collect_vec();
 
     assert_eq!(earliest_times, vec![1, 4, 5]);
@@ -890,7 +881,7 @@ fn test_explode_layers_time() {
         .unwrap()
         .explode_layers()
         .latest_time()
-        .map(|t| t.unwrap())
+        .map(|t| t.unwrap().t())
         .collect_vec();
 
     assert_eq!(latest_times, vec![3, 4, 5]);
@@ -908,28 +899,28 @@ fn time_test() {
         .map_err(|err| error!("{:?}", err))
         .ok();
 
-    assert_eq!(g.latest_time(), Some(5));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 5);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 
     let g = Graph::new();
 
     g.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
-    assert_eq!(g.latest_time(), Some(10));
-    assert_eq!(g.earliest_time(), Some(10));
+    assert_eq!(g.latest_time().unwrap().t(), 10);
+    assert_eq!(g.earliest_time().unwrap().t(), 10);
 
     g.add_node(5, 1, NO_PROPS, None)
         .map_err(|err| error!("{:?}", err))
         .ok();
-    assert_eq!(g.latest_time(), Some(10));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 10);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 
     g.add_edge(20, 3, 4, NO_PROPS, None).unwrap();
-    assert_eq!(g.latest_time(), Some(20));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 20);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 
     random_attachment(&g, 100, 10, None);
-    assert_eq!(g.latest_time(), Some(126));
-    assert_eq!(g.earliest_time(), Some(5));
+    assert_eq!(g.latest_time().unwrap().t(), 126);
+    assert_eq!(g.earliest_time().unwrap().t(), 5);
 }
 
 #[test]
@@ -1085,8 +1076,8 @@ fn temporal_node_rows_1_node() {
         assert_eq!(
             actual,
             vec![
-                (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-                (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)])
+                (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+                (EventTime::new(0, 1), vec![Prop::U64(9)])
             ]
         );
     });
@@ -1112,12 +1103,9 @@ fn temporal_node_rows_1_node() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)]),
-            (
-                TimeIndexEntry::new(1, 2),
-                vec![Prop::Bool(false), Prop::U64(19)],
-            ),
+            (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+            (EventTime::new(0, 1), vec![Prop::U64(9)]),
+            (EventTime::new(1, 2), vec![Prop::Bool(false), Prop::U64(19)]),
         ];
         assert_eq!(actual, expected);
     });
@@ -1135,13 +1123,10 @@ fn temporal_node_rows_1_node() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Prop::Bool(true)]),
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(9)]),
-            (
-                TimeIndexEntry::new(1, 2),
-                vec![Prop::Bool(false), Prop::U64(19)],
-            ),
-            (TimeIndexEntry::new(2, 3), vec![]),
+            (EventTime::new(0, 0), vec![Prop::Bool(true)]),
+            (EventTime::new(0, 1), vec![Prop::U64(9)]),
+            (EventTime::new(1, 2), vec![Prop::Bool(false), Prop::U64(19)]),
+            (EventTime::new(2, 3), vec![]),
         ];
 
         assert_eq!(actual, expected);
@@ -1173,7 +1158,7 @@ fn temporal_node_rows_nodes() {
                 .collect::<Vec<_>>();
 
             let expected = vec![(
-                TimeIndexEntry::new(id as i64, id),
+                EventTime::new(id as i64, id),
                 vec![Some(Prop::U64((id as u64) + 1))],
             )];
             assert_eq!(actual, expected);
@@ -1195,7 +1180,7 @@ fn temporal_node_rows_window() {
         .unwrap();
 
     test_storage!(&graph, |graph| {
-        let get_rows = |vid: VID, range: Range<TimeIndexEntry>| {
+        let get_rows = |vid: VID, range: Range<EventTime>| {
             graph
                 .core_graph()
                 .nodes()
@@ -1204,17 +1189,17 @@ fn temporal_node_rows_window() {
                 .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
-        let actual = get_rows(VID(0), TimeIndexEntry::new(2, 0)..TimeIndexEntry::new(3, 0));
+        let actual = get_rows(VID(0), EventTime::new(2, 0)..EventTime::new(3, 0));
 
-        let expected = vec![(TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))])];
+        let expected = vec![(EventTime::new(2, 2), vec![Some(Prop::U64(3))])];
 
         assert_eq!(actual, expected);
 
-        let actual = get_rows(VID(0), TimeIndexEntry::new(0, 0)..TimeIndexEntry::new(3, 0));
+        let actual = get_rows(VID(0), EventTime::new(0, 0)..EventTime::new(3, 0));
         let expected = vec![
-            (TimeIndexEntry::new(0, 0), vec![Some(Prop::U64(1))]),
-            (TimeIndexEntry::new(1, 1), vec![Some(Prop::U64(2))]),
-            (TimeIndexEntry::new(2, 2), vec![Some(Prop::U64(3))]),
+            (EventTime::new(0, 0), vec![Some(Prop::U64(1))]),
+            (EventTime::new(1, 1), vec![Some(Prop::U64(2))]),
+            (EventTime::new(2, 2), vec![Some(Prop::U64(3))]),
         ];
 
         assert_eq!(actual, expected);
@@ -1252,6 +1237,7 @@ fn temporal_props_node() {
             .get("cool")
             .unwrap()
             .iter()
+            .map(|(x, y)| (x.t(), y))
             .collect();
         assert_eq!(hist, vec![(3, Prop::Bool(false))]);
 
@@ -1263,6 +1249,7 @@ fn temporal_props_node() {
             .get("cool")
             .unwrap()
             .iter()
+            .map(|(x, y)| (x.t(), y))
             .collect();
         assert_eq!(hist, vec![(0, Prop::Bool(true)), (3, Prop::Bool(false))]);
     });
@@ -1441,9 +1428,7 @@ fn layers() -> Result<(), GraphError> {
         assert_eq!(node1.in_degree(), 0);
         assert_eq!(node2.in_degree(), 0);
 
-        fn to_tuples<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-            edges: Edges<'graph, G, GH>,
-        ) -> Vec<(u64, u64)> {
+        fn to_tuples<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<(u64, u64)> {
             edges
                 .id()
                 .filter_map(|(s, d)| s.to_u64().zip(d.to_u64()))
@@ -1475,8 +1460,8 @@ fn layers() -> Result<(), GraphError> {
         assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
         assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-            neighbours: PathFromNode<'graph, G, GH>,
+        fn to_ids<'graph, G: GraphViewOps<'graph>>(
+            neighbours: PathFromNode<'graph, G>,
         ) -> Vec<u64> {
             neighbours
                 .iter()
@@ -1591,7 +1576,7 @@ fn test_edge_earliest_latest() {
         res = graph.after(1).edge(1, 2).unwrap().latest_time().unwrap();
         assert_eq!(res, 2);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .edges()
@@ -1600,7 +1585,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .edges()
@@ -1609,7 +1594,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .at(1)
@@ -1619,7 +1604,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![1, 1]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .before(1)
@@ -1629,7 +1614,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .after(1)
@@ -1639,7 +1624,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![2, 2]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .at(1)
@@ -1649,7 +1634,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![1, 1]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .before(1)
@@ -1659,7 +1644,7 @@ fn test_edge_earliest_latest() {
             .collect();
         assert_eq!(res_list, vec![0, 0]);
 
-        let res_list: Vec<i64> = graph
+        let res_list: Vec<EventTime> = graph
             .node(1)
             .unwrap()
             .after(1)
@@ -1773,13 +1758,10 @@ fn node_history_rows() {
             .collect::<Vec<_>>();
 
         let expected = vec![
-            (TimeIndexEntry::new(0, 1), vec![Prop::U64(1)]),
-            (
-                TimeIndexEntry::new(1, 2),
-                vec![Prop::Bool(true), Prop::I64(2)],
-            ),
-            (TimeIndexEntry::new(1, 4), vec![Prop::U64(3)]),
-            (TimeIndexEntry::new(2, 3), vec![]),
+            (EventTime::new(0, 1), vec![Prop::U64(1)]),
+            (EventTime::new(1, 2), vec![Prop::Bool(true), Prop::I64(2)]),
+            (EventTime::new(1, 4), vec![Prop::U64(3)]),
+            (EventTime::new(2, 3), vec![]),
         ];
 
         assert_eq!(actual, expected);
@@ -1791,7 +1773,7 @@ fn node_history_rows() {
             .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
-        let expected = vec![(TimeIndexEntry::new(1, 0), vec![Prop::U64(1)])];
+        let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
 
         assert_eq!(actual, expected);
     });
@@ -1879,6 +1861,7 @@ fn check_node_edge_history_count() {
 
 #[cfg(feature = "storage")]
 use raphtory::test_utils::test_disk_graph;
+use raphtory::test_utils::{build_graph, build_graph_strat, test_graph};
 #[cfg(feature = "storage")]
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 #[cfg(feature = "storage")]
@@ -1974,27 +1957,29 @@ fn check_edge_history_on_multiple_shards() {
 #[derive(Debug)]
 struct CustomTime<'a>(&'a str, &'a str);
 
+impl TryIntoTimeNeedsEventId for CustomTime<'_> {}
+
 impl<'a> TryIntoTime for CustomTime<'a> {
-    fn try_into_time(self) -> Result<i64, ParseTimeError> {
+    fn try_into_time(self) -> Result<EventTime, ParseTimeError> {
         let CustomTime(time, fmt) = self;
         let time = NaiveDateTime::parse_from_str(time, fmt)?;
         let time = time.and_utc().timestamp_millis();
-        Ok(time)
+        Ok(EventTime::from(time))
     }
 }
 
 #[test]
 fn test_ingesting_timestamps() {
-    let earliest_time = "2022-06-06 12:34:00".try_into_time().unwrap();
-    let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap();
+    let earliest_time = "2022-06-06 12:34:00".try_into_time().unwrap().t();
+    let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap().t();
 
     let g = Graph::new();
     g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None)
         .unwrap();
     g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
         .unwrap();
-    assert_eq!(g.earliest_time().unwrap(), earliest_time);
-    assert_eq!(g.latest_time().unwrap(), latest_time);
+    assert_eq!(g.earliest_time().unwrap().t(), earliest_time);
+    assert_eq!(g.latest_time().unwrap().t(), latest_time);
 
     let g = Graph::new();
     let fmt = "%Y-%m-%d %H:%M";
@@ -2213,7 +2198,7 @@ fn test_temporral_edge_props_window() {
             .properties()
             .temporal()
             .iter()
-            .map(|(k, v)| (k.clone(), v.iter().collect()))
+            .map(|(k, v)| (k.clone(), v.iter().map(|(x, y)| (x.t(), y)).collect()))
             .collect();
 
         let mut exp = HashMap::new();
@@ -2234,17 +2219,35 @@ fn test_node_early_late_times() {
 
     // FIXME: Node add without properties not showing up (Issue #46)
     test_graph(&graph, |graph| {
-        assert_eq!(graph.node(1).unwrap().earliest_time(), Some(1));
-        assert_eq!(graph.node(1).unwrap().latest_time(), Some(3));
+        assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
+        assert_eq!(graph.node(1).unwrap().latest_time().unwrap().t(), 3);
 
-        assert_eq!(graph.at(2).node(1).unwrap().earliest_time(), Some(2));
-        assert_eq!(graph.at(2).node(1).unwrap().latest_time(), Some(2));
+        assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().t(), 2);
+        assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().t(), 2);
 
-        assert_eq!(graph.before(2).node(1).unwrap().earliest_time(), Some(1));
-        assert_eq!(graph.before(2).node(1).unwrap().latest_time(), Some(1));
+        assert_eq!(
+            graph
+                .before(2)
+                .node(1)
+                .unwrap()
+                .earliest_time()
+                .unwrap()
+                .t(),
+            1
+        );
+        assert_eq!(
+            graph.before(2).node(1).unwrap().latest_time().unwrap().t(),
+            1
+        );
 
-        assert_eq!(graph.after(2).node(1).unwrap().earliest_time(), Some(3));
-        assert_eq!(graph.after(2).node(1).unwrap().latest_time(), Some(3));
+        assert_eq!(
+            graph.after(2).node(1).unwrap().earliest_time().unwrap().t(),
+            3
+        );
+        assert_eq!(
+            graph.after(2).node(1).unwrap().latest_time().unwrap().t(),
+            3
+        );
     })
 }
 
@@ -2448,7 +2451,7 @@ fn test_layer_explode_stacking() {
                 e.explode().into_iter().filter_map(|e| {
                     e.layer_name()
                         .ok()
-                        .zip(e.time().ok())
+                        .zip(e.time().ok().map(|t| t.t()))
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                 })
             })
@@ -2488,7 +2491,7 @@ fn test_layer_explode_stacking_window() {
                 e.explode().into_iter().filter_map(|e| {
                     e.layer_name()
                         .ok()
-                        .zip(e.time().ok())
+                        .zip(e.time().ok().map(|t| t.t()))
                         .map(|(layer, t)| (t, e.src().id(), e.dst().id(), layer))
                 })
             })
@@ -2742,7 +2745,7 @@ fn check_exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, off
                             ee.earliest_time() == ee.latest_time(),
                             format!("times mismatched for {:?}", ee),
                         ); // times are the same for exploded edge
-                        let t = ee.earliest_time().unwrap();
+                        let t = ee.earliest_time().unwrap().t();
                         check(
                             ee.at(t).is_active(),
                             format!("exploded edge {:?} inactive at {}", ee, t),
@@ -2773,103 +2776,6 @@ fn check_exploded_edge_times_is_consistent(edges: Vec<(u64, u64, Vec<i64>)>, off
         ),
     );
     correct
-}
-
-#[test]
-fn test_one_hop_filter_reset() {
-    let graph = Graph::new();
-    graph.add_edge(0, 1, 2, [("layer", 1)], Some("1")).unwrap();
-    graph.add_edge(1, 1, 3, [("layer", 1)], Some("1")).unwrap();
-    graph.add_edge(1, 2, 3, [("layer", 2)], Some("2")).unwrap();
-    graph.add_edge(2, 3, 4, [("layer", 2)], Some("2")).unwrap();
-    graph.add_edge(0, 1, 3, [("layer", 2)], Some("2")).unwrap();
-
-    test_storage!(&graph, |graph| {
-        let v = graph.node(1).unwrap();
-
-        // filtering resets on neighbours
-        let out_out: Vec<_> = v
-            .at(0)
-            .layers("1")
-            .unwrap()
-            .out_neighbours()
-            .layers("2")
-            .unwrap()
-            .out_neighbours()
-            .id()
-            .collect();
-        assert_eq!(out_out, [GID::U64(3)]);
-
-        let out_out: Vec<_> = v
-            .at(0)
-            .layers("1")
-            .unwrap()
-            .out_neighbours()
-            .layers("2")
-            .unwrap()
-            .out_edges()
-            .properties()
-            .flat_map(|p| p.get("layer").into_i32())
-            .collect();
-        assert_eq!(out_out, [2]);
-
-        // filter applies to edges
-        let layers: Vec<_> = v
-            .layers("1")
-            .unwrap()
-            .edges()
-            .layer_names()
-            .flatten()
-            .dedup()
-            .collect();
-        assert_eq!(layers, ["1"]);
-
-        // graph level filter is preserved
-        let out_out_2: Vec<_> = graph
-            .at(0)
-            .node(1)
-            .unwrap()
-            .layers("1")
-            .unwrap()
-            .out_neighbours()
-            .layers("2")
-            .unwrap()
-            .out_neighbours()
-            .id()
-            .collect();
-        assert!(out_out_2.is_empty());
-
-        let v = graph.node(1).unwrap();
-        let out_out: Vec<_> = v
-            .at(0)
-            .out_neighbours()
-            .after(1)
-            .out_neighbours()
-            .id()
-            .collect();
-        assert_eq!(out_out, [GID::U64(4)]);
-
-        let earliest_time = v
-            .at(0)
-            .out_neighbours()
-            .after(1)
-            .out_edges()
-            .earliest_time()
-            .flatten()
-            .min();
-        assert_eq!(earliest_time, Some(2));
-
-        // dst and src on edge reset the filter
-        let degrees: Vec<_> = v
-            .at(0)
-            .layers("1")
-            .unwrap()
-            .edges()
-            .dst()
-            .out_degree()
-            .collect();
-        assert_eq!(degrees, [1]);
-    });
 }
 
 #[test]
@@ -3488,7 +3394,7 @@ fn test_unique_property() {
         .unwrap()
         .ordered_dedupe(true)
         .into_iter()
-        .map(|(x, y)| (x, y.unwrap_str().to_string()))
+        .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
         .collect_vec();
 
     assert_eq!(
@@ -3510,7 +3416,7 @@ fn test_unique_property() {
         .unwrap()
         .ordered_dedupe(false)
         .into_iter()
-        .map(|(x, y)| (x, y.unwrap_str().to_string()))
+        .map(|(x, y)| (x.t(), y.unwrap_str().to_string()))
         .collect_vec();
 
     assert_eq!(

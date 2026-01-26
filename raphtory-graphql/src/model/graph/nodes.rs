@@ -1,8 +1,9 @@
 use crate::{
     model::{
         graph::{
-            filtering::{NodeFilter, NodesViewCollection},
+            filtering::{GqlNodeFilter, NodesViewCollection},
             node::GqlNode,
+            timeindex::{GqlEventTime, GqlTimeInput},
             windowset::GqlNodesWindowSet,
             GqlAlignmentUnit, WindowDuration,
         },
@@ -15,30 +16,38 @@ use itertools::Itertools;
 use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
-        api::{state::Index, view::DynamicGraph},
-        graph::{nodes::Nodes, views::filter::model::node_filter::CompositeNodeFilter},
+        api::{
+            state::{ops::DynNodeFilter, Index},
+            view::{filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter},
+        },
+        graph::{
+            nodes::{IntoDynNodes, Nodes},
+            views::filter::model::node_filter::CompositeNodeFilter,
+        },
     },
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{entities::VID, utils::time::IntoTime};
 use std::cmp::Ordering;
 
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "Nodes")]
 pub(crate) struct GqlNodes {
-    pub(crate) nn: Nodes<'static, DynamicGraph>,
+    pub(crate) nn: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }
 
 impl GqlNodes {
-    fn update<N: Into<Nodes<'static, DynamicGraph>>>(&self, nodes: N) -> Self {
+    fn update<N: IntoDynNodes>(&self, nodes: N) -> Self {
         GqlNodes::new(nodes)
     }
 }
 
 impl GqlNodes {
-    pub(crate) fn new<N: Into<Nodes<'static, DynamicGraph>>>(nodes: N) -> Self {
-        Self { nn: nodes.into() }
+    pub(crate) fn new<N: IntoDynNodes>(nodes: N) -> Self {
+        Self {
+            nn: nodes.into_dyn(),
+        }
     }
 
     fn iter(&self) -> Box<dyn Iterator<Item = GqlNode> + '_> {
@@ -126,13 +135,13 @@ impl GqlNodes {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.window(start, end))
+    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.window(start.into_time(), end.into_time()))
     }
 
     /// Create a view of the nodes including all events at a specified time.
-    async fn at(&self, time: i64) -> Self {
-        self.update(self.nn.at(time))
+    async fn at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.at(time.into_time()))
     }
 
     /// Create a view of the nodes including all events at the latest time.
@@ -142,8 +151,8 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: i64) -> Self {
-        self.update(self.nn.snapshot_at(time))
+    async fn snapshot_at(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.snapshot_at(time.into_time()))
     }
 
     /// Create a view of the nodes including all events that are valid at the latest time.
@@ -153,45 +162,34 @@ impl GqlNodes {
     }
 
     /// Create a view of the nodes including all events before specified end time (exclusive).
-    async fn before(&self, time: i64) -> Self {
-        self.update(self.nn.before(time))
+    async fn before(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.before(time.into_time()))
     }
 
     /// Create a view of the nodes including all events after the specified start time (exclusive).
-    async fn after(&self, time: i64) -> Self {
-        self.update(self.nn.after(time))
+    async fn after(&self, time: GqlTimeInput) -> Self {
+        self.update(self.nn.after(time.into_time()))
     }
 
     /// Shrink both the start and end of the window.
-    async fn shrink_window(&self, start: i64, end: i64) -> Self {
-        self.update(self.nn.shrink_window(start, end))
+    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_window(start.into_time(), end.into_time()))
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-    async fn shrink_start(&self, start: i64) -> Self {
-        self.update(self.nn.shrink_start(start))
+    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_start(start.into_time()))
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-    async fn shrink_end(&self, end: i64) -> Self {
-        self.update(self.nn.shrink_end(end))
+    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+        self.update(self.nn.shrink_end(end.into_time()))
     }
 
     /// Filter nodes by node type.
     async fn type_filter(&self, node_types: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
-    }
-
-    /// Returns a view of the node types.
-    async fn node_filter(&self, filter: NodeFilter) -> Result<Self, GraphError> {
-        let self_clone = self.clone();
-        blocking_compute(move || {
-            let filter: CompositeNodeFilter = filter.try_into()?;
-            let filtered_nodes = self_clone.nn.filter_nodes(filter)?;
-            Ok(self_clone.update(filtered_nodes.into_dyn()))
-        })
-        .await
     }
 
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {
@@ -205,7 +203,6 @@ impl GqlNodes {
                         return_view
                     }
                 }
-                NodesViewCollection::Layer(layer) => return_view.layer(layer).await,
                 NodesViewCollection::ExcludeLayer(layer) => return_view.exclude_layer(layer).await,
                 NodesViewCollection::Layers(layers) => return_view.layers(layers).await,
                 NodesViewCollection::ExcludeLayers(layers) => {
@@ -238,7 +235,7 @@ impl GqlNodes {
                 NodesViewCollection::ShrinkStart(time) => return_view.shrink_start(time).await,
                 NodesViewCollection::ShrinkEnd(time) => return_view.shrink_end(time).await,
                 NodesViewCollection::NodeFilter(node_filter) => {
-                    return_view.node_filter(node_filter).await?
+                    return_view.filter(node_filter).await?
                 }
                 NodesViewCollection::TypeFilter(types) => return_view.type_filter(types).await,
             }
@@ -308,13 +305,13 @@ impl GqlNodes {
     ////////////////////////
 
     /// Returns the start time of the window. Errors if there is no window.
-    async fn start(&self) -> Option<i64> {
-        self.nn.start()
+    async fn start(&self) -> GqlEventTime {
+        self.nn.start().into()
     }
 
     /// Returns the end time of the window. Errors if there is no window.
-    async fn end(&self) -> Option<i64> {
-        self.nn.end()
+    async fn end(&self) -> GqlEventTime {
+        self.nn.end().into()
     }
 
     /////////////////
@@ -354,5 +351,27 @@ impl GqlNodes {
     async fn ids(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.iter_unlocked().map(|nn| nn.name()).collect()).await
+    }
+
+    /// Returns a filtered view that applies to list down the chain
+    async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.filter(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
+    }
+
+    /// Returns filtered list of nodes
+    async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
+        let self_clone = self.clone();
+        blocking_compute(move || {
+            let filter: CompositeNodeFilter = expr.try_into()?;
+            let filtered = self_clone.nn.select(filter)?;
+            Ok(self_clone.update(filtered.into_dyn()))
+        })
+        .await
     }
 }

@@ -3,16 +3,16 @@ use crate::{
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::{
-    properties::prop::{PropError, PropType},
-    GID,
-};
-use raphtory_core::{
+use raphtory_api::core::{
     entities::{
-        graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
-        properties::props::{MetadataError, TPropError},
+        properties::prop::{PropError, PropType},
+        GID,
     },
-    utils::time::ParseTimeError,
+    storage::timeindex::TimeError,
+};
+use raphtory_core::entities::{
+    graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
+    properties::props::{MetadataError, TPropError},
 };
 use raphtory_storage::mutation::MutationError;
 use std::{
@@ -29,12 +29,15 @@ use pometry_storage::RAError;
 use {
     arrow::{datatypes::DataType, error::ArrowError},
     parquet::errors::ParquetError,
-    raphtory_api::core::entities::{properties::prop::DeserialisationError, GidType, VID},
+    raphtory_api::core::entities::{
+        properties::prop::{DeserialisationError, InvalidPropertyTypeErr},
+        GidType, VID,
+    },
 };
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;
-
+use raphtory_api::core::utils::time::ParseTimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
@@ -82,6 +85,11 @@ pub enum LoadError {
     InvalidNodeIdType(DataType),
     #[error("{0:?} not supported for time column")]
     InvalidTimestamp(DataType),
+    #[error("Error during parsing of time string: {source}")]
+    ParseTime {
+        #[from]
+        source: ParseTimeError,
+    },
     #[error("Missing value for src id")]
     MissingSrcError,
     #[error("Missing value for dst id")]
@@ -98,6 +106,11 @@ pub enum LoadError {
     FatalError,
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
+}
+
+#[cfg(feature = "arrow")]
+pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
+    err.into()
 }
 
 #[cfg(feature = "proto")]
@@ -211,6 +224,10 @@ pub enum GraphError {
 
     #[error("Property {0} does not exist")]
     PropertyMissingError(String),
+
+    #[error("Metadata {0} does not exist")]
+    MetadataMissingError(String),
+
     // wasm
     #[error(transparent)]
     InvalidLayer(#[from] InvalidLayer),
@@ -300,6 +317,13 @@ pub enum GraphError {
     #[error("The time function is only available once an edge has been exploded via .explode(). You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time")]
     TimeAPIError,
 
+    #[error("Timestamp '{timestamp}' is out of range for DateTime conversion.")]
+    DateTimeConversionError {
+        #[source]
+        source: TimeError,
+        timestamp: i64,
+    },
+
     #[error("Illegal set error {0}")]
     IllegalSet(String),
 
@@ -367,6 +391,9 @@ pub enum GraphError {
     #[error("Not supported")]
     NotSupported,
 
+    #[error("Node filter expected")]
+    NotNodeFilter,
+
     #[error("Operator {0} requires a property value, but none was provided.")]
     InvalidFilterExpectSingleGotNone(FilterOperator),
 
@@ -390,6 +417,9 @@ pub enum GraphError {
 
     #[error("Invalid filter: {0}")]
     InvalidGqlFilter(String),
+
+    #[error("Invalid filter: {0}")]
+    InvalidFilter(String),
 
     #[error("Property {0} not found in temporal or metadata")]
     PropertyNotFound(String),
@@ -468,8 +498,33 @@ impl<A: Debug> From<IllegalSet<A>> for GraphError {
     }
 }
 
+impl From<TimeError> for GraphError {
+    fn from(error: TimeError) -> Self {
+        match error {
+            TimeError::OutOfRange(timestamp) => Self::DateTimeConversionError {
+                source: error,
+                timestamp,
+            },
+        }
+    }
+}
+
 impl From<GraphError> for io::Error {
     fn from(error: GraphError) -> Self {
         io::Error::other(error)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<InvalidPropertyTypeErr> for LoadError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        LoadError::InvalidPropertyType(value.0)
+    }
+}
+
+#[cfg(feature = "arrow")]
+impl From<InvalidPropertyTypeErr> for GraphError {
+    fn from(value: InvalidPropertyTypeErr) -> Self {
+        GraphError::from(LoadError::from(value))
     }
 }

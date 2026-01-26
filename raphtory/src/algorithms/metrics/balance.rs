@@ -41,8 +41,8 @@ pub struct BalanceState {
 ///
 /// # Returns
 /// An `f64` which is the net sum of weights for the node considering the specified direction.
-fn balance_per_node<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    v: &NodeView<'graph, G, GH>,
+fn balance_per_node<'graph, G: GraphViewOps<'graph>>(
+    v: &NodeView<'graph, G>,
     prop_id: usize,
     direction: Direction,
 ) -> f64 {

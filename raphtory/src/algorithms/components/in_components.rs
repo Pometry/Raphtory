@@ -2,7 +2,7 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+            state::{ops::Const, Index, GenericNodeState, NodeStateOutputType, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -75,7 +75,7 @@ where
     G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = g.into();
-    let step1 = ATask::new(move |vv: &mut EvalNodeView<G, InState>| {
+    let step1 = ATask::new(move |vv: &mut EvalNodeView<_, InState>| {
         let mut in_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.in_neighbours().iter().for_each(|node| {
@@ -125,6 +125,17 @@ where
         None,
     )
 }
+
+/*
+            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+                Nodes::new_filtered(
+                    g.clone(),
+                    g.clone(),
+                    Const(true),
+                    Some(Index::from_iter(v.in_components)),
+                )
+            })
+ */
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct InComponentState {

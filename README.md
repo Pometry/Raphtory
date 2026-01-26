@@ -161,7 +161,7 @@ df = pd.read_csv(url)
 
 # Load the lord of the rings graph from the dataframe
 graph = Graph()
-graph.load_edges_from_pandas(df,"time","src_id","dst_id")
+graph.load_edges(df,"time","src_id","dst_id")
 
 #Create a working_dir for your server and save your graph into it 
 #You can save any number of graphs here or create them via the server ones its running

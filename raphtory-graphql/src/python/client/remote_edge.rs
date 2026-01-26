@@ -3,8 +3,12 @@ use crate::python::client::{
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
-use raphtory::{core::utils::time::IntoTime, errors::GraphError, python::utils::PyTime};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory::errors::GraphError;
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
+};
 use std::collections::HashMap;
 
 /// A remote edge reference
@@ -49,7 +53,7 @@ impl PyRemoteEdge {
     fn add_updates(
         &self,
         py: Python,
-        t: PyTime,
+        t: EventTime,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
@@ -67,7 +71,7 @@ impl PyRemoteEdge {
             path => self.path,
             src => self.src,
             dst => self.dst,
-            t => t.into_time(),
+            t => t.into_time().t(),
             properties =>  properties.map(|p| build_property_string(p)),
             layer => layer
         };
@@ -87,7 +91,7 @@ impl PyRemoteEdge {
     /// Returns:
     /// None:
     #[pyo3(signature = (t, layer=None))]
-    fn delete(&self, py: Python, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
+    fn delete(&self, py: Python, t: EventTime, layer: Option<&str>) -> Result<(), GraphError> {
         let template = r#"
             {
               updateGraph(path: "{{path}}") {
@@ -102,7 +106,7 @@ impl PyRemoteEdge {
             path => self.path,
             src => self.src,
             dst => self.dst,
-            t => t.into_time(),
+            t => t.into_time().t(),
             layer => layer
         };
 

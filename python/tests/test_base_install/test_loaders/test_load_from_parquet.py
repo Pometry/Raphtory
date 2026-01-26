@@ -1,3 +1,4 @@
+import datetime
 import os
 import re
 import pyarrow as pa
@@ -240,15 +241,15 @@ def test_load_from_parquet_graphs(parquet_files):
     ) = parquet_files
 
     g = Graph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         time="time",
         src="src",
         dst="dst",
         properties=["weight", "marbles"],
     )
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         properties=["name"],
@@ -258,15 +259,15 @@ def test_load_from_parquet_graphs(parquet_files):
     assert_expected_edges(g)
 
     g = Graph()
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         node_type_col="node_type",
         properties=["name"],
     )
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         time="time",
@@ -277,8 +278,8 @@ def test_load_from_parquet_graphs(parquet_files):
     assert_expected_edges(g)
     assert_expected_layers(g)
 
-    g.load_node_props_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_node_metadata(
+        data=nodes_parquet_file_path,
         id="id",
         metadata=["type"],
         shared_metadata={"tag": "test_tag"},
@@ -286,8 +287,8 @@ def test_load_from_parquet_graphs(parquet_files):
     assert_expected_node_property_tag(g)
     assert_expected_node_property_type(g)
 
-    g.load_edge_props_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edge_metadata(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         metadata=["marbles_const"],
@@ -298,8 +299,8 @@ def test_load_from_parquet_graphs(parquet_files):
     assert_expected_layers(g)
 
     g = Graph()
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         id="id",
         time="time",
         node_type_col="node_type",
@@ -310,8 +311,8 @@ def test_load_from_parquet_graphs(parquet_files):
     assert_expected_node_property_tag(g)
 
     g = Graph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         time="time",
@@ -324,15 +325,15 @@ def test_load_from_parquet_graphs(parquet_files):
     assert_expected_test_layer(g)
 
     g = Graph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         time="time",
         src="src",
         dst="dst",
         layer="test_layer",
     )
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         properties=["name"],
@@ -342,15 +343,15 @@ def test_load_from_parquet_graphs(parquet_files):
     assert_expected_node_property_dept(g)
 
     g = Graph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         time="time",
         layer_col="layers",
     )
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         properties=["name"],
@@ -368,15 +369,15 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     ) = parquet_files
 
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         time="time",
         properties=["weight", "marbles"],
     )
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         properties=["name"],
@@ -386,15 +387,15 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_edges(g)
 
     g = PersistentGraph()
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         id="id",
         time="time",
         node_type="node_type",
         properties=["name"],
     )
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         time="time",
@@ -405,8 +406,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_edges(g)
     assert_expected_layers(g)
 
-    g.load_node_props_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_node_metadata(
+        data=nodes_parquet_file_path,
         id="id",
         metadata=["type"],
         shared_metadata={"tag": "test_tag"},
@@ -414,8 +415,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_node_property_tag(g)
     assert_expected_node_property_type(g)
 
-    g.load_edge_props_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edge_metadata(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         metadata=["marbles_const"],
@@ -426,8 +427,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_layers(g)
 
     g = PersistentGraph()
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         node_type_col="node_type",
@@ -438,8 +439,8 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_node_property_tag(g)
 
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         time="time",
         src="src",
         dst="dst",
@@ -452,15 +453,15 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_test_layer(g)
 
     g = Graph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         time="time",
         layer="test_layer",
     )
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         properties=["name"],
@@ -470,15 +471,15 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_node_property_dept(g)
 
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         src="src",
         dst="dst",
         time="time",
         layer_col="layers",
     )
-    g.load_nodes_from_parquet(
-        parquet_path=nodes_parquet_file_path,
+    g.load_nodes(
+        data=nodes_parquet_file_path,
         time="time",
         id="id",
         properties=["name"],
@@ -488,15 +489,15 @@ def test_load_from_parquet_persistent_graphs(parquet_files):
     assert_expected_layers(g)
 
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        parquet_path=edges_parquet_file_path,
+    g.load_edges(
+        data=edges_parquet_file_path,
         time="time",
         src="src",
         dst="dst",
     )
     assert set(g.window(10, 12).edges.id) == {(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)}
-    g.load_edge_deletions_from_parquet(
-        parquet_path=edges_deletions_parquet_file_path,
+    g.load_edge_deletions(
+        data=edges_deletions_parquet_file_path,
         time="time",
         src="src",
         dst="dst",
@@ -514,9 +515,9 @@ def test_edge_both_option_failures_parquet(parquet_files):
     g = Graph()
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edges_from_parquet(
+        g.load_edges(
             edges_parquet_file_path,
             "time",
             "src",
@@ -527,17 +528,15 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edge_props_from_parquet(
+        g.load_edge_metadata(
             edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
         )
 
     # CHECK IF JUST LAYER WORKS
     g = Graph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -548,10 +547,8 @@ def test_edge_both_option_failures_parquet(parquet_files):
     assert g.unique_layers == ["blah"]
 
     g = Graph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
-    g.load_edge_props_from_parquet(
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
+    g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
         "dst",
@@ -578,9 +575,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST LAYER_COL WORKS
     g = Graph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
         (2, 3): ["blue"],
@@ -597,10 +592,8 @@ def test_edge_both_option_failures_parquet(parquet_files):
     }
 
     g = Graph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
-    g.load_edge_props_from_parquet(
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
+    g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
         "dst",
@@ -632,9 +625,9 @@ def test_edge_both_option_failures_parquet(parquet_files):
     g = PersistentGraph()
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edges_from_parquet(
+        g.load_edges(
             edges_parquet_file_path,
             "time",
             "src",
@@ -645,17 +638,17 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edge_props_from_parquet(
+        g.load_edge_metadata(
             edges_parquet_file_path, "src", "dst", layer="blah", layer_col="marbles"
         )
 
     with pytest.raises(
         Exception,
-        match=r"Failed to load graph: Failed to load graph WrongNumOfArgs\(\"layer_name\", \"layer_col\"\)",
+        match=r"Failed to load graph: You cannot set ‘layer_name’ and ‘layer_col’ at the same time. Please pick one or the other.",
     ):
-        g.load_edge_deletions_from_parquet(
+        g.load_edge_deletions(
             edges_parquet_file_path,
             "time",
             "src",
@@ -666,9 +659,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST LAYER WORKS
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -679,10 +670,8 @@ def test_edge_both_option_failures_parquet(parquet_files):
     assert g.unique_layers == ["blah"]
 
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
-    g.load_edge_props_from_parquet(
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer="blah")
+    g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
         "dst",
@@ -708,9 +697,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     }
 
     g = PersistentGraph()
-    g.load_edge_deletions_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer="blah"
-    )
+    g.load_edge_deletions(edges_parquet_file_path, "time", "src", "dst", layer="blah")
     assert g.edges.layer_names.collect() == [
         ["blah"],
         ["blah"],
@@ -722,9 +709,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST LAYER_COL WORKS
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
         (1, 2): ["red"],
         (2, 3): ["blue"],
@@ -741,10 +726,8 @@ def test_edge_both_option_failures_parquet(parquet_files):
     }
 
     g = PersistentGraph()
-    g.load_edges_from_parquet(
-        edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
-    )
-    g.load_edge_props_from_parquet(
+    g.load_edges(edges_parquet_file_path, "time", "src", "dst", layer_col="marbles")
+    g.load_edge_metadata(
         edges_parquet_file_path,
         "src",
         "dst",
@@ -774,7 +757,7 @@ def test_edge_both_option_failures_parquet(parquet_files):
     }
 
     g = PersistentGraph()
-    g.load_edge_deletions_from_parquet(
+    g.load_edge_deletions(
         edges_parquet_file_path, "time", "src", "dst", layer_col="marbles"
     )
     assert dict(zip(g.edges.id, g.edges.layer_names)) == {
@@ -804,11 +787,11 @@ def test_node_both_option_failures_parquet(parquet_files):
     with pytest.raises(
         Exception,
         match=re.escape(
-            r'Failed to load graph: Failed to load graph WrongNumOfArgs("node_type_name", "node_type_col")'
+            r"Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
         ),
     ):
         g = Graph()
-        g.load_nodes_from_parquet(
+        g.load_nodes(
             nodes_parquet_file_path,
             "time",
             "id",
@@ -819,11 +802,11 @@ def test_node_both_option_failures_parquet(parquet_files):
     with pytest.raises(
         Exception,
         match=re.escape(
-            r'Failed to load graph: Failed to load graph WrongNumOfArgs("node_type_name", "node_type_col")'
+            r"Failed to load graph: You cannot set ‘node_type_name’ and ‘node_type_col’ at the same time. Please pick one or the other."
         ),
     ):
         g = Graph()
-        g.load_node_props_from_parquet(
+        g.load_node_metadata(
             nodes_parquet_file_path,
             "id",
             node_type="node_type",
@@ -832,9 +815,7 @@ def test_node_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST NODE_TYPE WORKS
     g = Graph()
-    g.load_nodes_from_parquet(
-        nodes_parquet_file_path, "time", "id", node_type="node_type"
-    )
+    g.load_nodes(nodes_parquet_file_path, "time", "id", node_type="node_type")
     assert g.nodes.node_type.collect() == [
         "node_type",
         "node_type",
@@ -844,8 +825,8 @@ def test_node_both_option_failures_parquet(parquet_files):
         "node_type",
     ]
     g = Graph()
-    g.load_nodes_from_parquet(nodes_parquet_file_path, "time", "id")
-    g.load_node_props_from_parquet(nodes_parquet_file_path, "id", node_type="node_type")
+    g.load_nodes(nodes_parquet_file_path, "time", "id")
+    g.load_node_metadata(nodes_parquet_file_path, "id", node_type="node_type")
     assert g.nodes.node_type.collect() == [
         "node_type",
         "node_type",
@@ -857,13 +838,169 @@ def test_node_both_option_failures_parquet(parquet_files):
 
     # CHECK IF JUST NODE_TYPE_COL WORKS
     g = Graph()
-    g.load_nodes_from_parquet(
-        nodes_parquet_file_path, "time", "id", node_type_col="node_type"
-    )
+    g.load_nodes(nodes_parquet_file_path, "time", "id", node_type_col="node_type")
     assert g.nodes.node_type.sorted_by_id() == ["p1", "p2", "p3", "p4", "p5", "p6"]
     g = Graph()
-    g.load_nodes_from_parquet(nodes_parquet_file_path, "time", "id")
-    g.load_node_props_from_parquet(
-        nodes_parquet_file_path, "id", node_type_col="node_type"
-    )
+    g.load_nodes(nodes_parquet_file_path, "time", "id")
+    g.load_node_metadata(nodes_parquet_file_path, "id", node_type_col="node_type")
     assert g.nodes.node_type.sorted_by_id() == ["p1", "p2", "p3", "p4", "p5", "p6"]
+
+
+def _utc_midnight(dt: datetime.date) -> datetime.datetime:
+    return datetime.datetime(dt.year, dt.month, dt.day, tzinfo=datetime.timezone.utc)
+
+
+def _ms_from_date(d: datetime.date) -> int:
+    return int(
+        datetime.datetime(
+            d.year, d.month, d.day, tzinfo=datetime.timezone.utc
+        ).timestamp()
+        * 1000
+    )
+
+
+def test_load_nodes_from_parquet_date32(tmp_path):
+    dates = [
+        datetime.date(1970, 1, 1),
+        datetime.date(1970, 1, 2),
+        datetime.date(1970, 1, 3),
+    ]
+    table = pa.table(
+        {
+            "id": pa.array([1, 2, 3], type=pa.int64()),
+            "time": pa.array(dates, type=pa.date32()),
+        }
+    )
+    path = tmp_path / "nodes_date32.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_nodes(data=str(path), time="time", id="id")
+
+    expected = {
+        1: _utc_midnight(dates[0]),
+        2: _utc_midnight(dates[1]),
+        3: _utc_midnight(dates[2]),
+    }
+    actual = {v.id: v.history.dt[0] for v in g.nodes}
+    assert actual == expected
+
+
+def test_load_edges_from_parquet_date32(tmp_path):
+    dates = [
+        datetime.date(1970, 1, 1),
+        datetime.date(1970, 1, 2),
+        datetime.date(1970, 1, 3),
+    ]
+    table = pa.table(
+        {
+            "src": pa.array([1, 2, 3], type=pa.int64()),
+            "dst": pa.array([2, 3, 4], type=pa.int64()),
+            "time": pa.array(dates, type=pa.date32()),
+        }
+    )
+    path = tmp_path / "edges_date32.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_edges(data=str(path), time="time", src="src", dst="dst")
+
+    expected_times = sorted([_ms_from_date(d) for d in dates])
+    actual_times = sorted([e.time for e in g.edges.explode()])
+    assert actual_times == expected_times
+
+
+def test_load_edges_from_parquet_timestamp_ms_utc(tmp_path):
+    # Arrow Timestamp(ms, tz='UTC') should ingest as millisecond epoch UTC
+    times = [
+        datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
+    ]
+    ts_arr = pa.array(
+        [int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC")
+    )
+    table = pa.table(
+        {"src": pa.array([1, 2, 3]), "dst": pa.array([2, 3, 4]), "time": ts_arr}
+    )
+    path = tmp_path / "edges_ts_ms_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_edges(data=str(path), time="time", src="src", dst="dst")
+
+    actual = sorted(e.history.dt[0] for e in g.edges)
+    assert actual == times
+
+
+def test_load_nodes_from_parquet_timestamp_ms_utc(tmp_path):
+    times = [
+        datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 12, 0, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 3, 23, 59, 59, tzinfo=datetime.timezone.utc),
+    ]
+    ts_arr = pa.array(
+        [int(t.timestamp() * 1000) for t in times], type=pa.timestamp("ms", tz="UTC")
+    )
+    table = pa.table({"id": pa.array([1, 2, 3], type=pa.int64()), "time": ts_arr})
+    path = tmp_path / "nodes_ts_ms_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_nodes(data=str(path), time="time", id="id")
+
+    actual = sorted(v.history.dt[0] for v in g.nodes)
+    assert actual == times
+
+
+# needed to avoid floating point errors
+def to_ns(dt: datetime.datetime) -> int:
+    delta = dt - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    return (
+        delta.days * 86_400 + delta.seconds
+    ) * 1_000_000_000 + delta.microseconds * 1000
+
+
+def test_load_edges_from_parquet_timestamp_ns_no_tz(tmp_path):
+    # Arrow Timestamp(ns, tz=None) casts to milliseconds (UTC)
+    base = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    # convert to ns, then to Timestamp(ns)
+    ts_arr = pa.array([to_ns(t) for t in base], type=pa.timestamp("ns"))
+    table = pa.table({"src": pa.array([1, 2]), "dst": pa.array([2, 3]), "time": ts_arr})
+    path = tmp_path / "edges_ts_ns_no_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_edges(data=str(path), time="time", src="src", dst="dst")
+
+    # Expect millisecond precision, rest is truncated
+    expected = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    actual = sorted(e.history.dt[0] for e in g.edges)
+    assert actual == expected
+
+
+def test_load_nodes_from_parquet_timestamp_ns_no_tz(tmp_path):
+    base = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    ts_arr = pa.array([to_ns(t) for t in base], type=pa.timestamp("ns"))
+    table = pa.table({"id": pa.array([1, 2], type=pa.int64()), "time": ts_arr})
+    path = tmp_path / "nodes_ts_ns_no_tz.parquet"
+    pq.write_table(table, str(path))
+
+    g = Graph()
+    g.load_nodes(data=str(path), time="time", id="id")
+
+    expected = [
+        datetime.datetime(2020, 1, 1, 0, 0, 0, 123000, tzinfo=datetime.timezone.utc),
+        datetime.datetime(2020, 1, 2, 0, 0, 0, 999000, tzinfo=datetime.timezone.utc),
+    ]
+    actual = sorted(v.history.dt[0] for v in g.nodes)
+    assert actual == expected

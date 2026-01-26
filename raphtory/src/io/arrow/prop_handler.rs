@@ -1,8 +1,4 @@
-use crate::{
-    errors::{GraphError, LoadError},
-    io::arrow::dataframe::DFChunk,
-    prelude::Prop,
-};
+use crate::{errors::GraphError, io::arrow::dataframe::DFChunk, prelude::Prop};
 use arrow::{
     array::{
         Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
@@ -11,15 +7,16 @@ use arrow::{
     },
     buffer::NullBuffer,
     datatypes::{
-        DataType, Decimal128Type, Float32Type, Float64Type, Int32Type, Int64Type, TimeUnit,
-        TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
-        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+        DataType, Date32Type, Date64Type, Decimal128Type, Float32Type, Float64Type, Int32Type,
+        Int64Type, TimeUnit, TimestampMicrosecondType, TimestampMillisecondType,
+        TimestampNanosecondType, TimestampSecondType, UInt16Type, UInt32Type, UInt64Type,
+        UInt8Type,
     },
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use raphtory_api::core::{
-    entities::properties::prop::{IntoPropList, PropType},
+    entities::properties::prop::{data_type_as_prop_type, IntoPropList, PropType},
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rayon::prelude::*;
@@ -61,8 +58,8 @@ where
 {
     let dtypes = indices
         .iter()
-        .map(|idx| data_type_as_prop_type(df.chunk[*idx].data_type()))
-        .collect::<Result<Vec<_>, _>>()?;
+        .map(|idx| data_type_as_prop_type(df.chunk[*idx].data_type()).map_err(Into::into))
+        .collect::<Result<Vec<_>, GraphError>>()?;
     let cols = indices
         .iter()
         .map(|idx| lift_property_col(&df.chunk[*idx]))
@@ -142,19 +139,66 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
             let arr = arr.as_list::<i64>();
             arr.iter().flatten().map(arr_as_prop).into_prop_list()
         }
-        DataType::Timestamp(TimeUnit::Millisecond, Some(_)) => {
+        DataType::Timestamp(TimeUnit::Second, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_secs(elem).unwrap())
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_secs(elem).unwrap().naive_utc())
+            };
+            let arr = arr.as_primitive::<TimestampSecondType>();
+            arr.iter().flatten().map(map_fn).into_prop_list()
+        }
+        DataType::Timestamp(TimeUnit::Millisecond, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(elem).unwrap())
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_millis(elem).unwrap().naive_utc())
+            };
             let arr = arr.as_primitive::<TimestampMillisecondType>();
+            arr.iter().flatten().map(map_fn).into_prop_list()
+        }
+        DataType::Timestamp(TimeUnit::Microsecond, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_micros(elem).unwrap())
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_micros(elem).unwrap().naive_utc())
+            };
+            let arr = arr.as_primitive::<TimestampMicrosecondType>();
+            arr.iter().flatten().map(map_fn).into_prop_list()
+        }
+        DataType::Timestamp(TimeUnit::Nanosecond, tz) => {
+            let map_fn = if tz.is_some() {
+                |elem: i64| Prop::DTime(DateTime::<Utc>::from_timestamp_nanos(elem))
+            } else {
+                |elem: i64| Prop::NDTime(DateTime::from_timestamp_nanos(elem).naive_utc())
+            };
+            let arr = arr.as_primitive::<TimestampNanosecondType>();
+            arr.iter().flatten().map(map_fn).into_prop_list()
+        }
+        DataType::Date32 => {
+            let arr = arr.as_primitive::<Date32Type>();
             arr.iter()
                 .flatten()
-                .map(|elem| Prop::DTime(DateTime::<Utc>::from_timestamp_millis(elem).unwrap()))
+                .map(|days| {
+                    let ms = (days as i64) * 86_400_000;
+                    Prop::NDTime(
+                        DateTime::from_timestamp_millis(ms)
+                            .expect("DateTime conversion failed for Date32 type")
+                            .naive_utc(),
+                    )
+                })
                 .into_prop_list()
         }
-        DataType::Timestamp(TimeUnit::Millisecond, None) => {
-            let arr = arr.as_primitive::<TimestampMillisecondType>();
+        DataType::Date64 => {
+            let arr = arr.as_primitive::<Date64Type>();
             arr.iter()
                 .flatten()
-                .map(|elem| {
-                    Prop::NDTime(DateTime::from_timestamp_millis(elem).unwrap().naive_utc())
+                .map(|ms| {
+                    Prop::NDTime(
+                        DateTime::from_timestamp_millis(ms)
+                            .expect("DateTime conversion failed for Date64 type")
+                            .naive_utc(),
+                    )
                 })
                 .into_prop_list()
         }
@@ -190,46 +234,6 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
         }
         DataType::Null => Prop::List(vec![].into()),
         dt => panic!("Data type not recognized {dt:?}"),
-    }
-}
-
-fn data_type_as_prop_type(dt: &DataType) -> Result<PropType, GraphError> {
-    match dt {
-        DataType::Boolean => Ok(PropType::Bool),
-        DataType::Int32 => Ok(PropType::I32),
-        DataType::Int64 => Ok(PropType::I64),
-        DataType::UInt8 => Ok(PropType::U8),
-        DataType::UInt16 => Ok(PropType::U16),
-        DataType::UInt32 => Ok(PropType::U32),
-        DataType::UInt64 => Ok(PropType::U64),
-        DataType::Float32 => Ok(PropType::F32),
-        DataType::Float64 => Ok(PropType::F64),
-        DataType::Utf8 => Ok(PropType::Str),
-        DataType::LargeUtf8 => Ok(PropType::Str),
-        DataType::Utf8View => Ok(PropType::Str),
-        DataType::Struct(fields) => Ok(PropType::map(fields.iter().filter_map(|f| {
-            data_type_as_prop_type(f.data_type())
-                .ok()
-                .map(move |pt| (f.name(), pt))
-        }))),
-        DataType::List(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
-            v.data_type(),
-        )?))),
-        DataType::FixedSizeList(v, _) => Ok(PropType::List(Box::new(data_type_as_prop_type(
-            v.data_type(),
-        )?))),
-        DataType::LargeList(v) => Ok(PropType::List(Box::new(data_type_as_prop_type(
-            v.data_type(),
-        )?))),
-        DataType::Timestamp(_, v) => match v {
-            None => Ok(PropType::NDTime),
-            Some(_) => Ok(PropType::DTime),
-        },
-        DataType::Decimal128(precision, scale) if *precision <= 38 => Ok(PropType::Decimal {
-            scale: *scale as i64,
-        }),
-        DataType::Null => Ok(PropType::Empty),
-        _ => Err(LoadError::InvalidPropertyType(dt.clone()).into()),
     }
 }
 
@@ -464,6 +468,27 @@ fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
                 }),
             },
         },
+        DataType::Date32 => Box::new(MappedPrimitiveCol {
+            arr: arr.as_primitive::<Date32Type>().clone(),
+            map: |days| {
+                let ms = (days as i64) * 86_400_000; // convert days to ms
+                Prop::NDTime(
+                    DateTime::from_timestamp_millis(ms)
+                        .expect("DateTime conversion failed for Date32 type")
+                        .naive_utc(),
+                )
+            },
+        }),
+        DataType::Date64 => Box::new(MappedPrimitiveCol {
+            arr: arr.as_primitive::<Date64Type>().clone(),
+            map: |ms| {
+                Prop::NDTime(
+                    DateTime::from_timestamp_millis(ms)
+                        .expect("DateTime conversion failed for Date64 type")
+                        .naive_utc(),
+                )
+            },
+        }),
         DataType::Decimal128(precision, scale) if *precision <= 38 => {
             let arr = arr.as_primitive::<Decimal128Type>().clone();
             Box::new(DecimalPropCol {

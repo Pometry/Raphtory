@@ -132,7 +132,7 @@ pub mod test_filters_node_subgraph {
         db::{
             api::view::StaticGraphViewOps,
             graph::{
-                assertions::{GraphTransformer, TestGraphVariants},
+                assertions::GraphTransformer,
                 views::{node_subgraph::NodeSubgraph, window_graph::WindowedGraph},
             },
         },
@@ -140,7 +140,7 @@ pub mod test_filters_node_subgraph {
     };
     use std::ops::Range;
 
-    pub struct NodeSubgraphTransformer(Option<Vec<String>>);
+    struct NodeSubgraphTransformer(Option<Vec<String>>);
 
     impl GraphTransformer for NodeSubgraphTransformer {
         type Return<G: StaticGraphViewOps> = NodeSubgraph<G>;
@@ -168,6 +168,9 @@ pub mod test_filters_node_subgraph {
     }
 
     mod test_nodes_filters_node_subgraph {
+        use crate::test_filters_node_subgraph::{
+            NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
+        };
         use raphtory::{
             db::{
                 api::view::StaticGraphViewOps,
@@ -176,16 +179,14 @@ pub mod test_filters_node_subgraph {
                         assert_filter_nodes_results, assert_search_nodes_results,
                         TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::PropertyFilterOps,
+                    views::filter::model::{
+                        property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    },
                 },
             },
-            prelude::{AdditionOps, PropertyFilter},
+            prelude::{AdditionOps, NodeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
-
-        use crate::test_filters_node_subgraph::{
-            NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
-        };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
             let nodes = vec![
@@ -214,7 +215,7 @@ pub mod test_filters_node_subgraph {
 
         #[test]
         fn test_search_nodes_subgraph() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = ["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -233,7 +234,7 @@ pub mod test_filters_node_subgraph {
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = NodeFilter.property("p1").le(1u64);
             let expected_results = vec!["N3", "N4"];
             assert_filter_nodes_results(
                 init_graph,
@@ -254,7 +255,7 @@ pub mod test_filters_node_subgraph {
         #[test]
         fn test_search_nodes_subgraph_w() {
             // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -272,7 +273,7 @@ pub mod test_filters_node_subgraph {
             );
 
             let node_names: Option<Vec<String>> = Some(vec!["N3".into()]);
-            let filter = PropertyFilter::property("p1").gt(0u64);
+            let filter = NodeFilter.property("p1").gt(0u64);
             let expected_results = vec!["N3"];
             assert_filter_nodes_results(
                 init_graph,
@@ -292,7 +293,7 @@ pub mod test_filters_node_subgraph {
 
         #[test]
         fn test_search_nodes_pg_w() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -311,7 +312,7 @@ pub mod test_filters_node_subgraph {
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-            let filter = PropertyFilter::property("p1").ge(1u64);
+            let filter = NodeFilter.property("p1").ge(1u64);
             let expected_results = vec!["N2", "N3", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -338,10 +339,12 @@ pub mod test_filters_node_subgraph {
                     assertions::{
                         assert_filter_edges_results, assert_search_edges_results, TestVariants,
                     },
-                    views::filter::model::PropertyFilterOps,
+                    views::filter::model::{
+                        property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    },
                 },
             },
-            prelude::{AdditionOps, PropertyFilter},
+            prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -377,7 +380,7 @@ pub mod test_filters_node_subgraph {
         #[test]
         fn test_edges_filters() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -396,7 +399,7 @@ pub mod test_filters_node_subgraph {
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-            let filter = PropertyFilter::property("p1").le(1u64);
+            let filter = EdgeFilter.property("p1").le(1u64);
             let expected_results = vec!["N3->N4", "N4->N5"];
             assert_filter_edges_results(
                 init_graph,
@@ -416,7 +419,7 @@ pub mod test_filters_node_subgraph {
 
         #[test]
         fn test_edges_filters_w() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -435,7 +438,7 @@ pub mod test_filters_node_subgraph {
 
             let node_names: Option<Vec<String>> =
                 Some(vec!["N2".into(), "N3".into(), "N4".into(), "N5".into()]);
-            let filter = PropertyFilter::property("p1").ge(1u64);
+            let filter = EdgeFilter.property("p1").ge(1u64);
             let expected_results = vec!["N2->N3", "N3->N4"];
             assert_filter_edges_results(
                 init_graph,
@@ -456,7 +459,7 @@ pub mod test_filters_node_subgraph {
         #[test]
         fn test_edges_filters_pg_w() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph.
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -480,7 +483,7 @@ pub mod test_filters_node_subgraph {
                 "N5".into(),
                 "N6".into(),
             ]);
-            let filter = PropertyFilter::property("p1").lt(2u64);
+            let filter = EdgeFilter.property("p1").lt(2u64);
             let expected_results = vec!["N3->N4"];
             assert_filter_edges_results(
                 init_graph,

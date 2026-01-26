@@ -1,28 +1,28 @@
-# Running algorithms 
+# Running algorithms
 
-Raphtory implements many of the standard algorithms you expect within a graph library, but also has several temporal algorithms such as `Temporal Reachability` and `Temporal Motifs`. 
+Raphtory implements many of the standard algorithms you expect within a graph library, but also has several temporal algorithms such as `Temporal Reachability` and `Temporal Motifs`.
 
 Raphtory categorizes algorithms into `graphwide` and `node centric` algorithms.
 
-- `graphwide`: returns one value for the whole graph. 
+- `graphwide`: returns one value for the whole graph.
 
 - `node centric`: returns one value for each node in the graph
 
-For these examples we are going to use the [One graph to rule them all](https://arxiv.org/abs/2210.07871) dataset, which maps the co-occurrence of characters in the Lord of The Rings books. 
+For these examples we are going to use the [One graph to rule them all](https://arxiv.org/abs/2210.07871) dataset, which maps the co-occurrence of characters in the Lord of The Rings books.
 
 This dataset is a simple edge list, consisting of the source character, destination character and the sentence they occurred together in (which we use as a timestamp). The dataframe for this can be seen in the output below.
 
 /// tab | :fontawesome-brands-python: Python
 ```python
-from raphtory import Graph
+import raphtory as rp
 import pandas as pd
 
 df = pd.read_csv("../data/lotr.csv")
 print(df)
 
-lotr_graph = Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df,time="time", src="src", dst="dst"
+lotr_graph = rp.Graph()
+lotr_graph.load_edges(
+    data=df, time="time", src="src", dst="dst"
 )
 ```
 ///

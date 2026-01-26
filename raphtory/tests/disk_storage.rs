@@ -1,27 +1,31 @@
 #[cfg(feature = "storage")]
 #[cfg(test)]
 mod test {
+    use arrow::array::StringArray;
     use bigdecimal::BigDecimal;
     use itertools::Itertools;
-    use polars_arrow::array::Utf8Array;
-    use std::{
-        path::{Path, PathBuf},
-        str::FromStr,
+    use pometry_storage::{
+        chunked_array::array_like::BaseArrayLike, graph::TemporalGraph, properties::Properties,
     };
-    use tempfile::TempDir;
-
-    use pometry_storage::{graph::TemporalGraph, properties::Properties};
     use proptest::{prelude::*, sample::size_range};
     use raphtory::{
-        db::{api::view::StaticGraphViewOps, graph::graph::assert_graph_equal},
+        db::{
+            api::view::StaticGraphViewOps,
+            graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+        },
         prelude::*,
     };
-    use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::AsTime};
     use raphtory_storage::{
         disk::{ParquetLayerCols, Time},
         graph::graph::GraphStorage,
     };
     use rayon::prelude::*;
+    use std::{
+        path::{Path, PathBuf},
+        str::FromStr,
+    };
+    use tempfile::TempDir;
 
     fn make_simple_graph(graph_dir: impl AsRef<Path>, edges: &[(u64, u64, i64, f64)]) -> Graph {
         let storage = DiskGraphStorage::make_simple_graph(graph_dir, edges, 1000, 1000);
@@ -56,11 +60,11 @@ mod test {
 
         // check earlies_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
-        assert_eq!(g.earliest_time(), Some(expected));
+        assert_eq!(g.earliest_time().unwrap().t(), expected);
 
         // check latest_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).max().unwrap();
-        assert_eq!(g.latest_time(), Some(expected));
+        assert_eq!(g.latest_time().unwrap().t(), expected);
 
         // get edges over window
 
@@ -75,11 +79,11 @@ mod test {
 
         // check earlies_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).min().unwrap();
-        assert_eq!(g.earliest_time(), Some(expected));
+        assert_eq!(g.earliest_time().unwrap().t(), expected);
 
         // check latest_time
         let expected = edges.iter().map(|(_, _, t, _)| *t).max().unwrap();
-        assert_eq!(g.latest_time(), Some(expected));
+        assert_eq!(g.latest_time().unwrap().t(), expected);
     }
 
     #[test]
@@ -213,7 +217,7 @@ mod test {
                     .temporal()
                     .get("weight")
                     .into_iter()
-                    .flat_map(|t_prop| t_prop.into_iter())
+                    .flat_map(|t_prop| t_prop.into_iter().map(|(t, p)| (t.t(), p)))
             })
             .filter_map(|(t, t_prop)| t_prop.into_f64().map(|v| (t, v)))
             .collect();
@@ -264,7 +268,7 @@ mod test {
         g.add_node(0, 0, NO_PROPS, None).unwrap();
         // g.add_node(1, 1, [("test", "test")], None).unwrap();
         let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-        assert_eq!(disk_g.node(0).unwrap().earliest_time(), Some(0));
+        assert_eq!(disk_g.node(0).unwrap().earliest_time().unwrap().t(), 0);
         assert_graph_equal(&g, &disk_g);
     }
 
@@ -376,7 +380,15 @@ mod test {
             .properties()
             .temporal()
             .into_iter()
-            .map(|(key, t_view)| (key.to_string(), t_view.into_iter().collect::<Vec<_>>()))
+            .map(|(key, t_view)| {
+                (
+                    key.to_string(),
+                    t_view
+                        .into_iter()
+                        .map(|(t, p)| (t.t(), p))
+                        .collect::<Vec<_>>(),
+                )
+            })
             .filter(|(_, v)| !v.is_empty())
             .collect::<Vec<_>>();
 
@@ -471,6 +483,7 @@ mod test {
             t_props_chunk_size,
             num_threads,
             node_type_col,
+            None,
             None,
         )
         .unwrap()
@@ -668,12 +681,13 @@ mod test {
         graph.add_edge(2, 0, 1, [("weight", 2.)], None).unwrap();
         graph.add_edge(3, 1, 2, [("weight", 3.)], None).unwrap();
         let disk_graph = graph.persist_as_disk_graph(graph_dir.path()).unwrap();
-        assert_graph_equal(&disk_graph, &graph);
+        // persisted graphs have different event ids on time entries
+        assert_graph_equal_timestamps(&disk_graph, &graph);
 
         let reloaded_graph = DiskGraphStorage::load_from_dir(graph_dir.path())
             .unwrap()
             .into_graph();
-        assert_graph_equal(&reloaded_graph, &graph);
+        assert_graph_equal_timestamps(&reloaded_graph, &graph);
     }
 
     #[test]
@@ -682,8 +696,11 @@ mod test {
         let graph = Graph::new();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
         let mut dg = DiskGraphStorage::from_graph(&graph, graph_dir.path()).unwrap();
-        dg.load_node_types_from_arrays([Ok(Utf8Array::<i32>::from_slice(["1", "2"]).boxed())], 100)
-            .unwrap();
+        dg.load_node_types_from_arrays(
+            [Ok(StringArray::from_iter_values(["1", "2"]).as_array_ref())],
+            100,
+        )
+        .unwrap();
         assert_eq!(
             dg.into_graph().nodes().node_type().collect_vec(),
             [Some("1".into()), Some("2".into())]
@@ -710,11 +727,13 @@ mod test {
     }
     mod addition_bounds {
         use proptest::prelude::*;
-        use raphtory::{db::graph::graph::assert_graph_equal, prelude::*};
+        use raphtory::{
+            db::graph::graph::assert_graph_equal_timestamps,
+            prelude::*,
+            test_utils::{build_edge_list, build_graph_from_edge_list},
+        };
         use raphtory_storage::disk::DiskGraphStorage;
         use tempfile::TempDir;
-
-        use crate::test_utils::{build_edge_list, build_graph_from_edge_list};
 
         #[test]
         fn test_load_from_graph_missing_edge() {
@@ -723,7 +742,8 @@ mod test {
             g.add_edge(1, 2, 3, [("test", "test2")], Some("2")).unwrap();
             let test_dir = TempDir::new().unwrap();
             let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-            assert_graph_equal(&disk_g, &g);
+            // persisted graphs have different event ids on time entries
+            assert_graph_equal_timestamps(&disk_g, &g);
         }
 
         #[test]
@@ -732,9 +752,10 @@ mod test {
                 let g = build_graph_from_edge_list(&edges);
                 let test_dir = TempDir::new().unwrap();
                 let disk_g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-                assert_graph_equal(&disk_g, &g);
+                // persisted graphs have different event ids on time entries
+                assert_graph_equal_timestamps(&disk_g, &g);
                 let reloaded_disk_g = DiskGraphStorage::load_from_dir(test_dir.path()).unwrap().into_graph();
-                assert_graph_equal(&reloaded_disk_g, &g);
+                assert_graph_equal_timestamps(&reloaded_disk_g, &g);
             } )
         }
     }
@@ -763,6 +784,7 @@ mod test {
             100,
             100,
             1,
+            None,
             None,
             None,
         )
@@ -807,10 +829,10 @@ mod storage_tests {
     use tempfile::TempDir;
 
     use raphtory::{
-        db::graph::graph::assert_graph_equal,
+        db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS, *},
     };
-    use raphtory_api::core::storage::arc_str::OptionAsStr;
+    use raphtory_api::core::storage::{arc_str::OptionAsStr, timeindex::AsTime};
     use raphtory_core::entities::nodes::node_ref::AsNodeRef;
     use raphtory_storage::{disk::DiskGraphStorage, mutation::addition_ops::InternalAdditionOps};
 
@@ -866,6 +888,7 @@ mod storage_tests {
                 .get("node_prop")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(0, Prop::F64(0.)), (1, Prop::F64(1.))]
         );
@@ -875,6 +898,7 @@ mod storage_tests {
                 .get("test")
                 .unwrap()
                 .iter()
+                .map(|(t, p)| (t.t(), p))
                 .collect_vec(),
             [(3, Prop::str("test")), (3, Prop::str("test"))]
         );
@@ -948,7 +972,8 @@ mod storage_tests {
         let merged_g_disk = left_g_disk
             .merge_by_sorted_gids(&right_g_disk, &merged_dir)
             .unwrap();
-        assert_graph_equal(&merged_g_disk.into_graph(), &merged_g_expected)
+        // only check timestamps because event ids might be different based on order of edge added
+        assert_graph_equal_timestamps(&merged_g_disk.into_graph(), &merged_g_expected)
     }
 
     #[test]

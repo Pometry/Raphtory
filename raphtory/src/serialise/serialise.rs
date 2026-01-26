@@ -25,7 +25,7 @@ use raphtory_api::core::{
         },
         GidRef, EID, VID,
     },
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
 use raphtory_storage::{
@@ -568,7 +568,7 @@ impl InternalStableDecode for TemporalGraph {
                             storage.internal_update_metadata(&c_props)?;
                         }
                         Update::UpdateGraphTprops(props) => {
-                            let time = TimeIndexEntry(props.time, props.secondary as usize);
+                            let time = EventTime(props.time, props.secondary as usize);
                             let t_props = proto_ext::collect_props(&props.properties)?;
                             for (id, prop) in &t_props {
                                 graph_prop_types[*id] = prop.dtype();
@@ -1261,7 +1261,7 @@ mod proto_test {
         graph1.new_edge(VID(0), VID(1), EID(0));
         graph1.update_edge_tprops(
             EID(0),
-            TimeIndexEntry::start(1),
+            EventTime::start(1),
             0,
             iter::empty::<(usize, Prop)>(),
         );
@@ -1272,7 +1272,7 @@ mod proto_test {
         graph2.new_edge(VID(0), VID(2), EID(1));
         graph2.update_edge_tprops(
             EID(1),
-            TimeIndexEntry::start(2),
+            EventTime::start(2),
             0,
             iter::empty::<(usize, Prop)>(),
         );

@@ -7,11 +7,10 @@ def test_degree_window():
     g.add_edge(1, 1, 3)
     g.add_edge(2, 1, 4)
 
-    degs = g.nodes.out_degree()
-    assert degs == [3, 0, 0, 0]
-    assert degs.before(1) == [1, 0, 0, 0]
-    assert degs[1] == 3
-    assert degs.before(1)[1] == 1
+    assert g.nodes.out_degree() == [3, 0, 0, 0]
+    assert g.nodes.before(1).out_degree() == [1, 0, 0, 0]
+    assert g.nodes.out_degree()[1] == 3
+    assert g.nodes.before(1).out_degree()[1] == 1
 
 
 def test_degree_layer():
@@ -20,10 +19,9 @@ def test_degree_layer():
     g.add_edge(0, 1, 3, layer="2")
     g.add_edge(0, 1, 4, layer="2")
 
-    degs = g.nodes.out_degree()
-    assert degs == [3, 0, 0, 0]
-    assert degs.layers(["1"]) == [1, 0, 0, 0]
-    assert degs.layers(["2"]) == [2, 0, 0, 0]
+    assert g.nodes.out_degree() == [3, 0, 0, 0]
+    assert g.nodes.layers(["1"]).out_degree() == [1, 0, 0, 0]
+    assert g.nodes.layers(["2"]).out_degree() == [2, 0, 0, 0]
 
 
 def test_group_by():
@@ -51,6 +49,6 @@ def test_group_by():
     assert len(groups_from_lazy) == len(expected)
 
     for i, (v, nodes) in enumerate(groups_from_lazy):
-        (v2, nodes2) = groups_from_lazy[i]
+        v2, nodes2 = groups_from_lazy[i]
         assert v == v2
         assert nodes.id == nodes2.id

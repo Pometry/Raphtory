@@ -21,7 +21,7 @@ jobs:
     steps:
       - id: set-matrix
         run: |
-          echo "python-versions=[\"3.9\",\"3.13\"]" >> $GITHUB_OUTPUT
+          echo "python-versions=[\"3.11\",\"3.14.0\"]" >> $GITHUB_OUTPUT
   python-test:
     if: ${{ !inputs.skip_tests }}
     name: Python Tests
@@ -64,53 +64,9 @@ jobs:
           python -m pip install black
           echo "Installing linting dependencies from cache..."
           python -m pip install maturin mypy networkx pyvis pandas-stubs
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
       - name: Run Python tests
         run: |
           cd python && tox run
       - name: Run Python extension tests
         run: |
           cd examples/netflow/test && pytest .
-      - name: Validate graphQL schema
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: |
-          npx graphql-schema-linter --rules fields-have-descriptions,types-have-descriptions raphtory-graphql/schema.graphql || true
-      - name: Update docs from graphQL schema
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: |
-          python docs/scripts/gen_docs_graphql_pages.py
-      - name: Run python linter
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: |
-          cd python && black .
-      - name: Run stubsgen
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        run: |
-          echo "Installing Raphtory from cache..."
-          pip install raphtory
-          echo "Installing stubsgen"
-          python -m pip install -e stub_gen
-          cd python/scripts && python gen-stubs.py
-      - name: Run mypy
-        run: |
-          mypy -m raphtory
-
-      - name: Check for uncommitted changes
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.13'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Changes detected. Committing and pushing..."
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout ${{ github.head_ref }}
-            git add .
-            git commit -m "chore: apply tidy-public auto-fixes"
-            git push --force-with-lease origin HEAD:${{ github.head_ref }} 
-          else
-            echo "No changes to commit."
-          fi

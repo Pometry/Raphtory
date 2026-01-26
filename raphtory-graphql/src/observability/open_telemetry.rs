@@ -1,3 +1,4 @@
+use crate::config::otlp_config::{TracingLevel, ESSENTIAL_TRACE_SPANS};
 use async_graphql::{
     async_trait,
     extensions::{
@@ -26,17 +27,19 @@ const KEY_DEPTH: Key = Key::from_static_str("graphql.depth");
 #[cfg_attr(docsrs, doc(cfg(feature = "opentelemetry")))]
 pub struct OpenTelemetry<T> {
     tracer: Arc<T>,
+    tracing_level: TracingLevel,
 }
 
 impl<T> OpenTelemetry<T> {
     /// Use tracer to create an OpenTelemetry extension.
-    pub fn new(tracer: T) -> OpenTelemetry<T>
+    pub fn new(tracer: T, tracing_level: TracingLevel) -> OpenTelemetry<T>
     where
         T: Tracer + Send + Sync + 'static,
         <T as Tracer>::Span: Sync + Send,
     {
         Self {
             tracer: Arc::new(tracer),
+            tracing_level,
         }
     }
 }
@@ -49,12 +52,14 @@ where
     fn create(&self) -> Arc<dyn Extension> {
         Arc::new(OpenTelemetryExtension {
             tracer: self.tracer.clone(),
+            tracing_level: self.tracing_level.clone(),
         })
     }
 }
 
 struct OpenTelemetryExtension<T> {
     tracer: Arc<T>,
+    tracing_level: TracingLevel,
 }
 
 #[async_trait::async_trait]
@@ -169,20 +174,37 @@ where
         info: ResolveInfo<'_>,
         next: NextResolve<'_>,
     ) -> ServerResult<Option<Value>> {
-        let span = if !info.is_for_introspection {
+        let span: Option<<T as opentelemetry::trace::Tracer>::Span> = if !info.is_for_introspection
+        {
             let attributes = vec![
                 KeyValue::new(KEY_PARENT_TYPE, info.parent_type.to_string()),
                 KeyValue::new(KEY_RETURN_TYPE, info.return_type.to_string()),
             ];
             match info.path_node.segment {
                 QueryPathSegment::Index(_) => None,
-                QueryPathSegment::Name(name) => Some(
-                    self.tracer
-                        .span_builder(name.to_string())
-                        .with_kind(SpanKind::Server)
-                        .with_attributes(attributes)
-                        .start(&*self.tracer),
-                ),
+                QueryPathSegment::Name(name) => match self.tracing_level {
+                    TracingLevel::COMPLETE => Some(
+                        self.tracer
+                            .span_builder(name.to_string())
+                            .with_kind(SpanKind::Server)
+                            .with_attributes(attributes)
+                            .start(&*self.tracer),
+                    ),
+                    TracingLevel::ESSENTIAL => {
+                        if ESSENTIAL_TRACE_SPANS.contains(&name) {
+                            Some(
+                                self.tracer
+                                    .span_builder(name.to_string())
+                                    .with_kind(SpanKind::Server)
+                                    .with_attributes(attributes)
+                                    .start(&*self.tracer),
+                            )
+                        } else {
+                            None
+                        }
+                    }
+                    TracingLevel::MINIMAL => None,
+                },
             }
         } else {
             None

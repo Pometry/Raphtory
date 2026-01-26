@@ -20,13 +20,6 @@ raphtory-core.workspace = true
 raphtory-storage.workspace = true
 pometry-storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
-arrow-array = { workspace = true, features = ["chrono-tz"] }
-arrow-schema = { workspace = true }
-arrow-ipc = {workspace = true}
-arrow-buffer = {workspace = true}
-arrow-select = { workspace = true }
-arrow-data ={ workspace = true }
-serde_arrow = {workspace = true, features = ["arrow-56"] }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
 itertools = { workspace = true }
@@ -76,10 +69,14 @@ prost-types = { workspace = true, optional = true }
 # arrow otional dependencies
 parquet = { workspace = true }
 arrow-json = { workspace = true, optional = true }
-#arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
-#arrow-buffer = { workspace = true, optional = true }
-#arrow-cast = { workspace = true, optional = true }
-#arrow-schema = { workspace = true, optional = true }
+arrow-csv = { workspace = true, optional = true}
+arrow-array = { workspace = true, features = ["chrono-tz"] }
+arrow-schema = { workspace = true }
+arrow-ipc = {workspace = true}
+arrow-buffer = {workspace = true}
+arrow-select = { workspace = true }
+arrow-data ={ workspace = true }
+serde_arrow = {workspace = true, features = ["arrow-56"] }
 arrow = { workspace = true, features = ["chrono-tz"] }
 
 # search optional dependencies
@@ -118,6 +115,8 @@ dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
 raphtory = { path = ".", features = ["test-utils"] } # enable test-utils for integration tests (version is not set to make cargo publish work)
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
@@ -180,6 +179,7 @@ arrow = [
     "raphtory-api/arrow",
     "raphtory-core/arrow",
     "dep:arrow-json",
+    "dep:arrow-csv",
 ]
 
 proto = [

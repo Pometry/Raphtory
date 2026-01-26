@@ -20,8 +20,11 @@ from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
 from raphtory.typing import *
+import numpy as np
+from numpy.typing import NDArray
 from datetime import datetime
 from pandas import DataFrame
+from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
@@ -200,7 +203,7 @@ def directed_graph_density(graph: GraphView) -> float:
         float: Directed graph density of graph.
     """
 
-def degree_centrality(graph: GraphView):
+def degree_centrality(graph: GraphView) -> NodeStateF64:
     """
     Computes the degree centrality of all nodes in the graph. The values are normalized
     by dividing each result with the maximum possible degree. Graphs with self-loops can have
@@ -210,7 +213,7 @@ def degree_centrality(graph: GraphView):
         graph (GraphView): The graph view on which the operation is to be performed.
 
     Returns:
-        PyOutputNodeState: NodeState mapping nodes to their associated degree centrality.
+        NodeStateF64: Mapping of nodes to their associated degree centrality.
     """
 
 def max_degree(graph: GraphView) -> int:
@@ -285,7 +288,7 @@ def pagerank(
     max_diff: Optional[float] = None,
     use_l2_norm: bool = True,
     damping_factor: float = 0.85,
-):
+) -> NodeStateF64:
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -303,7 +306,7 @@ def pagerank(
         damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 
     Returns:
-        PyOutputNodeState: NodeState mapping nodes to their pagerank score.
+        NodeStateF64: Mapping of nodes to their pagerank value.
     """
 
 def single_source_shortest_path(
@@ -394,7 +397,7 @@ def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:
         float: the local clustering coefficient of node v in graph.
     """
 
-def local_clustering_coefficient_batch(graph: Any, v: Any = None):
+def local_clustering_coefficient_batch(graph: Any, v: Any):
     """
     Returns the Local clustering coefficient (batch, intersection) for each specified node in a graph. This measures the degree to which one or multiple nodes in a graph tend to cluster together.
 
@@ -405,7 +408,7 @@ def local_clustering_coefficient_batch(graph: Any, v: Any = None):
         v: vec of node ids, if empty, will return results for every node in the graph
 
     Returns:
-        PyOutputNodeState: Mapping of vertices to lcc score
+        dict[NodeState]:
     """
 
 def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
@@ -422,7 +425,7 @@ def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
         NodeStateUsize: Mapping of nodes to their component ids.
     """
 
-def strongly_connected_components(graph: GraphView):
+def strongly_connected_components(graph: GraphView) -> NodeStateUsize:
     """
     Strongly connected components
 
@@ -432,7 +435,7 @@ def strongly_connected_components(graph: GraphView):
         graph (GraphView): Raphtory graph
 
     Returns:
-        PyOutputNodeState: NodeState mapping nodes to their component ids
+        NodeStateUsize: Mapping of nodes to their component ids
     """
 
 def in_components(graph: GraphView) -> NodeStateNodes:
@@ -629,18 +632,17 @@ def balance(
     """
 
 def label_propagation(
-    graph: GraphView, iter_count: Any = 20, seed: Optional[bytes] = None
-):
+    graph: GraphView, seed: Optional[bytes] = None
+) -> list[set[Node]]:
     """
     Computes components using a label propagation algorithm
 
     Arguments:
         graph (GraphView): A reference to the graph
-        iter_count: Number of iterations
         seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 
     Returns:
-        PyOutputNodeState: NodeState mapping nodes to community id
+        list[set[Node]]: A list of sets each containing nodes that have been grouped
 
     """
 

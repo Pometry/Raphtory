@@ -51,7 +51,7 @@ print(f"{nodes_df.head(2)}\n")
     1       Web Server           45  
     ```
 
-Next, to ingest these dataframes into Raphtory, we use the `load_edges_from_pandas()` and `load_nodes_from_pandas()`
+Next, to ingest these dataframes into Raphtory, we use the `load_edges()` and `load_nodes()`
 functions. These functions have optional arguments to cover everything we have seen in the
 prior [direct updates example](2_direct-updates.md).
 
@@ -95,8 +95,8 @@ edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     time="timestamp",
     src="source",
     dst="destination",
@@ -105,8 +105,8 @@ g.load_edges_from_pandas(
     metadata=["is_encrypted"],
     shared_metadata={"datasource": "../data/network_traffic_edges.csv"},
 )
-g.load_nodes_from_pandas(
-    df=nodes_df,
+g.load_nodes(
+    data=nodes_df,
     time="timestamp",
     id="server_id",
     properties=["OS_version", "primary_function", "uptime_days"],
@@ -124,21 +124,21 @@ print(g.edge("ServerA", "ServerB"))
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))"
 ```
 
 !!! Output
 
     ```output
     The resulting graphs and example node/edge:
-    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
-    Node(name=ServerA, earliest_time=1693555200000, latest_time=1693556400000, properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120, datasource: docs/data/network_traffic_edges.csv, server_name: Alpha, hardware_type: Blade Server}))
-    Edge(source=ServerA, target=ServerB, earliest_time=1693555200000, latest_time=1693555200000, properties={data_size_MB: 5.6, datasource: {Critical System Request: docs/data/network_traffic_edges.csv}, is_encrypted: {Critical System Request: true}}, layer(s)=[Critical System Request])
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))
+    Node(name=ServerA, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693556400000, event_id=4), properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
+    Edge(source=ServerA, target=ServerB, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693555200000, event_id=0), properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
     ```
 
 ## Creating a graph from a Parquet file
 
-Similarly for Parquet you can use `from_parquet()`, or `load_edges_from_parquet()` and `load_nodes_from_parquet()` to load data from files in the common [Apache Parquet](https://parquet.apache.org/) format.
+Similarly for Parquet you can use `load_edges()` and `load_nodes()` with a file path to load data from files in the common [Apache Parquet](https://parquet.apache.org/) format.
 
 /// tab | :fontawesome-brands-python: Python
 
@@ -147,22 +147,22 @@ from raphtory import Graph
 
 h=Graph()
 
-h.load_edges_from_parquet(
+h.load_edges(
+    data="../data/net_edges.parquet",
     time="timestamp",
     src="source",
     dst="destination",
     properties=["data_size_MB"],
     layer_col="transaction_type",
     metadata=["is_encrypted"],
-    parquet_path="../data/net_edges_parquet"
 )
 
-h.load_nodes_from_parquet(
+h.load_nodes(
+    data="../data/net_nodes.parquet",
     time="timestamp",
     id="server_id",
     properties=["OS_version", "primary_function", "uptime_days"],
     metadata=["server_name", "hardware_type"],
-    parquet_path="../data/net_nodes_parquet"
 )
 
 print(h)
@@ -171,13 +171,14 @@ print(h)
 ///
 
 ```{.python continuation hide}
-assert str(h) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+
+assert str(h) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))
     ```
 
 ## Adding metadata via dataframes
@@ -187,7 +188,7 @@ same two dataframes for brevity but in real instances these would probably be fo
 function call.
 
 There may be instances where you are adding a dataset which has no timestamps. To handle this when ingesting via
-dataframes, the graph has the `load_edge_props_from_pandas()` and `load_node_props_from_pandas()` functions which are shown in this example. 
+dataframes, the graph has the `load_edge_metadata()` and `load_node_metadata()` functions which are shown in this example.
 
 !!! warning
     Metadata can only be added to nodes and edges which are part of the graph. If you attempt to add a metadata without first adding the node/edge then Raphtory will throw an error.
@@ -205,8 +206,8 @@ edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="source",
     dst="destination",
     time="timestamp",
@@ -214,15 +215,15 @@ g.load_edges_from_pandas(
     layer_col="transaction_type",
 )
 
-g.load_nodes_from_pandas(
-    df=nodes_df,
+g.load_nodes(
+    data=nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
 )
 
-g.load_edge_props_from_pandas(
-    df=edges_df,
+g.load_edge_metadata(
+    data=edges_df,
     src="source",
     dst="destination",
     layer_col="transaction_type",
@@ -230,8 +231,8 @@ g.load_edge_props_from_pandas(
     shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
-g.load_node_props_from_pandas(
-    df=nodes_df,
+g.load_node_metadata(
+    data=nodes_df,
     id="server_id",
     metadata=["server_name", "hardware_type"],
     shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
@@ -245,13 +246,13 @@ print(g.edge("ServerA", "ServerB"))
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)"
+assert str(g) == "Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))"
 ```
 
 !!! Output
 
     ```output
-    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=1693555200000, latest_time=1693557000000)
-    Node(name=ServerA, earliest_time=1693555200000, latest_time=1693556400000, properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120, datasource: docs/data/network_traffic_edges.csv, server_name: Alpha, hardware_type: Blade Server}))
-    Edge(source=ServerA, target=ServerB, earliest_time=1693555200000, latest_time=1693555200000, properties={data_size_MB: 5.6, datasource: {Critical System Request: docs/data/network_traffic_edges.csv}, is_encrypted: {Critical System Request: true}}, layer(s)=[Critical System Request])
+    Graph(number_of_nodes=5, number_of_edges=7, number_of_temporal_edges=7, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693557000000, event_id=18446744073709551615))
+    Node(name=ServerA, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693556400000, event_id=4), properties=Properties({OS_version: Ubuntu 20.04, primary_function: Database, uptime_days: 120}))
+    Edge(source=ServerA, target=ServerB, earliest_time=EventTime(timestamp=1693555200000, event_id=0), latest_time=EventTime(timestamp=1693555200000, event_id=0), properties={data_size_MB: 5.6}, layer(s)=[Critical System Request])
     ```

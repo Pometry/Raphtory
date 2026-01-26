@@ -115,9 +115,9 @@ def test_add_nodes():
                 3.0,
             ],
         )
-        check_arr(ben.history(), [1, 2, 3, 4, 5, 6])
+        check_arr(ben.history.t.collect(), [1, 2, 3, 4, 5, 6])
         assert ben.node_type == "person"
-        check_arr(hamza.history(), [1, 2])
+        check_arr(hamza.history.t.collect(), [1, 2])
         assert hamza.node_type is None
         assert_has_metadata(lucas, lucas_props)
         assert lucas.node_type == "person"
@@ -176,8 +176,8 @@ def test_add_edges():
                 3.0,
             ],
         )
-        check_arr(ben_hammza.history(), [1, 2, 3, 4, 5, 6])
+        check_arr(ben_hammza.history.t.collect(), [1, 2, 3, 4, 5, 6])
         assert_set_eq(ben_hammza.layer_names, {"_default", "test"})
-        check_arr(hamza_lucas.history(), [1, 2])
+        check_arr(hamza_lucas.history.t.collect(), [1, 2])
         assert hamza_lucas.layer_names == ["_default"]
         assert_has_metadata(lucas_hamza.layer("_default"), lucas_props)

@@ -222,11 +222,23 @@ def test_graph_windows_and_layers_query():
             window(start: 200, end: 800) {
               node(name: "Frodo") {
                 after(time: 500) {
-                  history
+                  history {
+                    list {
+                      timestamp
+                      eventId
+                    }
+                  }
                   neighbours {
                     list {
-                        name
-                        before(time: 300) { history }
+                      name
+                        before(time: 300) { 
+                        history {
+                          list {
+                            timestamp
+                            eventId
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -237,23 +249,63 @@ def test_graph_windows_and_layers_query():
         """
         ra = """
         {
-            "graph": {
-              "window": {
-                "node": {
-                  "after": {
-                    "history": [555, 562],
-                    "neighbours": {
-                      "list": [
-                        {"name": "Gandalf", "before": {"history": [270]}},
-                        {"name": "Bilbo", "before": {"history": [205, 270, 286]}}
-                      ]
-                    }
+          "graph": {
+            "window": {
+              "node": {
+                "after": {
+                  "history": {
+                    "list": [
+                      {
+                        "timestamp": 555,
+                        "eventId": 93
+                      },
+                      {
+                        "timestamp": 555,
+                        "eventId": 95
+                      },
+                      {
+                        "timestamp": 555,
+                        "eventId": 96
+                      },
+                      {
+                        "timestamp": 555,
+                        "eventId": 98
+                      },
+                      {
+                        "timestamp": 562,
+                        "eventId": 102
+                      },
+                      {
+                        "timestamp": 562,
+                        "eventId": 104
+                      }
+                    ]
+                  },
+                  "neighbours": {
+                    "list": [
+                      {
+                        "name": "Gandalf",
+                        "before": {
+                          "history": {
+                            "list": []
+                          }
+                        }
+                      },
+                      {
+                        "name": "Bilbo",
+                        "before": {
+                          "history": {
+                            "list": []
+                          }
+                        }
+                      }
+                    ]
                   }
                 }
               }
             }
-        }
-        """
+          }
+        }"""
         a = json.dumps(client.query(q))
         json_a = json.loads(a)
         json_ra = json.loads(ra)
@@ -285,7 +337,7 @@ def test_graph_windows_and_layers_query():
                   "neighbours": {
                     "list": [{
                         "name": "2",
-                        "layer": {"neighbours": {"list": [{ "name": "3" }]}}
+                        "layer": {"neighbours": {"list": []}}
                       }]
                   }
                 }
@@ -325,7 +377,12 @@ def test_graph_properties_query():
                     temporal {
                       values(keys:["prop2"]) {
                         key
-                        history
+                        history {
+                          list {
+                            timestamp
+                            eventId
+                          }
+                        }
                       }
                     }
                   }
@@ -348,7 +405,27 @@ def test_graph_properties_query():
                             "properties": {
                                 "values": [{"key": "prop1", "asString": "val3"}],
                                 "temporal": {
-                                    "values": [{"key": "prop2", "history": [1, 2, 3]}]
+                                    "values": [
+                                        {
+                                            "key": "prop2",
+                                            "history": {
+                                                "list": [
+                                                    {
+                                                        "timestamp": 1,
+                                                        "eventId": 0,
+                                                    },
+                                                    {
+                                                        "timestamp": 2,
+                                                        "eventId": 1,
+                                                    },
+                                                    {
+                                                        "timestamp": 3,
+                                                        "eventId": 2,
+                                                    },
+                                                ]
+                                            },
+                                        }
+                                    ]
                                 },
                             },
                             "metadata": {"values": [{"key": "prop5", "value": "val4"}]},

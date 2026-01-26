@@ -1,27 +1,21 @@
 #[cfg(feature = "search")]
-use crate::search::{fallback_filter_edges, fallback_filter_nodes};
+use crate::search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes};
 use crate::{
-    core::{
-        entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
-        storage::timeindex::AsTime,
-    },
+    core::entities::{graph::tgraph::TemporalGraph, nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
         api::{
             properties::{internal::InternalMetadataOps, Metadata, Properties},
+            state::ops::filter::NodeTypeFilterOp,
             view::{internal::*, *},
         },
         graph::{
-            create_node_type_filter,
             edge::EdgeView,
             edges::Edges,
             node::NodeView,
             nodes::Nodes,
             views::{
                 cached_view::CachedView,
-                filter::{
-                    model::{AsEdgeFilter, AsNodeFilter},
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
-                },
+                filter::{model::TryAsCompositeFilter, node_filtered_graph::NodeFilteredGraph},
                 node_subgraph::NodeSubgraph,
                 valid_graph::ValidGraph,
             },
@@ -31,12 +25,11 @@ use crate::{
     prelude::*,
 };
 use ahash::HashSet;
-use chrono::{DateTime, Utc};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
         entities::{properties::meta::PropMapper, EID},
-        storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+        storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
     },
 };
@@ -59,13 +52,13 @@ use std::sync::{atomic::Ordering, Arc};
 ///
 pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return an iterator over all edges in the graph.
-    fn edges(&self) -> Edges<'graph, Self, Self>;
+    fn edges(&self) -> Edges<'graph, Self>;
 
     /// Return an unlocked iterator over all edges in the graph.
-    fn edges_unlocked(&self) -> Edges<'graph, Self, Self>;
+    fn edges_unlocked(&self) -> Edges<'graph, Self>;
 
     /// Return a View of the nodes in the Graph
-    fn nodes(&self) -> Nodes<'graph, Self, Self>;
+    fn nodes(&self) -> Nodes<'graph, Self>;
 
     /// Get a graph clone
     ///
@@ -84,7 +77,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         nodes_types: I,
-    ) -> NodeTypeFilteredGraph<Self>;
+    ) -> NodeFilteredGraph<Self, NodeTypeFilterOp>;
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(
         &self,
@@ -94,20 +87,12 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
 
-    /// Timestamp of earliest activity in the graph
-    fn earliest_time(&self) -> Option<i64>;
+    /// Get the `EventTime` of the earliest activity in the graph.
+    fn earliest_time(&self) -> Option<EventTime>;
 
-    /// UTC DateTime of earliest activity in the graph
-    fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.earliest_time()?.dt()
-    }
-    /// Timestamp of latest activity in the graph
-    fn latest_time(&self) -> Option<i64>;
+    /// Get the `EventTime` of the latest activity in the graph.
+    fn latest_time(&self) -> Option<EventTime>;
 
-    /// UTC DateTime of latest activity in the graph
-    fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.latest_time()?.dt()
-    }
     /// Return the number of nodes in the graph.
     fn count_nodes(&self) -> usize;
 
@@ -129,10 +114,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn has_edge<T: AsNodeRef>(&self, src: T, dst: T) -> bool;
 
     /// Get a node `v`.
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>>;
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self>>;
 
     /// Get an edge `(src, dst)`.
-    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>>;
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self>>;
 
     /// Get all property values of this graph.
     ///
@@ -149,14 +134,21 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 pub trait SearchableGraphOps: Sized {
     fn get_index_spec(&self) -> Result<IndexSpec, GraphError>;
 
-    fn search_nodes<F: AsNodeFilter>(
+    fn search_nodes<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, Self>>, GraphError>;
 
-    fn search_edges<F: AsEdgeFilter>(
+    fn search_edges<F: TryAsCompositeFilter>(
+        &self,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError>;
+
+    fn search_exploded_edges<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -166,7 +158,7 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
-fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G, G> {
+fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
     let graph = g.clone();
     let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
         .node_list()
@@ -207,21 +199,20 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
     };
     Edges {
         base_graph: g.clone(),
-        graph: g.clone(),
         edges,
     }
 }
 
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
-    fn edges(&self) -> Edges<'graph, Self, Self> {
+    fn edges(&self) -> Edges<'graph, Self> {
         edges_inner(self, true)
     }
 
-    fn edges_unlocked(&self) -> Edges<'graph, Self, Self> {
+    fn edges_unlocked(&self) -> Edges<'graph, Self> {
         edges_inner(self, false)
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self, Self> {
+    fn nodes(&self) -> Nodes<'graph, Self> {
         let graph = self.clone();
         Nodes::new(graph)
     }
@@ -283,13 +274,13 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         };
 
         if let Some(earliest) = self.earliest_time() {
-            g.update_time(TimeIndexEntry::start(earliest));
+            g.update_time(earliest);
         } else {
             return Ok(self.new_base_graph(g.into()));
         };
 
         if let Some(latest) = self.latest_time() {
-            g.update_time(TimeIndexEntry::end(latest));
+            g.update_time(latest);
         } else {
             return Ok(self.new_base_graph(g.into()));
         };
@@ -387,7 +378,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 for (eid, edge) in self.edges().iter().enumerate() {
                     if let Some(src_node) = shard.get_mut(node_map[edge.edge.src().index()]) {
                         for e in edge.explode() {
-                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let t = e
+                                .time_and_event_id()
+                                .expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
                             src_node.update_time(t, EID(eid).with_layer(l));
                         }
@@ -402,7 +395,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                     }
                     if let Some(dst_node) = shard.get_mut(node_map[edge.edge.dst().index()]) {
                         for e in edge.explode() {
-                            let t = e.time_and_index().expect("exploded edge should have time");
+                            let t = e
+                                .time_and_event_id()
+                                .expect("exploded edge should have time");
                             let l = layer_map[e.edge.layer().unwrap()];
                             dst_node.update_time(t, EID(eid).with_layer(l));
                         }
@@ -454,10 +449,11 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     fn subgraph_node_types<I: IntoIterator<Item = V>, V: AsRef<str>>(
         &self,
         node_types: I,
-    ) -> NodeTypeFilteredGraph<Self> {
-        let node_types_filter =
-            create_node_type_filter(self.node_meta().node_type_meta(), node_types);
-        NodeTypeFilteredGraph::new(self.clone(), node_types_filter)
+    ) -> NodeFilteredGraph<Self, NodeTypeFilterOp> {
+        NodeFilteredGraph::new(
+            self.clone(),
+            NodeTypeFilterOp::new_from_values(node_types, self),
+        )
     }
 
     fn exclude_nodes<I: IntoIterator<Item = V>, V: AsNodeRef>(&self, nodes: I) -> NodeSubgraph<G> {
@@ -482,15 +478,16 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         self.get_layer_names_from_ids(self.layer_ids())
     }
 
+    /// Get the `EventTime` of the earliest activity in the graph.
     #[inline]
-    fn earliest_time(&self) -> Option<i64> {
+    fn earliest_time(&self) -> Option<EventTime> {
         match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global(),
+            FilterState::Neither => self.earliest_time_global().map(EventTime::start), // TODO: change earliest_time_global() to return EventTime
             _ => self
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history().next())
+                .flat_map(|prop| prop.history().earliest_time())
                 .min()
                 .into_iter()
                 .chain(
@@ -504,15 +501,16 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         }
     }
 
+    /// Get the `EventTime` of the latest activity in the graph.
     #[inline]
-    fn latest_time(&self) -> Option<i64> {
+    fn latest_time(&self) -> Option<EventTime> {
         match self.filter_state() {
-            FilterState::Neither => self.latest_time_global(),
+            FilterState::Neither => self.latest_time_global().map(EventTime::end), // TODO: change latest_time_global to return EventTime
             _ => self
                 .properties()
                 .temporal()
                 .values()
-                .flat_map(|prop| prop.history_rev().next())
+                .flat_map(|prop| prop.history().latest_time())
                 .max()
                 .into_iter()
                 .chain(self.nodes().latest_time().par_iter_values().flatten().max())
@@ -578,7 +576,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         (&self).edge(src, dst).is_some()
     }
 
-    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self, Self>> {
+    fn node<T: AsNodeRef>(&self, v: T) -> Option<NodeView<'graph, Self>> {
         let v = v.as_node_ref();
         let vid = self.internalise_node(v)?;
         if self.filtered() {
@@ -590,7 +588,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         Some(NodeView::new_internal(self.clone(), vid))
     }
 
-    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self, Self>> {
+    fn edge<T: AsNodeRef>(&self, src: T, dst: T) -> Option<EdgeView<Self>> {
         let layer_ids = self.layer_ids();
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
@@ -871,7 +869,7 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             })
     }
 
-    fn search_nodes<F: AsNodeFilter>(
+    fn search_nodes<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -884,10 +882,10 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             }
         }
 
-        fallback_filter_nodes(self, &filter.as_node_filter(), limit, offset)
+        fallback_filter_nodes(self, &filter.try_as_composite_node_filter()?, limit, offset)
     }
 
-    fn search_edges<F: AsEdgeFilter>(
+    fn search_edges<F: TryAsCompositeFilter>(
         &self,
         filter: F,
         limit: usize,
@@ -900,7 +898,28 @@ impl<G: StaticGraphViewOps> SearchableGraphOps for G {
             }
         }
 
-        fallback_filter_edges(self, &filter.as_edge_filter(), limit, offset)
+        fallback_filter_edges(self, &filter.try_as_composite_edge_filter()?, limit, offset)
+    }
+
+    fn search_exploded_edges<F: TryAsCompositeFilter>(
+        &self,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<Self>>, GraphError> {
+        if let Some(storage) = self.get_storage() {
+            let guard = storage.get_index().read();
+            if let Some(searcher) = guard.searcher() {
+                return searcher.search_exploded_edges(self, filter, limit, offset);
+            }
+        }
+
+        fallback_filter_exploded_edges(
+            self,
+            &filter.try_as_composite_exploded_edge_filter()?,
+            limit,
+            offset,
+        )
     }
 
     fn is_indexed(&self) -> bool {
@@ -912,23 +931,21 @@ pub trait StaticGraphViewOps: GraphView + 'static {}
 
 impl<G: GraphView + 'static> StaticGraphViewOps for G {}
 
-impl<'graph, G: GraphViewOps<'graph> + 'graph> OneHopFilter<'graph> for G {
-    type BaseGraph = G;
-    type FilteredGraph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = GH;
+impl<'graph, G> InternalFilter<'graph> for G
+where
+    G: GraphView + 'graph,
+{
+    type Graph = G;
+    type Filtered<Next: GraphViewOps<'graph> + 'graph> = Next;
 
-    fn current_filter(&self) -> &Self::FilteredGraph {
+    fn base_graph(&self) -> &Self::Graph {
         self
     }
 
-    fn base_graph(&self) -> &Self::BaseGraph {
-        self
-    }
-
-    fn one_hop_filtered<GH: GraphViewOps<'graph> + 'graph>(
+    fn apply_filter<Next: GraphViewOps<'graph> + 'graph>(
         &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
+        filtered_graph: Next,
+    ) -> Self::Filtered<Next> {
         filtered_graph
     }
 }

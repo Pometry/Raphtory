@@ -1,4 +1,10 @@
-use crate::rayon::blocking_compute;
+use crate::{
+    model::graph::{
+        history::GqlHistory,
+        timeindex::{GqlEventTime, GqlTimeInput},
+    },
+    rayon::blocking_compute,
+};
 use async_graphql::{Error, Name, Value as GqlValue};
 use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
@@ -14,7 +20,8 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+    utils::time::IntoTime,
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -36,10 +43,20 @@ pub struct ObjectEntry {
 
 #[derive(OneOfInput, Clone, Debug)]
 pub enum Value {
+    /// 8 bit unsigned integer.
+    U8(u8),
+    /// 16 bit unsigned integer.
+    U16(u16),
+    /// 32 bit unsigned integer.
+    U32(u32),
     /// 64 bit unsigned integer.
     U64(u64),
+    /// 32 bit signed integer.
+    I32(i32),
     /// 64 bit signed integer.
     I64(i64),
+    /// 32 bit float.
+    F32(f32),
     /// 64 bit float.
     F64(f64),
     /// String.
@@ -55,8 +72,13 @@ pub enum Value {
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Value::U8(v) => write!(f, "U8({})", v),
+            Value::U16(v) => write!(f, "U16({})", v),
+            Value::U32(v) => write!(f, "U32({})", v),
             Value::U64(v) => write!(f, "U64({})", v),
+            Value::I32(v) => write!(f, "I32({})", v),
             Value::I64(v) => write!(f, "I64({})", v),
+            Value::F32(v) => write!(f, "F32({})", v),
             Value::F64(v) => write!(f, "F64({})", v),
             Value::Str(v) => write!(f, "Str({})", v),
             Value::Bool(v) => write!(f, "Bool({})", v),
@@ -85,8 +107,13 @@ impl TryFrom<Value> for Prop {
 
 fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
     match value {
+        Value::U8(n) => Ok(Prop::U8(n)),
+        Value::U16(n) => Ok(Prop::U16(n)),
+        Value::U32(n) => Ok(Prop::U32(n)),
         Value::U64(n) => Ok(Prop::U64(n)),
+        Value::I32(n) => Ok(Prop::I32(n)),
         Value::I64(n) => Ok(Prop::I64(n)),
+        Value::F32(n) => Ok(Prop::F32(n)),
         Value::F64(n) => Ok(Prop::F64(n)),
         Value::Str(s) => Ok(Prop::Str(s.into())),
         Value::Bool(b) => Ok(Prop::Bool(b)),
@@ -215,26 +242,26 @@ impl GqlProperty {
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "PropertyTuple")]
 pub(crate) struct GqlPropertyTuple {
-    time: i64,
+    time: EventTime,
     prop: Prop,
 }
 
 impl GqlPropertyTuple {
-    pub(crate) fn new(time: i64, prop: Prop) -> Self {
+    pub(crate) fn new(time: EventTime, prop: Prop) -> Self {
         Self { time, prop }
     }
 }
 
-impl From<(i64, Prop)> for GqlPropertyTuple {
-    fn from(value: (i64, Prop)) -> Self {
+impl From<(EventTime, Prop)> for GqlPropertyTuple {
+    fn from(value: (EventTime, Prop)) -> Self {
         GqlPropertyTuple::new(value.0, value.1)
     }
 }
 
 #[ResolvedObjectFields]
 impl GqlPropertyTuple {
-    async fn time(&self) -> i64 {
-        self.time
+    async fn time(&self) -> GqlEventTime {
+        self.time.into()
     }
 
     async fn as_string(&self) -> String {
@@ -253,11 +280,13 @@ pub(crate) struct GqlTemporalProperty {
     key: String,
     prop: TemporalPropertyView<DynProps>,
 }
+
 impl GqlTemporalProperty {
     pub(crate) fn new(key: String, prop: TemporalPropertyView<DynProps>) -> Self {
         Self { key, prop }
     }
 }
+
 impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
     fn from(value: (String, TemporalPropertyView<DynProps>)) -> Self {
         GqlTemporalProperty::new(value.0, value.1)
@@ -271,9 +300,9 @@ impl GqlTemporalProperty {
         self.key.clone()
     }
 
-    async fn history(&self) -> Vec<i64> {
+    async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.history().collect()).await
+        blocking_compute(move || self_clone.prop.history().into()).await
     }
 
     /// Return the values of the properties.
@@ -282,9 +311,9 @@ impl GqlTemporalProperty {
         blocking_compute(move || self_clone.prop.values().map(|x| x.to_string()).collect()).await
     }
 
-    async fn at(&self, t: i64) -> Option<String> {
+    async fn at(&self, t: GqlTimeInput) -> Option<String> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.at(t).map(|x| x.to_string())).await
+        blocking_compute(move || self_clone.prop.at(t.into_time()).map(|x| x.to_string())).await
     }
 
     async fn latest(&self) -> Option<String> {
@@ -324,6 +353,7 @@ impl GqlTemporalProperty {
 pub(crate) struct GqlProperties {
     props: DynProperties,
 }
+
 impl GqlProperties {
     #[allow(dead_code)] //This is actually being used, but for some reason cargo complains
     pub(crate) fn new(props: DynProperties) -> Self {
@@ -344,11 +374,13 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
 pub(crate) struct GqlTemporalProperties {
     props: DynTemporalProperties,
 }
+
 impl GqlTemporalProperties {
     pub(crate) fn new(props: DynTemporalProperties) -> Self {
         Self { props }
     }
 }
+
 impl From<DynTemporalProperties> for GqlTemporalProperties {
     fn from(value: DynTemporalProperties) -> Self {
         GqlTemporalProperties::new(value)
@@ -360,11 +392,13 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
 pub(crate) struct GqlMetadata {
     props: DynMetadata,
 }
+
 impl GqlMetadata {
     pub(crate) fn new(props: DynMetadata) -> Self {
         Self { props }
     }
 }
+
 impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
     fn from(value: P) -> Self {
         GqlMetadata::new(value.into())

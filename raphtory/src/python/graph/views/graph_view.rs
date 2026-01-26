@@ -4,10 +4,11 @@ use crate::{
         api::{
             properties::{Metadata, Properties},
             view::{
+                filter_ops::Filter,
                 internal::{
-                    DynamicGraph, IntoDynHop, IntoDynamic, MaterializedGraph, OneHopFilter,
+                    DynamicGraph, InternalFilter, IntoDynHop, IntoDynamic, MaterializedGraph,
                 },
-                ExplodedEdgePropertyFilterOps, LayerOps, StaticGraphViewOps,
+                LayerOps, StaticGraphViewOps,
             },
         },
         graph::{
@@ -21,8 +22,6 @@ use crate::{
                 filter::{
                     edge_property_filtered_graph::EdgePropertyFilteredGraph,
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
-                    node_property_filtered_graph::NodePropertyFilteredGraph,
-                    node_type_filtered_graph::NodeTypeFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
                 node_subgraph::NodeSubgraph,
@@ -40,9 +39,8 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use chrono::prelude::*;
 use pyo3::prelude::*;
-use raphtory_api::core::storage::arc_str::ArcStr;
+use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -84,9 +82,8 @@ pub struct PyGraphView {
 }
 
 impl_timeops!(PyGraphView, graph, DynamicGraph, "GraphView");
-impl_node_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
+impl_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 impl_layerops!(PyGraphView, graph, DynamicGraph, "GraphView");
-impl_edge_property_filter_ops!(PyGraphView<DynamicGraph>, graph, "GraphView");
 
 /// Graph view is a read-only version of a graph at a certain point in time.
 impl<G: StaticGraphViewOps + IntoDynamic> From<G> for PyGraphView {
@@ -137,27 +134,7 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for CachedView<
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodeTypeFilteredGraph<G> {
-    type Target = PyGraphView;
-    type Output = <Self::Target as IntoPyObject<'py>>::Output;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphView::from(self).into_pyobject(py)
-    }
-}
-
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for EdgePropertyFilteredGraph<G> {
-    type Target = PyGraphView;
-    type Output = <Self::Target as IntoPyObject<'py>>::Output;
-    type Error = <Self::Target as IntoPyObject<'py>>::Error;
-
-    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphView::from(self).into_pyobject(py)
-    }
-}
-
-impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NodePropertyFilteredGraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -203,40 +180,22 @@ impl PyGraphView {
 
     //******  Metrics APIs ******//
 
-    /// Timestamp of earliest activity in the graph
+    /// Time entry of the earliest activity in the graph
     ///
     /// Returns:
-    ///     Optional[int]: the timestamp of the earliest activity in the graph
+    ///     OptionalEventTime: the time entry of the earliest activity in the graph
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
-        self.graph.earliest_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.graph.earliest_time().into()
     }
 
-    /// DateTime of earliest activity in the graph
+    /// Time entry of the latest activity in the graph
     ///
     /// Returns:
-    ///     Optional[datetime]: the datetime of the earliest activity in the graph
+    ///     OptionalEventTime: the time entry of the latest activity in the graph
     #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph.earliest_date_time()
-    }
-
-    /// Timestamp of latest activity in the graph
-    ///
-    /// Returns:
-    ///     Optional[int]: the timestamp of the latest activity in the graph
-    #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
-        self.graph.latest_time()
-    }
-
-    /// DateTime of latest activity in the graph
-    ///
-    /// Returns:
-    ///     Optional[datetime]: the datetime of the latest activity in the graph
-    #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.graph.latest_date_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.graph.latest_time().into()
     }
 
     /// Number of edges in the graph
@@ -343,11 +302,7 @@ impl PyGraphView {
     /// Returns:
     ///     Optional[Edge]: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(
-        &self,
-        src: PyNodeRef,
-        dst: PyNodeRef,
-    ) -> Option<EdgeView<DynamicGraph, DynamicGraph>> {
+    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<DynamicGraph>> {
         self.graph.edge(src, dst)
     }
 
@@ -447,8 +402,10 @@ impl PyGraphView {
     ///
     /// Returns:
     ///    GraphView: Returns the subgraph
-    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> NodeTypeFilteredGraph<DynamicGraph> {
-        self.graph.subgraph_node_types(node_types)
+    fn subgraph_node_types(&self, node_types: Vec<ArcStr>) -> PyGraphView {
+        let subgraph = self.graph.subgraph_node_types(node_types);
+        let dyn_graph = subgraph.into_dyn_hop();
+        PyGraphView::from(dyn_graph)
     }
 
     /// Returns a subgraph given a set of nodes that are excluded from the subgraph
@@ -490,8 +447,8 @@ impl Repr for PyGraphView {
                     "number_of_temporal_edges",
                     self.graph.count_temporal_edges(),
                 )
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
+                .add_field("earliest_time", self.earliest_time().repr())
+                .add_field("latest_time", self.latest_time().repr())
                 .finish()
         } else {
             StructReprBuilder::new("Graph")
@@ -501,8 +458,8 @@ impl Repr for PyGraphView {
                     "number_of_temporal_edges",
                     self.graph.count_temporal_edges(),
                 )
-                .add_field("earliest_time", self.earliest_time())
-                .add_field("latest_time", self.latest_time())
+                .add_field("earliest_time", self.earliest_time().repr())
+                .add_field("latest_time", self.latest_time().repr())
                 .add_field("properties", self.properties())
                 .finish()
         }

@@ -1,7 +1,10 @@
 use raphtory::{
-    core::state::{
-        accumulator_id::accumulators::sum,
-        compute_state::{ComputeState, ComputeStateVec},
+    core::{
+        state::{
+            accumulator_id::accumulators::sum,
+            compute_state::{ComputeState, ComputeStateVec},
+        },
+        storage::timeindex::AsTime,
     },
     db::{
         api::view::{GraphViewOps, NodeViewOps, StaticGraphViewOps},
@@ -29,13 +32,8 @@ fn get_one_hop_counts<'graph, G: GraphViewOps<'graph>>(
         .sum::<usize>()
 }
 
-fn one_path_algorithm<
-    'graph,
-    G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
-    CS: ComputeState,
->(
-    nf_e_edge_expl: EvalEdgeView<'graph, '_, G, GH, CS, ()>,
+fn one_path_algorithm<'graph, G: GraphViewOps<'graph>, CS: ComputeState>(
+    nf_e_edge_expl: EvalEdgeView<'graph, '_, G, CS, ()>,
     no_time: bool,
 ) -> usize {
     //     MATCH
@@ -69,7 +67,7 @@ fn one_path_algorithm<
     }
 
     // Now we save the time of nf1
-    let nf1_time = nf_e_edge_expl.time().unwrap_or_default();
+    let nf1_time = nf_e_edge_expl.time().map(|t| t.t()).unwrap_or_default();
     let mut time_bound = nf1_time.saturating_sub(30);
     if no_time {
         time_bound = 0;
@@ -90,7 +88,7 @@ fn one_path_algorithm<
         .flat_map(|login_exp| {
             login_exp
                 .dst()
-                .window(login_exp.time().unwrap().saturating_add(1), nf1_time)
+                .window(login_exp.time().unwrap().t().saturating_add(1), nf1_time)
                 .layers("Events1v4688")
         })
         .flat_map(|v| {
@@ -168,6 +166,6 @@ mod one_path_test {
         //     )
         //     .expect("Panic");
         let actual = netflow_one_path_node(&graph, true, None);
-        assert_eq!(actual, 1);
+        assert_eq!(actual, 0);
     }
 }

@@ -115,9 +115,10 @@ mod graphql_test {
                         {
                           property: {
                             name: "p1",
-                            operator: GREATER_THAN,
-                            value: {
-                              u64: 2
+                            where: {
+                              gt: {
+                                u64: 2
+                              }
                             }
                           }
                         },
@@ -126,27 +127,30 @@ mod graphql_test {
                         {
                           node: {
                                 field: NODE_NAME,
-                                operator: EQUAL,
-                                value: {
-                                  str: "N1"
+                            		where: {
+                                  eq: {
+                                    str: "N1"
+                                  }
                                 }
                             }
                         },
                         {
                           node: {
                             field: NODE_TYPE,
-                            operator: NOT_EQUAL,
-                            value: {
-                              str: "air_nomads"
+                            where: {
+                              ne: {
+                                str: "air_nomads"
+                              }
                             }
                           }
                         },
                         {
                           property: {
                             name: "p1",
-                            operator: LESS_THAN,
-                            value: {
-                              u64: 5
+                            where: {
+                              lt: {
+                                u64: 5
+                              }
                             }
                           }
                         }
@@ -166,6 +170,7 @@ mod graphql_test {
         "#;
         let req = Request::new(query);
         let res = schema.execute(req).await;
+        assert_eq!(res.errors, []);
         let mut data = res.data.into_json().unwrap();
 
         if let Some(nodes) = data["graph"]["searchNodes"].as_array_mut() {
@@ -641,11 +646,15 @@ mod graphql_test {
               temporal {
                 values {
                   od1: orderedDedupe(latestTime: true) {
-                    time
+                    time {
+                      timestamp eventId
+                    }
                     value
                   },
                   od2: orderedDedupe(latestTime: false) {
-                    time
+                    time {
+                      timestamp eventId
+                    }
                     value
                   }
                 }
@@ -656,11 +665,15 @@ mod graphql_test {
                 temporal {
                   values {
                     od1: orderedDedupe(latestTime: true) {
-                      time
+                      time {
+                        timestamp eventId
+                      }
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
-                      time
+                      time {
+                        timestamp eventId
+                      }
                       value
                     }
                   }
@@ -675,11 +688,15 @@ mod graphql_test {
                 temporal{
                   values{
                     od1: orderedDedupe(latestTime: true) {
-                      time
+                      time {
+                        timestamp eventId
+                      }
                       value
                     },
                     od2: orderedDedupe(latestTime: false) {
-                      time
+                      time {
+                        timestamp eventId
+                      }
                       value
                     }
                   }
@@ -701,29 +718,47 @@ mod graphql_test {
                     {
                       "od1": [
                         {
-                          "time": 2,
+                          "time": {
+                            "timestamp": 2,
+                            "eventId": 1
+                          },
                           "value": "abc"
                         },
                         {
-                          "time": 3,
+                          "time": {
+                            "timestamp": 3,
+                            "eventId": 2
+                          },
                           "value": "xyz"
                         },
                         {
-                          "time": 4,
+                          "time": {
+                            "timestamp": 4,
+                            "eventId": 3
+                          },
                           "value": "abc"
                         }
                       ],
                       "od2": [
                         {
-                          "time": 1,
+                          "time": {
+                            "timestamp": 1,
+                            "eventId": 0
+                          },
                           "value": "abc"
                         },
                         {
-                          "time": 3,
+                          "time": {
+                            "timestamp": 3,
+                            "eventId": 2
+                          },
                           "value": "xyz"
                         },
                         {
-                          "time": 4,
+                          "time": {
+                            "timestamp": 4,
+                            "eventId": 3
+                          },
                           "value": "abc"
                         }
                       ]
@@ -738,21 +773,33 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "time": 11,
+                            "time": {
+                              "timestamp": 11,
+                              "eventId": 13
+                            },
                             "value": "phone"
                           },
                           {
-                            "time": 13,
+                            "time": {
+                              "timestamp": 13,
+                              "eventId": 15
+                            },
                             "value": "fax"
                           }
                         ],
                         "od2": [
                           {
-                            "time": 11,
+                            "time": {
+                              "timestamp": 11,
+                              "eventId": 13
+                            },
                             "value": "phone"
                           },
                           {
-                            "time": 12,
+                            "time": {
+                              "timestamp": 12,
+                              "eventId": 14
+                            },
                             "value": "fax"
                           }
                         ]
@@ -768,37 +815,61 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "time": 2,
+                            "time": {
+                              "timestamp": 2,
+                              "eventId": 5
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 3,
+                            "time": {
+                              "timestamp": 3,
+                              "eventId": 6
+                            },
                             "value": "review"
                           },
                           {
-                            "time": 4,
+                            "time": {
+                              "timestamp": 4,
+                              "eventId": 7
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 10,
+                            "time": {
+                              "timestamp": 10,
+                              "eventId": 9
+                            },
                             "value": "in-progress"
                           }
                         ],
                         "od2": [
                           {
-                            "time": 1,
+                            "time": {
+                              "timestamp": 1,
+                              "eventId": 4
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 3,
+                            "time": {
+                              "timestamp": 3,
+                              "eventId": 6
+                            },
                             "value": "review"
                           },
                           {
-                            "time": 4,
+                            "time": {
+                              "timestamp": 4,
+                              "eventId": 7
+                            },
                             "value": "open"
                           },
                           {
-                            "time": 5,
+                            "time": {
+                              "timestamp": 5,
+                              "eventId": 8
+                            },
                             "value": "in-progress"
                           }
                         ]
@@ -806,21 +877,33 @@ mod graphql_test {
                       {
                         "od1": [
                           {
-                            "time": 9,
+                            "time": {
+                              "timestamp": 9,
+                              "eventId": 10
+                            },
                             "value": true
                           },
                           {
-                            "time": 10,
+                            "time": {
+                              "timestamp": 10,
+                              "eventId": 11
+                            },
                             "value": false
                           }
                         ],
                         "od2": [
                           {
-                            "time": 9,
+                            "time": {
+                              "timestamp": 9,
+                              "eventId": 10
+                            },
                             "value": true
                           },
                           {
-                            "time": 10,
+                            "time": {
+                              "timestamp": 10,
+                              "eventId": 11
+                            },
                             "value": false
                           }
                         ]

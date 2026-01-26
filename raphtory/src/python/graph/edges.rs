@@ -1,6 +1,7 @@
 use crate::{
+    api::core::storage::timeindex::AsTime,
     db::{
-        api::view::{DynamicGraph, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
+        api::view::{DynamicGraph, EdgeSelect, IntoDynBoxed, IntoDynamic, StaticGraphViewOps},
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
@@ -9,23 +10,21 @@ use crate::{
     errors::GraphError,
     prelude::*,
     python::{
-        graph::properties::{
-            MetadataView, PropertiesView, PyMetadataListList, PyNestedPropsIterable,
+        filter::filter_expr::PyFilterExpr,
+        graph::{
+            history::{HistoryIterable, NestedHistoryIterable},
+            properties::{MetadataListList, MetadataView, PropertiesView, PyNestedPropsIterable},
         },
         types::{
             repr::{iterator_repr, Repr},
             wrappers::iterables::{
-                ArcStringIterable, ArcStringVecIterable, BoolIterable, GIDGIDIterable, I64Iterable,
-                NestedArcStringIterable, NestedArcStringVecIterable, NestedBoolIterable,
-                NestedGIDGIDIterable, NestedI64VecIterable, NestedOptionI64Iterable,
-                NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable, OptionI64Iterable,
-                OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable, U64Iterable,
+                ArcStringIterable, ArcStringVecIterable, BoolIterable, EventTimeIterable,
+                GIDGIDIterable, NestedArcStringIterable, NestedArcStringVecIterable,
+                NestedBoolIterable, NestedEventTimeIterable, NestedGIDGIDIterable,
+                NestedOptionEventTimeIterable, OptionEventTimeIterable,
             },
         },
-        utils::{
-            export::{create_row, extract_properties, get_column_names_from_props},
-            NumpyArray, PyGenericIterable,
-        },
+        utils::export::{create_row, extract_properties, get_column_names_from_props},
     },
 };
 use pyo3::{prelude::*, types::PyDict};
@@ -50,37 +49,47 @@ impl_iterable_mixin!(
     |edges: &Edges<'static, DynamicGraph>| edges.clone().into_iter()
 );
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for Edges<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> Repr for Edges<'graph, G> {
     fn repr(&self) -> String {
         format!("Edges({})", iterator_repr(self.iter()))
     }
 }
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    IntoPyObject<'py> for Edges<'static, G, GH>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for Edges<'static, G> {
     type Target = PyEdges;
     type Output = Bound<'py, PyEdges>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        let graph = self.graph.into_dynamic();
         let base_graph = self.base_graph.into_dynamic();
         let edges = self.edges;
         PyEdges {
-            edges: Edges {
-                base_graph,
-                graph,
-                edges,
-            },
+            edges: Edges { base_graph, edges },
         }
         .into_pyobject(py)
     }
 }
 
+impl<G: StaticGraphViewOps + IntoDynamic> From<Edges<'static, G>> for PyEdges {
+    fn from(value: Edges<'static, G>) -> Self {
+        let base_graph = value.base_graph.into_dynamic();
+        Self {
+            edges: Edges::new(base_graph, value.edges),
+        }
+    }
+}
+
 #[pymethods]
 impl PyEdges {
-    /// Returns the number of edges
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyEdges> {
+        let r = self.edges.select(filter)?;
+        Ok(PyEdges::from(r))
+    }
+
+    /// Returns the number of edges.
+    ///
+    /// Returns:
+    ///     int:
     fn count(&self) -> usize {
         self.edges.len()
     }
@@ -88,59 +97,29 @@ impl PyEdges {
     /// Returns the earliest time of the edges.
     ///
     /// Returns:
-    /// Earliest time of the edges.
+    ///     OptionEventTimeIterable: Iterable of `EventTime`s.
     #[getter]
-    fn earliest_time(&self) -> OptionI64Iterable {
+    fn earliest_time(&self) -> OptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
 
-    /// Returns the earliest date time of the edges.
+    /// Returns the latest times of the edges.
     ///
     /// Returns:
-    ///  Earliest date time of the edges.
+    ///     OptionEventTimeIterable: Iterable of `EventTime`s.
     #[getter]
-    fn earliest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.earliest_date_time()).into()
-    }
-
-    /// Returns the latest time of the edges.
-    ///
-    /// Returns:
-    ///  Latest time of the edges.
-    #[getter]
-    fn latest_time(&self) -> OptionI64Iterable {
+    fn latest_time(&self) -> OptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
-    }
-
-    /// Returns the latest date time of the edges.
-    ///
-    /// Returns:
-    ///   Latest date time of the edges.
-    #[getter]
-    fn latest_date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.latest_date_time()).into()
-    }
-
-    /// Returns the date times of exploded edges
-    ///
-    /// Returns:
-    ///    A list of date times.
-    #[getter]
-    fn date_time(&self) -> OptionUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.date_time()).into()
     }
 
     /// Returns the times of exploded edges
     ///
     /// Returns:
-    ///   Time of edge
+    ///   EventTimeIterable: Iterable of `EventTime`s.
     #[getter]
-    fn time(&self) -> Result<I64Iterable, GraphError> {
+    fn time(&self) -> Result<EventTimeIterable, GraphError> {
         match self.edges.time().next() {
             Some(Err(err)) => Err(err),
             _ => {
@@ -171,74 +150,66 @@ impl PyEdges {
     }
 
     /// Returns all ids of the edges.
+    ///
+    /// Returns:
+    ///     GIDGIDIterable:
     #[getter]
     fn id(&self) -> GIDGIDIterable {
         let edges = self.edges.clone();
         (move || edges.id()).into()
     }
 
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    /// Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
     ///
     /// Returns:
-    ///    A list of lists unix timestamps.
-    ///
-    fn history(&self) -> PyGenericIterable {
+    ///    HistoryIterable: An iterable of history objects, one for each edge.
+    #[getter]
+    fn history(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history().map(NumpyArray::I64)).into()
+        (move || edges.history().map(|history| history.into_arc_dyn())).into()
     }
 
-    fn history_counts(&self) -> U64Iterable {
-        let edges = self.edges.clone();
-        (move || edges.history_counts().map(|count| count as u64)).into()
-    }
-
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
+    /// Returns a history object for each edge containing their deletion times.
     ///
     /// Returns:
-    ///    A list of lists of timestamps.
-    ///
-    fn history_date_time(&self) -> OptionVecUtcDateTimeIterable {
+    ///    HistoryIterable: An iterable of history objects, one for each edge.
+    #[getter]
+    fn deletions(&self) -> HistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.history_date_time()).into()
+        (move || edges.deletions().map(|history| history.into_arc_dyn())).into()
     }
 
-    /// Returns all timestamps of edges where an edge is deleted
-    ///
-    /// Returns:
-    ///     A list of lists of unix timestamps
-    fn deletions(&self) -> PyGenericIterable {
-        let edges = self.edges.clone();
-        (move || edges.deletions().map(NumpyArray::I64)).into()
-    }
-
-    /// Returns all timestamps of edges where an edge is deleted
+    /// Check if the edges are valid (i.e. not deleted).
     ///
     /// Returns:
-    ///     A list of lists of DateTime objects
-    fn deletions_date_time(&self) -> OptionVecUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.deletions_date_time()).into()
-    }
-
-    /// Check if the edges are valid (i.e. not deleted)
+    ///     BoolIterable:
     fn is_valid(&self) -> BoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_valid()).into()
     }
 
-    ////Check if the edges are active (i.e. there is at least one update during this time)
+    /// Check if the edges are active (there is at least one update during this time).
+    ///
+    /// Returns:
+    ///     BoolIterable:
     fn is_active(&self) -> BoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_active()).into()
     }
 
-    /// Check if the edges are on the same node
+    /// Check if the edges are on the same node.
+    ///
+    /// Returns:
+    ///     BoolIterable:
     fn is_self_loop(&self) -> BoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_self_loop()).into()
     }
 
-    /// Check if the edges are deleted
+    /// Check if the edges are deleted.
+    ///
+    /// Returns:
+    ///     BoolIterable:
     fn is_deleted(&self) -> BoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_deleted()).into()
@@ -247,7 +218,7 @@ impl PyEdges {
     /// Get the layer name that all edges belong to - assuming they only belong to one layer
     ///
     /// Returns:
-    ///  The name of the layer
+    ///  ArcStringIterable:
     #[getter]
     fn layer_name(&self) -> Result<ArcStringIterable, GraphError> {
         match self.edges.layer_name().next() {
@@ -259,10 +230,10 @@ impl PyEdges {
         }
     }
 
-    /// Get the layer names that all edges belong to - assuming they only belong to one layer
+    /// Get the layer names that all edges belong to - assuming they only belong to one layer.
     ///
     /// Returns:
-    ///   A list of layer names
+    ///   ArcStringVecIterable:
     #[getter]
     fn layer_names(&self) -> ArcStringVecIterable {
         let edges = self.edges.clone();
@@ -297,7 +268,7 @@ impl PyEdges {
             String::from("dst"),
             String::from("layer"),
         ];
-        let edge_meta = self.edges.graph.edge_meta();
+        let edge_meta = self.edges.base_graph.edge_meta();
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
 
         let mut edges = self.edges.explode_layers();
@@ -329,7 +300,7 @@ impl PyEdges {
                     &item.metadata(),
                     &mut properties_map,
                     &mut prop_time_dict,
-                    item.start().unwrap_or(0),
+                    item.start().map(|t| t.t()).unwrap_or(0),
                 );
 
                 let row_header: Vec<Prop> = vec![
@@ -339,7 +310,7 @@ impl PyEdges {
                 ];
 
                 let start_point = 3;
-                let history = item.history();
+                let history = item.history().t().collect();
 
                 create_row(
                     convert_datetime,
@@ -390,65 +361,72 @@ impl_iterable_mixin!(
     "edge"
 );
 
-impl<'py, G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    IntoPyObject<'py> for NestedEdges<'static, G, GH>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for NestedEdges<'static, G> {
     type Target = PyNestedEdges;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
         let edges = NestedEdges {
-            graph: self.graph.into_dynamic(),
             nodes: self.nodes,
-            base_graph: self.base_graph.into_dynamic(),
+            graph: self.graph.into_dynamic(),
             edges: self.edges,
         };
         PyNestedEdges { edges }.into_pyobject(py)
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr
-    for NestedEdges<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> Repr for NestedEdges<'graph, G> {
     fn repr(&self) -> String {
         format!("NestedEdges({})", iterator_repr(self.iter()))
     }
 }
 
+impl<G: StaticGraphViewOps + IntoDynamic> From<NestedEdges<'static, G>> for PyNestedEdges {
+    fn from(value: NestedEdges<'static, G>) -> Self {
+        let base_graph = value.graph.into_dynamic();
+        Self {
+            edges: NestedEdges::new(base_graph, value.nodes, value.edges),
+        }
+    }
+}
+
 #[pymethods]
 impl PyNestedEdges {
+    fn __getitem__(&self, filter: PyFilterExpr) -> PyResult<PyNestedEdges> {
+        let r = self.edges.select(filter)?;
+        Ok(PyNestedEdges::from(r))
+    }
+
     /// Returns the earliest time of the edges.
+    ///
+    /// Returns:
+    ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
     #[getter]
-    fn earliest_time(&self) -> NestedOptionI64Iterable {
+    fn earliest_time(&self) -> NestedOptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.earliest_time()).into()
     }
 
-    /// Returns the earliest date time of the edges.
-    #[getter]
-    fn earliest_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.earliest_date_time()).into()
-    }
-
     /// Returns the latest time of the edges.
+    ///
+    /// Returns:
+    ///     NestedOptionEventTimeIterable: A nested iterable of `EventTime`s.
     #[getter]
-    fn latest_time(&self) -> NestedOptionI64Iterable {
+    fn latest_time(&self) -> NestedOptionEventTimeIterable {
         let edges = self.edges.clone();
         (move || edges.latest_time()).into()
     }
 
-    /// Returns the latest date time of the edges.
+    /// Returns the times of exploded edges.
+    ///
+    /// Returns:
+    ///     NestedEventTimeIterable: A nested iterable of `EventTime`s.
+    ///
+    /// Raises:
+    ///     GraphError: If a graph error occurs (e.g. the edges are not exploded).
     #[getter]
-    fn latest_date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.latest_date_time()).into()
-    }
-
-    /// Returns the times of exploded edges
-    #[getter]
-    fn time(&self) -> Result<NestedOptionI64Iterable, GraphError> {
+    fn time(&self) -> Result<NestedEventTimeIterable, GraphError> {
         match self.edges.time().flatten().next() {
             Some(Err(err)) => Err(err),
             _ => {
@@ -464,7 +442,10 @@ impl PyNestedEdges {
         }
     }
 
-    /// Returns the name of the layer the edges belong to - assuming they only belong to one layer
+    /// Returns the name of the layer the edges belong to - assuming they only belong to one layer.
+    ///
+    /// Returns:
+    ///     NestedArcStringIterable:
     #[getter]
     fn layer_name(&self) -> Result<NestedArcStringIterable, GraphError> {
         match self.edges.layer_name().flatten().next() {
@@ -486,7 +467,10 @@ impl PyNestedEdges {
         }
     }
 
-    /// Returns the names of the layers the edges belong to
+    /// Returns the names of the layers the edges belong to.
+    ///
+    /// Returns:
+    ///     NestedArcStringVecIterable:
     #[getter]
     fn layer_names(&self) -> NestedArcStringVecIterable {
         let edges = self.edges.clone();
@@ -495,6 +479,9 @@ impl PyNestedEdges {
 
     // FIXME: needs a view that allows indexing into the properties
     /// Returns all properties of the edges
+    ///
+    /// Returns:
+    ///     PyNestedPropsIterable:
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let edges = self.edges.clone();
@@ -502,77 +489,88 @@ impl PyNestedEdges {
     }
 
     /// Get a view of the metadata only.
+    ///
+    /// Returns:
+    ///     MetadataListList:
     #[getter]
-    pub fn metadata(&self) -> PyMetadataListList {
+    pub fn metadata(&self) -> MetadataListList {
         let edges = self.edges.clone();
         (move || edges.metadata()).into()
     }
 
     /// Returns all ids of the edges.
+    ///
+    /// Returns:
+    ///     NestedGIDGIDIterable:
     #[getter]
     fn id(&self) -> NestedGIDGIDIterable {
         let edges = self.edges.clone();
         (move || edges.id()).into()
     }
 
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    fn history(&self) -> NestedI64VecIterable {
-        let edges = self.edges.clone();
-        (move || edges.history()).into()
-    }
-
-    /// Returns all timestamps of edges, when an edge is added or change to an edge is made.
-    fn history_date_time(&self) -> NestedVecUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.history_date_time()).into()
-    }
-
-    /// Returns all timestamps of edges, where an edge is deleted
+    /// Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
     ///
     /// Returns:
-    ///     A list of lists of lists of unix timestamps
-    fn deletions(&self) -> NestedI64VecIterable {
+    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
+    #[getter]
+    fn history(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions()).into()
+        (move || {
+            edges
+                .history()
+                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
+        })
+        .into()
     }
 
-    /// Returns all timestamps of edges, where an edge is deleted
+    /// Returns a history object for each edge containing their deletion times.
     ///
     /// Returns:
-    ///     A list of lists of lists of DateTime objects
-    fn deletions_date_time(&self) -> NestedVecUtcDateTimeIterable {
+    ///     NestedHistoryIterable: A nested iterable of history objects, one for each edge.
+    #[getter]
+    fn deletions(&self) -> NestedHistoryIterable {
         let edges = self.edges.clone();
-        (move || edges.deletions_date_time()).into()
+        (move || {
+            edges
+                .deletions()
+                .map(|history_iter| history_iter.map(|history| history.into_arc_dyn()))
+        })
+        .into()
     }
 
-    /// Check if edges are valid (i.e., not deleted)
+    /// Check if edges are valid (i.e., not deleted).
+    ///
+    /// Returns:
+    ///     NestedBoolIterable:
     fn is_valid(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_valid()).into()
     }
 
-    ////Check if the edges are active (i.e. there is at least one update during this time)
+    /// Check if the edges are active (there is at least one update during this time).
+    ///
+    /// Returns:
+    ///     NestedBoolIterable:
     fn is_active(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_active()).into()
     }
 
-    /// Check if the edges are on the same node
+    /// Check if the edges are on the same node.
+    ///
+    /// Returns:
+    ///     NestedBoolIterable:
     fn is_self_loop(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_self_loop()).into()
     }
 
-    /// Check if edges are deleted
+    /// Check if edges are deleted.
+    ///
+    /// Returns:
+    ///     NestedBoolIterable:
     fn is_deleted(&self) -> NestedBoolIterable {
         let edges = self.edges.clone();
         (move || edges.is_deleted()).into()
-    }
-
-    /// Get the date times of exploded edges
-    #[getter]
-    fn date_time(&self) -> NestedUtcDateTimeIterable {
-        let edges = self.edges.clone();
-        (move || edges.date_time()).into()
     }
 }

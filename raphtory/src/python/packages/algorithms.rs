@@ -59,7 +59,7 @@ use crate::{
     },
     db::{
         api::{
-            state::{Index, OutputTypedNodeState},
+            state::{ops::filter::NO_FILTER, Index, OutputTypedNodeState},
             view::internal::DynamicGraph,
         },
         graph::nodes::Nodes,
@@ -68,14 +68,14 @@ use crate::{
     prelude::Graph,
     python::{
         graph::{node::PyNode, views::graph_view::PyGraphView},
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
 };
 #[cfg(feature = "storage")]
 use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::Direction;
+use raphtory_api::core::{storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
@@ -792,7 +792,7 @@ pub fn k_core(
     } else {
         Some(Index::from_iter(v_set))
     };
-    Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), index, None)
+    Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), NO_FILTER, index)
 }
 
 /// Simulate an SEIR dynamic on the network
@@ -827,7 +827,7 @@ pub fn temporal_SEIR(
     graph: &PyGraphView,
     seeds: crate::python::algorithm::epidemics::PySeed,
     infection_prob: f64,
-    initial_infection: PyTime,
+    initial_infection: EventTime,
     recovery_rate: Option<f64>,
     incubation_rate: Option<f64>,
     rng_seed: Option<u64>,
