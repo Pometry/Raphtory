@@ -27,7 +27,7 @@ jobs:
       - name: Install maturin
         run: pip install maturin==1.8.3
       - name: Build raphtory
-        run: cd python && maturin build --strip --out /tmp/wheels # double-check --strip acutally makes sense
+        run: cd python && maturin build --release --out /tmp/wheels # If this fails, try adding --strip back again
       - run: rm -fr target
       - run: pip install /tmp/wheels/*.whl
       - name: Set up pnpm

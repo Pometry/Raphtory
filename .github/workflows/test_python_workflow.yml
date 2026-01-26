@@ -31,10 +31,6 @@ jobs:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: "${{ matrix.os }}"
-    # env:
-    #   CARGO_BUILD_JOBS: 2
-    #   CARGO_INCREMENTAL: 0
-    #   RUSTFLAGS: "-C debuginfo=0"
     steps:
       - uses: actions/checkout@v4
         name: Checkout
