@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769418818205,
+  "lastUpdate": 1769508695924,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3563,6 +3563,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1304,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5427a32f87d439134340257208afa672b30c9cb4",
+          "message": "Make UI tests required again (#2455)\n\n* Make UI tests a requirement for green-ticking a PR now that they are working again.\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-27T10:35:28+01:00",
+          "tree_id": "d232059b89de2e1cd363458b81dff145941ef270",
+          "url": "https://github.com/Pometry/Raphtory/commit/5427a32f87d439134340257208afa672b30c9cb4"
+        },
+        "date": 1769508692140,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1345,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 221,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 134,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1163,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 940,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1421,
             "unit": "req/s"
           }
         ]
