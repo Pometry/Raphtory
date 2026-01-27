@@ -157,7 +157,8 @@ impl<
         G: StaticGraphViewOps
             + InternalAdditionOps<Error = GraphError>
             + InternalPropertyAdditionOps<Error = GraphError>
-            + InternalDeletionOps<Error = GraphError> + DurabilityOps,
+            + InternalDeletionOps<Error = GraphError>
+            + DurabilityOps,
     > EdgeView<G>
 {
     pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {

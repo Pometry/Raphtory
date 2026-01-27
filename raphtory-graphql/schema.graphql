@@ -1190,7 +1190,7 @@ type History {
 	"""
 	Fetch one page of EventTime entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1198,7 +1198,7 @@ type History {
 	"""
 	Fetch one page of EventTime entries with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1255,7 +1255,7 @@ type HistoryDateTime {
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
 	will be raised on time conversion error. Defaults to False.
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1265,7 +1265,7 @@ type HistoryDateTime {
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
 	If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
 	will be raised on time conversion error. Defaults to False.
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1287,7 +1287,7 @@ type HistoryEventId {
 	"""
 	Fetch one page of event ids with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1295,7 +1295,7 @@ type HistoryEventId {
 	"""
 	Fetch one page of event ids in reverse chronological order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1317,7 +1317,7 @@ type HistoryTimestamp {
 	"""
 	Fetch one page of timestamps with a number of items up to a specified limit, optionally offset by a specified amount.
 	The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1325,7 +1325,7 @@ type HistoryTimestamp {
 	"""
 	Fetch one page of timestamps in reverse order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page_rev(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1388,7 +1388,7 @@ type Intervals {
 	"""
 	Fetch one page of intervals between consecutive timestamps with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
@@ -1396,7 +1396,7 @@ type Intervals {
 	"""
 	Fetch one page of intervals between consecutive timestamps in reverse order with a number of items up to a specified limit,
 	optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
-
+	
 	For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
 	will be returned.
 	"""
