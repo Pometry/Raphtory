@@ -506,7 +506,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     fn set_dirty(&self, _dirty: bool) {}
 
-    fn check_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
+    fn has_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
         false
     }
 

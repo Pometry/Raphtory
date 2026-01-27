@@ -90,7 +90,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn set_dirty(&self, dirty: bool);
 
-    fn check_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
+    fn has_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
 
     fn get_out_edge(
         &self,

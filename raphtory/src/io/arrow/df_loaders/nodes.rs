@@ -277,6 +277,7 @@ pub fn load_node_props_from_df<
                     c_props.clear();
                     c_props.extend(metadata_cols.iter_row(idx));
                     c_props.extend_from_slice(&shared_metadata);
+
                     if !c_props.is_empty() {
                         writer.update_c_props(mut_node, STATIC_GRAPH_LAYER_ID, c_props.drain(..));
                     }

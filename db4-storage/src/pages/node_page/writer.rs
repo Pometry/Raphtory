@@ -69,7 +69,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         let (is_new_node, add) = self.mut_segment.add_outbound_edge(t, src_pos, dst, e_id);
         self.page.increment_est_size(add);
 
-        if is_new_node && !self.page.check_node(src_pos, layer_id) {
+        if is_new_node && !self.page.has_node(src_pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
     }
@@ -112,7 +112,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
         self.page.increment_est_size(add);
 
-        if is_new_node && !self.page.check_node(dst_pos, layer) {
+        if is_new_node && !self.page.has_node(dst_pos, layer) {
             self.l_counter.increment(layer);
         }
     }
@@ -127,7 +127,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.l_counter.update_time(t.t());
         let (is_new_node, add) = self.mut_segment.add_props(t, pos, layer_id, props);
         self.page.increment_est_size(add);
-        if is_new_node && !self.page.check_node(pos, layer_id) {
+        if is_new_node && !self.page.has_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
     }
@@ -149,7 +149,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     ) {
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
         self.page.increment_est_size(add);
-        if is_new_node && !self.page.check_node(pos, layer_id) {
+        if is_new_node && !self.page.has_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
     }
@@ -202,6 +202,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn increment_seg_num_nodes(&mut self) {
         self.page
             .increment_num_nodes(self.mut_segment.max_page_len());
+    }
+
+    pub fn has_node(&self, node: LocalPOS, layer_id: usize) -> bool {
+        self.mut_segment.has_node(node, layer_id)
     }
 }
 
