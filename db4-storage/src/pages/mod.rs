@@ -14,7 +14,7 @@ use node_page::writer::{NodeWriter, NodeWriters};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::Prop},
+    entities::properties::{meta::{Meta, STATIC_GRAPH_LAYER_ID}, prop::Prop},
     storage::dict_mapper::MaybeNew,
     utils::time::{InputTime, TryIntoInputTime},
 };
@@ -400,7 +400,7 @@ impl<
         };
 
         let (_, src_pos) = self.nodes.resolve_pos(src);
-        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, 0);
+        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, STATIC_GRAPH_LAYER_ID);
 
         let edge_writer = match e_id.or(existing_eid) {
             Some(e_id) => self.edge_writer(e_id),
@@ -443,7 +443,7 @@ impl<
         };
 
         let (_, src_pos) = self.nodes.resolve_pos(src);
-        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, 0);
+        let existing_eid = node_writers.src.get_out_edge(src_pos, dst, STATIC_GRAPH_LAYER_ID);
 
         let edge_writer = match e_id.or(existing_eid) {
             Some(e_id) => self.edge_writer(e_id),

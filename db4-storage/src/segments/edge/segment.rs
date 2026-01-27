@@ -55,22 +55,6 @@ pub struct MemEdgeSegment {
     lsn: LSN,
 }
 
-impl<I: IntoIterator<Item = SegmentContainer<EdgeEntry>>> From<I> for MemEdgeSegment {
-    fn from(inner: I) -> Self {
-        let layers: Vec<_> = inner.into_iter().collect();
-        let est_size = layers.iter().map(|seg| seg.est_size()).sum();
-        assert!(
-            !layers.is_empty(),
-            "MemEdgeSegment must have at least one layer"
-        );
-        Self {
-            layers,
-            est_size,
-            lsn: 0,
-        }
-    }
-}
-
 impl AsRef<[SegmentContainer<EdgeEntry>]> for MemEdgeSegment {
     fn as_ref(&self) -> &[SegmentContainer<EdgeEntry>] {
         &self.layers
@@ -559,7 +543,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 #[cfg(test)]
 mod test {
     use super::*;
-    use raphtory_api::core::entities::properties::{meta::Meta, prop::PropType};
+    use raphtory_api::core::entities::properties::{meta::{Meta, STATIC_GRAPH_LAYER_ID}, prop::PropType};
     use raphtory_core::storage::timeindex::EventTime;
 
     fn create_test_segment() -> MemEdgeSegment {
@@ -625,7 +609,7 @@ mod test {
             LocalPOS(0),
             VID(1),
             VID(2),
-            0,
+            STATIC_GRAPH_LAYER_ID,
             vec![(0, Prop::from("test"))],
         );
 
@@ -633,7 +617,7 @@ mod test {
 
         assert!(est_size1 > 0);
 
-        segment.delete_edge_internal(EventTime::new(2, 3), LocalPOS(0), VID(5), VID(3), 0);
+        segment.delete_edge_internal(EventTime::new(2, 3), LocalPOS(0), VID(5), VID(3), STATIC_GRAPH_LAYER_ID);
 
         let est_size2 = segment.est_size();
 
@@ -648,7 +632,7 @@ mod test {
             LocalPOS(1),
             VID(4),
             VID(6),
-            0,
+            STATIC_GRAPH_LAYER_ID,
             vec![(0, Prop::from("test2"))],
         );
 
@@ -660,7 +644,7 @@ mod test {
 
         // Insert a static edge
 
-        segment.insert_static_edge_internal(LocalPOS(1), 4, 6, 0);
+        segment.insert_static_edge_internal(LocalPOS(1), 4, 6, STATIC_GRAPH_LAYER_ID);
 
         let est_size4 = segment.est_size();
         assert_eq!(
@@ -674,7 +658,7 @@ mod test {
             .unwrap()
             .inner();
 
-        segment.update_const_properties(LocalPOS(1), VID(4), VID(6), 0, [(prop_id, Prop::U8(2))]);
+        segment.update_const_properties(LocalPOS(1), VID(4), VID(6), STATIC_GRAPH_LAYER_ID, [(prop_id, Prop::U8(2))]);
 
         let est_size5 = segment.est_size();
         assert!(

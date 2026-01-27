@@ -40,24 +40,6 @@ pub struct MemNodeSegment {
     lsn: LSN,
 }
 
-impl<I: IntoIterator<Item = SegmentContainer<AdjEntry>>> From<I> for MemNodeSegment {
-    fn from(inner: I) -> Self {
-        let layers = inner.into_iter().collect::<Vec<_>>();
-        assert!(
-            !layers.is_empty(),
-            "MemNodeSegment must have at least one layer"
-        );
-        let segment_id = layers[0].segment_id();
-        let max_page_len = layers[0].max_page_len();
-        Self {
-            segment_id,
-            max_page_len,
-            layers,
-            lsn: 0,
-        }
-    }
-}
-
 #[derive(Debug, Default, serde::Serialize)]
 pub struct AdjEntry {
     row: usize,
@@ -589,7 +571,7 @@ mod test {
         wal::no_wal::NoWal,
     };
     use raphtory_api::core::entities::properties::{
-        meta::Meta,
+        meta::{Meta, STATIC_GRAPH_LAYER_ID},
         prop::{Prop, PropType},
     };
     use raphtory_core::entities::{EID, ELID, VID};
@@ -618,7 +600,7 @@ mod test {
         let est_size1 = segment.est_size();
         assert_eq!(est_size1, 0);
 
-        writer.add_outbound_edge(Some(1), LocalPOS(1), VID(3), EID(7).with_layer(0));
+        writer.add_outbound_edge(Some(1), LocalPOS(1), VID(3), EID(7).with_layer(STATIC_GRAPH_LAYER_ID));
 
         let est_size2 = segment.est_size();
         assert!(
@@ -626,7 +608,7 @@ mod test {
             "Estimated size should be greater than 0 after adding an edge"
         );
 
-        writer.add_inbound_edge(Some(1), LocalPOS(2), VID(4), EID(8).with_layer(0));
+        writer.add_inbound_edge(Some(1), LocalPOS(2), VID(4), EID(8).with_layer(STATIC_GRAPH_LAYER_ID));
 
         let est_size3 = segment.est_size();
         assert!(
@@ -636,7 +618,7 @@ mod test {
 
         // no change when adding the same edge again
 
-        writer.add_outbound_edge::<i64>(None, LocalPOS(1), VID(3), EID(7).with_layer(0));
+        writer.add_outbound_edge::<i64>(None, LocalPOS(1), VID(3), EID(7).with_layer(STATIC_GRAPH_LAYER_ID));
         let est_size4 = segment.est_size();
         assert_eq!(
             est_size4, est_size3,
@@ -651,7 +633,7 @@ mod test {
             .unwrap()
             .inner();
 
-        writer.update_c_props(LocalPOS(1), 0, [(prop_id, Prop::U64(73))]);
+        writer.update_c_props(LocalPOS(1), STATIC_GRAPH_LAYER_ID, [(prop_id, Prop::U64(73))]);
 
         let est_size5 = segment.est_size();
         assert!(
@@ -659,7 +641,7 @@ mod test {
             "Estimated size should increase after adding constant properties"
         );
 
-        writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), 0));
+        writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), STATIC_GRAPH_LAYER_ID));
 
         let est_size6 = segment.est_size();
         assert!(
@@ -674,7 +656,7 @@ mod test {
             .unwrap()
             .inner();
 
-        writer.add_props(42, LocalPOS(1), 0, [(prop_id, Prop::F64(4.13))]);
+        writer.add_props(42, LocalPOS(1), STATIC_GRAPH_LAYER_ID, [(prop_id, Prop::F64(4.13))]);
 
         let est_size7 = segment.est_size();
         assert!(
@@ -682,7 +664,7 @@ mod test {
             "Estimated size should increase after adding temporal properties"
         );
 
-        writer.add_props(72, LocalPOS(1), 0, [(prop_id, Prop::F64(5.41))]);
+        writer.add_props(72, LocalPOS(1), STATIC_GRAPH_LAYER_ID, [(prop_id, Prop::F64(5.41))]);
         let est_size8 = segment.est_size();
         assert!(
             est_size8 > est_size7,
