@@ -1,7 +1,6 @@
-use crate::graph::graph::GraphStorage;
+use crate::{graph::graph::GraphStorage, mutation::MutationError};
 use db4_graph::TemporalGraph;
 use storage::{transaction::TransactionManager, Wal};
-use crate::mutation::MutationError;
 
 /// Accessor methods for transactions and write-ahead logging.
 pub trait DurabilityOps {

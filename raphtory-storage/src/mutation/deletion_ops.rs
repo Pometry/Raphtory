@@ -1,4 +1,5 @@
 use crate::{graph::graph::GraphStorage, mutation::MutationError};
+use db4_graph::TemporalGraph;
 use raphtory_api::{
     core::{
         entities::{EID, VID},
@@ -6,9 +7,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use db4_graph::TemporalGraph;
 use storage::Extension;
-
 
 pub trait InternalDeletionOps {
     type Error: From<MutationError>;

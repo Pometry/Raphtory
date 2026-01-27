@@ -1,7 +1,10 @@
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{mutation::time_from_input_session, view::{internal::InternalStorageOps, StaticGraphViewOps}},
+        api::{
+            mutation::time_from_input_session,
+            view::{internal::InternalStorageOps, StaticGraphViewOps},
+        },
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
@@ -11,10 +14,12 @@ use raphtory_api::core::{
     entities::properties::prop::Prop,
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_core::entities::{nodes::node_ref::NodeRef};
+use raphtory_core::entities::nodes::node_ref::NodeRef;
 use raphtory_storage::mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps}, durability_ops::DurabilityOps, MutationError
-    };
+    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    durability_ops::DurabilityOps,
+    MutationError,
+};
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps:
@@ -354,7 +359,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Inte
         // Update the src, dst and edge segments with the lsn of the wal entry.
         add_edge_op.set_lsn(lsn);
 
-        self.core_graph().transaction_manager()?.end_transaction(transaction_id);
+        self.core_graph()
+            .transaction_manager()?
+            .end_transaction(transaction_id);
 
         // Drop to release all the segment locks.
         drop(add_edge_op);
