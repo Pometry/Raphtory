@@ -3,7 +3,7 @@ use crate::{
     graph::graph::Immutable,
     mutation::{
         addition_ops::InheritAdditionOps, deletion_ops::InheritDeletionOps,
-        durability_ops::InheritDurabilityOps, property_addition_ops::InheritPropertyAdditionOps,
+        property_addition_ops::InheritPropertyAdditionOps,
     },
 };
 use parking_lot::RwLockWriteGuard;
@@ -71,6 +71,5 @@ pub trait InheritMutationOps: Base {}
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
 impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}
 impl<G: InheritMutationOps> InheritDeletionOps for G {}
-impl<G: InheritMutationOps> InheritDurabilityOps for G {}
 
 impl<T: CoreGraphOps + ?Sized> InheritMutationOps for Arc<T> {}

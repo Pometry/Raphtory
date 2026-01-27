@@ -204,10 +204,6 @@ where
         self.storage().extension()
     }
 
-    pub fn wal(&self) -> &EXT::Wal {
-        self.storage().extension().wal()
-    }
-
     pub fn read_event_counter(&self) -> usize {
         self.storage().read_event_id()
     }

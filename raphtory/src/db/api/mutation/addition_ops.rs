@@ -1,7 +1,7 @@
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{mutation::time_from_input_session, view::StaticGraphViewOps},
+        api::{mutation::time_from_input_session, view::{internal::InternalStorageOps, StaticGraphViewOps}},
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
@@ -11,19 +11,14 @@ use raphtory_api::core::{
     entities::properties::prop::Prop,
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_core::entities::{nodes::node_ref::NodeRef, GID};
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        durability_ops::DurabilityOps,
-        MutationError,
-    },
-};
+use raphtory_core::entities::{nodes::node_ref::NodeRef};
+use raphtory_storage::mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps}, durability_ops::DurabilityOps, MutationError
+    };
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps:
-    StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> + DurabilityOps
+    StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> + InternalStorageOps
 {
     // TODO: Probably add vector reference here like add
     /// Add a node to the graph
@@ -152,7 +147,7 @@ pub trait AdditionOps:
     fn flush(&self) -> Result<(), Self::Error>;
 }
 
-impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + DurabilityOps>
+impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + InternalStorageOps>
     AdditionOps for G
 {
     fn add_node<
@@ -259,7 +254,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
         props: PII,
         layer: Option<&str>,
     ) -> Result<EdgeView<G>, GraphError> {
-        let transaction_id = self.transaction_manager().begin_transaction();
+        let transaction_id = self.core_graph().transaction_manager()?.begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;
         let src = src.as_node_ref();
         let dst = dst.as_node_ref();
@@ -321,7 +316,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
             .collect::<Vec<_>>();
 
         let lsn = self
-            .wal()
+            .core_graph()
+            .wal()?
             .log_add_edge(
                 transaction_id,
                 ti,
@@ -358,13 +354,13 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
         // Update the src, dst and edge segments with the lsn of the wal entry.
         add_edge_op.set_lsn(lsn);
 
-        self.transaction_manager().end_transaction(transaction_id);
+        self.core_graph().transaction_manager()?.end_transaction(transaction_id);
 
         // Drop to release all the segment locks.
         drop(add_edge_op);
 
         // Flush the wal entry to disk.
-        self.wal().flush(lsn).unwrap();
+        self.core_graph().wal()?.flush(lsn).unwrap();
 
         Ok(EdgeView::new(
             self.clone(),

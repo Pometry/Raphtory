@@ -368,11 +368,11 @@ impl InternalAdditionOps for TemporalGraph {
 }
 
 impl DurabilityOps for TemporalGraph {
-    fn transaction_manager(&self) -> &TransactionManager {
-        &self.transaction_manager
+    fn transaction_manager(&self) -> Result<&TransactionManager, MutationError> {
+        Ok(&self.transaction_manager)
     }
 
-    fn wal(&self) -> &Wal {
-        &self.extension().wal()
+    fn wal(&self) -> Result<&Wal, MutationError> {
+        Ok(&self.extension().wal())
     }
 }

@@ -1,37 +1,21 @@
 use crate::graph::graph::GraphStorage;
-use raphtory_api::inherit::Base;
+use db4_graph::TemporalGraph;
 use storage::{transaction::TransactionManager, Wal};
+use crate::mutation::MutationError;
 
 /// Accessor methods for transactions and write-ahead logging.
 pub trait DurabilityOps {
-    fn transaction_manager(&self) -> &TransactionManager;
+    fn transaction_manager(&self) -> Result<&TransactionManager, MutationError>;
 
-    fn wal(&self) -> &Wal;
+    fn wal(&self) -> Result<&Wal, MutationError>;
 }
 
 impl DurabilityOps for GraphStorage {
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.mutable().unwrap().transaction_manager.as_ref()
+    fn transaction_manager(&self) -> Result<&TransactionManager, MutationError> {
+        self.mutable()?.transaction_manager()
     }
 
-    fn wal(&self) -> &Wal {
-        self.mutable().unwrap().wal()
-    }
-}
-
-pub trait InheritDurabilityOps: Base {}
-
-impl<G: InheritDurabilityOps> DurabilityOps for G
-where
-    G::Base: DurabilityOps,
-{
-    #[inline]
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.base().transaction_manager()
-    }
-
-    #[inline]
-    fn wal(&self) -> &Wal {
-        self.base().wal()
+    fn wal(&self) -> Result<&Wal, MutationError> {
+        self.mutable()?.wal()
     }
 }

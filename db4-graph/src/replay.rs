@@ -10,7 +10,6 @@ use raphtory_api::core::{
     },
     storage::timeindex::EventTime,
 };
-use raphtory_core::entities::GidRef;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,

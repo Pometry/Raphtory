@@ -6,7 +6,9 @@ use raphtory_api::{
     },
     inherit::Base,
 };
+use db4_graph::TemporalGraph;
 use storage::Extension;
+
 
 pub trait InternalDeletionOps {
     type Error: From<MutationError>;
@@ -25,7 +27,7 @@ pub trait InternalDeletionOps {
     ) -> Result<(), Self::Error>;
 }
 
-impl InternalDeletionOps for db4_graph::TemporalGraph<Extension> {
+impl InternalDeletionOps for TemporalGraph<Extension> {
     type Error = MutationError;
 
     fn internal_delete_edge(

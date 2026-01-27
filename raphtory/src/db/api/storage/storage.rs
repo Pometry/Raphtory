@@ -573,16 +573,6 @@ impl InternalAdditionOps for Storage {
     }
 }
 
-impl DurabilityOps for Storage {
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.graph.mutable().unwrap().transaction_manager.as_ref()
-    }
-
-    fn wal(&self) -> &Wal {
-        self.graph.mutable().unwrap().wal()
-    }
-}
-
 impl InternalPropertyAdditionOps for Storage {
     type Error = GraphError;
 
