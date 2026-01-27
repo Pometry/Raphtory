@@ -7,13 +7,18 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
-use raphtory_api::core::utils::time::{IntoTimeWithFormat, TryIntoInputTime};
-use raphtory_core::entities::GID;
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps},
-    durability_ops::DurabilityOps,
-    MutationError,
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    utils::time::{IntoTimeWithFormat, TryIntoInputTime},
+};
+use raphtory_core::entities::{nodes::node_ref::NodeRef, GID};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps},
+        durability_ops::DurabilityOps,
+        MutationError,
+    },
 };
 use storage::wal::{GraphWalOps, WalOps};
 
@@ -256,9 +261,11 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
     ) -> Result<EdgeView<G>, GraphError> {
         let transaction_id = self.transaction_manager().begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;
+        let src = src.as_node_ref();
+        let dst = dst.as_node_ref();
 
         self.validate_gids(
-            [src.as_node_ref(), dst.as_node_ref()]
+            [src, dst]
                 .iter()
                 .filter_map(|node_ref| node_ref.as_gid_ref().left()),
         )
@@ -273,28 +280,21 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Dura
             .map_err(into_graph_err)?;
 
         let ti = time_from_input_session(&session, t)?;
-        let src_id = self
-            .resolve_node(src.as_node_ref())
-            .map_err(into_graph_err)?;
-        let dst_id = self
-            .resolve_node(dst.as_node_ref())
-            .map_err(into_graph_err)?;
+        let src_id = self.resolve_node(src).map_err(into_graph_err)?;
+        let dst_id = self.resolve_node(dst).map_err(into_graph_err)?;
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
 
         // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
         // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
-        let src_gid = src
-            .as_node_ref()
-            .as_gid_ref()
-            .left()
-            .map(|gid_ref| GID::from(gid_ref))
-            .unwrap();
-        let dst_gid = dst
-            .as_node_ref()
-            .as_gid_ref()
-            .left()
-            .map(|gid_ref| GID::from(gid_ref))
-            .unwrap();
+        let src_gid = match src {
+            NodeRef::Internal(_) => None,
+            NodeRef::External(gid_ref) => Some(gid_ref),
+        };
+
+        let dst_gid = match dst {
+            NodeRef::Internal(_) => None,
+            NodeRef::External(gid_ref) => Some(gid_ref),
+        };
 
         let src_id = src_id.inner();
         let dst_id = dst_id.inner();

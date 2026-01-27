@@ -1,4 +1,4 @@
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{GidRef, properties::prop::Prop};
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
@@ -16,9 +16,9 @@ impl GraphWalOps for NoWal {
         &self,
         _transaction_id: TransactionID,
         _t: EventTime,
-        _src_name: GID,
+        _src_name: Option<GidRef<'_>>,
         _src_id: VID,
-        _dst_name: GID,
+        _dst_name: Option<GidRef<'_>>,
         _dst_id: VID,
         _eid: EID,
         _layer_name: Option<&str>,

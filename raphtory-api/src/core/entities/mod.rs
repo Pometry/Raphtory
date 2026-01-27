@@ -305,6 +305,40 @@ pub enum GidRef<'a> {
     Str(&'a str),
 }
 
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
+pub enum GidCow<'a> {
+    U64(u64),
+    Str(Cow<'a, str>),
+}
+
+impl<'a> From<GidRef<'a>> for GidCow<'a> {
+    fn from(value: GidRef<'a>) -> Self {
+        match value {
+            GidRef::U64(v) => Self::U64(v),
+            GidRef::Str(v) => Self::Str(Cow::Borrowed(v)),
+        }
+    }
+}
+
+impl<'a> GidCow<'a> {
+    pub fn as_ref<'b>(&'b self) -> GidRef<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            GidCow::U64(v) => GidRef::U64(*v),
+            GidCow::Str(v) => GidRef::Str(v),
+        }
+    }
+
+    pub fn into_owned(self) -> GID {
+        match self {
+            GidCow::U64(v) => GID::U64(v),
+            GidCow::Str(v) => GID::Str(v.into_owned()),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum GidType {
     U64,

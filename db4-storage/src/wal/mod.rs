@@ -1,5 +1,5 @@
 use crate::error::StorageError;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{GidRef, properties::prop::Prop};
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
@@ -79,9 +79,9 @@ pub trait GraphWalOps {
         &self,
         transaction_id: TransactionID,
         t: EventTime,
-        src_name: GID,
+        src_name: Option<GidRef<'_>>,
         src_id: VID,
-        dst_name: GID,
+        dst_name: Option<GidRef<'_>>,
         dst_id: VID,
         eid: EID,
         layer_name: Option<&str>,
@@ -108,9 +108,9 @@ pub trait GraphReplay {
         lsn: LSN,
         transaction_id: TransactionID,
         t: EventTime,
-        src_name: GID,
+        src_name: Option<GID>,
         src_id: VID,
-        dst_name: GID,
+        dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,

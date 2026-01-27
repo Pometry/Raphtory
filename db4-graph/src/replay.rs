@@ -33,9 +33,9 @@ where
         lsn: LSN,
         transaction_id: TransactionID,
         t: EventTime,
-        src_name: GID,
+        src_name: Option<GID>,
         src_id: VID,
-        dst_name: GID,
+        dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
@@ -68,12 +68,17 @@ where
         }
 
         // 2. Insert node ids into resolver.
-        temporal_graph
-            .logical_to_physical
-            .set(GidRef::from(&src_name), src_id)?;
-        temporal_graph
-            .logical_to_physical
-            .set(GidRef::from(&dst_name), dst_id)?;
+        if let Some(src_name) = src_name.as_ref() {
+            temporal_graph
+                .logical_to_physical
+                .set(src_name.as_ref(), src_id)?;
+        }
+
+        if let Some(dst_name) = dst_name.as_ref() {
+            temporal_graph
+                .logical_to_physical
+                .set(dst_name.as_ref(), dst_id)?;
+        }
 
         // 3. Insert layer id into the layer meta of both edge and node.
         let node_meta = temporal_graph.node_meta();
@@ -106,7 +111,9 @@ where
                 src_writer.increment_seg_num_nodes();
             }
 
-            src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name.into());
+            if let Some(src_name) = src_name {
+                src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name);
+            }
 
             let is_new_edge_static = src_writer
                 .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
@@ -152,7 +159,9 @@ where
                 dst_writer.increment_seg_num_nodes();
             }
 
-            dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name.into());
+            if let Some(dst_name) = dst_name {
+                dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name);
+            }
 
             let is_new_edge_static = dst_writer
                 .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
