@@ -23,7 +23,7 @@ use raphtory_storage::mutation::{
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps:
-    StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> + InternalStorageOps
+    StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>>
 {
     // TODO: Probably add vector reference here like add
     /// Add a node to the graph
@@ -152,7 +152,7 @@ pub trait AdditionOps:
     fn flush(&self) -> Result<(), Self::Error>;
 }
 
-impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + InternalStorageOps>
+impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps>
     AdditionOps for G
 {
     fn add_node<

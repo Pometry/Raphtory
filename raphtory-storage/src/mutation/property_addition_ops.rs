@@ -4,7 +4,7 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{properties::prop::Prop, EID, VID},
+        entities::{properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop}, EID, VID},
         storage::timeindex::EventTime,
     },
     inherit::Base,
@@ -86,8 +86,8 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
-        writer.check_metadata(node_pos, 0, &props)?;
-        writer.update_c_props(node_pos, 0, props);
+        writer.check_metadata(node_pos, STATIC_GRAPH_LAYER_ID, &props)?;
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
         Ok(writer)
     }
 
@@ -98,7 +98,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
-        writer.update_c_props(node_pos, 0, props);
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
         Ok(writer)
     }
 

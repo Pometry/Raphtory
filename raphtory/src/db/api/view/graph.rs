@@ -376,7 +376,7 @@ fn materialize_impl(
                         .set_node(gid.as_ref(), new_id)?;
 
                     for (t, row) in node.rows() {
-                        writer.add_props(t, node_pos, 0, row);
+                        writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, row);
                     }
 
                     writer.update_c_props(
