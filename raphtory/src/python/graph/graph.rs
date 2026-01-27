@@ -3,6 +3,8 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
+#[cfg(feature = "search")]
+use crate::python::graph::index::PyIndexSpec;
 use crate::{
     algorithms::components::LargestConnectedComponent,
     db::{
@@ -14,28 +16,38 @@ use crate::{
     prelude::*,
     python::{
         graph::{
-            edge::PyEdge, graph_with_deletions::PyPersistentGraph, io::pandas_loaders::*,
-            node::PyNode, views::graph_view::PyGraphView,
+            edge::PyEdge,
+            graph_with_deletions::PyPersistentGraph,
+            io::arrow_loaders::{
+                convert_py_prop_args, convert_py_schema, is_csv_path,
+                load_edge_metadata_from_arrow_c_stream, load_edge_metadata_from_csv_path,
+                load_edges_from_arrow_c_stream, load_edges_from_csv_path,
+                load_node_metadata_from_arrow_c_stream, load_node_metadata_from_csv_path,
+                load_nodes_from_arrow_c_stream, load_nodes_from_csv_path, CsvReadOptions,
+            },
+            node::PyNode,
+            views::graph_view::PyGraphView,
         },
         types::iterable::FromIterable,
-        utils::{PyNodeRef, PyTime},
+        utils::PyNodeRef,
     },
     serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
         StableDecode, StableEncode,
     },
 };
-use pyo3::{prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
+use raphtory_api::{
+    core::{entities::GID, storage::arc_str::ArcStr},
+    python::timeindex::EventTimeComponent,
+};
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
     collections::HashMap,
     fmt::{Debug, Formatter},
     path::PathBuf,
+    sync::Arc,
 };
-
-#[cfg(feature = "search")]
-use crate::python::graph::index::PyIndexSpec;
 
 /// A temporal graph with event semantics.
 ///
@@ -215,8 +227,8 @@ impl PyGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional): The optional string which will be used as a node type
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    node_type (str, optional): The optional string which will be used as a node type.
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     MutableNode: The added node.
@@ -224,16 +236,16 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (timestamp, id, properties = None, node_type = None, secondary_index = None)
+        signature = (timestamp, id, properties = None, node_type = None, event_id = None)
     )]
     pub fn add_node(
         &self,
-        timestamp: PyTime,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
-        secondary_index: Option<usize>,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
+        event_id: Option<usize>,
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
         let props = properties
             .into_iter()
             .flat_map(|map| {
@@ -243,12 +255,11 @@ impl PyGraph {
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        match secondary_index {
+        match event_id {
             None => self.graph.add_node(timestamp, id, props, node_type),
-            Some(secondary_index) => {
-                self.graph
-                    .add_node((timestamp, secondary_index), id, props, node_type)
-            }
+            Some(event_id) => self
+                .graph
+                .add_node((timestamp, event_id), id, props, node_type),
         }
     }
 
@@ -258,30 +269,30 @@ impl PyGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str|int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional): The optional string which will be used as a node type
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    node_type (str, optional): The optional string which will be used as a node type.
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     MutableNode: The created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
     pub fn create_node(
         &self,
-        timestamp: PyTime,
+        timestamp: EventTimeComponent,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-        secondary_index: Option<usize>,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
-        match secondary_index {
+        event_id: Option<usize>,
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
+        match event_id {
             None => {
                 self.graph
                     .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
             }
-            Some(secondary_index) => self.graph.create_node(
-                (timestamp, secondary_index),
+            Some(event_id) => self.graph.create_node(
+                (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
@@ -294,25 +305,23 @@ impl PyGraph {
     /// Arguments:
     ///    timestamp (TimeInput): The timestamp of the temporal property.
     ///    properties (PropInput): The temporal properties of the graph.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, properties, secondary_index = None))]
+    #[pyo3(signature = (timestamp, properties, event_id = None))]
     pub fn add_properties(
         &self,
-        timestamp: PyTime,
+        timestamp: EventTimeComponent,
         properties: HashMap<String, Prop>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self.graph.add_properties(timestamp, properties),
-            Some(secondary_index) => self
-                .graph
-                .add_properties((timestamp, secondary_index), properties),
+            Some(event_id) => self.graph.add_properties((timestamp, event_id), properties),
         }
     }
 
@@ -352,29 +361,29 @@ impl PyGraph {
     ///    dst (str|int): The id of the destination node.
     ///    properties (PropInput, optional): The properties of the edge, as a dict of string and properties.
     ///    layer (str, optional): The layer of the edge.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id.
     ///
     /// Returns:
     ///     MutableEdge: The added edge.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, secondary_index = None))]
+    #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None, event_id = None))]
     pub fn add_edge(
         &self,
-        timestamp: PyTime,
+        timestamp: EventTimeComponent,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
-    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
-        match secondary_index {
+        event_id: Option<usize>,
+    ) -> Result<EdgeView<Graph>, GraphError> {
+        match event_id {
             None => self
                 .graph
                 .add_edge(timestamp, src, dst, properties.unwrap_or_default(), layer),
-            Some(secondary_index) => self.graph.add_edge(
-                (timestamp, secondary_index),
+            Some(event_id) => self.graph.add_edge(
+                (timestamp, event_id),
                 src,
                 dst,
                 properties.unwrap_or_default(),
@@ -401,7 +410,7 @@ impl PyGraph {
         &self,
         node: PyNode,
         merge: bool,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
         self.graph.import_node(&node.node, merge)
     }
 
@@ -425,7 +434,7 @@ impl PyGraph {
         node: PyNode,
         new_id: GID,
         merge: bool,
-    ) -> Result<NodeView<'static, Graph, Graph>, GraphError> {
+    ) -> Result<NodeView<'static, Graph>, GraphError> {
         self.graph.import_node_as(&node.node, new_id, merge)
     }
 
@@ -487,11 +496,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(signature = (edge, merge = false))]
-    pub fn import_edge(
-        &self,
-        edge: PyEdge,
-        merge: bool,
-    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
+    pub fn import_edge(&self, edge: PyEdge, merge: bool) -> Result<EdgeView<Graph>, GraphError> {
         self.graph.import_edge(&edge.edge, merge)
     }
 
@@ -515,7 +520,7 @@ impl PyGraph {
         edge: PyEdge,
         new_id: (GID, GID),
         merge: bool,
-    ) -> Result<EdgeView<Graph, Graph>, GraphError> {
+    ) -> Result<EdgeView<Graph>, GraphError> {
         self.graph.import_edge_as(&edge.edge, new_id, merge)
     }
 
@@ -585,7 +590,7 @@ impl PyGraph {
     /// Returns:
     ///     MutableEdge: the edge with the specified source and destination nodes, or None if the edge does not exist
     #[pyo3(signature = (src, dst))]
-    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<Graph, Graph>> {
+    pub fn edge(&self, src: PyNodeRef, dst: PyNodeRef) -> Option<EdgeView<Graph>> {
         self.graph.edge(src, dst)
     }
 
@@ -629,30 +634,35 @@ impl PyGraph {
         PyGraph::py_from_db_graph(self.graph.event_graph())
     }
 
-    /// Load nodes from a Pandas DataFrame into the graph.
+    /// Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+    /// a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+    /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
     ///
     /// Arguments:
-    ///     df (DataFrame): The Pandas DataFrame containing the nodes.
+    ///     data (Any): The data source containing the nodes.
     ///     time (str): The column name for the timestamps.
     ///     id (str): The column name for the node IDs.
-    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
+    ///     node_type_col (str, optional): The node type column name in a dataframe. Cannot be used in combination with node_type. Defaults to None.
     ///     properties (List[str], optional): List of node property column names. Defaults to None.
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
+    ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+    ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index. Defaults to None.
     ///
     /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
+    ///     None: This function does not return a value if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (df, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, secondary_index = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
     )]
-    fn load_nodes_from_pandas<'py>(
+    fn load_nodes(
         &self,
-        df: &Bound<'py, PyAny>,
+        data: &Bound<PyAny>,
         time: &str,
         id: &str,
 
@@ -661,100 +671,116 @@ impl PyGraph {
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
-        secondary_index: Option<&str>,
+        schema: Option<Bound<PyAny>>,
+        csv_options: Option<CsvReadOptions>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_nodes_from_pandas(
-            &self.graph,
-            df,
-            time,
-            secondary_index,
-            id,
-            node_type,
-            node_type_col,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-        )
+        let column_schema = convert_py_schema(schema)?;
+        if data.hasattr("__arrow_c_stream__")? {
+            load_nodes_from_arrow_c_stream(
+                &self.graph,
+                data,
+                time,
+                id,
+                node_type,
+                node_type_col,
+                &properties,
+                &metadata,
+                shared_metadata.as_ref(),
+                column_schema,
+                event_id,
+            )
+        } else if let Ok(path) = data.extract::<PathBuf>() {
+            // extracting PathBuf handles Strings too
+            let is_parquet = is_parquet_path(&path)?;
+            let is_csv = is_csv_path(&path)?;
+
+            // fail before loading anything at all to avoid loading partial data
+            if !is_csv && csv_options.is_some() {
+                return Err(GraphError::from(PyValueError::new_err(format!(
+                    "CSV options were passed but no CSV files were detected at {}.",
+                    path.display()
+                ))));
+            }
+
+            // wrap in Arc to avoid cloning the entire schema for Parquet, CSV, and inner loops in CSV path
+            let arced_schema = column_schema.map(Arc::new);
+
+            // if-if instead of if-else to support directories with mixed parquet and CSV files
+            if is_parquet {
+                load_nodes_from_parquet(
+                    &self.graph,
+                    path.as_path(),
+                    time,
+                    event_id,
+                    id,
+                    node_type,
+                    node_type_col,
+                    &properties,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    None,
+                    true,
+                    arced_schema.clone(),
+                )?;
+            }
+            if is_csv {
+                load_nodes_from_csv_path(
+                    &self.graph,
+                    &path,
+                    time,
+                    id,
+                    node_type,
+                    node_type_col,
+                    &properties,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    csv_options.as_ref(),
+                    arced_schema,
+                    event_id,
+                )?;
+            }
+            if !is_parquet && !is_csv {
+                return Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files")));
+            }
+            Ok(())
+        } else {
+            Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
+        }
     }
 
-    /// Load nodes from a Parquet file into the graph.
+    /// Load edges into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+    /// a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+    /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
     ///
     /// Arguments:
-    ///     parquet_path (str): Parquet file or directory of Parquet files containing the nodes
-    ///     time (str): The column name for the timestamps.
-    ///     id (str): The column name for the node IDs.
-    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
-    ///     properties (List[str], optional): List of node property column names. Defaults to None.
-    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
-    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
-    ///
-    /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
-    #[pyo3(
-        signature = (parquet_path, time, id, node_type = None, node_type_col = None, properties = None, metadata = None, shared_metadata = None, secondary_index = None)
-    )]
-    fn load_nodes_from_parquet(
-        &self,
-        parquet_path: PathBuf,
-        time: &str,
-        id: &str,
-        node_type: Option<&str>,
-        node_type_col: Option<&str>,
-        properties: Option<Vec<PyBackedStr>>,
-        metadata: Option<Vec<PyBackedStr>>,
-        shared_metadata: Option<HashMap<String, Prop>>,
-        secondary_index: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_nodes_from_parquet(
-            &self.graph,
-            parquet_path.as_path(),
-            time,
-            secondary_index,
-            id,
-            node_type,
-            node_type_col,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-            None,
-            true,
-        )
-    }
-
-    /// Load edges from a Pandas DataFrame into the graph.
-    ///
-    /// Arguments:
-    ///     df (DataFrame): The Pandas DataFrame containing the edges.
+    ///     data (Any): The data source containing the edges.
     ///     time (str): The column name for the update timestamps.
-    ///     src (str): The column name for the source node ids.
-    ///     dst (str): The column name for the destination node ids.
+    ///     src (str): The column name for the source node IDs.
+    ///     dst (str): The column name for the destination node IDs.
     ///     properties (List[str], optional): List of edge property column names. Defaults to None.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-    ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
-    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
+    ///     layer (str, optional): A value to use as the layer for all edges. Cannot be used in combination with layer_col. Defaults to None.
+    ///     layer_col (str, optional): The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
+    ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+    ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index. Defaults to None.
     ///
     /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
+    ///     None: This function does not return a value if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (df, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, secondary_index = None)
+        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
     )]
-    fn load_edges_from_pandas(
+    fn load_edges(
         &self,
-        df: &Bound<PyAny>,
+        data: &Bound<PyAny>,
         time: &str,
         src: &str,
         dst: &str,
@@ -763,240 +789,289 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
-        secondary_index: Option<&str>,
+        schema: Option<Bound<PyAny>>,
+        csv_options: Option<CsvReadOptions>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edges_from_pandas(
-            &self.graph,
-            df,
-            time,
-            secondary_index,
-            src,
-            dst,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            layer_col,
-        )
+        let column_schema = convert_py_schema(schema)?;
+        if data.hasattr("__arrow_c_stream__")? {
+            load_edges_from_arrow_c_stream(
+                &self.graph,
+                data,
+                time,
+                src,
+                dst,
+                &properties,
+                &metadata,
+                shared_metadata.as_ref(),
+                layer,
+                layer_col,
+                column_schema,
+                event_id,
+            )
+        } else if let Ok(path) = data.extract::<PathBuf>() {
+            // extracting PathBuf handles Strings too
+            let is_parquet = is_parquet_path(&path)?;
+            let is_csv = is_csv_path(&path)?;
+
+            // fail before loading anything at all to avoid loading partial data
+            if !is_csv && csv_options.is_some() {
+                return Err(GraphError::from(PyValueError::new_err(format!(
+                    "CSV options were passed but no CSV files were detected at {}.",
+                    path.display()
+                ))));
+            }
+
+            // wrap in Arc to avoid cloning the entire schema for Parquet, CSV, and inner loops in CSV path
+            let arced_schema = column_schema.map(Arc::new);
+
+            // if-if instead of if-else to support directories with mixed parquet and CSV files
+            if is_parquet {
+                load_edges_from_parquet(
+                    &self.graph,
+                    &path,
+                    ColumnNames::new(time, event_id, src, dst, layer_col),
+                    true,
+                    &properties,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    layer,
+                    None,
+                    arced_schema.clone(),
+                )?;
+            }
+            if is_csv {
+                load_edges_from_csv_path(
+                    &self.graph,
+                    &path,
+                    time,
+                    src,
+                    dst,
+                    &properties,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
+                    csv_options.as_ref(),
+                    arced_schema.clone(),
+                    event_id,
+                )?;
+            }
+            if !is_parquet && !is_csv {
+                return Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files")));
+            }
+            Ok(())
+        } else {
+            Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
+        }
     }
 
-    /// Load edges from a Parquet file into the graph.
+    /// Load node metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+    /// a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+    /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
     ///
     /// Arguments:
-    ///     parquet_path (str): Parquet file or directory of Parquet files path containing edges
-    ///     time (str): The column name for the update timestamps.
-    ///     src (str): The column name for the source node ids.
-    ///     dst (str): The column name for the destination node ids.
-    ///     properties (List[str], optional): List of edge property column names. Defaults to None.
-    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-    ///     layer (str, optional): A value to use as the layer for all edges. Defaults to None. (cannot be used in combination with layer_col)
-    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None. (cannot be used in combination with layer)
-    ///     secondary_index (str, optional): The column name for the secondary index. Defaults to None.
-    ///
-    /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
-    #[pyo3(
-        signature = (parquet_path, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, secondary_index = None)
-    )]
-    fn load_edges_from_parquet(
-        &self,
-        parquet_path: PathBuf,
-        time: &str,
-        src: &str,
-        dst: &str,
-        properties: Option<Vec<PyBackedStr>>,
-        metadata: Option<Vec<PyBackedStr>>,
-        shared_metadata: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_col: Option<&str>,
-        secondary_index: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
-        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edges_from_parquet(
-            &self.graph,
-            parquet_path.as_path(),
-            ColumnNames::new(time, secondary_index, src, dst, layer_col),
-            true,
-            &properties,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            None,
-        )
-    }
-
-    /// Load node properties from a Pandas DataFrame.
-    ///
-    /// Arguments:
-    ///     df (DataFrame): The Pandas DataFrame containing node information.
+    ///     data (Any): The data source containing node information.
     ///     id(str): The column name for the node IDs.
-    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
+    ///     node_type (str, optional): A value to use as the node type for all nodes. Cannot be used in combination with node_type_col. Defaults to None.
+    ///     node_type_col (str, optional): The node type column name in a dataframe. Cannot be used in combination with node_type. Defaults to None.
     ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
+    ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+    ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
     ///
     /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
+    ///     None: This function does not return a value if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (df, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None)
+        signature = (data, id, node_type = None, node_type_col = None, metadata = None, shared_metadata = None, schema = None, csv_options = None)
     )]
-    fn load_node_props_from_pandas(
+    fn load_node_metadata(
         &self,
-        df: &Bound<PyAny>,
+        data: &Bound<PyAny>,
         id: &str,
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
+        schema: Option<Bound<PyAny>>,
+        csv_options: Option<CsvReadOptions>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_node_props_from_pandas(
-            &self.graph,
-            df,
-            id,
-            node_type,
-            node_type_col,
-            &metadata,
-            shared_metadata.as_ref(),
-        )
+        let column_schema = convert_py_schema(schema)?;
+        if data.hasattr("__arrow_c_stream__")? {
+            load_node_metadata_from_arrow_c_stream(
+                &self.graph,
+                data,
+                id,
+                node_type,
+                node_type_col,
+                &metadata,
+                shared_metadata.as_ref(),
+                column_schema,
+            )
+        } else if let Ok(path) = data.extract::<PathBuf>() {
+            // extracting PathBuf handles Strings too
+            let is_parquet = is_parquet_path(&path)?;
+            let is_csv = is_csv_path(&path)?;
+
+            // fail before loading anything at all to avoid loading partial data
+            if !is_csv && csv_options.is_some() {
+                return Err(GraphError::from(PyValueError::new_err(format!(
+                    "CSV options were passed but no CSV files were detected at {}.",
+                    path.display()
+                ))));
+            }
+
+            // wrap in Arc to avoid cloning the entire schema for Parquet, CSV, and inner loops in CSV path
+            let arced_schema = column_schema.map(Arc::new);
+
+            // if-if instead of if-else to support directories with mixed parquet and CSV files
+            if is_parquet {
+                load_node_metadata_from_parquet(
+                    &self.graph,
+                    path.as_path(),
+                    id,
+                    node_type,
+                    node_type_col,
+                    None,
+                    None,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    None,
+                    arced_schema.clone(),
+                )?;
+            }
+            if is_csv {
+                load_node_metadata_from_csv_path(
+                    &self.graph,
+                    &path,
+                    id,
+                    node_type,
+                    node_type_col,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    csv_options.as_ref(),
+                    arced_schema,
+                )?;
+            }
+            if !is_parquet && !is_csv {
+                return Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files")));
+            }
+            Ok(())
+        } else {
+            Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
+        }
     }
 
-    /// Load node properties from a parquet file.
+    /// Load edge metadata into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+    /// a path to a CSV or Parquet file, or a directory containing multiple CSV or Parquet files.
+    /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
     ///
     /// Arguments:
-    ///     parquet_path (str): Parquet file or directory of Parquet files path containing node information.
-    ///     id(str): The column name for the node IDs.
-    ///     node_type (str, optional): A value to use as the node type for all nodes. Defaults to None. (cannot be used in combination with node_type_col)
-    ///     node_type_col (str, optional): The node type col name in dataframe. Defaults to None. (cannot be used in combination with node_type)
-    ///     metadata (List[str], optional): List of node metadata column names. Defaults to None.
-    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
-    ///
-    /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
-    #[pyo3(
-        signature = (parquet_path, id, node_type = None, node_type_col = None, metadata = None, shared_metadata= None)
-    )]
-    fn load_node_props_from_parquet(
-        &self,
-        parquet_path: PathBuf,
-        id: &str,
-        node_type: Option<&str>,
-        node_type_col: Option<&str>,
-        metadata: Option<Vec<PyBackedStr>>,
-        shared_metadata: Option<HashMap<String, Prop>>,
-    ) -> Result<(), GraphError> {
-        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_node_props_from_parquet(
-            &self.graph,
-            parquet_path.as_path(),
-            id,
-            node_type,
-            node_type_col,
-            None,
-            None,
-            &metadata,
-            shared_metadata.as_ref(),
-            None,
-        )
-    }
-
-    /// Load edge properties from a Pandas DataFrame.
-    ///
-    /// Arguments:
-    ///     df (DataFrame): The Pandas DataFrame containing edge information.
+    ///     data (Any): The data source containing edge information.
     ///     src (str): The column name for the source node.
     ///     dst (str): The column name for the destination node.
     ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
     ///     layer (str, optional): The edge layer name. Defaults to None.
-    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
+    ///     layer_col (str, optional): The edge layer column name in a dataframe. Defaults to None.
+    ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+    ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
     ///
     /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
+    ///     None: This function does not return a value if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (df, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None)
+        signature = (data, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None)
     )]
-    fn load_edge_props_from_pandas(
+    fn load_edge_metadata(
         &self,
-        df: &Bound<PyAny>,
+        data: &Bound<PyAny>,
         src: &str,
         dst: &str,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
         layer_col: Option<&str>,
+        schema: Option<Bound<PyAny>>,
+        csv_options: Option<CsvReadOptions>,
     ) -> Result<(), GraphError> {
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edge_props_from_pandas(
-            &self.graph,
-            df,
-            src,
-            dst,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            layer_col,
-        )
-    }
+        let column_schema = convert_py_schema(schema)?;
+        if data.hasattr("__arrow_c_stream__")? {
+            load_edge_metadata_from_arrow_c_stream(
+                &self.graph,
+                data,
+                src,
+                dst,
+                &metadata,
+                shared_metadata.as_ref(),
+                layer,
+                layer_col,
+                column_schema,
+            )
+        } else if let Ok(path) = data.extract::<PathBuf>() {
+            // extracting PathBuf handles Strings too
+            let is_parquet = is_parquet_path(&path)?;
+            let is_csv = is_csv_path(&path)?;
 
-    /// Load edge properties from parquet file
-    ///
-    /// Arguments:
-    ///     parquet_path (str): Parquet file or directory of Parquet files path containing edge information.
-    ///     src (str): The column name for the source node.
-    ///     dst (str): The column name for the destination node.
-    ///     metadata (List[str], optional): List of edge metadata column names. Defaults to None.
-    ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every edge. Defaults to None.
-    ///     layer (str, optional): The edge layer name. Defaults to None.
-    ///     layer_col (str, optional): The edge layer col name in dataframe. Defaults to None.
-    ///
-    /// Returns:
-    ///     None: This function does not return a value, if the operation is successful.
-    ///
-    /// Raises:
-    ///     GraphError: If the operation fails.
-    #[pyo3(
-        signature = (parquet_path, src, dst, metadata = None, shared_metadata = None, layer = None, layer_col = None)
-    )]
-    fn load_edge_props_from_parquet(
-        &self,
-        parquet_path: PathBuf,
-        src: &str,
-        dst: &str,
-        metadata: Option<Vec<PyBackedStr>>,
-        shared_metadata: Option<HashMap<String, Prop>>,
-        layer: Option<&str>,
-        layer_col: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
-        load_edge_props_from_parquet(
-            &self.graph,
-            parquet_path.as_path(),
-            src,
-            dst,
-            &metadata,
-            shared_metadata.as_ref(),
-            layer,
-            layer_col,
-            None,
-            true,
-        )
+            // fail before loading anything at all to avoid loading partial data
+            if !is_csv && csv_options.is_some() {
+                return Err(GraphError::from(PyValueError::new_err(format!(
+                    "CSV options were passed but no CSV files were detected at {}.",
+                    path.display()
+                ))));
+            }
+
+            // wrap in Arc to avoid cloning the entire schema for Parquet, CSV, and inner loops in CSV path
+            let arced_schema = column_schema.map(Arc::new);
+
+            // if-if instead of if-else to support directories with mixed parquet and CSV files
+            if is_parquet {
+                load_edge_metadata_from_parquet(
+                    &self.graph,
+                    path.as_path(),
+                    src,
+                    dst,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
+                    None,
+                    arced_schema.clone(),
+                    true,
+                )?;
+            }
+            if is_csv {
+                load_edge_metadata_from_csv_path(
+                    &self.graph,
+                    &path,
+                    src,
+                    dst,
+                    &metadata,
+                    shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
+                    csv_options.as_ref(),
+                    arced_schema,
+                )?;
+            }
+            if !is_parquet && !is_csv {
+                return Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet/CSV file, or a directory containing Parquet/CSV files")));
+            }
+            Ok(())
+        } else {
+            Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
+        }
     }
 
     /// Create graph index

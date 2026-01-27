@@ -1,6 +1,8 @@
 use crate::db::api::view::{BoxedLIter, IntoDynBoxed};
 use ouroboros::self_referencing;
-use pyo3::{pyclass, pymethods, BoundObject, IntoPyObject, Py, PyAny, PyRef, PyResult, Python};
+use pyo3::{
+    pyclass, pymethods, BoundObject, IntoPyObject, Py, PyAny, PyErr, PyRef, PyResult, Python,
+};
 
 #[pyclass]
 #[self_referencing]
@@ -51,6 +53,52 @@ where
                     .map_err(|e| e.into())?
                     .into_any()
                     .unbind())
+            })
+        })
+        .into_dyn_boxed()
+    }
+}
+
+pub trait IntoPyIterResult<'a> {
+    fn into_py_iter_result(self) -> BoxedLIter<'a, PyResult<Py<PyAny>>>;
+}
+
+impl<'a, T, E, I: Iterator<Item = Result<T, E>> + Send + Sync + 'a> IntoPyIterResult<'a> for I
+where
+    T: for<'py> IntoPyObject<'py>,
+    E: Into<PyErr>,
+{
+    fn into_py_iter_result(self) -> BoxedLIter<'a, PyResult<Py<PyAny>>> {
+        self.map(|item| {
+            Python::attach(|py| match item {
+                Ok(value) => Ok(value
+                    .into_pyobject(py)
+                    .map_err(|e| e.into())?
+                    .into_any()
+                    .unbind()),
+                Err(err) => Err(err.into()),
+            })
+        })
+        .into_dyn_boxed()
+    }
+}
+
+pub trait IntoPyIterTupleResult<'a> {
+    fn into_py_iter_tuple_result(self) -> BoxedLIter<'a, PyResult<Py<PyAny>>>;
+}
+
+impl<'a, X, T, E, I: Iterator<Item = (X, Result<T, E>)> + Send + Sync + 'a>
+    IntoPyIterTupleResult<'a> for I
+where
+    X: for<'py> IntoPyObject<'py>,
+    T: for<'py> IntoPyObject<'py>,
+    E: Into<PyErr>,
+{
+    fn into_py_iter_tuple_result(self) -> BoxedLIter<'a, PyResult<Py<PyAny>>> {
+        self.map(|(tuple_left, result)| {
+            Python::attach(|py| match result {
+                Ok(value) => Ok((tuple_left, value).into_pyobject(py)?.into_any().unbind()),
+                Err(err) => Err(err.into()),
             })
         })
         .into_dyn_boxed()

@@ -2,7 +2,7 @@ use itertools::Itertools;
 use raphtory::{prelude::*, test_storage};
 
 #[test]
-fn test_add_node_properties_ordered_by_secondary_index() {
+fn test_add_node_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
     graph.add_node((0, 3), 0, [("prop", "1")], None).unwrap();
     graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
@@ -28,7 +28,7 @@ fn test_add_node_properties_ordered_by_secondary_index() {
 }
 
 #[test]
-fn test_add_node_properties_overwritten_for_same_secondary_index() {
+fn test_add_node_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
     graph.add_node((0, 1), 0, [("prop", "1")], None).unwrap();
     graph.add_node((0, 1), 0, [("prop", "2")], None).unwrap();
@@ -71,7 +71,7 @@ fn test_add_node_properties_overwritten_for_same_secondary_index() {
 }
 
 #[test]
-fn test_create_node_properties_ordered_by_secondary_index() {
+fn test_create_node_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
     graph.create_node((0, 3), 0, [("prop", "1")], None).unwrap();
     graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
@@ -97,7 +97,7 @@ fn test_create_node_properties_ordered_by_secondary_index() {
 }
 
 #[test]
-fn test_create_node_properties_overwritten_for_same_secondary_index() {
+fn test_create_node_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
     graph.create_node((0, 1), 0, [("prop", "1")], None).unwrap();
     graph.add_node((0, 1), 0, [("prop", "2")], None).unwrap();
@@ -140,7 +140,7 @@ fn test_create_node_properties_overwritten_for_same_secondary_index() {
 }
 
 #[test]
-fn test_add_edge_properties_ordered_by_secondary_index() {
+fn test_add_edge_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
     graph.add_edge((0, 3), 0, 1, [("prop", "1")], None).unwrap();
     graph.add_edge((0, 2), 0, 1, [("prop", "2")], None).unwrap();
@@ -166,7 +166,7 @@ fn test_add_edge_properties_ordered_by_secondary_index() {
 }
 
 #[test]
-fn test_add_edge_properties_overwritten_for_same_secondary_index() {
+fn test_add_edge_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
     graph.add_edge((0, 1), 0, 1, [("prop", "1")], None).unwrap();
     graph.add_edge((0, 1), 0, 1, [("prop", "2")], None).unwrap();
@@ -209,7 +209,7 @@ fn test_add_edge_properties_overwritten_for_same_secondary_index() {
 }
 
 #[test]
-fn test_add_properties_properties_ordered_by_secondary_index() {
+fn test_add_properties_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
     graph.add_properties((0, 3), [("prop", "1")]).unwrap();
     graph.add_properties((0, 2), [("prop", "2")]).unwrap();
@@ -231,7 +231,7 @@ fn test_add_properties_properties_ordered_by_secondary_index() {
 }
 
 #[test]
-fn test_add_properties_properties_overwritten_for_same_secondary_index() {
+fn test_add_properties_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
     graph.add_properties((0, 1), [("prop", "1")]).unwrap();
     graph.add_properties((0, 1), [("prop", "2")]).unwrap();
@@ -270,7 +270,7 @@ fn test_add_properties_properties_overwritten_for_same_secondary_index() {
 }
 
 #[test]
-fn test_node_add_updates_properties_ordered_by_secondary_index() {
+fn test_node_add_updates_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
     graph.add_node(0, 0, NO_PROPS, None).unwrap();
 
@@ -310,7 +310,7 @@ fn test_node_add_updates_properties_ordered_by_secondary_index() {
 }
 
 #[test]
-fn test_node_add_updates_properties_overwritten_for_same_secondary_index() {
+fn test_node_add_updates_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
     graph.add_node(0, 0, NO_PROPS, None).unwrap();
     graph.add_node(0, 0, NO_PROPS, None).unwrap();
@@ -389,7 +389,7 @@ fn test_node_add_updates_properties_overwritten_for_same_secondary_index() {
 }
 
 #[test]
-fn test_edge_add_updates_properties_ordered_by_secondary_index() {
+fn test_edge_add_updates_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
     graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
@@ -429,7 +429,7 @@ fn test_edge_add_updates_properties_ordered_by_secondary_index() {
 }
 
 #[test]
-fn test_edge_add_updates_properties_overwritten_for_same_secondary_index() {
+fn test_edge_add_updates_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
     graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 

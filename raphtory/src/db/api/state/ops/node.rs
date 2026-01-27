@@ -1,8 +1,6 @@
-use crate::{
-    db::api::view::internal::{
-        time_semantics::filtered_node::FilteredNodeStorageOps, FilterOps, FilterState,
-    },
-    prelude::GraphViewOps,
+pub(crate) use crate::db::api::{
+    state::{ops::IntoDynNodeOp, NodeOp},
+    view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView},
 };
 use raphtory_api::core::{
     entities::{GID, VID},
@@ -13,31 +11,6 @@ use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
 };
-use std::{ops::Deref, sync::Arc};
-
-pub trait NodeOp: Send + Sync {
-    type Output: Clone + Send + Sync;
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
-
-    fn map<V: Clone + Send + Sync>(self, map: fn(Self::Output) -> V) -> Map<Self, V>
-    where
-        Self: Sized,
-    {
-        Map { op: self, map }
-    }
-}
-
-// Cannot use OneHopFilter because there is no way to specify the bound on Output
-pub trait NodeOpFilter<'graph>: NodeOp + 'graph {
-    type Graph: GraphViewOps<'graph>;
-    type Filtered<G: GraphViewOps<'graph>>: NodeOp<Output = Self::Output>
-        + NodeOpFilter<'graph, Graph = G>
-        + 'graph;
-
-    fn graph(&self) -> &Self::Graph;
-
-    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G>;
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Name;
@@ -50,6 +23,8 @@ impl NodeOp for Name {
     }
 }
 
+impl IntoDynNodeOp for Name {}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Id;
 
@@ -61,8 +36,11 @@ impl NodeOp for Id {
     }
 }
 
+impl IntoDynNodeOp for Id {}
+
 #[derive(Debug, Copy, Clone)]
 pub struct Type;
+
 impl NodeOp for Type {
     type Output = Option<ArcStr>;
 
@@ -71,8 +49,11 @@ impl NodeOp for Type {
     }
 }
 
+impl IntoDynNodeOp for Type {}
+
 #[derive(Debug, Copy, Clone)]
 pub struct TypeId;
+
 impl NodeOp for TypeId {
     type Output = usize;
 
@@ -81,78 +62,26 @@ impl NodeOp for TypeId {
     }
 }
 
+impl IntoDynNodeOp for TypeId {}
+
 #[derive(Debug, Clone)]
 pub struct Degree<G> {
-    pub(crate) graph: G,
     pub(crate) dir: Direction,
+    pub(crate) view: G,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOp for Degree<G> {
+impl<G: GraphView> NodeOp for Degree<G> {
     type Output = usize;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
         let node = storage.core_node(node);
-        if matches!(self.graph.filter_state(), FilterState::Neither) {
-            node.degree(self.graph.layer_ids(), self.dir)
+        if matches!(self.view.filter_state(), FilterState::Neither) {
+            node.degree(self.view.layer_ids(), self.dir)
         } else {
-            node.filtered_neighbours_iter(&self.graph, self.graph.layer_ids(), self.dir)
+            node.filtered_neighbours_iter(&self.view, self.view.layer_ids(), self.dir)
                 .count()
         }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> NodeOpFilter<'graph> for Degree<G> {
-    type Graph = G;
-    type Filtered<GH: GraphViewOps<'graph> + 'graph> = Degree<GH>;
-
-    fn graph(&self) -> &Self::Graph {
-        &self.graph
-    }
-
-    fn filtered<GH: GraphViewOps<'graph> + 'graph>(
-        &self,
-        filtered_graph: GH,
-    ) -> Self::Filtered<GH> {
-        Degree {
-            graph: filtered_graph,
-            dir: self.dir,
-        }
-    }
-}
-
-impl<V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V>> {
-    type Output = V;
-    fn apply(&self, storage: &GraphStorage, node: VID) -> V {
-        self.deref().apply(storage, node)
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Map<Op: NodeOp, V> {
-    op: Op,
-    map: fn(Op::Output) -> V,
-}
-
-impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
-    type Output = V;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        (self.map)(self.op.apply(storage, node))
-    }
-}
-
-impl<'graph, Op: NodeOpFilter<'graph>, V: Clone + Send + Sync + 'graph> NodeOpFilter<'graph>
-    for Map<Op, V>
-{
-    type Graph = Op::Graph;
-    type Filtered<G: GraphViewOps<'graph>> = Map<Op::Filtered<G>, V>;
-
-    fn graph(&self) -> &Self::Graph {
-        self.op.graph()
-    }
-
-    fn filtered<G: GraphViewOps<'graph>>(&self, graph: G) -> Self::Filtered<G> {
-        let op = self.op.filtered(graph);
-        Map { op, map: self.map }
-    }
-}
+impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}

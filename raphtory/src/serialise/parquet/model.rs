@@ -12,7 +12,7 @@ use crate::{
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
     entities::{properties::prop::SerdeArrowProp, GidType},
-    storage::{arc_str::ArcStr, timeindex::TimeIndexEntry},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{
@@ -105,7 +105,7 @@ pub(crate) struct ParquetDelEdge<'a, G> {
     pub layer: &'a str,
     pub layer_id: usize,
     pub edge: EdgeView<&'a G>,
-    pub del: TimeIndexEntry,
+    pub del: EventTime,
 }
 
 impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
@@ -131,7 +131,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
 pub(crate) struct ParquetTNode<'a> {
     pub node: NodeView<'a, &'a GraphStorage>,
     pub cols: &'a [ArcStr],
-    pub t: TimeIndexEntry,
+    pub t: EventTime,
     pub props: Vec<(usize, Prop)>,
 }
 

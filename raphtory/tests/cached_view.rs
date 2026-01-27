@@ -4,6 +4,7 @@ use raphtory::{
     algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
     prelude::*, test_storage,
 };
+use raphtory_api::core::storage::timeindex::AsTime;
 
 #[test]
 fn empty_graph() {
@@ -102,8 +103,8 @@ fn masked_always_equals() {
                 .take(graph.unique_layers().count() / 2)
                 .collect_vec();
 
-            let earliest = graph.earliest_time().unwrap();
-            let latest = graph.latest_time().unwrap();
+            let earliest = graph.earliest_time().unwrap().t();
+            let latest = graph.latest_time().unwrap().t();
             let middle = earliest + (latest - earliest) / 2;
 
             if !layers.is_empty() && earliest < middle && middle < latest {
@@ -160,10 +161,13 @@ mod test_filters_cached_view {
                         assert_filter_nodes_results, assert_search_nodes_results,
                         TestGraphVariants, TestVariants,
                     },
-                    views::filter::model::PropertyFilterOps,
+                    views::filter::model::{
+                        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
+                        PropertyFilterFactory,
+                    },
                 },
             },
-            prelude::{AdditionOps, PropertyFilter},
+            prelude::AdditionOps,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -200,7 +204,7 @@ mod test_filters_cached_view {
 
         #[test]
         fn test_nodes_filters() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -221,7 +225,7 @@ mod test_filters_cached_view {
         #[test]
         fn test_nodes_filters_w() {
             // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -241,7 +245,7 @@ mod test_filters_cached_view {
 
         #[test]
         fn test_nodes_filters_pg_w() {
-            let filter = PropertyFilter::property("p1").ge(2u64);
+            let filter = NodeFilter.property("p1").ge(2u64);
             let expected_results = vec!["N2", "N5", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -264,19 +268,19 @@ mod test_filters_cached_view {
         use raphtory::{
             db::{
                 api::view::StaticGraphViewOps,
-                graph::{
-                    assertions::{
-                        assert_filter_edges_results, assert_search_edges_results, TestVariants,
-                    },
-                    views::filter::model::PropertyFilterOps,
+                graph::assertions::{
+                    assert_filter_edges_results, assert_search_edges_results, TestVariants,
                 },
             },
-            prelude::{AdditionOps, PropertyFilter},
+            prelude::{AdditionOps, EdgeFilter},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
         use crate::test_filters_cached_view::{
             CachedGraphTransformer, WindowedCachedGraphTransformer,
+        };
+        use raphtory::db::graph::views::filter::model::{
+            property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
         };
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
@@ -309,7 +313,7 @@ mod test_filters_cached_view {
         #[test]
         fn test_edges_filters() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -329,7 +333,7 @@ mod test_filters_cached_view {
 
         #[test]
         fn test_edges_filter_w() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -350,7 +354,7 @@ mod test_filters_cached_view {
         #[test]
         fn test_edges_filters_pg_w() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = PropertyFilter::property("p1").ge(2u64);
+            let filter = EdgeFilter.property("p1").ge(2u64);
             let expected_results = vec!["N2->N3", "N5->N6", "N8->N1"];
             assert_filter_edges_results(
                 init_graph,

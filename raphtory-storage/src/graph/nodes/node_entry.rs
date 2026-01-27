@@ -5,7 +5,7 @@ use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
     Direction,
 };
-use raphtory_core::storage::timeindex::TimeIndexEntry;
+use raphtory_core::storage::timeindex::EventTime;
 use storage::{
     api::nodes::{self, NodeEntryOps},
     gen_ts::LayerIter,
@@ -129,8 +129,8 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
 
     fn temp_prop_rows_range(
         self,
-        w: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
         self.as_ref().temp_prop_rows_range(w)
     }
 

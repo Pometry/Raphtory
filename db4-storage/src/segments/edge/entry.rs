@@ -11,7 +11,7 @@ use raphtory_core::{
         EID, Multiple, VID,
         properties::{tcell::TCell, tprop::TPropCell},
     },
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 
 #[derive(Debug)]
@@ -78,7 +78,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
     fn t_props_tc(
         self,
         layer_id: usize,
-        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+        range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.es
             .as_ref()
@@ -95,7 +95,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
     fn additions_tc(
         self,
         _layer_id: usize,
-        _range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+        _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
     }
@@ -103,7 +103,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
     fn deletions_tc(
         self,
         layer_id: usize,
-        range: Option<(TimeIndexEntry, TimeIndexEntry)>,
+        range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         let deletions = self
             .es

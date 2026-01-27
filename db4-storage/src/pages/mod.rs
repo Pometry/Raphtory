@@ -16,13 +16,13 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{meta::Meta, prop::Prop},
     storage::dict_mapper::MaybeNew,
+    utils::time::{InputTime, TryIntoInputTime},
 };
 use rayon::prelude::*;
 
 use raphtory_core::{
     entities::{EID, ELID, VID},
-    storage::timeindex::TimeIndexEntry,
-    utils::time::{InputTime, TryIntoInputTime},
+    storage::timeindex::EventTime,
 };
 use session::WriteSession;
 use std::{
@@ -273,7 +273,7 @@ impl<
 
     fn internal_add_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         lsn: u64,
@@ -289,16 +289,13 @@ impl<
         Ok(elid)
     }
 
-    fn as_time_index_entry<T: TryIntoInputTime>(
-        &self,
-        t: T,
-    ) -> Result<TimeIndexEntry, StorageError> {
+    fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<EventTime, StorageError> {
         let input_time = t.try_into_input_time()?;
         let t = match input_time {
-            InputTime::Indexed(t, i) => TimeIndexEntry::new(t, i),
+            InputTime::Indexed(t, i) => EventTime::new(t, i),
             InputTime::Simple(t) => {
                 let i = self.event_id.fetch_add(1, atomic::Ordering::Relaxed);
-                TimeIndexEntry::new(t, i)
+                EventTime::new(t, i)
             }
         };
         Ok(t)

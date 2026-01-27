@@ -2,7 +2,7 @@ use crate::error::StorageError;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::dict_mapper::MaybeNew};
 use raphtory_core::{
     entities::{EID, GID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 use std::path::{Path, PathBuf};
 
@@ -61,7 +61,7 @@ pub trait GraphWal {
     fn log_add_static_edge(
         &self,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
     ) -> Result<LSN, StorageError>;
@@ -80,7 +80,7 @@ pub trait GraphWal {
     fn log_add_edge(
         &self,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         eid: EID,
@@ -169,7 +169,7 @@ pub trait GraphReplayer {
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
     ) -> Result<(), StorageError>;
@@ -178,7 +178,7 @@ pub trait GraphReplayer {
         &self,
         lsn: LSN,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         eid: EID,

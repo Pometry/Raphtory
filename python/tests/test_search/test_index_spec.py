@@ -43,12 +43,12 @@ def test_with_all_props_index_spec():
 
     graph.create_index_in_ram_with_spec(spec)
 
-    f1 = filter.Property("p1") == 5
-    f2 = filter.Metadata("x") == True
+    f1 = filter.Node.property("p1") == 5
+    f2 = filter.Node.metadata("x") == True
     assert search_nodes(graph, f1 & f2) == ["pometry"]
 
-    f1 = filter.Property("e_p1") < 5.0
-    f2 = filter.Metadata("e_y") == False
+    f1 = filter.Edge.property("e_p1") < 5.0
+    f2 = filter.Edge.metadata("e_y") == False
     assert sorted(search_edges(graph, f1 & f2)) == sorted(["raphtory->pometry"])
 
 
@@ -65,15 +65,15 @@ def test_with_selected_props_index_spec():
 
     graph.create_index_in_ram_with_spec(spec)
 
-    f1 = filter.Property("p1") == 5
-    f2 = filter.Metadata("y") == False
+    f1 = filter.Node.property("p1") == 5
+    f2 = filter.Node.metadata("y") == False
     assert sorted(search_nodes(graph, f1 | f2)) == sorted(["pometry", "raphtory"])
 
-    f = filter.Metadata("y") == False
+    f = filter.Node.metadata("y") == False
     assert search_nodes(graph, f) == ["raphtory"]
 
-    f1 = filter.Property("e_p1") < 5.0
-    f2 = filter.Metadata("e_y") == False
+    f1 = filter.Edge.property("e_p1") < 5.0
+    f2 = filter.Edge.metadata("e_y") == False
     assert sorted(search_edges(graph, f1 | f2)) == sorted(
         ["pometry->raphtory", "raphtory->pometry"]
     )
@@ -94,12 +94,12 @@ def test_build_empty_spec_by_default():
 
     graph.create_index_in_ram_with_spec(spec)
 
-    f1 = filter.Property("p1") == 5
-    f2 = filter.Metadata("x") == True
+    f1 = filter.Node.property("p1") == 5
+    f2 = filter.Node.metadata("x") == True
     assert sorted(search_nodes(graph, f1 & f2)) == ["pometry"]
 
-    f1 = filter.Property("e_p1") < 5.0
-    f2 = filter.Metadata("e_y") == False
+    f1 = filter.Edge.property("e_p1") < 5.0
+    f2 = filter.Edge.metadata("e_y") == False
     assert sorted(search_edges(graph, f1 | f2)) == sorted(
         ["pometry->raphtory", "raphtory->pometry"]
     )
@@ -118,12 +118,12 @@ def test_mixed_node_and_edge_props_index_spec():
 
     graph.create_index_in_ram_with_spec(spec)
 
-    f1 = filter.Property("p1") == 5
-    f2 = filter.Metadata("y") == False
+    f1 = filter.Node.property("p1") == 5
+    f2 = filter.Node.metadata("y") == False
     assert sorted(search_nodes(graph, f1 | f2)) == sorted(["pometry", "raphtory"])
 
-    f1 = filter.Property("e_p1") < 5.0
-    f2 = filter.Metadata("e_y") == False
+    f1 = filter.Edge.property("e_p1") < 5.0
+    f2 = filter.Edge.metadata("e_y") == False
     assert sorted(search_edges(graph, f1 | f2)) == sorted(
         ["pometry->raphtory", "raphtory->pometry"]
     )

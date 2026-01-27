@@ -1,22 +1,21 @@
 use crate::{
-    core::{
-        entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
-        utils::time::IntoTimeWithFormat,
-    },
+    core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{
-            mutation::{time_from_input_session, TryIntoInputTime},
-            view::StaticGraphViewOps,
-        },
+        api::{mutation::time_from_input_session, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
     MutationError,
+};
+
+use raphtory_api::core::{
+    entities::properties::prop::Prop,
+    utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use storage::wal::{GraphWal, Wal};
 
@@ -55,7 +54,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self>, GraphError>;
 
     fn create_node<
         V: AsNodeRef,
@@ -70,7 +69,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, Self, Self>, GraphError>;
+    ) -> Result<NodeView<'static, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<
         V: AsNodeRef,
@@ -85,7 +84,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, Self, Self>, GraphError> {
+    ) -> Result<NodeView<'static, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_node(time, v, props, node_type)
     }
@@ -124,7 +123,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         dst: V,
         props: PII,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self, Self>, GraphError>;
+    ) -> Result<EdgeView<Self>, GraphError>;
 
     fn add_edge_with_custom_time_format<
         V: AsNodeRef,
@@ -140,7 +139,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         dst: V,
         props: PII,
         layer: Option<&str>,
-    ) -> Result<EdgeView<Self, Self>, GraphError> {
+    ) -> Result<EdgeView<Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
         self.add_edge(time, src, dst, props, layer)
     }
@@ -161,7 +160,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PII,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, G, G>, GraphError> {
+    ) -> Result<NodeView<'static, G>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
         self.validate_gids(
             [v.as_node_ref()]
@@ -202,7 +201,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PII,
         node_type: Option<&str>,
-    ) -> Result<NodeView<'static, G, G>, GraphError> {
+    ) -> Result<NodeView<'static, G>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
         self.validate_gids(
             [v.as_node_ref()]
@@ -252,7 +251,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         dst: V,
         props: PII,
         layer: Option<&str>,
-    ) -> Result<EdgeView<G, G>, GraphError> {
+    ) -> Result<EdgeView<G>, GraphError> {
         // Log transaction start
         let transaction_id = self.transaction_manager().begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;

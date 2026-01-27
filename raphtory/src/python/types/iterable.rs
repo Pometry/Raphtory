@@ -2,7 +2,6 @@ use crate::{
     db::api::view::BoxedIter,
     python::types::repr::{iterator_repr, Repr},
 };
-use itertools::Itertools;
 use pyo3::{prelude::*, types::PyAnyMethods, Borrowed};
 use std::{
     marker::PhantomData,

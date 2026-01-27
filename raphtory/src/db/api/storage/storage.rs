@@ -15,7 +15,7 @@ use raphtory_api::core::{
         },
         GidRef, EID, VID,
     },
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry},
+    storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
 use raphtory_core::entities::ELID;
 use raphtory_storage::{
@@ -321,7 +321,7 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
 
     fn internal_add_edge(
         &mut self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         e_id: MaybeNew<ELID>,
@@ -334,7 +334,7 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
 
     fn internal_delete_edge(
         &mut self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         lsn: u64,
@@ -491,7 +491,7 @@ impl InternalAdditionOps for Storage {
 
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {
@@ -555,7 +555,7 @@ impl InternalPropertyAdditionOps for Storage {
 
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.graph.internal_add_properties(t, props)?;
@@ -652,7 +652,7 @@ impl InternalDeletionOps for Storage {
     type Error = GraphError;
     fn internal_delete_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: VID,
         dst: VID,
         layer: usize,
@@ -662,7 +662,7 @@ impl InternalDeletionOps for Storage {
 
     fn internal_delete_existing_edge(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         eid: EID,
         layer: usize,
     ) -> Result<(), GraphError> {

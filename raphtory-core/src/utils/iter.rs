@@ -1,5 +1,5 @@
 use ouroboros::self_referencing;
-use raphtory_api::iter::{BoxedLDIter, BoxedLIter};
+pub use raphtory_api::iter::{BoxedLDIter, BoxedLIter};
 
 /// Iterator that returns elements from a locked object.
 #[self_referencing]

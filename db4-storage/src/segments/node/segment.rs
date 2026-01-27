@@ -21,7 +21,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{ELID, nodes::structure::adj::Adj},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -259,7 +259,7 @@ impl MemNodeSegment {
         let mut prop_mut_entry = self.layers[e_id.layer()]
             .properties_mut()
             .get_mut_entry(row);
-        let ts = TimeIndexEntry::new(t.t(), t.i());
+        let ts = EventTime::new(t.t(), t.i());
 
         prop_mut_entry.addition_timestamp(ts, e_id);
     }
@@ -297,7 +297,7 @@ impl MemNodeSegment {
         let is_new = row.is_new();
         let row = row.inner().row;
         let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
-        let ts = TimeIndexEntry::new(t.t(), t.i());
+        let ts = EventTime::new(t.t(), t.i());
         prop_mut_entry.append_t_props(ts, props);
         let layer_est_size = layer.est_size();
         (is_new, layer_est_size - est_size)
@@ -345,11 +345,11 @@ impl MemNodeSegment {
         segment_container.c_prop(node_pos, prop_id)
     }
 
-    pub fn latest(&self) -> Option<TimeIndexEntry> {
+    pub fn latest(&self) -> Option<EventTime> {
         Iterator::max(self.layers.iter().filter_map(|seg| seg.latest()))
     }
 
-    pub fn earliest(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest(&self) -> Option<EventTime> {
         Iterator::min(self.layers.iter().filter_map(|seg| seg.earliest()))
     }
 
@@ -410,11 +410,11 @@ impl<P: PersistentStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSegm
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
-    fn latest(&self) -> Option<TimeIndexEntry> {
+    fn latest(&self) -> Option<EventTime> {
         self.head().latest()
     }
 
-    fn earliest(&self) -> Option<TimeIndexEntry> {
+    fn earliest(&self) -> Option<EventTime> {
         self.head().latest()
     }
 

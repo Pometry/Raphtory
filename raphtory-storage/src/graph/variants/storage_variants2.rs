@@ -4,7 +4,7 @@ use iter_enum::{
 };
 use raphtory_api::core::{
     entities::properties::{prop::Prop, tprop::TPropOps},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use std::ops::Range;
 
@@ -47,25 +47,25 @@ macro_rules! for_all_iter {
 }
 
 impl<'a, Mem: TPropOps<'a> + 'a> TPropOps<'a> for SelfType!(Mem, Disk) {
-    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
         for_all!(self, props => props.last_before(t))
     }
 
     fn iter_inner(
         self,
-        range: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        range: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         for_all_iter!(self, props => props.iter_inner(range))
     }
 
     fn iter_inner_rev(
         self,
-        range: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        range: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         for_all_iter!(self, props => props.iter_inner_rev(range))
     }
 
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
         for_all!(self, props => props.at(ti))
     }
 }

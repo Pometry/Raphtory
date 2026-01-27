@@ -4,7 +4,7 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_api_macros::box_on_debug_lifetime;
-use raphtory_core::{entities::LayerIds, storage::timeindex::TimeIndexEntry};
+use raphtory_core::{entities::LayerIds, storage::timeindex::EventTime};
 
 use crate::utils::Iter4;
 
@@ -95,7 +95,7 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
 }
 
 impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
-    fn last_before(&self, t: TimeIndexEntry) -> Option<(TimeIndexEntry, Prop)> {
+    fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last_before(t))
             .max_by_key(|(t, _)| *t)
@@ -103,8 +103,8 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
 
     fn iter_inner(
         self,
-        w: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         let tprops = self.tprops(self.prop_id);
         tprops
             .map(|t_prop| t_prop.iter_inner(w.clone()))
@@ -113,15 +113,15 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
 
     fn iter_inner_rev(
         self,
-        w: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'a {
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         let tprops = self
             .tprops(self.prop_id)
             .map(move |t_cell| t_cell.iter_inner_rev(w.clone()));
         tprops.kmerge_by(|(a, _), (b, _)| a > b)
     }
 
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
         self.tprops(self.prop_id)
             .flat_map(|t_props| t_props.at(ti))
             .next() // TODO: need to figure out how to handle this

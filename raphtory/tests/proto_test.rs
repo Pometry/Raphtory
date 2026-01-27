@@ -23,7 +23,7 @@ mod proto_test {
     };
     use raphtory_core::{
         entities::{GidRef, EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     };
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::{collections::HashMap, io::Cursor, iter, path::PathBuf, sync::Arc};
@@ -286,7 +286,7 @@ mod proto_test {
         graph1.new_edge(VID(0), VID(1), EID(0));
         graph1.update_edge_tprops(
             EID(0),
-            TimeIndexEntry::start(1),
+            EventTime::start(1),
             0,
             iter::empty::<(usize, Prop)>(),
         );
@@ -298,7 +298,7 @@ mod proto_test {
         graph2.new_edge(VID(0), VID(2), EID(1));
         graph2.update_edge_tprops(
             EID(1),
-            TimeIndexEntry::start(2),
+            EventTime::start(2),
             0,
             iter::empty::<(usize, Prop)>(),
         );

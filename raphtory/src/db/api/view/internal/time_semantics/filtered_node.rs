@@ -8,7 +8,7 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
@@ -51,9 +51,9 @@ impl<'a, G: Clone> NodeHistory<'a, G> {
 }
 
 fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
-    iter: impl Iterator<Item = (TimeIndexEntry, ELID)> + 'graph,
+    iter: impl Iterator<Item = (EventTime, ELID)> + 'graph,
     view: G,
-) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + 'graph {
+) -> impl Iterator<Item = (EventTime, ELID)> + 'graph {
     if view.filtered() {
         let time_semantics = view.edge_time_semantics();
         Either::Left(
@@ -65,17 +65,17 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
 }
 
 impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
-    pub fn history(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a, G> {
+    pub fn history(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
         handle_update_iter(self.additions.edge_events(), self.view.clone())
     }
 
-    pub fn history_rev(&self) -> impl Iterator<Item = (TimeIndexEntry, ELID)> + use<'a, G> {
+    pub fn history_rev(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
         handle_update_iter(self.additions.edge_events_rev(), self.view.clone())
     }
 }
 
 impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -108,7 +108,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
 }
 
 impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
@@ -149,7 +149,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
 }
 
 impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {

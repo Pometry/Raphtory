@@ -1,0 +1,782 @@
+use crate::{
+    db::{
+        api::{
+            state::{
+                ops,
+                ops::{node::NodeOp, DynNodeFilter, HistoryOp},
+                LazyNodeState, NodeState,
+            },
+            view::{
+                history::{History, InternalHistoryOps},
+                DynamicGraph,
+            },
+        },
+        graph::{node::NodeView, nodes::Nodes},
+    },
+    impl_lazy_node_state, impl_node_state, impl_node_state_ops,
+    prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
+    python::{
+        graph::history::{
+            PyHistory, PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals,
+        },
+        types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
+        utils::PyNodeRef,
+    },
+};
+use pyo3::{
+    exceptions::{PyKeyError, PyTypeError},
+    prelude::*,
+    types::{PyDict, PyNotImplemented},
+    IntoPyObjectExt,
+};
+use raphtory_api::{core::storage::timeindex::EventTime, python::timeindex::PyOptionalEventTime};
+use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
+use std::{collections::HashMap, sync::Arc};
+
+use crate::db::graph::nodes::IntoDynNodes;
+pub(crate) use crate::{
+    db::api::state::ops::IntoDynNodeOp, py_borrowing_iter,
+    python::graph::node_state::node_state::ops::NodeFilterOp,
+};
+
+/// A lazy view over History objects for each node.
+#[pyclass(module = "raphtory.node_state", frozen)]
+pub struct HistoryView {
+    inner: LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >,
+}
+
+impl HistoryView {
+    pub fn inner(
+        &self,
+    ) -> &LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
+        &self.inner
+    }
+
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = History<'static, NodeView<'static, DynamicGraph>>> + '_ {
+        self.inner.iter_values()
+    }
+}
+
+// can't simply call self.inner.t(), dt(), ... because we need LazyNodeState<PyHistoryTimestamp>
+// instead of LazyNodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
+#[pymethods]
+impl HistoryView {
+    /// Access history events as timestamps (milliseconds since the Unix epoch).
+    ///
+    /// Returns:
+    ///     HistoryTimestampView: A lazy view over HistoryTimestamp objects for each node.
+    #[getter]
+    fn t(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryTimestamp>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
+        let op = self.inner.op.clone().map(|hist| hist.t().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    /// Access history events as UTC datetimes.
+    ///
+    /// Returns:
+    ///     HistoryDateTimeView: A lazy view over HistoryDateTime objects for each node.
+    #[getter]
+    fn dt(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
+        let op = self.inner.op.clone().map(|hist| hist.dt().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    /// Access the unique event id of each time entry.
+    ///
+    /// Returns:
+    ///     HistoryEventIdView: A lazy view over HistoryEventId objects for each node.
+    #[getter]
+    fn event_id(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryEventId>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
+        let op = self.inner.op.clone().map(|hist| hist.event_id().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    /// Access the intervals between consecutive timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     IntervalsView: A lazy view over Intervals objects for each node.
+    #[getter]
+    fn intervals(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::Map<HistoryOp<'static, DynamicGraph>, PyIntervals>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
+        let op = self.inner.op.clone().map(|hist| hist.intervals().into());
+        LazyNodeState::new(op, self.inner.nodes())
+    }
+
+    /// Get the earliest time entry.
+    ///
+    /// Returns:
+    ///     EarliestTimeView: A lazy view over the earliest time of each node as an EventTime.
+    fn earliest_time(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::EarliestTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
+        self.inner.earliest_time()
+    }
+
+    /// Get the latest time entry.
+    /// Returns:
+    ///     LatestTimeView: A lazy view over the latest time of each node as an EventTime.
+    fn latest_time(
+        &self,
+    ) -> LazyNodeState<
+        'static,
+        ops::LatestTime<DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    > {
+        self.inner.latest_time()
+    }
+
+    /// Compute all values and return the result as a node view
+    ///
+    /// Returns:
+    ///     NodeStateHistory: the computed `NodeState`
+    fn compute(
+        &self,
+    ) -> NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
+        self.inner.compute()
+    }
+
+    /// Compute all History objects and return the result as a list
+    ///
+    /// Returns:
+    ///     list[History]: all History objects as a list
+    fn collect(&self) -> Vec<History<'static, NodeView<'static, DynamicGraph>>> {
+        self.inner.collect()
+    }
+
+    /// Compute all History objects and return the contained time entries as a sorted list
+    ///
+    /// Returns:
+    ///     list[EventTime]: all time entries as a list
+    fn collect_time_entries(&self) -> Vec<EventTime> {
+        self.inner.collect_time_entries()
+    }
+
+    /// Flattens all history objects into a single history with all time entries ordered.
+    ///
+    /// Returns:
+    ///     History: a history object containing all time entries
+    fn flatten(&self) -> PyHistory {
+        self.inner.flatten().into_arc_dyn().into()
+    }
+
+    /// Get the number of History objects held by this LazyNodeState.
+    fn __len__(&self) -> usize {
+        NodeStateOps::len(&self.inner)
+    }
+
+    /// Iterate over nodes
+    ///
+    /// Returns:
+    ///     Nodes: The nodes
+    fn nodes(&self) -> Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
+        self.inner.nodes().into_dyn()
+    }
+
+    fn __eq__<'py>(
+        &self,
+        other: &Bound<'py, PyAny>,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
+        let res = if let Ok(other) = other.cast::<Self>() {
+            let other = Bound::get(other);
+            self.inner == other.inner
+        } else if let Ok(other) =
+            other.extract::<Vec<History<'static, Arc<dyn InternalHistoryOps>>>>()
+        {
+            NodeStateOps::len(&self.inner) == other.len()
+                && self
+                    .inner
+                    .iter_values()
+                    .zip(other.into_iter())
+                    .all(|(left, right)| left.iter().eq(right.iter()))
+        } else if let Ok(other) =
+            other.extract::<HashMap<PyNodeRef, History<'static, Arc<dyn InternalHistoryOps>>>>()
+        {
+            NodeStateOps::len(&self.inner) == other.len()
+                && other.into_iter().all(|(node, value)| {
+                    self.inner
+                        .get_by_node(node)
+                        .map(|v| v.iter().eq(value.iter()))
+                        .unwrap_or(false)
+                })
+        } else if let Ok(other) = other.cast::<PyDict>() {
+            NodeStateOps::len(&self.inner) == other.len()
+                && other.items().iter().all(|item| {
+                    if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
+                    {
+                        self.inner
+                            .get_by_node(node_ref)
+                            .map(|l_value| {
+                                if let Ok(l_value_py) = l_value.clone().into_bound_py_any(py) {
+                                    l_value_py.eq(value).unwrap_or(false)
+                                } else {
+                                    false
+                                }
+                            })
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                })
+        } else {
+            return Ok(PyNotImplemented::get(py).to_owned().into_any());
+        };
+        Ok(res.into_pyobject(py)?.to_owned().into_any())
+    }
+
+    fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            LazyNodeState<
+                'static,
+                HistoryOp<'static, DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
+            |inner| inner.iter_values()
+        )
+    }
+
+    /// Get value for node
+    ///
+    /// Arguments:
+    ///     node (NodeInput): the node
+    ///     default (Optional[History]): the default value. Defaults to None.
+    ///
+    /// Returns:
+    ///     Optional[History]: the History object for the node or the default value
+    #[pyo3(signature = (node, default=None::<PyHistory>))]
+    fn get(&self, node: PyNodeRef, default: Option<PyHistory>) -> Option<PyHistory> {
+        self.inner.get_by_node(node).map(|v| v.into()).or(default)
+    }
+
+    fn __getitem__(
+        &self,
+        node: PyNodeRef,
+    ) -> PyResult<History<'static, NodeView<'static, DynamicGraph>>> {
+        let node = node.as_node_ref();
+        self.inner.get_by_node(node).ok_or_else(|| match node {
+            NodeRef::External(id) => {
+                PyKeyError::new_err(format!("Missing value for node with id {id}"))
+            }
+            NodeRef::Internal(vid) => {
+                let node = self.inner.graph().node(vid);
+                match node {
+                    Some(node) => PyKeyError::new_err(format!("Missing value {}", node.repr())),
+                    None => PyTypeError::new_err("Invalid node reference"),
+                }
+            }
+        })
+    }
+
+    /// Iterate over History objects
+    ///
+    /// Returns:
+    ///     Iterator[Tuple[Node, History]]: Iterator over histories
+    fn items(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            LazyNodeState<
+                'static,
+                HistoryOp<'static, DynamicGraph>,
+                DynamicGraph,
+                DynamicGraph,
+                DynNodeFilter,
+            >,
+            |inner| NodeStateOps::iter(inner).map(|(n, v)| (n.cloned(), v))
+        )
+    }
+
+    /// Iterate over History objects
+    ///
+    /// Returns:
+    ///     Iterator[History]: Iterator over histories
+    fn values(&self) -> PyBorrowingIterator {
+        self.__iter__()
+    }
+
+    /// Sort results by node id
+    ///
+    /// Returns:
+    ///     NodeStateHistory: The sorted node state
+    fn sorted_by_id(
+        &self,
+    ) -> NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
+        self.inner.sort_by_id()
+    }
+
+    fn __repr__(&self) -> String {
+        self.inner.repr()
+    }
+
+    /// Convert results to pandas DataFrame
+    ///
+    /// The DataFrame has two columns, "node" with the node ids and "value" with
+    /// the corresponding values.
+    ///
+    /// Returns:
+    ///     DataFrame: A Pandas DataFrame.
+    fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let pandas = PyModule::import(py, "pandas")?;
+        let columns = PyDict::new(py);
+        columns.set_item("node", self.inner.nodes().id())?;
+        columns.set_item("value", self.values())?;
+        pandas.call_method("DataFrame", (columns,), None)
+    }
+}
+
+impl
+    From<
+        LazyNodeState<
+            'static,
+            HistoryOp<'static, DynamicGraph>,
+            DynamicGraph,
+            DynamicGraph,
+            DynNodeFilter,
+        >,
+    > for HistoryView
+{
+    fn from(
+        inner: LazyNodeState<
+            'static,
+            HistoryOp<'static, DynamicGraph>,
+            DynamicGraph,
+            DynamicGraph,
+            DynNodeFilter,
+        >,
+    ) -> Self {
+        HistoryView { inner }
+    }
+}
+
+impl<'py> pyo3::IntoPyObject<'py>
+    for LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >
+{
+    type Target = HistoryView;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        HistoryView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py> FromPyObject<'_, 'py>
+    for LazyNodeState<
+        'static,
+        HistoryOp<'static, DynamicGraph>,
+        DynamicGraph,
+        DynamicGraph,
+        DynNodeFilter,
+    >
+{
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<HistoryView>()?.get().inner().clone())
+    }
+}
+
+/// A NodeState of History objects for each node.
+#[pyclass(module = "raphtory.node_state", frozen)]
+pub struct NodeStateHistory {
+    inner: NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
+}
+
+impl NodeStateHistory {
+    pub fn inner(
+        &self,
+    ) -> &NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
+        &self.inner
+    }
+
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = History<'static, NodeView<'static, DynamicGraph>>> + '_ {
+        self.inner.iter_values().map(|v| v.clone())
+    }
+}
+
+// can't simply call self.inner.t() because we need NodeState<PyHistoryTimestamp>
+// instead of NodeState<HistoryTimestamp<NodeView>> so it matches the node_state macro impls
+#[pymethods]
+impl NodeStateHistory {
+    /// Access history events as timestamps (milliseconds since the Unix epoch).
+    ///
+    /// Returns:
+    ///     NodeStateHistoryTimestamp: A NodeState with the computed HistoryTimestamp object for each node.
+    #[getter]
+    fn t(&self) -> NodeState<'static, PyHistoryTimestamp, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().t().into())
+            .collect::<Vec<PyHistoryTimestamp>>()
+            .into();
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
+    }
+
+    /// Access history events as UTC datetimes.
+    ///
+    /// Returns:
+    ///     NodeStateHistoryDateTime: A NodeState with the computed HistoryDateTime object for each node.
+    #[getter]
+    fn dt(&self) -> NodeState<'static, PyHistoryDateTime, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().dt().into())
+            .collect::<Vec<PyHistoryDateTime>>()
+            .into();
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
+    }
+
+    /// Access the unique event id of each time entry.
+    ///
+    /// Returns:
+    ///     NodeStateHistoryEventId: A NodeState with the computed HistoryEventId object for each node.
+    #[getter]
+    fn event_id(&self) -> NodeState<'static, PyHistoryEventId, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().event_id().into())
+            .collect::<Vec<PyHistoryEventId>>()
+            .into();
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
+    }
+
+    /// Access the intervals between consecutive timestamps in milliseconds.
+    ///
+    /// Returns:
+    ///     NodeStateIntervals: A NodeState with the computed Intervals object for each node.
+    #[getter]
+    fn intervals(&self) -> NodeState<'static, PyIntervals, DynamicGraph> {
+        let values = self
+            .inner
+            .iter_values()
+            .map(|h| h.clone().intervals().into())
+            .collect::<Vec<PyIntervals>>()
+            .into();
+        NodeState::new(self.inner.graph().clone(), values, self.inner.ids().clone())
+    }
+
+    /// Get the earliest time entry of all nodes.
+    ///
+    /// Returns:
+    ///     OptionalEventTime: The earliest event present in any of the nodes' histories.
+    fn earliest_time(&self) -> PyOptionalEventTime {
+        self.inner.earliest_time().into()
+    }
+
+    /// Get the latest time entry.
+    ///
+    /// Returns:
+    ///     OptionalEventTime: The latest event present in any of the nodes' histories.
+    fn latest_time(&self) -> PyOptionalEventTime {
+        self.inner.latest_time().into()
+    }
+
+    /// Collect and return all the contained time entries as a sorted list.
+    ///
+    /// Returns:
+    ///     list[EventTime]: All time entries as a list.
+    fn collect_time_entries(&self) -> Vec<EventTime> {
+        self.inner.collect_time_entries()
+    }
+
+    /// Flattens all history objects into a single history object with all time entries ordered.
+    ///
+    /// Returns:
+    ///     History: A history object containing all time entries.
+    fn flatten(&self) -> PyHistory {
+        self.inner.flatten().into_arc_dyn().into()
+    }
+
+    /// Get the number of History objects held by this NodeState.
+    fn __len__(&self) -> usize {
+        self.inner.len()
+    }
+
+    /// Iterate over nodes.
+    ///
+    /// Returns:
+    ///     Nodes: The nodes.
+    fn nodes(&self) -> Nodes<'static, DynamicGraph> {
+        self.inner.nodes()
+    }
+
+    fn __eq__<'py>(
+        &self,
+        other: &Bound<'py, PyAny>,
+        py: Python<'py>,
+    ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
+        let res = if let Ok(other) = other.cast::<Self>() {
+            let other = Bound::get(other);
+            self.inner == other.inner
+        } else if let Ok(other) =
+            other.extract::<Vec<History<'static, Arc<dyn InternalHistoryOps>>>>()
+        {
+            self.inner.len() == other.len()
+                && self
+                    .inner
+                    .iter_values()
+                    .zip(other.into_iter())
+                    .all(|(left, right)| left.iter().eq(right.iter()))
+        } else if let Ok(other) =
+            other.extract::<HashMap<PyNodeRef, History<'static, Arc<dyn InternalHistoryOps>>>>()
+        {
+            self.inner.len() == other.len()
+                && other.into_iter().all(|(node, value)| {
+                    self.inner
+                        .get_by_node(node)
+                        .map(|v| v.iter().eq(value.iter()))
+                        .unwrap_or(false)
+                })
+        } else if let Ok(other) = other.cast::<PyDict>() {
+            self.inner.len() == other.len()
+                && other.items().iter().all(|item| {
+                    if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
+                    {
+                        self.inner
+                            .get_by_node(node_ref)
+                            .map(|l_value| {
+                                if let Ok(l_value_py) = l_value.clone().into_bound_py_any(py) {
+                                    l_value_py.eq(value).unwrap_or(false)
+                                } else {
+                                    false
+                                }
+                            })
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                })
+        } else {
+            return Ok(PyNotImplemented::get(py).to_owned().into_any());
+        };
+        Ok(res.into_pyobject(py)?.to_owned().into_any())
+    }
+
+    fn __iter__(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
+            |inner| inner.iter_values().map(|v| v.clone())
+        )
+    }
+
+    /// Get History object for the node.
+    ///
+    /// Arguments:
+    ///     node (NodeInput): the node
+    ///     default (Optional[History]): The default value. Defaults to None.
+    ///
+    /// Returns:
+    ///     Optional[History]: The value for the node or the default value.
+    #[pyo3(signature = (node, default=None::<PyHistory>))]
+    fn get(&self, node: PyNodeRef, default: Option<PyHistory>) -> Option<PyHistory> {
+        self.inner
+            .get_by_node(node)
+            .map(|v| v.clone().into())
+            .or(default)
+    }
+
+    fn __getitem__(
+        &self,
+        node: PyNodeRef,
+    ) -> PyResult<History<'static, NodeView<'static, DynamicGraph>>> {
+        let node = node.as_node_ref();
+        self.inner
+            .get_by_node(node)
+            .map(|v| v.clone())
+            .ok_or_else(|| match node {
+                NodeRef::External(id) => {
+                    PyKeyError::new_err(format!("Missing value for node with id {id}"))
+                }
+                NodeRef::Internal(vid) => {
+                    let node = self.inner.graph().node(vid);
+                    match node {
+                        Some(node) => PyKeyError::new_err(format!("Missing value {}", node.repr())),
+                        None => PyTypeError::new_err("Invalid node reference"),
+                    }
+                }
+            })
+    }
+
+    /// Iterate over items
+    ///
+    /// Returns:
+    ///     Iterator[Tuple[Node, History]]: Iterator over items.
+    fn items(&self) -> PyBorrowingIterator {
+        py_borrowing_iter!(
+            self.inner.clone(),
+            NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
+            |inner| inner.iter().map(|(n, v)| (n.cloned(), v.clone()))
+        )
+    }
+
+    /// Iterate over History objects.
+    ///
+    /// Returns:
+    ///     Iterator[History]: Iterator over History objects.
+    fn values(&self) -> PyBorrowingIterator {
+        self.__iter__()
+    }
+
+    /// Sort results by node id
+    ///
+    /// Returns:
+    ///     NodeStateHistory: The sorted node state.
+    fn sorted_by_id(
+        &self,
+    ) -> NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph> {
+        self.inner.sort_by_id()
+    }
+
+    fn __repr__(&self) -> String {
+        self.inner.repr()
+    }
+
+    /// Convert results to pandas DataFrame
+    ///
+    /// The DataFrame has two columns, "node" with the node ids and "value" with
+    /// the corresponding values.
+    ///
+    /// Returns:
+    ///     DataFrame: A Pandas DataFrame.
+    fn to_df<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        let pandas = PyModule::import(py, "pandas")?;
+        let columns = PyDict::new(py);
+        columns.set_item("node", self.inner.nodes().id())?;
+        columns.set_item("value", self.values())?;
+        pandas.call_method("DataFrame", (columns,), None)
+    }
+}
+
+impl From<NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>>
+    for NodeStateHistory
+{
+    fn from(
+        inner: NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>,
+    ) -> Self {
+        NodeStateHistory { inner: inner }
+    }
+}
+
+impl<'py> pyo3::IntoPyObject<'py>
+    for NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>
+{
+    type Target = NodeStateHistory;
+    type Output = Bound<'py, Self::Target>;
+    type Error = <Self::Target as pyo3::IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        NodeStateHistory::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py> FromPyObject<'_, 'py>
+    for NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>
+{
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<NodeStateHistory>()?.get().inner().clone())
+    }
+}
+
+// we can use macros for the LazyNodeStates and computed NodeStates of PyHistoryTimestamp, PyHistoryEventId, and PyHistoryDateTime
+type HistoryI64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryTimestamp>;
+impl_lazy_node_state!(
+    HistoryTimestampView<HistoryI64<DynamicGraph>>,
+    "NodeStateHistoryTimestamp",
+    "HistoryTimestamp"
+);
+impl_node_state!(
+    NodeStateHistoryTimestamp<PyHistoryTimestamp>,
+    "NodeStateHistoryTimestamp",
+    "HistoryTimestamp"
+);
+
+type HistoryU64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryEventId>;
+impl_lazy_node_state!(
+    HistoryEventIdView<HistoryU64<DynamicGraph>>,
+    "NodeStateHistoryEventId",
+    "HistoryEventId"
+);
+impl_node_state!(
+    NodeStateHistoryEventId<PyHistoryEventId>,
+    "NodeStateHistoryEventId",
+    "HistoryEventId"
+);
+
+type HistoryDT<G> = ops::Map<HistoryOp<'static, G>, PyHistoryDateTime>;
+impl_lazy_node_state!(
+    HistoryDateTimeView<HistoryDT<DynamicGraph>>,
+    "NodeStateHistoryDateTime",
+    "HistoryDateTime"
+);
+impl_node_state!(
+    NodeStateHistoryDateTime<PyHistoryDateTime>,
+    "NodeStateHistoryDateTime",
+    "HistoryDateTime"
+);

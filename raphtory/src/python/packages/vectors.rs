@@ -1,10 +1,9 @@
 use crate::{
-    core::utils::time::IntoTime,
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         types::wrappers::document::PyDocument,
-        utils::{execute_async_task, PyNodeRef, PyTime},
+        utils::{execute_async_task, PyNodeRef},
     },
     vectors::{
         cache::VectorCache,
@@ -24,14 +23,18 @@ use pyo3::{
     types::{PyFunction, PyList},
     Borrowed,
 };
+use raphtory_api::core::{
+    storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
+};
 use std::path::PathBuf;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
-pub type PyWindow = Option<(PyTime, PyTime)>;
+pub type PyWindow = Option<(EventTime, EventTime)>;
 
 pub fn translate_window(window: PyWindow) -> Option<(i64, i64)> {
-    window.map(|(start, end)| (start.into_time(), end.into_time()))
+    window.map(|(start, end)| (start.into_time().t(), end.into_time().t()))
 }
 
 #[derive(Clone)]

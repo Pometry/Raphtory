@@ -139,20 +139,17 @@ pub mod prelude {
                 state::{
                     AsOrderedNodeStateOps, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
                 },
-                view::{
-                    EdgePropertyFilterOps, EdgeViewOps, ExplodedEdgePropertyFilterOps,
-                    GraphViewOps, LayerOps, NodePropertyFilterOps, NodeViewOps, ResetFilter,
-                    TimeOps,
-                },
+                view::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
             },
-            graph::{
-                graph::Graph,
-                views::{
-                    deletion_graph::PersistentGraph, filter::model::property_filter::PropertyFilter,
-                },
-            },
+            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
         },
     };
+
+    pub use crate::db::graph::views::filter::model::{
+        filter::Filter, property_filter::PropertyFilter,
+    };
+
+    pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
     #[cfg(feature = "io")]
     pub use crate::serialise::{

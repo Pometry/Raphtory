@@ -15,7 +15,7 @@ default-members = ["raphtory"]
 resolver = "2"
 
 [workspace.package]
-version = "0.16.4"
+version = "0.17.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -48,13 +48,13 @@ incremental = false
 
 
 [workspace.dependencies]
-db4-graph = { version = "0.16.4", path = "db4-graph", default-features = false }
-raphtory = { version = "0.16.4", path = "raphtory", default-features = false }
-raphtory-api = { version = "0.16.4", path = "raphtory-api", default-features = false }
-raphtory-api-macros = { version = "0.16.4", path = "raphtory-api-macros", default-features = false }
-raphtory-core = { version = "0.16.4", path = "raphtory-core", default-features = false }
-raphtory-graphql = { version = "0.16.4", path = "raphtory-graphql", default-features = false }
-raphtory-storage = { version = "0.16.4", path = "raphtory-storage", default-features = false }
+db4-graph = { version = "0.17.0", path = "db4-graph", default-features = false }
+raphtory = { version = "0.17.0", path = "raphtory", default-features = false }
+raphtory-api = { version = "0.17.0", path = "raphtory-api", default-features = false }
+raphtory-api-macros = { version = "0.17.0", path = "raphtory-api-macros", default-features = false }
+raphtory-core = { version = "0.17.0", path = "raphtory-core", default-features = false }
+raphtory-graphql = { version = "0.17.0", path = "raphtory-graphql", default-features = false }
+raphtory-storage = { version = "0.17.0", path = "raphtory-storage", default-features = false }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
 bincode = {version = "2", features = ["serde"]}
 async-graphql-poem = "7.0.16"
@@ -161,10 +161,11 @@ parquet = { version = "57.2.0" }
 arrow-json = { version = "57.2.0" }
 arrow-buffer = { version = "57.2.0" }
 arrow-schema = { version = "57.2.0" }
-serde_arrow = {version = "0.13.6", features = ["arrow-57"]}
-arrow-array = { version = "57.2.0", features = ["chrono-tz"] }
-arrow-ipc = { version = "57.2.0" }
 arrow-csv = { version = "57.2.0" }
+arrow-array = { version = "57.2.0", features = ["chrono-tz"] }
+arrow-cast = { version = "57.2.0" }
+arrow-ipc = { version = "57.2.0" }
+serde_arrow = {version = "0.13.6", features = ["arrow-57"]}
 moka = { version = "0.12.7", features = ["future"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }

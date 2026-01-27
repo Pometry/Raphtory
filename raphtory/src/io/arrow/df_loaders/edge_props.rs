@@ -1,10 +1,11 @@
+#[cfg(feature = "python")]
+use crate::io::arrow::df_loaders::build_progress_bar;
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
-            build_progress_bar,
             edges::{get_or_resolve_node_vids, store_node_ids, ColumnNames},
             process_shared_properties,
         },
@@ -75,7 +76,7 @@ fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + Additi
             .map_err(into_graph_err)
     })?;
 
-    // #[cfg(feature = "python")]
+    #[cfg(feature = "python")]
     let mut pb = build_progress_bar("Loading edges metadata".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved: Vec<VID> = vec![];
@@ -155,7 +156,7 @@ fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + Additi
             update_edge_metadata(&shared_metadata, &metadata_cols, shard, zip);
         });
 
-        // #[cfg(feature = "python")]
+        #[cfg(feature = "python")]
         let _ = pb.update(df.len());
     }
     Ok::<_, GraphError>(())

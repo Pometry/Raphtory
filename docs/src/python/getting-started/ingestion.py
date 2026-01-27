@@ -195,23 +195,23 @@ print(f"{nodes_df.head(2)}\n")
 
 # --8<-- [start:graph_from_dataframe]
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     time="timestamp",
     src="source",
     dst="destination",
     properties=["data_size_MB"],
     layer_col="transaction_type",
-    constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["is_encrypted"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
-g.load_nodes_from_pandas(
-    df=nodes_df,
+g.load_nodes(
+    data=nodes_df,
     time="timestamp",
     id="server_id",
     properties=["OS_version", "primary_function", "uptime_days"],
-    constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["server_name", "hardware_type"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
 print("The resulting graphs and example node/edge:")
@@ -222,24 +222,24 @@ print(g.edge("ServerA", "ServerB"))
 
 # --8<-- [start:adding_dataframe]
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="source",
     dst="destination",
     time="timestamp",
     properties=["data_size_MB"],
     layer_col="transaction_type",
-    constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["is_encrypted"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
-g.load_nodes_from_pandas(
-    df=nodes_df,
+g.load_nodes(
+    data=nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
-    constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["server_name", "hardware_type"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
 print(g)
@@ -250,8 +250,8 @@ print(g.edge("ServerA", "ServerB"))
 
 # --8<-- [start:const_dataframe]
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="source",
     dst="destination",
     time="timestamp",
@@ -259,27 +259,27 @@ g.load_edges_from_pandas(
     layer_col="transaction_type",
 )
 
-g.load_nodes_from_pandas(
-    df=nodes_df,
+g.load_nodes(
+    data=nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
 )
 
-g.load_edge_props_from_pandas(
-    df=edges_df,
+g.load_edge_metadata(
+    data=edges_df,
     src="source",
     dst="destination",
     layer_col="transaction_type",
-    constant_properties=["is_encrypted"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["is_encrypted"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
-g.load_node_props_from_pandas(
-    df=nodes_df,
+g.load_node_metadata(
+    data=nodes_df,
     id="server_id",
-    constant_properties=["server_name", "hardware_type"],
-    shared_constant_properties={"datasource": "docs/data/network_traffic_edges.csv"},
+    metadata=["server_name", "hardware_type"],
+    shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
 
 print(g)
@@ -295,8 +295,8 @@ edges_df = pd.read_csv("docs/data/network_traffic_edges.csv")
 edges_df["timestamp"] = pd.to_datetime(edges_df["timestamp"])
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     time="timestamp",
     src="source",
     dst="destination",
