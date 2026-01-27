@@ -543,7 +543,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 #[cfg(test)]
 mod test {
     use super::*;
-    use raphtory_api::core::entities::properties::{meta::{Meta, STATIC_GRAPH_LAYER_ID}, prop::PropType};
+    use raphtory_api::core::entities::properties::{
+        meta::{Meta, STATIC_GRAPH_LAYER_ID},
+        prop::PropType,
+    };
     use raphtory_core::storage::timeindex::EventTime;
 
     fn create_test_segment() -> MemEdgeSegment {
@@ -617,7 +620,13 @@ mod test {
 
         assert!(est_size1 > 0);
 
-        segment.delete_edge_internal(EventTime::new(2, 3), LocalPOS(0), VID(5), VID(3), STATIC_GRAPH_LAYER_ID);
+        segment.delete_edge_internal(
+            EventTime::new(2, 3),
+            LocalPOS(0),
+            VID(5),
+            VID(3),
+            STATIC_GRAPH_LAYER_ID,
+        );
 
         let est_size2 = segment.est_size();
 
@@ -658,7 +667,13 @@ mod test {
             .unwrap()
             .inner();
 
-        segment.update_const_properties(LocalPOS(1), VID(4), VID(6), STATIC_GRAPH_LAYER_ID, [(prop_id, Prop::U8(2))]);
+        segment.update_const_properties(
+            LocalPOS(1),
+            VID(4),
+            VID(6),
+            STATIC_GRAPH_LAYER_ID,
+            [(prop_id, Prop::U8(2))],
+        );
 
         let est_size5 = segment.est_size();
         assert!(
