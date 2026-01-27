@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769508695924,
+  "lastUpdate": 1769519431048,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3617,6 +3617,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1421,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7b0141466a432b18d1069874961a90b14b90de6",
+          "message": "trigger graphql cache eviction automatically (#2454)\n\n* trigger graphql cache eviction automatically\n\n* fix typo\n\n* add fixme for the evicion test\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-27T13:34:28+01:00",
+          "tree_id": "098ddb44691bd91b8bd50311ed0f923c71a91e18",
+          "url": "https://github.com/Pometry/Raphtory/commit/e7b0141466a432b18d1069874961a90b14b90de6"
+        },
+        "date": 1769519424574,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1422,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 219,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 121,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1107,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 870,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1477,
             "unit": "req/s"
           }
         ]
