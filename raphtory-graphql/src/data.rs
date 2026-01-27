@@ -414,6 +414,14 @@ pub(crate) mod data_tests {
         sleep(Duration::from_secs(3)).await;
         assert!(!data.cache.contains_key(Path::new("test_g")));
         assert!(!data.cache.contains_key(Path::new("test_g2")));
+        // FIXME: this test is not doing anything because calling cache.contains_key() runs
+        // any pending evictions. To actually test it we need this assertion:
+        //   assert_eq!(data.cache.entry_count(), 0);
+        // Which currently does not work because the server task to trigger evictions is not running
+        // in this context. The problem is if we do run it by creating a server and calling
+        // server.start() the server gets consumed and we loose access to the cache to be able to run
+        // the check. If rework the server implementation and this becomes feasible we should change
+        // this test
     }
 
     #[tokio::test]
