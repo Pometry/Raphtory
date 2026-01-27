@@ -22,48 +22,47 @@ use tokio::io::Result as IoResult;
 #[derive(Parser)]
 #[command(about = "Run the GraphServer with specified configurations")]
 struct Args {
-    #[arg(long, default_value = "graphs")]
+    #[arg(long, env = "RAPHTORY_WORKING_DIR", default_value = ".")]
     working_dir: PathBuf,
 
-    // #[arg(long, env, default_value_t = DEFAULT_PORT)]
-    #[clap(long, env = "RAPHTORY_PORT", default_value_t = DEFAULT_PORT)]
+    #[arg(long, env = "RAPHTORY_PORT", default_value_t = DEFAULT_PORT)]
     port: u16,
 
-    #[arg(long, default_value_t = DEFAULT_CAPACITY)]
+    #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", default_value_t = DEFAULT_CAPACITY)]
     cache_capacity: u64,
 
-    #[arg(long, default_value_t = DEFAULT_TTI_SECONDS)]
+    #[arg(long, env = "RAPHTORY_CACHE_TTI_SECONDS", default_value_t = DEFAULT_TTI_SECONDS)]
     cache_tti_seconds: u64,
 
-    #[arg(long, default_value = DEFAULT_LOG_LEVEL)]
+    #[arg(long, env = "RAPHTORY_LOG_LEVEL", default_value = DEFAULT_LOG_LEVEL)]
     log_level: String,
 
-    #[arg(long, default_value_t = DEFAULT_TRACING_ENABLED)]
+    #[arg(long, env = "RAPHTORY_TRACING", default_value_t = DEFAULT_TRACING_ENABLED)]
     tracing: bool,
 
-    #[arg(long, default_value_t = DEFAULT_TRACING_LEVEL)]
+    #[arg(long, env = "RAPHTORY_TRACING_LEVEL", default_value_t = DEFAULT_TRACING_LEVEL)]
     tracing_level: TracingLevel,
 
-    #[arg(long, default_value = DEFAULT_OTLP_AGENT_HOST)]
+    #[arg(long, env = "RAPHTORY_OTLP_AGENT_HOST", default_value = DEFAULT_OTLP_AGENT_HOST)]
     otlp_agent_host: String,
 
-    #[arg(long, default_value = DEFAULT_OTLP_AGENT_PORT)]
+    #[arg(long, env = "RAPHTORY_OTLP_AGENT_PORT", default_value = DEFAULT_OTLP_AGENT_PORT)]
     otlp_agent_port: String,
 
-    #[arg(long, default_value = DEFAULT_OTLP_TRACING_SERVICE_NAME)]
+    #[arg(long, env = "RAPHTORY_OTLP_TRACING_SERVICE_NAME", default_value = DEFAULT_OTLP_TRACING_SERVICE_NAME)]
     otlp_tracing_service_name: String,
 
-    #[arg(long, default_value = None)]
+    #[arg(long, env = "RAPHTORY_AUTH_PUBLIC_KEY", default_value = None)]
     auth_public_key: Option<String>,
 
-    #[arg(long, default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS)]
+    #[arg(long, env = "RAPHTORY_AUTH_ENABLED_FOR_READS", default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS)]
     auth_enabled_for_reads: bool,
 
-    #[arg(long, default_value = None)]
+    #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None)]
     public_dir: Option<PathBuf>,
 
     #[cfg(feature = "search")]
-    #[arg(long, default_value_t = DEFAULT_CREATE_INDEX)]
+    #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX)]
     create_index: bool,
 
     #[command(subcommand)]
@@ -76,8 +75,7 @@ enum Commands {
     Schema,
 }
 
-#[tokio::main]
-async fn main() -> IoResult<()> {
+pub(crate) async fn cli() -> IoResult<()> {
     let args = Args::parse();
 
     if let Some(Commands::Schema) = args.command {
@@ -110,4 +108,13 @@ async fn main() -> IoResult<()> {
             .await?;
     }
     Ok(())
+}
+
+#[cfg(feature = "python")]
+#[pyo3::pyfunction(name = "cli")]
+pub fn python_cli() -> pyo3::PyResult<()> {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    runtime
+        .block_on(cli())
+        .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
 }
