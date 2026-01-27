@@ -11,7 +11,9 @@ use crate::{
     db::{
         api::{mutation::AdditionOps, view::*},
         graph::graph::Graph,
-    }, errors::GraphError, prelude::{NO_PROPS, NodeStateOps}
+    },
+    errors::GraphError,
+    prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory_api::core::storage::timeindex::AsTime;
@@ -40,7 +42,7 @@ use tracing::error;
 /// # Example
 /// ```
 /// use raphtory::graphgen::erdos_renyi::erdos_renyi;
-/// 
+///
 /// // Create a random graph with 10 nodes and 20% edge probability
 /// let graph = erdos_renyi(10, 0.2, Some(42)).unwrap();
 /// ```
@@ -50,27 +52,26 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
     if let Some(seed_value) = seed {
         rng = StdRng::seed_from_u64(seed_value);
     } else {
-        rng = StdRng::from_entropy();
+        rng = StdRng::from_os_rng();
     }
     let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     for i in 0..nodes_to_add {
         let id = GID::U64(i as u64);
         latest_time += 1;
-        graph
-            .add_node(latest_time, &id, NO_PROPS, None)?;
+        graph.add_node(latest_time, &id, NO_PROPS, None)?;
     }
     for i in 0..nodes_to_add {
         let source_id = GID::U64(i as u64);
         for j in (i + 1)..nodes_to_add {
             let dst_id = GID::U64(j as u64);
-            let create_edge = rng.gen_bool(p);  
+            let create_edge = rng.random_bool(p);
             if create_edge {
                 latest_time += 1;
                 graph.add_edge(latest_time, &source_id, &dst_id, NO_PROPS, None)?;
                 graph.add_edge(latest_time, &dst_id, &source_id, NO_PROPS, None)?;
-            } 
+            }
         }
-    }  
+    }
     Ok(graph)
 }
 
@@ -96,7 +97,7 @@ mod tests {
     fn test_erdos_renyi_zero_probability() {
         let n_nodes = 20;
         let p = 0.0;
-        let seed = Some(42); 
+        let seed = Some(42);
         let graph = erdos_renyi(n_nodes, p, seed).unwrap();
         let edge_count = graph.edges().into_iter().count();
         let node_count = graph.nodes().id().iter_values().count();

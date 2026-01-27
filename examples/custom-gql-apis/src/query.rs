@@ -20,7 +20,7 @@ impl<'a> Operation<'a, QueryPlugin> for HelloQuery {
 
     fn apply<'b>(
         _entry_point: &QueryPlugin,
-        ctx: ResolverContext,
+        ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx
             .args

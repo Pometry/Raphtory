@@ -502,7 +502,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn layer_names(&self) -> Self::ValueType<Vec<ArcStr>> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
-                let layer_names = g.edge_meta().layer_meta().get_keys();
+                let layer_names = g.edge_meta().layer_meta().all_keys();
                 match e.layer() {
                     None => {
                         let time_semantics = g.edge_time_semantics();

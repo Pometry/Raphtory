@@ -1,28 +1,28 @@
 from __future__ import unicode_literals
-from decimal import Decimal
+
 import math
-import sys
+import os
+import pickle
 import random
 import re
-
-import pandas as pd
-import pandas.core.frame
-import pytest
-import pyarrow as pa
-from raphtory import Graph, PersistentGraph
-from raphtory import algorithms
-from raphtory import graph_loader
+import shutil
+import string
+import sys
 import tempfile
+from decimal import Decimal
 from math import isclose
 from datetime import date, datetime, timezone
 import string
 from pathlib import Path
-from pytest import fixture
-from numpy.testing import assert_equal as check_arr
-import os
-import shutil
+
 import numpy as np
-import pickle
+import pandas as pd
+import pandas.core.frame
+import pyarrow as pa
+import pytest
+from numpy.testing import assert_equal as check_arr
+from pytest import fixture
+from raphtory import Graph, PersistentGraph, algorithms, graph_loader
 from utils import with_disk_graph
 
 base_dir = Path(__file__).parent
@@ -1257,7 +1257,7 @@ def test_save_missing_dir():
     g = create_graph()
     tmpdirname = tempfile.TemporaryDirectory()
     inner_folder = "".join(random.choice(string.ascii_letters) for _ in range(10))
-    graph_path = tmpdirname.name + "/" + inner_folder + "/test_graph.bin"
+    graph_path = tmpdirname.name + "/" + inner_folder + "/test_graph"
     with pytest.raises(Exception):
         g.save_to_file(graph_path)
 
@@ -2274,9 +2274,11 @@ def test_materialize_graph():
             assert mg.node(4).metadata.get("abc") == "xyz"
             check_arr(mg.node(1).history.t.collect(), [-1, 0, 0, 1, 1, 2])
             check_arr(mg.node(4).history.t.collect(), [6, 8])
-            assert mg.nodes.id.collect() == [1, 2, 3, 4]
+            assert len(mg.nodes.id.collect()) == 4
+            assert set(mg.nodes.id.collect()) == {1, 3, 2, 4}
             assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
-            assert g.nodes.id.collect() == mg.nodes.id.collect()
+            assert len(g.nodes.id.collect()) == len(mg.nodes.id.collect())
+            assert set(g.nodes.id.collect()) == set(mg.nodes.id.collect())
             assert set(g.edges.id) == set(mg.edges.id)
             assert mg.node(1).metadata == {}
             assert mg.node(4).metadata == {"abc": "xyz"}

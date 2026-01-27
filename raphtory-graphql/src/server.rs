@@ -41,7 +41,7 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
@@ -161,7 +161,7 @@ impl GraphServer {
             for graph_name in graph_names {
                 embedding_conf
                     .individual_templates
-                    .insert(graph_name.into(), template.clone());
+                    .insert(graph_name, template.clone());
             }
         }
         self

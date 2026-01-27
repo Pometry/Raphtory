@@ -1,16 +1,10 @@
-use crate::{
-    entities::nodes::node_store::NodeStore,
-    storage::{NodeSlot, UninitialisedEntry},
-};
 use dashmap::mapref::entry::Entry;
-use either::Either;
 use once_cell::sync::OnceCell;
 use raphtory_api::core::{
     entities::{GidRef, GidType, VID},
     storage::{dict_mapper::MaybeNew, FxDashMap},
 };
 use serde::{Deserialize, Deserializer, Serialize};
-use std::hash::Hash;
 use thiserror::Error;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -55,6 +49,17 @@ pub struct Mapping {
 }
 
 impl Mapping {
+    pub fn len(&self) -> usize {
+        self.map.get().map_or(0, |map| match map {
+            Map::U64(map) => map.len(),
+            Map::Str(map) => map.len(),
+        })
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn dtype(&self) -> Option<GidType> {
         self.map.get().map(|map| match map {
             Map::U64(_) => GidType::U64,
@@ -64,6 +69,18 @@ impl Mapping {
     pub fn new() -> Self {
         Mapping {
             map: OnceCell::new(),
+        }
+    }
+
+    pub fn new_u64() -> Self {
+        Mapping {
+            map: OnceCell::with_value(Map::U64(Default::default())),
+        }
+    }
+
+    pub fn new_str() -> Self {
+        Mapping {
+            map: OnceCell::with_value(Map::Str(Default::default())),
         }
     }
 
@@ -131,25 +148,27 @@ impl Mapping {
         Ok(vid)
     }
 
-    pub fn get_or_init_node<'a>(
+    pub fn validate_gids<'a>(
         &self,
-        gid: GidRef,
-        f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
-    ) -> Result<MaybeNew<VID>, InvalidNodeId> {
-        let map = self.map.get_or_init(|| match &gid {
-            GidRef::U64(_) => Map::U64(FxDashMap::default()),
-            GidRef::Str(_) => Map::Str(FxDashMap::default()),
-        });
-        match gid {
-            GidRef::U64(id) => map
-                .as_u64()
-                .map(|m| get_or_new(m, id, f_init))
-                .ok_or(InvalidNodeId::InvalidNodeIdU64(id)),
-            GidRef::Str(id) => map
-                .as_str()
-                .map(|m| optim_get_or_insert(m, id, f_init))
-                .ok_or_else(|| InvalidNodeId::InvalidNodeIdStr(id.into())),
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), InvalidNodeId> {
+        for gid in gids {
+            let map = self.map.get_or_init(|| match &gid {
+                GidRef::U64(_) => Map::U64(FxDashMap::default()),
+                GidRef::Str(_) => Map::Str(FxDashMap::default()),
+            });
+            match gid {
+                GidRef::U64(id) => {
+                    map.as_u64().ok_or(InvalidNodeId::InvalidNodeIdU64(id))?;
+                }
+                GidRef::Str(id) => {
+                    map.as_str()
+                        .ok_or_else(|| InvalidNodeId::InvalidNodeIdStr(id.into()))?;
+                }
+            }
         }
+
+        Ok(())
     }
 
     #[inline]
@@ -163,42 +182,24 @@ impl Mapping {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))
     }
-}
 
-#[inline]
-fn optim_get_or_insert<'a>(
-    m: &FxDashMap<String, VID>,
-    id: &str,
-    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
-) -> MaybeNew<VID> {
-    m.get(id)
-        .map(|vid| MaybeNew::Existing(*vid))
-        .unwrap_or_else(|| get_or_new(m, id.to_owned(), f_init))
-}
+    pub fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_ {
+        self.map
+            .get()
+            .and_then(|map| map.as_str())
+            .into_iter()
+            .flat_map(|m| {
+                m.iter()
+                    .map(|entry| (entry.key().to_owned(), *(entry.value())))
+            })
+    }
 
-#[inline]
-fn get_or_new<'a, K: Eq + Hash>(
-    m: &FxDashMap<K, VID>,
-    id: K,
-    f_init: impl FnOnce() -> UninitialisedEntry<'a, NodeStore, NodeSlot>,
-) -> MaybeNew<VID> {
-    let entry = match m.entry(id) {
-        Entry::Occupied(entry) => Either::Left(*entry.get()),
-        Entry::Vacant(entry) => {
-            // This keeps the underlying storage shard locked for deferred initialisation but
-            // allows unlocking the map again.
-            let node = f_init();
-            entry.insert(node.value().vid);
-            Either::Right(node)
-        }
-    };
-    match entry {
-        Either::Left(vid) => MaybeNew::Existing(vid),
-        Either::Right(node_entry) => {
-            let vid = node_entry.value().vid;
-            node_entry.init();
-            MaybeNew::New(vid)
-        }
+    pub fn iter_u64(&self) -> impl Iterator<Item = (u64, VID)> + '_ {
+        self.map
+            .get()
+            .and_then(|map| map.as_u64())
+            .into_iter()
+            .flat_map(|m| m.iter().map(|entry| (*entry.key(), *(entry.value()))))
     }
 }
 

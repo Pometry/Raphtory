@@ -27,7 +27,7 @@ use crate::{
         utils::export::{create_row, extract_properties, get_column_names_from_props},
     },
 };
-use pyo3::{prelude::*, types::PyDict};
+use pyo3::{prelude::*, types::PyDict, Py, PyAny};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::{iter::IntoParallelIterator, prelude::*};
@@ -262,7 +262,7 @@ impl PyEdges {
         include_property_history: bool,
         convert_datetime: bool,
         mut explode: bool,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let mut column_names = vec![
             String::from("src"),
             String::from("dst"),
@@ -304,8 +304,8 @@ impl PyEdges {
                 );
 
                 let row_header: Vec<Prop> = vec![
-                    Prop::from(item.src().name()),
-                    Prop::from(item.dst().name()),
+                    Prop::Str(item.src().name().into()),
+                    Prop::Str(item.dst().name().into()),
                     Prop::from(item.layer_name().unwrap_or(ArcStr::from(""))),
                 ];
 
@@ -325,7 +325,7 @@ impl PyEdges {
             })
             .collect();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let pandas = PyModule::import(py, "pandas")?;
             let kwargs = PyDict::new(py);
             kwargs.set_item("columns", column_names)?;

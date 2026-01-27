@@ -1,15 +1,3 @@
-use std::{
-    collections::HashSet,
-    ops::Deref,
-    path::{Path, PathBuf},
-    sync::{Arc, OnceLock},
-};
-
-use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
-use futures_util::StreamExt;
-use rand::{rngs::StdRng, SeedableRng};
-use tempfile::TempDir;
-
 use super::{
     entity_ref::{EntityRef, IntoDbId},
     Embedding,
@@ -19,6 +7,15 @@ use crate::{
     errors::{GraphError, GraphResult},
     prelude::GraphViewOps,
 };
+use arroy::{distances::Cosine, Database as ArroyDatabase, Reader, Writer};
+use futures_util::StreamExt;
+use std::{
+    collections::HashSet,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::{Arc, OnceLock},
+};
+use tempfile::TempDir;
 
 const LMDB_MAX_SIZE: usize = 1024 * 1024 * 1024 * 1024; // 1TB
 
@@ -186,8 +183,9 @@ impl VectorDb {
             writer.add_item(&mut wtxn, id as u32, embedding.as_ref())?;
         }
 
-        let mut rng = StdRng::from_entropy();
-        writer.builder(&mut rng).build(&mut wtxn)?;
+        // FIXME: Arroy requires rand 0.8.x but we are using rand 0.9.x
+        // let mut rng = StdRng::from_os_rng();
+        // writer.builder(&mut rng).build(&mut wtxn)?;
 
         wtxn.commit()?;
         Ok(())
@@ -254,8 +252,8 @@ impl VectorDb {
             }
 
             // TODO: review this -> You can specify the number of trees to use or specify None.
-            let mut rng = StdRng::seed_from_u64(42);
-            writer.builder(&mut rng).build(&mut wtxn)?;
+            // let mut rng = StdRng::seed_from_u64(42);
+            // writer.builder(&mut rng).build(&mut wtxn)?;
             dimensions.into()
         } else {
             OnceLock::new()

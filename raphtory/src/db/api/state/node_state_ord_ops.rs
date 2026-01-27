@@ -358,15 +358,16 @@ where
 mod test {
     use crate::db::api::state::node_state_ord_ops::{par_top_k, top_k};
 
-    use rand; // 0.8.5
-
-    use rand::distributions::{Distribution, Uniform};
+    use rand::{
+        distr::{Distribution, Uniform},
+        Rng,
+    };
     use tokio::time::Instant;
 
     fn gen_x_ints(
         count: u32,
         distribution: impl Distribution<u32>,
-        rng: &mut (impl rand::Rng + ?Sized),
+        rng: &mut (impl Rng + ?Sized),
     ) -> Vec<u32> {
         let mut results = Vec::with_capacity(count as usize);
         let iter = distribution.sample_iter(rng);
@@ -380,8 +381,8 @@ mod test {
     fn test_top_k() {
         let values = gen_x_ints(
             100_000_000,
-            Uniform::new(0, 10000000),
-            &mut rand::thread_rng(),
+            Uniform::new(0, 10000000).unwrap(),
+            &mut rand::rng(),
         ); // [4i32, 2, 3, 100, 4, 2];
         let timer = Instant::now();
         let res1 = top_k(values.clone(), |a, b| a.cmp(b), 100);

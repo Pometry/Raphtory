@@ -1,34 +1,21 @@
-use crate::graph::edges::{
-    edge_ref::EdgeStorageRef,
-    edge_storage_ops::{EdgeStorageOps, TimeIndexRef},
-};
-use raphtory_api::core::entities::{
-    properties::{prop::Prop, tprop::TPropOps},
-    LayerIds, EID, VID,
-};
-use raphtory_core::{entities::edges::edge_store::MemEdge, storage::raw_edges::EdgeRGuard};
-use rayon::prelude::*;
+use crate::graph::edges::edge_storage_ops::EdgeStorageOps;
+use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
+use raphtory_core::entities::{LayerIds, EID, VID};
 use std::ops::Range;
-
-#[cfg(feature = "storage")]
-use crate::disk::graph_impl::DiskEdge;
+use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
 
 #[derive(Debug)]
 pub enum EdgeStorageEntry<'a> {
-    Mem(MemEdge<'a>),
-    Unlocked(EdgeRGuard<'a>),
-    #[cfg(feature = "storage")]
-    Disk(DiskEdge<'a>),
+    Mem(EdgeEntryRef<'a>),
+    Unlocked(EdgeEntry<'a>),
 }
 
 impl<'a> EdgeStorageEntry<'a> {
     #[inline]
-    pub fn as_ref(&self) -> EdgeStorageRef<'_> {
+    pub fn as_ref(&self) -> EdgeEntryRef<'_> {
         match self {
-            EdgeStorageEntry::Mem(edge) => EdgeStorageRef::Mem(*edge),
-            EdgeStorageEntry::Unlocked(edge) => EdgeStorageRef::Mem(edge.as_mem_edge()),
-            #[cfg(feature = "storage")]
-            EdgeStorageEntry::Disk(edge) => EdgeStorageRef::Disk(*edge),
+            EdgeStorageEntry::Mem(edge) => *edge,
+            EdgeStorageEntry::Unlocked(edge) => edge.as_ref(),
         }
     }
 }
@@ -58,57 +45,38 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
-    fn layer_ids_par_iter(self, layer_ids: &LayerIds) -> impl ParallelIterator<Item = usize> + 'a {
-        self.as_ref().layer_ids_par_iter(layer_ids)
-    }
-
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>)> + 'a {
         self.as_ref().additions_iter(layer_ids)
-    }
-
-    fn additions_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
-        self.as_ref().additions_par_iter(layer_ids)
     }
 
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
+    ) -> impl Iterator<Item = (usize, storage::EdgeDeletions<'a>)> + 'a {
         self.as_ref().deletions_iter(layer_ids)
-    }
-
-    fn deletions_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>)> + 'a {
-        self.as_ref().deletions_par_iter(layer_ids)
     }
 
     fn updates_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
+    ) -> impl Iterator<
+        Item = (
+            usize,
+            storage::EdgeAdditions<'a>,
+            storage::EdgeDeletions<'a>,
+        ),
+    > + 'a {
         self.as_ref().updates_iter(layer_ids)
     }
 
-    fn updates_par_iter(
-        self,
-        layer_ids: &LayerIds,
-    ) -> impl ParallelIterator<Item = (usize, TimeIndexRef<'a>, TimeIndexRef<'a>)> + 'a {
-        self.as_ref().updates_par_iter(layer_ids)
-    }
-
-    fn additions(self, layer_id: usize) -> TimeIndexRef<'a> {
+    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
         self.as_ref().additions(layer_id)
     }
 
-    fn deletions(self, layer_id: usize) -> TimeIndexRef<'a> {
+    fn deletions(self, layer_id: usize) -> storage::EdgeDeletions<'a> {
         self.as_ref().deletions(layer_id)
     }
 
@@ -122,14 +90,6 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         prop_id: usize,
     ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_iter(layer_ids, prop_id)
-    }
-
-    fn temporal_prop_par_iter(
-        self,
-        layer_ids: &LayerIds,
-        prop_id: usize,
-    ) -> impl ParallelIterator<Item = (usize, impl TPropOps<'a>)> + 'a {
-        self.as_ref().temporal_prop_par_iter(layer_ids, prop_id)
     }
 
     fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {

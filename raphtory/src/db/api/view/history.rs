@@ -104,7 +104,7 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         History::new(MergedHistory::new(self.0, right.0))
     }
 
-    fn into_iter_rev(self) -> BoxedLIter<'a, EventTime> {
+    pub fn into_iter_rev(self) -> BoxedLIter<'a, EventTime> {
         GenLockedIter::from(self.0, |item| item.iter_rev()).into_dyn_boxed()
     }
 
