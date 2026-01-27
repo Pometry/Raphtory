@@ -1,4 +1,9 @@
 name: 🚀🦀🐍🐳🐙 Publish all packages to crates.io, PyPi, Docker Hub & Github
+
+env:
+  PYTHON_VERSION: 3.14.2
+  DEBIAN_VERSION: trixie
+
 on:
   workflow_dispatch:
     inputs:
@@ -15,7 +20,7 @@ jobs:
   read-raphtory-version:
     runs-on: ubuntu-latest
     outputs:
-        version: ${{ steps.version.outputs.version }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,7 +67,8 @@ jobs:
       base: ${{ inputs.base }}
       dry_run: ${{ inputs.dry_run == true }}
       tag: |
+        ${{ needs.read-raphtory-version.outputs.version }}-python${{ env.PYTHON_VERSION }}-${{ env.DEBIAN_VERSION }}
         ${{ needs.read-raphtory-version.outputs.version }}-python
         latest-python
-      python: true
+      python: ${{ env.PYTHON_VERSION }}-slim-${{ env.DEBIAN_VERSION }}
     secrets: inherit

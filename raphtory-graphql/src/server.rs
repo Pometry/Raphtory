@@ -200,6 +200,16 @@ impl GraphServer {
         self.data.vectorise_all_graphs_that_are_not().await?;
         let work_dir = self.data.work_dir.clone();
 
+        // Otherwise evictions are only triggered when the cache is actively touched
+        let cache_clone = self.data.cache.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+            loop {
+                interval.tick().await;
+                cache_clone.run_pending_tasks().await;
+            }
+        });
+
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
             .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
