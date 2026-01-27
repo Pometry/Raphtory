@@ -100,6 +100,12 @@ where
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
             let mut src_writer = self.nodes.get_mut(src_segment_id).unwrap().writer();
+
+            // Increment the node counter for this segment if this is a new node.
+            if !src_writer.has_node(src_pos, STATIC_GRAPH_LAYER_ID) {
+                src_writer.increment_seg_num_nodes();
+            }
+
             src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name.into());
 
             let is_new_edge_static = src_writer
@@ -140,6 +146,12 @@ where
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
             let mut dst_writer = self.nodes.get_mut(dst_segment_id).unwrap().writer();
+
+            // Increment the node counter for this segment if this is a new node.
+            if !dst_writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
+                dst_writer.increment_seg_num_nodes();
+            }
+
             dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name.into());
 
             let is_new_edge_static = dst_writer

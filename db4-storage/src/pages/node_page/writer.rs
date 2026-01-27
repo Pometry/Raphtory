@@ -205,7 +205,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 
     pub fn has_node(&self, node: LocalPOS, layer_id: usize) -> bool {
-        self.mut_segment.has_node(node, layer_id)
+        self.mut_segment.has_node(node, layer_id) || self.page.has_node(node, layer_id)
     }
 }
 
