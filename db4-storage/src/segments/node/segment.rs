@@ -575,10 +575,6 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     fn nodes_counter(&self) -> &AtomicU32 {
         &self.max_num_node
     }
-
-    fn increment_num_nodes(&self, max_page_len: u32) {
-        increment_and_clamp(self.nodes_counter(), max_page_len);
-    }
 }
 
 #[cfg(test)]

@@ -1,11 +1,5 @@
 use crate::{
-    LocalPOS,
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
-    pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::strategy::PersistenceStrategy,
-    properties::props_meta_writer::PropsMetaWriter,
-    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps}, error::StorageError, pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage}, persist::{config::ConfigOps, strategy::PersistenceStrategy}, properties::props_meta_writer::PropsMetaWriter, segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment}, LocalPOS
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -171,10 +165,8 @@ impl<
         let graph_prop_storage =
             Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
-        // Node types handling for WriteAndMerge is done in db4-disk-storage
-        // For NoOpStrategy, disk_storage_enabled() returns false, so this is skipped
-        if EXT::disk_storage_enabled() {
-            // Node types will be handled by db4-disk-storage's implementation
+        for node_type in ext.config().persistence().node_types().iter() {
+            node_meta.get_or_create_node_type_id(node_type);
         }
 
         let t_len = edge_storage.t_len();
