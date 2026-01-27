@@ -35,4 +35,8 @@ impl WalOps for NoWal {
         let error = "Recovery is not supported for NoWAL";
         std::iter::once(Err(StorageError::GenericFailure(error.to_string())))
     }
+
+    fn has_entries(&self) -> bool {
+        false
+    }
 }

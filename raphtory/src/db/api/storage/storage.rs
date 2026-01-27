@@ -144,7 +144,7 @@ impl Storage {
     }
 
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let config = Config::load_from_dir(path.as_ref()).unwrap_or_else(|_| Config::default());
+        let config = Config::load_from_dir(path.as_ref())?;
         let graph_dir = GraphDir::from(path.as_ref());
         let wal_dir = graph_dir.wal_dir();
         let wal = Arc::new(Wal::load(Some(wal_dir.as_path()))?);
@@ -152,9 +152,10 @@ impl Storage {
         let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
 
         // Replay any pending writes from the WAL.
-        let mut write_locked_graph = temporal_graph.write_lock()?;
-        wal.replay_to_graph(&mut write_locked_graph)?;
-        drop(write_locked_graph);
+        if wal.has_entries() {
+            let mut write_locked_graph = temporal_graph.write_lock()?;
+            wal.replay_to_graph(&mut write_locked_graph)?;
+        }
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
