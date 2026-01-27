@@ -15,8 +15,8 @@ import raphtory as rp
 
 df = pd.read_csv("../data/lotr.csv")
 lotr_graph = rp.Graph()
-lotr_graph.load_edges_from_pandas(
-    df=df, src="src", dst="dst", time="time"
+lotr_graph.load_edges(
+    data=df, src="src", dst="dst", time="time"
 )
 
 importance = []
@@ -25,7 +25,7 @@ time = []
 for windowed_graph in lotr_graph.rolling(window=2000):
     result = rp.algorithms.pagerank(windowed_graph)
     importance.append(result.get("Gandalf"))
-    time.append(windowed_graph.earliest_time)
+    time.append(windowed_graph.earliest_time.t)
 
 plt.plot(time, importance, marker="o")
 plt.xlabel("Sentence (Time)")

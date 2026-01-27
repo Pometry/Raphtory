@@ -10,7 +10,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
@@ -365,7 +365,7 @@ where
         WriteLockedGraph::new(self)
     }
 
-    pub fn update_time(&self, earliest: TimeIndexEntry) {
+    pub fn update_time(&self, earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
 }

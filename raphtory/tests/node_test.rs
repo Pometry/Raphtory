@@ -127,10 +127,10 @@ fn test_edge_history_and_timestamps() {
         assert_eq!(history_rev, vec![30, 20, 10, 5]);
 
         // Test earliest_edge_time
-        assert_eq!(node1.earliest_edge_time(), Some(5));
+        assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
 
         // Test latest_edge_time
-        assert_eq!(node1.latest_edge_time(), Some(30));
+        assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
     });
 }
 
@@ -157,8 +157,8 @@ fn test_edge_timestamps_with_windows() {
         let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![5, 15]);
 
-        assert_eq!(node1.earliest_edge_time(), Some(5));
-        assert_eq!(node1.latest_edge_time(), Some(15));
+        assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
+        assert_eq!(node1.latest_edge_time().unwrap().t(), 15);
 
         // Test window 10-30
         let windowed = graph.window(10, 30);
@@ -167,8 +167,8 @@ fn test_edge_timestamps_with_windows() {
         let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![15, 25]);
 
-        assert_eq!(node1.earliest_edge_time(), Some(15));
-        assert_eq!(node1.latest_edge_time(), Some(25));
+        assert_eq!(node1.earliest_edge_time().unwrap().t(), 15);
+        assert_eq!(node1.latest_edge_time().unwrap().t(), 25);
 
         // Test window after all edges
         let windowed = graph.after(40);
@@ -196,24 +196,24 @@ fn test_edge_timestamps_with_layers() {
         let node1 = graph.node(1).unwrap();
         let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![5, 10, 20, 30]);
-        assert_eq!(node1.earliest_edge_time(), Some(5));
-        assert_eq!(node1.latest_edge_time(), Some(30));
+        assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
+        assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
 
         // Test layer1 only
         let layer1_graph = graph.layers(vec!["layer1"]).unwrap();
         let node1_layer1 = layer1_graph.node(1).unwrap();
         let history: Vec<_> = node1_layer1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![10, 30]);
-        assert_eq!(node1_layer1.earliest_edge_time(), Some(10));
-        assert_eq!(node1_layer1.latest_edge_time(), Some(30));
+        assert_eq!(node1_layer1.earliest_edge_time().unwrap().t(), 10);
+        assert_eq!(node1_layer1.latest_edge_time().unwrap().t(), 30);
 
         // Test layer2 only
         let layer2_graph = graph.layers(vec!["layer2"]).unwrap();
         let node1_layer2 = layer2_graph.node(1).unwrap();
         let history: Vec<_> = node1_layer2.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![5, 20]);
-        assert_eq!(node1_layer2.earliest_edge_time(), Some(5));
-        assert_eq!(node1_layer2.latest_edge_time(), Some(20));
+        assert_eq!(node1_layer2.earliest_edge_time().unwrap().t(), 5);
+        assert_eq!(node1_layer2.latest_edge_time().unwrap().t(), 20);
     });
 }
 
@@ -243,8 +243,8 @@ fn test_edge_timestamps_overlapping_windows_and_layers() {
 
         let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![10, 20]);
-        assert_eq!(node1.earliest_edge_time(), Some(10));
-        assert_eq!(node1.latest_edge_time(), Some(20));
+        assert_eq!(node1.earliest_edge_time().unwrap().t(), 10);
+        assert_eq!(node1.latest_edge_time().unwrap().t(), 20);
 
         // Test overlapping window (12-28) with layer2
         let windowed_layer2 = graph.window(12, 28).layers(vec!["layer2"]).unwrap();
@@ -252,8 +252,8 @@ fn test_edge_timestamps_overlapping_windows_and_layers() {
 
         let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![15, 25]);
-        assert_eq!(node1.earliest_edge_time(), Some(15));
-        assert_eq!(node1.latest_edge_time(), Some(25));
+        assert_eq!(node1.earliest_edge_time().unwrap().t(), 15);
+        assert_eq!(node1.latest_edge_time().unwrap().t(), 25);
 
         // Test overlapping window (18-32) with both layers
         let windowed_both = graph
@@ -264,8 +264,8 @@ fn test_edge_timestamps_overlapping_windows_and_layers() {
 
         let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![20, 25, 30]);
-        assert_eq!(node1.earliest_edge_time(), Some(20));
-        assert_eq!(node1.latest_edge_time(), Some(30));
+        assert_eq!(node1.earliest_edge_time().unwrap().t(), 20);
+        assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
 
         // Test edge case: window with no edges for the node
         let empty_window = graph.window(50, 60);

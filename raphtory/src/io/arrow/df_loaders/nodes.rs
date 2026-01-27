@@ -24,7 +24,7 @@ use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
     core::{
         entities::properties::meta::STATIC_GRAPH_LAYER_ID,
-        storage::{timeindex::TimeIndexEntry, FxDashMap},
+        storage::{timeindex::EventTime, FxDashMap},
     },
 };
 use raphtory_core::{entities::VID, storage::timeindex::AsTime};
@@ -118,7 +118,7 @@ pub fn load_nodes_from_df<
 
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
         let node_stats = write_locked_graph.node_stats().clone();
-        let update_time = |time: TimeIndexEntry| {
+        let update_time = |time: EventTime| {
             let time = time.t();
             node_stats.update_time(time);
         };
@@ -140,7 +140,7 @@ pub fn load_nodes_from_df<
                 for (row, (vid, time, secondary_index)) in zip.enumerate() {
                     if let Some(mut_node) = shard.resolve_pos(*vid) {
                         let mut writer = shard.writer();
-                        let t = TimeIndexEntry(time, secondary_index);
+                        let t = EventTime(time, secondary_index);
                         let layer_id = STATIC_GRAPH_LAYER_ID;
 
                         update_time(t);

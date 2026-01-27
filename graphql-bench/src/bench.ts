@@ -60,20 +60,12 @@ type SetupData = {
 };
 
 export function setup(): SetupData {
-  console.log("=== Setup Phase Starting ===");
-
   const graphListResponse = fetchAndParse({
     namespaces: { list: { graphs: { list: { path: true } } } },
   });
-  console.log(
-    "Graph list response:",
-    JSON.stringify(graphListResponse, null, 2),
-  );
-
   const graphPaths = graphListResponse.data.namespaces.list.flatMap((ns: any) =>
     ns.graphs.list.map((graph: any) => graph.path),
   );
-  console.log("Found graph paths:", graphPaths);
 
   mutate({
     newGraph: {
@@ -83,7 +75,6 @@ export function setup(): SetupData {
       },
     },
   });
-  console.log("Created empty graph");
 
   // this is to trigger the load of the empty graph into memory
   fetchAndCheck(errorRate, {
@@ -94,7 +85,6 @@ export function setup(): SetupData {
       countNodes: true,
     },
   });
-  console.log("Loaded empty graph into memory");
 
   const graphResponse = fetchAndParse({
     graph: {
@@ -105,17 +95,12 @@ export function setup(): SetupData {
       countEdges: true,
     },
   });
-  console.log("Master graph response:", JSON.stringify(graphResponse, null, 2));
 
-  const setupData = {
+  return {
     graphPaths,
     countNodes: graphResponse.data.graph.countNodes,
     countEdges: graphResponse.data.graph.countEdges,
   };
-  console.log("=== Setup Complete ===");
-  console.log("Setup data:", JSON.stringify(setupData, null, 2));
-
-  return setupData;
 }
 
 export function addNode() {
@@ -164,7 +149,11 @@ export function randomEdgePage(input: SetupData) {
           explodeLayers: {
             count: true,
           },
-          history: true,
+          history: {
+            list: {
+              timestamp: true,
+            },
+          },
           src: { name: true },
           dst: { name: true },
         },
@@ -244,13 +233,14 @@ export function readAndWriteNodeProperties(input: SetupData) {
           },
           at: {
             __args: {
-              time,
+              time: { simpleTime: time },
             },
             properties: {
               get: {
                 __args: {
                   key: "temporal_bool",
                 },
+                value: true,
               },
             },
           },

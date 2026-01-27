@@ -56,8 +56,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -71,12 +71,12 @@ print(f"Across the full dataset {v.name} interacted with {v.degree()} other monk
 
 v_before = g.before(1560428239000).node("LOME")  # 13/06/2019 12:17:19 as epoch
 print(
-    f"Between {v_before.start_date_time} and {v_before.end_date_time}, {v_before.name} interacted with {v_before.degree()} other monkeys."
+    f"Between {v_before.start} and {v_before.end.dt}, {v_before.name} interacted with {v_before.degree()} other monkeys."
 )
 
 v_after = g.node("LOME").after("2019-06-30 9:07:31")
 print(
-    f"Between {v_after.start_date_time} and {v_after.end_date_time}, {v_after.name} interacted with {v_after.degree()} other monkeys."
+    f"Between {v_after.start.dt} and {v_after.end}, {v_after.name} interacted with {v_after.degree()} other monkeys."
 )
 ```
 ///
@@ -112,8 +112,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -125,22 +125,22 @@ start_day = datetime.strptime("2019-06-13", "%Y-%m-%d")
 end_day = datetime.strptime("2019-06-14", "%Y-%m-%d")
 e = g.edge("LOME", "NEKKE")
 print(
-    f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history())} times"
+    f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history)} times"
 )
 w = e.window(start_day, end_day)
 print(
-    f"Between {w.start_date_time} and {w.end_date_time}, {w.src.name} interacted with {w.dst.name} {len(w.history())} times"
+    f"Between {w.start.dt} and {w.end.dt}, {w.src.name} interacted with {w.dst.name} {len(w.history)} times"
 )
 print(
-    f"Window start: {w.start_date_time}, First update: {w.earliest_date_time}, Last update: {w.latest_date_time}, Window End: {w.end_date_time}"
+    f"Window start: {w.start.dt}, First update: {w.earliest_time.dt}, Last update: {w.latest_time.dt}, Window End: {w.end.dt}"
 )
 ```
 ///
 
 ```{.python continuation hide}
-assert str(f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history())} times.") == "Across the full dataset LOME interacted with NEKKE 41 times."
-assert str(f"Between {w.start_date_time} and {w.end_date_time}, {w.src.name} interacted with {w.dst.name} {len(w.history())} times") == "Between 2019-06-13 00:00:00+00:00 and 2019-06-14 00:00:00+00:00, LOME interacted with NEKKE 8 times"
-assert str(f"Window start: {w.start_date_time}, First update: {w.earliest_date_time}, Last update: {w.latest_date_time}, Window End: {w.end_date_time}") == "Window start: 2019-06-13 00:00:00+00:00, First update: 2019-06-13 10:18:00+00:00, Last update: 2019-06-13 15:05:00+00:00, Window End: 2019-06-14 00:00:00+00:00"
+assert str(f"Across the full dataset {e.src.name} interacted with {e.dst.name} {len(e.history)} times.") == "Across the full dataset LOME interacted with NEKKE 41 times."
+assert str(f"Between {w.start.dt} and {w.end.dt}, {w.src.name} interacted with {w.dst.name} {len(w.history)} times") == "Between 2019-06-13 00:00:00+00:00 and 2019-06-14 00:00:00+00:00, LOME interacted with NEKKE 8 times"
+assert str(f"Window start: {w.start.dt}, First update: {w.earliest_time.dt}, Last update: {w.latest_time.dt}, Window End: {w.end.dt}") == "Window start: 2019-06-13 00:00:00+00:00, First update: 2019-06-13 10:18:00+00:00, Last update: 2019-06-13 15:05:00+00:00, Window End: 2019-06-14 00:00:00+00:00"
 ```
 
 !!! Output
@@ -182,8 +182,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -260,8 +260,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -270,12 +270,12 @@ g.load_edges_from_pandas(
 ) 
 
 print(
-    f"The full range of time in the graph is {g.earliest_date_time} to {g.latest_date_time}\n"
+    f"The full range of time in the graph is {g.earliest_time.dt} to {g.latest_time.dt}\n"
 )
 
 for expanding_g in g.expanding("1 week"):
     print(
-        f"From {expanding_g.start_date_time} to {expanding_g.end_date_time} there were {expanding_g.count_temporal_edges()} monkey interactions"
+        f"From {expanding_g.start} to {expanding_g.end.dt} there were {expanding_g.count_temporal_edges()} monkey interactions"
     )
 
 print()
@@ -285,13 +285,13 @@ for expanding_g in g.window(start_day, end_day).expanding(
     "2 days, 3 hours, 12 minutes and 6 seconds"
 ):
     print(
-        f"From {expanding_g.start_date_time} to {expanding_g.end_date_time} there were {expanding_g.count_temporal_edges()} monkey interactions"
+        f"From {expanding_g.start.dt} to {expanding_g.end.dt} there were {expanding_g.count_temporal_edges()} monkey interactions"
     )
 ```
 ///
 
 ```{.python continuation hide}
-assert str(f"The full range of time in the graph is {g.earliest_date_time} to {g.latest_date_time}") == "The full range of time in the graph is 2019-06-13 09:50:00+00:00 to 2019-07-10 11:05:00+00:00"
+assert str(f"The full range of time in the graph is {g.earliest_time.dt} to {g.latest_time.dt}") == "The full range of time in the graph is 2019-06-13 09:50:00+00:00 to 2019-07-10 11:05:00+00:00"
 ```
 
 !!! Output
@@ -336,8 +336,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -348,7 +348,7 @@ g.load_edges_from_pandas(
 print("Rolling 1 week")
 for rolling_g in g.rolling(window="1 week"):
     print(
-        f"From {rolling_g.start_date_time} to {rolling_g.end_date_time} there were {rolling_g.count_temporal_edges()} monkey interactions"
+        f"From {rolling_g.start.dt} to {rolling_g.end.dt} there were {rolling_g.count_temporal_edges()} monkey interactions"
     )
 ```
 ///
@@ -386,8 +386,8 @@ edges_df["Weight"] = edges_df["Category"].apply(
 )
 
 g = Graph()
-g.load_edges_from_pandas(
-    df=edges_df,
+g.load_edges(
+    data=edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -399,7 +399,7 @@ importance = []
 time = []
 for rolling_lome in g.node("LOME").rolling("1 day"):
     importance.append(rolling_lome.degree())
-    time.append(rolling_lome.end_date_time)
+    time.append(rolling_lome.end.dt)
 
 plt.plot(time, importance, marker="o")
 plt.xlabel("Date")

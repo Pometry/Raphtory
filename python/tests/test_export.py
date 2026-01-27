@@ -21,7 +21,7 @@ def build_graph():
         "datetime64[ms, UTC]"
     )
     g = Graph()
-    g.load_edges_from_pandas(
+    g.load_edges(
         edges_df,
         time="timestamp",
         src="source",
@@ -31,8 +31,8 @@ def build_graph():
         metadata=["is_encrypted"],
         shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
-    g.load_nodes_from_pandas(
-        df=nodes_df,
+    g.load_nodes(
+        data=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
@@ -50,7 +50,7 @@ def build_graph_without_datetime_type():
     nodes_df["timestamp"] = pd.to_datetime(nodes_df["timestamp"])
 
     g = Graph()
-    g.load_edges_from_pandas(
+    g.load_edges(
         edges_df,
         time="timestamp",
         src="source",
@@ -60,8 +60,8 @@ def build_graph_without_datetime_type():
         metadata=["is_encrypted"],
         shared_metadata={"datasource": "data/network_traffic_edges.csv"},
     )
-    g.load_nodes_from_pandas(
-        df=nodes_df,
+    g.load_nodes(
+        data=nodes_df,
         id="server_id",
         time="timestamp",
         properties=["OS_version", "primary_function", "uptime_days"],
@@ -94,7 +94,7 @@ def test_graph_timestamp_list_properties():
     df["date_column_ns"] = df["date_column"].astype("datetime64[ns]")
 
     g = Graph()
-    g.load_nodes_from_pandas(
+    g.load_nodes(
         df,
         time="date_column",
         id="string_column",
@@ -243,22 +243,23 @@ def test_networkx_full_history():
                     "server_name": "Alpha",
                 },
                 "temporal": [
-                    ("OS_version", (1693555200000, "Ubuntu 20.04")),
-                    ("OS_version", (1693555260000, "Ubuntu 20.04")),
-                    ("OS_version", (1693555320000, "Ubuntu 20.04")),
-                    ("primary_function", (1693555200000, "Database")),
-                    ("primary_function", (1693555260000, "Database")),
-                    ("primary_function", (1693555320000, "Database")),
-                    ("uptime_days", (1693555200000, 120)),
-                    ("uptime_days", (1693555260000, 121)),
-                    ("uptime_days", (1693555320000, 122)),
+                    ("OS_version", ((1693555200000, 9), "Ubuntu 20.04")),
+                    ("OS_version", ((1693555260000, 10), "Ubuntu 20.04")),
+                    ("OS_version", ((1693555320000, 11), "Ubuntu 20.04")),
+                    ("primary_function", ((1693555200000, 9), "Database")),
+                    ("primary_function", ((1693555260000, 10), "Database")),
+                    ("primary_function", ((1693555320000, 11), "Database")),
+                    ("uptime_days", ((1693555200000, 9), 120)),
+                    ("uptime_days", ((1693555260000, 10), 121)),
+                    ("uptime_days", ((1693555320000, 11), 122)),
                 ],
                 "update_history": [
-                    1693555200000,
-                    1693555260000,
-                    1693555320000,
-                    1693555500000,
-                    1693556400000,
+                    (1693555200000, 0),
+                    (1693555200000, 9),
+                    (1693555260000, 10),
+                    (1693555320000, 11),
+                    (1693555500000, 1),
+                    (1693556400000, 4),
                 ],
             },
         ),
@@ -271,15 +272,15 @@ def test_networkx_full_history():
                     "server_name": "Beta",
                 },
                 "temporal": [
-                    ("OS_version", (1693555500000, "Red Hat 8.1")),
-                    ("primary_function", (1693555500000, "Web Server")),
-                    ("uptime_days", (1693555500000, 45)),
+                    ("OS_version", ((1693555500000, 12), "Red Hat 8.1")),
+                    ("primary_function", ((1693555500000, 12), "Web Server")),
+                    ("uptime_days", ((1693555500000, 12), 45)),
                 ],
                 "update_history": [
-                    1693555200000,
-                    1693555500000,
-                    1693555800000,
-                    1693556700000,
+                    (1693555200000, 0),
+                    (1693555500000, 12),
+                    (1693555800000, 2),
+                    (1693556700000, 5),
                 ],
             },
         ),
@@ -292,17 +293,17 @@ def test_networkx_full_history():
                     "server_name": "Charlie",
                 },
                 "temporal": [
-                    ("OS_version", (1693555800000, "Windows Server 2022")),
-                    ("primary_function", (1693555800000, "File Storage")),
-                    ("uptime_days", (1693555800000, 90)),
+                    ("OS_version", ((1693555800000, 13), "Windows Server 2022")),
+                    ("primary_function", ((1693555800000, 13), "File Storage")),
+                    ("uptime_days", ((1693555800000, 13), 90)),
                 ],
                 "update_history": [
-                    1693555500000,
-                    1693555800000,
-                    1693556400000,
-                    1693557000000,
-                    1693557060000,
-                    1693557120000,
+                    (1693555500000, 1),
+                    (1693555800000, 13),
+                    (1693556400000, 4),
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
                 ],
             },
         ),
@@ -315,16 +316,17 @@ def test_networkx_full_history():
                     "server_name": "Delta",
                 },
                 "temporal": [
-                    ("OS_version", (1693556100000, "Ubuntu 20.04")),
-                    ("primary_function", (1693556100000, "Application Server")),
-                    ("uptime_days", (1693556100000, 60)),
+                    ("OS_version", ((1693556100000, 14), "Ubuntu 20.04")),
+                    ("primary_function", ((1693556100000, 14), "Application Server")),
+                    ("uptime_days", ((1693556100000, 14), 60)),
                 ],
                 "update_history": [
-                    1693555800000,
-                    1693556100000,
-                    1693557000000,
-                    1693557060000,
-                    1693557120000,
+                    (1693555800000, 2),
+                    (1693556100000, 3),
+                    (1693556100000, 14),
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
                 ],
             },
         ),
@@ -337,11 +339,15 @@ def test_networkx_full_history():
                     "datasource": "data/network_traffic_edges.csv",
                 },
                 "temporal": [
-                    ("OS_version", (1693556400000, "Red Hat 8.1")),
-                    ("primary_function", (1693556400000, "Backup")),
-                    ("uptime_days", (1693556400000, 30)),
+                    ("OS_version", ((1693556400000, 15), "Red Hat 8.1")),
+                    ("primary_function", ((1693556400000, 15), "Backup")),
+                    ("uptime_days", ((1693556400000, 15), 30)),
                 ],
-                "update_history": [1693556100000, 1693556400000, 1693556700000],
+                "update_history": [
+                    (1693556100000, 3),
+                    (1693556400000, 15),
+                    (1693556700000, 5),
+                ],
             },
         ),
     ]
@@ -357,9 +363,9 @@ def test_networkx_full_history():
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693555200000, 5.6)])],
+                "temporal": [("data_size_MB", [((1693555200000, 0), 5.6)])],
                 "layer": "Critical System Request",
-                "update_history": [1693555200000],
+                "update_history": [(1693555200000, 0)],
             },
         ),
         (
@@ -370,9 +376,9 @@ def test_networkx_full_history():
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": False,
                 },
-                "temporal": [("data_size_MB", [(1693555500000, 7.1)])],
+                "temporal": [("data_size_MB", [((1693555500000, 1), 7.1)])],
                 "layer": "File Transfer",
-                "update_history": [1693555500000],
+                "update_history": [(1693555500000, 1)],
             },
         ),
         (
@@ -383,9 +389,9 @@ def test_networkx_full_history():
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693555800000, 3.2)])],
+                "temporal": [("data_size_MB", [((1693555800000, 2), 3.2)])],
                 "layer": "Standard Service Request",
-                "update_history": [1693555800000],
+                "update_history": [(1693555800000, 2)],
             },
         ),
         (
@@ -396,9 +402,9 @@ def test_networkx_full_history():
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693556400000, 4.5)])],
+                "temporal": [("data_size_MB", [((1693556400000, 4), 4.5)])],
                 "layer": "Critical System Request",
-                "update_history": [1693556400000],
+                "update_history": [(1693556400000, 4)],
             },
         ),
         (
@@ -409,9 +415,9 @@ def test_networkx_full_history():
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693556100000, 8.9)])],
+                "temporal": [("data_size_MB", [((1693556100000, 3), 8.9)])],
                 "layer": "Administrative Command",
-                "update_history": [1693556100000],
+                "update_history": [(1693556100000, 3)],
             },
         ),
         (
@@ -426,14 +432,18 @@ def test_networkx_full_history():
                     (
                         "data_size_MB",
                         [
-                            (1693557000000, 5.0),
-                            (1693557060000, 10.0),
-                            (1693557120000, 15.0),
+                            ((1693557000000, 6), 5.0),
+                            ((1693557060000, 7), 10.0),
+                            ((1693557120000, 8), 15.0),
                         ],
                     )
                 ],
                 "layer": "Standard Service Request",
-                "update_history": [1693557000000, 1693557060000, 1693557120000],
+                "update_history": [
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
+                ],
             },
         ),
         (
@@ -444,9 +454,9 @@ def test_networkx_full_history():
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693556700000, 6.2)])],
+                "temporal": [("data_size_MB", [((1693556700000, 5), 6.2)])],
                 "layer": "File Transfer",
-                "update_history": [1693556700000],
+                "update_history": [(1693556700000, 5)],
             },
         ),
     ]
@@ -470,9 +480,9 @@ def test_networkx_exploded():
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": True,
                 },
-                "temporal": [("data_size_MB", [(1693555200000, 5.6)])],
+                "temporal": [("data_size_MB", [((1693555200000, 0), 5.6)])],
                 "layer": "Critical System Request",
-                "update_history": 1693555200000,
+                "update_history": (1693555200000, 0),
             },
         ),
         (
@@ -483,9 +493,9 @@ def test_networkx_exploded():
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693555500000, 7.1)])],
+                "temporal": [("data_size_MB", [((1693555500000, 1), 7.1)])],
                 "layer": "File Transfer",
-                "update_history": 1693555500000,
+                "update_history": (1693555500000, 1),
             },
         ),
         (
@@ -496,9 +506,9 @@ def test_networkx_exploded():
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693555800000, 3.2)])],
+                "temporal": [("data_size_MB", [((1693555800000, 2), 3.2)])],
                 "layer": "Standard Service Request",
-                "update_history": 1693555800000,
+                "update_history": (1693555800000, 2),
             },
         ),
         (
@@ -509,9 +519,9 @@ def test_networkx_exploded():
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693556400000, 4.5)])],
+                "temporal": [("data_size_MB", [((1693556400000, 4), 4.5)])],
                 "layer": "Critical System Request",
-                "update_history": 1693556400000,
+                "update_history": (1693556400000, 4),
             },
         ),
         (
@@ -522,9 +532,9 @@ def test_networkx_exploded():
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": False,
                 },
-                "temporal": [("data_size_MB", [(1693556100000, 8.9)])],
+                "temporal": [("data_size_MB", [((1693556100000, 3), 8.9)])],
                 "layer": "Administrative Command",
-                "update_history": 1693556100000,
+                "update_history": (1693556100000, 3),
             },
         ),
         (
@@ -535,9 +545,9 @@ def test_networkx_exploded():
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693557000000, 5.0)])],
+                "temporal": [("data_size_MB", [((1693557000000, 6), 5.0)])],
                 "layer": "Standard Service Request",
-                "update_history": 1693557000000,
+                "update_history": (1693557000000, 6),
             },
         ),
         (
@@ -548,9 +558,9 @@ def test_networkx_exploded():
                     "datasource": "data/network_traffic_edges.csv",
                     "is_encrypted": True,
                 },
-                "temporal": [("data_size_MB", [(1693557060000, 10.0)])],
+                "temporal": [("data_size_MB", [((1693557060000, 7), 10.0)])],
                 "layer": "Standard Service Request",
-                "update_history": 1693557060000,
+                "update_history": (1693557060000, 7),
             },
         ),
         (
@@ -561,9 +571,9 @@ def test_networkx_exploded():
                     "is_encrypted": True,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693557120000, 15.0)])],
+                "temporal": [("data_size_MB", [((1693557120000, 8), 15.0)])],
                 "layer": "Standard Service Request",
-                "update_history": 1693557120000,
+                "update_history": (1693557120000, 8),
             },
         ),
         (
@@ -574,9 +584,9 @@ def test_networkx_exploded():
                     "is_encrypted": False,
                     "datasource": "data/network_traffic_edges.csv",
                 },
-                "temporal": [("data_size_MB", [(1693556700000, 6.2)])],
+                "temporal": [("data_size_MB", [((1693556700000, 5), 6.2)])],
                 "layer": "File Transfer",
-                "update_history": 1693556700000,
+                "update_history": (1693556700000, 5),
             },
         ),
     ]
@@ -596,11 +606,12 @@ def test_networkx_no_props():
             "ServerA",
             {
                 "update_history": [
-                    1693555200000,
-                    1693555260000,
-                    1693555320000,
-                    1693555500000,
-                    1693556400000,
+                    (1693555200000, 0),
+                    (1693555200000, 9),
+                    (1693555260000, 10),
+                    (1693555320000, 11),
+                    (1693555500000, 1),
+                    (1693556400000, 4),
                 ]
             },
         ),
@@ -608,10 +619,10 @@ def test_networkx_no_props():
             "ServerB",
             {
                 "update_history": [
-                    1693555200000,
-                    1693555500000,
-                    1693555800000,
-                    1693556700000,
+                    (1693555200000, 0),
+                    (1693555500000, 12),
+                    (1693555800000, 2),
+                    (1693556700000, 5),
                 ]
             },
         ),
@@ -619,12 +630,12 @@ def test_networkx_no_props():
             "ServerC",
             {
                 "update_history": [
-                    1693555500000,
-                    1693555800000,
-                    1693556400000,
-                    1693557000000,
-                    1693557060000,
-                    1693557120000,
+                    (1693555500000, 1),
+                    (1693555800000, 13),
+                    (1693556400000, 4),
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
                 ]
             },
         ),
@@ -632,15 +643,25 @@ def test_networkx_no_props():
             "ServerD",
             {
                 "update_history": [
-                    1693555800000,
-                    1693556100000,
-                    1693557000000,
-                    1693557060000,
-                    1693557120000,
+                    (1693555800000, 2),
+                    (1693556100000, 3),
+                    (1693556100000, 14),
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
                 ]
             },
         ),
-        ("ServerE", {"update_history": [1693556100000, 1693556400000, 1693556700000]}),
+        (
+            "ServerE",
+            {
+                "update_history": [
+                    (1693556100000, 3),
+                    (1693556400000, 15),
+                    (1693556700000, 5),
+                ]
+            },
+        ),
     ]
     compare_list_of_dicts(nodeList, resultList)
 
@@ -649,40 +670,53 @@ def test_networkx_no_props():
         (
             "ServerA",
             "ServerB",
-            {"layer": "Critical System Request", "update_history": [1693555200000]},
+            {
+                "layer": "Critical System Request",
+                "update_history": [(1693555200000, 0)],
+            },
         ),
         (
             "ServerA",
             "ServerC",
-            {"layer": "File Transfer", "update_history": [1693555500000]},
+            {"layer": "File Transfer", "update_history": [(1693555500000, 1)]},
         ),
         (
             "ServerB",
             "ServerD",
-            {"layer": "Standard Service Request", "update_history": [1693555800000]},
+            {
+                "layer": "Standard Service Request",
+                "update_history": [(1693555800000, 2)],
+            },
         ),
         (
             "ServerC",
             "ServerA",
-            {"layer": "Critical System Request", "update_history": [1693556400000]},
+            {
+                "layer": "Critical System Request",
+                "update_history": [(1693556400000, 4)],
+            },
         ),
         (
             "ServerD",
             "ServerC",
             {
                 "layer": "Standard Service Request",
-                "update_history": [1693557000000, 1693557060000, 1693557120000],
+                "update_history": [
+                    (1693557000000, 6),
+                    (1693557060000, 7),
+                    (1693557120000, 8),
+                ],
             },
         ),
         (
             "ServerD",
             "ServerE",
-            {"layer": "Administrative Command", "update_history": [1693556100000]},
+            {"layer": "Administrative Command", "update_history": [(1693556100000, 3)]},
         ),
         (
             "ServerE",
             "ServerB",
-            {"layer": "File Transfer", "update_history": [1693556700000]},
+            {"layer": "File Transfer", "update_history": [(1693556700000, 5)]},
         ),
     ]
     compare_list_of_dicts(edgeList, resultList)
@@ -721,47 +755,47 @@ def test_networkx_no_props():
         (
             "ServerA",
             "ServerB",
-            {"layer": "Critical System Request", "update_history": 1693555200000},
+            {"layer": "Critical System Request", "update_history": (1693555200000, 0)},
         ),
         (
             "ServerA",
             "ServerC",
-            {"layer": "File Transfer", "update_history": 1693555500000},
+            {"layer": "File Transfer", "update_history": (1693555500000, 1)},
         ),
         (
             "ServerB",
             "ServerD",
-            {"layer": "Standard Service Request", "update_history": 1693555800000},
+            {"layer": "Standard Service Request", "update_history": (1693555800000, 2)},
         ),
         (
             "ServerC",
             "ServerA",
-            {"layer": "Critical System Request", "update_history": 1693556400000},
+            {"layer": "Critical System Request", "update_history": (1693556400000, 4)},
         ),
         (
             "ServerD",
             "ServerC",
-            {"layer": "Standard Service Request", "update_history": 1693557000000},
+            {"layer": "Standard Service Request", "update_history": (1693557000000, 6)},
         ),
         (
             "ServerD",
             "ServerC",
-            {"layer": "Standard Service Request", "update_history": 1693557060000},
+            {"layer": "Standard Service Request", "update_history": (1693557060000, 7)},
         ),
         (
             "ServerD",
             "ServerC",
-            {"layer": "Standard Service Request", "update_history": 1693557120000},
+            {"layer": "Standard Service Request", "update_history": (1693557120000, 8)},
         ),
         (
             "ServerD",
             "ServerE",
-            {"layer": "Administrative Command", "update_history": 1693556100000},
+            {"layer": "Administrative Command", "update_history": (1693556100000, 3)},
         ),
         (
             "ServerE",
             "ServerB",
-            {"layer": "File Transfer", "update_history": 1693556700000},
+            {"layer": "File Transfer", "update_history": (1693556700000, 5)},
         ),
     ]
     compare_list_of_dicts(edgeList, resultList)
@@ -920,7 +954,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
-                "update_history": 1693555200000,
+                "update_history": (1693555200000, 0),
             },
         ),
         (
@@ -931,7 +965,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
-                "update_history": 1693555500000,
+                "update_history": (1693555500000, 1),
             },
         ),
         (
@@ -942,7 +976,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
-                "update_history": 1693555800000,
+                "update_history": (1693555800000, 2),
             },
         ),
         (
@@ -953,7 +987,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Critical System Request",
-                "update_history": 1693556400000,
+                "update_history": (1693556400000, 4),
             },
         ),
         (
@@ -964,7 +998,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
-                "update_history": 1693557000000,
+                "update_history": (1693557000000, 6),
             },
         ),
         (
@@ -975,7 +1009,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
-                "update_history": 1693557060000,
+                "update_history": (1693557060000, 7),
             },
         ),
         (
@@ -986,7 +1020,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": True,
                 "layer": "Standard Service Request",
-                "update_history": 1693557120000,
+                "update_history": (1693557120000, 8),
             },
         ),
         (
@@ -997,7 +1031,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "Administrative Command",
-                "update_history": 1693556100000,
+                "update_history": (1693556100000, 3),
             },
         ),
         (
@@ -1008,7 +1042,7 @@ def test_networkx_no_history():
                 "datasource": "data/network_traffic_edges.csv",
                 "is_encrypted": False,
                 "layer": "File Transfer",
-                "update_history": 1693556700000,
+                "update_history": (1693556700000, 5),
             },
         ),
     ]

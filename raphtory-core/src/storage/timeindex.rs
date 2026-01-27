@@ -308,7 +308,7 @@ where
     }
 
     fn range(&self, w: Range<T>) -> Self {
-        let range = match self {
+        match self {
             TimeIndexWindow::Empty => TimeIndexWindow::Empty,
             TimeIndexWindow::Range { timeindex, range } => {
                 let start = max(range.start, w.start);
@@ -326,8 +326,7 @@ where
                 timeindex: *timeindex,
                 range: w,
             },
-        };
-        range
+        }
     }
 
     fn first(&self) -> Option<T> {
@@ -380,21 +379,21 @@ where
 #[cfg(test)]
 mod test {
     use crate::{entities::properties::tcell::TCell, storage::timeindex::TimeIndexOps};
-    use raphtory_api::core::storage::timeindex::TimeIndexEntry;
+    use raphtory_api::core::storage::timeindex::EventTime;
 
     #[test]
     fn window_of_window_not_empty() {
         let mut cell: TCell<()> = TCell::default();
-        cell.set(TimeIndexEntry::new(1, 0), ());
-        cell.set(TimeIndexEntry::new(2, 0), ());
-        cell.set(TimeIndexEntry::new(3, 0), ());
-        cell.set(TimeIndexEntry::new(4, 0), ());
-        cell.set(TimeIndexEntry::new(8, 0), ());
+        cell.set(EventTime::new(1, 0), ());
+        cell.set(EventTime::new(2, 0), ());
+        cell.set(EventTime::new(3, 0), ());
+        cell.set(EventTime::new(4, 0), ());
+        cell.set(EventTime::new(8, 0), ());
 
         assert_eq!(cell.iter_t().count(), 5);
 
         let cell_ref = &cell;
-        let window = TimeIndexEntry::new(1, 0)..TimeIndexEntry::new(8, 0);
+        let window = EventTime::new(1, 0)..EventTime::new(8, 0);
         let w = TimeIndexOps::range(&cell_ref, window.clone());
         assert_eq!(w.clone().iter_t().count(), 4);
 

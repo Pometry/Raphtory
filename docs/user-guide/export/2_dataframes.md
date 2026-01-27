@@ -24,8 +24,8 @@ server_nodes_df = pd.read_csv("../data/network_traffic_nodes.csv")
 server_nodes_df["timestamp"] = pd.to_datetime(server_nodes_df["timestamp"])
 
 traffic_graph = Graph()
-traffic_graph.load_edges_from_pandas(
-    df=server_edges_df,
+traffic_graph.load_edges(
+    data=server_edges_df,
     src="source",
     dst="destination",
     time="timestamp",
@@ -34,8 +34,8 @@ traffic_graph.load_edges_from_pandas(
     metadata=["is_encrypted"],
     shared_metadata={"datasource": "docs/data/network_traffic_edges.csv"},
 )
-traffic_graph.load_nodes_from_pandas(
-    df=server_nodes_df,
+traffic_graph.load_nodes(
+    data=server_nodes_df,
     id="server_id",
     time="timestamp",
     properties=["OS_version", "primary_function", "uptime_days"],
@@ -133,7 +133,6 @@ Finally, we call `to_df()` again, turning off the property history and exploding
 each interaction that occurred between `ANGELE` and `FELIPE`.
 
 !!! info
-
     We have further reduced the graph to only one layer (`Grunting-Lipsmacking`) to reduce the output size.
 
 /// tab | :fontawesome-brands-python: Python
@@ -152,8 +151,8 @@ monkey_edges_df["Weight"] = monkey_edges_df["Category"].apply(
 )
 
 monkey_graph = Graph()
-monkey_graph.load_edges_from_pandas(
-    df=monkey_edges_df,
+monkey_graph.load_edges(
+    data=monkey_edges_df,
     src="Actor",
     dst="Recipient",
     time="DateTime",
@@ -177,8 +176,8 @@ print(df)
 ///
 
 ```{.python continuation hide}
-assert str(grunting_graph) == "Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=1560526320000, latest_time=1562253540000)"
-assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=1560526320000, latest_time=1561042620000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=1560526320000, latest_time=1562253540000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))"
+assert str(grunting_graph) == "Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1562253540000, event_id=2531))"
+assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1561042620000, event_id=871), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=EventTime(timestamp=1560526320000, event_id=366), latest_time=EventTime(timestamp=1562253540000, event_id=2531), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))"
 ```
 
 !!! Output
@@ -236,8 +235,8 @@ assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, ea
     13                                    [1560526320000]  
     14                                    [1561110180000]  
 
-    Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=1560526320000, latest_time=1562253540000)
-    Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=1560526320000, latest_time=1561042620000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=1560526320000, latest_time=1562253540000, properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))
+    Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1562253540000, event_id=2531))
+    Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1561042620000, event_id=871), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=EventTime(timestamp=1560526320000, event_id=366), latest_time=EventTime(timestamp=1562253540000, event_id=2531), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))
     Exploding the grunting-Lipsmacking layer
         src     dst                 layer  \
     0  ANGELE  FELIPE  Grunting-Lipsmacking   

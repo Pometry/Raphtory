@@ -1,6 +1,6 @@
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
-    db::graph::graph::assert_graph_equal,
+    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
     prelude::*,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -66,10 +66,10 @@ fn materialize_prop_test() {
         let g = build_graph_from_edge_list(&edges);
         test_storage!(&g, |g| {
             let gm = g.materialize().unwrap();
-            assert_graph_equal(&g, &gm);
+            assert_graph_equal_timestamps(&g, &gm);
             let gw = g.window(w.start, w.end);
             let gmw = gw.materialize().unwrap();
-            assert_graph_equal(&gw, &gmw);
+            assert_graph_equal_timestamps(&gw, &gmw);
         });
     })
 }

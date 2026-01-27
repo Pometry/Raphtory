@@ -9,7 +9,7 @@ use raphtory_core::{
         ELID,
         properties::{tcell::TCell, tprop::TPropCell},
     },
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 use rayon::prelude::*;
 use std::{
@@ -192,7 +192,7 @@ impl<T: HasRow> SegmentContainer<T> {
         // TODO: this is a rough estimate and should be improved
         let data_size =
             (self.data.num_filled() as f64 * std::mem::size_of::<T>() as f64 * 1.5) as usize; // Estimate size of data
-        let timestamp_size = std::mem::size_of::<TimeIndexEntry>();
+        let timestamp_size = std::mem::size_of::<EventTime>();
         (self.properties.additions_count * timestamp_size)
             + data_size
             + self.t_prop_est_size()
@@ -333,11 +333,11 @@ impl<T: HasRow> SegmentContainer<T> {
         })
     }
 
-    pub fn earliest(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest(&self) -> Option<EventTime> {
         self.properties.earliest()
     }
 
-    pub fn latest(&self) -> Option<TimeIndexEntry> {
+    pub fn latest(&self) -> Option<EventTime> {
         self.properties.latest()
     }
 

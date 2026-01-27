@@ -13,7 +13,7 @@ use raphtory_api::{
     core::{entities::properties::prop::SerdeArrowProp, storage::arc_str::ArcStr},
     GraphType,
 };
-use raphtory_core::storage::timeindex::TimeIndexEntry;
+use raphtory_core::storage::timeindex::EventTime;
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
@@ -76,7 +76,7 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
 
 #[derive(Debug)]
 struct Row {
-    t: TimeIndexEntry,
+    t: EventTime,
     row: HashMap<ArcStr, Prop>,
 }
 
@@ -112,7 +112,7 @@ pub fn encode_graph_cprop(
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],
         |_, g, decoder, writer| {
             let row = g.metadata().as_map();
-            let time = TimeIndexEntry::new(0, 0); // const props don't have time
+            let time = EventTime::new(0, 0); // const props don't have time
             let rows = vec![Row { t: time, row }];
 
             decoder.serialize(&rows)?;

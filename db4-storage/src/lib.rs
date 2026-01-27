@@ -81,10 +81,9 @@ pub type GraphTProps<'a> = GenericTProps<'a, MemGraphPropRef<'a>>;
 pub mod error {
     use std::{path::PathBuf, sync::Arc};
 
-    use raphtory_api::core::entities::properties::prop::PropError;
-    use raphtory_core::{
-        entities::{graph::logical_to_physical::InvalidNodeId, properties::props::MetadataError},
-        utils::time::ParseTimeError,
+    use raphtory_api::core::{entities::properties::prop::PropError, utils::time::ParseTimeError};
+    use raphtory_core::entities::{
+        graph::logical_to_physical::InvalidNodeId, properties::props::MetadataError,
     };
 
     #[derive(thiserror::Error, Debug)]

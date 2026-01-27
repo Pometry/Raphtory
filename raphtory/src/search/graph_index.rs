@@ -1,7 +1,7 @@
 use crate::{
     core::{
         entities::{EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     db::api::view::IndexSpec,
     errors::GraphError,
@@ -92,7 +92,7 @@ impl MutableGraphIndex {
 
     pub(crate) fn add_node_update(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
@@ -121,7 +121,7 @@ impl MutableGraphIndex {
         &self,
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
-        t: TimeIndexEntry,
+        t: EventTime,
         layer: usize,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
@@ -454,11 +454,12 @@ fn load_indexes(index_path: &Path) -> Result<(Index, IndexSpec), GraphError> {
 
 #[cfg(test)]
 mod graph_index_test {
-    use crate::{
-        db::graph::views::filter::model::PropertyFilterOps,
-        prelude::{AdditionOps, Graph, GraphViewOps, PropertyFilter},
-    };
+    use crate::prelude::{AdditionOps, Graph, GraphViewOps};
 
+    use crate::db::graph::views::filter::model::{
+        edge_filter::EdgeFilter, node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
+        PropertyFilterFactory,
+    };
     #[cfg(feature = "search")]
     use crate::{
         db::graph::assertions::{search_edges, search_nodes},
@@ -531,7 +532,7 @@ mod graph_index_test {
         graph.create_index_in_ram().unwrap();
         graph.node(1).unwrap().add_metadata([("x", 1u64)]).unwrap();
 
-        let filter = PropertyFilter::metadata("x").eq(1u64);
+        let filter = NodeFilter.metadata("x").eq(1u64);
         assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
 
         graph
@@ -539,7 +540,7 @@ mod graph_index_test {
             .unwrap()
             .update_metadata([("x", 2u64)])
             .unwrap();
-        let filter = PropertyFilter::metadata("x").eq(1u64);
+        let filter = NodeFilter.metadata("x").eq(1u64);
         assert_eq!(search_nodes(&graph, filter.clone()), Vec::<&str>::new());
 
         graph
@@ -547,7 +548,7 @@ mod graph_index_test {
             .unwrap()
             .update_metadata([("x", 2u64)])
             .unwrap();
-        let filter = PropertyFilter::metadata("x").eq(2u64);
+        let filter = NodeFilter.metadata("x").eq(2u64);
         assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
     }
 
@@ -562,7 +563,7 @@ mod graph_index_test {
             .add_metadata([("x", 1u64)], None)
             .unwrap();
 
-        let filter = PropertyFilter::metadata("x").eq(1u64);
+        let filter = EdgeFilter.metadata("x").eq(1u64);
         assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
 
         graph
@@ -570,7 +571,7 @@ mod graph_index_test {
             .unwrap()
             .update_metadata([("x", 2u64)], None)
             .unwrap();
-        let filter = PropertyFilter::metadata("x").eq(1u64);
+        let filter = EdgeFilter.metadata("x").eq(1u64);
         assert_eq!(search_edges(&graph, filter.clone()), Vec::<&str>::new());
 
         graph
@@ -578,7 +579,7 @@ mod graph_index_test {
             .unwrap()
             .update_metadata([("x", 2u64)], None)
             .unwrap();
-        let filter = PropertyFilter::metadata("x").eq(2u64);
+        let filter = EdgeFilter.metadata("x").eq(2u64);
         assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
     }
 }

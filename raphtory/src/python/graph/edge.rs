@@ -17,13 +17,17 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
-    python::{types::repr::Repr, utils::PyTime},
+    python::{graph::history::PyHistory, types::repr::Repr},
 };
-use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use numpy::{IntoPyArray, Ix1, PyArray};
 use pyo3::prelude::*;
-use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
+use raphtory_api::{
+    core::{
+        entities::GID,
+        storage::{arc_str::ArcStr, timeindex::EventTime},
+    },
+    python::timeindex::{EventTimeComponent, PyOptionalEventTime},
+};
 use std::{
     collections::{hash_map::DefaultHasher, HashMap},
     hash::{Hash, Hasher},
@@ -35,12 +39,12 @@ use std::{
 #[pyclass(name = "Edge", subclass, module = "raphtory", frozen)]
 #[derive(Clone)]
 pub struct PyEdge {
-    pub edge: EdgeView<DynamicGraph, DynamicGraph>,
+    pub edge: EdgeView<DynamicGraph>,
 }
 
 #[pyclass(name="MutableEdge", extends=PyEdge, module="raphtory", frozen)]
 pub struct PyMutableEdge {
-    pub edge: EdgeView<MaterializedGraph, MaterializedGraph>,
+    pub edge: EdgeView<MaterializedGraph>,
 }
 
 impl PyMutableEdge {
@@ -52,29 +56,19 @@ impl PyMutableEdge {
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic>
-    From<EdgeView<G, GH>> for PyEdge
-{
-    fn from(value: EdgeView<G, GH>) -> Self {
-        let base_graph = value.base_graph.into_dynamic();
+impl<G: StaticGraphViewOps + IntoDynamic> From<EdgeView<G>> for PyEdge {
+    fn from(value: EdgeView<G>) -> Self {
         let graph = value.graph.into_dynamic();
         let edge = value.edge;
         Self {
-            edge: EdgeView {
-                base_graph,
-                graph,
-                edge,
-            },
+            edge: EdgeView { graph, edge },
         }
     }
 }
 
-impl<G: StaticGraphViewOps + IntoDynamic, GH: StaticGraphViewOps + IntoDynamic + Static>
-    From<EdgeView<G, GH>> for EdgeView<DynamicGraph, DynamicGraph>
-{
-    fn from(value: EdgeView<G, GH>) -> Self {
+impl<G: StaticGraphViewOps + IntoDynamic + Static> From<EdgeView<G>> for EdgeView<DynamicGraph> {
+    fn from(value: EdgeView<G>) -> Self {
         EdgeView {
-            base_graph: value.base_graph.into_dynamic(),
             graph: value.graph.into_dynamic(),
             edge: value.edge,
         }
@@ -91,24 +85,18 @@ impl<'py> IntoPyObject<'py> for EdgeView<&DynamicGraph> {
     }
 }
 
-impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G, G>> for PyMutableEdge {
-    fn from(value: EdgeView<G, G>) -> Self {
+impl<G: Into<MaterializedGraph> + StaticGraphViewOps> From<EdgeView<G>> for PyMutableEdge {
+    fn from(value: EdgeView<G>) -> Self {
         let edge = EdgeView {
-            edge: value.edge,
             graph: value.graph.into(),
-            base_graph: value.base_graph.into(),
+            edge: value.edge,
         };
 
         Self { edge }
     }
 }
 
-impl<
-        'py,
-        G: StaticGraphViewOps + IntoDynamic + Immutable,
-        GH: StaticGraphViewOps + IntoDynamic + Immutable,
-    > IntoPyObject<'py> for EdgeView<G, GH>
-{
+impl<'py, G: StaticGraphViewOps + IntoDynamic + Immutable> IntoPyObject<'py> for EdgeView<G> {
     type Target = PyEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -118,7 +106,7 @@ impl<
     }
 }
 
-impl<'py> IntoPyObject<'py> for EdgeView<Graph, Graph> {
+impl<'py> IntoPyObject<'py> for EdgeView<Graph> {
     type Target = PyMutableEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -128,7 +116,7 @@ impl<'py> IntoPyObject<'py> for EdgeView<Graph, Graph> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for EdgeView<PersistentGraph, PersistentGraph> {
+impl<'py> IntoPyObject<'py> for EdgeView<PersistentGraph> {
     type Target = PyMutableEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -138,7 +126,7 @@ impl<'py> IntoPyObject<'py> for EdgeView<PersistentGraph, PersistentGraph> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for EdgeView<MaterializedGraph, MaterializedGraph> {
+impl<'py> IntoPyObject<'py> for EdgeView<MaterializedGraph> {
     type Target = PyMutableEdge;
     type Output = Bound<'py, Self::Target>;
     type Error = PyErr;
@@ -206,45 +194,22 @@ impl PyEdge {
         self.edge.properties().get(name)
     }
 
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
+    /// Returns a history object with EventTime entries for when an edge is added or change to an edge is made.
     ///
     /// Returns:
-    ///     List[int]:
-    pub fn history<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray<i64, Ix1>> {
-        let history = self.edge.history();
-        history.into_pyarray(py)
+    ///    History:  A history object containing temporal entries about the edge
+    #[getter]
+    pub fn history(&self) -> PyHistory {
+        self.edge.history().into_arc_dyn().into()
     }
 
-    /// Returns the number of times an edge was added or change to an edge was made.
+    /// Returns a history object with EventTime entries for an edge's deletion times.
     ///
     /// Returns:
-    ///    int: The number of times an edge was added or change to an edge was made.
-    pub fn history_counts(&self) -> usize {
-        self.edge.history_counts()
-    }
-
-    /// Returns a list of timestamps of when an edge is added or change to an edge is made.
-    ///
-    /// Returns:
-    ///     Optional[List[datetime]]:
-    pub fn history_date_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.edge.history_date_time()
-    }
-
-    /// Returns a list of timestamps of when an edge is deleted.
-    ///
-    /// Returns:
-    ///     List[int]: A list of unix timestamps
-    pub fn deletions(&self) -> Vec<i64> {
-        self.edge.deletions()
-    }
-
-    /// Returns a list of timestamps of when an edge is deleted.
-    ///
-    /// Returns:
-    ///     List[datetime]:
-    pub fn deletions_data_time(&self) -> Option<Vec<DateTime<Utc>>> {
-        self.edge.deletions_date_time()
+    ///    History:  A history object containing time entries about the edge's deletions
+    #[getter]
+    pub fn deletions(&self) -> PyHistory {
+        self.edge.deletions().into_arc_dyn().into()
     }
 
     /// Check if the edge is currently valid (i.e., not deleted)
@@ -280,7 +245,7 @@ impl PyEdge {
     /// Returns:
     ///   Properties: Properties on the Edge.
     #[getter]
-    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph, DynamicGraph>> {
+    pub fn properties(&self) -> Properties<EdgeView<DynamicGraph>> {
         self.edge.properties()
     }
 
@@ -289,44 +254,26 @@ impl PyEdge {
     /// Returns:
     ///     Metadata:
     #[getter]
-    pub fn metadata(&self) -> Metadata<'static, EdgeView<DynamicGraph, DynamicGraph>> {
+    pub fn metadata(&self) -> Metadata<'static, EdgeView<DynamicGraph>> {
         self.edge.metadata()
     }
 
     /// Gets the earliest time of an edge.
     ///
     /// Returns:
-    ///     int: The earliest time of an edge
+    ///     OptionalEventTime: The earliest time of an edge
     #[getter]
-    pub fn earliest_time(&self) -> Option<i64> {
-        self.edge.earliest_time()
-    }
-
-    /// Gets of earliest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the earliest datetime of an edge
-    #[getter]
-    pub fn earliest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.earliest_date_time()
+    pub fn earliest_time(&self) -> PyOptionalEventTime {
+        self.edge.earliest_time().into()
     }
 
     /// Gets the latest time of an edge.
     ///
     /// Returns:
-    ///     int: The latest time of an edge
+    ///     OptionalEventTime: The latest time of an edge
     #[getter]
-    pub fn latest_time(&self) -> Option<i64> {
-        self.edge.latest_time()
-    }
-
-    /// Gets of latest datetime of an edge.
-    ///
-    /// Returns:
-    ///     datetime: the latest datetime of an edge
-    #[getter]
-    pub fn latest_date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.latest_date_time()
+    pub fn latest_time(&self) -> PyOptionalEventTime {
+        self.edge.latest_time().into()
     }
 
     /// Gets the time of an exploded edge.
@@ -334,7 +281,7 @@ impl PyEdge {
     /// Returns:
     ///     int: The time of an exploded edge
     #[getter]
-    pub fn time(&self) -> Result<i64, GraphError> {
+    pub fn time(&self) -> Result<EventTime, GraphError> {
         self.edge.time()
     }
 
@@ -355,15 +302,6 @@ impl PyEdge {
     pub fn layer_name(&self) -> Result<ArcStr, GraphError> {
         self.edge.layer_name()
     }
-
-    /// Gets the datetime of an exploded edge.
-    ///
-    /// Returns:
-    ///     datetime: the datetime of an exploded edge
-    #[getter]
-    pub fn date_time(&self) -> Option<DateTime<Utc>> {
-        self.edge.date_time()
-    }
 }
 
 impl Repr for PyEdge {
@@ -372,7 +310,7 @@ impl Repr for PyEdge {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> Repr for EdgeView<G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> Repr for EdgeView<G> {
     fn repr(&self) -> String {
         let properties: String = self
             .properties()
@@ -428,28 +366,28 @@ impl PyMutableEdge {
     ///    t (TimeInput): The timestamp at which the updates should be applied.
     ///    properties (PropInput, optional): A dictionary of properties to update.
     ///    layer (str, optional): The layer you want these properties to be added on to.
-    ///    secondary_index (int, optional): The optional integer which will be used as a secondary index
+    ///    event_id (int, optional): The optional integer which will be used as an event id
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, properties=None, layer=None, secondary_index=None))]
+    #[pyo3(signature = (t, properties=None, layer=None, event_id=None))]
     fn add_updates(
         &self,
-        t: PyTime,
+        t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-        secondary_index: Option<usize>,
+        event_id: Option<usize>,
     ) -> Result<(), GraphError> {
-        match secondary_index {
+        match event_id {
             None => self
                 .edge
                 .add_updates(t, properties.unwrap_or_default(), layer),
-            Some(secondary_index) => {
+            Some(event_id) => {
                 self.edge
-                    .add_updates((t, secondary_index), properties.unwrap_or_default(), layer)
+                    .add_updates((t, event_id), properties.unwrap_or_default(), layer)
             }
         }
     }
@@ -459,15 +397,24 @@ impl PyMutableEdge {
     /// Arguments:
     ///     t (TimeInput): The timestamp at which the deletion should be applied.
     ///     layer (str, optional): The layer you want the deletion applied to.
+    ///     event_id (int, optional): The event id for the deletion's time entry.
     ///
     /// Returns:
     ///     None:
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, layer=None))]
-    fn delete(&self, t: PyTime, layer: Option<&str>) -> Result<(), GraphError> {
-        self.edge.delete(t, layer)
+    #[pyo3(signature = (t, layer=None, event_id=None))]
+    fn delete(
+        &self,
+        t: EventTimeComponent,
+        layer: Option<&str>,
+        event_id: Option<usize>,
+    ) -> Result<(), GraphError> {
+        match event_id {
+            None => self.edge.delete(t, layer),
+            Some(index) => self.edge.delete((t, index), layer),
+        }
     }
 
     /// Add metadata to an edge in the graph.

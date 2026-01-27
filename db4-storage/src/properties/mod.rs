@@ -17,7 +17,7 @@ use raphtory_core::{
         ELID,
         properties::{props::MetadataError, tcell::TCell, tprop::TPropCell},
     },
-    storage::{PropColumn, TColumns, timeindex::TimeIndexEntry},
+    storage::{PropColumn, TColumns, timeindex::EventTime},
 };
 use std::sync::Arc;
 
@@ -32,8 +32,8 @@ pub struct Properties {
     times_from_props: Vec<TCell<Option<usize>>>,
 
     t_properties: TColumns,
-    earliest: Option<TimeIndexEntry>,
-    latest: Option<TimeIndexEntry>,
+    earliest: Option<EventTime>,
+    latest: Option<EventTime>,
     has_additions: bool,
     has_properties: bool,
     has_deletions: bool,
@@ -70,11 +70,11 @@ impl Properties {
         }
     }
 
-    pub fn earliest(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest(&self) -> Option<EventTime> {
         self.earliest
     }
 
-    pub fn latest(&self) -> Option<TimeIndexEntry> {
+    pub fn latest(&self) -> Option<EventTime> {
         self.latest
     }
 
@@ -249,7 +249,7 @@ impl Properties {
         self.column_as_array(column, col, meta, indices)
     }
 
-    fn update_earliest_latest(&mut self, t: TimeIndexEntry) {
+    fn update_earliest_latest(&mut self, t: EventTime) {
         self.additions_count += 1;
         let earliest = self.earliest.get_or_insert(t);
         if t < *earliest {
@@ -277,7 +277,7 @@ impl Properties {
 impl<'a> PropMutEntry<'a> {
     pub(crate) fn append_t_props(
         &mut self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let t_prop_row = if let Some(t_prop_row) = self
@@ -306,12 +306,12 @@ impl<'a> PropMutEntry<'a> {
         }
     }
 
-    pub(crate) fn set_time(&mut self, t: TimeIndexEntry, t_prop_row: usize) {
+    pub(crate) fn set_time(&mut self, t: EventTime, t_prop_row: usize) {
         let prop_timestamps = &mut self.properties.times_from_props[self.row];
         prop_timestamps.set(t, Some(t_prop_row));
     }
 
-    pub(crate) fn addition_timestamp(&mut self, t: TimeIndexEntry, edge_id: ELID) {
+    pub(crate) fn addition_timestamp(&mut self, t: EventTime, edge_id: ELID) {
         if self.properties.additions.len() <= self.row {
             self.properties
                 .additions
@@ -325,7 +325,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn deletion_timestamp(&mut self, t: TimeIndexEntry, edge_id: Option<ELID>) {
+    pub(crate) fn deletion_timestamp(&mut self, t: EventTime, edge_id: Option<ELID>) {
         if self.properties.deletions.len() <= self.row {
             self.properties
                 .deletions

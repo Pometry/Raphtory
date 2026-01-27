@@ -45,6 +45,14 @@ impl<T: IsFloat> AsOrd for &(T, T) {
     }
 }
 
+impl<T: IsFloat> AsOrd for &Option<T> {
+    type Ordered = Option<OrderedFloat<T>>;
+    fn as_ord(&self) -> &Option<OrderedFloat<T>> {
+        // Safety: OrderedFloat is #[repr(transparent)] over T; Option<OrderedFloat<T>> has the same layout as Option<T> for the same T.
+        unsafe { &*(*self as *const Option<T> as *const Option<OrderedFloat<T>>) }
+    }
+}
+
 pub trait OrderedNodeStateOps<'graph>: NodeStateOps<'graph>
 where
     Self::OwnedValue: Ord,
@@ -58,10 +66,7 @@ where
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    fn sort_by_values(
-        &self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn sort_by_values(&self, reverse: bool) -> NodeState<'graph, Self::OwnedValue, Self::Graph>;
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
@@ -73,24 +78,16 @@ where
     ///
     /// Returns:
     ///
-    /// An `a vector of tuples with keys of type `H` and values of type `Y`.
+    /// A vector of tuples with keys of type `H` and values of type `Y`.
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph>;
 
-    fn bottom_k(
-        &self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn bottom_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph>;
 
     /// Returns a tuple of the min result with its key
-    fn min_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )>;
+    fn min_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
 
     /// Min result.
     ///
@@ -101,24 +98,14 @@ where
     }
 
     /// Returns a tuple of the max result with its key
-    fn max_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )>;
+    fn max_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
 
     fn max(&self) -> Option<Self::Value<'_>> {
         self.max_item().map(|(_, v)| v)
     }
 
     /// Returns a tuple of the median result with its key
-    fn median_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )>;
+    fn median_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
 
     /// Returns:
     ///     PropValue:
@@ -137,10 +124,7 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     /// Returns:
     ///
     /// A sorted vector of tuples containing keys of type `H` and values of type `Y`.
-    fn sort_by_values(
-        &self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn sort_by_values(&self, reverse: bool) -> NodeState<'graph, Self::OwnedValue, Self::Graph>;
 
     /// Retrieves the top-k elements from the `AlgorithmResult` based on its values.
     ///
@@ -156,20 +140,12 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     /// If `percentage` is `true`, the returned vector contains the top `k` percentage of elements.
     /// If `percentage` is `false`, the returned vector contains the top `k` elements.
     /// Returns empty vec if the result is empty or if `k` is 0.
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph>;
 
-    fn bottom_k(
-        &self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph>;
+    fn bottom_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph>;
 
     /// Returns a tuple of the min result with its key
-    fn min_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )>;
+    fn min_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
 
     /// Min result.
     ///
@@ -180,24 +156,14 @@ pub trait AsOrderedNodeStateOps<'graph>: NodeStateOps<'graph> {
     }
 
     /// Returns a tuple of the max result with its key
-    fn max_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )>;
+    fn max_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
 
     fn max(&self) -> Option<Self::Value<'_>> {
         self.max_item().map(|(_, v)| v)
     }
 
     /// Returns a tuple of the median result with its key
-    fn median_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )>;
+    fn median_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
 
     /// Returns:
     ///     PropValue:
@@ -210,10 +176,7 @@ impl<'graph, V: NodeStateOps<'graph>> OrderedNodeStateOps<'graph> for V
 where
     V::OwnedValue: Ord,
 {
-    fn sort_by_values(
-        &self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn sort_by_values(&self, reverse: bool) -> NodeState<'graph, Self::OwnedValue, Self::Graph> {
         if reverse {
             self.sort_by_values_by(|a, b| a.cmp(b).reverse())
         } else {
@@ -221,41 +184,23 @@ where
         }
     }
 
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph> {
         self.top_k_by(Ord::cmp, k)
     }
 
-    fn bottom_k(
-        &self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn bottom_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph> {
         self.bottom_k_by(Ord::cmp, k)
     }
 
-    fn min_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
+    fn min_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.min_item_by(Ord::cmp)
     }
 
-    fn max_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
+    fn max_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.max_item_by(Ord::cmp)
     }
 
-    fn median_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
+    fn median_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.median_item_by(Ord::cmp)
     }
 }
@@ -264,10 +209,7 @@ impl<'graph, V: NodeStateOps<'graph>> AsOrderedNodeStateOps<'graph> for V
 where
     for<'a> &'a V::OwnedValue: AsOrd,
 {
-    fn sort_by_values(
-        &self,
-        reverse: bool,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn sort_by_values(&self, reverse: bool) -> NodeState<'graph, Self::OwnedValue, Self::Graph> {
         if reverse {
             self.sort_by_values_by(|a, b| a.as_ord().cmp(b.as_ord()).reverse())
         } else {
@@ -275,41 +217,23 @@ where
         }
     }
 
-    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn top_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph> {
         self.top_k_by(|a, b| a.as_ord().cmp(b.as_ord()), k)
     }
 
-    fn bottom_k(
-        &self,
-        k: usize,
-    ) -> NodeState<'graph, Self::OwnedValue, Self::BaseGraph, Self::Graph> {
+    fn bottom_k(&self, k: usize) -> NodeState<'graph, Self::OwnedValue, Self::Graph> {
         self.bottom_k_by(|a, b| a.as_ord().cmp(b.as_ord()), k)
     }
 
-    fn min_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
+    fn min_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.min_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 
-    fn max_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
+    fn max_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.max_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 
-    fn median_item(
-        &self,
-    ) -> Option<(
-        NodeView<'_, &Self::BaseGraph, &Self::Graph>,
-        Self::Value<'_>,
-    )> {
+    fn median_item(&self) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
         self.median_item_by(|a, b| a.as_ord().cmp(b.as_ord()))
     }
 }

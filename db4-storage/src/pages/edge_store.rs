@@ -19,7 +19,7 @@ use raphtory_api::core::entities::{
 };
 use raphtory_core::{
     entities::{ELID, LayerIds},
-    storage::timeindex::{AsTime, TimeIndexEntry},
+    storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
 use std::{
@@ -199,12 +199,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         self.edges_path.as_ref().map(|path| path.as_path())
     }
 
-    pub fn earliest(&self) -> Option<TimeIndexEntry> {
+    pub fn earliest(&self) -> Option<EventTime> {
         Iterator::min(self.segments.iter().filter_map(|(_, page)| page.earliest()))
         // see : https://github.com/rust-lang/rust-analyzer/issues/10653
     }
 
-    pub fn latest(&self) -> Option<TimeIndexEntry> {
+    pub fn latest(&self) -> Option<EventTime> {
         Iterator::max(self.segments.iter().filter_map(|(_, page)| page.latest()))
     }
 

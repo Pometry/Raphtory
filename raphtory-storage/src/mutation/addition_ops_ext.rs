@@ -17,7 +17,7 @@ use raphtory_core::{
         nodes::node_ref::{AsNodeRef, NodeRef},
         GidRef, EID, ELID, MAX_LAYER, VID,
     },
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
@@ -62,7 +62,7 @@ where
 
     fn internal_add_edge(
         &mut self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         eid: MaybeNew<ELID>,
@@ -76,7 +76,7 @@ where
 
     fn internal_delete_edge(
         &mut self,
-        t: TimeIndexEntry,
+        t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer: usize,
@@ -318,7 +318,7 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn internal_add_node(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
     ) -> Result<(), Self::Error> {

@@ -19,7 +19,7 @@ mod io_tests {
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
-    use raphtory_core::storage::timeindex::TimeIndexEntry;
+    use raphtory_core::storage::timeindex::EventTime;
     use raphtory_storage::{
         core_ops::CoreGraphOps,
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
@@ -64,7 +64,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
@@ -107,7 +107,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
@@ -157,7 +157,7 @@ mod io_tests {
                 "int_prop".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         }
     }
 
@@ -204,7 +204,7 @@ mod io_tests {
                 "node_type".to_owned(),
             ],
             chunks: chunks.into_iter(),
-            num_rows: nodes.len(),
+            num_rows: Some(nodes.len()),
         }
     }
 
@@ -284,7 +284,7 @@ mod io_tests {
                 "marbles".to_owned(),
             ],
             chunks: vec![Ok(DFChunk { chunk })].into_iter(),
-            num_rows: edges.len(),
+            num_rows: Some(edges.len()),
         };
 
         // Load edges into graph
@@ -476,7 +476,7 @@ mod io_tests {
         let g2 = Graph::new();
 
         for (src, dst, time, secondary_index, str_prop, int_prop) in edges {
-            let time_with_secondary_index = TimeIndexEntry::new(time, secondary_index as usize);
+            let time_with_secondary_index = EventTime::new(time, secondary_index as usize);
 
             g2.add_edge(
                 time_with_secondary_index,
@@ -535,7 +535,7 @@ mod io_tests {
             let mut max_secondary_index = 0;
 
             for (src, dst, time, secondary_index_val, str_prop, int_prop) in edges {
-                let time_with_secondary_index = TimeIndexEntry(time, secondary_index_val as usize);
+                let time_with_secondary_index = EventTime(time, secondary_index_val as usize);
 
                 g2.add_edge(
                     time_with_secondary_index,
@@ -636,7 +636,7 @@ mod io_tests {
         let g2 = Graph::new();
 
         for (node_id, time, secondary_index, str_prop, int_prop, node_type) in nodes {
-            let time_with_secondary_index = TimeIndexEntry(time, secondary_index as usize);
+            let time_with_secondary_index = EventTime(time, secondary_index as usize);
 
             g2.add_node(
                 time_with_secondary_index,
@@ -700,7 +700,10 @@ mod parquet_tests {
     use chrono::{DateTime, Utc};
     use proptest::prelude::*;
     use raphtory::{
-        db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
+        db::graph::{
+            graph::{assert_graph_equal, assert_graph_equal_timestamps},
+            views::deletion_graph::PersistentGraph,
+        },
         prelude::*,
         test_utils::{
             assert_valid_graph, build_edge_list_dyn, build_graph, build_graph_strat,
@@ -1071,14 +1074,14 @@ mod parquet_tests {
             assert_valid_graph(&f, g);
             assert_valid_graph(&f, &g2);
         }
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     fn check_parquet_encoding_deletions(g: PersistentGraph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = PersistentGraph::decode_parquet(&temp_dir, None).unwrap();
-        assert_graph_equal(&g, &g2);
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     #[test]
@@ -1106,7 +1109,7 @@ mod parquet_tests {
         build_and_check_parquet_encoding(nodes.into());
     }
 
-    fn check_graph_props(nf: PropUpdatesFixture) {
+    fn check_graph_props(nf: PropUpdatesFixture, only_timestamps: bool) {
         let g = Graph::new();
         let temp_dir = tempfile::tempdir().unwrap();
         for (t, props) in nf.t_props {
@@ -1116,7 +1119,11 @@ mod parquet_tests {
         g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
         let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
-        assert_graph_equal(&g, &g2);
+        if only_timestamps {
+            assert_graph_equal_timestamps(&g, &g2)
+        } else {
+            assert_graph_equal(&g, &g2);
+        }
     }
 
     #[test]
@@ -1125,7 +1132,7 @@ mod parquet_tests {
             t_props: vec![(0, vec![("a".to_string(), Prop::U8(5))])],
             c_props: vec![("b".to_string(), Prop::str("baa"))],
         };
-        check_graph_props(props)
+        check_graph_props(props, true)
     }
 
     #[test]
@@ -1149,7 +1156,7 @@ mod parquet_tests {
     #[test]
     fn write_graph_props_to_parquet() {
         proptest!(|(props in build_props_dyn(0..=10))| {
-            check_graph_props(props);
+            check_graph_props(props, true);
         });
     }
 
@@ -1159,7 +1166,7 @@ mod parquet_tests {
             t_props: vec![(1, vec![])],
             c_props: vec![],
         };
-        check_graph_props(nf);
+        check_graph_props(nf, false);
     }
 
     #[test]

@@ -33,6 +33,6 @@ def test_datetime_with_timezone():
 
     # @with_disk_graph FIXME: need special handling for nodes additions from Graph
     def check(g):
-        assert g.node(1).history_date_time() == results
+        assert g.node(1).history.dt.collect() == results
 
     check(g)

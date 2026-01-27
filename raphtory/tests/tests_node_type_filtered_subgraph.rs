@@ -1,8 +1,13 @@
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
-    db::graph::{
-        graph::assert_graph_equal,
-        views::filter::model::property_filter::{PropertyFilter, PropertyRef},
+    db::{
+        api::view::Filter,
+        graph::{
+            graph::assert_graph_equal,
+            views::filter::model::{
+                property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+            },
+        },
     },
     prelude::*,
     test_utils::{build_graph, build_graph_strat, make_node_types},
@@ -37,22 +42,22 @@ fn test_type_filtered_subgraph() {
         graph.add_node(*id, name, props.clone(), *layer).unwrap();
     }
 
-    let type_filtered_subgraph = graph
+    let filtered_graph = graph
         .subgraph_node_types(vec!["fire_nation", "air_nomads"])
         .window(1, 5);
 
-    assert_eq!(type_filtered_subgraph.nodes(), vec!["C", "D"]);
+    assert_eq!(filtered_graph.nodes(), vec!["C", "D"]);
 
     assert_eq!(
-        type_filtered_subgraph
-            .filter_nodes(PropertyFilter::eq(PropertyRef::Property("p1".into()), 1u64))
+        filtered_graph
+            .filter(NodeFilter.property("p1").eq(1u64))
             .unwrap()
             .nodes(),
         vec!["C", "D"]
     );
 
-    assert!(type_filtered_subgraph
-        .filter_edges(PropertyFilter::eq(PropertyRef::Property("p1".into()), 1u64))
+    assert!(filtered_graph
+        .filter(EdgeFilter.property("p1").eq(1u64))
         .unwrap()
         .edges()
         .is_empty())
@@ -114,12 +119,12 @@ fn node_removed_via_edge_removal_window() {
 mod test_filters_node_type_filtered_subgraph {
     use raphtory::{
         db::{
-            api::view::StaticGraphViewOps,
+            api::{state::ops::filter::NodeTypeFilterOp, view::StaticGraphViewOps},
             graph::{
                 assertions::GraphTransformer,
                 views::{
-                    filter::node_type_filtered_graph::NodeTypeFilteredGraph,
-                    layer_graph::LayeredGraph, window_graph::WindowedGraph,
+                    filter::node_filtered_graph::NodeFilteredGraph, layer_graph::LayeredGraph,
+                    window_graph::WindowedGraph,
                 },
             },
         },
@@ -140,7 +145,7 @@ mod test_filters_node_type_filtered_subgraph {
     struct NodeTypeGraphTransformer(Option<Vec<String>>);
 
     impl GraphTransformer for NodeTypeGraphTransformer {
-        type Return<G: StaticGraphViewOps> = NodeTypeFilteredGraph<G>;
+        type Return<G: StaticGraphViewOps> = NodeFilteredGraph<G, NodeTypeFilterOp>;
         fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
             let node_types: Vec<String> =
                 self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
@@ -151,7 +156,7 @@ mod test_filters_node_type_filtered_subgraph {
     struct WindowedNodeTypeGraphTransformer(Option<Vec<String>>, Range<i64>);
 
     impl GraphTransformer for WindowedNodeTypeGraphTransformer {
-        type Return<G: StaticGraphViewOps> = WindowedGraph<NodeTypeFilteredGraph<G>>;
+        type Return<G: StaticGraphViewOps> = WindowedGraph<NodeFilteredGraph<G, NodeTypeFilterOp>>;
         fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
             let node_types: Vec<String> =
                 self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
@@ -164,7 +169,7 @@ mod test_filters_node_type_filtered_subgraph {
     struct LayeredNodeTypeGraphTransformer(Option<Vec<String>>, Vec<String>);
 
     impl GraphTransformer for LayeredNodeTypeGraphTransformer {
-        type Return<G: StaticGraphViewOps> = LayeredGraph<NodeTypeFilteredGraph<G>>;
+        type Return<G: StaticGraphViewOps> = LayeredGraph<NodeFilteredGraph<G, NodeTypeFilterOp>>;
         fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
             let node_types: Vec<String> =
                 self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
@@ -178,7 +183,8 @@ mod test_filters_node_type_filtered_subgraph {
     struct LayeredWindowedNodeTypeGraphTransformer(Option<Vec<String>>, Range<i64>, Vec<String>);
 
     impl GraphTransformer for LayeredWindowedNodeTypeGraphTransformer {
-        type Return<G: StaticGraphViewOps> = WindowedGraph<LayeredGraph<NodeTypeFilteredGraph<G>>>;
+        type Return<G: StaticGraphViewOps> =
+            WindowedGraph<LayeredGraph<NodeFilteredGraph<G, NodeTypeFilterOp>>>;
         fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Self::Return<G> {
             let node_types: Vec<String> =
                 self.0.clone().unwrap_or_else(|| get_all_node_types(&graph));
@@ -192,7 +198,10 @@ mod test_filters_node_type_filtered_subgraph {
 
     mod test_nodes_filters_node_type_filtered_subgraph {
         use raphtory::{
-            db::{api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps},
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
+            },
             prelude::AdditionOps,
         };
         use raphtory_api::core::entities::properties::prop::Prop;
@@ -223,21 +232,22 @@ mod test_filters_node_type_filtered_subgraph {
             graph
         }
 
-        use raphtory::db::graph::assertions::{
-            assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
-            TestVariants,
-        };
-
-        use raphtory::db::graph::views::filter::model::property_filter::PropertyFilter;
-
         use crate::test_filters_node_type_filtered_subgraph::{
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
-        // use raphtory::db::graph::views::filter::node_type_filtered_graph::tests_node_type_filtered_subgraph::test_filters_node_type_filtered_subgraph::{NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer};
-
+        use raphtory::{
+            db::graph::{
+                assertions::{
+                    assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants,
+                    TestVariants,
+                },
+                views::filter::model::PropertyFilterFactory,
+            },
+            prelude::NodeFilter,
+        };
         #[test]
         fn test_nodes_filters() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -256,7 +266,7 @@ mod test_filters_node_type_filtered_subgraph {
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N4", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -277,7 +287,7 @@ mod test_filters_node_type_filtered_subgraph {
         #[test]
         fn test_nodes_filters_w() {
             // TODO: Enable event_disk_graph for filter_nodes once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -296,7 +306,7 @@ mod test_filters_node_type_filtered_subgraph {
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3"];
             assert_filter_nodes_results(
                 init_graph,
@@ -316,7 +326,7 @@ mod test_filters_node_type_filtered_subgraph {
 
         #[test]
         fn test_nodes_filters_pg_w() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N6", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -335,7 +345,7 @@ mod test_filters_node_type_filtered_subgraph {
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = NodeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1", "N3", "N7"];
             assert_filter_nodes_results(
                 init_graph,
@@ -356,8 +366,11 @@ mod test_filters_node_type_filtered_subgraph {
 
     mod test_edges_filters_node_type_filtered_subgraph {
         use raphtory::{
-            db::{api::view::StaticGraphViewOps, graph::views::filter::model::PropertyFilterOps},
-            prelude::{AdditionOps, PropertyFilter, NO_PROPS},
+            db::{
+                api::view::StaticGraphViewOps,
+                graph::views::filter::model::property_filter::ops::PropertyFilterOps,
+            },
+            prelude::{AdditionOps, NO_PROPS},
         };
         use raphtory_api::core::entities::properties::prop::Prop;
 
@@ -463,18 +476,23 @@ mod test_filters_node_type_filtered_subgraph {
             graph
         }
 
-        use raphtory::db::graph::assertions::{
-            assert_filter_edges_results, assert_search_edges_results, TestVariants,
-        };
-
         use crate::test_filters_node_type_filtered_subgraph::{
             LayeredNodeTypeGraphTransformer, LayeredWindowedNodeTypeGraphTransformer,
             NodeTypeGraphTransformer, WindowedNodeTypeGraphTransformer,
         };
+        use raphtory::{
+            db::graph::{
+                assertions::{
+                    assert_filter_edges_results, assert_search_edges_results, TestVariants,
+                },
+                views::filter::model::PropertyFilterFactory,
+            },
+            prelude::EdgeFilter,
+        };
 
         #[test]
         fn test_edges_filters() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
@@ -493,7 +511,7 @@ mod test_filters_node_type_filtered_subgraph {
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N4->N5"];
             assert_filter_edges_results(
                 init_graph,
@@ -530,7 +548,7 @@ mod test_filters_node_type_filtered_subgraph {
 
         #[test]
         fn test_edges_filters_w() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -549,7 +567,7 @@ mod test_filters_node_type_filtered_subgraph {
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4"];
             assert_filter_edges_results(
                 init_graph,
@@ -586,14 +604,14 @@ mod test_filters_node_type_filtered_subgraph {
 
         #[test]
         fn test_edges_filters_pg_w() {
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
             assert_filter_edges_results(
                 init_graph,
                 WindowedNodeTypeGraphTransformer(None, 6..9),
                 filter.clone(),
                 &expected_results,
-                vec![],
+                TestVariants::PersistentOnly,
             );
             assert_search_edges_results(
                 init_graph,
@@ -605,14 +623,14 @@ mod test_filters_node_type_filtered_subgraph {
 
             let node_types: Option<Vec<String>> =
                 Some(vec!["air_nomad".into(), "water_tribe".into()]);
-            let filter = PropertyFilter::property("p1").eq(1u64);
+            let filter = EdgeFilter.property("p1").eq(1u64);
             let expected_results = vec!["N1->N2", "N3->N4"];
             assert_filter_edges_results(
                 init_graph,
                 WindowedNodeTypeGraphTransformer(node_types.clone(), 6..9),
                 filter.clone(),
                 &expected_results,
-                vec![],
+                TestVariants::PersistentOnly,
             );
             assert_search_edges_results(
                 init_graph,

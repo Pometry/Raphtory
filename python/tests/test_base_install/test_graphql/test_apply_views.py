@@ -51,28 +51,46 @@ def test_apply_view_snapshot_latest():
  {
   graph(path: "g") {
     applyViews(views: [{snapshotLatest: true}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{snapshotLatest: true}]) {
         page(limit: 1, offset: 0) {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "1") {
       applyViews(views: [{snapshotLatest: true}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{snapshotLatest: true}]) {
         page(limit: 1, offset: 0) {
           src {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
           dst {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
@@ -80,7 +98,11 @@ def test_apply_view_snapshot_latest():
     edge(src: "1", dst: "2") {
       applyViews(views: [{snapshotLatest: true}]) {
         src {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -90,29 +112,43 @@ def test_apply_view_snapshot_latest():
 
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1735689600000},
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "page": [
                         {
-                            "history": [
-                                1735689600000,
-                                1735776000000,
-                                1735862400000,
-                                1735948800000,
-                            ]
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735689600000,
+                                        1735776000000,
+                                        1735776000000,
+                                        1735862400000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            }
                         }
                     ]
                 }
             },
             "node": {
                 "applyViews": {
-                    "history": [
-                        1735689600000,
-                        1735776000000,
-                        1735862400000,
-                        1735948800000,
-                    ]
+                    "history": {
+                        "timestamps": {
+                            "list": [
+                                1735689600000,
+                                1735689600000,
+                                1735776000000,
+                                1735776000000,
+                                1735862400000,
+                                1735862400000,
+                                1735948800000,
+                            ]
+                        }
+                    }
                 }
             },
             "edges": {
@@ -120,19 +156,30 @@ def test_apply_view_snapshot_latest():
                     "page": [
                         {
                             "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735689600000,
+                                            1735776000000,
+                                            1735776000000,
+                                            1735862400000,
+                                            1735862400000,
+                                            1735948800000,
+                                        ]
+                                    }
+                                }
                             },
                             "dst": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                ]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
                             },
                         }
                     ]
@@ -141,12 +188,19 @@ def test_apply_view_snapshot_latest():
             "edge": {
                 "applyViews": {
                     "src": {
-                        "history": [
-                            1735689600000,
-                            1735776000000,
-                            1735862400000,
-                            1735948800000,
-                        ]
+                        "history": {
+                            "timestamps": {
+                                "list": [
+                                    1735689600000,
+                                    1735689600000,
+                                    1735776000000,
+                                    1735776000000,
+                                    1735862400000,
+                                    1735862400000,
+                                    1735948800000,
+                                ]
+                            }
+                        }
                     }
                 }
             },
@@ -163,28 +217,46 @@ def test_apply_view_default_layer():
  {
   graph(path: "g") {
     applyViews(views: [{defaultLayer: true}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{defaultLayer: true}]) {
         page(limit: 1, offset: 0) {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "2") {
       applyViews(views: [{defaultLayer: true}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{defaultLayer: true}]) {
         page(limit: 1, offset: 0) {
           src {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
           dst {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
@@ -192,7 +264,11 @@ def test_apply_view_default_layer():
     edge(src: "6", dst: "7") {
       applyViews(views: [{defaultLayer: true}]) {
         src {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -200,42 +276,60 @@ def test_apply_view_default_layer():
 }"""
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1735689600000},
-            "edge": {"applyViews": {"src": {"history": [1736035200000]}}},
-            "edges": {
-                "applyViews": {
-                    "page": [
-                        {
-                            "dst": {
-                                "history": [1735689600000, 1735776000000, 1735862400000]
-                            },
-                            "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
-                            },
-                        }
-                    ]
-                }
-            },
-            "node": {"applyViews": {"history": [1735862400000]}},
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "page": [
                         {
-                            "history": [
-                                1735689600000,
-                                1735776000000,
-                                1735862400000,
-                                1735948800000,
-                            ]
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735776000000,
+                                        1735862400000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            }
                         }
                     ]
                 }
             },
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735862400000]}}}
+            },
+            "edges": {
+                "applyViews": {
+                    "page": [
+                        {
+                            "src": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                            1735862400000,
+                                            1735948800000,
+                                        ]
+                                    }
+                                }
+                            },
+                            "dst": {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
+                            },
+                        }
+                    ]
+                }
+            },
+            "edge": {"applyViews": {"src": {"history": {"timestamps": {"list": []}}}}},
         }
     }
     run_graphql_test(query, correct, graph)
@@ -248,28 +342,46 @@ def test_apply_view_latest():
 {
   graph(path: "g") {
     applyViews(views: [{latest: true}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{latest: true}]) {
         page(limit: 1, offset: 0) {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "2") {
       applyViews(views: [{latest: true}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{latest: true}]) {
         page(limit: 1, offset: 0) {
           src {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
           dst {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
@@ -277,7 +389,11 @@ def test_apply_view_latest():
     edge(src: "6", dst: "7") {
       applyViews(views: [{latest: true}]) {
         src {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -286,29 +402,26 @@ def test_apply_view_latest():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1736035200000},
-            "nodes": {"applyViews": {"page": [{"history": [1736035200000]}]}},
-            "node": {"applyViews": {"history": []}},
+            "applyViews": {"earliestTime": {"timestamp": 1736035200000}},
+            "nodes": {
+                "applyViews": {"page": [{"history": {"timestamps": {"list": []}}}]}
+            },
+            "node": {"applyViews": {"history": {"timestamps": {"list": []}}}},
             "edges": {
                 "applyViews": {
                     "page": [
                         {
-                            "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
-                            },
-                            "dst": {
-                                "history": [1735689600000, 1735776000000, 1735862400000]
-                            },
+                            "src": {"history": {"timestamps": {"list": []}}},
+                            "dst": {"history": {"timestamps": {"list": []}}},
                         }
                     ]
                 }
             },
-            "edge": {"applyViews": {"src": {"history": [1736035200000]}}},
+            "edge": {
+                "applyViews": {
+                    "src": {"history": {"timestamps": {"list": [1736035200000]}}}
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -321,28 +434,46 @@ def test_apply_view_at():
   {
   graph(path: "g") {
     applyViews(views: [{at: 1735689600000}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{at: 1735689600000}]) {
         page(limit: 1, offset: 0) {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "2") {
       applyViews(views: [{at: 1735689600000}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{at: 1735689600000}]) {
         page(limit: 1, offset: 0) {
           src {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
           dst {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
@@ -350,7 +481,11 @@ def test_apply_view_at():
     edge(src: "6", dst: "7") {
       applyViews(views: [{at: 1735689600000}]) {
         src {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -359,29 +494,43 @@ def test_apply_view_at():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1735689600000},
-            "nodes": {"applyViews": {"page": [{"history": [1735689600000]}]}},
-            "node": {"applyViews": {"history": [1735689600000]}},
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
+            "nodes": {
+                "applyViews": {
+                    "page": [
+                        {
+                            "history": {
+                                "timestamps": {"list": [1735689600000, 1735689600000]}
+                            }
+                        }
+                    ]
+                }
+            },
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "page": [
                         {
                             "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735689600000,
+                                        ]
+                                    }
+                                }
                             },
                             "dst": {
-                                "history": [1735689600000, 1735776000000, 1735862400000]
+                                "history": {"timestamps": {"list": [1735689600000]}}
                             },
                         }
                     ]
                 }
             },
-            "edge": {"applyViews": {"src": {"history": [1736035200000]}}},
+            "edge": {"applyViews": {"src": {"history": {"timestamps": {"list": []}}}}},
         }
     }
     run_graphql_test(query, correct, graph)
@@ -394,28 +543,46 @@ def test_apply_view_snapshot_at():
 {
   graph(path: "g") {
     applyViews(views: [{snapshotAt: 1740873600000}]) {
-    	latestTime
+    	latestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{snapshotAt: 1735901379000}]) {
         page(limit: 1, offset: 0) {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "2") {
       applyViews(views: [{snapshotAt: 1735901379000}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{snapshotAt: 1735901379000}]) {
         page(limit: 1, offset: 0) {
           src {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
           dst {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
@@ -423,7 +590,11 @@ def test_apply_view_snapshot_at():
     edge(src: "6", dst: "7") {
       applyViews(views: [{snapshotAt: 1735901379000}]) {
         src {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -432,35 +603,70 @@ def test_apply_view_snapshot_at():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": 1736035200000},
+            "applyViews": {"latestTime": {"timestamp": 1736035200000}},
             "nodes": {
                 "applyViews": {
-                    "page": [{"history": [1735689600000, 1735776000000, 1735862400000]}]
+                    "page": [
+                        {
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735689600000,
+                                        1735776000000,
+                                        1735776000000,
+                                        1735862400000,
+                                        1735862400000,
+                                    ]
+                                }
+                            }
+                        }
+                    ]
                 }
             },
             "node": {
-                "applyViews": {"history": [1735689600000, 1735776000000, 1735862400000]}
+                "applyViews": {
+                    "history": {
+                        "timestamps": {
+                            "list": [1735689600000, 1735776000000, 1735862400000]
+                        }
+                    }
+                }
             },
             "edges": {
                 "applyViews": {
                     "page": [
                         {
                             "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735689600000,
+                                            1735776000000,
+                                            1735776000000,
+                                            1735862400000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
                             },
                             "dst": {
-                                "history": [1735689600000, 1735776000000, 1735862400000]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                }
                             },
                         }
                     ]
                 }
             },
-            "edge": {"applyViews": {"src": {"history": [1736035200000]}}},
+            "edge": {"applyViews": {"src": {"history": {"timestamps": {"list": []}}}}},
         }
     }
     run_graphql_test(query, correct, graph)
@@ -476,7 +682,9 @@ def test_apply_view_window():
       start: 1735689600000
       end: 1735862400000
     }}]) {
-    	latestTime
+    	latestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{window: {
@@ -484,7 +692,11 @@ def test_apply_view_window():
       end: 1735862400000
     }}]) {
         page( limit: 1,offset: 0) {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -493,7 +705,11 @@ def test_apply_view_window():
         start: 1735689600000
       end: 1735862400000
     }}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
@@ -503,21 +719,33 @@ def test_apply_view_window():
     }}]) {
         page(limit: 1, offset: 0) {
           src {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
           dst {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
     }
     edge(src: "1", dst: "2") {
        applyViews(views: [{window: {
-     start: 1735689600000
-      end: 1735862400000
-    }}]) {
+          start: 1735689600000
+          end: 1735862400000
+        }}]) {
         src {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -526,25 +754,55 @@ def test_apply_view_window():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": 1735776000000},
+            "applyViews": {"latestTime": {"timestamp": 1735776000000}},
             "nodes": {
-                "applyViews": {"page": [{"history": [1735689600000, 1735776000000]}]}
+                "applyViews": {
+                    "page": [
+                        {
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735689600000,
+                                        1735776000000,
+                                        1735776000000,
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
             },
-            "node": {"applyViews": {"history": [1735689600000, 1735776000000]}},
+            "node": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": [1735689600000, 1735776000000]}}
+                }
+            },
             "edges": {
                 "applyViews": {
                     "page": [
                         {
                             "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735689600000,
+                                            1735776000000,
+                                            1735776000000,
+                                        ]
+                                    }
+                                }
                             },
                             "dst": {
-                                "history": [1735689600000, 1735776000000, 1735862400000]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                        ]
+                                    }
+                                }
                             },
                         }
                     ]
@@ -553,12 +811,16 @@ def test_apply_view_window():
             "edge": {
                 "applyViews": {
                     "src": {
-                        "history": [
-                            1735689600000,
-                            1735776000000,
-                            1735862400000,
-                            1735948800000,
-                        ]
+                        "history": {
+                            "timestamps": {
+                                "list": [
+                                    1735689600000,
+                                    1735689600000,
+                                    1735776000000,
+                                    1735776000000,
+                                ]
+                            }
+                        }
                     }
                 }
             },
@@ -575,28 +837,46 @@ def test_apply_view_before():
 {
   graph(path: "g") {
     applyViews(views: [{before: 1735862400000}]) {
-      latestTime
+      latestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{before: 1735862400000}]) {
         page(limit: 1, offset: 0) {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "2") {
       applyViews(views: [{before: 1735862400000}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{before: 1735862400000}]) {
         page(limit: 1, offset: 0) {
           src {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
           dst {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
@@ -604,7 +884,11 @@ def test_apply_view_before():
     edge(src: "1", dst: "2") {
       applyViews(views: [{before: 1735862400000}]) {
         src {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -613,25 +897,55 @@ def test_apply_view_before():
 
     correct = {
         "graph": {
-            "applyViews": {"latestTime": 1735776000000},
+            "applyViews": {"latestTime": {"timestamp": 1735776000000}},
             "nodes": {
-                "applyViews": {"page": [{"history": [1735689600000, 1735776000000]}]}
+                "applyViews": {
+                    "page": [
+                        {
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735689600000,
+                                        1735776000000,
+                                        1735776000000,
+                                    ]
+                                }
+                            }
+                        }
+                    ]
+                }
             },
-            "node": {"applyViews": {"history": [1735689600000, 1735776000000]}},
+            "node": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": [1735689600000, 1735776000000]}}
+                }
+            },
             "edges": {
                 "applyViews": {
                     "page": [
                         {
                             "src": {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735689600000,
+                                            1735776000000,
+                                            1735776000000,
+                                        ]
+                                    }
+                                }
                             },
                             "dst": {
-                                "history": [1735689600000, 1735776000000, 1735862400000]
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                        ]
+                                    }
+                                }
                             },
                         }
                     ]
@@ -640,12 +954,16 @@ def test_apply_view_before():
             "edge": {
                 "applyViews": {
                     "src": {
-                        "history": [
-                            1735689600000,
-                            1735776000000,
-                            1735862400000,
-                            1735948800000,
-                        ]
+                        "history": {
+                            "timestamps": {
+                                "list": [
+                                    1735689600000,
+                                    1735689600000,
+                                    1735776000000,
+                                    1735776000000,
+                                ]
+                            }
+                        }
                     }
                 }
             },
@@ -662,24 +980,38 @@ def test_apply_view_after():
 {
   graph(path: "g") {
     applyViews(views: [{after: 6}]) {
-      latestTime
+      latestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{after: 6}]) {
         list {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "2") {
       applyViews(views: [{after: 3}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{after: 6}]) {
         list {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
           src {
             name
           }
@@ -691,7 +1023,11 @@ def test_apply_view_after():
     }
     edge(src: "1", dst: "2") {
       applyViews(views: [{after: 3}]) {
-       history
+       history {
+        timestamps {
+          list
+        }
+      }
         src {
           name
         }
@@ -702,19 +1038,46 @@ def test_apply_view_after():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": None},
-            "nodes": {"applyViews": {"list": []}},
-            "node": {"applyViews": {"history": []}},
+            "applyViews": {"latestTime": {"timestamp": None}},
+            "nodes": {
+                "applyViews": {
+                    "list": [
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
+                        {"history": {"timestamps": {"list": []}}},
+                    ]
+                }
+            },
+            "node": {"applyViews": {"history": {"timestamps": {"list": []}}}},
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
-                        {"history": [], "src": {"name": "6"}, "dst": {"name": "7"}},
-                    ],
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
+                    ]
                 }
             },
-            "edge": {"applyViews": {"history": [], "src": {"name": "1"}}},
+            "edge": {
+                "applyViews": {
+                    "history": {"timestamps": {"list": []}},
+                    "src": {"name": "1"},
+                }
+            },
         }
     }
     run_graphql_test(query, correct, graph)
@@ -727,7 +1090,9 @@ def test_apply_view_shrink_window():
 {
   graph(path: "g") {
     applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
-      latestTime
+      latestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
@@ -738,13 +1103,21 @@ def test_apply_view_shrink_window():
     }
     node(name: "2") {
       applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
         list {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
           src {
             name
           }
@@ -756,7 +1129,11 @@ def test_apply_view_shrink_window():
     }
     edge(src: "1", dst: "2") {
       applyViews(views: [{shrinkWindow: {start: 1736035200000, end: 1736121600000}}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
         src {
           name
         }
@@ -770,16 +1147,34 @@ def test_apply_view_shrink_window():
 
     correct = {
         "graph": {
-            "applyViews": {"latestTime": 1736035200000},
-            "nodes": {"applyViews": {"list": [{"name": "6"}, {"name": "7"}]}},
-            "node": {"applyViews": {"history": []}},
+            "applyViews": {"latestTime": {"timestamp": 1736035200000}},
+            "nodes": {
+                "applyViews": {
+                    "list": [
+                        {"name": "1"},
+                        {"name": "2"},
+                        {"name": "3"},
+                        {"name": "6"},
+                        {"name": "7"},
+                    ]
+                }
+            },
+            "node": {"applyViews": {"history": {"timestamps": {"list": []}}}},
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
                         {
-                            "history": [1736035200000],
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
                             "src": {"name": "6"},
                             "dst": {"name": "7"},
                         },
@@ -788,7 +1183,7 @@ def test_apply_view_shrink_window():
             },
             "edge": {
                 "applyViews": {
-                    "history": [],
+                    "history": {"timestamps": {"list": []}},
                     "src": {"name": "1"},
                     "dst": {"name": "2"},
                 }
@@ -805,7 +1200,9 @@ def test_apply_view_shrink_start():
 {
   graph(path: "g") {
     applyViews(views: [{shrinkStart:  1736035200000}]) {
-      latestTime
+      latestTime {
+        timestamp
+      }
     }
     nodes {
      applyViews(views: [{shrinkStart:  1736035200000}]) {
@@ -816,13 +1213,21 @@ def test_apply_view_shrink_start():
     }
     node(name: "2") {
      applyViews(views: [{shrinkStart:  1736035200000}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
    applyViews(views: [{shrinkStart:  1736035200000}]) {
         list {
-           history
+           history {
+            timestamps {
+              list
+            }
+          }
           src {
             name
           }
@@ -834,7 +1239,11 @@ def test_apply_view_shrink_start():
     }
     edge(src: "1", dst: "2") {
     applyViews(views: [{shrinkStart:  1736035200000}]) {
-    history
+    history {
+      timestamps {
+        list
+      }
+    }
         src {
           name
         }
@@ -848,16 +1257,34 @@ def test_apply_view_shrink_start():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": 1736035200000},
-            "nodes": {"applyViews": {"list": [{"name": "6"}, {"name": "7"}]}},
-            "node": {"applyViews": {"history": []}},
+            "applyViews": {"latestTime": {"timestamp": 1736035200000}},
+            "nodes": {
+                "applyViews": {
+                    "list": [
+                        {"name": "1"},
+                        {"name": "2"},
+                        {"name": "3"},
+                        {"name": "6"},
+                        {"name": "7"},
+                    ]
+                }
+            },
+            "node": {"applyViews": {"history": {"timestamps": {"list": []}}}},
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
                         {
-                            "history": [1736035200000],
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
                             "src": {"name": "6"},
                             "dst": {"name": "7"},
                         },
@@ -866,7 +1293,7 @@ def test_apply_view_shrink_start():
             },
             "edge": {
                 "applyViews": {
-                    "history": [],
+                    "history": {"timestamps": {"list": []}},
                     "src": {"name": "1"},
                     "dst": {"name": "2"},
                 }
@@ -883,7 +1310,9 @@ def test_apply_view_shrink_end():
 {
   graph(path: "g") {
     applyViews(views: [{shrinkEnd:  1735776000000}]) {
-      latestTime
+      latestTime {
+        timestamp
+      }
     }
     nodes {
      applyViews(views: [{shrinkEnd:  1735776000000}]) {
@@ -894,13 +1323,21 @@ def test_apply_view_shrink_end():
     }
     node(name: "2") {
      applyViews(views: [{shrinkEnd:  1735776000000}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
    applyViews(views: [{shrinkEnd:  1735776000000}]) {
         list {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
           src {
             name
           }
@@ -912,7 +1349,11 @@ def test_apply_view_shrink_end():
     }
     edge(src: "1", dst: "2") {
     applyViews(views: [{shrinkEnd:  1735776000000}]) {
-    history
+    history {
+      timestamps {
+        list
+      }
+    }
         src {
           name
         }
@@ -926,25 +1367,45 @@ def test_apply_view_shrink_end():
 """
     correct = {
         "graph": {
-            "applyViews": {"latestTime": 1735689600000},
-            "nodes": {"applyViews": {"list": [{"name": "1"}, {"name": "2"}]}},
-            "node": {"applyViews": {"history": [1735689600000]}},
+            "applyViews": {"latestTime": {"timestamp": 1735689600000}},
+            "nodes": {
+                "applyViews": {
+                    "list": [
+                        {"name": "1"},
+                        {"name": "2"},
+                        {"name": "3"},
+                        {"name": "6"},
+                        {"name": "7"},
+                    ]
+                }
+            },
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "list": [
                         {
-                            "history": [1735689600000],
+                            "history": {"timestamps": {"list": [1735689600000]}},
                             "src": {"name": "1"},
                             "dst": {"name": "2"},
                         },
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
-                        {"history": [], "src": {"name": "6"}, "dst": {"name": "7"}},
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
             "edge": {
                 "applyViews": {
-                    "history": [1735689600000],
+                    "history": {"timestamps": {"list": [1735689600000]}},
                     "src": {"name": "1"},
                     "dst": {"name": "2"},
                 }
@@ -961,25 +1422,39 @@ def test_apply_view_layers():
 {
   graph(path: "g") {
     applyViews(views: [{layers: ["finds", "Person"]}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{layers: ["finds", "Person"]}]) {
         list {
           name
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "1") {
       applyViews(views: [{layers: ["finds"]}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{layers: ["finds", "Person"]}]) {
         list {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
           src {
             name
           }
@@ -991,7 +1466,11 @@ def test_apply_view_layers():
     }
     edge(src: "1", dst: "2") {
     applyViews(views: [{layers: ["finds", "met"]}]) {
-    history
+    history {
+      timestamps {
+        list
+      }
+    }
         src {
           name
         }
@@ -1005,24 +1484,51 @@ def test_apply_view_layers():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1735689600000},
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "list": [
-                        {"history": [1735689600000], "name": "1"},
-                        {"history": [1736035200000], "name": "6"},
-                        {"history": [1736035200000], "name": "7"},
+                        {
+                            "name": "1",
+                            "history": {"timestamps": {"list": [1735689600000]}},
+                        },
+                        {
+                            "name": "2",
+                            "history": {"timestamps": {"list": []}},
+                        },
+                        {
+                            "name": "3",
+                            "history": {"timestamps": {"list": []}},
+                        },
+                        {
+                            "name": "6",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
+                        {
+                            "name": "7",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
                     ]
                 }
             },
-            "node": {"applyViews": {"history": [1735689600000]}},
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
                         {
-                            "history": [1736035200000],
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
                             "src": {"name": "6"},
                             "dst": {"name": "7"},
                         },
@@ -1031,7 +1537,7 @@ def test_apply_view_layers():
             },
             "edge": {
                 "applyViews": {
-                    "history": [1735689600000],
+                    "history": {"timestamps": {"list": [1735689600000]}},
                     "src": {"name": "1"},
                     "dst": {"name": "2"},
                 }
@@ -1047,26 +1553,40 @@ def test_apply_view_layer():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{layer: "Person"}]) {
-      earliestTime
+    applyViews(views: [{layers: ["Person"]}]) {
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
      applyViews(views: [{typeFilter: ["Person"]}]) {
         list {
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
           name
         }
       }
     }
     node(name: "1") {
-      applyViews(views: [{layer: "finds"}]) {
-        history
+      applyViews(views: [{layers: ["finds"]}]) {
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
-      applyViews(views: [{layer: "finds"}]) {
+      applyViews(views: [{layers: ["finds"]}]) {
         list {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
           src {
             name
           }
@@ -1077,8 +1597,12 @@ def test_apply_view_layer():
       }
     }
     edge(src: "1", dst: "2") {
-  applyViews(views: [{layer: "met"}]) {
-  history
+  applyViews(views: [{layers: ["met"]}]) {
+  history {
+    timestamps {
+      list
+    }
+  }
         src {
           name
         }
@@ -1091,30 +1615,47 @@ def test_apply_view_layer():
 }"""
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1735689600000},
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "list": [
                         {
-                            "history": [
-                                1735689600000,
-                                1735776000000,
-                                1735862400000,
-                                1735948800000,
-                            ],
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735689600000,
+                                        1735776000000,
+                                        1735776000000,
+                                        1735862400000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                             "name": "1",
                         }
                     ]
                 }
             },
-            "node": {"applyViews": {"history": [1735689600000]}},
+            "node": {
+                "applyViews": {"history": {"timestamps": {"list": [1735689600000]}}}
+            },
             "edges": {
                 "applyViews": {
                     "list": [
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "2"}},
-                        {"history": [], "src": {"name": "1"}, "dst": {"name": "3"}},
                         {
-                            "history": [1736035200000],
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "2"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "1"},
+                            "dst": {"name": "3"},
+                        },
+                        {
+                            "history": {"timestamps": {"list": [1736035200000]}},
                             "src": {"name": "6"},
                             "dst": {"name": "7"},
                         },
@@ -1123,7 +1664,7 @@ def test_apply_view_layer():
             },
             "edge": {
                 "applyViews": {
-                    "history": [1735689600000],
+                    "history": {"timestamps": {"list": [1735689600000]}},
                     "src": {"name": "1"},
                     "dst": {"name": "2"},
                 }
@@ -1140,25 +1681,39 @@ def test_apply_view_exclude_layer():
 {
   graph(path: "g") {
     applyViews(views: [{excludeLayer: "Person"}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{excludeLayer: "Person"}]) {
         list {
         name
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "1") {
       applyViews(views: [{excludeLayer: "Person"}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{excludeLayer: "finds"}]) {
         list {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
           src {
             name
           }
@@ -1170,7 +1725,11 @@ def test_apply_view_exclude_layer():
     }
     edge(src: "6", dst: "7") {
       applyViews(views: [{excludeLayer: "finds"}]) {
-      history
+      history {
+        timestamps {
+          list
+        }
+      }
         src {
           name
         }
@@ -1184,57 +1743,109 @@ def test_apply_view_exclude_layer():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1735689600000},
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "list": [
                         {
-                            "history": [
-                                1735689600000,
-                                1735776000000,
-                                1735862400000,
-                                1735948800000,
-                            ],
                             "name": "1",
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735689600000,
+                                        1735776000000,
+                                        1735776000000,
+                                        1735862400000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                         },
                         {
-                            "history": [1735689600000, 1735776000000, 1735862400000],
                             "name": "2",
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735776000000,
+                                        1735862400000,
+                                    ]
+                                }
+                            },
                         },
                         {
-                            "history": [1735776000000, 1735862400000, 1735948800000],
                             "name": "3",
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                         },
-                        {"history": [1736035200000], "name": "6"},
-                        {"history": [1736035200000], "name": "7"},
+                        {
+                            "name": "6",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
+                        {
+                            "name": "7",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
                     ]
                 }
             },
             "node": {
                 "applyViews": {
-                    "history": [
-                        1735689600000,
-                        1735776000000,
-                        1735862400000,
-                        1735948800000,
-                    ]
+                    "history": {
+                        "timestamps": {
+                            "list": [
+                                1735689600000,
+                                1735689600000,
+                                1735776000000,
+                                1735776000000,
+                                1735862400000,
+                                1735862400000,
+                                1735948800000,
+                            ]
+                        }
+                    }
                 }
             },
             "edges": {
                 "applyViews": {
                     "list": [
                         {
-                            "history": [1735689600000, 1735776000000, 1735862400000],
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735776000000,
+                                        1735862400000,
+                                    ]
+                                }
+                            },
                             "src": {"name": "1"},
                             "dst": {"name": "2"},
                         },
                         {
-                            "history": [1735776000000, 1735862400000, 1735948800000],
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                             "src": {"name": "1"},
                             "dst": {"name": "3"},
                         },
                         {
-                            "history": [],
+                            "history": {"timestamps": {"list": []}},
                             "src": {"name": "6"},
                             "dst": {"name": "7"},
                         },
@@ -1243,7 +1854,7 @@ def test_apply_view_exclude_layer():
             },
             "edge": {
                 "applyViews": {
-                    "history": [],
+                    "history": {"timestamps": {"list": []}},
                     "src": {"name": "6"},
                     "dst": {"name": "7"},
                 }
@@ -1260,25 +1871,39 @@ def test_apply_view_exclude_layers():
 {
   graph(path: "g") {
     applyViews(views: [{excludeLayers: ["Person", "finds"]}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
     nodes {
       applyViews(views: [{excludeLayers: ["Person"]}]) {
         list {
         name
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
     node(name: "1") {
       applyViews(views: [{excludeLayers: ["Person"]}]) {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
       }
     }
     edges {
       applyViews(views: [{excludeLayers: ["finds", "met"]}]) {
         list {
-        history
+        history {
+          timestamps {
+            list
+          }
+        }
           src {
             name
           }
@@ -1290,7 +1915,11 @@ def test_apply_view_exclude_layers():
     }
     edge(src: "6", dst: "7") {
      applyViews(views: [{excludeLayers: ["finds"]}]) {
-     history
+     history {
+      timestamps {
+        list
+      }
+    }
         src {
           name
         }
@@ -1304,62 +1933,112 @@ def test_apply_view_exclude_layers():
 """
     correct = {
         "graph": {
-            "applyViews": {"earliestTime": 1735689600000},
+            "applyViews": {"earliestTime": {"timestamp": 1735689600000}},
             "nodes": {
                 "applyViews": {
                     "list": [
                         {
-                            "history": [
-                                1735689600000,
-                                1735776000000,
-                                1735862400000,
-                                1735948800000,
-                            ],
                             "name": "1",
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735689600000,
+                                        1735776000000,
+                                        1735776000000,
+                                        1735862400000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                         },
                         {
-                            "history": [1735689600000, 1735776000000, 1735862400000],
                             "name": "2",
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735689600000,
+                                        1735776000000,
+                                        1735862400000,
+                                    ]
+                                }
+                            },
                         },
                         {
-                            "history": [1735776000000, 1735862400000, 1735948800000],
                             "name": "3",
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                         },
-                        {"history": [1736035200000], "name": "6"},
-                        {"history": [1736035200000], "name": "7"},
+                        {
+                            "name": "6",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
+                        {
+                            "name": "7",
+                            "history": {"timestamps": {"list": [1736035200000]}},
+                        },
                     ]
                 }
             },
             "node": {
                 "applyViews": {
-                    "history": [
-                        1735689600000,
-                        1735776000000,
-                        1735862400000,
-                        1735948800000,
-                    ]
+                    "history": {
+                        "timestamps": {
+                            "list": [
+                                1735689600000,
+                                1735689600000,
+                                1735776000000,
+                                1735776000000,
+                                1735862400000,
+                                1735862400000,
+                                1735948800000,
+                            ]
+                        }
+                    }
                 }
             },
             "edges": {
                 "applyViews": {
                     "list": [
                         {
-                            "history": [1735776000000, 1735862400000],
+                            "history": {
+                                "timestamps": {"list": [1735776000000, 1735862400000]}
+                            },
                             "src": {"name": "1"},
                             "dst": {"name": "2"},
                         },
                         {
-                            "history": [1735776000000, 1735862400000, 1735948800000],
+                            "history": {
+                                "timestamps": {
+                                    "list": [
+                                        1735776000000,
+                                        1735862400000,
+                                        1735948800000,
+                                    ]
+                                }
+                            },
                             "src": {"name": "1"},
                             "dst": {"name": "3"},
                         },
-                        {"history": [], "src": {"name": "6"}, "dst": {"name": "7"}},
+                        {
+                            "history": {"timestamps": {"list": []}},
+                            "src": {"name": "6"},
+                            "dst": {"name": "7"},
+                        },
                     ]
                 }
             },
             "edge": {
                 "applyViews": {
-                    "history": [],
+                    "history": {"timestamps": {"list": []}},
                     "src": {"name": "6"},
                     "dst": {"name": "7"},
                 }
@@ -1396,13 +2075,15 @@ def test_apply_view_exclude_nodes():
 {
   graph(path: "g") {
     applyViews(views: [{excludeNodes: ["6", "7"]}]) {
-      latestTime
+      latestTime {
+        timestamp
+      }
     }
   }
 }"""
     correct = {
         "graph": {
-            "applyViews": {"latestTime": 1735948800000},
+            "applyViews": {"latestTime": {"timestamp": 1735948800000}},
         }
     }
     run_graphql_test(query, correct, graph)
@@ -1435,11 +2116,17 @@ def test_apply_view_nested():
 {
    graph(path: "g") {
     applyViews(views: [{layers: ["finds"]}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
       edges {
         applyViews(views: [{layers: ["finds"]}]) {
           list {
-            history
+            history {
+              timestamps {
+                list
+              }
+            }
           }
         }
       }
@@ -1449,8 +2136,12 @@ def test_apply_view_nested():
     correct = {
         "graph": {
             "applyViews": {
-                "earliestTime": 1735689600000,
-                "edges": {"applyViews": {"list": [{"history": [1736035200000]}]}},
+                "earliestTime": {"timestamp": 1735689600000},
+                "edges": {
+                    "applyViews": {
+                        "list": [{"history": {"timestamps": {"list": [1736035200000]}}}]
+                    }
+                },
             }
         }
     }
@@ -1467,7 +2158,9 @@ def test_apply_view_invalid_argument():
 {
   graph(path: "g") {
     applyViews(views: [{layers: "finds"}]) {
-      earliestTime
+      earliestTime {
+        timestamp
+      }
     }
   }
   }
@@ -1480,30 +2173,27 @@ def test_apply_view_node_filter():
     graph = Graph()
     create_graph_date(graph)
     query = """
-{
-  graph(path: "g") {
-    applyViews(views: [
-      {
-        nodeFilter: {
-            property: {
-              name: "where"
-              operator: EQUAL
-              value: {str: "Berlin"}
-
+    {
+      graph(path: "g") {
+        applyViews(views: [
+          {
+            nodeFilter: {
+              property: {
+                name: "where"
+                where: { eq: { str: "Berlin" } }
+              }
+            }
+          }
+        ]) {
+          nodes {
+            list {
+              name
+            }
           }
         }
       }
-
-    ]) {
-       nodes {
-        list {
-          name
-        }
-      }
     }
-  }
-  }
-"""
+    """
     correct = {"graph": {"applyViews": {"nodes": {"list": [{"name": "1"}]}}}}
     run_graphql_test(query, correct, graph)
 
@@ -1512,32 +2202,38 @@ def test_apply_view_edge_filter():
     graph = Graph()
     create_graph_date(graph)
     query = """
-{
-  graph(path: "g") {
-    applyViews(views: [
-      {
-        edgeFilter: {
-            property: {
-              name: "where"
-              operator: EQUAL
-              value: {str: "fishbowl"}
-
+    {
+      graph(path: "g") {
+        applyViews(views: [
+          {
+            edgeFilter: {
+              property: {
+                name: "where"
+                where: { eq: { str: "fishbowl" } }
+              }
+            }
+          }
+        ]) {
+          edges {
+            list {
+              history{
+            timestamps {
+              list
+            }
+          }}
           }
         }
       }
-
-    ]) {
-       edges {
-        list {
-          history
-        }
-      }
     }
-  }
-  }
-"""
+    """
     correct = {
-        "graph": {"applyViews": {"edges": {"list": [{"history": [1736035200000]}]}}}
+        "graph": {
+            "applyViews": {
+                "edges": {
+                    "list": [{"history": {"timestamps": {"list": [1736035200000]}}}]
+                }
+            }
+        }
     }
     run_graphql_test(query, correct, graph)
 
@@ -1588,11 +2284,15 @@ def test_apply_view_nodes_multiple_views():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layer: "Person"}]) {
+    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: ["Person"]}]) {
       nodes {
         list {
           name
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -1604,7 +2304,7 @@ def test_apply_view_nodes_multiple_views():
                 "nodes": {
                     "list": [
                         {
-                            "history": [1735689600000],
+                            "history": {"timestamps": {"list": [1735689600000]}},
                             "name": "1",
                         },
                     ]
@@ -1621,7 +2321,7 @@ def test_apply_view_edges_multiple_views():
     query = """
 {
   graph(path: "g") {
-    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layer: "met"}]) {
+    applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}, {layers: ["met"]}]) {
       edges {
         list {
           src {
@@ -1630,7 +2330,11 @@ def test_apply_view_edges_multiple_views():
           dst {
             name
           }
-          history
+          history {
+            timestamps {
+              list
+            }
+          }
         }
       }
     }
@@ -1643,7 +2347,7 @@ def test_apply_view_edges_multiple_views():
                     "list": [
                         {
                             "dst": {"name": "2"},
-                            "history": [1735689600000],
+                            "history": {"timestamps": {"list": [1735689600000]}},
                             "src": {"name": "1"},
                         },
                     ]
@@ -1658,26 +2362,41 @@ def test_apply_view_a_lot_of_views():
     graph = Graph()
     create_graph_date(graph)
     query = """
-{
-  graph(path: "g") {
-      nodes{
-         applyViews(views: [
-        {window: {start: 1735689600000, end: 1735862400000}},
-        {layer: "follows"},
-        {nodeFilter: {property: {name: "where", operator: EQUAL, value: {str: "Berlin"}}}},
-      ]) {
-      list {
-          name
-          history
+    {
+      graph(path: "g") {
+        nodes {
+          applyViews(views: [
+            { window: { start: 1735689600000, end: 1735862400000 } },
+            { layers: ["follows"] },
+            { nodeFilter: { property: { name: "where", where: { eq: { str: "Berlin" } } } } }
+          ]) {
+            list {
+              name
+              history{
+            timestamps {
+              list
+            }
+          }}
+          }
         }
       }
     }
-}
-}"""
+    """
     correct = {
         "graph": {
             "nodes": {
-                "applyViews": {"list": [{"history": [1735689600000], "name": "1"}]}
+                "applyViews": {
+                    "list": [
+                        {
+                            "name": "1",
+                            "history": {"timestamps": {"list": [1735689600000]}},
+                        },
+                        {"name": "2", "history": {"timestamps": {"list": []}}},
+                        {"name": "3", "history": {"timestamps": {"list": []}}},
+                        {"name": "6", "history": {"timestamps": {"list": []}}},
+                        {"name": "7", "history": {"timestamps": {"list": []}}},
+                    ]
+                }
             }
         }
     }
@@ -1690,17 +2409,22 @@ def test_apply_view_neighbours():
     query = """
 {
   graph(path: "g") {
-      nodes {
-        list {
-          neighbours {
-            applyViews(views: [{latest: true}]) {
-              list {
+    nodes {
+      list {
+        neighbours {
+          applyViews(views: [{latest: true}]) {
+            list {
               name
-              history}
+              history {
+                timestamps {
+                  list
+                }
               }
             }
           }
         }
+      }
+    }
   }
 }"""
 
@@ -1712,33 +2436,67 @@ def test_apply_view_neighbours():
                         "neighbours": {
                             "applyViews": {
                                 "list": [
-                                    {"history": [], "name": "2"},
-                                    {"history": [], "name": "3"},
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "2",
+                                    },
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "3",
+                                    },
                                 ]
                             }
                         }
                     },
                     {
                         "neighbours": {
-                            "applyViews": {"list": [{"history": [], "name": "1"}]}
-                        }
-                    },
-                    {
-                        "neighbours": {
-                            "applyViews": {"list": [{"history": [], "name": "1"}]}
-                        }
-                    },
-                    {
-                        "neighbours": {
                             "applyViews": {
-                                "list": [{"history": [1736035200000], "name": "7"}]
+                                "list": [
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "1",
+                                    }
+                                ]
                             }
                         }
                     },
                     {
                         "neighbours": {
                             "applyViews": {
-                                "list": [{"history": [1736035200000], "name": "6"}]
+                                "list": [
+                                    {
+                                        "history": {"timestamps": {"list": []}},
+                                        "name": "1",
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "timestamps": {"list": [1736035200000]}
+                                        },
+                                        "name": "7",
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    {
+                        "neighbours": {
+                            "applyViews": {
+                                "list": [
+                                    {
+                                        "history": {
+                                            "timestamps": {"list": [1736035200000]}
+                                        },
+                                        "name": "6",
+                                    }
+                                ]
                             }
                         }
                     },
@@ -1756,18 +2514,21 @@ def test_apply_view_neighbours_latest():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
+    node(name: "1") {
       neighbours {
-            applyViews(views: [{latest: true}]) {
-                list {
-                  name
-                  history
-                }
+        applyViews(views: [{latest: true}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
               }
-
             }
           }
         }
+      }
+    }
+  }
 }"""
     correct = {
         "graph": {
@@ -1775,8 +2536,8 @@ def test_apply_view_neighbours_latest():
                 "neighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [], "name": "2"},
-                            {"history": [], "name": "3"},
+                            {"history": {"timestamps": {"list": []}}, "name": "2"},
+                            {"history": {"timestamps": {"list": []}}, "name": "3"},
                         ]
                     }
                 }
@@ -1793,16 +2554,20 @@ def test_apply_view_neighbours_layer():
     query = """
 {
   graph(path: "g") {
-      node(name: "6") {
-          neighbours {
-            applyViews(views: [{layer: "finds"}]) {
-              list {
-              name
-              history}
+    node(name: "6") {
+      neighbours {
+        applyViews(views: [{layers: ["finds"]}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
               }
             }
-
+          }
         }
+      }
+    }
   }
 }"""
 
@@ -1810,7 +2575,14 @@ def test_apply_view_neighbours_layer():
         "graph": {
             "node": {
                 "neighbours": {
-                    "applyViews": {"list": [{"history": [1736035200000], "name": "7"}]}
+                    "applyViews": {
+                        "list": [
+                            {
+                                "history": {"timestamps": {"list": [1736035200000]}},
+                                "name": "7",
+                            }
+                        ]
+                    }
                 }
             }
         }
@@ -1825,23 +2597,31 @@ def test_apply_view_neighbours_exclude_layer():
     query = """
 {
   graph(path: "g") {
-      node(name: "6") {
-          neighbours {
-            applyViews(views: [{excludeLayer: "finds"}]) {
-              list {
-              name
-              history}
+    node(name: "6") {
+      neighbours {
+        applyViews(views: [{excludeLayer: "finds"}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
               }
             }
-
+          }
         }
+      }
+    }
   }
 }"""
 
     correct = {
         "graph": {
             "node": {
-                "neighbours": {"applyViews": {"list": [{"history": [], "name": "7"}]}}
+                "neighbours": {
+                    "applyViews": {
+                        "list": [{"history": {"timestamps": {"list": []}}, "name": "7"}]
+                    }
+                }
             }
         }
     }
@@ -1855,18 +2635,22 @@ def test_apply_view_neighbours_layers():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          neighbours {
-            applyViews(views: [{layers: ["met", "Person"]}]) {
-                list {
-                  name
-                  history
-                }
+    node(name: "1") {
+      neighbours {
+        applyViews(views: [{layers: ["met", "Person"]}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
               }
             }
-              }
-              }
-              }"""
+          }
+        }
+      }
+    }
+  }
+}"""
 
     correct = {
         "graph": {
@@ -1874,8 +2658,11 @@ def test_apply_view_neighbours_layers():
                 "neighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [1735689600000], "name": "2"},
-                            {"history": [], "name": "3"},
+                            {
+                                "history": {"timestamps": {"list": [1735689600000]}},
+                                "name": "2",
+                            },
+                            {"history": {"timestamps": {"list": []}}, "name": "3"},
                         ]
                     }
                 }
@@ -1891,18 +2678,22 @@ def test_apply_view_neighbours_exclude_layers():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          neighbours {
-            applyViews(views: [{excludeLayers: ["met", "Person"]}]) {
-                list {
-                  name
-                  history
-                }
+    node(name: "1") {
+      neighbours {
+        applyViews(views: [{excludeLayers: ["met", "Person"]}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
               }
             }
-              }
-              }
-              }"""
+          }
+        }
+      }
+    }
+  }
+}"""
 
     correct = {
         "graph": {
@@ -1910,14 +2701,25 @@ def test_apply_view_neighbours_exclude_layers():
                 "neighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [1735776000000, 1735862400000], "name": "2"},
                             {
-                                "history": [
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ],
+                                "name": "2",
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735776000000, 1735862400000]
+                                    }
+                                },
+                            },
+                            {
                                 "name": "3",
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735776000000,
+                                            1735862400000,
+                                            1735948800000,
+                                        ]
+                                    }
+                                },
                             },
                         ]
                     }
@@ -1934,26 +2736,33 @@ def test_apply_view_neighbours_after():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          neighbours {
-            applyViews(views: [{after: 1735862400000}]) {
-                list {
-                  name
-                  history
-                }
+    node(name: "1") {
+      neighbours {
+        applyViews(views: [{after: 1735862400000}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
               }
             }
-              }
-              }
-              }"""
+          }
+        }
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
                 "neighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [], "name": "2"},
-                            {"history": [1735948800000], "name": "3"},
+                            {"history": {"timestamps": {"list": []}}, "name": "2"},
+                            {
+                                "history": {"timestamps": {"list": [1735948800000]}},
+                                "name": "3",
+                            },
                         ]
                     }
                 }
@@ -1969,26 +2778,40 @@ def test_apply_view_neighbours_before():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          neighbours {
-            applyViews(views: [{before: 1735862400000}]) {
-                list {
-                  name
-                  history
-                }
+    node(name: "1") {
+      neighbours {
+        applyViews(views: [{before: 1735862400000}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
               }
             }
+          }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
                 "neighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [1735689600000, 1735776000000], "name": "2"},
-                            {"history": [1735776000000], "name": "3"},
+                            {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735689600000, 1735776000000]
+                                    }
+                                },
+                                "name": "2",
+                            },
+                            {
+                                "history": {"timestamps": {"list": [1735776000000]}},
+                                "name": "3",
+                            },
                         ]
                     }
                 }
@@ -2004,18 +2827,22 @@ def test_apply_view_in_neighbours_window():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          inNeighbours {
-          applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}]) {
-            list {
-              name
-              history
-            }
+    node(name: "1") {
+      inNeighbours {
+        applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {"graph": {"node": {"inNeighbours": {"applyViews": {"list": []}}}}}
 
     run_graphql_test(query, correct, graph)
@@ -2027,26 +2854,40 @@ def test_apply_view_out_neighbours_window():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          outNeighbours {
-          applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}]) {
-            list {
-              name
-              history
-            }
+    node(name: "1") {
+      outNeighbours {
+        applyViews(views: [{window: {start: 1735689600000, end: 1735862400000}}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
                 "outNeighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [1735689600000, 1735776000000], "name": "2"},
-                            {"history": [1735776000000], "name": "3"},
+                            {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735689600000, 1735776000000]
+                                    }
+                                },
+                                "name": "2",
+                            },
+                            {
+                                "history": {"timestamps": {"list": [1735776000000]}},
+                                "name": "3",
+                            },
                         ]
                     }
                 }
@@ -2063,25 +2904,29 @@ def test_apply_view_out_neighbours_shrink_window():
     query = """
 {
   graph(path: "g") {
-      node(name: "6") {
-          outNeighbours {
-          applyViews(views: [{shrinkWindow: {start: 1735948800000, end: 1736035200000}}]) {
-            list {
-              name
-              history
-            }
+    node(name: "6") {
+      outNeighbours {
+        applyViews(views: [{shrinkWindow: {start: 1735948800000, end: 1736035200000}}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
                 "outNeighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [], "name": "7"},
+                            {"history": {"timestamps": {"list": []}}, "name": "7"},
                         ]
                     }
                 }
@@ -2098,25 +2943,32 @@ def test_apply_view_in_neighbours_shrink_start():
     query = """
 {
   graph(path: "g") {
-      node(name: "7") {
-          inNeighbours {
-          applyViews(views: [{shrinkStart: 1735948800000}]) {
-            list {
-              name
-              history
-            }
+    node(name: "7") {
+      inNeighbours {
+        applyViews(views: [{shrinkStart: 1735948800000}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
                 "inNeighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [1736035200000], "name": "6"},
+                            {
+                                "history": {"timestamps": {"list": [1736035200000]}},
+                                "name": "6",
+                            },
                         ]
                     }
                 }
@@ -2132,25 +2984,41 @@ def test_apply_view_in_neighbours_shrink_end():
     query = """
 {
   graph(path: "g") {
-      node(name: "2") {
-          inNeighbours {
-          applyViews(views: [{shrinkEnd: 1735862400000}]) {
-            list {
-              name
-              history
-            }
+    node(name: "2") {
+      inNeighbours {
+        applyViews(views: [{shrinkEnd: 1735862400000}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
                 "inNeighbours": {
                     "applyViews": {
                         "list": [
-                            {"history": [1735689600000, 1735776000000], "name": "1"},
+                            {
+                                "name": "1",
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735689600000,
+                                            1735776000000,
+                                            1735776000000,
+                                        ]
+                                    }
+                                },
+                            }
                         ]
                     }
                 }
@@ -2166,23 +3034,38 @@ def test_apply_view_in_neighbours_at():
     query = """
 {
   graph(path: "g") {
-      node(name: "2") {
-          inNeighbours {
-          applyViews(views: [{at: 1735862400000}]) {
-            list {
-              name
-              history
-            }
+    node(name: "2") {
+      inNeighbours {
+        applyViews(views: [{at: 1735862400000}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
                 "inNeighbours": {
-                    "applyViews": {"list": [{"history": [1735862400000], "name": "1"}]}
+                    "applyViews": {
+                        "list": [
+                            {
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735862400000, 1735862400000]
+                                    }
+                                },
+                                "name": "1",
+                            }
+                        ]
+                    }
                 }
             }
         }
@@ -2196,18 +3079,22 @@ def test_apply_view_out_neighbours_snapshot_latest():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          outNeighbours {
-          applyViews(views: [{snapshotLatest: true}]) {
-            list {
-              name
-              history
-            }
+    node(name: "1") {
+      outNeighbours {
+        applyViews(views: [{snapshotLatest: true}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
@@ -2215,20 +3102,28 @@ def test_apply_view_out_neighbours_snapshot_latest():
                     "applyViews": {
                         "list": [
                             {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                ],
                                 "name": "2",
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                },
                             },
                             {
-                                "history": [
-                                    1735776000000,
-                                    1735862400000,
-                                    1735948800000,
-                                ],
                                 "name": "3",
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735776000000,
+                                            1735862400000,
+                                            1735948800000,
+                                        ]
+                                    }
+                                },
                             },
                         ]
                     }
@@ -2246,18 +3141,22 @@ def test_apply_view_out_neighbours_snapshot_at():
     query = """
 {
   graph(path: "g") {
-      node(name: "1") {
-          outNeighbours {
-          applyViews(views: [{snapshotAt: 1735862400000}]) {
-            list {
-              name
-              history
-            }
+    node(name: "1") {
+      outNeighbours {
+        applyViews(views: [{snapshotAt: 1735862400000}]) {
+          list {
+            name
+            history {
+              timestamps {
+                list
+              }
             }
           }
         }
-        }
-        }"""
+      }
+    }
+  }
+}"""
     correct = {
         "graph": {
             "node": {
@@ -2265,14 +3164,25 @@ def test_apply_view_out_neighbours_snapshot_at():
                     "applyViews": {
                         "list": [
                             {
-                                "history": [
-                                    1735689600000,
-                                    1735776000000,
-                                    1735862400000,
-                                ],
                                 "name": "2",
+                                "history": {
+                                    "timestamps": {
+                                        "list": [
+                                            1735689600000,
+                                            1735776000000,
+                                            1735862400000,
+                                        ]
+                                    }
+                                },
                             },
-                            {"history": [1735776000000, 1735862400000], "name": "3"},
+                            {
+                                "name": "3",
+                                "history": {
+                                    "timestamps": {
+                                        "list": [1735776000000, 1735862400000]
+                                    }
+                                },
+                            },
                         ]
                     }
                 }
@@ -2293,15 +3203,19 @@ def test_valid_graph():
                   edges{
                     list{
                       id
-                      latestTime
+                      latestTime {
+                        timestamp
+                      }
                     }
-                  }
+                  }	
                 }
               }
             }"""
     correct = {
         "graph": {
-            "applyViews": {"edges": {"list": [{"id": ["6", "7"], "latestTime": 5}]}}
+            "applyViews": {
+                "edges": {"list": [{"id": ["6", "7"], "latestTime": {"timestamp": 5}}]}
+            }
         }
     }
     run_graphql_test(query, correct, graph)

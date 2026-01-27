@@ -1,7 +1,7 @@
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{EID, GID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 
 use crate::{
@@ -15,7 +15,7 @@ impl GraphWalOps for NoWal {
     fn log_add_edge(
         &self,
         _transaction_id: TransactionID,
-        _t: TimeIndexEntry,
+        _t: EventTime,
         _src_name: GID,
         _src_id: VID,
         _dst_name: GID,

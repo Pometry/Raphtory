@@ -2,7 +2,7 @@ use raphtory_api::core::{
     entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
     Direction,
 };
-use raphtory_core::{entities::LayerVariants, storage::timeindex::TimeIndexEntry};
+use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
 use std::{borrow::Cow, ops::Range};
 use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
 
@@ -67,10 +67,10 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn temp_prop_rows_range(
         self,
-        w: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)>;
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)>;
 
-    fn temp_prop_rows(self) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+    fn temp_prop_rows(self) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
         self.temp_prop_rows_range(None)
     }
 }
@@ -154,8 +154,8 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
 
     fn temp_prop_rows_range(
         self,
-        w: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, usize, Vec<(usize, Prop)>)> {
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
         NodeRefOps::temp_prop_rows(self, w)
     }
 }

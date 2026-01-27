@@ -8,7 +8,7 @@ use raphtory_api::core::{
         properties::{prop::Prop, tprop::TPropOps},
         LayerIds, ELID,
     },
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorage};
 use rayon::iter::ParallelIterator;
@@ -23,7 +23,7 @@ pub struct FilteredEdgeTimeIndex<'graph, G, TS> {
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<'a, TS: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TS>, G: GraphView + 'a>
+impl<'a, TS: TimeIndexOps<'a, IndexType = EventTime, RangeType = TS>, G: GraphView + 'a>
     FilteredEdgeTimeIndex<'a, G, TS>
 {
     pub fn invert(self) -> InvertedFilteredEdgeTimeIndex<'a, G, TS> {
@@ -40,10 +40,10 @@ impl<'a, TS: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TS>, G: Gr
     }
 }
 
-impl<'a, TS: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TS>, G: GraphView + 'a>
+impl<'a, TS: TimeIndexOps<'a, IndexType = EventTime, RangeType = TS>, G: GraphView + 'a>
     TimeIndexOps<'a> for FilteredEdgeTimeIndex<'a, G, TS>
 {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     #[inline]
@@ -116,10 +116,10 @@ pub struct InvertedFilteredEdgeTimeIndex<'graph, G, TS> {
     _marker: PhantomData<&'graph ()>,
 }
 
-impl<'a, G: GraphView + 'a, TS: TimeIndexOps<'a, IndexType = TimeIndexEntry, RangeType = TS>>
+impl<'a, G: GraphView + 'a, TS: TimeIndexOps<'a, IndexType = EventTime, RangeType = TS>>
     TimeIndexOps<'a> for InvertedFilteredEdgeTimeIndex<'a, G, TS>
 {
-    type IndexType = TimeIndexEntry;
+    type IndexType = EventTime;
     type RangeType = Self;
 
     #[inline]
@@ -195,42 +195,10 @@ pub struct FilteredEdgeTProp<G, P> {
 impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
     for FilteredEdgeTProp<G, P>
 {
-    // fn iter(
-    //     self,
-    // ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-    //     let view = self.view.clone();
-    //     let eid = self.eid;
-    //     self.props
-    //         .iter()
-    //         .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-    // }
-
-    // fn iter_window(
-    //     self,
-    //     r: Range<TimeIndexEntry>,
-    // ) -> impl DoubleEndedIterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
-    //     let view = self.view.clone();
-    //     let eid = self.eid;
-    //     self.props
-    //         .iter_window(r)
-    //         .filter(move |(t, _)| view.filter_edge_history(eid, *t, view.layer_ids()))
-    // }
-
-    fn at(&self, ti: &TimeIndexEntry) -> Option<Prop> {
-        if self
-            .view
-            .internal_filter_exploded_edge(self.eid, *ti, self.view.layer_ids())
-        {
-            self.props.at(ti)
-        } else {
-            None
-        }
-    }
-
     fn iter_inner(
         self,
-        range: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        range: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         let view = self.view.clone();
         let eid = self.eid;
         self.props
@@ -240,13 +208,24 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
 
     fn iter_inner_rev(
         self,
-        range: Option<Range<TimeIndexEntry>>,
-    ) -> impl Iterator<Item = (TimeIndexEntry, Prop)> + Send + Sync + 'graph {
+        range: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         let view = self.view.clone();
         let eid = self.eid;
         self.props
             .iter_inner_rev(range)
             .filter(move |(t, _)| view.internal_filter_exploded_edge(eid, *t, view.layer_ids()))
+    }
+
+    fn at(&self, ti: &EventTime) -> Option<Prop> {
+        if self
+            .view
+            .internal_filter_exploded_edge(self.eid, *ti, self.view.layer_ids())
+        {
+            self.props.at(ti)
+        } else {
+            None
+        }
     }
 }
 

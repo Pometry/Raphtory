@@ -20,7 +20,7 @@ mod serialise_test {
         entities::properties::{meta::PropMapper, prop::PropType},
         storage::arc_str::ArcStr,
     };
-    use raphtory_core::{entities::GidRef, storage::timeindex::TimeIndexEntry};
+    use raphtory_core::{entities::GidRef, storage::timeindex::EventTime};
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::{collections::HashMap, path::PathBuf, sync::Arc};
     use tempfile::TempDir;
@@ -126,7 +126,7 @@ mod serialise_test {
         assert_graph_equal(&g1, &g2);
 
         let edge = g2.edge("Alice", "Bob").expect("Failed to get edge");
-        let deletions = edge.deletions().to_vec();
+        let deletions = edge.deletions().t().iter().collect::<Vec<_>>();
         assert_eq!(deletions, vec![19]);
     }
 

@@ -2,7 +2,7 @@ use super::{
     document::GqlDocument,
     edge::GqlEdge,
     node::GqlNode,
-    vectorised_graph::{IntoWindowTuple, Window},
+    vectorised_graph::{IntoWindowTuple, VectorisedGraphWindow},
 };
 use crate::{embeddings::EmbedQuery, rayon::blocking_compute};
 use async_graphql::Context;
@@ -87,7 +87,7 @@ impl GqlVectorSelection {
     /// Add all the documents a specified number of hops away to the selection.
     ///
     /// Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
-    async fn expand(&self, hops: usize, window: Option<Window>) -> Self {
+    async fn expand(&self, hops: usize, window: Option<VectorisedGraphWindow>) -> Self {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         blocking_compute(move || {
@@ -103,7 +103,7 @@ impl GqlVectorSelection {
         ctx: &Context<'_>,
         query: String,
         limit: usize,
-        window: Option<Window>,
+        window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<Self> {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
@@ -121,7 +121,7 @@ impl GqlVectorSelection {
         ctx: &Context<'_>,
         query: String,
         limit: usize,
-        window: Option<Window>,
+        window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<Self> {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();
@@ -139,7 +139,7 @@ impl GqlVectorSelection {
         ctx: &Context<'_>,
         query: String,
         limit: usize,
-        window: Option<Window>,
+        window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<Self> {
         let vector = ctx.embed_query(query).await?;
         let window = window.into_window_tuple();

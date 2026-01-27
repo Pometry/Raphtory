@@ -1,15 +1,12 @@
 use crate::{
     db::{
         api::view::StaticGraphViewOps,
-        graph::{
-            edge::EdgeView,
-            node::NodeView,
-            views::filter::model::{AsEdgeFilter, AsNodeFilter},
-        },
+        graph::{edge::EdgeView, node::NodeView, views::filter::model::TryAsCompositeFilter},
     },
     errors::GraphError,
     search::{
-        edge_filter_executor::EdgeFilterExecutor, graph_index::Index,
+        edge_filter_executor::EdgeFilterExecutor,
+        exploded_edge_filter_executor::ExplodedEdgeFilterExecutor, graph_index::Index,
         node_filter_executor::NodeFilterExecutor,
     },
 };
@@ -18,6 +15,7 @@ use crate::{
 pub struct Searcher<'a> {
     node_filter_executor: NodeFilterExecutor<'a>,
     edge_filter_executor: EdgeFilterExecutor<'a>,
+    exploded_edge_filter_executor: ExplodedEdgeFilterExecutor<'a>,
 }
 
 impl<'a> Searcher<'a> {
@@ -25,6 +23,7 @@ impl<'a> Searcher<'a> {
         Self {
             node_filter_executor: NodeFilterExecutor::new(index),
             edge_filter_executor: EdgeFilterExecutor::new(index),
+            exploded_edge_filter_executor: ExplodedEdgeFilterExecutor::new(index),
         }
     }
 
@@ -37,9 +36,9 @@ impl<'a> Searcher<'a> {
     ) -> Result<Vec<NodeView<'static, G>>, GraphError>
     where
         G: StaticGraphViewOps,
-        F: AsNodeFilter,
+        F: TryAsCompositeFilter,
     {
-        let filter = filter.as_node_filter();
+        let filter = filter.try_as_composite_node_filter()?;
         self.node_filter_executor
             .filter_nodes(graph, &filter, limit, offset)
     }
@@ -53,11 +52,27 @@ impl<'a> Searcher<'a> {
     ) -> Result<Vec<EdgeView<G>>, GraphError>
     where
         G: StaticGraphViewOps,
-        F: AsEdgeFilter,
+        F: TryAsCompositeFilter,
     {
-        let filter = filter.as_edge_filter();
+        let filter = filter.try_as_composite_edge_filter()?;
         self.edge_filter_executor
             .filter_edges(graph, &filter, limit, offset)
+    }
+
+    pub fn search_exploded_edges<G, F>(
+        &self,
+        graph: &G,
+        filter: F,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<EdgeView<G>>, GraphError>
+    where
+        G: StaticGraphViewOps,
+        F: TryAsCompositeFilter,
+    {
+        let filter = filter.try_as_composite_exploded_edge_filter()?;
+        self.exploded_edge_filter_executor
+            .filter_exploded_edges(graph, &filter, limit, offset)
     }
 }
 
@@ -66,10 +81,7 @@ impl<'a> Searcher<'a> {
 #[cfg(test)]
 mod search_tests {
     use super::*;
-    use crate::{
-        db::graph::views::filter::model::{NodeFilter, NodeFilterBuilderOps},
-        prelude::*,
-    };
+    use crate::{db::graph::views::filter::model::node_filter::ops::NodeFilterOps, prelude::*};
     use raphtory_api::core::utils::logging::global_info_logger;
     use std::time::SystemTime;
     use tracing::info;
@@ -80,14 +92,16 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    AsNodeFilter, NodeFilter, NodeFilterBuilderOps, PropertyFilterOps,
+                    node_filter::{ops::NodeFilterOps, NodeFilter},
+                    property_filter::ops::PropertyFilterOps,
+                    PropertyFilterFactory, TryAsCompositeFilter,
                 },
             },
-            prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter},
+            prelude::{AdditionOps, Graph, IndexMutationOps, NodeViewOps},
         };
         use raphtory_api::core::entities::properties::prop::IntoProp;
 
-        fn fuzzy_search_nodes(filter: impl AsNodeFilter) -> Vec<String> {
+        fn fuzzy_search_nodes(filter: impl TryAsCompositeFilter) -> Vec<String> {
             let graph = Graph::new();
             graph
                 .add_node(
@@ -142,18 +156,18 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search_property() {
-            let filter = PropertyFilter::property("p1").fuzzy_search("tano", 2, false);
+            let filter = NodeFilter.property("p1").fuzzy_search("tano", 2, false);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, vec!["pometry"]);
         }
 
         #[test]
         fn test_fuzzy_search_property_prefix_match() {
-            let filter = PropertyFilter::property("p1").fuzzy_search("char", 2, false);
+            let filter = NodeFilter.property("p1").fuzzy_search("char", 2, false);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, Vec::<String>::new());
 
-            let filter = PropertyFilter::property("p1").fuzzy_search("char", 2, true);
+            let filter = NodeFilter.property("p1").fuzzy_search("char", 2, true);
             let results = fuzzy_search_nodes(filter);
             assert_eq!(results, vec!["shivam_kapoor"]);
         }
@@ -165,16 +179,16 @@ mod search_tests {
             db::{
                 api::view::SearchableGraphOps,
                 graph::views::filter::model::{
-                    AsEdgeFilter, EdgeFilter, EdgeFilterOps, PropertyFilterOps,
+                    edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
+                    property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    TryAsCompositeFilter,
                 },
             },
-            prelude::{
-                AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, PropertyFilter,
-            },
+            prelude::{AdditionOps, EdgeViewOps, Graph, IndexMutationOps, NodeViewOps, NO_PROPS},
         };
         use raphtory_api::core::entities::properties::prop::IntoProp;
 
-        fn fuzzy_search_edges(filter: impl AsEdgeFilter) -> Vec<(String, String)> {
+        fn fuzzy_search_edges(filter: impl TryAsCompositeFilter) -> Vec<(String, String)> {
             let graph = Graph::new();
             graph
                 .add_edge(
@@ -203,6 +217,10 @@ mod search_tests {
                     Some("fire_nation"),
                 )
                 .unwrap();
+
+            graph.add_node(1, "shivam", NO_PROPS, None).unwrap();
+            graph.add_node(1, "raphtory", NO_PROPS, None).unwrap();
+            graph.add_node(1, "pometry", NO_PROPS, None).unwrap();
 
             graph.create_index_in_ram().unwrap();
 
@@ -241,18 +259,18 @@ mod search_tests {
 
         #[test]
         fn test_fuzzy_search_property() {
-            let filter = PropertyFilter::property("p1").fuzzy_search("tano", 2, false);
+            let filter = EdgeFilter.property("p1").fuzzy_search("tano", 2, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("shivam".into(), "raphtory".into())]);
         }
 
         #[test]
         fn test_fuzzy_search_property_prefix_match() {
-            let filter = PropertyFilter::property("p1").fuzzy_search("charl", 1, false);
+            let filter = EdgeFilter.property("p1").fuzzy_search("charl", 1, false);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, Vec::<(String, String)>::new());
 
-            let filter = PropertyFilter::property("p1").fuzzy_search("charl", 1, true);
+            let filter = EdgeFilter.property("p1").fuzzy_search("charl", 1, true);
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
@@ -269,9 +287,9 @@ mod search_tests {
 
         let now = SystemTime::now();
 
-        let elapsed = now.elapsed().unwrap().as_secs();
+        let elapsed = now.elapsed()?.as_secs();
         info!("indexing took: {:?}", elapsed);
-        graph.create_index_in_ram().unwrap();
+        graph.create_index_in_ram()?;
 
         let filter = NodeFilter::name().eq("DEV-1690");
         let issues = graph.search_nodes(filter, 5, 0)?;

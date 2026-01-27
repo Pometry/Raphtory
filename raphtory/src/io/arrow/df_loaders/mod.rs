@@ -14,7 +14,7 @@ use crate::{
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{dict_mapper::MaybeNew, timeindex::TimeIndexEntry, FxDashMap},
+    storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
 };
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
@@ -27,15 +27,24 @@ use std::{
 pub mod edge_props;
 pub mod edges;
 pub mod nodes;
-
-fn build_progress_bar(des: String, num_rows: usize) -> Result<Bar, GraphError> {
-    BarBuilder::default()
-        .desc(des)
-        .animation(kdam::Animation::FillUp)
-        .total(num_rows)
-        .unit_scale(true)
-        .build()
-        .map_err(|_| GraphError::TqdmError)
+#[cfg(feature = "python")]
+fn build_progress_bar(des: String, num_rows: Option<usize>) -> Result<Bar, GraphError> {
+    if let Some(num_rows) = num_rows {
+        BarBuilder::default()
+            .desc(des)
+            .animation(kdam::Animation::FillUp)
+            .total(num_rows)
+            .unit_scale(true)
+            .build()
+            .map_err(|_| GraphError::TqdmError)
+    } else {
+        BarBuilder::default()
+            .desc(des)
+            .animation(kdam::Animation::FillUp)
+            .unit_scale(true)
+            .build()
+            .map_err(|_| GraphError::TqdmError)
+    }
 }
 
 fn process_shared_properties(
@@ -218,7 +227,7 @@ pub(crate) fn load_graph_props_from_df<
             .zip(prop_cols.par_rows())
             .zip(metadata_cols.par_rows())
             .try_for_each(|(((time, secondary_index), t_props), c_props)| {
-                let t = TimeIndexEntry(time, secondary_index);
+                let t = EventTime(time, secondary_index);
                 let t_props: Vec<_> = t_props.collect();
 
                 if !t_props.is_empty() {

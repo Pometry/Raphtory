@@ -2,7 +2,7 @@ use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuar
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
 use raphtory_core::{
     entities::{EID, LayerIds, VID},
-    storage::timeindex::{TimeIndexEntry, TimeIndexOps},
+    storage::timeindex::{EventTime, TimeIndexOps},
 };
 use rayon::iter::ParallelIterator;
 use std::{
@@ -22,8 +22,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     type ArcLockedSegment: LockedESegment;
 
-    fn latest(&self) -> Option<TimeIndexEntry>;
-    fn earliest(&self) -> Option<TimeIndexEntry>;
+    fn latest(&self) -> Option<EventTime>;
+    fn earliest(&self) -> Option<EventTime>;
 
     fn t_len(&self) -> usize;
     fn num_layers(&self) -> usize;
@@ -140,8 +140,8 @@ pub trait EdgeEntryOps<'a>: Send + Sync {
 }
 
 pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
-    type Additions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
-    type Deletions: TimeIndexOps<'a, IndexType = TimeIndexEntry>;
+    type Additions: TimeIndexOps<'a, IndexType = EventTime>;
+    type Deletions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
     fn edge(self, layer_id: usize) -> Option<(VID, VID)>;

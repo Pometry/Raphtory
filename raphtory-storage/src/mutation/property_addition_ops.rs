@@ -5,7 +5,7 @@ use crate::{
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, EID, VID},
-        storage::timeindex::TimeIndexEntry,
+        storage::timeindex::EventTime,
     },
     inherit::Base,
 };
@@ -16,7 +16,7 @@ pub trait InternalPropertyAdditionOps {
 
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
 
@@ -57,7 +57,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     // FIXME: this can't fail
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph_props().writer();
@@ -139,7 +139,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
 
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         Ok(self.mutable()?.internal_add_properties(t, props)?)
@@ -201,7 +201,7 @@ where
     #[inline]
     fn internal_add_properties(
         &self,
-        t: TimeIndexEntry,
+        t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         self.base().internal_add_properties(t, props)

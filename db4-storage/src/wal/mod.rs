@@ -2,7 +2,7 @@ use crate::error::StorageError;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::{
     entities::{EID, GID, VID},
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 use std::path::Path;
 
@@ -78,7 +78,7 @@ pub trait GraphWalOps {
     fn log_add_edge(
         &self,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src_name: GID,
         src_id: VID,
         dst_name: GID,
@@ -107,7 +107,7 @@ pub trait GraphReplay {
         &mut self,
         lsn: LSN,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src_name: GID,
         src_id: VID,
         dst_name: GID,

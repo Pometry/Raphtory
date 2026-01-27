@@ -44,7 +44,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
     };
 
     // compare histories as multiset as order for values with the same timestamp is ambiguous!
-    let get_fixture_t_prop_map =
+    let get_fixture_t_prop_counts =
         |t_props: &Vec<(i64, Vec<(String, Prop)>)>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
             let mut grouped: HashMap<ArcStr, HashMap<i64, HashMap<Prop, usize>>> = HashMap::new();
             for (t, props) in t_props {
@@ -58,7 +58,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
 
     let get_node_t_prop_map =
         |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
+            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
                 .properties()
                 .temporal()
                 .iter()
@@ -68,7 +68,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                         .iter()
                         .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
                         .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt == rt {
+                            if lt.t() == rt.t() {
                                 for (v, count) in rv {
                                     lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                                 }
@@ -77,15 +77,16 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                                 Err(((lt, lv), (rt, rv)))
                             }
                         })
+                        .map(|(t, v)| (t.t(), v))
                         .collect();
                     (key, runs)
                 })
                 .collect();
             out
         };
-    let get_edge_t_prop_map =
+    let get_edge_t_prop_counts =
         |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
+            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
                 .properties()
                 .temporal()
                 .iter()
@@ -95,7 +96,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                         .iter()
                         .map(|(t, v)| (t, HashMap::from([(v, 1usize)])))
                         .coalesce(|(lt, mut lv), (rt, rv)| {
-                            if lt == rt {
+                            if lt.t() == rt.t() {
                                 for (v, count) in rv {
                                     lv.entry(v).and_modify(|c| *c += count).or_insert(count);
                                 }
@@ -104,6 +105,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                                 Err(((lt, lv), (rt, rv)))
                             }
                         })
+                        .map(|(t, v)| (t.t(), v))
                         .collect();
                     (key, runs)
                 })
@@ -127,24 +129,27 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             .entry(src)
             .or_default()
             .extend(updates.props.t_props.iter().map(|(t, _)| *t));
-        expected_node_histories
-            .entry(dst)
-            .or_default()
-            .extend(updates.props.t_props.iter().map(|(t, _)| *t));
+        if src != dst {
+            expected_node_histories
+                .entry(dst)
+                .or_default()
+                .extend(updates.props.t_props.iter().map(|(t, _)| *t));
+        }
         // deletions are part of history as well
         expected_node_histories
             .entry(src)
             .or_default()
             .extend(updates.deletions.iter().copied());
-        expected_node_histories
-            .entry(dst)
-            .or_default()
-            .extend(updates.deletions.iter().copied());
+        if src != dst {
+            expected_node_histories
+                .entry(dst)
+                .or_default()
+                .extend(updates.deletions.iter().copied());
+        }
     }
     // sort history vecs to match node.history()
     for values in expected_node_histories.values_mut() {
         values.sort();
-        values.dedup(); // FIXME: remove when updating to the new history apis
     }
     let expected_edge_pairs: std::collections::HashSet<(u64, u64)> = fixture
         .edges()
@@ -236,7 +241,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             .unwrap_or_else(|| panic!("graph should have node {node_id}"));
         assert_eq!(
             expected_history,
-            node.history(),
+            node.history().t().iter().collect_vec(),
             "mismatched history for node {node_id}"
         );
 
@@ -255,7 +260,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                     "mismatched node metadata for node {node_id}"
                 );
 
-                let expected_temporal = get_fixture_t_prop_map(&updates.props.t_props);
+                let expected_temporal = get_fixture_t_prop_counts(&updates.props.t_props);
                 let actual_temporal = get_node_t_prop_map(&node);
                 assert_eq!(
                     actual_temporal, expected_temporal,
@@ -315,8 +320,8 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
                 layer_name
             );
 
-            let expected_temporal = get_fixture_t_prop_map(&updates.props.t_props);
-            let actual_temporal = get_edge_t_prop_map(&e_layered);
+            let actual_temporal = get_edge_t_prop_counts(&e_layered);
+            let expected_temporal = get_fixture_t_prop_counts(&updates.props.t_props);
             assert_eq!(
                 actual_temporal, expected_temporal,
                 "mismatched edge temporal properties for {src}->{dst} in layer {:?}",
@@ -896,6 +901,26 @@ pub fn build_graph_from_edge_list<'a>(
     g
 }
 
+pub(crate) fn build_graph_from_edge_list_with_event_id<'a>(
+    edge_list: impl IntoIterator<Item = (u64, u64, i64, usize, &'a String, i64)>,
+) -> Graph {
+    let g = Graph::new();
+    for (src, dst, time, event_id, str_prop, int_prop) in edge_list {
+        g.add_edge(
+            (time, event_id),
+            src,
+            dst,
+            [
+                ("str_prop", Prop::str(str_prop.as_ref())),
+                ("int_prop", int_prop.into_prop()),
+            ],
+            None,
+        )
+        .unwrap();
+    }
+    g
+}
+
 pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     let g = Arc::new(Storage::default());
     for ((src, dst, layer), updates) in graph_fix.edges() {
@@ -930,6 +955,7 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
 
 pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Storage> {
     let g = Arc::new(Storage::default());
+    let mut counter = 0usize;
     let actual_layer_set: HashSet<_> = graph_fix
         .edges()
         .filter(|(_, updates)| !updates.deletions.is_empty() || !updates.props.t_props.is_empty())
@@ -963,7 +989,9 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
 
         if layers.contains(layer.unwrap_or("_default")) {
             for (t, props) in updates.props.t_props.iter() {
-                g.add_edge(*t, src, dst, props.clone(), layer).unwrap();
+                g.add_edge((*t, counter), src, dst, props.clone(), layer)
+                    .unwrap();
+                counter += 1;
             }
             if let Some(e) = g.edge(src, dst) {
                 if !updates.props.c_props.is_empty() {
@@ -972,14 +1000,19 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
                 }
             }
             for t in updates.deletions.iter() {
-                g.delete_edge(*t, src, dst, layer).unwrap();
+                g.delete_edge((*t, counter), src, dst, layer).unwrap();
+                counter += 1;
             }
+        } else {
+            counter += updates.props.t_props.len() + updates.deletions.len();
         }
     }
 
     for (node, updates) in graph_fix.nodes() {
         for (t, props) in updates.props.t_props.iter() {
-            g.add_node(*t, node, props.clone(), None).unwrap();
+            g.add_node((*t, counter), node, props.clone(), None)
+                .unwrap();
+            counter += 1;
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
@@ -1006,6 +1039,21 @@ pub fn add_node_props<'a>(
     }
 }
 
+pub(crate) fn add_node_props_with_event_id<'a>(
+    graph: &'a Graph,
+    nodes: impl IntoIterator<Item = (u64, usize, Option<&'a String>, Option<i64>)>,
+) {
+    for (node, event_id, str_prop, int_prop) in nodes {
+        let props = [
+            str_prop.map(|v| ("str_prop", Prop::str(v.as_ref()))),
+            int_prop.as_ref().map(|v| ("int_prop", (*v).into())),
+        ]
+        .into_iter()
+        .flatten();
+        graph.add_node((0, event_id), node, props, None).unwrap();
+    }
+}
+
 pub fn node_filtered_graph(
     edge_list: &[(u64, u64, i64, String, i64)],
     nodes: &[(u64, Option<String>, Option<i64>)],
@@ -1015,16 +1063,26 @@ pub fn node_filtered_graph(
         .iter()
         .map(|(n, str_v, int_v)| (n, (str_v.as_ref(), int_v.as_ref())))
         .collect();
-    let g = build_graph_from_edge_list(edge_list.iter().filter(|(src, dst, ..)| {
-        let (src_str_v, src_int_v) = node_map.get(src).copied().unwrap_or_default();
-        let (dst_str_v, dst_int_v) = node_map.get(dst).copied().unwrap_or_default();
-        filter(src_str_v, src_int_v) && filter(dst_str_v, dst_int_v)
-    }));
-    add_node_props(
+    let g = build_graph_from_edge_list_with_event_id(
+        edge_list
+            .iter()
+            .enumerate()
+            .map(|(idx, (src, dst, t, str, v))| (*src, *dst, *t, idx, str, *v))
+            .filter(|(src, dst, ..)| {
+                let (src_str_v, src_int_v) = node_map.get(src).copied().unwrap_or_default();
+                let (dst_str_v, dst_int_v) = node_map.get(dst).copied().unwrap_or_default();
+                filter(src_str_v, src_int_v) && filter(dst_str_v, dst_int_v)
+            }),
+    );
+    add_node_props_with_event_id(
         &g,
         nodes
             .iter()
-            .filter(|(_, str_v, int_v)| filter(str_v.as_ref(), int_v.as_ref())),
+            .enumerate()
+            .map(|(event_id, (n, str_v, int_v))| {
+                (*n, event_id + edge_list.len(), str_v.as_ref(), *int_v)
+            })
+            .filter(|(.., str_v, int_v)| filter(*str_v, int_v.as_ref())),
     );
     g
 }

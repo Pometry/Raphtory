@@ -8,7 +8,7 @@ use raphtory_api::core::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
         EID, GID, VID,
     },
-    storage::timeindex::TimeIndexEntry,
+    storage::timeindex::EventTime,
 };
 use raphtory_core::entities::GidRef;
 use storage::{
@@ -32,7 +32,7 @@ where
         &mut self,
         lsn: LSN,
         transaction_id: TransactionID,
-        t: TimeIndexEntry,
+        t: EventTime,
         src_name: GID,
         src_id: VID,
         dst_name: GID,
