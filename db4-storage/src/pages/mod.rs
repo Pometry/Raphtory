@@ -139,12 +139,9 @@ impl<
         ));
 
         if let Some(graph_dir) = graph_dir {
-            // Config saving for WriteAndMerge is handled in db4-disk-storage's implementation
-            // This generic code in db4-storage doesn't have access to WriteAndMergeConfig types
-            // to avoid circular dependencies. For NoOpStrategy, config saving is not needed.
-            if EXT::disk_storage_enabled() {
-                // Config will be saved by db4-disk-storage's GraphStore implementation
-            }
+            ext.config()
+                .save_to_dir(graph_dir)
+                .expect("Failed to write config to disk");
         }
 
         Self {

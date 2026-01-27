@@ -5,7 +5,7 @@ use crate::{
 use raphtory_api::core::entities::{
     EID, GID, VID,
     properties::{
-        meta::{NODE_ID_IDX, NODE_TYPE_IDX},
+        meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
         prop::Prop,
     },
 };
@@ -48,7 +48,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         e_id: impl Into<EID>,
     ) {
         let e_id = e_id.into();
-        self.add_outbound_edge_inner::<i64>(None, src_pos, dst, e_id.with_layer(0));
+        self.add_outbound_edge_inner::<i64>(
+            None,
+            src_pos,
+            dst,
+            e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+        );
     }
 
     fn add_outbound_edge_inner<T: AsTime>(
@@ -91,7 +96,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         e_id: impl Into<EID>,
     ) {
         let e_id = e_id.into();
-        self.add_inbound_edge_inner::<i64>(None, dst_pos, src, e_id.with_layer(0));
+        self.add_inbound_edge_inner::<i64>(
+            None,
+            dst_pos,
+            src,
+            e_id.with_layer(STATIC_GRAPH_LAYER_ID),
+        );
     }
 
     fn add_inbound_edge_inner<T: AsTime>(
