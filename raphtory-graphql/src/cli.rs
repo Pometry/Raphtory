@@ -1,7 +1,6 @@
-use clap::{command, Parser, Subcommand};
 #[cfg(feature = "search")]
-use raphtory_graphql::config::index_config::DEFAULT_CREATE_INDEX;
-use raphtory_graphql::{
+use crate::config::index_config::DEFAULT_CREATE_INDEX;
+use crate::{
     config::{
         app_config::AppConfigBuilder,
         auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
@@ -16,6 +15,7 @@ use raphtory_graphql::{
     server::DEFAULT_PORT,
     GraphServer,
 };
+use clap::{command, Parser, Subcommand};
 use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 
