@@ -4,7 +4,10 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop}, EID, VID},
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+            EID, VID,
+        },
         storage::timeindex::EventTime,
     },
     inherit::Base,

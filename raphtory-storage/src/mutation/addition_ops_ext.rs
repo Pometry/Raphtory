@@ -250,7 +250,9 @@ impl InternalAdditionOps for TemporalGraph {
                 MaybeNew::Existing(0)
             }
             Some(node_type) => {
-                let old_type = writer.get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX).into_u64();
+                let old_type = writer
+                    .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
+                    .into_u64();
                 match old_type {
                     None => {
                         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
