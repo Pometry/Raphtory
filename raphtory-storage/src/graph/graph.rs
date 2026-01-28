@@ -8,7 +8,7 @@ use crate::{
         locked::LockedGraph,
         nodes::{nodes::NodesStorage, nodes_ref::NodesStorageEntry},
     },
-    mutation::{durability_ops::DurabilityOps, MutationError},
+    mutation::{MutationError},
 };
 use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};

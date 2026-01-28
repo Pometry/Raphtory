@@ -44,9 +44,8 @@ where
         layer_id: usize,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
-        let temporal_graph = self.graph();
-        let node_max_page_len = temporal_graph.extension().config().max_node_page_len();
-        let edge_max_page_len = temporal_graph.extension().config().max_edge_page_len();
+        let node_max_page_len = self.graph().extension().config().max_node_page_len();
+        let edge_max_page_len = self.graph().extension().config().max_edge_page_len();
 
         // 1. Insert prop ids into edge meta.
         // No need to validate props again since they are already validated before
@@ -55,18 +54,16 @@ where
 
         // 2. Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
-            temporal_graph
+            self.graph()
                 .logical_to_physical
                 .set(src_name.as_ref(), src_id)?;
         }
 
         if let Some(dst_name) = dst_name.as_ref() {
-            temporal_graph
+            self.graph()
                 .logical_to_physical
                 .set(dst_name.as_ref(), dst_id)?;
         }
-
-
 
         // 4. Grab src writer and add edge data.
         let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
@@ -175,7 +172,7 @@ where
 
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
-            let edge_meta = temporal_graph.edge_meta();
+            let edge_meta = self.graph().edge_meta();
 
             for (prop_name, prop_id, prop_value) in &props {
                 let prop_mapper = edge_meta.temporal_prop_mapper();
@@ -195,7 +192,7 @@ where
             }
 
             // 3. Insert layer id into the layer meta of both edge and node.
-            let node_meta = temporal_graph.node_meta();
+            let node_meta = self.graph().node_meta();
 
             edge_meta
                 .layer_meta()
