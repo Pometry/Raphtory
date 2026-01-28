@@ -13,12 +13,11 @@ use crate::{
         graph::graph::Graph,
     },
     errors::GraphError,
-    prelude::{NodeStateOps, NO_PROPS},
+    prelude::NO_PROPS,
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_core::entities::GID;
-use tracing::error;
 
 /// Generates an Erdős-Rényi random graph and returns it.
 ///

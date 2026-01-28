@@ -438,7 +438,7 @@ def strongly_connected_components(graph: GraphView) -> NodeStateUsize:
         NodeStateUsize: Mapping of nodes to their component ids
     """
 
-def in_components(graph: GraphView) -> NodeStateNodes:
+def in_components(graph: GraphView, filter=None) -> NodeStateNodes:
     """
     In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
@@ -449,7 +449,7 @@ def in_components(graph: GraphView) -> NodeStateNodes:
         NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
     """
 
-def in_component(node: Node) -> NodeStateUsize:
+def in_component(node: Node, filter=None) -> NodeStateUsize:
     """
     In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
@@ -460,7 +460,7 @@ def in_component(node: Node) -> NodeStateUsize:
        NodeStateUsize: Mapping of nodes in the in-component to the distance from the starting node.
     """
 
-def out_components(graph: GraphView) -> NodeStateNodes:
+def out_components(graph: GraphView, filter=None) -> NodeStateNodes:
     """
     Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
@@ -471,7 +471,7 @@ def out_components(graph: GraphView) -> NodeStateNodes:
         NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
     """
 
-def out_component(node: Node) -> NodeStateUsize:
+def out_component(node: Node, filter=None) -> NodeStateUsize:
     """
     Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
