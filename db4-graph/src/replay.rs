@@ -57,13 +57,10 @@ where
         // No need to validate props again since they are already validated before
         // being logged to the WAL.
         let edge_meta = temporal_graph.edge_meta();
-        let mut prop_ids_and_values = Vec::new();
 
-        for (prop_name, prop_id, prop_value) in props.into_iter() {
+        for (prop_name, prop_id, prop_value) in &props {
             let prop_mapper = edge_meta.temporal_prop_mapper();
-
-            prop_mapper.set_id_and_dtype(prop_name, prop_id, prop_value.dtype());
-            prop_ids_and_values.push((prop_id, prop_value));
+            prop_mapper.set_id_and_dtype(prop_name.as_str(), *prop_id, prop_value.dtype());
         }
 
         // 2. Insert node ids into resolver.
@@ -209,7 +206,16 @@ where
             }
 
             // Add edge into the specified layer with timestamp and props.
-            edge_writer.add_edge(t, edge_pos, src_id, dst_id, prop_ids_and_values, layer_id);
+            edge_writer.add_edge(
+                t,
+                edge_pos,
+                src_id,
+                dst_id,
+                props
+                    .into_iter()
+                    .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
+                layer_id,
+            );
 
             edge_writer.writer.set_lsn(lsn);
         }
