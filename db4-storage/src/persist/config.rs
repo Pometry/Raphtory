@@ -4,7 +4,6 @@ use std::path::Path;
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
-pub const DEFAULT_MAX_MEMORY_BYTES: usize = 32 * 1024 * 1024;
 pub const CONFIG_FILE: &str = "config.json";
 
 pub trait ConfigOps: Serialize + DeserializeOwned {
