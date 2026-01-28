@@ -51,24 +51,7 @@ where
         // 1. Insert prop ids into edge meta.
         // No need to validate props again since they are already validated before
         // being logged to the WAL.
-        let edge_meta = temporal_graph.edge_meta();
 
-        for (prop_name, prop_id, prop_value) in &props {
-            let prop_mapper = edge_meta.temporal_prop_mapper();
-            match prop_mapper.get_dtype(*prop_id) {
-                None => {
-                    prop_mapper.set_id_and_dtype(prop_name.as_str(), *prop_id, prop_value.dtype());
-                }
-                Some(old_dtype) => {
-                    let dtype = prop_value.dtype();
-                    let mut unified = false;
-                    let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
-                    if unified {
-                        prop_mapper.set_dtype(*prop_id, new_dtype);
-                    }
-                }
-            }
-        }
 
         // 2. Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
@@ -83,15 +66,7 @@ where
                 .set(dst_name.as_ref(), dst_id)?;
         }
 
-        // 3. Insert layer id into the layer meta of both edge and node.
-        let node_meta = temporal_graph.node_meta();
 
-        edge_meta
-            .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
-        node_meta
-            .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
 
         // 4. Grab src writer and add edge data.
         let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
@@ -200,6 +175,35 @@ where
 
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
+            let edge_meta = temporal_graph.edge_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = edge_meta.temporal_prop_mapper();
+                match prop_mapper.get_dtype(*prop_id) {
+                    None => {
+                        prop_mapper.set_id_and_dtype(prop_name.as_str(), *prop_id, prop_value.dtype());
+                    }
+                    Some(old_dtype) => {
+                        let dtype = prop_value.dtype();
+                        let mut unified = false;
+                        let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
+                        if unified {
+                            prop_mapper.set_dtype(*prop_id, new_dtype);
+                        }
+                    }
+                }
+            }
+
+            // 3. Insert layer id into the layer meta of both edge and node.
+            let node_meta = temporal_graph.node_meta();
+
+            edge_meta
+                .layer_meta()
+                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+            node_meta
+                .layer_meta()
+                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+
             let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
 
             let is_new_edge_static = edge_writer
