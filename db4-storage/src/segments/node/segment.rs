@@ -441,7 +441,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         _path: Option<PathBuf>,
         ext: Self::Extension,
     ) -> Self {
-        let max_page_len = ext.config().persistence().max_node_page_len();
+        let max_page_len = ext.config().max_node_page_len();
         let inner = RwLock::new(MemNodeSegment::new(segment_id, max_page_len, meta));
         let inner = Arc::new(inner);
 
@@ -565,7 +565,7 @@ mod test {
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::{
-            config::NoOpConfig,
+            config::BaseConfig,
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
         wal::no_wal::NoWal,
@@ -583,7 +583,7 @@ mod test {
         let node_meta = Arc::new(Meta::default());
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
-        let config = NoOpConfig::new(10, 10);
+        let config = BaseConfig::new(10, 10);
         let ext = NoOpStrategy::new(config, Arc::new(NoWal));
         let segment_id = 0;
         let segment = NodeSegmentView::new(

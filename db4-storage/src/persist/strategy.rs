@@ -1,6 +1,6 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    persist::config::{ConfigOps, NoOpConfig},
+    persist::config::{BaseConfig, ConfigOps},
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
@@ -50,7 +50,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
 #[derive(Debug, Clone)]
 pub struct NoOpStrategy {
-    config: NoOpConfig,
+    config: BaseConfig,
     wal: Arc<NoWal>,
 }
 
@@ -59,7 +59,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type NS = NodeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
-    type Config = NoOpConfig;
+    type Config = BaseConfig;
 
     fn new(config: Self::Config, wal: Arc<Self::Wal>) -> Self {
         Self { config, wal }

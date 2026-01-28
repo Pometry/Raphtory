@@ -75,6 +75,11 @@ impl<
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
+        let node_types = self.nodes.prop_meta().get_all_node_types();
+        let config = self.ext.config().with_node_types(node_types);
+        if let Some(graph_dir) = self.graph_dir.as_ref() {
+            config.save_to_dir(graph_dir)?;
+        }
         self.nodes.flush()?;
         self.edges.flush()?;
         self.graph_props.flush()?;
@@ -171,7 +176,7 @@ impl<
         let graph_prop_storage =
             Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
 
-        for node_type in ext.config().persistence().node_types().iter() {
+        for node_type in ext.config().node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
         }
 
@@ -598,7 +603,7 @@ mod test {
             check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
             make_nodes,
         },
-        persist::{config::NoOpConfig, strategy::PersistenceStrategy},
+        persist::{config::BaseConfig, strategy::PersistenceStrategy},
         wal::no_wal::NoWal,
     };
     use chrono::DateTime;
@@ -638,7 +643,7 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            let config = NoOpConfig::new(chunk_size, chunk_size);
+            let config = BaseConfig::new(chunk_size, chunk_size);
             Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
@@ -649,7 +654,7 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            let config = NoOpConfig::new(chunk_size, chunk_size);
+            let config = BaseConfig::new(chunk_size, chunk_size);
             Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
@@ -722,7 +727,7 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let config = NoOpConfig::new(32, 32);
+        let config = BaseConfig::new(32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
             Extension::new(config, Arc::new(NoWal)),
@@ -734,7 +739,7 @@ mod test {
     #[test]
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let config = NoOpConfig::new(32, 32);
+        let config = BaseConfig::new(32, 32);
         let g = GraphStore::new(
             Some(graph_dir.path()),
             Extension::new(config, Arc::new(NoWal)),
@@ -780,7 +785,7 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let config = NoOpConfig::new(32, 32);
+        let config = BaseConfig::new(32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
             Extension::new(config, Arc::new(NoWal)),
@@ -1587,14 +1592,14 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            let config = NoOpConfig::new(node_page_len, edge_page_len);
+            let config = BaseConfig::new(node_page_len, edge_page_len);
             Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            let config = NoOpConfig::new(node_page_len, edge_page_len);
+            let config = BaseConfig::new(node_page_len, edge_page_len);
             Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }

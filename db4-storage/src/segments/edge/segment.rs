@@ -424,7 +424,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn new(page_id: usize, meta: Arc<Meta>, _path: Option<PathBuf>, ext: Self::Extension) -> Self {
-        let max_page_len = ext.config().persistence().max_edge_page_len();
+        let max_page_len = ext.config().max_edge_page_len();
 
         Self {
             segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta))
