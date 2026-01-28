@@ -1,5 +1,5 @@
 use crate::{
-    core::{entities::VID, state::compute_state::ComputeStateVec},
+    core::entities::VID,
     db::{
         api::{
             state::{ops::Const, Index, NodeState},
@@ -36,10 +36,6 @@ struct InState {
 /// - `g` - A reference to the graph
 /// - `threads` - Number of threads to use
 ///
-/// # Returns
-///
-/// An [AlgorithmResult] containing the mapping from each node to a vector of node ids (the nodes in component)
-///
 pub fn in_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
 where
     G: StaticGraphViewOps,
@@ -47,17 +43,13 @@ where
     in_components_filtered(g, threads, Unfiltered).expect("Unfiltered should never fail")
 }
 
-/// Computes the in components of each node in the graph
+/// Computes the in components of each node in the filtered graph
 ///
 /// # Arguments
 ///
 /// - `g` - A reference to the graph
 /// - `threads` - Number of threads to use
 /// - `filter` - Filter
-///
-/// # Returns
-///
-/// An [AlgorithmResult] containing the filtered mapping from each node to a vector of node ids (the nodes in component)
 ///
 pub fn in_components_filtered<G, F>(
     g: &G,
@@ -69,12 +61,8 @@ where
     F: CreateFilter + 'static,
     F::EntityFiltered<'static, F::FilteredGraph<'static, G>>: StaticGraphViewOps,
 {
-    type FG<G, F> = <F as CreateFilter>::EntityFiltered<
-        'static,
-        <F as CreateFilter>::FilteredGraph<'static, G>,
-    >;
     let filtered = g.filter(filter)?;
-    let ctx: Context<FG<G, F>, ComputeStateVec> = (&filtered).into();
+    let ctx: Context<_, _> = (&filtered).into();
 
     let step1 = ATask::new(move |vv: &mut EvalNodeView<_, InState>| {
         let mut in_components = HashSet::new();
@@ -101,7 +89,7 @@ where
         Step::Done
     });
 
-    let mut runner: TaskRunner<FG<G, F>, ComputeStateVec> = TaskRunner::new(ctx);
+    let mut runner: TaskRunner<_, _> = TaskRunner::new(ctx);
 
     Ok(runner.run(
         vec![Job::new(step1)],
@@ -141,7 +129,7 @@ where
     in_component_filtered(node, Unfiltered).expect("Unfiltered should never fail")
 }
 
-/// Computes the in-component of a given node in the graph
+/// Computes the in-component of a given node in the filtered graph
 ///
 /// # Arguments:
 ///

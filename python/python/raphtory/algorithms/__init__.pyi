@@ -438,45 +438,49 @@ def strongly_connected_components(graph: GraphView) -> NodeStateUsize:
         NodeStateUsize: Mapping of nodes to their component ids
     """
 
-def in_components(graph: GraphView, filter=None) -> NodeStateNodes:
+def in_components(graph: GraphView, filter: Any = None) -> NodeStateNodes:
     """
     In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
     Arguments:
         graph (GraphView): Raphtory graph
+        filter (Option<Filter>): Optional filter
 
     Returns:
         NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
     """
 
-def in_component(node: Node, filter=None) -> NodeStateUsize:
+def in_component(node: Node, filter: Any = None) -> NodeStateUsize:
     """
     In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
     Arguments:
         node (Node): The node whose in-component we wish to calculate
+        filter (Option<Filter>): Optional filter
 
     Returns:
        NodeStateUsize: Mapping of nodes in the in-component to the distance from the starting node.
     """
 
-def out_components(graph: GraphView, filter=None) -> NodeStateNodes:
+def out_components(graph: GraphView, filter: Any = None) -> NodeStateNodes:
     """
     Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
     Arguments:
         graph (GraphView): Raphtory graph
+        filter (Option<Filter>): Optional filter
 
     Returns:
         NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
     """
 
-def out_component(node: Node, filter=None) -> NodeStateUsize:
+def out_component(node: Node, filter: Any = None) -> NodeStateUsize:
     """
     Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
     Arguments:
         node (Node): The node whose out-component we wish to calculate
+        filter (Option<Filter>): Optional filter
 
     Returns:
        NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.

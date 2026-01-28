@@ -13,7 +13,7 @@ use crate::{
         graph::graph::Graph,
     },
     errors::GraphError,
-    prelude::NO_PROPS,
+    prelude::{NodeStateOps, NO_PROPS},
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory_api::core::storage::timeindex::AsTime;

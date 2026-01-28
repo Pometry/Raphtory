@@ -205,7 +205,11 @@ mod in_component_test {
         db::{
             api::mutation::AdditionOps,
             graph::views::filter::{
-                model::{graph_filter::GraphFilter, ViewWrapOps},
+                model::{
+                    graph_filter::GraphFilter, layered_filter::Layered,
+                    property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+                    TryAsCompositeFilter, ViewWrapOps,
+                },
                 CreateFilter,
             },
         },
@@ -224,7 +228,7 @@ mod in_component_test {
         assert_eq!(results, correct);
     }
 
-    fn check_node_filtered<F: CreateFilter + Clone + 'static>(
+    fn check_node_filtered<F: CreateFilter + TryAsCompositeFilter + Clone + 'static>(
         graph: &Graph,
         node_id: u64,
         filter: F,
@@ -405,7 +409,60 @@ mod in_component_test {
             vec![(4, 1), (2, 2), (3, 2), (1, 3)],
         );
     }
+
+    #[test]
+    fn in_component_filtered_returns_nodes_that_are_unfiltered_for_future_traversals() {
+        let graph = Graph::new();
+
+        graph.add_edge(1, 2, 4, NO_PROPS, Some("A")).unwrap();
+        graph.add_edge(1, 99, 2, NO_PROPS, Some("B")).unwrap();
+        graph.add_edge(1, 100, 99, NO_PROPS, Some("B")).unwrap();
+
+        let mut unfiltered_ids: Vec<u64> =
+            in_component_filtered(graph.node(4).unwrap(), GraphFilter.layer("A"))
+                .unwrap()
+                .nodes()
+                .in_neighbours()
+                .iter()
+                .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
+                .collect();
+
+        unfiltered_ids.sort();
+        unfiltered_ids.dedup();
+
+        assert_eq!(unfiltered_ids, vec![99]);
+    }
+
+    #[test]
+    fn in_component_edge_filtered_handles_multiple_inbound_paths_with_distances() {
+        let graph = Graph::new();
+
+        graph
+            .add_edge(1, 1, 2, vec![("p1", Prop::U64(1))], Some("A"))
+            .unwrap();
+        graph
+            .add_edge(1, 2, 4, vec![("p1", Prop::U64(2))], Some("A"))
+            .unwrap();
+        graph
+            .add_edge(1, 4, 6, vec![("p1", Prop::U64(3))], Some("A"))
+            .unwrap();
+        graph
+            .add_edge(1, 3, 4, vec![("p1", Prop::U64(4))], Some("A"))
+            .unwrap();
+
+        // Layer B adds an alternate chain to 4 that should be ignored under A filter
+        graph
+            .add_edge(1, 10, 11, vec![("p1", Prop::U64(2))], Some("B"))
+            .unwrap();
+        graph
+            .add_edge(1, 11, 4, vec![("p1", Prop::U64(2))], Some("B"))
+            .unwrap();
+
+        let filter = EdgeFilter.layer("A").property("p1").ge(3u64);
+        check_node_filtered(&graph, 6, filter, vec![(3, 2), (4, 1)]);
+    }
 }
+
 #[cfg(test)]
 mod components_test {
     use itertools::Itertools;
@@ -414,9 +471,12 @@ mod components_test {
             out_component, out_component_filtered, out_components, out_components_filtered,
         },
         db::{
-            api::mutation::AdditionOps,
+            api::{mutation::AdditionOps, view::history::InternalHistoryOps},
             graph::views::filter::{
-                model::{graph_filter::GraphFilter, ViewWrapOps},
+                model::{
+                    graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,
+                    PropertyFilterFactory, ViewWrapOps,
+                },
                 CreateFilter,
             },
         },
@@ -625,6 +685,58 @@ mod components_test {
 
             assert_eq!(map, correct);
         });
+    }
+
+    #[test]
+    fn out_component_filtered_returns_nodes_that_are_unfiltered_for_future_traversals() {
+        let graph = Graph::new();
+        graph.add_edge(1, 1, 2, NO_PROPS, Some("A")).unwrap();
+        graph.add_edge(1, 2, 99, NO_PROPS, Some("B")).unwrap();
+        graph.add_edge(1, 99, 100, NO_PROPS, Some("B")).unwrap();
+
+        let mut unfiltered_ids: Vec<u64> =
+            out_component_filtered(graph.node(1).unwrap(), GraphFilter.layer("A"))
+                .unwrap()
+                .nodes()
+                .out_neighbours()
+                .iter()
+                .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
+                .collect();
+
+        unfiltered_ids.sort();
+        unfiltered_ids.dedup();
+
+        assert_eq!(unfiltered_ids, vec![99]);
+    }
+
+    #[test]
+    fn out_component_node_filtered_distances_follow_filtered_graph_only() {
+        let graph = Graph::new();
+
+        graph
+            .add_node(1, 1, vec![("p1", Prop::U64(1))], None)
+            .unwrap();
+        graph
+            .add_node(1, 2, vec![("p1", Prop::U64(2))], None)
+            .unwrap();
+        graph
+            .add_node(1, 3, vec![("p1", Prop::U64(3))], None)
+            .unwrap();
+        graph
+            .add_node(1, 4, vec![("p1", Prop::U64(4))], None)
+            .unwrap();
+
+        graph.add_edge(1, 1, 2, NO_PROPS, Some("A")).unwrap();
+        graph.add_edge(1, 2, 4, NO_PROPS, Some("A")).unwrap();
+        graph.add_edge(1, 1, 3, NO_PROPS, Some("A")).unwrap();
+        graph.add_edge(1, 3, 4, NO_PROPS, Some("A")).unwrap();
+
+        graph.add_edge(1, 1, 99, NO_PROPS, Some("B")).unwrap();
+        graph.add_edge(1, 99, 100, NO_PROPS, Some("B")).unwrap();
+
+        let filter = NodeFilter.property("p1").ge(3u64);
+
+        check_node_filtered(&graph, 1, filter, vec![(3, 1), (4, 2)]);
     }
 }
 
