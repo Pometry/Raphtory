@@ -29,7 +29,7 @@ where
 
     fn est_size(&self) -> usize;
 
-    fn mark_dirty(&self);
+    fn set_dirty(&self, dirty: bool);
 
     fn notify_write(
         &self,

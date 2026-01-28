@@ -9,11 +9,14 @@ use crate::{
         locked::edges::{LockedEdgePage, WriteLockedEdgePages},
         row_group_par_iter,
     },
-    persist::strategy::Config,
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{EID, VID, properties::meta::Meta};
+use raphtory_api::core::entities::{
+    EID, VID,
+    properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
+};
 use raphtory_core::{
     entities::{ELID, LayerIds},
     storage::timeindex::{AsTime, EventTime},
@@ -44,7 +47,7 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     locked_pages: Box<[ES::ArcLockedSegment]>,
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedEdgeStorage<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedEdgeStorage<ES, EXT> {
     pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
         &self.storage
     }
@@ -123,7 +126,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedEdgeStorage<ES,
     }
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageInner<ES, EXT> {
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
             .segments
@@ -144,6 +147,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         &self.layer_counter
     }
 
+    pub fn segments(&self) -> &boxcar::Vec<Arc<ES>> {
+        &self.segments
+    }
+
     pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
         let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
@@ -157,21 +164,25 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         let layer_mapper = empty.edge_meta().layer_meta();
         let prop_mapper = empty.edge_meta().temporal_prop_mapper();
         let metadata_mapper = empty.edge_meta().metadata_mapper();
+
         if layer_mapper.num_fields() > 0
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
-            let segment = empty.get_or_create_segment(0);
+            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID);
             let mut head = segment.head_mut();
+
             for layer in layer_mapper.ids() {
                 head.get_or_create_layer(layer);
             }
+
             if prop_mapper.num_fields() > 0 {
                 head.get_or_create_layer(0)
                     .properties_mut()
                     .set_has_properties()
             }
-            segment.mark_dirty();
+
+            segment.set_dirty(true);
         }
         empty
     }
@@ -212,7 +223,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
 
     pub fn load(edges_path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let edges_path = edges_path.as_ref();
-        let max_page_len = ext.max_edge_page_len();
+        let max_page_len = ext.config().max_edge_page_len();
 
         let meta = Arc::new(Meta::new_for_edges());
 
@@ -363,9 +374,11 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
         }
+
         let count = self.segments.count();
+
         if count > segment_id {
-            // something has allocated the segment, wait for it to be added
+            // Something has allocated the segment, wait for it to be added.
             loop {
                 if let Some(segment) = self.segments.get(segment_id) {
                     return segment;
@@ -375,7 +388,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                 }
             }
         } else {
-            // we need to create the segment
+            // We need to create the segment.
             self.segments.reserve(segment_id + 1 - count);
 
             loop {
@@ -393,7 +406,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
                         if let Some(segment) = self.segments.get(segment_id) {
                             return segment;
                         } else {
-                            // wait for the segment to be created
+                            // Wait for the segment to be created.
                             std::thread::yield_now();
                         }
                     }
@@ -404,7 +417,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: Config> EdgeStorageInner<ES, EXT>
 
     #[inline(always)]
     pub fn max_page_len(&self) -> u32 {
-        self.ext.max_edge_page_len()
+        self.ext.config().max_edge_page_len()
     }
 
     pub fn write_locked<'a>(&'a self) -> WriteLockedEdgePages<'a, ES> {

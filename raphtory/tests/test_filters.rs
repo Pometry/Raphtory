@@ -132,8 +132,7 @@ mod test_property_semantics {
                         assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                     },
                     views::filter::model::{
-                        node_filter::NodeFilter,
-                        property_filter::ops::{ListAggOps, PropertyFilterOps},
+                        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
                         PropertyFilterFactory, TemporalPropertyFilterFactory,
                     },
                 },
@@ -4925,7 +4924,6 @@ mod test_node_property_filter_agg {
     use raphtory_storage::mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
-    use std::{sync::Arc, vec};
 
     fn list_u8(xs: &[u8]) -> Prop {
         Prop::list(xs.iter().copied().map(Prop::U8))

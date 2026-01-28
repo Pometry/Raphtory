@@ -23,7 +23,7 @@ use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::EID,
+        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, EID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime, FxDashMap},
     },
 };
@@ -522,10 +522,9 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
                     *layer,
                     c_props.drain(..),
                     t_props.drain(..),
-                    0,
                 );
             } else {
-                writer.bulk_delete_edge(t, eid_pos, *src, *dst, exists, *layer, 0);
+                writer.bulk_delete_edge(t, eid_pos, *src, *dst, exists, *layer);
             }
         }
     }
@@ -553,7 +552,7 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
             let mut writer = shard.writer();
 
             if !edge_exists_in_static_graph {
-                writer.add_static_inbound_edge(dst_pos, *src, *eid, 0);
+                writer.add_static_inbound_edge(dst_pos, *src, *eid);
             }
             let elid = if delete {
                 eid.with_layer_deletion(*layer)
@@ -563,14 +562,14 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
 
             if src != dst {
                 if edge_exists_in_layer {
-                    writer.update_timestamp(t, dst_pos, elid, 0);
+                    writer.update_timestamp(t, dst_pos, elid);
                 } else {
-                    writer.add_inbound_edge(Some(t), dst_pos, *src, elid, 0);
+                    writer.add_inbound_edge(Some(t), dst_pos, *src, elid);
                 }
             } else {
                 // self-loop edge, only add once
                 if !edge_exists_in_layer {
-                    writer.add_inbound_edge::<i64>(None, dst_pos, *src, elid, 0);
+                    writer.add_inbound_edge::<i64>(None, dst_pos, *src, elid);
                 }
             }
         }
@@ -605,7 +604,7 @@ fn add_and_resolve_outbound_edges<
                 MaybeNew::Existing(edge_id)
             } else {
                 let edge_id = next_edge_id(row);
-                writer.add_static_outbound_edge(src_pos, *dst, edge_id, 0);
+                writer.add_static_outbound_edge(src_pos, *dst, edge_id);
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                 eids_exist[row].store(false, Ordering::Relaxed);
                 MaybeNew::New(edge_id)
@@ -628,9 +627,9 @@ fn add_and_resolve_outbound_edges<
             layer_eids_exist[row].store(exists, Ordering::Relaxed);
 
             if exists {
-                writer.update_timestamp(t, src_pos, edge_id.inner(), 0);
+                writer.update_timestamp(t, src_pos, edge_id.inner());
             } else {
-                writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id.inner(), 0);
+                writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id.inner());
             }
         }
     }
@@ -645,7 +644,7 @@ pub fn store_node_ids<K: Eq + std::hash::Hash, NS: NodeSegmentOps<Extension = Ex
 
         if let Some(src_pos) = locked_page.resolve_pos(vid.inner()) {
             let mut writer = locked_page.writer();
-            writer.store_node_id(src_pos, 0, src_gid.clone(), 0);
+            writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_gid.clone());
         }
     }
 }

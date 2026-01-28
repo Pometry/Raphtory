@@ -1,11 +1,12 @@
 use crate::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+    durability_ops::DurabilityOps,
     MutationError,
 };
-use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
-        meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
+        meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
         prop::{Prop, PropType, PropUnwrap},
     },
     storage::dict_mapper::MaybeNew,
@@ -21,15 +22,17 @@ use raphtory_core::{
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     pages::{node_page::writer::node_info_as_props, session::WriteSession},
-    persist::strategy::{Config, PersistentStrategy},
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
-    Extension, WalImpl, ES, GS, NS,
+    transaction::TransactionManager,
+    wal::LSN,
+    Extension, Wal, ES, GS, NS,
 };
 
 pub struct WriteS<'a, EXT>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
@@ -44,7 +47,7 @@ pub struct UnlockedSession<'a> {
 
 impl<'a, EXT> EdgeWriteLock for WriteS<'a, EXT>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
@@ -53,9 +56,8 @@ where
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID> {
-        self.static_session.add_static_edge(src, dst, lsn)
+        self.static_session.add_static_edge(src, dst)
     }
 
     fn internal_add_edge(
@@ -64,11 +66,10 @@ where
         src: impl Into<VID>,
         dst: impl Into<VID>,
         eid: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
         self.static_session
-            .add_edge_into_layer(t, src, dst, eid, lsn, props);
+            .add_edge_into_layer(t, src, dst, eid, props);
 
         eid
     }
@@ -78,18 +79,16 @@ where
         t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         layer: usize,
     ) -> MaybeNew<ELID> {
         let src = src.into();
         let dst = dst.into();
         let eid = self
             .static_session
-            .add_static_edge(src, dst, lsn)
+            .add_static_edge(src, dst)
             .map(|eid| eid.with_layer_deletion(layer));
 
-        self.static_session
-            .delete_edge_from_layer(t, src, dst, eid, lsn);
+        self.static_session.delete_edge_from_layer(t, src, dst, eid);
 
         eid
     }
@@ -101,7 +100,7 @@ where
             self.static_session
                 .node_writers()
                 .get_mut_src()
-                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())], 0);
+                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
         };
     }
 
@@ -112,8 +111,12 @@ where
             self.static_session
                 .node_writers()
                 .get_mut_dst()
-                .update_c_props(pos, 0, [(NODE_ID_IDX, id.into())], 0);
+                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
         };
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.static_session.set_lsn(lsn);
     }
 }
 
@@ -184,9 +187,7 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
 
 impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
-
     type WS<'a> = UnlockedSession<'a>;
-
     type AtomicAddEdge<'a> = WriteS<'a, Extension>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
@@ -219,7 +220,7 @@ impl InternalAdditionOps for TemporalGraph {
                         self.event_counter
                             .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
                     );
-                    pos.as_vid(seg, self.extension().max_node_page_len())
+                    pos.as_vid(seg, self.extension().config().max_node_page_len())
                 })?;
 
                 Ok(id)
@@ -240,25 +241,25 @@ impl InternalAdditionOps for TemporalGraph {
             None => {
                 writer.update_c_props(
                     local_pos,
-                    0,
+                    STATIC_GRAPH_LAYER_ID,
                     node_info_as_props(id.as_gid_ref().left(), None),
-                    0,
                 );
                 MaybeNew::Existing(0)
             }
             Some(node_type) => {
-                let old_type = writer.get_metadata(local_pos, 0, NODE_TYPE_IDX).into_u64();
+                let old_type = writer
+                    .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
+                    .into_u64();
                 match old_type {
                     None => {
                         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
                         writer.update_c_props(
                             local_pos,
-                            0,
+                            STATIC_GRAPH_LAYER_ID,
                             node_info_as_props(
                                 id.as_gid_ref().left(),
                                 Some(node_type_id.inner()).filter(|&id| id != 0),
                             ),
-                            0,
                         );
                         node_type_id
                     }
@@ -322,7 +323,7 @@ impl InternalAdditionOps for TemporalGraph {
     ) -> Result<(), Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
-        node_writer.add_props(t, node_pos, 0, props, 0);
+        node_writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, props);
         Ok(())
     }
 
@@ -363,12 +364,14 @@ impl InternalAdditionOps for TemporalGraph {
             Ok(prop_ids)
         }
     }
+}
 
-    fn transaction_manager(&self) -> &TransactionManager {
-        &self.transaction_manager
+impl DurabilityOps for TemporalGraph {
+    fn transaction_manager(&self) -> Result<&TransactionManager, MutationError> {
+        Ok(&self.transaction_manager)
     }
 
-    fn wal(&self) -> &WalImpl {
-        &self.wal
+    fn wal(&self) -> Result<&Wal, MutationError> {
+        Ok(&self.extension().wal())
     }
 }

@@ -2,7 +2,7 @@ use crate::{data::DIRTY_PATH, model::blocking_io, rayon::blocking_compute};
 use futures_util::io;
 use raphtory::{
     db::api::{
-        storage::storage::{Extension, PersistentStrategy},
+        storage::storage::{Extension, PersistenceStrategy},
         view::{internal::InternalStorageOps, MaterializedGraph},
     },
     errors::{GraphError, InvalidPathReason},

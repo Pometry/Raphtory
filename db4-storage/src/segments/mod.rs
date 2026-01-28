@@ -157,7 +157,6 @@ pub struct SegmentContainer<T> {
     max_page_len: u32,
     properties: Properties,
     meta: Arc<Meta>,
-    lsn: u64,
 }
 
 pub trait HasRow: Default + Send + Sync + Sized {
@@ -176,7 +175,6 @@ impl<T: HasRow> SegmentContainer<T> {
             max_page_len,
             properties: Default::default(),
             meta,
-            lsn: 0,
         }
     }
 
@@ -284,16 +282,6 @@ impl<T: HasRow> SegmentContainer<T> {
     #[inline(always)]
     pub fn segment_id(&self) -> usize {
         self.segment_id
-    }
-
-    #[inline(always)]
-    pub fn lsn(&self) -> u64 {
-        self.lsn
-    }
-
-    #[inline(always)]
-    pub fn set_lsn(&mut self, lsn: u64) {
-        self.lsn = lsn;
     }
 
     pub fn len(&self) -> u32 {

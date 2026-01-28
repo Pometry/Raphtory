@@ -1,7 +1,7 @@
 use base64::{prelude::BASE64_URL_SAFE, DecodeError, Engine};
 use raphtory::{
     db::api::{
-        storage::storage::{Extension, PersistentStrategy},
+        storage::storage::{Extension, PersistenceStrategy},
         view::MaterializedGraph,
     },
     errors::GraphError,

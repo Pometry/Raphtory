@@ -36,7 +36,6 @@ use crate::{
         state::{ops::IntoDynNodeOp, NodeStateGroupBy, OrderedNodeStateOps},
         view::GraphViewOps,
     },
-    py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 type EarliestTimeOp = ops::history::EarliestTime<DynamicGraph>;

@@ -31,7 +31,6 @@ use crate::db::graph::nodes::IntoDynNodes;
 pub(crate) use crate::{
     db::api::state::{ops::IntoDynNodeOp, NodeStateOps, OrderedNodeStateOps},
     prelude::*,
-    py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 

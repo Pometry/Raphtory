@@ -19,9 +19,13 @@ use raphtory_core::{
 };
 use std::{
     borrow::Cow,
+    fmt::Debug,
     ops::{Deref, DerefMut, Range},
     path::{Path, PathBuf},
-    sync::{Arc, atomic::AtomicU32},
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
 };
 
 use rayon::prelude::*;
@@ -33,9 +37,10 @@ use crate::{
     pages::node_store::increment_and_clamp,
     segments::node::segment::MemNodeSegment,
     utils::{Iter2, Iter3, Iter4},
+    wal::LSN,
 };
 
-pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
+pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
 
     type Entry<'a>: NodeEntryOps<'a>
@@ -83,9 +88,9 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         head_lock: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
-    fn mark_dirty(&self);
+    fn set_dirty(&self, dirty: bool);
 
-    fn check_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
+    fn has_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
 
     fn get_out_edge(
         &self,
@@ -118,6 +123,9 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         locked_head: impl DerefMut<Target = MemNodeSegment>,
     ) -> Result<(), StorageError>;
 
+    /// Returns the latest lsn for the immutable part of this segment.
+    fn immut_lsn(&self) -> LSN;
+
     fn nodes_counter(&self) -> &AtomicU32;
 
     fn increment_num_nodes(&self, max_page_len: u32) {
@@ -125,8 +133,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     }
 
     fn num_nodes(&self) -> u32 {
-        self.nodes_counter()
-            .load(std::sync::atomic::Ordering::Relaxed)
+        self.nodes_counter().load(Ordering::Relaxed)
     }
 
     fn num_layers(&self) -> usize;
@@ -134,7 +141,7 @@ pub trait NodeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn layer_count(&self, layer_id: usize) -> u32;
 }
 
-pub trait LockedNSSegment: std::fmt::Debug + Send + Sync {
+pub trait LockedNSSegment: Debug + Send + Sync {
     type EntryRef<'a>: NodeRefOps<'a>
     where
         Self: 'a;

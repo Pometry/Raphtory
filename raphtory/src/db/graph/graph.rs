@@ -22,7 +22,7 @@ use crate::{
     db::{
         api::{
             state::ops::NodeFilterOp,
-            storage::storage::Storage,
+            storage::storage::{Config, PersistenceStrategy, Storage},
             view::{
                 internal::{
                     GraphView, InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
@@ -52,7 +52,7 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
-use storage::{persist::strategy::PersistentStrategy, Extension};
+use storage::Extension;
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Default)]
@@ -60,8 +60,6 @@ pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
 
-impl InheritCoreGraphOps for Graph {}
-impl InheritLayerOps for Graph {}
 impl From<Arc<Storage>> for Graph {
     fn from(inner: Arc<Storage>) -> Self {
         Self { inner }
@@ -76,7 +74,156 @@ impl From<GraphStorage> for Graph {
     }
 }
 
+impl Base for Graph {
+    type Base = Storage;
+
+    #[inline(always)]
+    fn base(&self) -> &Self::Base {
+        &self.inner
+    }
+}
+
+impl InheritMutationOps for Graph {}
+
+impl InheritViewOps for Graph {}
+
+impl InheritStorageOps for Graph {}
+
+impl InheritNodeHistoryFilter for Graph {}
+
+impl InheritEdgeHistoryFilter for Graph {}
+
+impl InheritCoreGraphOps for Graph {}
+
+impl InheritLayerOps for Graph {}
+
 impl Static for Graph {}
+
+impl Display for Graph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.inner)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
+where
+    Self: 'graph,
+{
+    fn eq(&self, other: &G) -> bool {
+        graph_equal(self, other)
+    }
+}
+
+impl Graph {
+    /// Create a new graph
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::new();
+    /// ```
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(Storage::default()),
+        }
+    }
+
+    /// Create a new graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+
+        path.init()?;
+        let graph_storage_path = path.graph_path()?;
+        let storage = Storage::new_at_path(graph_storage_path)?;
+
+        let graph = Self {
+            inner: Arc::new(storage),
+        };
+
+        path.write_metadata(&graph)?;
+        Ok(graph)
+    }
+
+    #[cfg(feature = "io")]
+    pub fn new_at_path_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+
+        path.init()?;
+
+        let graph = Self {
+            inner: Arc::new(Storage::new_at_path_with_config(
+                path.graph_path()?,
+                config,
+            )?),
+        };
+
+        path.write_metadata(&graph)?;
+        Ok(graph)
+    }
+
+    /// Load a graph from a specific path
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load_from_path("/path/to/storage");
+    ///
+    #[cfg(feature = "io")]
+    pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        // TODO: add support for loading indexes and vectors
+        Ok(Self {
+            inner: Arc::new(Storage::load_from(path.graph_path()?)?),
+        })
+    }
+
+    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
+        Self { inner }
+    }
+
+    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
+        let inner = Arc::new(Storage::from_inner(graph_storage));
+        Self { inner }
+    }
+
+    pub fn event_graph(&self) -> Graph {
+        self.clone()
+    }
+
+    /// Get persistent graph
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        PersistentGraph::from_storage(self.inner.clone())
+    }
+}
+
+// ###########################################
+// Methods for checking equality of graphs
+// ###########################################
 
 pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
     g1: &G1,
@@ -363,14 +510,17 @@ pub fn assert_nodes_equal_layer<
     only_timestamps: bool,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
-    nodes1.sort();
     let mut nodes2: Vec<_> = nodes2.collect();
+
+    nodes1.sort();
     nodes2.sort();
+
     assert_eq!(
         nodes1.len(),
         nodes2.len(),
         "mismatched number of nodes{layer_tag}",
     );
+
     for (n1, n2) in nodes1.into_iter().zip(nodes2) {
         assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps);
     }
@@ -645,8 +795,10 @@ fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
 ) {
     black_box({
         assert_graph_equal_layer(g1, g2, None, persistent, only_timestamps);
+
         let left_layers: HashSet<_> = g1.unique_layers().collect();
         let right_layers: HashSet<_> = g2.unique_layers().collect();
+
         assert_eq!(
             left_layers, right_layers,
             "mismatched layers: left {:?}, right {:?}",
@@ -682,7 +834,8 @@ pub fn assert_graph_equal_timestamps<'graph, G1: GraphViewOps<'graph>, G2: Graph
     assert_graph_equal_inner(g1, g2, false, true)
 }
 
-/// Equality check for materialized persistent graph that ignores the updates generated by the materialise at graph.earliest_time()
+/// Equality check for materialized persistent graph that ignores the
+/// updates generated by the materialise at graph.earliest_time().
 #[track_caller]
 pub fn assert_persistent_materialize_graph_equal<
     'graph,
@@ -693,134 +846,4 @@ pub fn assert_persistent_materialize_graph_equal<
     g2: &G2,
 ) {
     assert_graph_equal_inner(g1, g2, true, false)
-}
-
-impl Display for Graph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
-where
-    Self: 'graph,
-{
-    fn eq(&self, other: &G) -> bool {
-        graph_equal(self, other)
-    }
-}
-
-impl Base for Graph {
-    type Base = Storage;
-
-    #[inline(always)]
-    fn base(&self) -> &Self::Base {
-        &self.inner
-    }
-}
-
-impl InheritMutationOps for Graph {}
-
-impl InheritViewOps for Graph {}
-
-impl InheritStorageOps for Graph {}
-
-impl InheritNodeHistoryFilter for Graph {}
-
-impl InheritEdgeHistoryFilter for Graph {}
-
-impl Graph {
-    /// Create a new graph
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::new();
-    /// ```
-    pub fn new() -> Self {
-        Self {
-            inner: Arc::new(Storage::default()),
-        }
-    }
-
-    /// Create a new graph at a specific path
-    ///
-    /// # Arguments
-    /// * `path` - The path to the storage location
-    /// # Returns
-    /// A raphtory graph with storage at the specified path
-    /// # Example
-    /// ```no_run
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::new_at_path("/path/to/storage");
-    /// ```
-    #[cfg(feature = "io")]
-    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        if !Extension::disk_storage_enabled() {
-            return Err(GraphError::DiskGraphNotEnabled);
-        }
-        path.init()?;
-        let graph = Self {
-            inner: Arc::new(Storage::new_at_path(path.graph_path()?)?),
-        };
-        path.write_metadata(&graph)?;
-        Ok(graph)
-    }
-
-    #[cfg(feature = "io")]
-    pub fn new_at_path_with_config(
-        path: &(impl GraphPaths + ?Sized),
-        config: Extension,
-    ) -> Result<Self, GraphError> {
-        if !Extension::disk_storage_enabled() {
-            return Err(GraphError::DiskGraphNotEnabled);
-        }
-        path.init()?;
-        let graph = Self {
-            inner: Arc::new(Storage::new_with_path_and_ext(path.graph_path()?, config)?),
-        };
-        path.write_metadata(&graph)?;
-        Ok(graph)
-    }
-
-    /// Load a graph from a specific path
-    /// # Arguments
-    /// * `path` - The path to the storage location
-    /// # Returns
-    /// A raphtory graph loaded from the specified path
-    /// # Example
-    /// ```no_run
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_path("/path/to/storage");
-    ///
-    #[cfg(feature = "io")]
-    pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
-        //TODO: add support for loading indexes and vectors
-        Ok(Self {
-            inner: Arc::new(Storage::load_from(path.graph_path()?)?),
-        })
-    }
-
-    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
-        Self { inner }
-    }
-
-    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
-        let inner = Arc::new(Storage::from_inner(graph_storage));
-        Self { inner }
-    }
-
-    pub fn event_graph(&self) -> Graph {
-        self.clone()
-    }
-
-    /// Get persistent graph
-    pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_storage(self.inner.clone())
-    }
 }

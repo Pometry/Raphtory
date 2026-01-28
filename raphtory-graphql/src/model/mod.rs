@@ -22,7 +22,7 @@ use itertools::Itertools;
 use raphtory::{
     db::{
         api::{
-            storage::storage::{Extension, PersistentStrategy},
+            storage::storage::{Extension, PersistenceStrategy},
             view::MaterializedGraph,
         },
         graph::views::deletion_graph::PersistentGraph,

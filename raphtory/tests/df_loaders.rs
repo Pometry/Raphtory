@@ -1,7 +1,5 @@
 #[cfg(feature = "io")]
 mod io_tests {
-    use std::any::Any;
-
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };
@@ -944,14 +942,14 @@ mod parquet_tests {
                     1,
                     12,
                     vec![("a".to_string(), Prop::List(vec![].into()))],
-                    None,
+                    None::<String>,
                 ),
                 (
                     1,
                     2,
                     12,
                     vec![("a".to_string(), Prop::List(vec![Prop::str("aa")].into()))],
-                    None,
+                    None::<String>,
                 ),
             ]
             .into(),
@@ -969,7 +967,7 @@ mod parquet_tests {
                 0,
                 0,
                 vec![("a".to_string(), Prop::List(vec![Prop::DTime(dt)].into()))],
-                None,
+                None::<String>,
             )]
             .into(),
         );
@@ -988,7 +986,7 @@ mod parquet_tests {
                     "a".to_string(),
                     Prop::map([("a", Prop::DTime(dt)), ("b", Prop::str("s"))]),
                 )],
-                None,
+                None::<String>,
             )]
             .into(),
         );
@@ -1003,14 +1001,14 @@ mod parquet_tests {
                     0,
                     0,
                     vec![("a".to_string(), Prop::map([("a", Prop::I32(1))]))],
-                    None,
+                    None::<String>,
                 ),
                 (
                     0,
                     0,
                     0,
                     vec![("a".to_string(), Prop::map([("b", Prop::str("x"))]))],
-                    None,
+                    None::<String>,
                 ),
             ]
             .into(),
@@ -1021,13 +1019,19 @@ mod parquet_tests {
     fn edges_maps3() {
         build_and_check_parquet_encoding(
             [
-                (0, 0, 0, vec![("a".to_string(), Prop::U8(5))], None),
+                (
+                    0,
+                    0,
+                    0,
+                    vec![("a".to_string(), Prop::U8(5))],
+                    None::<String>,
+                ),
                 (
                     0,
                     0,
                     0,
                     vec![("b".to_string(), Prop::map([("c", Prop::U8(66))]))],
-                    None,
+                    None::<String>,
                 ),
             ]
             .into(),

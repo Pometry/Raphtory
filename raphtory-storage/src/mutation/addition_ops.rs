@@ -5,7 +5,7 @@ use crate::{
         MutationError,
     },
 };
-use db4_graph::{TransactionManager, WriteLockedGraph};
+use db4_graph::WriteLockedGraph;
 use raphtory_api::{
     core::{
         entities::{
@@ -20,7 +20,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::{nodes::node_ref::NodeRef, ELID};
-use storage::{Extension, WalImpl};
+use storage::{wal::LSN, Extension};
 
 pub trait InternalAdditionOps {
     type Error: From<MutationError>;
@@ -93,12 +93,6 @@ pub trait InternalAdditionOps {
         meta: &Meta,
         props: impl Iterator<Item = (PN, Prop)>,
     ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error>;
-
-    /// TODO: Not sure the below methods belong here...
-
-    fn transaction_manager(&self) -> &TransactionManager;
-
-    fn wal(&self) -> &WalImpl;
 }
 
 pub trait EdgeWriteLock: Send + Sync {
@@ -106,7 +100,6 @@ pub trait EdgeWriteLock: Send + Sync {
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID>;
 
     /// add edge update
@@ -116,7 +109,6 @@ pub trait EdgeWriteLock: Send + Sync {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         eid: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID>;
 
@@ -125,12 +117,13 @@ pub trait EdgeWriteLock: Send + Sync {
         t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         layer: usize,
     ) -> MaybeNew<ELID>;
 
     fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
+
+    fn set_lsn(&mut self, lsn: LSN);
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -260,14 +253,6 @@ impl InternalAdditionOps for GraphStorage {
         Ok(self.mutable()?.validate_gids(gids)?)
     }
 
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.mutable().unwrap().transaction_manager.as_ref()
-    }
-
-    fn wal(&self) -> &WalImpl {
-        self.mutable().unwrap().wal.as_ref()
-    }
-
     fn resolve_node_and_type(
         &self,
         id: NodeRef,
@@ -375,16 +360,6 @@ where
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
         self.base().validate_gids(gids)
-    }
-
-    #[inline]
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.base().transaction_manager()
-    }
-
-    #[inline]
-    fn wal(&self) -> &WalImpl {
-        self.base().wal()
     }
 
     fn resolve_node_and_type(

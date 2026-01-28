@@ -487,7 +487,7 @@ mod test_filters_node_type_filtered_subgraph {
                 },
                 views::filter::model::PropertyFilterFactory,
             },
-            prelude::{EdgeFilter, EdgeViewOps, GraphViewOps},
+            prelude::EdgeFilter,
         };
 
         #[test]

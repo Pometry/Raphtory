@@ -11,7 +11,7 @@ use std::{
     sync::{Arc, atomic::AtomicU32},
 };
 
-use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment};
+use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type Extension;
@@ -59,8 +59,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
-    /// mark segment as dirty without triggering a write
-    fn mark_dirty(&self);
+    fn set_dirty(&self, dirty: bool);
 
     /// notify that an edge was added (might need to write to disk)
     fn notify_write(
@@ -102,6 +101,10 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         &self,
         locked_head: impl DerefMut<Target = MemEdgeSegment>,
     ) -> Result<(), StorageError>;
+
+    /// Returns the latest lsn for the immutable part of this segment.
+    fn immut_lsn(&self) -> LSN;
+
     fn flush(&self) -> Result<(), StorageError>;
 }
 

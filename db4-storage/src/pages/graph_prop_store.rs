@@ -7,7 +7,7 @@ use crate::{
         graph_prop_page::writer::GraphPropWriter,
         locked::graph_props::{LockedGraphPropPage, WriteLockedGraphPropPages},
     },
-    persist::strategy::Config,
+    persist::strategy::PersistenceStrategy,
 };
 
 use std::{
@@ -31,7 +31,9 @@ pub struct GraphPropStorageInner<GS, EXT> {
     ext: EXT,
 }
 
-impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInner<GS, EXT> {
+impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
+    GraphPropStorageInner<GS, EXT>
+{
     pub fn new_with_meta(path: Option<&Path>, meta: Arc<Meta>, ext: EXT) -> Self {
         let page = Arc::new(GS::new(meta.clone(), path, ext.clone()));
 
@@ -64,6 +66,10 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: Config> GraphPropStorageInne
 
     pub fn graph_entry(&self) -> GS::Entry<'_> {
         self.page.entry()
+    }
+
+    pub fn segment(&self) -> &Arc<GS> {
+        &self.page
     }
 
     pub fn writer(&self) -> GraphPropWriter<'_, GS> {

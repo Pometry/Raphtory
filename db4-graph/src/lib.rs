@@ -1,10 +1,7 @@
 use std::{
     io,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{self, AtomicU64, AtomicUsize},
-        Arc,
-    },
+    sync::{atomic::AtomicUsize, Arc},
 };
 
 use raphtory_api::core::{
@@ -25,17 +22,20 @@ use storage::{
             nodes::WriteLockedNodePages,
         },
     },
-    persist::strategy::PersistentStrategy,
+    persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
-    wal::{GraphWal, TransactionID, Wal},
-    Extension, GIDResolver, Layer, ReadLockedLayer, WalImpl, ES, GS, NS,
+    transaction::TransactionManager,
+    wal::WalOps,
+    Config, Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, GS, NS,
 };
 use tempfile::TempDir;
+
+mod replay;
 
 #[derive(Debug)]
 pub struct TemporalGraph<EXT = Extension>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
@@ -46,7 +46,6 @@ where
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
-    pub wal: Arc<WalImpl>,
 }
 
 #[derive(Debug)]
@@ -90,49 +89,17 @@ impl<'a> From<&'a Path> for GraphDir {
     }
 }
 
-#[derive(Debug)]
-pub struct TransactionManager {
-    last_transaction_id: AtomicU64,
-    wal: Arc<WalImpl>,
-}
-
-impl TransactionManager {
-    const STARTING_TRANSACTION_ID: TransactionID = 1;
-
-    pub fn new(wal: Arc<WalImpl>) -> Self {
-        Self {
-            last_transaction_id: AtomicU64::new(Self::STARTING_TRANSACTION_ID),
-            wal,
-        }
-    }
-
-    pub fn load(self, last_transaction_id: TransactionID) {
-        self.last_transaction_id
-            .store(last_transaction_id, atomic::Ordering::SeqCst)
-    }
-
-    pub fn begin_transaction(&self) -> TransactionID {
-        let transaction_id = self
-            .last_transaction_id
-            .fetch_add(1, atomic::Ordering::SeqCst);
-        self.wal.log_begin_transaction(transaction_id).unwrap();
-        transaction_id
-    }
-
-    pub fn end_transaction(&self, transaction_id: TransactionID) {
-        self.wal.log_end_transaction(transaction_id).unwrap();
-    }
-}
-
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
-        Self::new(Extension::default()).unwrap()
+        let config = Config::default();
+        let wal = Arc::new(Wal::new(None).unwrap());
+        Self::new(Extension::new(config, wal)).unwrap()
     }
 }
 
 impl<EXT> TemporalGraph<EXT>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
@@ -145,7 +112,7 @@ where
         Self::new_with_meta(None, node_meta, edge_meta, graph_props_meta, ext)
     }
 
-    pub fn new_with_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+    pub fn new_at_path_with_ext(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let node_meta = Meta::new_for_nodes();
         let edge_meta = Meta::new_for_edges();
         let graph_props_meta = Meta::new_for_graph_props();
@@ -157,26 +124,6 @@ where
             graph_props_meta,
             ext,
         )
-    }
-
-    pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, StorageError> {
-        let path = path.as_ref();
-        let storage = Layer::load(path)?;
-        let id_type = storage.nodes().id_type();
-
-        let gid_resolver_dir = path.join("gid_resolver");
-        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
-        let wal_dir = path.join("wal");
-        let wal = Arc::new(WalImpl::new(Some(wal_dir))?);
-
-        Ok(Self {
-            graph_dir: Some(path.into()),
-            event_counter: AtomicUsize::new(resolver.len()),
-            logical_to_physical: resolver.into(),
-            storage: Arc::new(storage),
-            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
-            wal,
-        })
     }
 
     pub fn new_with_meta(
@@ -218,16 +165,29 @@ where
             ext,
         );
 
-        let wal_dir = graph_dir.as_ref().map(|dir| dir.wal_dir());
-        let wal = Arc::new(WalImpl::new(wal_dir)?);
-
         Ok(Self {
             graph_dir,
             logical_to_physical,
             storage: Arc::new(storage),
-            transaction_manager: Arc::new(TransactionManager::new(wal.clone())),
+            transaction_manager: Arc::new(TransactionManager::new()),
             event_counter: AtomicUsize::new(0),
-            wal,
+        })
+    }
+
+    pub fn load_from_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        let path = path.as_ref();
+        let storage = Layer::load(path, ext)?;
+        let id_type = storage.nodes().id_type();
+
+        let gid_resolver_dir = path.join("gid_resolver");
+        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
+
+        Ok(Self {
+            graph_dir: Some(path.into()),
+            event_counter: AtomicUsize::new(resolver.len()),
+            logical_to_physical: resolver.into(),
+            storage: Arc::new(storage),
+            transaction_manager: Arc::new(TransactionManager::new()),
         })
     }
 
@@ -266,10 +226,12 @@ where
                 .get_str(string)
                 .or_else(|| self.logical_to_physical.get_u64(string.id())),
         }?;
+
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
         let nodes = self.storage().nodes();
         let (page_id, pos) = nodes.resolve_pos(vid);
         let node_page = nodes.segments().get(page_id)?;
+
         if pos.0 < node_page.num_nodes() {
             Some(vid)
         } else {
@@ -404,9 +366,10 @@ where
     }
 }
 
+/// Holds write locks across all segments in the graph for fast bulk ingestion.
 pub struct WriteLockedGraph<'a, EXT>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
@@ -419,7 +382,7 @@ where
 
 impl<'a, EXT> WriteLockedGraph<'a, EXT>
 where
-    EXT: PersistentStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
+    EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
@@ -437,17 +400,15 @@ where
         self.graph
     }
 
-    pub fn resize_chunks_to_num_nodes(&mut self, max_vid: Option<VID>) {
-        if let Some(max_vid) = max_vid {
-            let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(max_vid);
-            self.graph.storage().nodes().grow(chunks_needed + 1);
-            std::mem::take(&mut self.nodes);
-            self.nodes = self.graph.storage.nodes().write_locked();
-        }
+    pub fn resize_chunks_to_vid(&mut self, vid: VID) {
+        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(vid);
+        self.graph.storage().nodes().grow(chunks_needed + 1);
+        std::mem::take(&mut self.nodes);
+        self.nodes = self.graph.storage.nodes().write_locked();
     }
 
-    pub fn resize_chunks_to_num_edges(&mut self, max_eid: EID) {
-        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(max_eid);
+    pub fn resize_chunks_to_eid(&mut self, eid: EID) {
+        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(eid);
         self.graph.storage().edges().grow(chunks_needed + 1);
         std::mem::take(&mut self.edges);
         self.edges = self.graph.storage.edges().write_locked();

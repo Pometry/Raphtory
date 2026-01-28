@@ -9,7 +9,7 @@ use crate::{
         locked::nodes::{LockedNodePage, WriteLockedNodePages},
         row_group_par_iter,
     },
-    persist::strategy::Config,
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
@@ -46,7 +46,7 @@ pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNodeStorage<NS, EXT> {
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
@@ -118,7 +118,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> ReadLockedNodeStorage<NS,
     }
 }
 
-impl<NS: Send + Sync, EXT: Config> NodeStorageInner<NS, EXT> {
+impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -161,11 +161,11 @@ impl<NS: Send + Sync, EXT: Config> NodeStorageInner<NS, EXT> {
     }
 
     pub fn max_segment_len(&self) -> u32 {
-        self.ext.max_node_page_len()
+        self.ext.config().max_node_page_len()
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
         node_meta: Arc<Meta>,
@@ -196,7 +196,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
                     .properties_mut()
                     .set_has_properties()
             }
-            segment.mark_dirty();
+            segment.set_dirty(true);
         }
         empty
     }
@@ -241,6 +241,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
             let lock_slot = self.free_segments[slot_idx].read_recursive();
             let page_id = *lock_slot;
             let page = self.segments.get(page_id);
+
             page.and_then(|page| {
                 self.reserve_segment_row(page)
                     .map(|pos| (page.segment_id(), LocalPOS(pos)))
@@ -335,7 +336,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         ext: EXT,
     ) -> Result<Self, StorageError> {
         let nodes_path = nodes_path.as_ref();
-        let max_page_len = ext.max_node_page_len();
+        let max_page_len = ext.config().max_node_page_len();
         let node_meta = Arc::new(Meta::new_for_nodes());
 
         if !nodes_path.exists() {
@@ -483,19 +484,21 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
         }
+
         let count = self.segments.count();
+
         if count > segment_id {
-            // something has allocated the segment, wait for it to be added
+            // Something has allocated the segment, wait for it to be added.
             loop {
                 if let Some(segment) = self.segments.get(segment_id) {
                     return segment;
                 } else {
-                    // wait for the segment to be created
+                    // Wait for the segment to be created.
                     std::thread::yield_now();
                 }
             }
         } else {
-            // we need to create the segment
+            // we need to create the segment.
             self.segments.reserve(segment_id + 1 - count);
 
             loop {
@@ -514,7 +517,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: Config> NodeStorageInner<NS, EXT>
                         if let Some(segment) = self.segments.get(segment_id) {
                             return segment;
                         } else {
-                            // wait for the segment to be created
+                            // Wait for the segment to be created.
                             std::thread::yield_now();
                         }
                     }
