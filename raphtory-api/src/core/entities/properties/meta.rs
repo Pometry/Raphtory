@@ -332,8 +332,12 @@ impl PropMapper {
     }
 
     pub fn set_id_and_dtype(&self, key: impl Into<ArcStr>, id: usize, dtype: PropType) {
-        let mut dtypes = self.dtypes.write();
         self.set_id(key, id);
+        self.set_dtype(id, dtype);
+    }
+
+    pub fn set_dtype(&self, id: usize, dtype: PropType) {
+        let mut dtypes = self.dtypes.write();
         if dtypes.len() <= id {
             dtypes.resize(id + 1, PropType::Empty);
         }

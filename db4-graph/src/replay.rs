@@ -5,7 +5,10 @@
 use crate::WriteLockedGraph;
 use raphtory_api::core::{
     entities::{
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+        properties::{
+            meta::STATIC_GRAPH_LAYER_ID,
+            prop::{check_for_unification, unify_types, Prop, PropType},
+        },
         EID, GID, VID,
     },
     storage::timeindex::EventTime,
@@ -52,7 +55,19 @@ where
 
         for (prop_name, prop_id, prop_value) in &props {
             let prop_mapper = edge_meta.temporal_prop_mapper();
-            prop_mapper.set_id_and_dtype(prop_name.as_str(), *prop_id, prop_value.dtype());
+            match prop_mapper.get_dtype(*prop_id) {
+                None => {
+                    prop_mapper.set_id_and_dtype(prop_name.as_str(), *prop_id, prop_value.dtype());
+                }
+                Some(old_dtype) => {
+                    let dtype = prop_value.dtype();
+                    let mut unified = false;
+                    let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
+                    if unified {
+                        prop_mapper.set_dtype(*prop_id, new_dtype);
+                    }
+                }
+            }
         }
 
         // 2. Insert node ids into resolver.
