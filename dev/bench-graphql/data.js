@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769519431048,
+  "lastUpdate": 1769685295852,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3671,6 +3671,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1477,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+shivamka1@users.noreply.github.com",
+            "name": "Shivam",
+            "username": "shivamka1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "12be753cdc11cd84fc99bd2db90d37f03a9dbaad",
+          "message": "impl in out components filter (#2458)\n\n* impl in out components filter\n\n* add review suggestions\n\n* chore: apply tidy-public auto-fixes\n\n* add review suggestions, fix docs, fix filter bug, add test\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-01-29T10:38:57Z",
+          "tree_id": "c11751546c7645413ec2cffcbc5fded0280a5964",
+          "url": "https://github.com/Pometry/Raphtory/commit/12be753cdc11cd84fc99bd2db90d37f03a9dbaad"
+        },
+        "date": 1769685289904,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1480,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 221,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 135,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1205,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 997,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1380,
             "unit": "req/s"
           }
         ]
