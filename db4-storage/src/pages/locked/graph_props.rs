@@ -24,7 +24,6 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
         &mut self,
         t: T,
         props: impl IntoIterator<Item = (usize, Prop)>,
-        lsn: u64,
     ) {
         let add = self.lock.add_properties(t, props);
 
@@ -33,12 +32,12 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
     }
 
     /// Add metadata (constant properties) to the graph
-    pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
-        self.update_metadata(props, lsn);
+    pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
+        self.update_metadata(props);
     }
 
     /// Update metadata (constant properties) on the graph
-    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
+    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
         let add = self.lock.update_metadata(props);
 
         self.page.increment_est_size(add);

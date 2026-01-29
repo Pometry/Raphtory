@@ -1,10 +1,7 @@
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{
-            mutation::time_from_input_session,
-            view::{internal::InternalStorageOps, StaticGraphViewOps},
-        },
+        api::{mutation::time_from_input_session, view::StaticGraphViewOps},
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},

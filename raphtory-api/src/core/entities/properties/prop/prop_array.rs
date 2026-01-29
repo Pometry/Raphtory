@@ -10,7 +10,7 @@ use arrow_array::{
 };
 use arrow_ipc::{reader::FileReader, writer::FileWriter};
 use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
-use serde::{de, ser, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     hash::{Hash, Hasher},
     io::Cursor,

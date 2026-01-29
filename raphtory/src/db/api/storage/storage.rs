@@ -26,7 +26,6 @@ use raphtory_storage::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{UnlockedSession, WriteS},
         deletion_ops::InternalDeletionOps,
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, NodeWriterT,
     },
@@ -38,16 +37,12 @@ use std::{
 };
 use storage::{
     persist::config::ConfigOps,
-    transaction::TransactionManager,
     wal::{GraphWalOps, WalOps, LSN},
     Wal,
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
-pub use storage::{
-    persist::{config::PersistenceConfig, strategy::PersistenceStrategy},
-    Config, Extension,
-};
+pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[cfg(feature = "search")]
 use {

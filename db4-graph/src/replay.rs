@@ -7,7 +7,7 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::STATIC_GRAPH_LAYER_ID,
-            prop::{check_for_unification, unify_types, Prop, PropType},
+            prop::{unify_types, Prop},
         },
         EID, GID, VID,
     },

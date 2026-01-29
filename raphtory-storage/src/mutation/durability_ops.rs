@@ -1,5 +1,4 @@
 use crate::{graph::graph::GraphStorage, mutation::MutationError};
-use db4_graph::TemporalGraph;
 use storage::{transaction::TransactionManager, Wal};
 
 /// Accessor methods for transactions and write-ahead logging.

@@ -42,7 +42,6 @@ use raphtory_storage::{
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps},
         deletion_ops::InternalDeletionOps,
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };

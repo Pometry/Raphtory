@@ -54,7 +54,7 @@ uuid = { workspace = true }
 parquet = { workspace = true }
 arrow-json = { workspace = true }
 arrow-csv = { workspace = true }
-arrow = { workspace = true, features = ["chrono-tz"]}
+arrow = { workspace = true, features = ["chrono-tz"] }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -155,7 +155,7 @@ python = [
     "dep:numpy",
     "dep:num",
     "dep:display-error-chain",
-    "pyo3-arrow",
+    "dep:pyo3-arrow",
     "raphtory-api/python",
     "raphtory-core/python",
     "kdam/notebook",

@@ -28,7 +28,6 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
         &mut self,
         t: T,
         props: impl IntoIterator<Item = (usize, Prop)>,
-        lsn: u64,
     ) {
         let add = self.mem_segment.add_properties(t, props);
 
@@ -40,7 +39,7 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
         self.mem_segment.check_metadata(props)
     }
 
-    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
+    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
         let add = self.mem_segment.update_metadata(props);
 
         self.graph_props.increment_est_size(add);

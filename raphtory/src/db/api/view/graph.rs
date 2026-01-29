@@ -561,7 +561,7 @@ fn materialize_impl(
 
                 for (t, prop_value) in temporal_prop.iter_indexed() {
                     let lsn = 0;
-                    graph_writer.add_properties(t, [(prop_id, prop_value)], lsn);
+                    graph_writer.add_properties(t, [(prop_id, prop_value)]);
                 }
             }
 
@@ -581,7 +581,7 @@ fn materialize_impl(
 
             if !metadata_props.is_empty() {
                 let lsn = 0;
-                graph_writer.update_metadata(metadata_props, lsn);
+                graph_writer.update_metadata(metadata_props);
             }
         }
     }
