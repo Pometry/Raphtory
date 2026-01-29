@@ -51,7 +51,6 @@ where
         // No need to validate props again since they are already validated before
         // being logged to the WAL.
 
-
         // 2. Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
             self.graph()
@@ -178,7 +177,11 @@ where
                 let prop_mapper = edge_meta.temporal_prop_mapper();
                 match prop_mapper.get_dtype(*prop_id) {
                     None => {
-                        prop_mapper.set_id_and_dtype(prop_name.as_str(), *prop_id, prop_value.dtype());
+                        prop_mapper.set_id_and_dtype(
+                            prop_name.as_str(),
+                            *prop_id,
+                            prop_value.dtype(),
+                        );
                     }
                     Some(old_dtype) => {
                         let dtype = prop_value.dtype();
