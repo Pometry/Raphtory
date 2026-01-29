@@ -13,29 +13,15 @@ macro_rules! impl_filter_ops {
             /// Return a filtered view that only includes nodes and edges that satisfy the filter
             ///
             /// Arguments:
-            ///     filter (FilterExpr): The filter to apply to the nodes and edges.
+            ///     filter (filter.FilterExpr): The filter to apply to the nodes and edges.
             ///
             /// Returns:
             #[doc=concat!("    ", $name, ": The filtered view")]
             fn filter(
                 &self,
-                filter: &pyo3::Bound<'_, pyo3::types::PyAny>,
+                filter: PyFilterExpr,
             ) -> PyResult<<$base_type as InternalFilter<'static>>::Filtered<DynamicGraph>> {
-                if let Ok(expr) = filter.extract::<PyFilterExpr>() {
-                    return Ok(self.$field.clone().filter(expr)?.into_dyn_hop());
-                }
-
-                if let Ok(builder) = filter.extract::<pyo3::PyRef<
-                    '_,
-                    crate::python::filter::property_filter_builders::PyViewFilterBuilder,
-                >>() {
-                    let expr = PyFilterExpr(builder.0.clone());
-                    return Ok(self.$field.clone().filter(expr)?.into_dyn_hop());
-                }
-
-                Err(pyo3::exceptions::PyTypeError::new_err(
-                    "argument 'filter' must be FilterExpr or a ViewFilterBuilder",
-                ))
+                Ok(self.$field.clone().filter(filter)?.into_dyn_hop())
             }
         }
     };

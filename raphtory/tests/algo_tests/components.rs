@@ -418,7 +418,13 @@ mod in_component_test {
         graph.add_edge(1, 99, 2, NO_PROPS, Some("B")).unwrap();
         graph.add_edge(1, 100, 99, NO_PROPS, Some("B")).unwrap();
 
-        let mut unfiltered_ids: Vec<u64> =
+        let result = in_component_filtered(graph.node(4).unwrap(), GraphFilter.layer("A")).unwrap();
+        let result = result
+            .iter()
+            .flat_map(|(n, _)| n.id().as_u64())
+            .collect::<Vec<_>>();
+        assert_eq!(result, vec![2]);
+        let unfiltered_ids: Vec<u64> =
             in_component_filtered(graph.node(4).unwrap(), GraphFilter.layer("A"))
                 .unwrap()
                 .nodes()
@@ -426,9 +432,6 @@ mod in_component_test {
                 .iter()
                 .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
                 .collect();
-
-        unfiltered_ids.sort();
-        unfiltered_ids.dedup();
 
         assert_eq!(unfiltered_ids, vec![99]);
     }
@@ -702,9 +705,6 @@ mod components_test {
                 .iter()
                 .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
                 .collect();
-
-        unfiltered_ids.sort();
-        unfiltered_ids.dedup();
 
         assert_eq!(unfiltered_ids, vec![99]);
     }

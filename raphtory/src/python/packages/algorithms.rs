@@ -171,7 +171,7 @@ pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
-///     filter (Option<Filter>): Optional filter
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///     NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
@@ -191,7 +191,7 @@ pub fn in_components(
 ///
 /// Arguments:
 ///     node (Node): The node whose in-component we wish to calculate
-///     filter (Option<Filter>): Optional filter
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///    NodeStateUsize: Mapping of nodes in the in-component to the distance from the starting node.
@@ -211,7 +211,7 @@ pub fn in_component(
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
-///     filter (Option<Filter>): Optional filter
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///     NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
@@ -231,7 +231,7 @@ pub fn out_components(
 ///
 /// Arguments:
 ///     node (Node): The node whose out-component we wish to calculate
-///     filter (Option<Filter>): Optional filter
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///    NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.

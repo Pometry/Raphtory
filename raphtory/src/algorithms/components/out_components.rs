@@ -89,7 +89,7 @@ where
         Step::Done
     });
 
-    let mut runner: TaskRunner<_, _> = TaskRunner::new(ctx);
+    let mut runner = TaskRunner::new(ctx);
 
     Ok(runner.run(
         vec![Job::new(step1)],

@@ -13,7 +13,7 @@ use crate::{
         graph::graph::Graph,
     },
     errors::GraphError,
-    prelude::{NodeStateOps, NO_PROPS},
+    prelude::NO_PROPS,
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory_api::core::storage::timeindex::AsTime;
@@ -76,8 +76,11 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::graphgen::erdos_renyi::erdos_renyi;
+    use crate::{
+        db::api::view::{graph::GraphViewOps, node::NodeViewOps},
+        graphgen::erdos_renyi::erdos_renyi,
+        prelude::NodeStateOps,
+    };
 
     #[test]
     fn test_erdos_renyi_half_probability() {
