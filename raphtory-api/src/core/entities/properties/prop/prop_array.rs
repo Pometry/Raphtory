@@ -6,11 +6,14 @@ use crate::{
 };
 use arrow_array::{
     cast::AsArray, types::*, Array, ArrayRef, ArrowPrimitiveType, OffsetSizeTrait, PrimitiveArray,
+    RecordBatch,
 };
-use arrow_schema::{DataType, Field, Fields, TimeUnit};
-use serde::{ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
+use arrow_ipc::{reader::FileReader, writer::FileWriter};
+use arrow_schema::{DataType, Field, Fields, Schema, TimeUnit};
+use serde::{de, ser, ser::SerializeSeq, Deserialize, Deserializer, Serialize, Serializer};
 use std::{
     hash::{Hash, Hasher},
+    io::Cursor,
     sync::Arc,
 };
 
@@ -18,6 +21,12 @@ use std::{
 pub enum PropArray {
     Vec(Arc<[Prop]>),
     Array(ArrayRef),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+enum SerializedPropArray {
+    Vec(Arc<[Prop]>),
+    Array(Vec<u8>),
 }
 
 impl Default for PropArray {
@@ -199,11 +208,27 @@ impl Serialize for PropArray {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_seq(Some(self.len()))?;
-        for prop in self.iter_all() {
-            state.serialize_element(&prop)?;
-        }
-        state.end()
+        let serializable = match self {
+            PropArray::Vec(inner) => SerializedPropArray::Vec(inner.clone()),
+            PropArray::Array(array) => {
+                let mut bytes = Vec::new();
+                let cursor = Cursor::new(&mut bytes);
+                let schema =
+                    Schema::new(vec![Field::new("value", array.data_type().clone(), true)]);
+                let mut writer = FileWriter::try_new(cursor, &schema)
+                    .map_err(|err| ser::Error::custom(err.to_string()))?;
+                let batch = RecordBatch::try_new(schema.into(), vec![array.clone()])
+                    .map_err(|err| ser::Error::custom(err.to_string()))?;
+                writer
+                    .write(&batch)
+                    .map_err(|err| ser::Error::custom(err.to_string()))?;
+                writer
+                    .finish()
+                    .map_err(|err| ser::Error::custom(err.to_string()))?;
+                SerializedPropArray::Array(bytes)
+            }
+        };
+        serializable.serialize(serializer)
     }
 }
 
@@ -212,8 +237,29 @@ impl<'de> Deserialize<'de> for PropArray {
     where
         D: Deserializer<'de>,
     {
-        let data = <Vec<Prop>>::deserialize(deserializer)?;
-        Ok(PropArray::Vec(data.into()))
+        let data = SerializedPropArray::deserialize(deserializer)?;
+        let deserialized = match data {
+            SerializedPropArray::Vec(res) => PropArray::Vec(res),
+            SerializedPropArray::Array(bytes) => {
+                let cursor = Cursor::new(bytes);
+                let mut reader = FileReader::try_new(cursor, None)
+                    .map_err(|err| de::Error::custom(err.to_string()))?;
+                let batch = reader.next().ok_or_else(|| {
+                    de::Error::custom(
+                        "Failed to deserialize PropArray: Array data missing.".to_owned(),
+                    )
+                })?;
+                let batch = batch.map_err(|err| de::Error::custom(err.to_string()))?;
+                let (_, arrays, _) = batch.into_parts();
+                let array = arrays.into_iter().next().ok_or_else(|| {
+                    de::Error::custom(
+                        "Failed to deserialize PropArray: Array data missing.".to_owned(),
+                    )
+                })?;
+                PropArray::Array(array)
+            }
+        };
+        Ok(deserialized)
     }
 }
 
@@ -337,5 +383,30 @@ impl PropArrayUnwrap for Prop {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::core::entities::properties::prop::{Prop, PropArray};
+    use arrow_array::Int64Array;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_prop_array_json() {
+        let array = PropArray::Array(Arc::new(Int64Array::from(vec![0, 1, 2])));
+        let json = serde_json::to_string(&array).unwrap();
+        println!("{json}");
+        let recovered: PropArray = serde_json::from_str(&json).unwrap();
+        assert_eq!(array, recovered);
+    }
+
+    #[test]
+    fn test_prop_array_list_json() {
+        let array = PropArray::Vec([Prop::U64(1), Prop::U64(2)].into());
+        let json = serde_json::to_string(&array).unwrap();
+        println!("{json}");
+        let recovered: PropArray = serde_json::from_str(&json).unwrap();
+        assert_eq!(array, recovered);
     }
 }

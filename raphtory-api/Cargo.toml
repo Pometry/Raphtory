@@ -46,6 +46,7 @@ display-error-chain = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true
+serde_json.workspace = true
 
 [features]
 # Enables generating the pyo3 python bindings
