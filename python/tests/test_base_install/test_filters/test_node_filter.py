@@ -300,3 +300,14 @@ def test_filter_nodes_with_num_ids_error():
             graph.filter(filter_expr).nodes.id
 
     return check
+
+
+@with_disk_variants(init_graph2)
+def test_filter_nodes_neighbours():
+    def check(graph):
+        filter_expr = filter.Graph.window(1, 5)
+        result_ids = sorted(graph.node(1).neighbours[filter_expr].id)
+        expected_ids = [2, 3]
+        assert result_ids == expected_ids
+
+    return check

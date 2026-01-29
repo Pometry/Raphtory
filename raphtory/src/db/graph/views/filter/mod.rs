@@ -1,6 +1,9 @@
 use crate::{
     db::{
-        api::{state::ops::NodeFilterOp, view::internal::GraphView},
+        api::{
+            state::ops::{filter::NodeExistsOp, NodeFilterOp},
+            view::internal::GraphView,
+        },
         graph::views::filter::node_filtered_graph::NodeFilteredGraph,
     },
     errors::GraphError,
@@ -16,6 +19,47 @@ pub mod model;
 pub mod node_filtered_graph;
 pub mod not_filtered_graph;
 pub mod or_filtered_graph;
+
+pub struct Unfiltered;
+
+impl CreateFilter for Unfiltered {
+    type EntityFiltered<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+    type NodeFilter<'graph, G>
+        = NodeExistsOp<G>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        Ok(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(NodeExistsOp::new(graph))
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
+}
 
 pub trait CreateFilter: Sized {
     type EntityFiltered<'graph, G>: GraphViewOps<'graph>

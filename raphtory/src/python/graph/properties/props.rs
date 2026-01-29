@@ -173,7 +173,7 @@ impl PyProperties {
     /// Get a view of the temporal properties only.
     ///
     /// Returns:
-    ///     TemporalProp:
+    ///    TemporalProperties:
     #[getter]
     pub fn temporal(&self) -> DynTemporalProperties {
         self.props.temporal()

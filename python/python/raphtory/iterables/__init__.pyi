@@ -73,6 +73,8 @@ __all__ = [
     "NestedResultOptionUtcDateTimeIterable",
     "NestedI64Iterable",
     "NestedResultUtcDateTimeIterable",
+    "MetadataListList",
+    "PyNestedPropsIterable",
 ]
 
 class NestedUtcDateTimeIterable(object):
@@ -1587,3 +1589,118 @@ class NestedResultUtcDateTimeIterable(object):
         """Return repr(self)."""
 
     def collect(self): ...
+
+class MetadataListList(object):
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def as_dict(self): ...
+    def get(self, key): ...
+    def items(self): ...
+    def keys(self): ...
+    def values(self): ...
+
+class PyNestedPropsIterable(object):
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def as_dict(self) -> dict[str, List[List[PropValue]]]:
+        """
+        Convert properties view to a dict.
+
+        Returns:
+            dict[str, List[List[PropValue]]]:
+        """
+
+    def get(self, key: str):
+        """
+        Get property value.
+
+        Arguments:
+            key (str): the name of the property.
+
+        Returns:
+            PyPropValueListList:
+        """
+
+    def items(self) -> list[Tuple[str, List[PropValue]]]:
+        """
+        Get a list of key-value pairs.
+
+        Returns:
+            list[Tuple[str, List[PropValue]]]:
+        """
+
+    def keys(self):
+        """
+        Get the names for all properties.
+
+        Returns:
+            List[Str]:
+        """
+
+    @property
+    def temporal(self):
+        """
+        Get a view of the temporal properties only.
+
+        Returns:
+            List[List[temporalprop]]:
+        """
+
+    def values(self) -> list[list[list[PropValue]]]:
+        """
+        Get the values of the properties.
+
+
+        Returns:
+            list[list[list[PropValue]]]:
+        """
