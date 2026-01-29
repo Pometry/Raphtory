@@ -67,6 +67,7 @@ use crate::{
     errors::GraphError,
     prelude::Graph,
     python::{
+        filter::filter_expr::PyFilterExpr,
         graph::{node::PyNode, views::graph_view::PyGraphView},
         utils::PyNodeRef,
     },
@@ -170,56 +171,80 @@ pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///     NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
 #[pyfunction]
-#[pyo3(signature = (graph))]
+#[pyo3(signature = (graph, filter = None))]
 pub fn in_components(
     graph: &PyGraphView,
-) -> NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph> {
-    components::in_components(&graph.graph, None)
+    filter: Option<PyFilterExpr>,
+) -> Result<NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph>, GraphError> {
+    match filter {
+        Some(f) => components::in_components_filtered(&graph.graph, None, f),
+        None => Ok(components::in_components(&graph.graph, None)),
+    }
 }
 
 /// In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 ///
 /// Arguments:
 ///     node (Node): The node whose in-component we wish to calculate
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///    NodeStateUsize: Mapping of nodes in the in-component to the distance from the starting node.
 #[pyfunction]
-#[pyo3(signature = (node))]
-pub fn in_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
-    components::in_component(node.node.clone())
+#[pyo3(signature = (node, filter = None))]
+pub fn in_component(
+    node: &PyNode,
+    filter: Option<PyFilterExpr>,
+) -> Result<NodeState<'static, usize, DynamicGraph>, GraphError> {
+    match filter {
+        Some(f) => components::in_component_filtered(node.node.clone(), f),
+        None => Ok(components::in_component(node.node.clone())),
+    }
 }
 
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 ///
 /// Arguments:
 ///     graph (GraphView): Raphtory graph
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///     NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
 #[pyfunction]
-#[pyo3(signature = (graph))]
+#[pyo3(signature = (graph, filter = None))]
 pub fn out_components(
     graph: &PyGraphView,
-) -> NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph> {
-    components::out_components(&graph.graph, None)
+    filter: Option<PyFilterExpr>,
+) -> Result<NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph>, GraphError> {
+    match filter {
+        Some(f) => components::out_components_filtered(&graph.graph, None, f),
+        None => Ok(components::out_components(&graph.graph, None)),
+    }
 }
 
 /// Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 ///
 /// Arguments:
 ///     node (Node): The node whose out-component we wish to calculate
+///     filter (filter.FilterExpr, optional): Optional filter
 ///
 /// Returns:
 ///    NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.
 #[pyfunction]
-#[pyo3(signature = (node))]
-pub fn out_component(node: &PyNode) -> NodeState<'static, usize, DynamicGraph> {
-    components::out_component(node.node.clone())
+#[pyo3(signature = (node, filter = None))]
+pub fn out_component(
+    node: &PyNode,
+    filter: Option<PyFilterExpr>,
+) -> Result<NodeState<'static, usize, DynamicGraph>, GraphError> {
+    match filter {
+        Some(f) => components::out_component_filtered(node.node.clone(), f),
+        None => Ok(components::out_component(node.node.clone())),
+    }
 }
 
 /// Pagerank -- pagerank centrality value of the nodes in a graph
