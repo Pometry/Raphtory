@@ -501,19 +501,21 @@ fn materialize_impl(
                 }
 
                 for e in edge.explode() {
-                    if let Some(node_pos) = maybe_src_pos {
+                    if let Some(src_pos) = maybe_src_pos {
                         let mut writer = shard.writer();
 
                         let t = e.time().expect("exploded edge should have time");
                         let l = layer_map[e.edge.layer().unwrap()];
-                        writer.update_timestamp(t, node_pos, eid.with_layer(l), 0);
+                        writer.update_timestamp(t, src_pos, eid.with_layer(l), 0);
                     }
-                    if let Some(node_pos) = maybe_dst_pos {
-                        let mut writer = shard.writer();
+                    if let Some(dst_pos) = maybe_dst_pos {
+                        if maybe_src_pos.is_none_or(|src_pos| src_pos != dst_pos) {
+                            let mut writer = shard.writer();
 
-                        let t = e.time().expect("exploded edge should have time");
-                        let l = layer_map[e.edge.layer().unwrap()];
-                        writer.update_timestamp(t, node_pos, eid.with_layer(l), 0);
+                            let t = e.time().expect("exploded edge should have time");
+                            let l = layer_map[e.edge.layer().unwrap()];
+                            writer.update_timestamp(t, dst_pos, eid.with_layer(l), 0);
+                        }
                     }
                 }
 
@@ -525,13 +527,15 @@ fn materialize_impl(
                     graph.layer_ids(),
                 ) {
                     let layer = layer_map[layer];
-                    if let Some(node_pos) = maybe_src_pos {
+                    if let Some(src_pos) = maybe_src_pos {
                         let mut writer = shard.writer();
-                        writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer), 0);
+                        writer.update_timestamp(t, src_pos, eid.with_layer_deletion(layer), 0);
                     }
-                    if let Some(node_pos) = maybe_dst_pos {
-                        let mut writer = shard.writer();
-                        writer.update_timestamp(t, node_pos, eid.with_layer_deletion(layer), 0);
+                    if let Some(dst_pos) = maybe_dst_pos {
+                        if maybe_src_pos.is_none_or(|src_pos| src_pos != dst_pos) {
+                            let mut writer = shard.writer();
+                            writer.update_timestamp(t, dst_pos, eid.with_layer_deletion(layer), 0);
+                        }
                     }
                 }
             }
