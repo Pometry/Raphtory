@@ -1,28 +1,14 @@
-use crate::db::api::state::ops::node;
-use crate::db::graph::assertions::FilterNeighbours;
-use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
-use crate::{
-    core::entities::nodes::node_ref::NodeRef,
-    db::{
-        api::state::{ops::filter::NO_FILTER, Index, NodeState},
-        graph::nodes::Nodes,
-    },
-    errors::GraphError,
-    prelude::*,
-};
-use indexmap::IndexSet;
+use crate::db::api::view::StaticGraphViewOps;
+use crate::db::api::view::node::NodeViewOps;
 use raphtory_api::core::{
     entities::{
-        properties::prop::{PropType, PropUnwrap},
         VID,
     },
-    Direction,
 };
-use std::hash::Hash;
 use std::{
-    cmp::Ordering,
-    collections::{BinaryHeap, HashMap, HashSet},
+    collections::HashSet,
 };
+use crate::db::api::view::graph::GraphViewOps;
 use rayon::prelude::*;
 
 #[derive(Default, Clone)]
