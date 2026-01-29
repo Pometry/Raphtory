@@ -1,6 +1,5 @@
 use crate::db::api::state::ops::node;
 use crate::db::graph::assertions::FilterNeighbours;
-/// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
