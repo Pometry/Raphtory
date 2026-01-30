@@ -1,3 +1,4 @@
+use crate::core::entities::properties::prop::Prop;
 use arrow_schema::DataType;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -227,7 +228,7 @@ pub mod arrow {
                 },
                 DataType::Boolean => PropType::Bool,
                 DataType::Timestamp(TimeUnit::Millisecond, None) => PropType::NDTime,
-                DataType::Timestamp(TimeUnit::Microsecond, tz) if tz.as_deref() == Some("UTC") => {
+                DataType::Timestamp(TimeUnit::Millisecond, tz) if tz.as_deref() == Some("UTC") => {
                     PropType::DTime
                 }
                 DataType::Struct(fields) => PropType::map(
@@ -239,7 +240,8 @@ pub mod arrow {
                 DataType::List(field) | DataType::LargeList(field) => {
                     PropType::List(Box::new(PropType::from(field.data_type())))
                 }
-                _ => PropType::Empty,
+                DataType::Null => PropType::Empty,
+                dtype => panic!("unsupported type {dtype:?}"),
             }
         }
     }
