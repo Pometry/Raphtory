@@ -7,7 +7,10 @@ use crate::graph::{
 use raphtory_api::{
     core::{
         entities::{
-            properties::{meta::{Meta, STATIC_GRAPH_LAYER_ID}, prop::Prop},
+            properties::{
+                meta::{Meta, STATIC_GRAPH_LAYER_ID},
+                prop::Prop,
+            },
             GidType, LayerIds, EID, GID, VID,
         },
         storage::arc_str::ArcStr,
