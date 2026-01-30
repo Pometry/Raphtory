@@ -2,13 +2,7 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::{
-        api::{
-            state::ops::NodeOp,
-            view::{
-                filter_ops::{Filter, NodeSelect},
-                EdgeSelect,
-            },
-        },
+        api::view::filter_ops::{Filter, NodeSelect},
         graph::{
             assertions::assert_ok_or_missing_nodes,
             graph::assert_edges_equal,
@@ -25,11 +19,7 @@ use raphtory::{
         node_filtered_graph,
     },
 };
-use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
-use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    layer_ops::InternalLayerOps,
-};
+
 #[test]
 #[ignore]
 // TODO: Enable this once fixed

@@ -1,4 +1,3 @@
-use crate::core::entities::properties::prop::Prop;
 use arrow_schema::DataType;
 use serde::{Deserialize, Serialize};
 use std::{
