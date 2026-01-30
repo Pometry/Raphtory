@@ -265,25 +265,7 @@ impl<'de> Deserialize<'de> for PropArray {
 
 impl PartialEq for PropArray {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (PropArray::Vec(l), PropArray::Vec(r)) => l.eq(r),
-            (PropArray::Array(a), PropArray::Array(b)) => a.eq(b),
-            _ => {
-                let mut l_iter = self.iter_all();
-                let mut r_iter = other.iter_all();
-                loop {
-                    match (l_iter.next(), r_iter.next()) {
-                        (Some(lv), Some(rv)) => {
-                            if lv != rv {
-                                return false;
-                            }
-                        }
-                        (None, None) => return true,
-                        _ => return false,
-                    }
-                }
-            }
-        }
+        self.len() == other.len() && self.iter_all().eq(other.iter_all())
     }
 }
 
