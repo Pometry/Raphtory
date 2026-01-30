@@ -321,7 +321,6 @@ fn materialize_impl(
 
     {
         // scope for the write lock
-
         let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
         let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
@@ -560,7 +559,6 @@ fn materialize_impl(
                     .inner();
 
                 for (t, prop_value) in temporal_prop.iter_indexed() {
-                    let lsn = 0;
                     graph_writer.add_properties(t, [(prop_id, prop_value)]);
                 }
             }
@@ -580,7 +578,6 @@ fn materialize_impl(
                 .collect();
 
             if !metadata_props.is_empty() {
-                let lsn = 0;
                 graph_writer.update_metadata(metadata_props);
             }
         }
