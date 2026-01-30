@@ -119,6 +119,12 @@ pub mod error {
         #[error("Failed to vacuum storage")]
         VacuumError,
     }
+
+    impl StorageError {
+        pub fn from_external<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
+            Self::External(Arc::new(error))
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
