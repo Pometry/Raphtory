@@ -22,7 +22,6 @@ use std::{
     sync::Arc,
     time::SystemTimeError,
 };
-use tracing::error;
 
 #[cfg(feature = "python")]
 use pyo3::PyErr;

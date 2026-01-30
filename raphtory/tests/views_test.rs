@@ -528,10 +528,6 @@ fn test_entity_history() {
 }
 
 mod test_filters_window_graph {
-    use raphtory::{
-        db::{api::view::StaticGraphViewOps, graph::assertions::GraphTransformer},
-        prelude::TimeOps,
-    };
 
     mod test_nodes_filters_window_graph {
         use raphtory::{

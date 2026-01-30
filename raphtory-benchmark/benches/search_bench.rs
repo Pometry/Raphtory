@@ -205,7 +205,7 @@ where
         PropType::Str => {
             if let Some(full_str) = prop_value.into_str() {
                 let tokens: Vec<&str> = full_str.split_whitespace().collect();
-                if tokens.len() > 1 && rng.gen_bool(0.3) {
+                if tokens.len() > 1 && rng.random_bool(0.3) {
                     // 30% chance to use a random substring
                     let start = rng.random_range(0..tokens.len());
                     let end = rng.random_range(start..tokens.len());
@@ -369,7 +369,7 @@ fn get_random_node_property_filters(
             // Fallback to other property list if one is empty i.e., if const properties are empty
             // fallback to temporal properties and vice versa. This ensures, we always have as many
             // property filters as there are nodes.
-            let choice = rng.gen_bool(0.5);
+            let choice = rng.random_bool(0.5);
             if choice {
                 chosen_filter = pick_node_property_filter(graph, &node, &metadata, true, filter_op);
                 if chosen_filter.is_none() {
@@ -479,7 +479,7 @@ fn get_random_edge_property_filters(
             // Fallback to other property list if one is empty i.e., if const properties are empty
             // fallback to temporal properties and vice versa. This ensures, we always have as many
             // property filters as there are edges.
-            let choice = rng.gen_bool(0.5);
+            let choice = rng.random_bool(0.5);
             if choice {
                 chosen_filter = pick_edge_property_filter(graph, &edge, &metadata, true, filter_op);
                 if chosen_filter.is_none() {

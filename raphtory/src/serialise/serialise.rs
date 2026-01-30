@@ -2,7 +2,7 @@
 use crate::prelude::IndexMutationOps;
 use crate::{
     db::api::{
-        mutation::AdditionOps, storage::storage::PersistentStrategy, view::StaticGraphViewOps,
+        mutation::AdditionOps, storage::storage::PersistenceStrategy, view::StaticGraphViewOps,
     },
     errors::GraphError,
     serialise::{
@@ -22,6 +22,7 @@ use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 pub trait StableEncode: StaticGraphViewOps + AdditionOps {
     fn encode_to_zip<W: Write + Seek>(&self, writer: ZipWriter<W>) -> Result<(), GraphError>;
+
     /// Encode the graph into bytes.
     fn encode_to_bytes(&self) -> Result<Vec<u8>, GraphError>;
 

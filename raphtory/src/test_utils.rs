@@ -16,7 +16,7 @@ use raphtory_api::core::{
     entities::properties::prop::{PropType, DECIMAL_MAX},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
-        timeindex::{AsTime, EventTime},
+        timeindex::AsTime,
     },
 };
 use raphtory_storage::{
@@ -65,7 +65,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
 
     let get_node_t_prop_map =
         |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
+            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
                 .properties()
                 .temporal()
                 .iter()
@@ -93,7 +93,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
         };
     let get_edge_t_prop_counts =
         |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
+            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
                 .properties()
                 .temporal()
                 .iter()
@@ -191,18 +191,6 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
         expected_node_ids, actual_node_ids,
         "mismatched node id set: expected {:?}, got {:?}",
         expected_node_ids, actual_node_ids
-    );
-
-    assert_eq!(
-        expected_edge_pairs.len(),
-        graph.count_edges(),
-        "mismatched number of unique edges (src,dst) pairs"
-    );
-
-    assert_eq!(
-        expected_exploded_edge_count,
-        graph.count_temporal_edges(),
-        "mismatched number of temporal (exploded) edge events"
     );
 
     for ((_, _, layer), _) in &expected_edge_layer_updates {
@@ -357,6 +345,18 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             panic!("graph should have edge {src}->{dst} in layer {layer_name:?}")
         });
     }
+
+    assert_eq!(
+        expected_edge_pairs.len(),
+        graph.count_edges(),
+        "mismatched number of unique edges (src,dst) pairs"
+    );
+
+    assert_eq!(
+        expected_exploded_edge_count,
+        graph.count_temporal_edges(),
+        "mismatched number of temporal (exploded) edge events"
+    );
 }
 
 #[macro_export]

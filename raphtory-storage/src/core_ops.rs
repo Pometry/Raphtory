@@ -7,7 +7,10 @@ use crate::graph::{
 use raphtory_api::{
     core::{
         entities::{
-            properties::{meta::Meta, prop::Prop},
+            properties::{
+                meta::{Meta, STATIC_GRAPH_LAYER_ID},
+                prop::Prop,
+            },
             GidType, LayerIds, EID, GID, VID,
         },
         storage::arc_str::ArcStr,
@@ -217,7 +220,7 @@ pub trait CoreGraphOps: Send + Sync {
     /// The property value if it exists.
     fn node_metadata(&self, v: VID, id: usize) -> Option<Prop> {
         let core_node_entry = self.core_node(v);
-        core_node_entry.constant_prop_layer(0, id)
+        core_node_entry.constant_prop_layer(STATIC_GRAPH_LAYER_ID, id)
     }
 
     /// Gets the keys of metadata of a given node

@@ -1,7 +1,5 @@
 #[cfg(feature = "io")]
 mod io_tests {
-    use std::any::Any;
-
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
     };

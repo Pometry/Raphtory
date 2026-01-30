@@ -1,3 +1,5 @@
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     core::storage::timeindex::EventTime,
     db::{
@@ -10,9 +12,6 @@ use crate::{
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;
-
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
 
 #[derive(Clone)]
 pub enum MaterializedGraph {

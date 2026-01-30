@@ -3,18 +3,21 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::strategy::{Config, PersistentStrategy},
+    persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
 use graph_prop_store::GraphPropStorageInner;
-use node_page::writer::{NodeWriter, WriterPair};
+use node_page::writer::{NodeWriter, NodeWriters};
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::Prop},
+    entities::properties::{
+        meta::{Meta, STATIC_GRAPH_LAYER_ID},
+        prop::Prop,
+    },
     storage::dict_mapper::MaybeNew,
     utils::time::{InputTime, TryIntoInputTime},
 };
@@ -54,28 +57,28 @@ pub struct GraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > {
     nodes: Arc<NodeStorageInner<NS, EXT>>,
     edges: Arc<EdgeStorageInner<ES, EXT>>,
     graph_props: Arc<GraphPropStorageInner<GS, EXT>>,
     graph_dir: Option<PathBuf>,
     event_id: AtomicUsize,
-    _ext: EXT,
+    ext: EXT,
 }
 
 impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
-        let config = self._ext.with_node_types(node_types);
+        let config = self.ext.config().with_node_types(node_types);
         if let Some(graph_dir) = self.graph_dir.as_ref() {
-            write_graph_config(graph_dir, &config)?;
+            config.save_to_dir(graph_dir)?;
         }
         self.nodes.flush()?;
         self.edges.flush()?;
@@ -89,7 +92,7 @@ pub struct ReadLockedGraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > {
     pub nodes: Arc<ReadLockedNodeStorage<NS, EXT>>,
     pub edges: Arc<ReadLockedEdgeStorage<ES, EXT>>,
@@ -100,9 +103,95 @@ impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > GraphStore<NS, ES, GS, EXT>
 {
+    pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
+        let node_meta = Meta::new_for_nodes();
+        let edge_meta = Meta::new_for_edges();
+        let graph_props_meta = Meta::new_for_graph_props();
+
+        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_props_meta, ext)
+    }
+
+    pub fn new_with_meta(
+        graph_dir: Option<&Path>,
+        node_meta: Meta,
+        edge_meta: Meta,
+        graph_props_meta: Meta,
+        ext: EXT,
+    ) -> Self {
+        let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
+        let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
+        let graph_props_path = graph_dir.map(|graph_dir| graph_dir.join("graph_props"));
+
+        let node_meta = Arc::new(node_meta);
+        let edge_meta = Arc::new(edge_meta);
+        let graph_props_meta = Arc::new(graph_props_meta);
+
+        let node_storage = Arc::new(NodeStorageInner::new_with_meta(
+            nodes_path,
+            node_meta,
+            edge_meta.clone(),
+            ext.clone(),
+        ));
+        let edge_storage = Arc::new(EdgeStorageInner::new_with_meta(
+            edges_path,
+            edge_meta,
+            ext.clone(),
+        ));
+        let graph_prop_storage = Arc::new(GraphPropStorageInner::new_with_meta(
+            graph_props_path.as_deref(),
+            graph_props_meta,
+            ext.clone(),
+        ));
+
+        if let Some(graph_dir) = graph_dir {
+            ext.config()
+                .save_to_dir(graph_dir)
+                .expect("Failed to write config to disk");
+        }
+
+        Self {
+            nodes: node_storage,
+            edges: edge_storage,
+            graph_props: graph_prop_storage,
+            event_id: AtomicUsize::new(0),
+            graph_dir: graph_dir.map(|p| p.to_path_buf()),
+            ext,
+        }
+    }
+
+    pub fn load(graph_dir: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        let nodes_path = graph_dir.as_ref().join("nodes");
+        let edges_path = graph_dir.as_ref().join("edges");
+        let graph_props_path = graph_dir.as_ref().join("graph_props");
+
+        let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
+        let edge_meta = edge_storage.edge_meta().clone();
+        let node_storage = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
+        let node_meta = node_storage.prop_meta();
+
+        // Load graph temporal properties and metadata.
+        let graph_prop_storage =
+            Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
+
+        for node_type in ext.config().node_types().iter() {
+            node_meta.get_or_create_node_type_id(node_type);
+        }
+
+        let t_len = edge_storage.t_len();
+
+        Ok(Self {
+            nodes: node_storage,
+            edges: edge_storage,
+            graph_props: graph_prop_storage,
+            event_id: AtomicUsize::new(t_len),
+            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
+            ext,
+        })
+    }
+
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedGraphStore<NS, ES, GS, EXT> {
         let nodes = self.nodes.locked().into();
         let edges = self.edges.locked().into();
@@ -115,7 +204,7 @@ impl<
     }
 
     pub fn extension(&self) -> &EXT {
-        &self._ext
+        &self.ext
     }
 
     pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
@@ -161,93 +250,6 @@ impl<
         self.edges.segment_counts()
     }
 
-    pub fn load(graph_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
-        let nodes_path = graph_dir.as_ref().join("nodes");
-        let edges_path = graph_dir.as_ref().join("edges");
-        let graph_props_path = graph_dir.as_ref().join("graph_props");
-
-        let ext = read_graph_config::<EXT>(graph_dir.as_ref())?;
-
-        let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
-        let edge_meta = edge_storage.edge_meta().clone();
-        let node_storage = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
-        let node_meta = node_storage.prop_meta();
-
-        // Load graph temporal properties and metadata
-        let graph_props_storage =
-            Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
-
-        for node_type in ext.node_types().iter() {
-            node_meta.get_or_create_node_type_id(node_type);
-        }
-
-        let t_len = edge_storage.t_len();
-
-        Ok(Self {
-            nodes: node_storage,
-            edges: edge_storage,
-            graph_props: graph_props_storage,
-            event_id: AtomicUsize::new(t_len),
-            graph_dir: Some(graph_dir.as_ref().to_path_buf()),
-            _ext: ext,
-        })
-    }
-
-    pub fn new_with_meta(
-        graph_dir: Option<&Path>,
-        node_meta: Meta,
-        edge_meta: Meta,
-        graph_props_meta: Meta,
-        ext: EXT,
-    ) -> Self {
-        let nodes_path = graph_dir.map(|graph_dir| graph_dir.join("nodes"));
-        let edges_path = graph_dir.map(|graph_dir| graph_dir.join("edges"));
-        let graph_props_path = graph_dir.map(|graph_dir| graph_dir.join("graph_props"));
-
-        let node_meta = Arc::new(node_meta);
-        let edge_meta = Arc::new(edge_meta);
-        let graph_props_meta = Arc::new(graph_props_meta);
-
-        let node_storage = Arc::new(NodeStorageInner::new_with_meta(
-            nodes_path,
-            node_meta,
-            edge_meta.clone(),
-            ext.clone(),
-        ));
-        let edge_storage = Arc::new(EdgeStorageInner::new_with_meta(
-            edges_path,
-            edge_meta,
-            ext.clone(),
-        ));
-        let graph_storage = Arc::new(GraphPropStorageInner::new_with_meta(
-            graph_props_path.as_deref(),
-            graph_props_meta,
-            ext.clone(),
-        ));
-
-        if let Some(graph_dir) = graph_dir {
-            write_graph_config(graph_dir, &ext)
-                .expect("Unrecoverable! Failed to write graph config");
-        }
-
-        Self {
-            nodes: node_storage,
-            edges: edge_storage,
-            graph_props: graph_storage,
-            event_id: AtomicUsize::new(0),
-            graph_dir: graph_dir.map(|p| p.to_path_buf()),
-            _ext: ext,
-        }
-    }
-
-    pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
-        let node_meta = Meta::new_for_nodes();
-        let edge_meta = Meta::new_for_edges();
-        let graph_props_meta = Meta::new_for_graph_props();
-
-        Self::new_with_meta(graph_dir, node_meta, edge_meta, graph_props_meta, ext)
-    }
-
     pub fn add_edge<T: TryIntoInputTime>(
         &self,
         t: T,
@@ -282,10 +284,11 @@ impl<
         let src = src.into();
         let dst = dst.into();
         let mut session = self.write_session(src, dst, None);
+        session.set_lsn(lsn);
         let elid = session
-            .add_static_edge(src, dst, lsn)
+            .add_static_edge(src, dst)
             .map(|eid| eid.with_layer(0));
-        session.add_edge_into_layer(t, src, dst, elid, lsn, props);
+        session.add_edge_into_layer(t, src, dst, elid, props);
         Ok(elid)
     }
 
@@ -350,7 +353,7 @@ impl<
         let (segment, node_pos) = self.nodes.resolve_pos(node);
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::constant(self.node_meta(), props.into_iter())?;
-        node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?, 0); // TODO: LSN
+        node_writer.update_c_props(node_pos, layer_id, prop_writer.into_props_const()?);
         Ok(())
     }
 
@@ -368,7 +371,7 @@ impl<
 
         let mut node_writer = self.nodes.writer(segment);
         let prop_writer = PropsMetaWriter::temporal(self.node_meta(), props.into_iter())?;
-        node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?, 0); // TODO: LSN
+        node_writer.add_props(t, node_pos, layer_id, prop_writer.into_props_temporal()?);
         Ok(())
     }
 
@@ -381,26 +384,38 @@ impl<
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
+        // Acquire locks in consistent order (lower chunk ID first) to prevent deadlocks.
         let node_writers = if src_chunk < dst_chunk {
-            let src_writer = self.node_writer(src_chunk);
-            let dst_writer = self.node_writer(dst_chunk);
-            WriterPair::Different {
-                src_writer,
-                dst_writer,
+            let src = self.node_writer(src_chunk);
+            let dst = self.node_writer(dst_chunk);
+
+            NodeWriters {
+                src,
+                dst: Some(dst),
             }
         } else if src_chunk > dst_chunk {
-            let dst_writer = self.node_writer(dst_chunk);
-            let src_writer = self.node_writer(src_chunk);
-            WriterPair::Different {
-                src_writer,
-                dst_writer,
+            let dst = self.node_writer(dst_chunk);
+            let src = self.node_writer(src_chunk);
+
+            NodeWriters {
+                src,
+                dst: Some(dst),
             }
         } else {
-            let writer = self.node_writer(src_chunk);
-            WriterPair::Same { writer }
+            let src = self.node_writer(src_chunk);
+
+            NodeWriters { src, dst: None }
         };
 
-        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
+        let (_, src_pos) = self.nodes.resolve_pos(src);
+        let existing_eid = node_writers
+            .src
+            .get_out_edge(src_pos, dst, STATIC_GRAPH_LAYER_ID);
+
+        let edge_writer = match e_id.or(existing_eid) {
+            Some(e_id) => self.edge_writer(e_id),
+            None => self.get_free_writer(),
+        };
 
         WriteSession::new(node_writers, edge_writer, self)
     }
@@ -418,22 +433,34 @@ impl<
             self.nodes().get_or_create_segment(src_chunk);
             self.nodes().get_or_create_segment(dst_chunk);
 
+            // FIXME: This can livelock due to inconsistent lock acquisition order.
             loop {
                 if let Some(src_writer) = self.nodes().try_writer(src_chunk) {
                     if let Some(dst_writer) = self.nodes().try_writer(dst_chunk) {
-                        break WriterPair::Different {
-                            src_writer,
-                            dst_writer,
+                        break NodeWriters {
+                            src: src_writer,
+                            dst: Some(dst_writer),
                         };
                     }
                 }
             }
         } else {
             let writer = self.node_writer(src_chunk);
-            WriterPair::Same { writer }
+            NodeWriters {
+                src: writer,
+                dst: None,
+            }
         };
 
-        let edge_writer = e_id.map(|e_id| self.edge_writer(e_id));
+        let (_, src_pos) = self.nodes.resolve_pos(src);
+        let existing_eid = node_writers
+            .src
+            .get_out_edge(src_pos, dst, STATIC_GRAPH_LAYER_ID);
+
+        let edge_writer = match e_id.or(existing_eid) {
+            Some(e_id) => self.edge_writer(e_id),
+            None => self.get_free_writer(),
+        };
 
         WriteSession::new(node_writers, edge_writer, self)
     }
@@ -459,8 +486,10 @@ impl<
     pub fn vacuum(self: &Arc<Self>) -> Result<(), StorageError> {
         let mut locked_nodes = self.nodes.write_locked();
         let mut locked_edges = self.edges.write_locked();
+
         locked_nodes.vacuum()?;
         locked_edges.vacuum()?;
+
         Ok(())
     }
 }
@@ -516,7 +545,7 @@ impl<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 > Drop for GraphStore<NS, ES, GS, EXT>
 {
     fn drop(&mut self) {
@@ -527,26 +556,6 @@ impl<
             }
         }
     }
-}
-
-pub fn write_graph_config<EXT: Config>(
-    graph_dir: impl AsRef<Path>,
-    config: &EXT,
-) -> Result<(), StorageError> {
-    let config_file = graph_dir.as_ref().join("graph_config.json");
-    let config_file = std::fs::File::create(&config_file)?;
-
-    serde_json::to_writer_pretty(config_file, config)?;
-    Ok(())
-}
-
-fn read_graph_config<EXT: PersistentStrategy>(
-    graph_dir: impl AsRef<Path>,
-) -> Result<EXT, StorageError> {
-    let config_file = graph_dir.as_ref().join("graph_config.json");
-    let config_file = std::fs::File::open(config_file)?;
-    let config = serde_json::from_reader(config_file)?;
-    Ok(config)
 }
 
 #[inline(always)]
@@ -594,12 +603,16 @@ mod test {
             check_graph_with_props_support, edges_strat, edges_strat_with_layers, make_edges,
             make_nodes,
         },
+        persist::{config::BaseConfig, strategy::PersistenceStrategy},
+        wal::no_wal::NoWal,
     };
     use chrono::DateTime;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
     use rayon::iter::ParallelIterator;
+    use std::sync::Arc;
+    use tempfile;
 
     #[test]
     fn test_iterleave() {
@@ -630,7 +643,8 @@ mod test {
             .collect();
 
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
+            let config = BaseConfig::new(chunk_size, chunk_size);
+            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
 
@@ -640,7 +654,8 @@ mod test {
         par_load: bool,
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
-            Layer::new(Some(graph_dir), Extension::new(chunk_size, chunk_size))
+            let config = BaseConfig::new(chunk_size, chunk_size);
+            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
         })
     }
 
@@ -712,7 +727,11 @@ mod test {
     #[test]
     fn test_add_one_edge_get_num_nodes() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::new(Some(graph_dir.path()), Extension::new(32, 32));
+        let config = BaseConfig::new(32, 32);
+        let g = Layer::new(
+            Some(graph_dir.path()),
+            Extension::new(config, Arc::new(NoWal)),
+        );
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
     }
@@ -720,7 +739,11 @@ mod test {
     #[test]
     fn test_node_additions_1() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = GraphStore::new(Some(graph_dir.path()), Extension::new(32, 32));
+        let config = BaseConfig::new(32, 32);
+        let g = GraphStore::new(
+            Some(graph_dir.path()),
+            Extension::new(config, Arc::new(NoWal)),
+        );
         g.add_edge(4, 7, 3).unwrap();
 
         let check = |g: &Layer<Extension>| {
@@ -762,7 +785,11 @@ mod test {
     #[test]
     fn node_temporal_props() {
         let graph_dir = tempfile::tempdir().unwrap();
-        let g = Layer::new(Some(graph_dir.path()), Extension::new(32, 32));
+        let config = BaseConfig::new(32, 32);
+        let g = Layer::new(
+            Some(graph_dir.path()),
+            Extension::new(config, Arc::new(NoWal)),
+        );
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
         g.add_node_props::<String>(2, 0, 0, vec![])
@@ -1565,13 +1592,15 @@ mod test {
 
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
-            Layer::new(Some(path), Extension::new(node_page_len, edge_page_len))
+            let config = BaseConfig::new(node_page_len, edge_page_len);
+            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
-            Layer::new(Some(path), Extension::new(node_page_len, edge_page_len))
+            let config = BaseConfig::new(node_page_len, edge_page_len);
+            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
         });
     }
 }

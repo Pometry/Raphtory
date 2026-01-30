@@ -1,6 +1,6 @@
 use super::GraphStorage;
 use crate::{
-    core::{entities::LayerIds, storage::timeindex::TimeIndexOps},
+    core::storage::timeindex::TimeIndexOps,
     db::api::view::internal::{GraphTimeSemanticsOps, TimeSemantics},
     prelude::Prop,
 };
@@ -176,12 +176,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "search"))]
 mod test_graph_storage {
     use crate::{db::api::view::StaticGraphViewOps, prelude::AdditionOps};
     use raphtory_api::core::entities::properties::prop::Prop;
 
-    #[cfg(all(test, feature = "search"))]
     fn init_graph_for_nodes_tests<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
         let nodes = vec![
             (6, "N1", vec![("p1", Prop::U64(2u64))]),
@@ -207,7 +206,6 @@ mod test_graph_storage {
         graph
     }
 
-    #[cfg(all(test, feature = "search"))]
     fn init_graph_for_edges_tests<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
         let edges = vec![
             (6, "N1", "N2", vec![("p1", Prop::U64(2u64))], Some("layer1")),
@@ -236,7 +234,6 @@ mod test_graph_storage {
         graph
     }
 
-    #[cfg(all(test, feature = "search"))]
     mod search_nodes {
         use super::*;
         use crate::{
@@ -268,7 +265,6 @@ mod test_graph_storage {
         }
     }
 
-    #[cfg(all(test, feature = "search"))]
     mod search_edges {
         use super::*;
         use crate::{

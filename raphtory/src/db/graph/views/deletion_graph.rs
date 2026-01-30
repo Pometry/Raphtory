@@ -4,7 +4,8 @@ use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
         api::{
-            properties::internal::InheritPropertiesOps, storage::storage::Storage,
+            properties::internal::InheritPropertiesOps,
+            storage::storage::{PersistenceStrategy, Storage},
             view::internal::*,
         },
         graph::graph::graph_equal,
@@ -27,7 +28,6 @@ use std::{
 };
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    persist::strategy::PersistentStrategy,
     Extension,
 };
 
