@@ -119,7 +119,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     schema: Option<HashMap<String, PropType>>,
     event_id: Option<&str>,
 ) -> Result<(), GraphError> {
-    let mut cols_to_check = [src, dst, time]
+    let cols_to_check = [src, dst, time]
         .into_iter()
         .chain(properties.iter().copied())
         .chain(metadata.iter().copied())

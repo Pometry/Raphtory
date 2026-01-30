@@ -16,7 +16,7 @@ use raphtory_api::core::{
     entities::properties::prop::{PropType, DECIMAL_MAX},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
-        timeindex::{AsTime, EventTime},
+        timeindex::AsTime,
     },
 };
 use raphtory_storage::{
@@ -24,13 +24,16 @@ use raphtory_storage::{
     mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
 };
 use rayon::iter::ParallelIterator;
-use serde::{Deserialize, Serialize};
+use serde::{
+    de::{SeqAccess, Visitor},
+    ser::SerializeSeq,
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 use std::{
     borrow::Cow,
     collections::{hash_map, HashMap},
     fmt::{Debug, Formatter},
-    mem,
-    ops::{Deref, Range, RangeInclusive},
+    ops::{Range, RangeInclusive},
     sync::Arc,
 };
 
@@ -62,7 +65,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
 
     let get_node_t_prop_map =
         |node: &NodeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
+            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = node
                 .properties()
                 .temporal()
                 .iter()
@@ -90,7 +93,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
         };
     let get_edge_t_prop_counts =
         |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
-            let mut out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
+            let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
                 .properties()
                 .temporal()
                 .iter()
@@ -190,18 +193,6 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
         expected_node_ids, actual_node_ids
     );
 
-    assert_eq!(
-        expected_edge_pairs.len(),
-        graph.count_edges(),
-        "mismatched number of unique edges (src,dst) pairs"
-    );
-
-    assert_eq!(
-        expected_exploded_edge_count,
-        graph.count_temporal_edges(),
-        "mismatched number of temporal (exploded) edge events"
-    );
-
     for ((_, _, layer), _) in &expected_edge_layer_updates {
         assert!(
             graph.has_layer(layer.as_ref()),
@@ -253,7 +244,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             Some(updates) => {
                 assert_eq!(
                     node.node_type().as_str(),
-                    updates.node_type,
+                    updates.node_type.as_str(),
                     "mismatched node_type for node {node_id}"
                 );
 
@@ -354,6 +345,18 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             panic!("graph should have edge {src}->{dst} in layer {layer_name:?}")
         });
     }
+
+    assert_eq!(
+        expected_edge_pairs.len(),
+        graph.count_edges(),
+        "mismatched number of unique edges (src,dst) pairs"
+    );
+
+    assert_eq!(
+        expected_exploded_edge_count,
+        graph.count_temporal_edges(),
+        "mismatched number of temporal (exploded) edge events"
+    );
 }
 
 #[macro_export]
@@ -539,10 +542,17 @@ pub fn prop_type(nested_prop_size: usize) -> impl Strategy<Value = PropType> {
     })
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, Serialize, Deserialize)]
 pub struct GraphFixture {
     pub nodes: NodeFixture,
     pub edges: EdgeFixture,
+}
+
+impl Debug for GraphFixture {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
 }
 
 impl GraphFixture {
@@ -555,8 +565,15 @@ impl GraphFixture {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NodeFixture(pub HashMap<u64, NodeUpdatesFixture>);
+
+impl Debug for NodeFixture {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
+}
 
 impl FromIterator<(u64, NodeUpdatesFixture)> for NodeFixture {
     fn from_iter<T: IntoIterator<Item = (u64, NodeUpdatesFixture)>>(iter: T) -> Self {
@@ -579,47 +596,130 @@ impl IntoIterator for NodeFixture {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PropUpdatesFixture {
     pub t_props: Vec<(i64, Vec<(String, Prop)>)>,
     pub c_props: Vec<(String, Prop)>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct NodeUpdatesFixture {
-    pub props: PropUpdatesFixture,
-    pub node_type: Option<&'static str>,
+impl Debug for PropUpdatesFixture {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NodeUpdatesFixture {
+    pub props: PropUpdatesFixture,
+    pub node_type: Option<Cow<'static, str>>,
+}
+
+impl Debug for NodeUpdatesFixture {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
+}
+
+#[derive(Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EdgeUpdatesFixture {
     pub props: PropUpdatesFixture,
     pub deletions: Vec<i64>,
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct EdgeFixture(pub HashMap<(u64, u64, Option<&'static str>), EdgeUpdatesFixture>);
+impl Debug for EdgeUpdatesFixture {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
+}
+
+#[derive(Default, Clone, PartialEq)]
+pub struct EdgeFixture(pub HashMap<(u64, u64, Option<Cow<'static, str>>), EdgeUpdatesFixture>);
+
+impl Serialize for EdgeFixture {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut seq = serializer.serialize_seq(Some(self.0.len()))?;
+        for v in self.iter() {
+            seq.serialize_element(&v)?;
+        }
+        seq.end()
+    }
+}
+
+struct Elements;
+
+impl<'de> Visitor<'de> for Elements {
+    type Value = EdgeFixture;
+
+    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        formatter.write_str("a sequence edge updates")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut elements = if let Some(size) = seq.size_hint() {
+            HashMap::with_capacity(size)
+        } else {
+            HashMap::new()
+        };
+        while let Some((next_key, next_value)) = seq.next_element()? {
+            elements.insert(next_key, next_value);
+        }
+        Ok(EdgeFixture(elements))
+    }
+}
+
+impl<'de> Deserialize<'de> for EdgeFixture {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_seq(Elements)
+    }
+}
+
+impl Debug for EdgeFixture {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
+}
 
 impl EdgeFixture {
     pub fn iter(&self) -> impl Iterator<Item = ((u64, u64, Option<&str>), &EdgeUpdatesFixture)> {
-        self.0.iter().map(|(k, v)| (*k, v))
+        self.0
+            .iter()
+            .map(|((src, dst, layer), v)| ((*src, *dst, layer.as_str()), v))
     }
 }
 
 impl IntoIterator for EdgeFixture {
-    type Item = ((u64, u64, Option<&'static str>), EdgeUpdatesFixture);
-    type IntoIter = hash_map::IntoIter<(u64, u64, Option<&'static str>), EdgeUpdatesFixture>;
+    type Item = ((u64, u64, Option<Cow<'static, str>>), EdgeUpdatesFixture);
+    type IntoIter = hash_map::IntoIter<(u64, u64, Option<Cow<'static, str>>), EdgeUpdatesFixture>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
 }
 
-impl FromIterator<((u64, u64, Option<&'static str>), EdgeUpdatesFixture)> for EdgeFixture {
-    fn from_iter<T: IntoIterator<Item = ((u64, u64, Option<&'static str>), EdgeUpdatesFixture)>>(
+impl<S: Into<Cow<'static, str>>> FromIterator<((u64, u64, Option<S>), EdgeUpdatesFixture)>
+    for EdgeFixture
+{
+    fn from_iter<T: IntoIterator<Item = ((u64, u64, Option<S>), EdgeUpdatesFixture)>>(
         iter: T,
     ) -> Self {
-        Self(iter.into_iter().collect())
+        Self(
+            iter.into_iter()
+                .map(|((s, d, l), f)| ((s, d, l.map(|l| l.into())), f))
+                .collect(),
+        )
     }
 }
 
@@ -672,8 +772,19 @@ impl From<EdgeFixture> for GraphFixture {
     }
 }
 
-impl<V, T, I: IntoIterator<Item = (V, V, T, Vec<(String, Prop)>, Option<&'static str>)>> From<I>
-    for GraphFixture
+impl<
+        V,
+        T,
+        I: IntoIterator<
+            Item = (
+                V,
+                V,
+                T,
+                Vec<(String, Prop)>,
+                Option<impl Into<Cow<'static, str>>>,
+            ),
+        >,
+    > From<I> for GraphFixture
 where
     u64: TryFrom<V>,
     i64: TryFrom<T>,
@@ -683,7 +794,11 @@ where
             .into_iter()
             .filter_map(|(src, dst, t, props, layer)| {
                 Some((
-                    (src.try_into().ok()?, dst.try_into().ok()?, layer),
+                    (
+                        src.try_into().ok()?,
+                        dst.try_into().ok()?,
+                        layer.map(|l| l.into()),
+                    ),
                     (t.try_into().ok()?, props),
                 ))
             })
@@ -709,8 +824,12 @@ where
     }
 }
 
-pub fn make_node_type() -> impl Strategy<Value = Option<&'static str>> {
-    proptest::sample::select(vec![None, Some("one"), Some("two")])
+pub fn make_node_type() -> impl Strategy<Value = Option<Cow<'static, str>>> {
+    proptest::sample::select(vec![
+        None,
+        Some(Cow::Borrowed("one")),
+        Some(Cow::Borrowed("two")),
+    ])
 }
 
 pub fn make_node_types() -> impl Strategy<Value = Vec<&'static str>> {
@@ -821,7 +940,11 @@ pub fn build_edge_list_dyn(
             (
                 num_nodes.clone().prop_map(|n| n as u64),
                 num_nodes.clone().prop_map(|n| n as u64),
-                proptest::sample::select(vec![Some("a"), Some("b"), None]),
+                proptest::sample::select(vec![
+                    Some(Cow::Borrowed("a")),
+                    Some(Cow::Borrowed("b")),
+                    None,
+                ]),
             ),
             edge_updates(schema.clone(), num_updates.clone(), del_edges),
             num_edges.clone(),
@@ -948,7 +1071,7 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
-            if let Some(node_type) = updates.node_type {
+            if let Some(node_type) = updates.node_type.as_str() {
                 node.set_node_type(node_type).unwrap();
             }
         }
@@ -1020,7 +1143,7 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
-            if let Some(node_type) = updates.node_type {
+            if let Some(node_type) = updates.node_type.as_str() {
                 node.set_node_type(node_type).unwrap();
             }
         }
@@ -1091,126 +1214,80 @@ pub fn node_filtered_graph(
     g
 }
 
-#[derive(Clone, Serialize, Deserialize)]
-pub enum GraphMutation {
-    AddNode {
-        node: u64,
-        time: i64,
-        props: Vec<(String, Prop)>,
-        node_type: Option<Cow<'static, str>>,
-        metadata: Vec<(String, Prop)>,
-    },
-    AddEdge {
-        src: u64,
-        dst: u64,
-        time: i64,
-        layer: Option<Cow<'static, str>>,
-        props: Vec<(String, Prop)>,
-        metadata: Vec<(String, Prop)>,
-    },
-    DeleteEdge {
-        src: u64,
-        dst: u64,
-        time: i64,
-        layer: Option<Cow<'static, str>>,
-    },
-    DropAndLoad,
-}
+#[cfg(test)]
+mod tests {
+    use crate::test_utils::{
+        EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, PropUpdatesFixture,
+    };
+    use raphtory_api::core::entities::properties::prop::Prop;
 
-#[derive(Clone, Serialize, Deserialize)]
-pub struct GraphMutations(pub Vec<GraphMutation>);
+    #[test]
+    fn test_debug_impl() {
+        let edges1_props = EdgeUpdatesFixture {
+            props: PropUpdatesFixture {
+                t_props: vec![
+                    (2433054617899119663, vec![]),
+                    (
+                        5623371002478468619,
+                        vec![("0".to_owned(), Prop::I64(-180204069376666762))],
+                    ),
+                ],
+                c_props: vec![],
+            },
+            deletions: vec![-3684372592923241629, 3668280323305195349],
+        };
 
-impl Deref for GraphMutations {
-    type Target = Vec<GraphMutation>;
+        let edges2_props = EdgeUpdatesFixture {
+            props: PropUpdatesFixture {
+                t_props: vec![
+                    (
+                        -7888823724540213280,
+                        vec![("0".to_owned(), Prop::I64(1339447446033500001))],
+                    ),
+                    (-3792330935693192039, vec![]),
+                    (
+                        4049942931077033460,
+                        vec![("0".to_owned(), Prop::I64(-544773539725842277))],
+                    ),
+                    (5085404190610173488, vec![]),
+                    (1445770503123270290, vec![]),
+                    (-5628624083683143619, vec![]),
+                    (-394401628579820652, vec![]),
+                    (-2398199704888544233, vec![]),
+                ],
+                c_props: vec![("0".to_owned(), Prop::I64(-1877019573933389749))],
+            },
+            deletions: vec![
+                3969804007878301015,
+                7040207277685112004,
+                7380699292468575143,
+                3332576590029503186,
+                -1107894292705275349,
+                6647229517972286485,
+                6359226207899406831,
+            ],
+        };
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
+        let edges: EdgeFixture = [
+            ((2, 7, Some("b")), edges1_props),
+            ((7, 2, Some("a")), edges2_props),
+        ]
+        .into_iter()
+        .collect();
+
+        let res = format!("{edges:?}");
+        let parsed: EdgeFixture = serde_json::from_str(&res).unwrap();
+
+        assert_eq!(edges, parsed);
+
+        let graph_f = GraphFixture {
+            nodes: NodeFixture::default(),
+            edges,
+        };
+
+        let res = format!("{graph_f:?}");
+        let parsed: GraphFixture = serde_json::from_str(&res).unwrap();
+
+        assert_eq!(graph_f, parsed);
     }
-}
-
-impl IntoIterator for GraphMutations {
-    type Item = GraphMutation;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl Debug for GraphMutations {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let json = serde_json::to_string_pretty(self).unwrap();
-        f.write_str(&json)
-    }
-}
-
-impl Debug for GraphMutation {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let json = serde_json::to_string_pretty(self).unwrap();
-        f.write_str(&json)
-    }
-}
-
-pub fn gen_mutations(
-    num_nodes: Range<usize>,
-    num_edges: RangeInclusive<usize>,
-    num_properties: RangeInclusive<usize>,
-    num_updates: RangeInclusive<usize>,
-    num_drops: usize,
-) -> impl Strategy<Value = (GraphFixture, GraphMutations)> {
-    let fixture = build_graph_strat_r(num_nodes, num_edges, num_properties, num_updates, true);
-    let drops = 0..=num_drops;
-    (fixture, drops).prop_perturb(|(fixture, num_drops), mut rng| {
-        let mut updates = Vec::new();
-        let mut earliest = i64::MAX;
-        let mut latest = i64::MIN;
-        for (node, update_fixture) in fixture.nodes.clone() {
-            let mut c_props = update_fixture.props.c_props;
-            let node_type = update_fixture.node_type;
-            for (time, props) in update_fixture.props.t_props {
-                let metadata = mem::take(&mut c_props);
-                earliest = earliest.min(time);
-                latest = latest.max(time);
-                updates.push(GraphMutation::AddNode {
-                    node,
-                    time,
-                    props,
-                    node_type: node_type.map(Cow::Borrowed),
-                    metadata,
-                })
-            }
-        }
-
-        for ((src, dst, layer), update_fixture) in fixture.edges.clone() {
-            let mut c_props = update_fixture.props.c_props;
-            for (time, props) in update_fixture.props.t_props {
-                let metadata = mem::take(&mut c_props);
-                earliest = earliest.min(time);
-                latest = latest.max(time);
-                updates.push(GraphMutation::AddEdge {
-                    src,
-                    dst,
-                    time,
-                    layer: layer.map(Cow::Borrowed),
-                    props,
-                    metadata,
-                })
-            }
-            for time in update_fixture.deletions {
-                earliest = earliest.min(time);
-                latest = latest.max(time);
-                updates.push(GraphMutation::DeleteEdge {
-                    time,
-                    src,
-                    dst,
-                    layer: layer.map(Cow::Borrowed),
-                })
-            }
-        }
-        for _ in 0..num_drops {
-            updates.push(GraphMutation::DropAndLoad);
-        }
-        updates.shuffle(&mut rng);
-        (fixture, GraphMutations(updates))
-    })
 }

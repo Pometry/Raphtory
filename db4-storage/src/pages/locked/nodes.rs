@@ -12,7 +12,7 @@ use std::ops::DerefMut;
 
 #[derive(Debug)]
 pub struct LockedNodePage<'a, NS> {
-    page_id: usize,
+    segment_id: usize,
     max_page_len: u32,
     layer_counter: &'a GraphStats,
     page: &'a NS,
@@ -21,14 +21,14 @@ pub struct LockedNodePage<'a, NS> {
 
 impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     pub fn new(
-        page_id: usize,
+        segment_id: usize,
         layer_counter: &'a GraphStats,
         max_page_len: u32,
         page: &'a NS,
         lock: RwLockWriteGuard<'a, MemNodeSegment>,
     ) -> Self {
         Self {
-            page_id,
+            segment_id,
             layer_counter,
             max_page_len,
             page,
@@ -50,14 +50,15 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
     }
 
     #[inline(always)]
-    pub fn page_id(&self) -> usize {
-        self.page_id
+    pub fn segment_id(&self) -> usize {
+        self.segment_id
     }
 
     #[inline(always)]
     pub fn resolve_pos(&self, node_id: VID) -> Option<LocalPOS> {
         let (page, pos) = resolve_pos(node_id, self.max_page_len);
-        if page == self.page_id {
+
+        if page == self.segment_id {
             Some(pos)
         } else {
             None
@@ -87,6 +88,15 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> 
         Self { writers }
     }
 
+    pub fn len(&self) -> usize {
+        self.writers.len()
+    }
+
+    #[inline]
+    pub fn get_mut(&mut self, segment_id: usize) -> Option<&mut LockedNodePage<'a, NS>> {
+        self.writers.get_mut(segment_id)
+    }
+
     pub fn par_iter_mut(&mut self) -> rayon::slice::IterMut<'_, LockedNodePage<'a, NS>> {
         self.writers.par_iter_mut()
     }
@@ -103,10 +113,6 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> 
         for writer in &mut self.writers {
             writer.ensure_layer(layer_id);
         }
-    }
-
-    pub fn len(&self) -> usize {
-        self.writers.len()
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {

@@ -6,7 +6,7 @@ use crate::{
     },
     errors::GraphError,
 };
-use db4_graph::{TemporalGraph, TransactionManager, WriteLockedGraph};
+use db4_graph::{GraphDir, TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
@@ -35,11 +35,15 @@ use std::{
     path::Path,
     sync::Arc,
 };
-
-pub use storage::{
-    persist::strategy::{Config, PersistentStrategy},
-    Extension, WalImpl,
+use storage::{
+    persist::config::ConfigOps,
+    wal::{GraphWalOps, WalOps, LSN},
+    Wal,
 };
+
+// Re-export for raphtory dependencies to use when creating graphs.
+pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -103,31 +107,53 @@ impl Storage {
     }
 
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let config = Config::default();
+        let graph_dir = GraphDir::from(path.as_ref());
+        let wal_dir = graph_dir.wal_dir();
+        let wal = Arc::new(Wal::new(Some(wal_dir.as_path()))?);
+        let ext = Extension::new(config, wal.clone());
+        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(
-                path,
-                Extension::default(),
-            )?)),
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
     }
 
-    pub(crate) fn new_with_path_and_ext(
+    pub(crate) fn new_at_path_with_config(
         path: impl AsRef<Path>,
-        ext: Extension,
+        config: Config,
     ) -> Result<Self, GraphError> {
+        let graph_dir = GraphDir::from(path.as_ref());
+        let wal_dir = graph_dir.wal_dir();
+        let wal = Arc::new(Wal::new(Some(wal_dir.as_path()))?);
+        let ext = Extension::new(config, wal.clone());
+        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+
         Ok(Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new_with_path(path, ext)?)),
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
     }
 
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let graph = GraphStorage::Unlocked(Arc::new(TemporalGraph::load_from_path(path)?));
+        let config = Config::load_from_dir(path.as_ref())?;
+        let graph_dir = GraphDir::from(path.as_ref());
+        let wal_dir = graph_dir.wal_dir();
+        let wal = Arc::new(Wal::load(Some(wal_dir.as_path()))?);
+        let ext = Extension::new(config, wal.clone());
+        let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
+
+        // Replay any pending writes from the WAL.
+        if wal.has_entries() {
+            let mut write_locked_graph = temporal_graph.write_lock()?;
+            wal.replay_to_graph(&mut write_locked_graph)?;
+        }
+
         Ok(Self {
-            graph,
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
@@ -314,9 +340,8 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         &mut self,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
     ) -> MaybeNew<EID> {
-        self.session.internal_add_static_edge(src, dst, lsn)
+        self.session.internal_add_static_edge(src, dst)
     }
 
     fn internal_add_edge(
@@ -325,11 +350,9 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         e_id: MaybeNew<ELID>,
-        lsn: u64,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> MaybeNew<ELID> {
-        self.session
-            .internal_add_edge(t, src, dst, e_id, lsn, props)
+        self.session.internal_add_edge(t, src, dst, e_id, props)
     }
 
     fn internal_delete_edge(
@@ -337,10 +360,9 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
         t: EventTime,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        lsn: u64,
         layer: usize,
     ) -> MaybeNew<ELID> {
-        self.session.internal_delete_edge(t, src, dst, lsn, layer)
+        self.session.internal_delete_edge(t, src, dst, layer)
     }
 
     fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
@@ -349,6 +371,10 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
 
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
         self.session.store_dst_node_info(id, node_id);
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.session.set_lsn(lsn);
     }
 }
 
@@ -531,14 +557,6 @@ impl InternalAdditionOps for Storage {
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), Self::Error> {
         Ok(self.graph.validate_gids(gids)?)
-    }
-
-    fn transaction_manager(&self) -> &TransactionManager {
-        self.graph.mutable().unwrap().transaction_manager.as_ref()
-    }
-
-    fn wal(&self) -> &WalImpl {
-        self.graph.mutable().unwrap().wal.as_ref()
     }
 
     fn resolve_node_and_type(

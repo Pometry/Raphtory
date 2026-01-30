@@ -332,8 +332,12 @@ impl PropMapper {
     }
 
     pub fn set_id_and_dtype(&self, key: impl Into<ArcStr>, id: usize, dtype: PropType) {
-        let mut dtypes = self.dtypes.write();
         self.set_id(key, id);
+        self.set_dtype(id, dtype);
+    }
+
+    pub fn set_dtype(&self, id: usize, dtype: PropType) {
+        let mut dtypes = self.dtypes.write();
         if dtypes.len() <= id {
             dtypes.resize(id + 1, PropType::Empty);
         }
@@ -395,12 +399,38 @@ impl<'a> WriteLockedPropMapper<'a> {
         self.set_dtype(id, dtype);
     }
 
+    pub fn set_or_unify_id_and_dtype(
+        &mut self,
+        key: impl Into<ArcStr>,
+        id: usize,
+        dtype: PropType,
+    ) -> Result<(), PropError> {
+        self.dict_mapper.set_id(key, id);
+        self.set_or_unify_dtype(id, dtype)
+    }
+
     pub fn set_dtype(&mut self, id: usize, dtype: PropType) {
         let dtypes = self.d_types.deref_mut();
         if dtypes.len() <= id {
             dtypes.resize(id + 1, PropType::Empty);
         }
         dtypes[id] = dtype;
+    }
+
+    pub fn set_or_unify_dtype(&mut self, id: usize, dtype: PropType) -> Result<(), PropError> {
+        let dtypes = self.d_types.deref_mut();
+        match dtypes.get_mut(id) {
+            None => {
+                dtypes.resize(id + 1, PropType::Empty);
+                dtypes[id] = dtype;
+            }
+            Some(old_dtype) => {
+                let mut unified = false;
+                let unified_type = unify_types(&old_dtype, &dtype, &mut unified)?;
+                *old_dtype = unified_type;
+            }
+        }
+        Ok(())
     }
 
     pub fn new_id_and_dtype(&mut self, key: impl Into<ArcStr>, dtype: PropType) -> usize {

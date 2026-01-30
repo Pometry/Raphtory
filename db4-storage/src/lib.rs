@@ -14,7 +14,7 @@ use crate::{
         GraphStore, ReadLockedGraphStore, edge_store::ReadLockedEdgeStorage,
         node_store::ReadLockedNodeStorage,
     },
-    persist::strategy::NoOpStrategy,
+    persist::strategy::{NoOpStrategy, PersistenceStrategy},
     resolver::mapping_resolver::MappingResolver,
     segments::{
         edge::{
@@ -27,7 +27,6 @@ use crate::{
             segment::NodeSegmentView,
         },
     },
-    wal::no_wal::NoWal,
 };
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
@@ -44,6 +43,7 @@ pub mod properties;
 pub mod resolver;
 pub mod segments;
 pub mod state;
+pub mod transaction;
 pub mod utils;
 pub mod wal;
 
@@ -53,7 +53,8 @@ pub type ES<P> = EdgeSegmentView<P>;
 pub type GS<P> = GraphPropSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
-pub type WalImpl = NoWal;
+pub type Wal = <Extension as PersistenceStrategy>::Wal;
+pub type Config = <Extension as PersistenceStrategy>::Config;
 pub type GIDResolver = MappingResolver;
 
 pub type ReadLockedLayer<P> = ReadLockedGraphStore<NS<P>, ES<P>, GS<P>, P>;
@@ -117,6 +118,12 @@ pub mod error {
 
         #[error("Failed to vacuum storage")]
         VacuumError,
+    }
+
+    impl StorageError {
+        pub fn from_external<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
+            Self::External(Arc::new(error))
+        }
     }
 }
 

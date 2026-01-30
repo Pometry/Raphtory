@@ -32,7 +32,6 @@ pub(crate) use crate::{
         view::GraphViewOps,
     },
     prelude::*,
-    py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 

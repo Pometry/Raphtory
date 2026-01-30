@@ -7,17 +7,20 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::{GraphViewOps, NodeViewOps},
 };
-
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps},
-    MutationError,
-};
-
 use raphtory_api::core::{
     entities::properties::prop::Prop,
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use storage::wal::{GraphWal, Wal};
+use raphtory_core::entities::nodes::node_ref::NodeRef;
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps},
+        durability_ops::DurabilityOps,
+        MutationError,
+    },
+};
+use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
     // TODO: Probably add vector reference here like add
@@ -252,12 +255,15 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         layer: Option<&str>,
     ) -> Result<EdgeView<G>, GraphError> {
-        // Log transaction start
-        let transaction_id = self.transaction_manager().begin_transaction();
+        let transaction_manager = self.core_graph().transaction_manager()?;
+        let wal = self.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;
+        let src = src.as_node_ref();
+        let dst = dst.as_node_ref();
 
         self.validate_gids(
-            [src.as_node_ref(), dst.as_node_ref()]
+            [src, dst]
                 .iter()
                 .filter_map(|node_ref| node_ref.as_gid_ref().left()),
         )
@@ -270,100 +276,99 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
-
-        // Log prop name -> prop id mappings
-        self.wal()
-            .log_temporal_prop_ids(transaction_id, &props_with_status)
-            .unwrap();
-
-        let props = props_with_status
-            .into_iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.inner();
-                (prop_id, prop)
-            })
-            .collect::<Vec<_>>();
-
         let ti = time_from_input_session(&session, t)?;
-        let src_id = self
-            .resolve_node(src.as_node_ref())
-            .map_err(into_graph_err)?;
-        let dst_id = self
-            .resolve_node(dst.as_node_ref())
-            .map_err(into_graph_err)?;
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
 
-        // Log node -> node id mappings
-        // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
-        // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
-        if let Some(gid) = src.as_node_ref().as_gid_ref().left() {
-            self.wal()
-                .log_node_id(transaction_id, gid.into(), src_id.inner())
-                .unwrap();
-        }
+        let src_gid = match src {
+            NodeRef::Internal(_) => None,
+            NodeRef::External(gid_ref) => Some(gid_ref),
+        };
 
-        if let Some(gid) = dst.as_node_ref().as_gid_ref().left() {
-            self.wal()
-                .log_node_id(transaction_id, gid.into(), dst_id.inner())
-                .unwrap();
-        }
+        let dst_gid = match dst {
+            NodeRef::Internal(_) => None,
+            NodeRef::External(gid_ref) => Some(gid_ref),
+        };
 
-        let src_id = src_id.inner();
-        let dst_id = dst_id.inner();
+        // At this point we start modifying the graph, any error after this point is fatal and should
+        // panic!
+        let (edge_id, src_id, dst_id, layer_id) = {
+            // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
+            // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
+            let src_id = self.resolve_node(src).map_err(into_graph_err)?;
+            let dst_id = self.resolve_node(dst).map_err(into_graph_err)?;
+            let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
 
-        // Log layer -> layer id mappings
-        if let Some(layer) = layer {
-            self.wal()
-                .log_layer_id(transaction_id, layer, layer_id.inner())
-                .unwrap();
-        }
+            let src_id = src_id.inner();
+            let dst_id = dst_id.inner();
+            let layer_id = layer_id.inner();
 
-        let layer_id = layer_id.inner();
+            // Hold all locks for src node, dst node and edge until add_edge_op goes out of scope.
+            let mut add_edge_op = self
+                .atomic_add_edge(src_id, dst_id, None, layer_id)
+                .map_err(into_graph_err)?;
 
-        // Holds all locks for nodes and edge until add_edge_op goes out of scope
-        let mut add_edge_op = self
-            .atomic_add_edge(src_id, dst_id, None, layer_id)
-            .map_err(into_graph_err)?;
+            // NOTE: We log edge id after it is inserted into the edge segment.
+            // This is fine as long as we hold onto the edge segment lock through add_edge_op
+            // for the entire operation.
+            let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id);
 
-        // Log edge addition
-        let add_static_edge_lsn = self
-            .wal()
-            .log_add_static_edge(transaction_id, ti, src_id, dst_id)
-            .unwrap();
-        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id, add_static_edge_lsn);
+            // All names, ids and values have been generated for this operation.
+            // Create a wal entry to mark it as durable.
+            let props_for_wal = props_with_status
+                .iter()
+                .map(|maybe_new| {
+                    let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                    (prop_name.as_ref(), *prop_id, prop.clone())
+                })
+                .collect::<Vec<_>>();
 
-        // Log edge -> edge id mappings
-        // NOTE: We log edge id mappings after they are inserted into edge segments.
-        // This is fine as long as we hold onto segment locks for the entire operation.
-        let add_edge_lsn = self
-            .wal()
-            .log_add_edge(
+            let lsn = wal.log_add_edge(
                 transaction_id,
+                ti,
+                src_gid,
+                src_id,
+                dst_gid,
+                dst_id,
+                edge_id.inner(),
+                layer,
+                layer_id,
+                props_for_wal,
+            )?;
+
+            let props = props_with_status
+                .into_iter()
+                .map(|maybe_new| {
+                    let (_, prop_id, prop) = maybe_new.inner();
+                    (prop_id, prop)
+                })
+                .collect::<Vec<_>>();
+
+            let edge_id = add_edge_op.internal_add_edge(
                 ti,
                 src_id,
                 dst_id,
-                edge_id.inner(),
-                layer_id,
-                &props,
-            )
-            .unwrap();
-        let edge_id = add_edge_op.internal_add_edge(
-            ti,
-            src_id,
-            dst_id,
-            edge_id.map(|eid| eid.with_layer(layer_id)),
-            add_edge_lsn,
-            props,
-        );
+                edge_id.map(|eid| eid.with_layer(layer_id)),
+                props,
+            );
 
-        add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
-        add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
+            add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
+            add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
 
-        // Log transaction end
-        self.transaction_manager().end_transaction(transaction_id);
+            // Update the src, dst and edge segments with the lsn of the wal entry.
+            add_edge_op.set_lsn(lsn);
 
-        // Flush all wal entries to disk.
-        self.wal().sync().unwrap();
+            self.core_graph()
+                .transaction_manager()?
+                .end_transaction(transaction_id);
+
+            // Drop to release all the segment locks.
+            drop(add_edge_op);
+
+            // Flush the wal entry to disk.
+            // Any error here is fatal
+            self.core_graph().wal()?.flush(lsn)?;
+            Ok::<_, GraphError>((edge_id, src_id, dst_id, layer_id))
+        }
+        .unwrap();
 
         Ok(EdgeView::new(
             self.clone(),

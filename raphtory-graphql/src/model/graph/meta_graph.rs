@@ -6,7 +6,7 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use raphtory::{
-    db::api::storage::storage::{Extension, PersistentStrategy},
+    db::api::storage::storage::{Extension, PersistenceStrategy},
     prelude::{GraphViewOps, PropertiesOps},
     serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata},
 };

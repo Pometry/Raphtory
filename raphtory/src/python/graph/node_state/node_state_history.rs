@@ -35,8 +35,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::db::graph::nodes::IntoDynNodes;
 pub(crate) use crate::{
-    db::api::state::ops::IntoDynNodeOp, py_borrowing_iter,
-    python::graph::node_state::node_state::ops::NodeFilterOp,
+    db::api::state::ops::IntoDynNodeOp, python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 
 /// A lazy view over History objects for each node.

@@ -19,7 +19,7 @@ use crate::{
     },
     error::StorageError,
     pages::GraphStore,
-    persist::strategy::PersistentStrategy,
+    persist::strategy::PersistenceStrategy,
 };
 
 use super::fixtures::{AddEdge, Fixture, NodeFixture};
@@ -28,7 +28,7 @@ pub fn make_graph_from_edges<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 >(
     edges: &[(VID, VID, Option<usize>)], // src, dst, optional layer_id
     graph_dir: &Path,
@@ -36,6 +36,7 @@ pub fn make_graph_from_edges<
     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
 ) -> GraphStore<NS, ES, GS, EXT> {
     let graph = make_graph(graph_dir);
+
     for (_, _, layer) in edges {
         if let Some(layer) = layer {
             for layer in 0..=*layer {
@@ -49,6 +50,7 @@ pub fn make_graph_from_edges<
             }
         }
     }
+
     if par_load {
         edges
             .par_iter()
@@ -58,9 +60,10 @@ pub fn make_graph_from_edges<
 
                 let layer_id = layer_id.unwrap_or(0);
                 let mut session = graph.write_session(*src, *dst, None);
-                let eid = session.add_static_edge(*src, *dst, lsn);
+                session.set_lsn(lsn);
+                let eid = session.add_static_edge(*src, *dst);
                 let elid = eid.map(|eid| eid.with_layer(layer_id));
-                session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
+                session.add_edge_into_layer(timestamp, *src, *dst, elid, []);
 
                 Ok::<_, StorageError>(())
             })
@@ -75,14 +78,16 @@ pub fn make_graph_from_edges<
                 let layer_id = layer_id.unwrap_or(0);
 
                 let mut session = graph.write_session(*src, *dst, None);
-                let eid = session.add_static_edge(*src, *dst, lsn);
+                session.set_lsn(lsn);
+                let eid = session.add_static_edge(*src, *dst);
                 let elid = eid.map(|e| e.with_layer(layer_id));
-                session.add_edge_into_layer(timestamp, *src, *dst, elid, lsn, []);
+                session.add_edge_into_layer(timestamp, *src, *dst, elid, []);
 
                 Ok::<_, StorageError>(())
             })
             .expect("Failed to add edge");
     }
+
     graph
 }
 
@@ -90,7 +95,7 @@ pub fn check_edges_support<
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 >(
     edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
     par_load: bool,
@@ -121,7 +126,7 @@ pub fn check_edges_support<
         NS: NodeSegmentOps<Extension = EXT>,
         ES: EdgeSegmentOps<Extension = EXT>,
         GS: GraphPropSegmentOps<Extension = EXT>,
-        EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+        EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
     >(
         stage: &str,
         expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
@@ -205,9 +210,10 @@ pub fn check_edges_support<
     check("pre-drop", &edges, &graph);
 
     if check_load {
+        let ext = graph.extension().clone();
         drop(graph);
 
-        let maybe_ns = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path());
+        let maybe_ns = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path(), ext);
 
         match maybe_ns {
             Ok(graph) => {
@@ -221,7 +227,7 @@ pub fn check_edges_support<
 }
 
 pub fn check_graph_with_nodes_support<
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
@@ -349,14 +355,15 @@ pub fn check_graph_with_nodes_support<
     check_fn(temp_props, const_props, &graph);
 
     if check_load {
+        let ext = graph.extension().clone();
         drop(graph);
-        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path()).unwrap();
+        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path(), ext).unwrap();
         check_fn(temp_props, const_props, &graph);
     }
 }
 
 pub fn check_graph_with_props_support<
-    EXT: PersistentStrategy<NS = NS, ES = ES, GS = GS>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
@@ -503,9 +510,10 @@ pub fn check_graph_with_props_support<
 
     if check_load {
         // Load the graph from disk and check again
+        let ext = graph.extension().clone();
         drop(graph);
 
-        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path()).unwrap();
+        let graph = GraphStore::<NS, ES, GS, EXT>::load(graph_dir.path(), ext).unwrap();
         black_box(check_fn(edges, &graph));
     }
 }

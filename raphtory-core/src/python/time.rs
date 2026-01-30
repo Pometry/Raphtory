@@ -1,5 +1,5 @@
 use crate::utils::time::{AlignmentUnit, Interval};
-use pyo3::{exceptions::PyTypeError, prelude::*, Bound, FromPyObject, PyAny, PyResult};
+use pyo3::{exceptions::PyTypeError, prelude::*, FromPyObject, PyAny, PyResult};
 
 impl<'py> FromPyObject<'_, 'py> for Interval {
     type Error = PyErr;

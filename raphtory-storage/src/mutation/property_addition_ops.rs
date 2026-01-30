@@ -4,7 +4,10 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{properties::prop::Prop, EID, VID},
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+            EID, VID,
+        },
         storage::timeindex::EventTime,
     },
     inherit::Base,
@@ -61,21 +64,21 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph_props().writer();
-        writer.add_properties(t, props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
+        writer.add_properties(t, props.iter().map(|(id, prop)| (*id, prop.clone())));
         Ok(())
     }
 
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph_props().writer();
         writer.check_metadata(props)?;
-        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())));
         Ok(())
     }
 
     // FIXME: this can't fail
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
         let mut writer = self.storage().graph_props().writer();
-        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())), 0);
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())));
         Ok(())
     }
 
@@ -86,8 +89,8 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
-        writer.check_metadata(node_pos, 0, &props)?;
-        writer.update_c_props(node_pos, 0, props, 0);
+        writer.check_metadata(node_pos, STATIC_GRAPH_LAYER_ID, &props)?;
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
         Ok(writer)
     }
 
@@ -98,7 +101,7 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
-        writer.update_c_props(node_pos, 0, props, 0);
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
         Ok(writer)
     }
 

@@ -4,7 +4,7 @@ pub mod segment;
 use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
-    persist::strategy::Config,
+    persist::strategy::PersistenceStrategy,
     segments::graph_prop::{entry::MemGraphPropEntry, segment::MemGraphPropSegment},
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -20,7 +20,7 @@ use std::{
 /// `GraphPropSegmentView` manages graph temporal properties and graph metadata
 /// (constant properties). Reads / writes are always served from the in-memory segment.
 #[derive(Debug)]
-pub struct GraphPropSegmentView<P: Config> {
+pub struct GraphPropSegmentView<P: PersistenceStrategy> {
     /// In-memory segment that contains the latest graph properties
     /// and graph metadata writes.
     head: Arc<RwLock<MemGraphPropSegment>>,
@@ -33,7 +33,7 @@ pub struct GraphPropSegmentView<P: Config> {
     _persistent: P,
 }
 
-impl<P: Config> GraphPropSegmentOps for GraphPropSegmentView<P> {
+impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
     type Extension = P;
 
     type Entry<'a> = MemGraphPropEntry<'a>;
@@ -79,8 +79,8 @@ impl<P: Config> GraphPropSegmentOps for GraphPropSegmentView<P> {
         self.est_size.load(Ordering::Relaxed)
     }
 
-    fn mark_dirty(&self) {
-        self.is_dirty.store(true, Ordering::Relaxed);
+    fn set_dirty(&self, dirty: bool) {
+        self.is_dirty.store(dirty, Ordering::Release);
     }
 
     fn notify_write(

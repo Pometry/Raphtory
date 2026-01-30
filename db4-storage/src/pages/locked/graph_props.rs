@@ -24,27 +24,24 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
         &mut self,
         t: T,
         props: impl IntoIterator<Item = (usize, Prop)>,
-        lsn: u64,
     ) {
         let add = self.lock.add_properties(t, props);
-        self.lock.layers_mut()[MemGraphPropSegment::DEFAULT_LAYER].set_lsn(lsn);
 
         self.page.increment_est_size(add);
-        self.page.mark_dirty();
+        self.page.set_dirty(true);
     }
 
     /// Add metadata (constant properties) to the graph
-    pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
-        self.update_metadata(props, lsn);
+    pub fn add_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
+        self.update_metadata(props);
     }
 
     /// Update metadata (constant properties) on the graph
-    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>, lsn: u64) {
+    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
         let add = self.lock.update_metadata(props);
-        self.lock.layers_mut()[MemGraphPropSegment::DEFAULT_LAYER].set_lsn(lsn);
 
         self.page.increment_est_size(add);
-        self.page.mark_dirty();
+        self.page.set_dirty(true);
     }
 }
 

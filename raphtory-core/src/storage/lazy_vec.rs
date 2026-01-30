@@ -195,7 +195,6 @@ where
     }
 
     // fails if there is already a value set for the given id to a different value
-
     pub fn upsert(&mut self, id: usize, value: A) {
         match self {
             LazyVec::Empty => {
