@@ -286,12 +286,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> GraphView:
+    def filter(self, filter: filter.FilterExpr) -> GraphView:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             GraphView: The filtered view
@@ -2094,12 +2094,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> Node:
+    def filter(self, filter: filter.FilterExpr) -> Node:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Node: The filtered view
@@ -2600,12 +2600,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> Nodes:
+    def filter(self, filter: filter.FilterExpr) -> Nodes:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Nodes: The filtered view
@@ -3115,12 +3115,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> PathFromNode:
+    def filter(self, filter: filter.FilterExpr) -> PathFromNode:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromNode: The filtered view
@@ -3602,12 +3602,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> PathFromGraph:
+    def filter(self, filter: filter.FilterExpr) -> PathFromGraph:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromGraph: The filtered view
@@ -3710,7 +3710,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataListList:
         """
         Returns the node metadata.
 
@@ -4159,20 +4159,20 @@ class Edge(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self):
+    def explode(self) -> Edges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
-    def explode_layers(self):
+    def explode_layers(self) -> Edges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
     def has_layer(self, name: str) -> bool:
@@ -4638,20 +4638,20 @@ class Edges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self):
+    def explode(self) -> Edges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
-    def explode_layers(self):
+    def explode_layers(self) -> Edges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
     def has_layer(self, name: str) -> bool:
@@ -5136,20 +5136,20 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self):
+    def explode(self) -> Edges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
-    def explode_layers(self):
+    def explode_layers(self) -> Edges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
     def has_layer(self, name: str) -> bool:
@@ -5273,7 +5273,7 @@ class NestedEdges(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataListList:
         """
         Get a view of the metadata only.
 
@@ -5291,7 +5291,7 @@ class NestedEdges(object):
         """
 
     @property
-    def properties(self):
+    def properties(self) -> PyNestedPropsIterable:
         """
         Returns all properties of the edges
 
@@ -5607,12 +5607,12 @@ class Properties(object):
         """
 
     @property
-    def temporal(self):
+    def temporal(self) -> TemporalProperties:
         """
         Get a view of the temporal properties only.
 
         Returns:
-            TemporalProp:
+           TemporalProperties:
         """
 
     def values(self) -> list[PropValue]:
