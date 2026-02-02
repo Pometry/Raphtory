@@ -1,12 +1,11 @@
 use std::{ops::Deref, path::Path, sync::Arc};
 
-use arrow::array::{FixedSizeListBuilder, Float32Builder};
 use arrow_array::{
+    builder::{FixedSizeListBuilder, Float32Builder},
     types::{Float32Type, UInt64Type},
     ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
     RecordBatchIterator, UInt64Array,
 };
-use chrono::format::Fixed;
 use futures_util::TryStreamExt;
 use itertools::Itertools;
 use lancedb::{
