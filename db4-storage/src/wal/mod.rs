@@ -14,12 +14,13 @@ pub type TransactionID = u64;
 
 /// Core Wal methods.
 pub trait WalOps {
-    fn new(dir: Option<&Path>) -> Result<Self, StorageError>
+    type Config;
+    fn new(dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>
     where
         Self: Sized;
 
     /// Loads an existing WAL file from the given directory in append mode.
-    fn load(dir: Option<&Path>) -> Result<Self, StorageError>
+    fn load(dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>
     where
         Self: Sized;
 

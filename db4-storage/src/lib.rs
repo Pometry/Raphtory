@@ -118,6 +118,9 @@ pub mod error {
 
         #[error("Failed to vacuum storage")]
         VacuumError,
+
+        #[error("Disk storage not supported")]
+        DiskStorageNotSupported,
     }
 
     impl StorageError {

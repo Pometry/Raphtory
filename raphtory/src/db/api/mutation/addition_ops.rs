@@ -12,13 +12,10 @@ use raphtory_api::core::{
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        durability_ops::DurabilityOps,
-        MutationError,
-    },
+use raphtory_storage::mutation::{
+    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    durability_ops::DurabilityOps,
+    MutationError,
 };
 use storage::wal::{GraphWalOps, WalOps};
 

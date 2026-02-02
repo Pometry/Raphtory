@@ -23,7 +23,7 @@ use crate::{
     prelude::*,
 };
 use ahash::HashSet;
-use db4_graph::{GraphDir, TemporalGraph};
+use db4_graph::TemporalGraph;
 use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
@@ -53,7 +53,7 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-use storage::{persist::strategy::PersistenceStrategy, wal::WalOps, Extension, Wal};
+use storage::{persist::strategy::PersistenceStrategy, Extension};
 
 #[cfg(feature = "search")]
 use crate::{
@@ -289,11 +289,8 @@ fn materialize_impl(
     node_meta.set_layer_mapper(layer_meta.clone());
 
     // Create new WAL file for the new materialized graph.
-    let graph_dir = path.map(|p| GraphDir::from(p));
-    let wal_dir = graph_dir.map(|dir| dir.wal_dir());
-    let wal = Wal::new(wal_dir.as_deref())?;
     let config = storage.extension().config().clone();
-    let ext = Extension::new(config, Arc::new(wal));
+    let ext = Extension::new(config, path)?;
 
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),
