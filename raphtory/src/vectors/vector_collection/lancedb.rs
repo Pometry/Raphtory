@@ -89,6 +89,7 @@ impl VectorCollection for LanceDbCollection {
         let mut builder = FixedSizeListBuilder::new(Float32Builder::new(), self.dim as i32);
         for vector in vectors {
             builder.values().append_slice(&vector);
+            builder.append(true);
         }
         let batches = RecordBatchIterator::new(
             vec![RecordBatch::try_new(
