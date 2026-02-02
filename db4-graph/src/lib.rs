@@ -1,6 +1,5 @@
 use std::{
-    io,
-    path::{Path, PathBuf},
+    path::Path,
     sync::{atomic::AtomicUsize, Arc},
 };
 
@@ -26,9 +25,8 @@ use storage::{
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::WalOps,
-    Config, Extension, GIDResolver, Layer, ReadLockedLayer, Wal, ES, GS, NS,
+    Config, Extension, GIDResolver, dir::GraphDir, Layer, ReadLockedLayer, Wal, ES, GS, NS,
 };
-use tempfile::TempDir;
 
 mod replay;
 
@@ -48,51 +46,11 @@ where
     pub transaction_manager: Arc<TransactionManager>,
 }
 
-#[derive(Debug)]
-pub enum GraphDir {
-    Temp(TempDir),
-    Path(PathBuf),
-}
-
-impl GraphDir {
-    pub fn path(&self) -> &Path {
-        match self {
-            GraphDir::Temp(dir) => dir.path(),
-            GraphDir::Path(path) => path,
-        }
-    }
-    pub fn gid_resolver_dir(&self) -> PathBuf {
-        self.path().join("gid_resolver")
-    }
-
-    pub fn wal_dir(&self) -> PathBuf {
-        self.path().join("wal")
-    }
-
-    pub fn create_dir(&self) -> Result<(), io::Error> {
-        if let GraphDir::Path(path) = self {
-            std::fs::create_dir_all(path)?;
-        }
-        Ok(())
-    }
-}
-
-impl AsRef<Path> for GraphDir {
-    fn as_ref(&self) -> &Path {
-        self.path()
-    }
-}
-
-impl<'a> From<&'a Path> for GraphDir {
-    fn from(path: &'a Path) -> Self {
-        GraphDir::Path(path.to_path_buf())
-    }
-}
-
 impl Default for TemporalGraph<Extension> {
     fn default() -> Self {
         let config = Config::default();
-        Self::new(Extension::new(config, None).unwrap()).unwrap()
+        let graph_dir = None;
+        Self::new(Extension::new(config, graph_dir).unwrap()).unwrap()
     }
 }
 

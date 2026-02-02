@@ -64,7 +64,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type Wal = NoWal;
     type Config = BaseConfig;
 
-    fn new(config: Self::Config, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
+    fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
         Ok(Self { config, wal: NoWal })
     }
 

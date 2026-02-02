@@ -35,6 +35,7 @@ use segments::{
 };
 
 pub mod api;
+pub mod dir;
 pub mod gen_ts;
 pub mod generic_t_props;
 pub mod pages;
