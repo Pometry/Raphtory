@@ -13,6 +13,7 @@ use raphtory_core::{
 };
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    dir::GraphDir,
     error::StorageError,
     pages::{
         layer_counter::GraphStats,
@@ -24,7 +25,7 @@ use storage::{
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    Config, Extension, GIDResolver, dir::GraphDir, Layer, ReadLockedLayer, ES, GS, NS,
+    Config, Extension, GIDResolver, Layer, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;

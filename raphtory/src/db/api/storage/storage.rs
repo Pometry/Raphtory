@@ -133,11 +133,10 @@ impl Storage {
     }
 
     pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let config = Config::load_from_dir(path.as_ref())?;
-        let ext = Extension::new(config, Some(path.as_ref()))?;
+        let ext = Extension::load(path.as_ref())?;
         let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
-
         let wal = temporal_graph.wal()?;
+
         // Replay any pending writes from the WAL.
         if wal.has_entries() {
             let mut write_locked_graph = temporal_graph.write_lock()?;

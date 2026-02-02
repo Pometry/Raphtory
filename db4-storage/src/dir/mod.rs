@@ -30,6 +30,7 @@ impl GraphDir {
         if let GraphDir::Path(path) = self {
             std::fs::create_dir_all(path)?;
         }
+
         Ok(())
     }
 }
