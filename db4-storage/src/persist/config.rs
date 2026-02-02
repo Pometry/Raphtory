@@ -15,15 +15,15 @@ pub trait ConfigOps: Serialize + DeserializeOwned {
 
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 
-    fn load_from_dir(dir: impl AsRef<Path>) -> Result<Self, StorageError> {
-        let config_file = dir.as_ref().join(CONFIG_FILE);
+    fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
+        let config_file = dir.join(CONFIG_FILE);
         let config_file = std::fs::File::open(config_file)?;
         let config = serde_json::from_reader(config_file)?;
         Ok(config)
     }
 
-    fn save_to_dir(&self, dir: impl AsRef<Path>) -> Result<(), StorageError> {
-        let config_file = dir.as_ref().join(CONFIG_FILE);
+    fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
+        let config_file = dir.join(CONFIG_FILE);
         let config_file = std::fs::File::create(&config_file)?;
         serde_json::to_writer_pretty(config_file, self)?;
         Ok(())
@@ -71,11 +71,11 @@ impl ConfigOps for BaseConfig {
         *self
     }
 
-    fn load_from_dir(_dir: impl AsRef<Path>) -> Result<Self, StorageError> {
+    fn load_from_dir(_dir: &Path) -> Result<Self, StorageError> {
         Ok(Self::default())
     }
 
-    fn save_to_dir(&self, _dir: impl AsRef<Path>) -> Result<(), StorageError> {
+    fn save_to_dir(&self, _dir: &Path) -> Result<(), StorageError> {
         Ok(())
     }
 }

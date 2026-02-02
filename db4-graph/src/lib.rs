@@ -24,8 +24,7 @@ use storage::{
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    wal::WalOps,
-    Config, Extension, GIDResolver, dir::GraphDir, Layer, ReadLockedLayer, Wal, ES, GS, NS,
+    Config, Extension, GIDResolver, dir::GraphDir, Layer, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;
