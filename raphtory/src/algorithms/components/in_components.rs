@@ -63,6 +63,7 @@ where
 {
     let filtered = g.filter(filter)?;
     let ctx: Context<_, _> = (&filtered).into();
+    let index = Index::for_graph(g);
 
     let step1 = ATask::new(move |vv: &mut EvalNodeView<_, InState>| {
         let mut in_components = HashSet::new();
@@ -91,7 +92,8 @@ where
 
     let mut runner = TaskRunner::new(ctx);
 
-    Ok(runner.run(
+    Ok(runner.run_with_index(
+        index,
         vec![Job::new(step1)],
         vec![],
         None,

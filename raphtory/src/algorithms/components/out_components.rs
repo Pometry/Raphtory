@@ -90,8 +90,10 @@ where
     });
 
     let mut runner = TaskRunner::new(ctx);
+    let index = Index::for_graph(g);
 
-    Ok(runner.run(
+    Ok(runner.run_with_index(
+        index,
         vec![Job::new(step1)],
         vec![],
         None,
