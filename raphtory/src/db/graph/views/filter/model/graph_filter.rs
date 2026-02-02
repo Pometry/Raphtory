@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::state::ops::{filter::NodeExistsOp, GraphView, NotANodeFilter},
+        api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, windowed_filter::Windowed,
