@@ -216,8 +216,7 @@ pub(crate) fn load_graph_props_from_df<
                 let start_id = session
                     .reserve_event_ids(df.len())
                     .map_err(into_graph_err)?;
-                let col = SecondaryIndexCol::new_from_range(start_id, start_id + df.len());
-                col
+                SecondaryIndexCol::new_from_range(start_id, start_id + df.len())
             }
         };
 

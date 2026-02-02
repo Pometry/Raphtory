@@ -6,7 +6,7 @@ use crate::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edges::{load_edges_from_df, ColumnNames},
-                load_edge_deletions_from_df, load_edges_props_from_df,
+                load_edge_deletions_from_df, load_edges_props_from_df, load_graph_props_from_df,
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
@@ -223,6 +223,7 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     graph: &G,
     data: &Bound<'py, PyAny>,
     time: &str,
+    event_id: Option<&str>,
     src: &str,
     dst: &str,
     layer: Option<&str>,
@@ -232,17 +233,43 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     let cols_to_check = [src, dst, time]
         .into_iter()
         .chain(layer_col)
+        .chain(event_id)
         .collect::<Vec<_>>();
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     data.py().detach(|| {
         load_edge_deletions_from_df(
             df_view,
-            ColumnNames::new(time, None, src, dst, layer_col),
+            ColumnNames::new(time, event_id, src, dst, layer_col),
             true,
             layer,
             graph.core_graph(),
         )
+    })
+}
+
+pub(crate) fn load_graph_props_from_arrow_c_stream<
+    'py,
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    graph: &G,
+    data: &Bound<'py, PyAny>,
+    time: &str,
+    secondary_index: Option<&str>,
+    properties: Option<&[&str]>,
+    metadata: Option<&[&str]>,
+    schema: Option<HashMap<String, PropType>>,
+) -> Result<(), GraphError> {
+    let cols_to_check = [time]
+        .into_iter()
+        .chain(secondary_index)
+        .chain(properties.unwrap_or(&[]).iter().copied())
+        .chain(metadata.unwrap_or(&[]).iter().copied())
+        .collect::<Vec<_>>();
+    let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
+    df_view.check_cols_exist(&cols_to_check)?;
+    data.py().detach(|| {
+        load_graph_props_from_df(df_view, time, secondary_index, properties, metadata, graph)
     })
 }
 

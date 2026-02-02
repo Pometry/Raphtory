@@ -392,6 +392,9 @@ fn resolve_node_and_meta_for_node_col<
                 let resolved_node_type_id = locked_mapper.get_or_create_id(name).inner();
                 *node_type_id = resolved_node_type_id;
                 last_node_type_id = Some(resolved_node_type_id);
+            } else {
+                *node_type_id = 0;
+                last_node_type_id = Some(0);
             }
         } else if let Some(id) = last_node_type_id {
             *node_type_id = id;
