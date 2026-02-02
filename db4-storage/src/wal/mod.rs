@@ -15,6 +15,7 @@ pub type TransactionID = u64;
 /// Core Wal methods.
 pub trait WalOps {
     type Config;
+
     fn new(dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>
     where
         Self: Sized;
