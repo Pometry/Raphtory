@@ -166,6 +166,8 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         NestedResultOptionUtcDateTimeIterable,
         NestedI64Iterable,
         NestedResultUtcDateTimeIterable,
+        MetadataListList,
+        PyNestedPropsIterable,
     );
     Ok(iterables_module)
 }
@@ -256,3 +258,4 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
 }
 
 pub use crate::python::graph::node_state::base_node_state_module;
+use crate::python::graph::properties::{MetadataListList, PyNestedPropsIterable};
