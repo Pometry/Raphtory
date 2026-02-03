@@ -20,7 +20,10 @@ use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 
 #[derive(Parser)]
-#[command(about = "Run the GraphServer with specified configurations")]
+#[command(
+    name = "raphtory",
+    about = "Run the GraphServer with specified configurations"
+)]
 struct Args {
     #[arg(long, env = "RAPHTORY_WORKING_DIR", default_value = ".")]
     working_dir: PathBuf,
@@ -75,8 +78,12 @@ enum Commands {
     Schema,
 }
 
-pub(crate) async fn cli() -> IoResult<()> {
-    let args = Args::parse();
+pub(crate) async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
+where
+    I: IntoIterator<Item = T>,
+    T: Into<std::ffi::OsString> + Clone,
+{
+    let args = Args::parse_from(args_iter);
 
     if let Some(Commands::Schema) = args.command {
         let schema = App::create_schema().finish().unwrap();
@@ -110,11 +117,19 @@ pub(crate) async fn cli() -> IoResult<()> {
     Ok(())
 }
 
+pub(crate) async fn cli() -> IoResult<()> {
+    cli_with_args(std::env::args_os()).await
+}
+
 #[cfg(feature = "python")]
 #[pyo3::pyfunction(name = "cli")]
 pub fn python_cli() -> pyo3::PyResult<()> {
+    dbg!(std::env::args().collect::<Vec<_>>());
+    // Replace argv[0] with "raphtory" so clap doesn't interpret the script path as a subcommand
+    let args = std::iter::once("raphtory".to_string()).chain(std::env::args().skip(2));
+
     let runtime = tokio::runtime::Runtime::new().unwrap();
     runtime
-        .block_on(cli())
+        .block_on(cli_with_args(args))
         .map_err(|err| pyo3::exceptions::PyIOError::new_err(err.to_string()))
 }

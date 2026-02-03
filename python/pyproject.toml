@@ -48,4 +48,4 @@ include = ["motif-images/*", "cli.py"]
 pythonpath = ["test_utils"] # adds directories to the python path for tests
 
 [project.scripts]
-raphtory = "cli:main"
+raphtory = "raphtory.graphql:cli"
