@@ -11,8 +11,12 @@ use raphtory::{
             global_temporal_three_node_motifs::global_temporal_three_node_motif,
             local_triangle_count::local_triangle_count,
         },
+        covering::{
+            fast_distributed_dominating_set::fast_distributed_dominating_set,
+            dominating_set::lazy_greedy_dominating_set 
+        }
     },
-    graphgen::random_attachment::random_attachment,
+    graphgen::{preferential_attachment::ba_preferential_attachment, random_attachment::random_attachment},
     prelude::*,
 };
 use raphtory_benchmark::common::bench;
@@ -130,6 +134,44 @@ pub fn temporal_motifs(c: &mut Criterion) {
     group.finish();
 }
 
+pub fn dominating_set(c: &mut Criterion) {
+    let mut group = c.benchmark_group("dominating_set_scaling");
+    group.sample_size(10);
+    
+    let sizes = [1_000, 10_000, 100_000];
+    let seed: [u8; 32] = [1; 32];
+
+    for &size in &sizes {
+        let g = Graph::new();
+        ba_preferential_attachment(&g, size, 2, Some(seed));
+
+
+        group.bench_with_input(
+            BenchmarkId::new("fast_distributed", size), 
+            &g, 
+            |b, graph| {
+                b.iter(|| {
+                    let result = fast_distributed_dominating_set(graph);
+                    black_box(result);
+                })
+            }
+        );
+        
+        group.bench_with_input(
+            BenchmarkId::new("lazy_greedy", size), 
+            &g, 
+            |b, graph| {
+                b.iter(|| {
+                    let result = lazy_greedy_dominating_set(graph);
+                    black_box(result);
+                })
+            }
+        );
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     local_triangle_count_analysis,
@@ -138,5 +180,6 @@ criterion_group!(
     graphgen_large_pagerank,
     graphgen_large_concomp,
     temporal_motifs,
+    dominating_set
 );
 criterion_main!(benches);
