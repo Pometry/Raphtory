@@ -112,3 +112,41 @@ def test_edges_chained_selection_with_edge_filter(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+def test_edges_filter_latest_is_active(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          filter(expr: {latest: {expr: {isActive: true}}}) {
+            list {
+              src {
+                name
+              }
+              dst {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "filter": {
+                    "list": [
+                        {"dst": {"name": "2"}, "src": {"name": "1"}},
+                        {"dst": {"name": "3"}, "src": {"name": "2"}},
+                        {"dst": {"name": "1"}, "src": {"name": "3"}},
+                        {"dst": {"name": "4"}, "src": {"name": "3"}},
+                        {"dst": {"name": "1"}, "src": {"name": "2"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)

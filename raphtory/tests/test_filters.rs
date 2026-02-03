@@ -1624,16 +1624,19 @@ mod test_node_filter {
             api::view::filter_ops::NodeSelect,
             graph::{
                 assertions::{
-                    assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                    assert_filter_nodes_results, assert_search_nodes_results,
+                    assert_select_nodes_results, TestVariants,
                 },
                 views::filter::model::{
                     node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                    ComposableFilter,
+                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
+                    ViewWrapOps,
                 },
             },
         },
         prelude::{Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps},
     };
+
     #[test]
     fn test_node_list_is_preserved() {
         let graph = init_nodes_graph(Graph::new());
@@ -2382,6 +2385,63 @@ mod test_node_filter {
             TestVariants::All,
         );
     }
+
+    #[test]
+    fn test_is_active_node_window() {
+        let filter = NodeFilter.window(1, 10).is_active();
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_active_node_window_not() {
+        let filter = NodeFilter
+            .window(1, 10)
+            .is_active()
+            .try_as_composite_node_filter()
+            .unwrap();
+        let filter = CompositeNodeFilter::Not(Box::new(filter));
+        let expected_results = vec!["1", "2", "3", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_active_node_latest() {
+        let filter = NodeFilter.latest().is_active();
+        let expected_results = vec!["1", "2", "4"];
+        assert_filter_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_active_node_snapshot_at() {
+        let filter = NodeFilter.snapshot_at(2).is_active();
+        let expected_results = vec!["2"];
+        assert_select_nodes_results(
+            init_nodes_graph,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
 }
 
 #[cfg(test)]
@@ -2394,6 +2454,7 @@ mod test_node_property_filter {
             node_filter::NodeFilter,
             not_filter::NotFilter,
             property_filter::ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
+            windowed_filter::Windowed,
             ComposableFilter, PropertyFilterFactory, TemporalPropertyFilterFactory, ViewWrapOps,
         },
     };
@@ -4189,7 +4250,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_graph_filter_window() {
-        let filter = GraphFilter.window(1, 2);
+        let filter: Windowed<GraphFilter> = GraphFilter.window(1, 2);
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -8442,8 +8503,9 @@ mod test_edge_filter {
         },
     };
 
-    use raphtory::db::graph::views::filter::model::node_filter::ops::{
-        NodeFilterOps, NodeIdFilterOps,
+    use raphtory::db::graph::views::filter::model::{
+        node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+        EdgeViewFilterOps, ViewWrapOps,
     };
 
     #[test]
@@ -9580,6 +9642,206 @@ mod test_edge_filter {
             filter.clone(),
             &expected_results,
             TestVariants::All,
+        );
+    }
+
+    #[test]
+    fn test_is_active_edge_window() {
+        let filter = EdgeFilter.window(1, 3).is_active();
+        let expected_results = vec!["London->Paris", "Two->Three"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_active_edge_after() {
+        let filter = EdgeFilter.after(3).is_active();
+        let expected_results = vec!["David Gilmour->John Mayer", "John Mayer->Jimmy Page"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_active_edge_before() {
+        let filter = EdgeFilter.before(3).is_active();
+        let expected_results = vec!["London->Paris", "Two->Three"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_active_edge_snapshot_latest() {
+        let filter = EdgeFilter.snapshot_latest().is_active();
+        let expected_results = vec!["David Gilmour->John Mayer", "John Mayer->Jimmy Page"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_valid_edge_window() {
+        let filter = EdgeFilter.window(1, 3).is_valid();
+        let expected_results = vec!["London->Paris", "Two->Three"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_valid_edge_snapshot_at() {
+        let filter = EdgeFilter.snapshot_at(3).is_valid();
+        let expected_results = vec!["London->Paris", "Three->One", "Two->One", "Two->Three"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_valid_edge_snapshot_latest() {
+        let filter = EdgeFilter.snapshot_latest().is_valid();
+        let expected_results = vec!["David Gilmour->John Mayer", "John Mayer->Jimmy Page"];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_deleted_edge_after() {
+        let filter = EdgeFilter.after(3).is_deleted();
+        let expected_results = vec![];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_deleted_edge_before() {
+        let filter = EdgeFilter.before(3).is_deleted();
+        let expected_results = vec![];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+    }
+
+    #[test]
+    fn test_is_self_loop_edge_window() {
+        let filter = EdgeFilter.window(1, 3).is_self_loop();
+        let expected_results = vec![];
+        assert_filter_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
+        );
+        assert_search_edges_results(
+            init_edges_graph_with_str_ids,
+            IdentityGraphTransformer,
+            filter.clone(),
+            &expected_results,
+            TestVariants::PersistentOnly,
         );
     }
 }

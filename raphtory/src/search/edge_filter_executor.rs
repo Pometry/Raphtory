@@ -24,7 +24,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{entities::EID, storage::timeindex::AsTime};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
 use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
     Searcher, TantivyDocument,
@@ -292,6 +292,18 @@ impl<'a> EdgeFilterExecutor<'a> {
                     .into_iter()
                     .map(|x| EdgeView::new(graph.clone(), x.edge))
                     .collect())
+            }
+            CompositeEdgeFilter::IsActiveEdge(filter) => {
+                fallback_filter_edges(graph, filter.deref(), limit, offset)
+            }
+            CompositeEdgeFilter::IsValidEdge(filter) => {
+                fallback_filter_edges(graph, filter.deref(), limit, offset)
+            }
+            CompositeEdgeFilter::IsDeletedEdge(filter) => {
+                fallback_filter_edges(graph, filter.deref(), limit, offset)
+            }
+            CompositeEdgeFilter::IsSelfLoopEdge(filter) => {
+                fallback_filter_edges(graph, filter.deref(), limit, offset)
             }
             CompositeEdgeFilter::And(left, right) => {
                 let left_result = self.filter_edges(graph, left, limit, offset)?;

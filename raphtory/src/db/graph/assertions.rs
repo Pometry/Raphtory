@@ -9,9 +9,12 @@ pub use crate::db::api::view::SearchableGraphOps;
 #[cfg(feature = "search")]
 use crate::prelude::IndexMutationOps;
 use crate::{
-    db::graph::views::{
-        filter::{model::TryAsCompositeFilter, CreateFilter},
-        window_graph::WindowedGraph,
+    db::{
+        api::view::filter_ops::NodeSelect,
+        graph::views::{
+            filter::{model::TryAsCompositeFilter, CreateFilter},
+            window_graph::WindowedGraph,
+        },
     },
     errors::GraphError,
     prelude::TimeOps,
@@ -83,6 +86,21 @@ impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for FilterNodes
             .map(|n| n.name())
             .collect::<Vec<_>>();
         results.sort();
+        results
+    }
+}
+
+pub struct SelectNodes<F: TryAsCompositeFilter + CreateFilter + Clone>(F);
+
+impl<F: TryAsCompositeFilter + CreateFilter + Clone> ApplyFilter for SelectNodes<F> {
+    fn apply<G: StaticGraphViewOps>(&self, graph: G) -> Vec<String> {
+        let results = graph
+            .nodes()
+            .select(self.0.clone())
+            .unwrap()
+            .iter()
+            .map(|n| n.name())
+            .collect::<Vec<_>>();
         results
     }
 }
@@ -180,6 +198,23 @@ pub fn assert_filter_nodes_results(
         expected,
         variants.into(),
         FilterNodes(filter),
+    )
+}
+
+pub fn assert_select_nodes_results(
+    init_graph: impl FnOnce(Graph) -> Graph,
+    transform: impl GraphTransformer,
+    filter: impl TryAsCompositeFilter + CreateFilter + Clone,
+    expected: &[&str],
+    variants: impl Into<Vec<TestGraphVariants>>,
+) {
+    assert_results(
+        init_graph,
+        |_graph: &Graph| (),
+        transform,
+        expected,
+        variants.into(),
+        SelectNodes(filter),
     )
 }
 

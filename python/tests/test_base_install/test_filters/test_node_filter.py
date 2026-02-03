@@ -1,5 +1,5 @@
 from raphtory import filter
-from filters_setup import init_graph, init_graph2
+from filters_setup import init_graph, init_graph2, create_test_graph
 from utils import with_disk_variants
 import pytest
 
@@ -298,5 +298,71 @@ def test_filter_nodes_with_num_ids_error():
             match='Invalid filter: Filter value type does not match node ID type. Expected U64 but got "Str"',
         ):
             graph.filter(filter_expr).nodes.id
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["persistent_graph"])
+def test_filter_nodes_is_active():
+    def check(graph):
+        filter_expr = filter.Node.is_active()
+        result_ids = sorted(graph.window(1, 4).filter(filter_expr).nodes.id)
+        expected_ids = sorted(["1", "2", "3", "4"])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["persistent_graph"])
+def test_filter_nodes_windowed_is_active():
+    def check(graph):
+        filter_expr = filter.Node.window(1, 2).is_active()
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted(["1", "2"])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(create_test_graph, variants=["persistent_graph"])
+def test_filter_nodes_windowed_is_active_not():
+    def check(graph):
+        filter_expr = filter.Node.window(1, 2).is_active()
+        result_ids = sorted(graph.filter(~filter_expr).nodes.id)
+        expected_ids = sorted([])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["persistent_graph"])
+def test_filter_nodes_latest_is_active():
+    def check(graph):
+        filter_expr = filter.Node.latest().is_active()
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted(["1", "4", "David Gilmour", "Jimmy Page", "John Mayer"])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["persistent_graph"])
+def test_filter_nodes_snapshot_latest_is_active():
+    def check(graph):
+        filter_expr = filter.Node.snapshot_latest().is_active()
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted(["1", "4", "David Gilmour", "Jimmy Page", "John Mayer"])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["persistent_graph"])
+def test_filter_nodes_at_is_active():
+    def check(graph):
+        filter_expr = filter.Node.at(2).is_active()
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted(["1", "2", "3"])
+        assert result_ids == expected_ids
 
     return check

@@ -12,13 +12,18 @@ use raphtory::{
         filter::{Filter, FilterValue},
         filter_operator::FilterOperator,
         graph_filter::GraphFilter,
+        is_active_edge_filter::IsActiveEdge,
+        is_active_node_filter::IsActiveNode,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
         latest_filter::Latest as LatestWrap,
         layered_filter::Layered,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        DynView, DynViewFilter, ViewWrapOps,
+        DynView, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -495,6 +500,9 @@ pub enum GqlNodeFilter {
     SnapshotAt(NodeTimeExpr),
     SnapshotLatest(NodeUnaryExpr),
     Layers(NodeLayersExpr),
+
+    /// Node is active in the current view/window.
+    IsActive(bool),
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -549,6 +557,18 @@ pub enum GqlEdgeFilter {
     SnapshotAt(EdgeTimeExpr),
     SnapshotLatest(EdgeUnaryExpr),
     Layers(EdgeLayersExpr),
+
+    /// Edge is active in the current view/window.
+    IsActive(bool),
+
+    /// Edge is valid (undeleted) in the current view/window.
+    IsValid(bool),
+
+    /// Edge is deleted in the current view/window.
+    IsDeleted(bool),
+
+    /// Edge is a self-loop in the current view/window.
+    IsSelfLoop(bool),
 }
 
 #[derive(Clone, Debug)]
@@ -1130,6 +1150,12 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                     layer, inner,
                 ))))
             }
+            GqlNodeFilter::IsActive(true) => {
+                Ok(CompositeNodeFilter::IsActiveNode(Box::new(IsActiveNode)))
+            }
+            GqlNodeFilter::IsActive(false) => Ok(CompositeNodeFilter::Not(Box::new(
+                CompositeNodeFilter::IsActiveNode(Box::new(IsActiveNode)),
+            ))),
         }
     }
 }
@@ -1290,6 +1316,38 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                     layer, inner,
                 ))))
             }
+
+            GqlEdgeFilter::IsActive(true) => {
+                println!("i was here");
+                Ok(CompositeEdgeFilter::IsActiveEdge(Box::new(IsActiveEdge)))
+            }
+            GqlEdgeFilter::IsActive(false) => {
+                println!("i was here not");
+                Ok(CompositeEdgeFilter::Not(Box::new(
+                    CompositeEdgeFilter::IsActiveEdge(Box::new(IsActiveEdge)),
+                )))
+            }
+
+            GqlEdgeFilter::IsValid(true) => {
+                Ok(CompositeEdgeFilter::IsValidEdge(Box::new(IsValidEdge)))
+            }
+            GqlEdgeFilter::IsValid(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsValidEdge(Box::new(IsValidEdge)),
+            ))),
+
+            GqlEdgeFilter::IsDeleted(true) => {
+                Ok(CompositeEdgeFilter::IsDeletedEdge(Box::new(IsDeletedEdge)))
+            }
+            GqlEdgeFilter::IsDeleted(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsDeletedEdge(Box::new(IsDeletedEdge)),
+            ))),
+
+            GqlEdgeFilter::IsSelfLoop(true) => Ok(CompositeEdgeFilter::IsSelfLoopEdge(Box::new(
+                IsSelfLoopEdge,
+            ))),
+            GqlEdgeFilter::IsSelfLoop(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsSelfLoopEdge(Box::new(IsSelfLoopEdge)),
+            ))),
         }
     }
 }

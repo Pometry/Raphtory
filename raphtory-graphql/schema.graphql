@@ -397,6 +397,22 @@ input EdgeFilter @oneOf {
 	snapshotAt: EdgeTimeExpr
 	snapshotLatest: EdgeUnaryExpr
 	layers: EdgeLayersExpr
+	"""
+	Edge is active in the current view/window.
+	"""
+	isActive: Boolean
+	"""
+	Edge is valid (undeleted) in the current view/window.
+	"""
+	isValid: Boolean
+	"""
+	Edge is deleted in the current view/window.
+	"""
+	isDeleted: Boolean
+	"""
+	Edge is a self-loop in the current view/window.
+	"""
+	isSelfLoop: Boolean
 }
 
 input EdgeLayersExpr {
@@ -1952,6 +1968,10 @@ input NodeFilter @oneOf {
 	snapshotAt: NodeTimeExpr
 	snapshotLatest: NodeUnaryExpr
 	layers: NodeLayersExpr
+	"""
+	Node is active in the current view/window.
+	"""
+	isActive: Boolean
 }
 
 input NodeLayersExpr {
@@ -2896,4 +2916,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

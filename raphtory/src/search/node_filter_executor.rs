@@ -8,6 +8,7 @@ use crate::{
                     filter::Filter,
                     node_filter::{CompositeNodeFilter, NodeFilter},
                     property_filter::PropertyRef,
+                    CompositeExplodedEdgeFilter,
                 },
                 CreateFilter,
             },
@@ -17,13 +18,13 @@ use crate::{
     prelude::{GraphViewOps, LayerOps, PropertyFilter, TimeOps},
     search::{
         collectors::unique_entity_filter_collector::UniqueEntityFilterCollector,
-        fallback_filter_nodes, fields, get_reader, graph_index::Index,
-        property_index::PropertyIndex, query_builder::QueryBuilder,
+        fallback_filter_exploded_edges, fallback_filter_nodes, fields, get_reader,
+        graph_index::Index, property_index::PropertyIndex, query_builder::QueryBuilder,
     },
 };
 use itertools::Itertools;
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, ops::Deref, sync::Arc};
 use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
     Searcher, TantivyDocument,
@@ -299,6 +300,9 @@ impl<'a> NodeFilterExecutor<'a> {
             }
             CompositeNodeFilter::Node(filter) => {
                 self.filter_node_index(graph, filter, limit, offset)
+            }
+            CompositeNodeFilter::IsActiveNode(filter) => {
+                fallback_filter_nodes(graph, filter.deref(), limit, offset)
             }
             CompositeNodeFilter::And(left, right) => {
                 let left_result = self.filter_nodes(graph, left, limit, offset)?;

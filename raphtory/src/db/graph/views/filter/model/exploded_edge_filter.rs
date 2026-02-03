@@ -8,6 +8,10 @@ use crate::{
             exploded_edge_node_filtered_graph::ExplodedEdgeNodeFilteredGraph,
             model::{
                 edge_filter::{CompositeEdgeFilter, Endpoint},
+                is_active_edge_filter::IsActiveEdge,
+                is_deleted_filter::IsDeletedEdge,
+                is_self_loop_filter::IsSelfLoopEdge,
+                is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
@@ -22,15 +26,15 @@ use crate::{
                 },
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, EntityMarker, InternalPropertyFilterBuilder,
-                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
-                TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                AndFilter, CombinedFilter, EdgeViewFilterOps, EntityMarker,
+                InternalPropertyFilterBuilder, InternalPropertyFilterFactory, InternalViewWrapOps,
+                NotFilter, OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
+    prelude::{EdgeFilter, GraphViewOps},
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
@@ -87,6 +91,26 @@ impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
 
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
         MetadataFilterBuilder(property, self.entity())
+    }
+}
+
+impl EdgeViewFilterOps for ExplodedEdgeFilter {
+    type Output<T: CombinedFilter> = T;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        IsActiveEdge
+    }
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge> {
+        IsValidEdge
+    }
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
+        IsDeletedEdge
+    }
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
+        IsSelfLoopEdge
     }
 }
 
@@ -281,6 +305,10 @@ pub enum CompositeExplodedEdgeFilter {
     SnapshotAt(Box<SnapshotAt<CompositeExplodedEdgeFilter>>),
     SnapshotLatest(Box<SnapshotLatest<CompositeExplodedEdgeFilter>>),
     Layered(Box<Layered<CompositeExplodedEdgeFilter>>),
+    IsActiveEdge(Box<IsActiveEdge>),
+    IsValidEdge(Box<IsValidEdge>),
+    IsDeletedEdge(Box<IsDeletedEdge>),
+    IsSelfLoopEdge(Box<IsSelfLoopEdge>),
     And(
         Box<CompositeExplodedEdgeFilter>,
         Box<CompositeExplodedEdgeFilter>,
@@ -302,6 +330,10 @@ impl Display for CompositeExplodedEdgeFilter {
             CompositeExplodedEdgeFilter::Latest(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::IsActiveEdge(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::IsValidEdge(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::IsDeletedEdge(filter) => write!(f, "{}", filter),
+            CompositeExplodedEdgeFilter::IsSelfLoopEdge(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeExplodedEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeExplodedEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -359,6 +391,22 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 pw.create_filter(dyn_graph)
             }
+            Self::IsActiveEdge(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::IsValidEdge(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::IsDeletedEdge(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
+            Self::IsSelfLoopEdge(pw) => {
+                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
+                pw.create_filter(dyn_graph)
+            }
             Self::And(l, r) => {
                 let (l, r) = (*l, *r); // move out, no clone
                 Ok(Arc::new(
@@ -406,6 +454,10 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
             Self::SnapshotAt(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
             Self::SnapshotLatest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
             Self::Layered(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::IsActiveEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::IsValidEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::IsDeletedEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
+            Self::IsSelfLoopEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
             Self::And(l, r) => {
                 let (l, r) = (*l, *r); // move out, no clone
                 Ok(Arc::new(
