@@ -4,9 +4,10 @@ use crate::{
             properties::internal::InheritPropertiesOps,
             view::internal::{
                 EdgeTimeSemanticsOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
-                InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-                InheritTimeSemantics, InternalEdgeLayerFilterOps, Static,
+                InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritLayerOps,
+                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
+                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
+                InternalEdgeLayerFilterOps, Static,
             },
         },
         graph::views::layer_graph::LayeredGraph,
@@ -53,20 +54,20 @@ impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for IsSelfLoopGraph<G
 
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for IsSelfLoopGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeFilterOps for IsSelfLoopGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for IsSelfLoopGraph<G> {}
-
-impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for IsSelfLoopGraph<G> {
-    fn internal_edge_layer_filtered(&self) -> bool {
+impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for IsSelfLoopGraph<G> {
+    fn internal_edge_filtered(&self) -> bool {
         true
     }
 
-    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+    fn internal_edge_list_trusted(&self) -> bool {
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
-        edge.src() == edge.dst() && self.graph.internal_filter_edge_layer(edge, layer)
+    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+        edge.src() == edge.dst() && self.graph.internal_filter_edge(edge, layer_ids)
     }
 }
+
+impl<'graph, G: GraphViewOps<'graph>> InheritExplodedEdgeFilterOps for IsSelfLoopGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgeLayerFilterOps for IsSelfLoopGraph<G> {}
