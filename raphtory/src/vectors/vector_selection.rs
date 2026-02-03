@@ -137,9 +137,8 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             self.regenerate_doc(*entity)
                 .await
                 .map(|doc| (doc, *distance))
-                .unwrap() // TODO: REMOVE UNWRAP
         });
-        Ok(join_all(futures).await)
+        join_all(futures).await.into_iter().collect()
     }
 
     /// Add all `nodes` to the current selection
@@ -366,7 +365,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 }
 
-// TODO: I could make get_neighbour_nodes rely on get_neighbour_edges and viceversa, reusing some code
+// TODO: we could make get_neighbour_nodes rely on get_neighbour_edges and viceversa, reusing some code
 impl EntityRef {
     fn get_adjacent_nodes<G: StaticGraphViewOps>(
         &self,

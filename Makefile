@@ -83,8 +83,11 @@ rust-test-all-public:
 # Python #
 ##########
 
-install-python:
-	cd python && maturin build && pip install ../target/wheels/*.whl
+build-wheel:
+	cd python && maturin build
+
+install-python: build-wheel
+	pip install target/wheels/*.whl
 
 build-python-public: deactivate-storage
 	cd python && maturin develop -r --extras=dev

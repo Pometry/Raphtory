@@ -144,7 +144,7 @@ impl VectorCollection for LanceDbCollection {
             .map(|record| {
                 let ids = primitive_column_iter::<UInt64Type>(&record, "id")?;
                 let scores = primitive_column_iter::<Float32Type>(&record, "_distance")?;
-                // TODO: try using record.columns() instead of getting them independently?
+                // removing this collect does not seem trivial but anyways we should never get too many vectors out of lancedb at once
                 Some(ids.zip(scores).collect::<Vec<_>>())
             })
             .collect::<Option<Vec<_>>>()
