@@ -1455,6 +1455,7 @@ dependencies = [
  "bigdecimal",
  "boxcar",
  "chrono",
+ "clap",
  "either",
  "iter-enum",
  "itertools 0.13.0",
