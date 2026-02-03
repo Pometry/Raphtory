@@ -26,18 +26,20 @@ def test_graph_file_time_stats():
         gql_last_opened_time = result["graph"]["lastOpened"]
         gql_last_updated_time = result["graph"]["lastUpdated"]
 
-        graph_file_path = os.path.join(graph_file_path, ".raph")
-        file_stats = os.stat(graph_file_path)
-        created_time_fs = file_stats.st_ctime * 1000
-        last_opened_time_fs = file_stats.st_atime * 1000
-        last_updated_time_fs = file_stats.st_mtime * 1000
+        raph_file_path = os.path.join(graph_file_path, ".raph")
+        raph_file_stats = os.stat(raph_file_path)
+        meta_file_path = os.path.join(graph_file_path, "data0", ".meta")
+        meta_file_stats = os.stat(meta_file_path)
+        created_time_fs = raph_file_stats.st_ctime * 1000
+        last_opened_time_fs = meta_file_stats.st_atime * 1000
+        last_updated_time_fs = meta_file_stats.st_mtime * 1000
 
         assert (
-            abs(gql_created_time - created_time_fs) < 1000
+                abs(gql_created_time - created_time_fs) < 1000
         ), f"Mismatch in created time: FS({created_time_fs}) vs GQL({gql_created_time})"
         assert (
-            abs(gql_last_opened_time - last_opened_time_fs) < 1000
+                abs(gql_last_opened_time - last_opened_time_fs) < 1000
         ), f"Mismatch in last opened time: FS({last_opened_time_fs}) vs GQL({gql_last_opened_time})"
         assert (
-            abs(gql_last_updated_time - last_updated_time_fs) < 1000
+                abs(gql_last_updated_time - last_updated_time_fs) < 1000
         ), f"Mismatch in last updated time: FS({last_updated_time_fs}) vs GQL({gql_last_updated_time})"
