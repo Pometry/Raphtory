@@ -35,11 +35,11 @@ def test_graph_file_time_stats():
         last_updated_time_fs = meta_file_stats.st_mtime * 1000
 
         assert (
-                abs(gql_created_time - created_time_fs) < 1000
+            abs(gql_created_time - created_time_fs) < 1000
         ), f"Mismatch in created time: FS({created_time_fs}) vs GQL({gql_created_time})"
         assert (
-                abs(gql_last_opened_time - last_opened_time_fs) < 1000
+            abs(gql_last_opened_time - last_opened_time_fs) < 1000
         ), f"Mismatch in last opened time: FS({last_opened_time_fs}) vs GQL({gql_last_opened_time})"
         assert (
-                abs(gql_last_updated_time - last_updated_time_fs) < 1000
+            abs(gql_last_updated_time - last_updated_time_fs) < 1000
         ), f"Mismatch in last updated time: FS({last_updated_time_fs}) vs GQL({gql_last_updated_time})"
