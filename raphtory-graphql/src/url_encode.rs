@@ -1,7 +1,7 @@
 use base64::{prelude::BASE64_URL_SAFE, DecodeError, Engine};
 use raphtory::{
     db::api::{
-        storage::storage::{Extension, PersistenceStrategy},
+        storage::storage::{Config, Extension, PersistenceStrategy},
         view::MaterializedGraph,
     },
     errors::GraphError,
@@ -30,20 +30,24 @@ pub fn url_encode_graph<G: Into<MaterializedGraph>>(graph: G) -> Result<String, 
     Ok(BASE64_URL_SAFE.encode(bytes))
 }
 
-pub fn url_decode_graph<T: AsRef<[u8]>>(graph: T) -> Result<MaterializedGraph, GraphError> {
+pub fn url_decode_graph<T: AsRef<[u8]>>(
+    graph: T,
+    config: Config,
+) -> Result<MaterializedGraph, GraphError> {
     let bytes = BASE64_URL_SAFE.decode(graph.as_ref()).unwrap();
-    MaterializedGraph::decode_from_bytes(&bytes)
+    MaterializedGraph::decode_from_bytes(&bytes, config)
 }
 
 pub fn url_decode_graph_at<T: AsRef<[u8]>>(
     graph: T,
     storage_path: &(impl GraphPaths + ?Sized),
+    config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
     let bytes = BASE64_URL_SAFE.decode(graph.as_ref()).unwrap();
     if Extension::disk_storage_enabled() {
-        MaterializedGraph::decode_from_bytes_at(&bytes, storage_path)
+        MaterializedGraph::decode_from_bytes_at(&bytes, storage_path, config)
     } else {
-        MaterializedGraph::decode_from_bytes(&bytes)
+        MaterializedGraph::decode_from_bytes(&bytes, config)
     }
 }
 
@@ -67,7 +71,7 @@ mod tests {
         let bytes = url_encode_graph(graph.clone()).unwrap();
         let tempdir = tempfile::tempdir().unwrap();
         let storage_path = tempdir.path().to_path_buf();
-        let decoded_graph = url_decode_graph_at(bytes, &storage_path).unwrap();
+        let decoded_graph = url_decode_graph_at(bytes, &storage_path, Config::default()).unwrap();
 
         let g2 = decoded_graph.into_events().unwrap();
 
