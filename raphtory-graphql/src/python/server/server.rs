@@ -14,6 +14,7 @@ use pyo3::{
     types::PyFunction,
 };
 use raphtory::{
+    db::api::storage::storage::Config,
     python::packages::vectors::TemplateConfig,
     vectors::{
         embeddings::{openai_embedding, EmbeddingFunction},
@@ -148,7 +149,7 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = GraphServer::new(work_dir, app_config, config_path)?;
+        let server = GraphServer::new(work_dir, app_config, config_path, Config::default())?;
         Ok(PyGraphServer::new(server))
     }
 

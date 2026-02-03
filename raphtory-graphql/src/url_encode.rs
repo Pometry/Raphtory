@@ -35,7 +35,7 @@ pub fn url_decode_graph<T: AsRef<[u8]>>(
     config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
     let bytes = BASE64_URL_SAFE.decode(graph.as_ref()).unwrap();
-    MaterializedGraph::decode_from_bytes(&bytes, config)
+    MaterializedGraph::decode_from_bytes_with_config(&bytes, config)
 }
 
 pub fn url_decode_graph_at<T: AsRef<[u8]>>(
@@ -47,7 +47,7 @@ pub fn url_decode_graph_at<T: AsRef<[u8]>>(
     if Extension::disk_storage_enabled() {
         MaterializedGraph::decode_from_bytes_at(&bytes, storage_path, config)
     } else {
-        MaterializedGraph::decode_from_bytes(&bytes, config)
+        MaterializedGraph::decode_from_bytes_with_config(&bytes, config)
     }
 }
 

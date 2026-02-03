@@ -13,6 +13,7 @@ use crate::{
         GRAPH_META_PATH, ROOT_META_PATH,
     },
 };
+use arrow_json::reader;
 use std::{
     fs::File,
     io::{Cursor, Read, Seek, Write},
@@ -80,7 +81,11 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
 pub trait StableDecode: StaticGraphViewOps + AdditionOps {
     // Decode the graph from the given bytes array.
     // `path_for_decoded_graph` gets passed to the newly created graph.
-    fn decode_from_bytes(bytes: &[u8], config: Config) -> Result<Self, GraphError>;
+    fn decode_from_bytes_with_config(bytes: &[u8], config: Config) -> Result<Self, GraphError>;
+
+    fn decode_from_bytes(bytes: &[u8]) -> Result<Self, GraphError> {
+        Self::decode_from_bytes_with_config(bytes, Config::default())
+    }
 
     fn decode_from_bytes_at(
         bytes: &[u8],
@@ -88,10 +93,14 @@ pub trait StableDecode: StaticGraphViewOps + AdditionOps {
         config: Config,
     ) -> Result<Self, GraphError>;
 
-    fn decode_from_zip<R: Read + Seek>(
+    fn decode_from_zip_with_config<R: Read + Seek>(
         reader: ZipArchive<R>,
         config: Config,
     ) -> Result<Self, GraphError>;
+
+    fn decode_from_zip<R: Read + Seek>(reader: ZipArchive<R>) -> Result<Self, GraphError> {
+        Self::decode_from_zip_with_config(reader, Config::default())
+    }
 
     fn decode_from_zip_at<R: Read + Seek>(
         reader: ZipArchive<R>,
@@ -118,9 +127,9 @@ pub trait StableDecode: StaticGraphViewOps + AdditionOps {
 }
 
 impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
-    fn decode_from_bytes(bytes: &[u8], config: Config) -> Result<Self, GraphError> {
+    fn decode_from_bytes_with_config(bytes: &[u8], config: Config) -> Result<Self, GraphError> {
         let cursor = Cursor::new(bytes);
-        Self::decode_from_zip(ZipArchive::new(cursor)?, config)
+        Self::decode_from_zip_with_config(ZipArchive::new(cursor)?, config)
     }
 
     fn decode_from_bytes_at(
@@ -132,7 +141,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
         Self::decode_from_zip_at(ZipArchive::new(cursor)?, target, config)
     }
 
-    fn decode_from_zip<R: Read + Seek>(
+    fn decode_from_zip_with_config<R: Read + Seek>(
         mut reader: ZipArchive<R>,
         config: Config,
     ) -> Result<Self, GraphError> {
@@ -172,7 +181,7 @@ impl<T: ParquetDecoder + StaticGraphViewOps + AdditionOps> StableDecode for T {
     ) -> Result<Self, GraphError> {
         if path.is_zip() {
             let reader = path.read_zip()?;
-            Self::decode_from_zip(reader, config)
+            Self::decode_from_zip_with_config(reader, config)
         } else {
             Self::decode_parquet(&path.graph_path()?, None, config)
             // TODO: Fix index loading:
