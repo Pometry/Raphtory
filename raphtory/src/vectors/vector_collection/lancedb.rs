@@ -139,19 +139,20 @@ impl VectorCollection for LanceDbCollection {
         let stream = filtered.execute().await?;
         let result = stream.try_collect::<Vec<_>>().await?;
 
-        let downcasted = result
+        let arrays = result
             .into_iter()
             .map(|record| {
-                let ids = primitive_column_iter::<UInt64Type>(&record, "id")?;
-                let scores = primitive_column_iter::<Float32Type>(&record, "_distance")?;
-                // removing this collect does not seem trivial but anyways we should never get too many vectors out of lancedb at once
-                Some(ids.zip(scores).collect::<Vec<_>>())
+                let ids = primitive_column::<UInt64Type>(&record, "id")?;
+                let scores = primitive_column::<Float32Type>(&record, "_distance")?;
+                Some((ids, scores))
             })
+            // we need to collect the entire thing to be able to return this error if the column is missing in any of the records
             .collect::<Option<Vec<_>>>()
-            .ok_or(GraphError::InvalidVectorDbSchema)?
+            .ok_or(GraphError::InvalidVectorDbSchema)?;
+        let iter = arrays
             .into_iter()
-            .flatten();
-        Ok(downcasted)
+            .flat_map(|(ids, scores)| (0..ids.len()).map(move |i| (ids.value(i), scores.value(i))));
+        Ok(iter)
     }
 
     async fn create_or_update_index(&self) -> GraphResult<()> {
@@ -198,22 +199,15 @@ impl VectorCollection for LanceDbCollection {
     }
 }
 
-fn primitive_column_iter<'a, T>(
-    record: &'a arrow_array::RecordBatch,
-    name: &str,
-) -> Option<impl Iterator<Item = T::Native> + 'a>
+fn primitive_column<T>(record: &arrow_array::RecordBatch, name: &str) -> Option<PrimitiveArray<T>>
 where
     T: ArrowPrimitiveType,
 {
-    Some(
-        record
-            .column_by_name(name)?
-            .as_any()
-            .downcast_ref::<PrimitiveArray<T>>()?
-            .values()
-            .iter()
-            .copied(),
-    )
+    record
+        .column_by_name(name)?
+        .as_any()
+        .downcast_ref::<PrimitiveArray<T>>()
+        .cloned()
 }
 
 fn get_vector_array_from_simple_batch(batch: &RecordBatch) -> Option<PrimitiveArray<Float32Type>> {
