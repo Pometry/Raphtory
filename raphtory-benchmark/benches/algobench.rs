@@ -136,9 +136,10 @@ pub fn temporal_motifs(c: &mut Criterion) {
 
 pub fn dominating_set(c: &mut Criterion) {
     let mut group = c.benchmark_group("dominating_set_scaling");
-    group.sample_size(10);
+    group.sample_size(100);
+    group.sampling_mode(SamplingMode::Flat);
     
-    let sizes = [1_000, 10_000, 100_000];
+    let sizes = [1_000, 10_000, 100_000, 300_000];
     let seed: [u8; 32] = [1; 32];
 
     for &size in &sizes {
