@@ -3,7 +3,7 @@ use std::{ops::Deref, path::Path, sync::Arc};
 use arrow_array::{
     builder::{FixedSizeListBuilder, Float32Builder},
     types::{Float32Type, UInt64Type},
-    ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
+    Array, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
     RecordBatchIterator, UInt64Array,
 };
 use futures_util::TryStreamExt;
@@ -139,20 +139,25 @@ impl VectorCollection for LanceDbCollection {
         let stream = filtered.execute().await?;
         let result = stream.try_collect::<Vec<_>>().await?;
 
-        let arrays = result
+        let downcasted = result
             .into_iter()
             .map(|record| {
                 let ids = primitive_column::<UInt64Type>(&record, "id")?;
                 let scores = primitive_column::<Float32Type>(&record, "_distance")?;
-                Some((ids, scores))
+                let values = (0..ids.len()).filter_map(move |i| {
+                    Some((
+                        ids.is_valid(i).then(|| ids.value(i))?,
+                        scores.is_valid(i).then(|| scores.value(i))?,
+                    ))
+                });
+                Some(values)
             })
             // we need to collect the entire thing to be able to return this error if the column is missing in any of the records
             .collect::<Option<Vec<_>>>()
-            .ok_or(GraphError::InvalidVectorDbSchema)?;
-        let iter = arrays
+            .ok_or(GraphError::InvalidVectorDbSchema)?
             .into_iter()
-            .flat_map(|(ids, scores)| (0..ids.len()).map(move |i| (ids.value(i), scores.value(i))));
-        Ok(iter)
+            .flatten();
+        Ok(downcasted)
     }
 
     async fn create_or_update_index(&self) -> GraphResult<()> {

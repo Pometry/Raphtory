@@ -1,7 +1,6 @@
 use std::{path::Path, sync::Arc};
 
 pub(crate) mod lancedb;
-mod milvus;
 
 use crate::{errors::GraphResult, vectors::Embedding};
 
