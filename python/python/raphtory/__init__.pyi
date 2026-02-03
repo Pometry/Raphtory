@@ -1774,6 +1774,39 @@ class PersistentGraph(GraphView):
            PersistentGraph:
         """
 
+    def load_graph_properties(
+        self,
+        data: Any,
+        time: str,
+        properties: Optional[List[str]] = None,
+        metadata: Optional[List[str]] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        event_id: Optional[str] = None,
+    ) -> None:
+        """
+        Load graph properties from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        or a path to a Parquet file, or a directory containing multiple Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
+
+        Arguments:
+            data (Any): The data source containing graph properties.
+            time (str): The column name for the update timestamps.
+            properties (List[str], optional): List of temporal property column names. Defaults to None.
+            metadata (List[str], optional): List of constant property column names. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            event_id (str, optional): The column name for the secondary index.
+
+        Returns:
+            None: This function does not return a value if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
     def load_node_metadata(
         self,
         data: Any,
@@ -1900,6 +1933,17 @@ class PersistentGraph(GraphView):
 
         Returns:
           bytes:
+        """
+
+    def to_parquet(self, graph_dir: str | PathLike) -> None:
+        """
+        Persist graph to parquet files
+
+        Arguments:
+            graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
+
+        Returns:
+            None:
         """
 
     def update_metadata(self, metadata: dict) -> None:
