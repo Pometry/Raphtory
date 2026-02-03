@@ -241,6 +241,7 @@ impl Data {
         blocking_io(move || folder_clone.write_graph_bytes(bytes, conf)).await?;
         if let Some(template) = self.resolve_template(folder.local_path()) {
             let folder_clone = folder.clone();
+            let conf = self.graph_conf.clone();
             let graph = blocking_io(move || folder_clone.read_graph(conf)).await?;
             self.vectorise_with_template(graph, &folder, template).await;
         }
