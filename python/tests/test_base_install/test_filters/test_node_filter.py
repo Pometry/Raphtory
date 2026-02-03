@@ -364,7 +364,7 @@ def test_filter_nodes_at_is_active():
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["1", "2", "3"])
 
-        
+
 @with_disk_variants(init_graph2)
 def test_filter_nodes_neighbours():
     def check(graph):
