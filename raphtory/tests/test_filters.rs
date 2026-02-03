@@ -9906,21 +9906,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
     }
 
@@ -9933,21 +9933,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
     }
 
@@ -9960,21 +9960,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.window(1, 6).is_self_loop();
@@ -9984,21 +9984,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestVariants::All,
         );
     }
 }

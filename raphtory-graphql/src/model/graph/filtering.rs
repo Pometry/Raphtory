@@ -1311,16 +1311,10 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 ))))
             }
 
-            GqlEdgeFilter::IsActive(true) => {
-                println!("i was here");
-                Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge))
-            }
-            GqlEdgeFilter::IsActive(false) => {
-                println!("i was here not");
-                Ok(CompositeEdgeFilter::Not(Box::new(
-                    CompositeEdgeFilter::IsActiveEdge(IsActiveEdge),
-                )))
-            }
+            GqlEdgeFilter::IsActive(true) => Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge)),
+            GqlEdgeFilter::IsActive(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsActiveEdge(IsActiveEdge),
+            ))),
 
             GqlEdgeFilter::IsValid(true) => Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge)),
             GqlEdgeFilter::IsValid(false) => Ok(CompositeEdgeFilter::Not(Box::new(
