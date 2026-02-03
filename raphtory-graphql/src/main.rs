@@ -1,5 +1,5 @@
 use clap::{command, Parser, Subcommand};
-use raphtory::db::api::storage::storage::Extension;
+use raphtory::db::api::storage::storage::Config;
 #[cfg(feature = "search")]
 use raphtory_graphql::config::index_config::DEFAULT_CREATE_INDEX;
 use raphtory_graphql::{
@@ -68,7 +68,7 @@ struct Args {
     create_index: bool,
 
     #[command(flatten)]
-    graph_config: Extension::Config,
+    graph_config: Config,
 
     #[command(subcommand)]
     command: Option<Commands>,
