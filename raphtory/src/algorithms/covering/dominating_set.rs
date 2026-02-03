@@ -115,7 +115,9 @@ pub fn lazy_greedy_dominating_set<G: StaticGraphViewOps>(g: &G) -> HashSet<VID> 
                 }
             }
         } else {
-            queue.insert(index, actual_uncovered_count);
+            if actual_uncovered_count > 0 {
+                queue.insert(index, actual_uncovered_count);
+            }
         }
     }
     dominating_set
