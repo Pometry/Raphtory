@@ -20,11 +20,22 @@ use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 
 #[derive(Parser)]
-#[command(
-    name = "raphtory",
-    about = "Run the GraphServer with specified configurations"
-)]
+#[command(name = "raphtory", about = "Raphtory CLI")]
 struct Args {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    #[command(about = "Start the GraphQL server")]
+    Server(ServerArgs),
+    #[command(about = "Print the GraphQL schema to the standard output")]
+    Schema,
+}
+
+#[derive(clap::Args)]
+struct ServerArgs {
     #[arg(long, env = "RAPHTORY_WORKING_DIR", default_value = ".")]
     working_dir: PathBuf,
 
@@ -67,15 +78,6 @@ struct Args {
     #[cfg(feature = "search")]
     #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX)]
     create_index: bool,
-
-    #[command(subcommand)]
-    command: Option<Commands>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    #[command(about = "Print the GraphQL schema to the standard output")]
-    Schema,
 }
 
 pub(crate) async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
@@ -85,34 +87,37 @@ where
 {
     let args = Args::parse_from(args_iter);
 
-    if let Some(Commands::Schema) = args.command {
-        let schema = App::create_schema().finish().unwrap();
-        println!("{}", schema.sdl());
-    } else {
-        let mut builder = AppConfigBuilder::new()
-            .with_cache_capacity(args.cache_capacity)
-            .with_cache_tti_seconds(args.cache_tti_seconds)
-            .with_log_level(args.log_level)
-            .with_tracing(args.tracing)
-            .with_tracing_level(args.tracing_level)
-            .with_otlp_agent_host(args.otlp_agent_host)
-            .with_otlp_agent_port(args.otlp_agent_port)
-            .with_otlp_tracing_service_name(args.otlp_tracing_service_name)
-            .with_auth_public_key(args.auth_public_key)
-            .expect(PUBLIC_KEY_DECODING_ERR_MSG)
-            .with_public_dir(args.public_dir)
-            .with_auth_enabled_for_reads(args.auth_enabled_for_reads);
-
-        #[cfg(feature = "search")]
-        {
-            builder = builder.with_create_index(args.create_index);
+    match args.command {
+        Commands::Schema => {
+            let schema = App::create_schema().finish().unwrap();
+            println!("{}", schema.sdl());
         }
+        Commands::Server(server_args) => {
+            let mut builder = AppConfigBuilder::new()
+                .with_cache_capacity(server_args.cache_capacity)
+                .with_cache_tti_seconds(server_args.cache_tti_seconds)
+                .with_log_level(server_args.log_level)
+                .with_tracing(server_args.tracing)
+                .with_tracing_level(server_args.tracing_level)
+                .with_otlp_agent_host(server_args.otlp_agent_host)
+                .with_otlp_agent_port(server_args.otlp_agent_port)
+                .with_otlp_tracing_service_name(server_args.otlp_tracing_service_name)
+                .with_auth_public_key(server_args.auth_public_key)
+                .expect(PUBLIC_KEY_DECODING_ERR_MSG)
+                .with_public_dir(server_args.public_dir)
+                .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads);
 
-        let app_config = Some(builder.build());
+            #[cfg(feature = "search")]
+            {
+                builder = builder.with_create_index(server_args.create_index);
+            }
 
-        GraphServer::new(args.working_dir, app_config, None)?
-            .run_with_port(args.port)
-            .await?;
+            let app_config = Some(builder.build());
+
+            GraphServer::new(server_args.working_dir, app_config, None)?
+                .run_with_port(server_args.port)
+                .await?;
+        }
     }
     Ok(())
 }
