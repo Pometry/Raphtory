@@ -420,7 +420,6 @@ impl<'py> IntoPyObject<'py> for PyViewFilterBuilder {
 #[pyclass(
     name = "NodeViewPropsFilterBuilder",
     module = "raphtory.filter",
-    subclass,
     frozen
 )]
 pub struct PyNodeViewPropsFilterBuilder(pub(crate) DynNodeViewProps);
@@ -479,7 +478,6 @@ impl PyNodeViewPropsFilterBuilder {
 #[pyclass(
     name = "EdgeViewPropsFilterBuilder",
     module = "raphtory.filter",
-    subclass,
     frozen
 )]
 pub struct PyEdgeViewPropsFilterBuilder(pub(crate) DynEdgeViewProps);

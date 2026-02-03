@@ -294,16 +294,16 @@ impl<'a> EdgeFilterExecutor<'a> {
                     .collect())
             }
             CompositeEdgeFilter::IsActiveEdge(filter) => {
-                fallback_filter_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_edges(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::IsValidEdge(filter) => {
-                fallback_filter_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_edges(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::IsDeletedEdge(filter) => {
-                fallback_filter_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_edges(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::IsSelfLoopEdge(filter) => {
-                fallback_filter_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_edges(graph, filter, limit, offset)
             }
             CompositeEdgeFilter::And(left, right) => {
                 let left_result = self.filter_edges(graph, left, limit, offset)?;

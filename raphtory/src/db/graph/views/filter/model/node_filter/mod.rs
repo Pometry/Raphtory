@@ -335,7 +335,7 @@ pub enum CompositeNodeFilter {
     SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
     SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
     Layered(Box<Layered<CompositeNodeFilter>>),
-    IsActiveNode(Box<IsActiveNode>),
+    IsActiveNode(IsActiveNode),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Not(Box<CompositeNodeFilter>),
@@ -413,10 +413,7 @@ impl CreateFilter for CompositeNodeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_node_filter(dyn_graph)
             }
-            CompositeNodeFilter::IsActiveNode(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_node_filter(dyn_graph)
-            }
+            CompositeNodeFilter::IsActiveNode(i) => i.create_node_filter(graph),
             CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
                 left: l.clone().create_node_filter(graph.clone())?,
                 right: r.clone().create_node_filter(graph.clone())?,

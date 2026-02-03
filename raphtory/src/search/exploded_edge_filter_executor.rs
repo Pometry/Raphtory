@@ -281,16 +281,16 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                     .collect())
             }
             CompositeExplodedEdgeFilter::IsActiveEdge(filter) => {
-                fallback_filter_exploded_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
             }
             CompositeExplodedEdgeFilter::IsValidEdge(filter) => {
-                fallback_filter_exploded_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
             }
             CompositeExplodedEdgeFilter::IsDeletedEdge(filter) => {
-                fallback_filter_exploded_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
             }
             CompositeExplodedEdgeFilter::IsSelfLoopEdge(filter) => {
-                fallback_filter_exploded_edges(graph, filter.deref(), limit, offset)
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
             }
             CompositeExplodedEdgeFilter::And(left, right) => {
                 let left_result = self.filter_exploded_edges(graph, left, limit, offset)?;

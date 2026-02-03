@@ -323,10 +323,10 @@ pub enum CompositeEdgeFilter {
     Latest(Box<Latest<CompositeEdgeFilter>>),
     SnapshotAt(Box<SnapshotAt<CompositeEdgeFilter>>),
     SnapshotLatest(Box<SnapshotLatest<CompositeEdgeFilter>>),
-    IsActiveEdge(Box<IsActiveEdge>),
-    IsValidEdge(Box<IsValidEdge>),
-    IsDeletedEdge(Box<IsDeletedEdge>),
-    IsSelfLoopEdge(Box<IsSelfLoopEdge>),
+    IsActiveEdge(IsActiveEdge),
+    IsValidEdge(IsValidEdge),
+    IsDeletedEdge(IsDeletedEdge),
+    IsSelfLoopEdge(IsSelfLoopEdge),
     Layered(Box<Layered<CompositeEdgeFilter>>),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
@@ -402,22 +402,10 @@ impl CreateFilter for CompositeEdgeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)
             }
-            CompositeEdgeFilter::IsActiveEdge(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
-            }
-            CompositeEdgeFilter::IsValidEdge(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
-            }
-            CompositeEdgeFilter::IsDeletedEdge(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
-            }
-            CompositeEdgeFilter::IsSelfLoopEdge(i) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                i.create_filter(dyn_graph)
-            }
+            CompositeEdgeFilter::IsActiveEdge(i) => i.create_filter(graph),
+            CompositeEdgeFilter::IsValidEdge(i) => i.create_filter(graph),
+            CompositeEdgeFilter::IsDeletedEdge(i) => i.create_filter(graph),
+            CompositeEdgeFilter::IsSelfLoopEdge(i) => i.create_filter(graph),
             CompositeEdgeFilter::Layered(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)

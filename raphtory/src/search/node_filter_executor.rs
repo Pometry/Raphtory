@@ -302,7 +302,7 @@ impl<'a> NodeFilterExecutor<'a> {
                 self.filter_node_index(graph, filter, limit, offset)
             }
             CompositeNodeFilter::IsActiveNode(filter) => {
-                fallback_filter_nodes(graph, filter.deref(), limit, offset)
+                fallback_filter_nodes(graph, filter, limit, offset)
             }
             CompositeNodeFilter::And(left, right) => {
                 let left_result = self.filter_nodes(graph, left, limit, offset)?;

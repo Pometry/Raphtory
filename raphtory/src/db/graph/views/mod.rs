@@ -2,7 +2,7 @@ pub mod cached_view;
 pub mod deletion_graph;
 pub mod filter;
 pub mod is_active_graph;
-pub mod is_delete_graph;
+pub mod is_deleted_graph;
 pub mod is_self_loop_graph;
 pub mod layer_graph;
 pub mod node_subgraph;

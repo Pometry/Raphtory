@@ -74,7 +74,7 @@ impl ComposableFilter for IsActiveNode {}
 
 impl TryAsCompositeFilter for IsActiveNode {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::IsActiveNode(Box::new(IsActiveNode)))
+        Ok(CompositeNodeFilter::IsActiveNode(IsActiveNode))
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {

@@ -305,10 +305,10 @@ pub enum CompositeExplodedEdgeFilter {
     SnapshotAt(Box<SnapshotAt<CompositeExplodedEdgeFilter>>),
     SnapshotLatest(Box<SnapshotLatest<CompositeExplodedEdgeFilter>>),
     Layered(Box<Layered<CompositeExplodedEdgeFilter>>),
-    IsActiveEdge(Box<IsActiveEdge>),
-    IsValidEdge(Box<IsValidEdge>),
-    IsDeletedEdge(Box<IsDeletedEdge>),
-    IsSelfLoopEdge(Box<IsSelfLoopEdge>),
+    IsActiveEdge(IsActiveEdge),
+    IsValidEdge(IsValidEdge),
+    IsDeletedEdge(IsDeletedEdge),
+    IsSelfLoopEdge(IsSelfLoopEdge),
     And(
         Box<CompositeExplodedEdgeFilter>,
         Box<CompositeExplodedEdgeFilter>,
@@ -391,22 +391,10 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 pw.create_filter(dyn_graph)
             }
-            Self::IsActiveEdge(pw) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
-            }
-            Self::IsValidEdge(pw) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
-            }
-            Self::IsDeletedEdge(pw) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
-            }
-            Self::IsSelfLoopEdge(pw) => {
-                let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
-                pw.create_filter(dyn_graph)
-            }
+            Self::IsActiveEdge(pw) => pw.create_filter(graph),
+            Self::IsValidEdge(pw) => pw.create_filter(graph),
+            Self::IsDeletedEdge(pw) => pw.create_filter(graph),
+            Self::IsSelfLoopEdge(pw) => pw.create_filter(graph),
             Self::And(l, r) => {
                 let (l, r) = (*l, *r); // move out, no clone
                 Ok(Arc::new(

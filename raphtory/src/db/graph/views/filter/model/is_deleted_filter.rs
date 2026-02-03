@@ -12,7 +12,7 @@ use crate::{
                 },
                 CreateFilter,
             },
-            is_delete_graph::IsDeletedGraph,
+            is_deleted_graph::IsDeletedGraph,
         },
     },
     errors::GraphError,
@@ -78,14 +78,12 @@ impl TryAsCompositeFilter for IsDeletedEdge {
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsDeletedEdge(Box::new(IsDeletedEdge)))
+        Ok(CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge))
     }
 
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsDeletedEdge(Box::new(
-            IsDeletedEdge,
-        )))
+        Ok(CompositeExplodedEdgeFilter::IsDeletedEdge(IsDeletedEdge))
     }
 }

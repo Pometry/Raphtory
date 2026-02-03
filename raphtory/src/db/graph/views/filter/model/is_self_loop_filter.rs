@@ -78,16 +78,12 @@ impl TryAsCompositeFilter for IsSelfLoopEdge {
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsSelfLoopEdge(Box::new(
-            IsSelfLoopEdge,
-        )))
+        Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
     }
 
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsSelfLoopEdge(Box::new(
-            IsSelfLoopEdge,
-        )))
+        Ok(CompositeExplodedEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
     }
 }

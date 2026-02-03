@@ -78,14 +78,12 @@ impl TryAsCompositeFilter for IsValidEdge {
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
-        Ok(CompositeEdgeFilter::IsValidEdge(Box::new(IsValidEdge)))
+        Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge))
     }
 
     fn try_as_composite_exploded_edge_filter(
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
-        Ok(CompositeExplodedEdgeFilter::IsValidEdge(Box::new(
-            IsValidEdge,
-        )))
+        Ok(CompositeExplodedEdgeFilter::IsValidEdge(IsValidEdge))
     }
 }

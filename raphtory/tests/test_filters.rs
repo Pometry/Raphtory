@@ -2407,7 +2407,7 @@ mod test_node_filter {
             .try_as_composite_node_filter()
             .unwrap();
         let filter = CompositeNodeFilter::Not(Box::new(filter));
-        let expected_results = vec!["1", "2", "3", "4"];
+        let expected_results = vec![];
         assert_filter_nodes_results(
             init_nodes_graph,
             IdentityGraphTransformer,

@@ -1139,22 +1139,16 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             }
 
             GqlNodeFilter::Layers(l) => {
-                if l.names.is_empty() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "NodeFilter.layers.names must be non-empty".into(),
-                    ));
-                }
                 let layer = Layer::from(l.names.clone());
                 let inner: CompositeNodeFilter = l.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Layered(Box::new(Layered::new(
                     layer, inner,
                 ))))
             }
-            GqlNodeFilter::IsActive(true) => {
-                Ok(CompositeNodeFilter::IsActiveNode(Box::new(IsActiveNode)))
-            }
+
+            GqlNodeFilter::IsActive(true) => Ok(CompositeNodeFilter::IsActiveNode(IsActiveNode)),
             GqlNodeFilter::IsActive(false) => Ok(CompositeNodeFilter::Not(Box::new(
-                CompositeNodeFilter::IsActiveNode(Box::new(IsActiveNode)),
+                CompositeNodeFilter::IsActiveNode(IsActiveNode),
             ))),
         }
     }
@@ -1319,34 +1313,30 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
 
             GqlEdgeFilter::IsActive(true) => {
                 println!("i was here");
-                Ok(CompositeEdgeFilter::IsActiveEdge(Box::new(IsActiveEdge)))
+                Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge))
             }
             GqlEdgeFilter::IsActive(false) => {
                 println!("i was here not");
                 Ok(CompositeEdgeFilter::Not(Box::new(
-                    CompositeEdgeFilter::IsActiveEdge(Box::new(IsActiveEdge)),
+                    CompositeEdgeFilter::IsActiveEdge(IsActiveEdge),
                 )))
             }
 
-            GqlEdgeFilter::IsValid(true) => {
-                Ok(CompositeEdgeFilter::IsValidEdge(Box::new(IsValidEdge)))
-            }
+            GqlEdgeFilter::IsValid(true) => Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge)),
             GqlEdgeFilter::IsValid(false) => Ok(CompositeEdgeFilter::Not(Box::new(
-                CompositeEdgeFilter::IsValidEdge(Box::new(IsValidEdge)),
+                CompositeEdgeFilter::IsValidEdge(IsValidEdge),
             ))),
 
-            GqlEdgeFilter::IsDeleted(true) => {
-                Ok(CompositeEdgeFilter::IsDeletedEdge(Box::new(IsDeletedEdge)))
-            }
+            GqlEdgeFilter::IsDeleted(true) => Ok(CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge)),
             GqlEdgeFilter::IsDeleted(false) => Ok(CompositeEdgeFilter::Not(Box::new(
-                CompositeEdgeFilter::IsDeletedEdge(Box::new(IsDeletedEdge)),
+                CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge),
             ))),
 
-            GqlEdgeFilter::IsSelfLoop(true) => Ok(CompositeEdgeFilter::IsSelfLoopEdge(Box::new(
-                IsSelfLoopEdge,
-            ))),
+            GqlEdgeFilter::IsSelfLoop(true) => {
+                Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
+            }
             GqlEdgeFilter::IsSelfLoop(false) => Ok(CompositeEdgeFilter::Not(Box::new(
-                CompositeEdgeFilter::IsSelfLoopEdge(Box::new(IsSelfLoopEdge)),
+                CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge),
             ))),
         }
     }
