@@ -10,6 +10,9 @@ use crate::{
             DynPropertyFilterBuilder, DynTemporalPropertyFilterBuilder, DynView, EntityMarker,
             InternalPropertyFilterBuilder, PropertyFilterFactory, TemporalPropertyFilterFactory,
             TryAsCompositeFilter, ViewWrapOps,
+            DynInternalViewWrapPropOps, DynPropertyFilterBuilder, DynTemporalPropertyFilterBuilder,
+            DynView, EntityMarker, InternalPropertyFilterBuilder, PropertyFilterFactory,
+            TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
         },
         CreateFilter,
     },
@@ -362,7 +365,7 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
 #[pyclass(
     name = "ViewFilterBuilder",
     module = "raphtory.filter",
-    subclass,
+    extends = PyFilterExpr,
     frozen
 )]
 pub struct PyViewFilterBuilder(pub(crate) DynView);
@@ -403,6 +406,17 @@ impl PyViewFilterBuilder {
 
     fn layers(&self, layers: FromIterable<String>) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(self.0.clone().layer(layers)))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PyViewFilterBuilder {
+    type Target = PyViewFilterBuilder;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let parent = PyFilterExpr(self.0.clone());
+        Bound::new(py, (self, parent))
     }
 }
 

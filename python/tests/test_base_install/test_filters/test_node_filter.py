@@ -363,6 +363,14 @@ def test_filter_nodes_at_is_active():
         filter_expr = filter.Node.at(2).is_active()
         result_ids = sorted(graph.filter(filter_expr).nodes.id)
         expected_ids = sorted(["1", "2", "3"])
+
+        
+@with_disk_variants(init_graph2)
+def test_filter_nodes_neighbours():
+    def check(graph):
+        filter_expr = filter.Graph.window(1, 5)
+        result_ids = sorted(graph.node(1).neighbours[filter_expr].id)
+        expected_ids = [2, 3]
         assert result_ids == expected_ids
 
     return check
