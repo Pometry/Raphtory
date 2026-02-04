@@ -228,6 +228,14 @@ impl NodeCol {
     pub fn dtype(&self) -> GidType {
         self.0.dtype()
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, i: usize) -> Option<GidRef<'_>> {
+        self.0.get(i)
+    }
 }
 
 pub fn lift_node_col(index: usize, df: &DFChunk) -> Result<NodeCol, LoadError> {

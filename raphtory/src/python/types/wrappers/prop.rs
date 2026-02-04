@@ -12,7 +12,6 @@ impl Repr for Prop {
             Prop::F64(v) => v.repr(),
             Prop::DTime(v) => v.repr(),
             Prop::NDTime(v) => v.repr(),
-            Prop::Array(v) => format!("{:?}", v),
             Prop::I32(v) => v.repr(),
             Prop::U32(v) => v.repr(),
             Prop::F32(v) => v.repr(),

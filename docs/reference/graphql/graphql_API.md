@@ -203,10 +203,7 @@ Creates a new graph.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Move graph from a path path on the server to a new_path on the server.
-
-If namespace is not provided, it will be set to the current working directory.
-This applies to both the graph namespace and new graph namespace.
+Move graph from a path on the server to a new_path on the server.
 
 </td>
 </tr>
@@ -218,6 +215,11 @@ This applies to both the graph namespace and new graph namespace.
 <tr>
 <td colspan="2" align="right" valign="top">newPath</td>
 <td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">overwrite</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>
@@ -225,10 +227,7 @@ This applies to both the graph namespace and new graph namespace.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Copy graph from a path path on the server to a new_path on the server.
-
-If namespace is not provided, it will be set to the current working directory.
-This applies to both the graph namespace and new graph namespace.
+Copy graph from a path on the server to a new_path on the server.
 
 </td>
 </tr>
@@ -240,6 +239,11 @@ This applies to both the graph namespace and new graph namespace.
 <tr>
 <td colspan="2" align="right" valign="top">newPath</td>
 <td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">overwrite</td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
 <td></td>
 </tr>
 <tr>

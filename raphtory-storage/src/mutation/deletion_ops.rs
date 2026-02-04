@@ -1,4 +1,5 @@
 use crate::{graph::graph::GraphStorage, mutation::MutationError};
+use db4_graph::TemporalGraph;
 use raphtory_api::{
     core::{
         entities::{EID, VID},
@@ -6,7 +7,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_core::entities::graph::tgraph::TemporalGraph;
+use storage::Extension;
 
 pub trait InternalDeletionOps {
     type Error: From<MutationError>;
@@ -25,7 +26,7 @@ pub trait InternalDeletionOps {
     ) -> Result<(), Self::Error>;
 }
 
-impl InternalDeletionOps for TemporalGraph {
+impl InternalDeletionOps for TemporalGraph<Extension> {
     type Error = MutationError;
 
     fn internal_delete_edge(
@@ -35,12 +36,11 @@ impl InternalDeletionOps for TemporalGraph {
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, Self::Error> {
-        let edge = self.link_nodes(src, dst, t, layer, true);
-        Ok(edge.map(|mut edge| {
-            let mut edge = edge.as_mut();
-            edge.deletions_mut(layer).insert(t);
-            edge.eid()
-        }))
+        let mut session = self.storage().write_session(src, dst, None);
+        session.set_lsn(0);
+        let edge = session.add_static_edge(src, dst);
+        session.delete_edge_from_layer(t, src, dst, edge.map(|eid| eid.with_layer(layer)));
+        Ok(edge)
     }
 
     fn internal_delete_existing_edge(
@@ -49,9 +49,12 @@ impl InternalDeletionOps for TemporalGraph {
         eid: EID,
         layer: usize,
     ) -> Result<(), Self::Error> {
-        let mut edge = self.link_edge(eid, t, layer, true);
-        let mut edge = edge.as_mut();
-        edge.deletions_mut(layer).insert(t);
+        let mut writer = self.storage().edge_writer(eid);
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let (src, dst) = writer.get_edge(0, edge_pos).unwrap_or_else(|| {
+            panic!("Internal Error: Edge {eid:?} not found in storage");
+        });
+        writer.delete_edge(t, edge_pos, src, dst, layer);
         Ok(())
     }
 }

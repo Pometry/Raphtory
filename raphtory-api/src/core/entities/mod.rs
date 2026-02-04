@@ -14,6 +14,7 @@ pub mod edges;
 pub mod layers;
 pub mod properties;
 
+use crate::core::entities::properties::prop::PropType;
 pub use layers::*;
 
 // The only reason this is public is because the physical IDs of the nodes don’t move.
@@ -64,6 +65,10 @@ impl Default for EID {
 }
 
 impl EID {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+
     pub fn as_u64(self) -> u64 {
         self.0 as u64
     }
@@ -92,6 +97,12 @@ impl From<usize> for EID {
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)
+    }
+}
+
+impl From<ELID> for EID {
+    fn from(elid: ELID) -> Self {
+        elid.edge
     }
 }
 
@@ -226,7 +237,7 @@ impl GID {
         }
     }
 
-    pub fn to_str(&'_ self) -> Cow<'_, str> {
+    pub fn to_str(&self) -> Cow<'_, str> {
         match self {
             GID::U64(v) => Cow::Owned(v.to_string()),
             GID::Str(v) => Cow::Borrowed(v),
@@ -294,6 +305,40 @@ pub enum GidRef<'a> {
     Str(&'a str),
 }
 
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
+pub enum GidCow<'a> {
+    U64(u64),
+    Str(Cow<'a, str>),
+}
+
+impl<'a> From<GidRef<'a>> for GidCow<'a> {
+    fn from(value: GidRef<'a>) -> Self {
+        match value {
+            GidRef::U64(v) => Self::U64(v),
+            GidRef::Str(v) => Self::Str(Cow::Borrowed(v)),
+        }
+    }
+}
+
+impl<'a> GidCow<'a> {
+    pub fn as_ref<'b>(&'b self) -> GidRef<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            GidCow::U64(v) => GidRef::U64(*v),
+            GidCow::Str(v) => GidRef::Str(v),
+        }
+    }
+
+    pub fn into_owned(self) -> GID {
+        match self {
+            GidCow::U64(v) => GID::U64(v),
+            GidCow::Str(v) => GID::Str(v.into_owned()),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum GidType {
     U64,
@@ -313,11 +358,21 @@ impl Display for GidType {
     }
 }
 
+impl GidType {
+    pub fn from_prop_type(prop_type: &PropType) -> Option<Self> {
+        match prop_type {
+            PropType::Str => Some(GidType::Str),
+            PropType::U64 | PropType::U32 | PropType::I64 | PropType::I32 => Some(GidType::U64),
+            _ => None,
+        }
+    }
+}
+
 impl Display for GidRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GidRef::U64(v) => write!(f, "{}", v),
-            GidRef::Str(v) => write!(f, "{}", v),
+            GidRef::U64(v) => write!(f, "{v}"),
+            GidRef::Str(v) => write!(f, "{v}"),
         }
     }
 }
@@ -334,6 +389,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
 impl<'a> From<&'a str> for GidRef<'a> {
     fn from(value: &'a str) -> Self {
         GidRef::Str(value)
+    }
+}
+
+impl From<u64> for GidRef<'_> {
+    fn from(value: u64) -> Self {
+        GidRef::U64(value)
     }
 }
 
@@ -477,7 +538,7 @@ impl LayerIds {
         matches!(self, LayerIds::One(_))
     }
 
-    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> {
+    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> + use<'_> {
         match self {
             LayerIds::None => iter::empty().into_dyn_boxed(),
             LayerIds::All => (0..num_layers).into_dyn_boxed(),

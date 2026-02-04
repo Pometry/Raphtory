@@ -1,7 +1,6 @@
 use itertools::Itertools;
-use quickcheck::TestResult;
-use quickcheck_macros::quickcheck;
-use rand::prelude::*;
+use proptest::{prop_assert, prop_assert_eq, prop_assume, proptest};
+use rand::{prelude::*, rng};
 use raphtory::{
     algorithms::centrality::degree_centrality::degree_centrality,
     db::graph::{graph::assert_graph_equal, views::window_graph::WindowedGraph},
@@ -16,8 +15,6 @@ use raphtory_api::core::{
 };
 use rayon::prelude::*;
 use std::ops::Range;
-#[cfg(feature = "storage")]
-use tempfile::TempDir;
 use tracing::{error, info};
 
 #[test]
@@ -132,251 +129,140 @@ fn graph_has_node_check_fail() {
     });
 }
 
-#[quickcheck]
-fn windowed_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
-    global_info_logger();
-    if vs.is_empty() {
-        return TestResult::discard();
-    }
+#[test]
+fn windowed_graph_has_node() {
+    proptest!(|(mut vs: Vec<(i64, u64)>)| {
+        global_info_logger();
+        prop_assume!(!vs.is_empty());
 
-    vs.sort_by_key(|v| v.1); // Sorted by node
-    vs.dedup_by_key(|v| v.1); // Have each node only once to avoid headaches
-    vs.sort_by_key(|v| v.0); // Sorted by time
+        vs.sort_by_key(|v| v.1); // Sorted by node
+        vs.dedup_by_key(|v| v.1); // Have each node only once to avoid headaches
+        vs.sort_by_key(|v| v.0); // Sorted by time
 
-    let rand_start_index = thread_rng().gen_range(0..vs.len());
-    let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
+        let rand_start_index = rng().random_range(0..vs.len());
+        let rand_end_index = rng().random_range(rand_start_index..vs.len());
 
-    let g = Graph::new();
+        let g = Graph::new();
 
-    for (t, v) in &vs {
-        g.add_node(*t, *v, NO_PROPS, None)
-            .map_err(|err| error!("{:?}", err))
-            .ok();
-    }
-
-    let start = vs.get(rand_start_index).expect("start index in range").0;
-    let end = vs.get(rand_end_index).expect("end index in range").0;
-
-    let wg = g.window(start, end);
-
-    let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
-
-    let (i, v) = vs.get(rand_test_index).expect("test index in range");
-    if (start..end).contains(i) {
-        if wg.has_node(*v) {
-            TestResult::passed()
-        } else {
-            TestResult::error(format!(
-                "Node {:?} was not in window {:?}",
-                (i, v),
-                start..end
-            ))
+        for (t, v) in &vs {
+            g.add_node(*t, *v, NO_PROPS, None)
+                .map_err(|err| error!("{:?}", err))
+                .ok();
         }
-    } else if !wg.has_node(*v) {
-        TestResult::passed()
-    } else {
-        TestResult::error(format!("Node {:?} was in window {:?}", (i, v), start..end))
-    }
-}
 
-// FIXME: Issue #46
-// #[quickcheck]
-// fn windowed_disk_graph_has_node(mut vs: Vec<(i64, u64)>) -> TestResult {
-//     global_info_logger();
-//      if vs.is_empty() {
-//         return TestResult::discard();
-//     }
-//
-//     vs.sort_by_key(|v| v.1); // Sorted by node
-//     vs.dedup_by_key(|v| v.1); // Have each node only once to avoid headaches
-//     vs.sort_by_key(|v| v.0); // Sorted by time
-//
-//     let rand_start_index = thread_rng().gen_range(0..vs.len());
-//     let rand_end_index = thread_rng().gen_range(rand_start_index..vs.len());
-//
-//     let g = Graph::new();
-//     for (t, v) in &vs {
-//         g.add_node(*t, *v, NO_PROPS, None)
-//             .map_err(|err| error!("{:?}", err))
-//             .ok();
-//     }
-//     let test_dir = TempDir::new().unwrap();
-#[cfg(feature = "storage")]
-//     let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
-//
-//     let start = vs.get(rand_start_index).expect("start index in range").0;
-//     let end = vs.get(rand_end_index).expect("end index in range").0;
-//
-//     let wg = g.window(start, end);
-//
-//     let rand_test_index: usize = thread_rng().gen_range(0..vs.len());
-//
-//     let (i, v) = vs.get(rand_test_index).expect("test index in range");
-//     if (start..end).contains(i) {
-//         if wg.has_node(*v) {
-//             TestResult::passed()
-//         } else {
-//             TestResult::error(format!(
-//                 "Node {:?} was not in window {:?}",
-//                 (i, v),
-//                 start..end
-//             ))
-//         }
-//     } else if !wg.has_node(*v) {
-//         TestResult::passed()
-//     } else {
-//         TestResult::error(format!("Node {:?} was in window {:?}", (i, v), start..end))
-//     }
-// }
-#[quickcheck]
-fn windowed_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
-    if edges.is_empty() {
-        return TestResult::discard();
-    }
+        let start = vs.get(rand_start_index).expect("start index in range").0;
+        let end = vs.get(rand_end_index).expect("end index in range").0;
 
-    edges.sort_by_key(|e| e.1); // Sorted by edge
-    edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
-    edges.sort_by_key(|e| e.0); // Sorted by time
+        let wg = g.window(start, end);
 
-    let rand_start_index = thread_rng().gen_range(0..edges.len());
-    let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
+        let rand_test_index: usize = rng().random_range(0..vs.len());
 
-    let g = Graph::new();
-
-    for (t, e) in &edges {
-        g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
-    }
-
-    let start = edges.get(rand_start_index).expect("start index in range").0;
-    let end = edges.get(rand_end_index).expect("end index in range").0;
-
-    let wg = g.window(start, end);
-
-    let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
-
-    let (i, e) = edges.get(rand_test_index).expect("test index in range");
-    if (start..end).contains(i) {
-        if wg.has_edge(e.0, e.1) {
-            TestResult::passed()
+        let (i, v) = vs.get(rand_test_index).expect("test index in range");
+        if (start..end).contains(i) {
+            prop_assert!(wg.has_node(*v), "Node {:?} was not in window {:?}", (i, v), start..end);
         } else {
-            TestResult::error(format!(
-                "Edge {:?} was not in window {:?}",
-                (i, e),
-                start..end
-            ))
+            prop_assert!(!wg.has_node(*v), "Node {:?} was in window {:?}", (i, v), start..end);
         }
-    } else if !wg.has_edge(e.0, e.1) {
-        TestResult::passed()
-    } else {
-        TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
-    }
+    });
 }
 
-#[cfg(feature = "storage")]
-#[quickcheck]
-fn windowed_disk_graph_has_edge(mut edges: Vec<(i64, (u64, u64))>) -> TestResult {
-    if edges.is_empty() {
-        return TestResult::discard();
-    }
+#[test]
+fn windowed_graph_has_edge() {
+    proptest!(|(mut edges: Vec<(i64, (u64, u64))>)| {
+        prop_assume!(!edges.is_empty());
 
-    edges.sort_by_key(|e| e.1); // Sorted by edge
-    edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
-    edges.sort_by_key(|e| e.0); // Sorted by time
+        edges.sort_by_key(|e| e.1); // Sorted by edge
+        edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
+        edges.sort_by_key(|e| e.0); // Sorted by time
 
-    let rand_start_index = thread_rng().gen_range(0..edges.len());
-    let rand_end_index = thread_rng().gen_range(rand_start_index..edges.len());
+        let rand_start_index = rng().random_range(0..edges.len());
+        let rand_end_index = rng().random_range(rand_start_index..edges.len());
 
-    let g = Graph::new();
+        let g = Graph::new();
 
-    for (t, e) in &edges {
-        g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
-    }
-    let test_dir = TempDir::new().unwrap();
-    let g = g.persist_as_disk_graph(test_dir.path()).unwrap();
+        for (t, e) in &edges {
+            g.add_edge(*t, e.0, e.1, NO_PROPS, None).unwrap();
+        }
 
-    let start = edges.get(rand_start_index).expect("start index in range").0;
-    let end = edges.get(rand_end_index).expect("end index in range").0;
+        let start = edges.get(rand_start_index).expect("start index in range").0;
+        let end = edges.get(rand_end_index).expect("end index in range").0;
 
-    let wg = g.window(start, end);
+        let wg = g.window(start, end);
 
-    let rand_test_index: usize = thread_rng().gen_range(0..edges.len());
+        let rand_test_index: usize = rng().random_range(0..edges.len());
 
-    let (i, e) = edges.get(rand_test_index).expect("test index in range");
-    if (start..end).contains(i) {
-        if wg.has_edge(e.0, e.1) {
-            TestResult::passed()
+        let (i, e) = edges.get(rand_test_index).expect("test index in range");
+        if (start..end).contains(i) {
+            prop_assert!(wg.has_edge(e.0, e.1), "Edge {:?} was not in window {:?}", (i, e), start..end);
         } else {
-            TestResult::error(format!(
-                "Edge {:?} was not in window {:?}",
-                (i, e),
-                start..end
-            ))
+            prop_assert!(!wg.has_edge(e.0, e.1), "Edge {:?} was in window {:?}", (i, e), start..end);
         }
-    } else if !wg.has_edge(e.0, e.1) {
-        TestResult::passed()
-    } else {
-        TestResult::error(format!("Edge {:?} was in window {:?}", (i, e), start..end))
-    }
+    });
 }
 
-#[quickcheck]
-fn windowed_graph_edge_count(mut edges: Vec<(i64, (u64, u64))>, window: Range<i64>) -> TestResult {
-    global_info_logger();
-    if window.end < window.start {
-        return TestResult::discard();
-    }
-    edges.sort_by_key(|e| e.1); // Sorted by edge
-    edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
+#[test]
+fn windowed_graph_edge_count() {
+    proptest!(|(mut edges: Vec<(i64, (u64, u64))>, window: Range<i64>)| {
+        global_info_logger();
+        prop_assume!(window.end >= window.start);
 
-    let true_edge_count = edges.iter().filter(|e| window.contains(&e.0)).count();
+        edges.sort_by_key(|e| e.1); // Sorted by edge
+        edges.dedup_by_key(|e| e.1); // Have each edge only once to avoid headaches
 
-    let g = Graph::new();
+        let true_edge_count = edges.iter().filter(|e| window.contains(&e.0)).count();
 
-    for (t, e) in &edges {
-        g.add_edge(*t, e.0, e.1, [("test".to_owned(), Prop::Bool(true))], None)
-            .unwrap();
-    }
+        let g = Graph::new();
 
-    let wg = g.window(window.start, window.end);
-    if wg.count_edges() != true_edge_count {
-        info!(
-            "failed, g.num_edges() = {}, true count = {}",
-            wg.count_edges(),
-            true_edge_count
-        );
-        info!("g.edges() = {:?}", wg.edges().iter().collect_vec());
-    }
-    TestResult::from_bool(wg.count_edges() == true_edge_count)
-}
-
-#[quickcheck]
-fn trivial_window_has_all_edges(edges: Vec<(i64, u64, u64)>) -> bool {
-    let g = Graph::new();
-    edges
-        .into_par_iter()
-        .filter(|e| e.0 < i64::MAX)
-        .for_each(|(t, src, dst)| {
-            g.add_edge(t, src, dst, [("test".to_owned(), Prop::Bool(true))], None)
+        for (t, e) in &edges {
+            g.add_edge(*t, e.0, e.1, [("test".to_owned(), Prop::Bool(true))], None)
                 .unwrap();
-        });
-    let w = g.window(i64::MIN, i64::MAX);
-    g.edges()
-        .iter()
-        .all(|e| w.has_edge(e.src().id(), e.dst().id()))
+        }
+
+        let wg = g.window(window.start, window.end);
+        if wg.count_edges() != true_edge_count {
+            info!(
+                "failed, g.num_edges() = {}, true count = {}",
+                wg.count_edges(),
+                true_edge_count
+            );
+            info!("g.edges() = {:?}", wg.edges().iter().collect_vec());
+        }
+        prop_assert_eq!(wg.count_edges(), true_edge_count);
+    });
 }
 
-#[quickcheck]
-fn large_node_in_window(dsts: Vec<u64>) -> bool {
-    let dsts: Vec<u64> = dsts.into_iter().unique().collect();
-    let n = dsts.len();
-    let g = Graph::new();
+#[test]
+fn trivial_window_has_all_edges() {
+    proptest!(|(edges: Vec<(i64, u64, u64)>)| {
+        let g = Graph::new();
+        edges
+            .into_par_iter()
+            .filter(|e| e.0 < i64::MAX)
+            .for_each(|(t, src, dst)| {
+                g.add_edge(t, src, dst, [("test".to_owned(), Prop::Bool(true))], None)
+                    .unwrap();
+            });
+        let w = g.window(i64::MIN, i64::MAX);
+        prop_assert!(g.edges()
+            .iter()
+            .all(|e| w.has_edge(e.src().id(), e.dst().id())));
+    });
+}
 
-    for dst in dsts {
-        let t = 1;
-        g.add_edge(t, 0, dst, NO_PROPS, None).unwrap();
-    }
-    let w = g.window(i64::MIN, i64::MAX);
-    w.count_edges() == n
+#[test]
+fn large_node_in_window() {
+    proptest!(|(dsts: Vec<u64>)| {
+        let dsts: Vec<u64> = dsts.into_iter().unique().collect();
+        let n = dsts.len();
+        let g = Graph::new();
+
+        for dst in dsts {
+            let t = 1;
+            g.add_edge(t, 0, dst, NO_PROPS, None).unwrap();
+        }
+        let w = g.window(i64::MIN, i64::MAX);
+        prop_assert_eq!(w.count_edges(), n);
+    });
 }
 
 #[test]
@@ -642,10 +528,6 @@ fn test_entity_history() {
 }
 
 mod test_filters_window_graph {
-    use raphtory::{
-        db::{api::view::StaticGraphViewOps, graph::assertions::GraphTransformer},
-        prelude::TimeOps,
-    };
 
     mod test_nodes_filters_window_graph {
         use raphtory::{
@@ -665,7 +547,6 @@ mod test_filters_window_graph {
         use raphtory_storage::mutation::{
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };
-        use std::sync::Arc;
 
         use raphtory::{
             db::{
@@ -866,7 +747,7 @@ mod test_filters_window_graph {
                     ("q1", Prop::U64(0u64)),
                     (
                         "x",
-                        Prop::List(Arc::from(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)])),
+                        Prop::list(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)]),
                     ),
                 ],
                 None,
@@ -1374,11 +1255,11 @@ mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = NodeFilter.property("x").eq(Prop::List(Arc::new(vec![
+            let filter = NodeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_nodes_results_w!(
@@ -1493,11 +1374,11 @@ mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = NodeFilter.property("x").eq(Prop::List(Arc::new(vec![
+            let filter = NodeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_nodes_results_pg_w!(
@@ -1973,11 +1854,9 @@ mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter = NodeFilter.property("x").gt(Prop::List(Arc::new(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ])));
+            let filter = NodeFilter.property("x").gt(Prop::List(
+                vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)].into(),
+            ));
             let graph = init_graph(Graph::new());
             assert!(matches!(
                 graph.window(1, 9).filter(filter.clone()).unwrap_err(),
@@ -2812,7 +2691,6 @@ mod test_filters_window_graph {
             prelude::{AdditionOps, Graph, GraphViewOps, PropertyAdditionOps, TimeOps, NO_PROPS},
         };
         use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
-        use std::sync::Arc;
 
         fn init_graph<G: StaticGraphViewOps + AdditionOps + PropertyAdditionOps>(graph: G) -> G {
             let edges = vec![
@@ -3042,7 +2920,7 @@ mod test_filters_window_graph {
                     ("q1", Prop::U64(0u64)),
                     (
                         "x",
-                        Prop::List(Arc::from(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)])),
+                        Prop::list(vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)]),
                     ),
                 ],
                 None,
@@ -3352,11 +3230,11 @@ mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = EdgeFilter.property("x").eq(Prop::List(Arc::new(vec![
+            let filter = EdgeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14->N15"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_edges_results_w!(
@@ -3473,11 +3351,11 @@ mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = EdgeFilter.property("x").eq(Prop::List(Arc::new(vec![
+            let filter = EdgeFilter.property("x").eq(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = vec!["N14->N15"];
             // TODO: List(U64) not supported as disk_graph property
             // assert_filter_edges_results_pg_w!(
@@ -3684,11 +3562,11 @@ mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = EdgeFilter.property("x").ne(Prop::List(Arc::new(vec![
+            let filter = EdgeFilter.property("x").ne(Prop::list(vec![
                 Prop::U64(1),
                 Prop::U64(6),
                 Prop::U64(9),
-            ])));
+            ]));
             let expected_results = Vec::<&str>::new();
             assert_filter_edges_results(
                 init_graph2,
@@ -3980,11 +3858,9 @@ mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = EdgeFilter.property("x").gt(Prop::List(Arc::new(vec![
-                Prop::U64(1),
-                Prop::U64(6),
-                Prop::U64(9),
-            ])));
+            let filter = EdgeFilter.property("x").gt(Prop::List(
+                vec![Prop::U64(1), Prop::U64(6), Prop::U64(9)].into(),
+            ));
             let graph = init_graph(Graph::new());
             assert!(matches!(
                 graph.window(1, 9).filter(filter.clone()).unwrap_err(),

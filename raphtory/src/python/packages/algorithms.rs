@@ -1,7 +1,5 @@
 #![allow(non_snake_case)]
 
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
         bipartite::max_weight_matching::{max_weight_matching as mwm, Matching},
@@ -72,8 +70,6 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{storage::timeindex::EventTime, Direction};
@@ -91,7 +87,7 @@ fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
         return Ok(vec![single_node]);
     }
 
-    if let Ok(py_list) = param.downcast::<PyList>() {
+    if let Ok(py_list) = param.cast::<PyList>() {
         let mut nodes = Vec::new();
         for item in py_list.iter() {
             let num = item.extract::<PyNodeRef>()?;
@@ -158,13 +154,6 @@ pub fn strongly_connected_components(
     graph: &PyGraphView,
 ) -> NodeState<'static, usize, DynamicGraph> {
     components::strongly_connected_components(&graph.graph)
-}
-
-#[cfg(feature = "storage")]
-#[pyfunction]
-#[pyo3(signature = (graph))]
-pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
-    connected_components_rs(graph.0.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -808,9 +797,9 @@ pub fn k_core(
 ) -> Nodes<'static, DynamicGraph> {
     let v_set = k_core_set(&graph.graph, k, iter_count, threads);
     let index = if v_set.len() == graph.graph.unfiltered_num_nodes() {
-        None
+        Index::for_graph(graph.graph.clone())
     } else {
-        Some(Index::from_iter(v_set))
+        Index::from_iter(v_set)
     };
     Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), NO_FILTER, index)
 }
@@ -853,7 +842,7 @@ pub fn temporal_SEIR(
     rng_seed: Option<u64>,
 ) -> Result<NodeState<'static, Infected, DynamicGraph>, SeedError> {
     let mut rng = match rng_seed {
-        None => StdRng::from_entropy(),
+        None => StdRng::from_os_rng(),
         Some(seed) => StdRng::seed_from_u64(seed),
     };
     temporal_SEIR_rs(
@@ -982,7 +971,7 @@ pub fn temporal_rich_club_coefficient(
 ) -> PyResult<f64> {
     let py_iterator = views.try_iter()?;
     let views = py_iterator
-        .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
+        .map(|view| view.and_then(|view| Ok(view.cast::<PyGraphView>()?.get().graph.clone())))
         .collect::<PyResult<Vec<_>>>()?;
     Ok(temporal_rich_club_rs(&graph.graph, views, k, window_size))
 }

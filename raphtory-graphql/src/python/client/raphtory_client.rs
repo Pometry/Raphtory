@@ -12,7 +12,10 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
-use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
+use raphtory::{
+    db::api::{storage::storage::Config, view::MaterializedGraph},
+    serialise::GraphFolder,
+};
 use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
@@ -116,7 +119,7 @@ impl PyRaphtoryClient {
         F: Future<Output = O> + 'static,
         O: Send + 'static,
     {
-        Python::with_gil(|py| py.allow_threads(|| self.runtime.block_on(task())))
+        Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
     }
 }
 
@@ -188,7 +191,7 @@ impl PyRaphtoryClient {
             let json_value = translate_from_python(value)?;
             json_variables.insert(key, json_value);
         }
-        let data = py.allow_threads(|| self.query_with_json_variables(query, json_variables))?;
+        let data = py.detach(|| self.query_with_json_variables(query, json_variables))?;
         translate_map_to_python(py, data)
     }
 
@@ -244,11 +247,11 @@ impl PyRaphtoryClient {
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         let remote_client = self.clone();
         let client = self.client.clone();
+
         self.execute_async_task(move || async move {
             let folder = GraphFolder::from(file_path.clone());
             let mut buffer = Vec::new();
-            folder.create_zip(Cursor::new(&mut buffer))?;
-
+            folder.zip_from_folder(Cursor::new(&mut buffer))?;
 
             let variables = format!(
                 r#""path": "{}", "overwrite": {}, "graph": null"#,
@@ -410,7 +413,7 @@ impl PyRaphtoryClient {
     /// Receive graph from a path path on the server
     ///
     /// Note:
-    /// This downloads a copy of the graph. Modifications are not persistet to the server.
+    /// This downloads a copy of the graph. Modifications are not persisted to the server.
     ///
     /// Arguments:
     ///     path (str): the path of the graph to be received
@@ -427,7 +430,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(graph)) => {
-                let mat_graph = url_decode_graph(graph)?;
+                let mat_graph = url_decode_graph(graph, Config::default())?;
                 Ok(mat_graph)
             }
             _ => Err(PyException::new_err(format!(

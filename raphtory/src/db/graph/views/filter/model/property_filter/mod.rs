@@ -38,7 +38,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
@@ -327,7 +327,7 @@ impl<M> PropertyFilter<M> {
         &self,
         graph: &G,
         prop_id: usize,
-        edge: EdgeStorageRef,
+        edge: EdgeEntryRef,
     ) -> bool {
         let edge = EdgeView::new(graph, edge.out_ref());
         match self.prop_ref {

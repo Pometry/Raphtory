@@ -1,4 +1,8 @@
 pub use crate::server::GraphServer;
+use crate::{data::InsertionError, paths::PathValidationError};
+use raphtory::errors::GraphError;
+use std::sync::Arc;
+
 mod auth;
 pub mod data;
 mod embeddings;
@@ -15,20 +19,39 @@ pub mod config;
 pub mod python;
 pub mod rayon;
 
+#[derive(thiserror::Error, Debug)]
+pub enum GQLError {
+    #[error(transparent)]
+    GraphError(#[from] GraphError),
+    #[error(transparent)]
+    Validation(#[from] PathValidationError),
+    #[error("Insertion failed for Graph {graph}: {error}")]
+    Insertion {
+        graph: String,
+        error: InsertionError,
+    },
+    #[error(transparent)]
+    Arc(#[from] Arc<Self>),
+}
+
 #[cfg(test)]
 mod graphql_test {
+    #[cfg(feature = "search")]
+    use crate::config::app_config::AppConfigBuilder;
     use crate::{
-        config::app_config::{AppConfig, AppConfigBuilder},
+        config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
-        url_encode::{url_decode_graph, url_encode_graph},
+        url_encode::{url_decode_graph_at, url_encode_graph},
     };
-    use arrow_array::types::UInt8Type;
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
         db::{
-            api::view::{IntoDynamic, MaterializedGraph},
+            api::{
+                storage::storage::Config,
+                view::{IntoDynamic, MaterializedGraph},
+            },
             graph::views::deletion_graph::PersistentGraph,
         },
         prelude::*,
@@ -41,6 +64,28 @@ mod graphql_test {
         fs,
     };
     use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_copy_graph() {
+        let graph = Graph::new();
+        graph.add_node(1, "test", NO_PROPS, None).unwrap();
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let namespace = tmp_dir.path().join("test");
+        fs::create_dir(&namespace).unwrap();
+        graph.encode(namespace.join("g3")).unwrap();
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let query = r#"mutation {
+            copyGraph(
+                path: "test/g3",
+                newPath: "test/g4",
+            )
+        }"#;
+
+        let req = Request::new(query);
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors, []);
+    }
 
     #[tokio::test]
     #[cfg(feature = "search")]
@@ -99,10 +144,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("master".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
-
         let config = AppConfigBuilder::new().with_create_index(true).build();
-        let data = Data::new(tmp_dir.path(), &config);
+        let data = Data::new(tmp_dir.path(), &config, Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -204,9 +248,8 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
-
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let schema = App::create_schema().data(data).finish().unwrap();
 
@@ -315,9 +358,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -407,20 +450,15 @@ mod graphql_test {
     async fn query_nodefilter() {
         let graph = Graph::new();
         graph
-            .add_node(
-                0,
-                1,
-                [("pgraph", Prop::from_arr::<UInt8Type>(vec![3u8]))],
-                None,
-            )
+            .add_node(0, 1, [("pgraph", Prop::I32(0))], None)
             .unwrap();
         let graph: MaterializedGraph = graph.into();
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -459,6 +497,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_unique_temporal_properties() {
+        // TODO: this doesn't test anything?
         let g = Graph::new();
         g.add_metadata([("name", "graph")]).unwrap();
         g.add_properties(1, [("state", "abc")]).unwrap();
@@ -483,7 +522,8 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         let expected = json!({
             "graph": {
@@ -634,9 +674,9 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let prop_has_key_filter = r#"
@@ -950,20 +990,15 @@ mod graphql_test {
     async fn query_properties() {
         let graph = Graph::new();
         graph
-            .add_node(
-                0,
-                1,
-                [("pgraph", Prop::from_arr::<UInt8Type>(vec![3u8]))],
-                None,
-            )
+            .add_node(0, 1, [("pgraph", Prop::I32(0))], None)
             .unwrap();
 
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
         let prop_has_key_filter = r#"
         {
@@ -1015,7 +1050,7 @@ mod graphql_test {
         };
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r##"
@@ -1046,7 +1081,7 @@ mod graphql_test {
 
         let req = Request::new(list_nodes);
         let res = schema.execute(req).await;
-        assert_eq!(res.errors.len(), 0);
+        assert_eq!(res.errors, []);
         let res_json = res.data.into_json().unwrap();
         assert_eq!(
             res_json,
@@ -1062,7 +1097,7 @@ mod graphql_test {
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let query = r#"
@@ -1075,7 +1110,7 @@ mod graphql_test {
         ));
 
         let res = schema.execute(req).await;
-        assert_eq!(res.errors.len(), 0);
+        assert_eq!(res.errors, []);
         let res_json = res.data.into_json().unwrap();
         assert_eq!(res_json, json!({"sendGraph": "test"}));
 
@@ -1111,7 +1146,11 @@ mod graphql_test {
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
         let graph_encoded = res_json.get("receiveGraph").unwrap().as_str().unwrap();
-        let graph_roundtrip = url_decode_graph(graph_encoded).unwrap().into_dynamic();
+        let temp_dir = tempdir().unwrap();
+        let graph_roundtrip =
+            url_decode_graph_at(graph_encoded, temp_dir.path(), Config::default())
+                .unwrap()
+                .into_dynamic();
         assert_eq!(g, graph_roundtrip);
     }
 
@@ -1136,9 +1175,9 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
@@ -1277,9 +1316,8 @@ mod graphql_test {
             ("graph6".to_string(), graph6.into()),
         ]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
-
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"
@@ -1477,82 +1515,6 @@ mod graphql_test {
         );
     }
 
-    #[cfg(feature = "storage")]
-    #[tokio::test]
-    async fn test_disk_graph() {
-        let graph = Graph::new();
-        graph.add_metadata([("name", "graph")]).unwrap();
-        graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
-        graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
-        graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
-        graph.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
-        graph.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
-        graph.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
-        graph.add_edge(22, 1, 2, NO_PROPS, Some("a")).unwrap();
-        graph.add_edge(22, 3, 2, NO_PROPS, Some("a")).unwrap();
-        graph.add_edge(22, 2, 4, NO_PROPS, Some("a")).unwrap();
-        graph.add_edge(22, 4, 5, NO_PROPS, Some("a")).unwrap();
-        graph.add_edge(22, 4, 5, NO_PROPS, Some("a")).unwrap();
-        graph.add_edge(22, 5, 6, NO_PROPS, Some("a")).unwrap();
-        graph.add_edge(22, 3, 6, NO_PROPS, Some("a")).unwrap();
-
-        let tmp_work_dir = tempdir().unwrap();
-        let tmp_work_dir = tmp_work_dir.path();
-
-        let disk_graph_path = tmp_work_dir.join("graph");
-        fs::create_dir(&disk_graph_path).unwrap();
-        fs::File::create(disk_graph_path.join(".raph")).unwrap();
-        let _ = DiskGraphStorage::from_graph(&graph, disk_graph_path.join("graph")).unwrap();
-
-        let data = Data::new(&tmp_work_dir, &AppConfig::default());
-        let schema = App::create_schema().data(data).finish().unwrap();
-
-        let req = r#"
-        {
-          graph(path: "graph") {
-            nodes {
-              list {
-                name
-              }
-            }
-          }
-        }
-        "#;
-
-        let req = Request::new(req);
-        let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
-        assert_eq!(
-            data,
-            json!({
-                "graph": {
-                  "nodes": {
-                      "list": [
-                        {
-                          "name": "1"
-                        },
-                        {
-                          "name": "2"
-                        },
-                        {
-                          "name": "3"
-                        },
-                        {
-                          "name": "4"
-                        },
-                        {
-                          "name": "5"
-                        },
-                        {
-                          "name": "6"
-                        }
-                      ]
-                  }
-                }
-            }),
-        );
-    }
-
     #[tokio::test]
     async fn test_query_namespace() {
         let graph = Graph::new();
@@ -1574,9 +1536,8 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
-
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
         let req = r#"

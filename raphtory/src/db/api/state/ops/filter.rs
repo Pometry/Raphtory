@@ -11,7 +11,7 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::{entities::VID, storage::arc_str::OptionAsStr};
+use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
 use std::sync::Arc;
 
@@ -101,7 +101,7 @@ impl NodeOp for NodeNameFilterOp {
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node_ref = storage.core_node(node);
-        self.filter.matches(node_ref.name().as_str())
+        self.filter.matches(Some(&node_ref.name()))
     }
 }
 

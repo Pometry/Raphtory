@@ -37,19 +37,18 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 #[cfg(test)]
 mod deadlock_tests {
-    use std::{
-        sync::{Arc, Mutex},
-        time::Duration,
-    };
-
-    use reqwest::{Client, StatusCode};
-    use tempfile::TempDir;
-
     use crate::{
         rayon::{COMPUTE_POOL, WRITE_POOL},
         routes::Health,
         GraphServer,
     };
+    use raphtory::db::api::storage::storage::Config;
+    use reqwest::{Client, StatusCode};
+    use std::{
+        sync::{Arc, Mutex},
+        time::Duration,
+    };
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
@@ -73,7 +72,8 @@ mod deadlock_tests {
 
     async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None).unwrap();
+        let server =
+            GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default()).unwrap();
         let _running = server.start_with_port(port).await.unwrap();
         tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
         let lock = Arc::new(Mutex::new(()));

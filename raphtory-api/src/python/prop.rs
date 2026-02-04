@@ -7,7 +7,7 @@ use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
     pybacked::PyBackedStr,
-    sync::GILOnceCell,
+    sync::PyOnceLock,
     types::{PyBool, PyDict, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
@@ -15,7 +15,6 @@ use pyo3_arrow::PyDataType;
 use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
-#[cfg(feature = "arrow")]
 mod array_ext {
     use pyo3::{intern, prelude::*, types::PyTuple};
     use pyo3_arrow::PyArray;
@@ -34,10 +33,11 @@ mod array_ext {
     }
 }
 
-#[cfg(feature = "arrow")]
-use {crate::core::entities::properties::prop::PropArray, array_ext::*, pyo3_arrow::PyArray};
+use crate::core::entities::properties::prop::PropArray;
+use array_ext::*;
+use pyo3_arrow::PyArray;
 
-static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")
@@ -59,18 +59,45 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
-            #[cfg(feature = "arrow")]
-            Prop::Array(blob) => {
-                if let Some(arr_ref) = blob.into_array_ref() {
-                    PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
-                } else {
-                    py.None().into_bound(py)
-                }
-            }
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
-            Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::List(PropArray::Array(arr_ref)) => {
+                PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
+            }
+            Prop::List(PropArray::Vec(v)) => v.into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+            Prop::Decimal(d) => {
+                let decl_cls = get_decimal_cls(py)?;
+                decl_cls.call1((d.to_string(),))?
+            }
+        })
+    }
+}
+
+impl<'a, 'py: 'a> IntoPyObject<'py> for &'a Prop {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            Prop::Str(s) => s.into_pyobject(py)?.into_any(),
+            Prop::Bool(bool) => bool.into_bound_py_any(py)?,
+            Prop::U8(u8) => u8.into_pyobject(py)?.into_any(),
+            Prop::U16(u16) => u16.into_pyobject(py)?.into_any(),
+            Prop::I64(i64) => i64.into_pyobject(py)?.into_any(),
+            Prop::U64(u64) => u64.into_pyobject(py)?.into_any(),
+            Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
+            Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
+            Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
+            Prop::I32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::U32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::F32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::List(PropArray::Array(arr_ref)) => {
+                PyArray::from_array_ref(arr_ref.clone()).into_pyarrow(py)?
+            }
+            Prop::List(PropArray::Vec(v)) => v.into_pyobject(py)?.into_any(),
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
             Prop::Decimal(d) => {
                 let decl_cls = get_decimal_cls(py)?;
@@ -138,19 +165,17 @@ impl PyProp {
     #[staticmethod]
     pub fn list(values: &Bound<'_, PyAny>) -> PyResult<Self> {
         let elems: Vec<Prop> = values.extract()?;
-        Ok(PyProp(Prop::List(Arc::new(elems))))
+        Ok(PyProp(Prop::list(elems)))
     }
 
     #[staticmethod]
     pub fn map(dict: Bound<'_, PyDict>) -> PyResult<Self> {
         let items: HashMap<String, Prop> = dict.extract()?;
 
-        let mut map: FxHashMap<ArcStr, Prop> =
-            FxHashMap::with_capacity_and_hasher(items.len(), Default::default());
-
-        for (k, v) in items {
-            map.insert(ArcStr::from(k), v);
-        }
+        let map: FxHashMap<ArcStr, Prop> = items
+            .into_iter()
+            .map(|(k, v)| (ArcStr::from(k), v))
+            .collect();
 
         Ok(PyProp(Prop::Map(Arc::new(map))))
     }
@@ -165,8 +190,9 @@ impl PyProp {
 }
 
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
-impl<'source> FromPyObject<'source> for Prop {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Prop {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(pyref) = ob.extract::<PyRef<PyProp>>() {
             return Ok(pyref.0.clone());
         }
@@ -213,15 +239,12 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
-
-        #[cfg(feature = "arrow")]
         if let Ok(arrow) = ob.extract::<PyArray>() {
             let (arr, _) = arrow.into_inner();
-            return Ok(Prop::Array(PropArray::Array(arr)));
+            return Ok(Prop::List(PropArray::Array(arr)));
         }
-
-        if let Ok(list) = ob.extract() {
-            return Ok(Prop::List(Arc::new(list)));
+        if let Ok(list) = ob.extract::<Vec<Prop>>() {
+            return Ok(Prop::List(PropArray::Vec(list.into())));
         }
 
         if let Ok(map) = ob.extract() {
@@ -229,8 +252,9 @@ impl<'source> FromPyObject<'source> for Prop {
         }
 
         Err(PyTypeError::new_err(format!(
-            "Could not convert {:?} to Prop",
-            ob
+            "Could not convert {:?} of type {:?} to Prop",
+            ob,
+            ob.get_type()
         )))
     }
 }
@@ -314,11 +338,6 @@ impl PyPropType {
         PropType::Map(Arc::new(hash_map))
     }
 
-    #[staticmethod]
-    pub fn array(p: PropType) -> PropType {
-        PropType::Array(Box::new(p))
-    }
-
     fn __repr__(&self) -> String {
         format!("PropType.{}", self.0)
     }
@@ -342,9 +361,10 @@ impl<'py> IntoPyObject<'py> for PropType {
     }
 }
 
-impl<'source> FromPyObject<'source> for PropType {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(prop_type) = ob.downcast::<PyPropType>() {
+impl<'source> FromPyObject<'_, 'source> for PropType {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
+        if let Ok(prop_type) = ob.cast::<PyPropType>() {
             Ok(prop_type.get().0.clone())
         } else if let Ok(prop_type_str) = ob.extract::<PyBackedStr>() {
             match prop_type_str.deref().to_ascii_lowercase().as_str() {

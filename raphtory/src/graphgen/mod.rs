@@ -14,9 +14,9 @@ pub(crate) fn next_id<'graph, G: GraphViewOps<'graph>>(g: &G, max_gid: Option<GI
     match max_gid {
         GID::U64(id) => GID::U64(id + 1),
         GID::Str(_) => {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             loop {
-                let new_id = GID::Str(rng.gen::<u64>().to_string());
+                let new_id = GID::Str(rng.random::<u64>().to_string());
                 if g.node(&new_id).is_none() {
                     break new_id;
                 }

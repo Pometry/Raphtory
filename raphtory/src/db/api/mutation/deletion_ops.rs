@@ -1,15 +1,18 @@
-use super::time_from_input;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
-    db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
+    db::{
+        api::{
+            mutation::{time_from_input_session, TryIntoInputTime},
+            view::StaticGraphViewOps,
+        },
+        graph::edge::EdgeView,
+    },
     errors::{into_graph_err, GraphError},
 };
-use raphtory_api::core::{
-    entities::edges::edge_ref::EdgeRef,
-    utils::time::{IntoTimeWithFormat, TryIntoInputTime},
-};
+use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
 use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    deletion_ops::InternalDeletionOps,
 };
 
 pub trait DeletionOps:
@@ -25,7 +28,15 @@ pub trait DeletionOps:
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
-        let ti = time_from_input(self, t).map_err(into_graph_err)?;
+        let session = self.write_session().map_err(|err| err.into())?;
+        self.validate_gids(
+            [src.as_node_ref(), dst.as_node_ref()]
+                .iter()
+                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+        )
+        .map_err(into_graph_err)?;
+
+        let ti = time_from_input_session(&session, t)?;
         let src_id = self
             .resolve_node(src.as_node_ref())
             .map_err(into_graph_err)?
@@ -34,14 +45,20 @@ pub trait DeletionOps:
             .resolve_node(dst.as_node_ref())
             .map_err(into_graph_err)?
             .inner();
-        let layer = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
-        let eid = self
-            .internal_delete_edge(ti, src_id, dst_id, layer)
-            .map_err(into_graph_err)?
-            .inner();
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
+
+        let mut add_edge_op = self
+            .atomic_add_edge(src_id, dst_id, None, layer_id)
+            .map_err(into_graph_err)?;
+
+        let edge_id = add_edge_op.internal_delete_edge(ti, src_id, dst_id, layer_id);
+
+        add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
+        add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
+
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(eid, src_id, dst_id).at_layer(layer),
+            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
         ))
     }
 

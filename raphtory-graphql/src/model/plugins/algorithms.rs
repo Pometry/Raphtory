@@ -75,7 +75,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugin> for Pagerank {
 
     fn apply<'b>(
         entry_point: &GraphAlgorithmPlugin,
-        ctx: ResolverContext,
+        ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_pagerank(entry_point, ctx);
         Box::pin(async move { result })
@@ -142,7 +142,7 @@ impl<'a> Operation<'a, GraphAlgorithmPlugin> for ShortestPath {
 
     fn apply<'b>(
         entry_point: &GraphAlgorithmPlugin,
-        ctx: ResolverContext,
+        ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let result = apply_shortest_path(entry_point, ctx);
         Box::pin(async move { result })

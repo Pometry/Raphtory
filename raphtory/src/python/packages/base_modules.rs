@@ -1,7 +1,4 @@
 //ALGORITHMS
-
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
@@ -18,7 +15,6 @@ use crate::{
                 NestedHistoryTimestampIterable, NestedIntervalsIterable, PyHistory,
                 PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals,
             },
-            index::{PyIndexSpec, PyIndexSpecBuilder},
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
                 MetadataView, PropertiesView, PyMetadata, PyPropValueList, PyProperties,
@@ -64,6 +60,9 @@ use raphtory_api::python::{
     PyProp,
 };
 
+#[cfg(feature = "search")]
+use crate::python::graph::index::{PyIndexSpec, PyIndexSpecBuilder};
+
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
     add_classes!(
@@ -97,10 +96,11 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyHistoryEventId,
         PyIntervals,
         PyWindowSet,
-        PyIndexSpecBuilder,
-        PyIndexSpec,
         PyProp
     );
+
+    #[cfg(feature = "search")]
+    add_classes!(m, PyIndexSpecBuilder, PyIndexSpec);
 
     #[pyfunction]
     /// Return Raphtory version.
@@ -113,8 +113,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(version, m)?)?;
 
-    #[cfg(feature = "storage")]
-    add_classes!(m, PyDiskGraph);
     Ok(())
 }
 
@@ -222,8 +220,6 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
     );
 
     add_classes!(&algorithm_module, PyMatching, PyInfected);
-    #[cfg(feature = "storage")]
-    add_functions!(&algorithm_module, connected_components);
     Ok(algorithm_module)
 }
 

@@ -1,4 +1,7 @@
-use crate::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+use crate::core::{
+    entities::properties::prop::{Prop, PropArray},
+    storage::arc_str::ArcStr,
+};
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use rustc_hash::FxHashMap;
@@ -55,8 +58,8 @@ pub trait PropUnwrap: Sized {
         self.into_bool().unwrap()
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>>;
-    fn unwrap_list(self) -> Arc<Vec<Prop>> {
+    fn into_list(self) -> Option<PropArray>;
+    fn unwrap_list(self) -> PropArray {
         self.into_list().unwrap()
     }
 
@@ -116,7 +119,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_bool())
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+    fn into_list(self) -> Option<PropArray> {
         self.and_then(|p| p.into_list())
     }
 
@@ -218,7 +221,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+    fn into_list(self) -> Option<PropArray> {
         if let Prop::List(v) = self {
             Some(v)
         } else {

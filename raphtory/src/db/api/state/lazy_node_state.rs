@@ -1,5 +1,5 @@
 use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             state::{
@@ -12,7 +12,6 @@ use crate::{
             },
             view::{
                 history::{History, HistoryDateTime, HistoryEventId, HistoryTimestamp, Intervals},
-                internal::NodeList,
                 BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -184,11 +183,11 @@ impl<
             NodeState::new(
                 self.nodes.graph.clone(),
                 values.into(),
-                Some(Index::new(keys)),
+                Index::Partial(keys.into()),
             )
         } else {
             let values = self.collect_vec();
-            NodeState::new(self.nodes.graph.clone(), values.into(), None)
+            NodeState::new_from_eval(self.nodes.graph.clone(), values.into())
         }
     }
 
@@ -206,14 +205,13 @@ impl<
             Ok(NodeState::new(
                 self.nodes.base_graph.clone(),
                 values?.into(),
-                Some(Index::new(keys)),
+                Index::new(keys),
             ))
         } else {
             let values: Result<Vec<T>, E> = self.collect::<Result<Vec<T>, E>>();
-            Ok(NodeState::new(
+            Ok(NodeState::new_from_eval(
                 self.nodes.base_graph.clone(),
                 values?.into(),
-                None,
             ))
         }
     }
@@ -231,14 +229,14 @@ impl<
             NodeState::new(
                 self.nodes.base_graph.clone(),
                 values.into(),
-                Some(Index::new(keys)),
+                Index::for_graph(self.nodes.graph.clone()),
             )
         } else {
             let values: Vec<T> = self
                 .par_iter_values()
                 .filter_map(|value| value.ok())
                 .collect();
-            NodeState::new(self.nodes.base_graph.clone(), values.into(), None)
+            NodeState::new_from_eval(self.nodes.base_graph.clone(), values.into())
         }
     }
 }
@@ -470,28 +468,6 @@ impl<
         self.nodes
             .par_iter()
             .map(move |node| (node, self.op.apply(&storage, node.node)))
-    }
-
-    fn get_by_index(&self, index: usize) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)> {
-        if self.nodes().is_list_filtered() {
-            self.iter().nth(index)
-        } else {
-            let vid = match self.nodes().node_list() {
-                NodeList::All { len } => {
-                    if index < len {
-                        VID(index)
-                    } else {
-                        return None;
-                    }
-                }
-                NodeList::List { elems } => elems.key(index)?,
-            };
-            let cg = self.graph().core_graph();
-            Some((
-                NodeView::new_internal(self.graph(), vid),
-                self.op.apply(cg, vid),
-            ))
-        }
     }
 
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {

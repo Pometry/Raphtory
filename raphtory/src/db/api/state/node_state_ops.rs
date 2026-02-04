@@ -54,8 +54,6 @@ pub trait NodeStateOps<'graph>:
     where
         'graph: 'a;
 
-    fn get_by_index(&self, index: usize) -> Option<(NodeView<'_, &Self::Graph>, Self::Value<'_>)>;
-
     fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>>;
 
     fn len(&self) -> usize;
@@ -85,7 +83,11 @@ pub trait NodeStateOps<'graph>:
         let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) =
             state.into_par_iter().unzip();
 
-        NodeState::new(self.graph().clone(), values.into(), Some(Index::new(keys)))
+        NodeState::new(
+            self.graph().clone(),
+            values.into(),
+            Index::Partial(keys.into()),
+        )
     }
 
     /// Sorts the by its values in ascending or descending order.
@@ -140,7 +142,11 @@ pub trait NodeStateOps<'graph>:
             .map(|(n, v)| (n.node, v.borrow().clone()))
             .unzip();
 
-        NodeState::new(self.graph().clone(), values.into(), Some(Index::new(keys)))
+        NodeState::new(
+            self.graph().clone(),
+            values.into(),
+            Index::Partial(keys.into()),
+        )
     }
 
     fn bottom_k_by<F: Fn(&Self::OwnedValue, &Self::OwnedValue) -> std::cmp::Ordering + Sync>(

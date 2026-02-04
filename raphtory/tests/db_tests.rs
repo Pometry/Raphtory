@@ -23,7 +23,10 @@ use raphtory::{
     graphgen::random_attachment::random_attachment,
     prelude::*,
     test_storage,
-    test_utils::{EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, PropUpdatesFixture},
+    test_utils::{
+        build_graph, build_graph_strat, EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture,
+        PropUpdatesFixture,
+    },
 };
 use raphtory_api::core::{
     entities::{GID, VID},
@@ -219,7 +222,7 @@ fn add_edge_grows_graph_edge_len() {
 }
 
 #[test]
-fn simle_add_edge() {
+fn simple_add_edge() {
     let edges = vec![(1, 1, 2), (2, 2, 3), (3, 3, 4)];
 
     let g = Graph::new();
@@ -749,6 +752,7 @@ fn graph_edge() {
             .unwrap()
             .edge(1, 3)
             .unwrap();
+
         assert_eq!(e.src().id().into_u64(), Some(1u64));
         assert_eq!(e.dst().id().into_u64(), Some(3u64));
     });
@@ -1147,23 +1151,21 @@ fn temporal_node_rows_nodes() {
         .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None)
         .unwrap();
 
-    test_storage!(&graph, |graph| {
-        for id in 0..3 {
-            let actual = graph
-                .core_graph()
-                .nodes()
-                .node(VID(id))
-                .temp_prop_rows()
-                .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
-                .collect::<Vec<_>>();
+    for (id, n) in graph.nodes().into_iter().enumerate() {
+        let actual = graph
+            .core_graph()
+            .nodes()
+            .node(n.node)
+            .temp_prop_rows()
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+            .collect::<Vec<_>>();
 
-            let expected = vec![(
-                EventTime::new(id as i64, id),
-                vec![Some(Prop::U64((id as u64) + 1))],
-            )];
-            assert_eq!(actual, expected);
-        }
-    });
+        let expected = vec![(
+            EventTime::new(id as i64, id),
+            vec![Prop::U64((id as u64) + 1)],
+        )];
+        assert_eq!(actual, expected);
+    }
 }
 
 #[test]
@@ -1185,21 +1187,21 @@ fn temporal_node_rows_window() {
                 .core_graph()
                 .nodes()
                 .node(vid)
-                .temp_prop_rows_window(range)
-                .map(|(t, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
+                .temp_prop_rows_range(Some(range))
+                .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
         let actual = get_rows(VID(0), EventTime::new(2, 0)..EventTime::new(3, 0));
 
-        let expected = vec![(EventTime::new(2, 2), vec![Some(Prop::U64(3))])];
+        let expected = vec![(EventTime::new(2, 2), vec![Prop::U64(3)])];
 
         assert_eq!(actual, expected);
 
         let actual = get_rows(VID(0), EventTime::new(0, 0)..EventTime::new(3, 0));
         let expected = vec![
-            (EventTime::new(0, 0), vec![Some(Prop::U64(1))]),
-            (EventTime::new(1, 1), vec![Some(Prop::U64(2))]),
-            (EventTime::new(2, 2), vec![Some(Prop::U64(3))]),
+            (EventTime::new(0, 0), vec![Prop::U64(1)]),
+            (EventTime::new(1, 1), vec![Prop::U64(2)]),
+            (EventTime::new(2, 2), vec![Prop::U64(3)]),
         ];
 
         assert_eq!(actual, expected);
@@ -1658,7 +1660,7 @@ fn test_edge_earliest_latest() {
 
 #[test]
 fn node_properties() -> Result<(), GraphError> {
-    let g = Graph::new_with_shards(2);
+    let g = Graph::new();
 
     g.add_node(
         0,
@@ -1749,34 +1751,32 @@ fn node_history_rows() {
         .add_node(1, 1, [("cool".to_string(), 3u64)], None)
         .unwrap();
 
-    test_storage!(&graph, |graph| {
-        let node = graph.node(1).unwrap();
+    let node = graph.node(1).unwrap();
 
-        let actual = node
-            .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
-            .collect::<Vec<_>>();
+    let actual = node
+        .rows()
+        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .collect::<Vec<_>>();
 
-        let expected = vec![
-            (EventTime::new(0, 1), vec![Prop::U64(1)]),
-            (EventTime::new(1, 2), vec![Prop::Bool(true), Prop::I64(2)]),
-            (EventTime::new(1, 4), vec![Prop::U64(3)]),
-            (EventTime::new(2, 3), vec![]),
-        ];
+    let expected = vec![
+        (EventTime::new(0, 1), vec![Prop::U64(1)]),
+        (EventTime::new(1, 2), vec![Prop::Bool(true), Prop::I64(2)]),
+        (EventTime::new(1, 4), vec![Prop::U64(3)]),
+        (EventTime::new(2, 3), vec![]),
+    ];
 
-        assert_eq!(actual, expected);
+    assert_eq!(actual, expected);
 
-        let node = graph.node(2).unwrap();
+    let node = graph.node(2).unwrap();
 
-        let actual = node
-            .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
-            .collect::<Vec<_>>();
+    let actual = node
+        .rows()
+        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .collect::<Vec<_>>();
 
-        let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
+    let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
 
-        assert_eq!(actual, expected);
-    });
+    assert_eq!(actual, expected);
 }
 
 #[test]
@@ -1788,17 +1788,14 @@ fn check_node_history_str() {
     graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
     graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
 
-    // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
-    test_graph(&graph, |graph| {
-        let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
+    let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
 
-        assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
+    assert_eq!(times_of_farquaad, [4, 6, 7, 8]);
 
-        let view = graph.window(1, 8);
+    let view = graph.window(1, 8);
 
-        let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
-        assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
-    });
+    let windowed_times_of_farquaad = view.node("Lord Farquaad").unwrap().history();
+    assert_eq!(windowed_times_of_farquaad, [4, 6, 7]);
 }
 
 #[test]
@@ -1811,17 +1808,14 @@ fn check_node_history_num() {
     graph.add_node(4, 1, NO_PROPS, None).unwrap();
     graph.add_node(8, 1, NO_PROPS, None).unwrap();
 
-    // FIXME: Node updates without properties or edges are currently not supported in disk_graph (see issue #46)
-    test_graph(&graph, |graph| {
-        let times_of_one = graph.node(1).unwrap().history();
+    let times_of_one = graph.node(1).unwrap().history();
 
-        assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
+    assert_eq!(times_of_one, [1, 2, 3, 4, 8]);
 
-        let view = graph.window(1, 8);
+    let view = graph.window(1, 8);
 
-        let windowed_times_of_one = view.node(1).unwrap().history();
-        assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
-    });
+    let windowed_times_of_one = view.node(1).unwrap().history();
+    assert_eq!(windowed_times_of_one, [1, 2, 3, 4]);
 }
 
 #[test]
@@ -1832,17 +1826,15 @@ fn check_edge_history() {
     graph.add_edge(2, 1, 3, NO_PROPS, None).unwrap();
     graph.add_edge(3, 1, 2, NO_PROPS, None).unwrap();
     graph.add_edge(4, 1, 4, NO_PROPS, None).unwrap();
-    test_storage!(&graph, |graph| {
-        let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-        let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
-        let view = graph.window(2, 5);
-        let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 4).history();
+    let times_of_onetwo = graph.edge(1, 2).unwrap().history();
+    let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
+    let view = graph.window(2, 5);
+    let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 4).history();
 
-        assert_eq!(times_of_onetwo, [1, 3]);
-        assert_eq!(times_of_four, [4]);
-        assert!(windowed_times_of_four.is_empty());
-        assert_eq!(graph.node(1).unwrap().edge_history_count(), 4);
-    });
+    assert_eq!(times_of_onetwo, [1, 3]);
+    assert_eq!(times_of_four, [4]);
+    assert!(windowed_times_of_four.is_empty());
+    assert_eq!(graph.node(1).unwrap().edge_history_count(), 4);
 }
 
 #[test]
@@ -1851,74 +1843,13 @@ fn check_node_edge_history_count() {
     graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
     graph.add_edge(3, 0, 1, NO_PROPS, None).unwrap();
 
-    test_storage!(&graph, |graph| {
-        let node = graph.node(0).unwrap();
-        assert_eq!(node.edge_history_count(), 2);
-        assert_eq!(node.after(1).edge_history_count(), 1);
-        assert_eq!(node.after(3).edge_history_count(), 0);
-    });
+    let node = graph.node(0).unwrap();
+    assert_eq!(node.edge_history_count(), 2);
+    assert_eq!(node.after(1).edge_history_count(), 1);
+    assert_eq!(node.after(3).edge_history_count(), 0);
 }
 
-#[cfg(feature = "storage")]
-use raphtory::test_utils::test_disk_graph;
-use raphtory::test_utils::{build_graph, build_graph_strat, test_graph};
-#[cfg(feature = "storage")]
-use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
-#[cfg(feature = "storage")]
-#[test]
-fn edges_at_from_node_history() {
-    let graph = Graph::new();
-
-    graph.add_edge(1, 0, 1, [("bla", 10i32)], None).unwrap();
-    graph.add_edge(2, 0, 2, [("bla", 20)], None).unwrap();
-    graph.add_edge(1, 0, 1, [("bla", 30)], None).unwrap();
-    graph.add_edge(4, 0, 3, [("bla", 40)], None).unwrap();
-    test_disk_graph(&graph, |g| {
-        let node = g.node(0).unwrap();
-        let node = &node;
-        let mut actual = g
-            .edges()
-            .explode()
-            .into_iter()
-            .flat_map(|e| {
-                e.properties()
-                    .temporal()
-                    .get_by_id(0)
-                    .into_iter()
-                    .flat_map(|p| p.into_iter())
-            })
-            .collect::<Vec<_>>();
-        actual.sort_by_key(|(t, _)| *t);
-
-        let exploded_edges = node
-            .edge_history()
-            .map(|(timestamp, edge_layer_id)| {
-                let eref = g
-                    .core_edge(edge_layer_id.edge)
-                    .out_ref()
-                    .at(timestamp)
-                    .at_layer(edge_layer_id.layer());
-                eref
-            })
-            .collect::<Vec<_>>();
-
-        assert_eq!(exploded_edges.len(), 4);
-
-        let mut edge_props = exploded_edges
-            .into_iter()
-            .map(|e| EdgeView::new(&g, e))
-            .flat_map(|e| {
-                e.properties()
-                    .temporal()
-                    .get_by_id(0)
-                    .into_iter()
-                    .flat_map(|p| p.into_iter())
-            })
-            .collect::<Vec<_>>();
-        edge_props.sort_by_key(|(t, _)| *t);
-        assert_eq!(edge_props, actual);
-    });
-}
+use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
 
 #[test]
 fn check_edge_history_on_multiple_shards() {
@@ -1935,23 +1866,21 @@ fn check_edge_history_on_multiple_shards() {
     graph.add_edge(9, 1, 4, NO_PROPS, None).unwrap();
     graph.add_edge(10, 1, 4, NO_PROPS, None).unwrap();
 
-    test_storage!(&graph, |graph| {
-        let times_of_onetwo = graph.edge(1, 2).unwrap().history();
-        let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
-        let times_of_outside_window = graph.edge(1, 4).unwrap().window(1, 4).history();
-        let times_of_four_higher = graph.edge(1, 4).unwrap().window(6, 11).history();
+    let times_of_onetwo = graph.edge(1, 2).unwrap().history();
+    let times_of_four = graph.edge(1, 4).unwrap().window(1, 5).history();
+    let times_of_outside_window = graph.edge(1, 4).unwrap().window(1, 4).history();
+    let times_of_four_higher = graph.edge(1, 4).unwrap().window(6, 11).history();
 
-        let view = graph.window(1, 11);
-        let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 5).history();
-        let windowed_times_of_four_higher = view.edge(1, 4).unwrap().window(8, 11).history();
+    let view = graph.window(1, 11);
+    let windowed_times_of_four = view.edge(1, 4).unwrap().window(2, 5).history();
+    let windowed_times_of_four_higher = view.edge(1, 4).unwrap().window(8, 11).history();
 
-        assert_eq!(times_of_onetwo, [1, 3]);
-        assert_eq!(times_of_four, [4]);
-        assert_eq!(times_of_four_higher, [6, 7, 8, 9, 10]);
-        assert!(times_of_outside_window.is_empty());
-        assert_eq!(windowed_times_of_four, [4]);
-        assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
-    });
+    assert_eq!(times_of_onetwo, [1, 3]);
+    assert_eq!(times_of_four, [4]);
+    assert_eq!(times_of_four_higher, [6, 7, 8, 9, 10]);
+    assert!(times_of_outside_window.is_empty());
+    assert_eq!(windowed_times_of_four, [4]);
+    assert_eq!(windowed_times_of_four_higher, [8, 9, 10]);
 }
 
 #[derive(Debug)]
@@ -2026,7 +1955,7 @@ fn test_prop_display_str() {
 }
 
 #[test]
-fn test_graph_metadata() {
+fn test_graph_metadata_proptest() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
 
@@ -2035,7 +1964,7 @@ fn test_graph_metadata() {
             .map(|(name, value)| (name, Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_map = as_props.into_iter().collect::<HashMap<_, _>>();
 
@@ -2046,13 +1975,11 @@ fn test_graph_metadata() {
 }
 
 #[test]
-fn test_graph_metadata2() {
+fn test_graph_metadata() {
     let g = Graph::new();
 
-    let as_props: Vec<(&str, Prop)> = vec![(
-        "mylist",
-        Prop::List(Arc::from(vec![Prop::I64(1), Prop::I64(2)])),
-    )];
+    let as_props: Vec<(&str, Prop)> =
+        vec![("mylist", Prop::list(vec![Prop::I64(1), Prop::I64(2)]))];
 
     g.add_metadata(as_props.clone()).unwrap();
 
@@ -2084,6 +2011,56 @@ fn test_graph_metadata2() {
 }
 
 #[test]
+fn test_add_graph_metadata_with_existing_key_throws_error() {
+    let g = Graph::new();
+    g.add_metadata(vec![("style", Prop::str("red"))]).unwrap();
+
+    assert!(g.add_metadata(vec![("style", Prop::str("blue"))]).is_err());
+    assert_eq!(g.metadata().get("style").unwrap(), Prop::str("red")); // Value is unchanged
+}
+
+#[test]
+fn test_graph_metadata_with_maps() {
+    let g = Graph::new();
+
+    let style_with_size = Prop::map(vec![("fill", Prop::str("red")), ("size", Prop::I64(5))]);
+
+    let style_with_opacity = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("opacity", Prop::F64(0.4)),
+    ]);
+
+    // Add first metadata and verify
+    g.add_metadata(vec![("style", style_with_size.clone())])
+        .unwrap();
+    let actual = g.metadata().get("style").unwrap();
+    assert_eq!(actual, style_with_size.clone());
+
+    // Update metadata and verify
+    g.update_metadata(vec![("style", style_with_opacity.clone())])
+        .unwrap();
+    let actual = g.metadata().get("style").unwrap();
+    assert_eq!(actual, style_with_opacity.clone());
+
+    // Add another metadata property and verify
+    let config = Prop::map(vec![
+        ("theme", Prop::str("dark")),
+        ("version", Prop::I64(2)),
+    ]);
+    g.add_metadata(vec![("config", config.clone())]).unwrap();
+    let actual_config = g.metadata().get("config").unwrap();
+    assert_eq!(actual_config, config.clone());
+
+    // Verify style is still the updated value
+    let actual_style = g.metadata().get("style").unwrap();
+    assert_eq!(actual_style, style_with_opacity.clone());
+
+    // Verify all metadata keys exist
+    let keys: Vec<_> = g.metadata().keys().sorted().collect();
+    assert_eq!(keys, vec!["config", "style"]);
+}
+
+#[test]
 fn test_graph_metadata_names() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
@@ -2093,7 +2070,7 @@ fn test_graph_metadata_names() {
             .map(|(name, value)| (name.into(), Prop::U64(value)))
             .collect::<Vec<_>>();
 
-    g.add_metadata(as_props.clone()).unwrap();
+        g.add_metadata(as_props.clone()).unwrap();
 
         let props_names = as_props
             .into_iter()
@@ -2108,73 +2085,134 @@ fn test_graph_metadata_names() {
 fn test_graph_temporal_props() {
     proptest!(|(str_props: HashMap<String, String>)| {
         global_info_logger();
-        let g = Graph::new();
 
+        let g = Graph::new();
         let (t0, t1) = (1, 2);
 
-        let (t0_props, t1_props): (Vec<_>, Vec<_>) = str_props
-            .iter()
-            .enumerate()
-            .map(|(i, props)| {
-                let (name, value) = props;
-                let value = Prop::from(value);
-                (name.as_str().into(), value, i % 2)
-            })
-            .partition(|(_, _, i)| *i == 0);
+        // Split properties into two sets based on even/odd index
+        // Even-indexed properties go to t0, odd-indexed to t1
+        let mut t0_props = HashMap::new();
+        let mut t1_props = HashMap::new();
 
-        let t0_props: HashMap<ArcStr, Prop> = t0_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+        for (i, (name, value)) in str_props.iter().enumerate() {
+            let prop_name: ArcStr = name.as_str().into();
+            let prop_value = Prop::from(value.as_str());
 
-        let t1_props: HashMap<ArcStr, Prop> = t1_props
-            .into_iter()
-            .map(|(name, value, _)| (name, value))
-            .collect();
+            if i % 2 == 0 {
+                t0_props.insert(prop_name, prop_value);
+            } else {
+                t1_props.insert(prop_name, prop_value);
+            }
+        }
 
         g.add_properties(t0, t0_props.clone()).unwrap();
         g.add_properties(t1, t1_props.clone()).unwrap();
 
-        let check = t0_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t0) == Some(value.clone())
-        }) && t1_props.iter().all(|(name, value)| {
-            g.properties().temporal().get(name).unwrap().at(t1) == Some(value.clone())
-        });
-        if !check {
-            error!("failed time-specific comparison for {:?}", str_props);
-            prop_assert!(false);
+        // Verify properties can be retrieved at their timestamps
+        for (name, expected_value) in t0_props.iter() {
+            let actual = g.properties().temporal().get(name).unwrap().at(t0);
+
+            prop_assert_eq!(
+                actual,
+                Some(expected_value.clone()),
+                "Property '{}' at t0 has wrong value",
+                name
+            );
         }
-        let check = check
-            && g.at(t0)
+
+        for (name, expected_value) in t1_props.iter() {
+            let actual_value = g.properties().temporal().get(name).unwrap().at(t1);
+
+            prop_assert_eq!(
+                actual_value,
+                Some(expected_value.clone()),
+                "Property '{}' at t1 has wrong value",
+                name
+            );
+        }
+
+        // Verify iter_latest returns all t0 properties
+        let actual_t0_props: HashMap<_, _> = g
+            .at(t0)
+            .properties()
+            .temporal()
+            .iter_latest()
+            .map(|(prop_name, prop_value)| (prop_name.clone(), prop_value))
+            .collect();
+
+        prop_assert_eq!(
+            actual_t0_props,
+            t0_props,
+            "iter_latest() at t0 returned wrong properties"
+        );
+
+        // Verify latest returns correct values for t1 properties
+        for (name, expected_value) in t1_props.iter() {
+            let actual = g
+                .at(t1)
                 .properties()
                 .temporal()
-                .iter_latest()
-                .map(|(k, v)| (k.clone(), v))
-                .collect::<HashMap<_, _, _>>()
-                == t0_props;
-        if !check {
-            error!("failed latest value comparison for {:?} at t0", str_props);
-            prop_assert!(false);
+                .get(name)
+                .and_then(|v| v.latest());
+
+            prop_assert_eq!(
+                actual,
+                Some(expected_value.clone()),
+                "Property '{}' latest() at t1 has wrong value",
+                name
+            );
         }
-        let check = check
-            && t1_props.iter().all(|(k, ve)| {
-                g.at(t1)
-                    .properties()
-                    .temporal()
-                    .get(k)
-                    .and_then(|v| v.latest())
-                    == Some(ve.clone())
-            });
-        if !check {
-            error!("failed latest value comparison for {:?} at t1", str_props);
-            prop_assert!(false);
-        }
-        prop_assert!(check);
     });
 }
 
 #[test]
-fn test_temporral_edge_props_window() {
+fn test_graph_temporal_props_with_maps() {
+    let g = Graph::new();
+
+    let style_with_size = Prop::map(vec![("fill", Prop::str("red")), ("size", Prop::I64(5))]);
+
+    let style_with_opacity = Prop::map(vec![
+        ("fill", Prop::str("red")),
+        ("opacity", Prop::F64(0.4)),
+    ]);
+
+    // Add temporal properties with nested maps at different timestamps
+    g.add_properties(0, vec![("style", style_with_size.clone())])
+        .unwrap();
+    g.add_properties(1, vec![("style", style_with_opacity.clone())])
+        .unwrap();
+    g.add_properties(2, vec![("style", style_with_size.clone())])
+        .unwrap();
+    g.add_properties(3, vec![("style", style_with_opacity.clone())])
+        .unwrap();
+
+    // Verify properties can be retrieved at their timestamps
+    let actual_t0 = g.properties().temporal().get("style").unwrap().at(0);
+    assert_eq!(actual_t0, Some(style_with_size.clone()));
+
+    let actual_t1 = g.properties().temporal().get("style").unwrap().at(1);
+    assert_eq!(actual_t1, Some(style_with_opacity.clone()));
+
+    let actual_t2 = g.properties().temporal().get("style").unwrap().at(2);
+    assert_eq!(actual_t2, Some(style_with_size.clone()));
+
+    let actual_t3 = g.properties().temporal().get("style").unwrap().at(3);
+    assert_eq!(actual_t3, Some(style_with_opacity.clone()));
+
+    // Verify history returns all timestamps
+    let history: Vec<_> = g
+        .properties()
+        .temporal()
+        .get("style")
+        .unwrap()
+        .history()
+        .collect();
+
+    assert_eq!(history, vec![0, 1, 2, 3]);
+}
+
+#[test]
+fn test_temporal_edge_props_window() {
     let graph = Graph::new();
     graph
         .add_edge(1, 1, 2, vec![("weight".to_string(), Prop::I64(1))], None)
@@ -2218,37 +2256,35 @@ fn test_node_early_late_times() {
     graph.add_node(3, 1, NO_PROPS, None).unwrap();
 
     // FIXME: Node add without properties not showing up (Issue #46)
-    test_graph(&graph, |graph| {
-        assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
-        assert_eq!(graph.node(1).unwrap().latest_time().unwrap().t(), 3);
+    assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
+    assert_eq!(graph.node(1).unwrap().latest_time().unwrap().t(), 3);
 
-        assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().t(), 2);
-        assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().t(), 2);
+    assert_eq!(graph.at(2).node(1).unwrap().earliest_time().unwrap().t(), 2);
+    assert_eq!(graph.at(2).node(1).unwrap().latest_time().unwrap().t(), 2);
 
-        assert_eq!(
-            graph
-                .before(2)
-                .node(1)
-                .unwrap()
-                .earliest_time()
-                .unwrap()
-                .t(),
-            1
-        );
-        assert_eq!(
-            graph.before(2).node(1).unwrap().latest_time().unwrap().t(),
-            1
-        );
+    assert_eq!(
+        graph
+            .before(2)
+            .node(1)
+            .unwrap()
+            .earliest_time()
+            .unwrap()
+            .t(),
+        1
+    );
+    assert_eq!(
+        graph.before(2).node(1).unwrap().latest_time().unwrap().t(),
+        1
+    );
 
-        assert_eq!(
-            graph.after(2).node(1).unwrap().earliest_time().unwrap().t(),
-            3
-        );
-        assert_eq!(
-            graph.after(2).node(1).unwrap().latest_time().unwrap().t(),
-            3
-        );
-    })
+    assert_eq!(
+        graph.after(2).node(1).unwrap().earliest_time().unwrap().t(),
+        3
+    );
+    assert_eq!(
+        graph.after(2).node(1).unwrap().latest_time().unwrap().t(),
+        3
+    );
 }
 
 #[test]
@@ -2258,16 +2294,13 @@ fn test_node_ids() {
     graph.add_node(1, 2, NO_PROPS, None).unwrap();
     graph.add_node(2, 3, NO_PROPS, None).unwrap();
 
-    // FIXME: Node add without properties not showing up (Issue #46)
-    test_graph(&graph, |graph| {
-        assert_eq!(
-            graph.nodes().id().collect::<Vec<_>>(),
-            vec![1u64, 2u64, 3u64]
-        );
+    assert_eq!(
+        graph.nodes().id().collect::<Vec<_>>(),
+        vec![1u64, 2u64, 3u64]
+    );
 
-        let g_at = graph.at(1);
-        assert_eq!(g_at.nodes().id().collect::<Vec<_>>(), vec![1u64, 2u64]);
-    });
+    let g_at = graph.at(1);
+    assert_eq!(g_at.nodes().id().collect::<Vec<_>>(), vec![1u64, 2u64]);
 }
 
 #[test]
@@ -2397,7 +2430,7 @@ fn test_layer_explode() {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 0), (1, 2, 1), (1, 2, 2)]);
+        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2), (1, 2, 3)]);
     });
 }
 
@@ -2801,7 +2834,7 @@ fn save_load_serial() {
     let dir = tempfile::tempdir().unwrap();
     let file_path = dir.path().join("abcd11");
     g.encode(&file_path).unwrap();
-    let gg = Graph::decode(file_path).unwrap();
+    let gg = Graph::decode(&file_path).unwrap();
     assert_graph_equal(&g, &gg);
 }
 
@@ -3481,7 +3514,7 @@ fn test_id_filter() {
 
 #[test]
 fn test_indexed() {
-    proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+    proptest!(|(graph in build_graph_strat(10, 10, 10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = Graph::from(build_graph(&graph));
         let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
         let nodes = graph.nodes().id_filter(nodes);
@@ -3491,12 +3524,133 @@ fn test_indexed() {
 
 #[test]
 fn materialize_window_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>())| {
         let g = Graph::from(build_graph(&graph_f));
         let gw = g.window(w.start, w.end);
         let gmw = gw.materialize().unwrap();
         assert_graph_equal(&gw, &gmw);
     })
+}
+
+#[test]
+fn materialize_temporal_properties_one_edge() {
+    let g = Graph::new();
+    g.add_edge(
+        0,
+        0,
+        0,
+        [("3", Prop::I64(1)), ("0", Prop::str("baa"))],
+        Some("a"),
+    )
+    .unwrap();
+
+    let gw = g.window(-9, 3);
+    let gmw = gw.materialize().unwrap();
+
+    assert_eq!(gmw.unfiltered_num_edges(), 1);
+    assert_eq!(
+        gmw.unfiltered_num_edges(),
+        gmw.core_edges()
+            .iter(&raphtory_core::entities::LayerIds::All)
+            .count()
+    );
+
+    assert_graph_equal(&gw, &gmw);
+}
+
+#[test]
+fn materialize_one_node() {
+    let g = Graph::new();
+    g.add_node(0, 0, NO_PROPS, None).unwrap();
+
+    let n = g.node(0).unwrap();
+    let hist = n.history();
+    assert!(!hist.is_empty());
+    let rows = n.rows().collect::<Vec<_>>();
+    assert!(!rows.is_empty());
+
+    let gw = g.window(0, 1);
+    let gmw = gw.materialize().unwrap();
+
+    assert_graph_equal(&gw, &gmw);
+}
+
+#[test]
+fn materialize_some_edges() -> Result<(), GraphError> {
+    let edges1_props = EdgeUpdatesFixture {
+        props: PropUpdatesFixture {
+            t_props: vec![
+                (2433054617899119663, vec![]),
+                (
+                    5623371002478468619,
+                    vec![("0".to_owned(), Prop::I64(-180204069376666762))],
+                ),
+            ],
+            c_props: vec![],
+        },
+        deletions: vec![-3684372592923241629, 3668280323305195349],
+    };
+
+    let edges2_props = EdgeUpdatesFixture {
+        props: PropUpdatesFixture {
+            t_props: vec![
+                (
+                    -7888823724540213280,
+                    vec![("0".to_owned(), Prop::I64(1339447446033500001))],
+                ),
+                (-3792330935693192039, vec![]),
+                (
+                    4049942931077033460,
+                    vec![("0".to_owned(), Prop::I64(-544773539725842277))],
+                ),
+                (5085404190610173488, vec![]),
+                (1445770503123270290, vec![]),
+                (-5628624083683143619, vec![]),
+                (-394401628579820652, vec![]),
+                (-2398199704888544233, vec![]),
+            ],
+            c_props: vec![("0".to_owned(), Prop::I64(-1877019573933389749))],
+        },
+        deletions: vec![
+            3969804007878301015,
+            7040207277685112004,
+            7380699292468575143,
+            3332576590029503186,
+            -1107894292705275349,
+            6647229517972286485,
+            6359226207899406831,
+        ],
+    };
+
+    let edges: EdgeFixture = [
+        ((2, 7, Some("b")), edges1_props),
+        ((7, 2, Some("a")), edges2_props),
+    ]
+    .into_iter()
+    .collect();
+
+    let w = -3619743214445905380..90323088878877991;
+    let graph_f = GraphFixture {
+        nodes: NodeFixture::default(),
+        edges,
+    };
+
+    let g = Graph::from(build_graph(&graph_f));
+    let gw = g.window(w.start, w.end);
+    let gmw = gw.materialize()?;
+    assert_graph_equal(&gw, &gmw);
+
+    Ok(())
+}
+
+#[test]
+fn materialize_window_delete_test() {
+    let g = Graph::new();
+    g.delete_edge(0, 0, 0, Some("a")).unwrap();
+    let w = 0..1;
+    let gw = g.window(w.start, w.end);
+    let gmw = gw.materialize().unwrap();
+    assert_graph_equal(&gw, &gmw);
 }
 
 #[test]
@@ -3528,8 +3682,8 @@ fn test_empty_window() {
 
 #[test]
 fn add_edge_and_read_props_concurrent() {
-    let g = Graph::new();
     for t in 0..1000 {
+        let g = Graph::new();
         join(
             || g.add_edge(t, 1, 2, [("test", true)], None).unwrap(),
             || {

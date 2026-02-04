@@ -1,4 +1,5 @@
 use clap::{command, Parser, Subcommand};
+use raphtory::db::api::storage::storage::Config;
 #[cfg(feature = "search")]
 use raphtory_graphql::config::index_config::DEFAULT_CREATE_INDEX;
 use raphtory_graphql::{
@@ -66,6 +67,9 @@ struct Args {
     #[arg(long, default_value_t = DEFAULT_CREATE_INDEX)]
     create_index: bool,
 
+    #[command(flatten)]
+    graph_config: Config,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -105,7 +109,7 @@ async fn main() -> IoResult<()> {
 
         let app_config = Some(builder.build());
 
-        GraphServer::new(args.working_dir, app_config, None)?
+        GraphServer::new(args.working_dir, app_config, None, args.graph_config)?
             .run_with_port(args.port)
             .await?;
     }

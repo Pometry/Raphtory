@@ -16,7 +16,7 @@ def test_get_graph_fails_if_graph_not_found():
         query = """{ graph(path: "g1") { name, path, nodes { list { name } } } }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'g1' does not exist" in str(excinfo.value)
 
 
 def test_get_graph_fails_if_graph_not_found_at_namespace():
@@ -29,7 +29,7 @@ def test_get_graph_fails_if_graph_not_found_at_namespace():
         )
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'shivam/g1' does not exist" in str(excinfo.value)
 
 
 def test_get_graph_succeeds_if_graph_found():

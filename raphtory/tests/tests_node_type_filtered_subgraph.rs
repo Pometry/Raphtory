@@ -65,7 +65,7 @@ fn test_type_filtered_subgraph() {
 
 #[test]
 fn materialize_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), node_types in make_node_types())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), node_types in make_node_types())| {
         let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
         let gm = g.materialize().unwrap();
         assert_graph_equal(&g, &gm);
@@ -74,7 +74,7 @@ fn materialize_prop_test() {
 
 #[test]
 fn materialize_type_window_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
         let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
         let gvw = g.window(w.start, w.end);
         let gmw = gvw.materialize().unwrap();
@@ -84,7 +84,7 @@ fn materialize_type_window_prop_test() {
 
 #[test]
 fn materialize_window_type_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
         let g = Graph::from(build_graph(&graph_f));
         let gvw = g.window(w.start, w.end).subgraph_node_types(node_types);
         let gmw = gvw.materialize().unwrap();
@@ -487,7 +487,7 @@ mod test_filters_node_type_filtered_subgraph {
                 },
                 views::filter::model::PropertyFilterFactory,
             },
-            prelude::{EdgeFilter, EdgeViewOps, GraphViewOps},
+            prelude::EdgeFilter,
         };
 
         #[test]

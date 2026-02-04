@@ -1,9 +1,8 @@
-use super::time_from_input;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
-            properties::internal::InternalTemporalPropertiesOps,
+            mutation::time_from_input_session,
             view::{
                 internal::{GraphView, InternalMaterialize},
                 StaticGraphViewOps,
@@ -288,38 +287,38 @@ fn import_node_internal<
     merge: bool,
 ) -> Result<NodeView<'static, G>, GraphError> {
     let id = id.as_node_ref();
+    let gid_ref = id.as_gid_ref().left();
+    graph.validate_gids(gid_ref).map_err(into_graph_err)?;
     if !merge {
         if let Some(existing_node) = graph.node(id) {
             return Err(GraphError::NodeExistsError(existing_node.id()));
         }
     }
 
-    let node_internal = match node.node_type().as_str() {
-        None => graph.resolve_node(id).map_err(into_graph_err)?.inner(),
-        Some(node_type) => {
-            let (node_internal, _) = graph
-                .resolve_node_and_type(id, node_type)
-                .map_err(into_graph_err)?
-                .inner();
-            node_internal.inner()
-        }
-    };
-    let keys = node.temporal_prop_keys().collect::<Vec<_>>();
+    let (node_internal, _) = graph
+        .resolve_and_update_node_and_type(id, node.node_type().as_str())
+        .map_err(into_graph_err)?
+        .inner();
+    let node_internal = node_internal.inner();
+    let session = graph.write_session().map_err(|err| err.into())?;
+    let keys = node.graph.node_meta().temporal_prop_mapper().all_keys();
 
     for (t, row) in node.rows() {
-        let t = time_from_input(graph, t)?;
+        let t = time_from_input_session(&session, t)?;
 
-        let props = row
-            .into_iter()
-            .zip(&keys)
-            .map(|((_, prop), key)| {
-                let prop_id = graph.resolve_node_property(key, prop.dtype(), false);
-                prop_id.map(|prop_id| (prop_id.inner(), prop))
-            })
-            .collect::<Result<Vec<_>, _>>()
+        let props = graph
+            .validate_props(
+                false,
+                graph.node_meta(),
+                row.into_iter().map(|(prop_id, prop)| {
+                    let prop_key = &keys[prop_id];
+                    (prop_key, prop)
+                }),
+            )
             .map_err(into_graph_err)?;
+
         graph
-            .internal_add_node(t, node_internal, &props)
+            .internal_add_node(t, node_internal, props)
             .map_err(into_graph_err)?;
     }
 
@@ -355,6 +354,7 @@ fn import_edge_internal<
     }
 
     // Add edges first to ensure associated nodes are present
+    let session = graph.write_session().map_err(|err| err.into())?;
     for ee in edge.explode_layers() {
         let layer_name = ee.layer_name().expect("exploded layers");
 
@@ -369,7 +369,7 @@ fn import_edge_internal<
         }
 
         for (t, _) in edge.deletions_hist() {
-            let ti = time_from_input(graph, t.t())?;
+            let ti = time_from_input_session(&session, t.t())?;
             let src_node = graph.resolve_node(src_id).map_err(into_graph_err)?.inner();
             let dst_node = graph.resolve_node(dst_id).map_err(into_graph_err)?.inner();
             let layer = graph

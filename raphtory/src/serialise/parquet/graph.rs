@@ -2,17 +2,18 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
-        model::ParquetProp, run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
-        PERSISTENT_GRAPH_TYPE, TIME_COL,
+        run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
+        PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
     },
 };
 use arrow::datatypes::{DataType, Field};
 use itertools::Itertools;
-use parquet::format::KeyValue;
+use parquet::file::metadata::KeyValue;
 use raphtory_api::{
-    core::storage::{arc_str::ArcStr, timeindex::AsTime},
+    core::{entities::properties::prop::SerdeArrowProp, storage::arc_str::ArcStr},
     GraphType,
 };
+use raphtory_core::storage::timeindex::EventTime;
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
@@ -20,48 +21,49 @@ use std::{collections::HashMap, path::Path};
 pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_meta().temporal_mapper(),
+        g.graph_props_meta().temporal_prop_mapper(),
         1,
         path,
         GRAPH_T_PATH,
-        |_| vec![Field::new(TIME_COL, DataType::Int64, false)],
+        |_| {
+            vec![
+                Field::new(TIME_COL, DataType::Int64, false),
+                Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
+            ]
+        },
         |_, g, decoder, writer| {
-            let merged_props = g
-                .properties()
-                .temporal()
-                .into_iter()
-                .map(|(k, view)| {
-                    view.into_iter()
-                        .map(move |(t, prop)| (k.clone(), t.t(), prop))
+            // Collect into owned props here to avoid lifetime issues on prop_view.
+            // Ideally we want to be returning refs to the props but this
+            // is not possible with the current API.
+            let collect_props = g.properties().temporal().iter().collect::<Vec<_>>();
+
+            // Each prop key can have multiple values over time.
+            // Flatten into (time, key, value) tuples to group by time.
+            let merged_props = collect_props
+                .iter()
+                .map(|(prop_key, prop_view)| {
+                    // Collect all the props for a given prop key
+                    prop_view
+                        .iter_indexed()
+                        .map(move |(time, prop_value)| (time, prop_key.clone(), prop_value))
                 })
-                .kmerge_by(|(_, t1, _), (_, t2, _)| t1 < t2);
+                .kmerge_by(|(left_t, _, _), (right_t, _, _)| left_t <= right_t);
 
-            let mut row = HashMap::<ArcStr, Prop>::new();
-            let mut rows = vec![];
-            let mut last_t: Option<i64> = None;
-            for (key, t1, prop) in merged_props {
-                if let Some(last_t) = last_t {
-                    if last_t != t1 {
-                        let mut old = HashMap::<ArcStr, Prop>::new();
-                        std::mem::swap(&mut row, &mut old);
-                        rows.push(Row {
-                            t: last_t,
-                            row: old,
-                        });
-                    }
-                }
+            // Group property (key, value) tuples by time to create rows.
+            let rows: Vec<Row> = merged_props
+                .chunk_by(|(t, _, _)| *t)
+                .into_iter()
+                .map(|(timestamp, group)| {
+                    let row = group
+                        .map(|(_, prop_key, prop_value)| (prop_key, prop_value))
+                        .collect();
 
-                row.insert(key, prop);
-                last_t = Some(t1);
-            }
-            if !row.is_empty() {
-                rows.push(Row {
-                    t: last_t.unwrap(),
-                    row,
-                });
-            }
+                    Row { t: timestamp, row }
+                })
+                .collect();
 
             decoder.serialize(&rows)?;
+
             if let Some(rb) = decoder.flush()? {
                 writer.write(&rb)?;
                 writer.flush()?;
@@ -74,7 +76,7 @@ pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<()
 
 #[derive(Debug)]
 struct Row {
-    t: i64,
+    t: EventTime,
     row: HashMap<ArcStr, Prop>,
 }
 
@@ -84,10 +86,14 @@ impl Serialize for Row {
         S: serde::Serializer,
     {
         let mut state = serializer.serialize_map(Some(self.row.len()))?;
+
         for (k, v) in self.row.iter() {
-            state.serialize_entry(k, &ParquetProp(v))?;
+            state.serialize_entry(k, &SerdeArrowProp(v))?;
         }
-        state.serialize_entry(TIME_COL, &self.t)?;
+
+        state.serialize_entry(TIME_COL, &self.t.0)?;
+        state.serialize_entry(SECONDARY_INDEX_COL, &self.t.1)?;
+
         state.end()
     }
 }
@@ -99,16 +105,18 @@ pub fn encode_graph_cprop(
 ) -> Result<(), GraphError> {
     run_encode(
         g,
-        g.graph_meta().metadata_mapper(),
+        g.graph_props_meta().metadata_mapper(),
         1,
         path,
         GRAPH_C_PATH,
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],
         |_, g, decoder, writer| {
             let row = g.metadata().as_map();
+            let time = EventTime::new(0, 0); // const props don't have time
+            let rows = vec![Row { t: time, row }];
 
-            let rows = vec![Row { t: 0, row }];
             decoder.serialize(&rows)?;
+
             if let Some(rb) = decoder.flush()? {
                 writer.write(&rb)?;
                 writer.flush()?;

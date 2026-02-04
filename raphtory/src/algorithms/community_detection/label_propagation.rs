@@ -1,4 +1,4 @@
-use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
+use rand::{rng, rngs::StdRng, seq::SliceRandom, SeedableRng};
 use raphtory_api::core::entities::GID;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -36,7 +36,7 @@ where
         let mut rng = StdRng::from_seed(seed_value);
         shuffled_nodes.shuffle(&mut rng);
     } else {
-        let mut rng = thread_rng();
+        let mut rng = rng();
         shuffled_nodes.shuffle(&mut rng);
     }
     let mut changed = true;

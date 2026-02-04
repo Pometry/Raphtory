@@ -36,6 +36,13 @@ impl Default for MinCounter {
     }
 }
 
+impl From<i64> for MinCounter {
+    fn from(value: i64) -> Self {
+        let counter = AtomicI64::new(value);
+        Self { counter }
+    }
+}
+
 impl MinCounter {
     pub fn new() -> Self {
         Self {
@@ -58,6 +65,13 @@ impl TimeCounterTrait for MinCounter {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct MaxCounter {
     counter: AtomicI64,
+}
+
+impl From<i64> for MaxCounter {
+    fn from(value: i64) -> Self {
+        let counter = AtomicI64::new(value);
+        Self { counter }
+    }
 }
 
 impl Default for MaxCounter {

@@ -20,7 +20,7 @@ impl<'a> Operation<'a, MutationPlugin> for HelloMutation {
 
     fn apply<'b>(
         _entry_point: &MutationPlugin,
-        ctx: ResolverContext,
+        ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         let name = ctx
             .args

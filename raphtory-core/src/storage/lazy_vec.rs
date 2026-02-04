@@ -1,6 +1,6 @@
-use raphtory_api::iter::BoxedLIter;
+use arrow_array::BooleanArray;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Debug, iter};
+use std::fmt::Debug;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 #[error("Cannot set previous value '{previous_value:?}' to '{new_value:?}' in position '{index}'")]
@@ -167,49 +167,81 @@ impl<A> LazyVec<A>
 where
     A: PartialEq + Default + Debug + Sync + Send + Clone,
 {
+    pub fn append(&mut self, items: impl IntoIterator<Item = Option<A>>, mask: &BooleanArray) {
+        if !matches!(self, LazyVec::LazyVecN(_, _)) {
+            match self {
+                LazyVec::Empty => {
+                    *self = LazyVec::LazyVecN(A::default(), MaskedCol::default());
+                }
+                LazyVec::LazyVec1(_, tuples) => {
+                    let mut take = TupleCol::default();
+                    std::mem::swap(&mut take, tuples);
+                    *self = LazyVec::LazyVecN(A::default(), MaskedCol::from(take));
+                }
+                _ => {}
+            }
+        }
+
+        match self {
+            LazyVec::LazyVecN(_, vector) => {
+                for (item, is_valid) in items.into_iter().zip(mask.values().iter()) {
+                    if is_valid {
+                        vector.push(item);
+                    }
+                }
+            }
+            _ => unreachable!(),
+        }
+    }
+
     // fails if there is already a value set for the given id to a different value
-    pub(crate) fn set(&mut self, id: usize, value: A) -> Result<(), IllegalSet<A>> {
+    pub fn upsert(&mut self, id: usize, value: A) {
         match self {
             LazyVec::Empty => {
                 *self = Self::from(id, value);
-                Ok(())
             }
             LazyVec::LazyVec1(_, tuples) => {
-                if let Some(only_value) = tuples.get(id) {
-                    if only_value != &value {
-                        return Err(IllegalSet::new(id, only_value.clone(), value));
-                    }
-                } else {
-                    tuples.upsert(id, Some(value));
-
-                    self.swap_lazy_types();
-                }
-                Ok(())
+                tuples.upsert(id, Some(value));
+                self.swap_lazy_types();
             }
             LazyVec::LazyVecN(_, vector) => {
-                if let Some(only_value) = vector.get(id) {
-                    if only_value != &value {
-                        return Err(IllegalSet::new(id, only_value.clone(), value));
-                    }
-                } else {
-                    vector.upsert(id, Some(value));
-                }
-                Ok(())
+                vector.upsert(id, Some(value));
             }
         }
     }
 
-    pub(crate) fn update<F, B, E>(&mut self, id: usize, updater: F) -> Result<B, E>
+    /// checks if there is already a different value for a given id
+    pub fn check(&self, id: usize, value: &A) -> Result<(), IllegalSet<A>> {
+        match self {
+            LazyVec::Empty => {}
+            LazyVec::LazyVec1(_, tuples) => {
+                if let Some(only_value) = tuples.get(id) {
+                    if only_value != value {
+                        return Err(IllegalSet::new(id, only_value.clone(), value.clone()));
+                    }
+                }
+            }
+            LazyVec::LazyVecN(_, vector) => {
+                if let Some(only_value) = vector.get(id) {
+                    if only_value != value {
+                        return Err(IllegalSet::new(id, only_value.clone(), value.clone()));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn update<F, B, E>(&mut self, id: usize, updater: F) -> Result<B, E>
     where
         F: FnOnce(&mut A) -> Result<B, E>,
-        E: From<IllegalSet<A>>,
     {
         let b = match self.get_mut(id) {
             Some(value) => updater(value)?,
             None => {
                 let mut value = A::default();
                 let b = updater(&mut value)?;
-                self.set(id, value)?;
+                self.upsert(id, value);
                 b
             }
         };
@@ -241,28 +273,9 @@ where
         LazyVec::LazyVec1(A::default(), TupleCol::from(inner))
     }
 
-    pub(crate) fn filled_ids(&self) -> BoxedLIter<'_, usize> {
+    pub fn iter(&self) -> Box<dyn Iterator<Item = &A> + Send + '_> {
         match self {
-            LazyVec::Empty => Box::new(iter::empty()),
-            LazyVec::LazyVec1(_, tuples) => Box::new(
-                tuples
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(id, value)| value.map(|_| id)),
-            ),
-            LazyVec::LazyVecN(_, vector) => Box::new(
-                vector
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(id, value)| value.map(|_| id)),
-            ),
-        }
-    }
-
-    #[cfg(test)]
-    fn iter(&self) -> Box<dyn Iterator<Item = &A> + Send + '_> {
-        match self {
-            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::Empty => Box::new(std::iter::empty()),
             LazyVec::LazyVec1(default, tuples) => {
                 Box::new(tuples.iter().map(|value| value.unwrap_or(default)))
             }
@@ -272,16 +285,15 @@ where
         }
     }
 
-    #[cfg(test)]
-    fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
+    pub fn iter_opt(&self) -> Box<dyn Iterator<Item = Option<&A>> + Send + '_> {
         match self {
-            LazyVec::Empty => Box::new(iter::empty()),
+            LazyVec::Empty => Box::new(std::iter::empty()),
             LazyVec::LazyVec1(_, tuples) => Box::new(tuples.iter()),
             LazyVec::LazyVecN(_, vector) => Box::new(vector.iter()),
         }
     }
 
-    pub(crate) fn get(&self, id: usize) -> Option<&A> {
+    pub fn get(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(default, tuples) => tuples
                 .get(id)
@@ -293,7 +305,7 @@ where
         }
     }
 
-    pub(crate) fn get_opt(&self, id: usize) -> Option<&A> {
+    pub fn get_opt(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(_, tuples) => tuples.get(id),
             LazyVec::LazyVecN(_, vec) => vec.get(id),
@@ -341,7 +353,6 @@ where
 #[cfg(test)]
 mod lazy_vec_tests {
     use super::*;
-    use itertools::Itertools;
     use proptest::{arbitrary::Arbitrary, proptest};
 
     fn check_lazy_vec(lazy_vec: &LazyVec<u32>, v: Vec<Option<u32>>) {
@@ -404,9 +415,9 @@ mod lazy_vec_tests {
     fn normal_operation() {
         let mut vec = LazyVec::<u32>::Empty;
 
-        vec.set(5, 55).unwrap();
-        vec.set(1, 11).unwrap();
-        vec.set(8, 88).unwrap();
+        vec.upsert(5, 55);
+        vec.upsert(1, 11);
+        vec.upsert(8, 88);
         assert_eq!(vec.get(5), Some(&55));
         assert_eq!(vec.get(1), Some(&11));
         assert_eq!(vec.get(0), Some(&0));
@@ -431,14 +442,12 @@ mod lazy_vec_tests {
         })
         .unwrap();
         assert_eq!(vec.get(9), Some(&1));
-
-        assert_eq!(vec.filled_ids().collect_vec(), vec![1, 5, 6, 8, 9]);
     }
 
     #[test]
-    fn set_fails_if_present() {
-        let mut vec = LazyVec::from(5, 55);
-        let result = vec.set(5, 555);
+    fn check_fails_if_present() {
+        let vec = LazyVec::from(5, 55);
+        let result = vec.check(5, &555);
         assert_eq!(result, Err(IllegalSet::new(5, 55, 555)))
     }
 }

@@ -20,8 +20,7 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
-use rustc_hash::FxHashMap;
-use std::{collections::HashMap, ops::Add};
+use std::ops::Add;
 
 #[derive(Eq, Hash, PartialEq, Clone, Debug, Default)]
 pub struct TaintMessage {
@@ -181,25 +180,25 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     }));
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let result: HashMap<usize, Vec<(i64, String)>> = runner.run(
+    let (index, values) = runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
         None,
-        |_, ess, _, _| {
-            ess.finalize(&taint_history, |taint_history| {
+        |_, ess, _, _, index| {
+            let data = ess.finalize_vec(&taint_history, |taint_history| {
                 let mut hist = taint_history
                     .into_iter()
                     .map(|tmsg| (tmsg.event_time, tmsg.src_node))
                     .collect_vec();
                 hist.sort();
                 hist
-            })
+            });
+            (index, data)
         },
         threads,
         max_hops,
         None,
         None,
     );
-    let result: FxHashMap<_, _> = result.into_iter().map(|(k, v)| (VID(k), v)).collect();
-    NodeState::new_from_map(g.clone(), result, |v| v)
+    NodeState::new_from_eval_with_index(g.clone(), values, index)
 }

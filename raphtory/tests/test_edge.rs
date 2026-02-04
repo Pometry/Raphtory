@@ -117,7 +117,7 @@ fn test_property_additions() {
 fn test_metadata_additions() {
     let g = Graph::new();
     let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
-    assert_eq!(e.edge.layer(), Some(0));
+    assert_eq!(e.edge.layer(), Some(1)); // 0 is static graph
     assert!(e.add_metadata([("test1", "test1")], None).is_ok()); // adds properties to layer `"test"`
     assert!(e.add_metadata([("test", "test")], Some("test2")).is_err()); // cannot add properties to a different layer
     e.add_metadata([("test", "test")], Some("test")).unwrap(); // layer is consistent
