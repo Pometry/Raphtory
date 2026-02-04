@@ -38,10 +38,10 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 #[cfg(test)]
 mod deadlock_tests {
     use std::{
-        sync::{Arc, Mutex},
+        sync::Arc,
         time::Duration,
     };
-
+    use parking_lot::Mutex;
     use reqwest::{Client, StatusCode};
     use tempfile::TempDir;
 
@@ -55,7 +55,7 @@ mod deadlock_tests {
     async fn test_deadlock_in_read_pool() {
         test_pool_lock(43871, |lock| {
             COMPUTE_POOL.spawn_broadcast(move |_| {
-                let _guard = lock.lock().unwrap();
+                let _guard = lock.lock();
             });
         })
         .await;
@@ -65,7 +65,7 @@ mod deadlock_tests {
     async fn test_deadlock_in_write_pool() {
         test_pool_lock(43872, |lock| {
             WRITE_POOL.spawn_broadcast(move |_| {
-                let _guard = lock.lock().unwrap();
+                let _guard = lock.lock();
             });
         })
         .await;
