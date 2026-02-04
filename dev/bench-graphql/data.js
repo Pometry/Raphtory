@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770214279740,
+  "lastUpdate": 1770219402242,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3779,6 +3779,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1336,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1c299133215eb1df65ee3008b57c267769d17239",
+          "message": "fixes for docker ci (#2470)",
+          "timestamp": "2026-02-04T16:00:15+01:00",
+          "tree_id": "d2a5290744fb917869fedf46749fccba100b44ae",
+          "url": "https://github.com/Pometry/Raphtory/commit/1c299133215eb1df65ee3008b57c267769d17239"
+        },
+        "date": 1770219398869,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1298,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 208,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 153,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1039,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 826,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1298,
             "unit": "req/s"
           }
         ]
