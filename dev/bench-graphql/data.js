@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770219402242,
+  "lastUpdate": 1770230872280,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3833,6 +3833,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1298,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "233ef2cfc53e5d8aa903ed0d14ab88dcabebcdce",
+          "message": "merge clis and configs (#2457)\n\n* merge clis and configs\n\n* commit missing main file\n\n* fix compilation errors and python imports\n\n* cli actually working\n\n* add server subcommand\n\n* add help messages and version option\n\n* fix compilation errors\n\n* add AppConfigBuilder import back\n\n* simplify the deadlock tests\n\n* revert ui-test commit\n\n* switch to parking_lot for deadlock tests\n\n* clear up the main.rs in raphtory-graphql\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: Fabian Murariu <2404621+fabianmurariu@users.noreply.github.com>\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-02-04T18:11:48Z",
+          "tree_id": "19ecc2330ef1b9a7c846d26a1ab3784954003592",
+          "url": "https://github.com/Pometry/Raphtory/commit/233ef2cfc53e5d8aa903ed0d14ab88dcabebcdce"
+        },
+        "date": 1770230865284,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 32,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 213,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 138,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1029,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 771,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1291,
             "unit": "req/s"
           }
         ]
