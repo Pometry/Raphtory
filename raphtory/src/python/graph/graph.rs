@@ -203,7 +203,7 @@ impl PyGraph {
     /// Returns:
     ///     None:
     pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
-        self.graph.encode_parquet(graph_dir)
+        self.graph.encode(graph_dir)
     }
 
     /// Read graph from parquet files
@@ -216,9 +216,7 @@ impl PyGraph {
     ///
     #[staticmethod]
     pub fn from_parquet(graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        let path_for_decoded_graph = None;
-
-        Graph::decode_parquet(&graph_dir, path_for_decoded_graph)
+        Graph::decode(&graph_dir)
     }
 
     /// Adds a new node with the given id and properties to the graph.

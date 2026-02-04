@@ -35,6 +35,7 @@ use segments::{
 };
 
 pub mod api;
+pub mod dir;
 pub mod gen_ts;
 pub mod generic_t_props;
 pub mod pages;
@@ -118,6 +119,9 @@ pub mod error {
 
         #[error("Failed to vacuum storage")]
         VacuumError,
+
+        #[error("Disk storage not supported")]
+        DiskStorageNotSupported,
     }
 
     impl StorageError {

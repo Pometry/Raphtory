@@ -712,6 +712,7 @@ mod parquet_tests {
         },
     };
     use std::{io::Cursor, str::FromStr};
+    use storage::Config;
     use zip::{ZipArchive, ZipWriter};
 
     #[test]
@@ -1075,7 +1076,7 @@ mod parquet_tests {
     fn check_parquet_encoding(g: &Graph, fixture: Option<GraphFixture>) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
         if let Some(f) = fixture {
             assert_valid_graph(&f, g);
             assert_valid_graph(&f, &g2);
@@ -1086,7 +1087,7 @@ mod parquet_tests {
     fn check_parquet_encoding_deletions(g: PersistentGraph) {
         let temp_dir = tempfile::tempdir().unwrap();
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = PersistentGraph::decode_parquet(&temp_dir, None).unwrap();
+        let g2 = PersistentGraph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
         assert_graph_equal_timestamps(&g, &g2);
     }
 
@@ -1124,7 +1125,7 @@ mod parquet_tests {
 
         g.add_metadata(nf.c_props).unwrap();
         g.encode_parquet(&temp_dir).unwrap();
-        let g2 = Graph::decode_parquet(&temp_dir, None).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
         if only_timestamps {
             assert_graph_equal_timestamps(&g, &g2)
         } else {
@@ -1240,8 +1241,13 @@ mod parquet_tests {
         writer.finish().unwrap();
 
         let mut reader = ZipArchive::new(std::fs::File::open(&zip_path).unwrap()).unwrap();
-        let g2 =
-            Graph::decode_parquet_from_zip(&mut reader, None::<&std::path::Path>, "graph").unwrap();
+        let g2 = Graph::decode_parquet_from_zip(
+            &mut reader,
+            None::<&std::path::Path>,
+            "graph",
+            Config::default(),
+        )
+        .unwrap();
         assert_graph_equal(&g, &g2);
     }
 
@@ -1268,8 +1274,13 @@ mod parquet_tests {
         let mut writer = ZipWriter::new(Cursor::new(&mut bytes));
         g.encode_parquet_to_zip(&mut writer, "graph").unwrap();
         writer.finish().unwrap();
-        let g2 =
-            Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>, "graph").unwrap();
+        let g2 = Graph::decode_parquet_from_bytes(
+            &bytes,
+            None::<&std::path::Path>,
+            "graph",
+            Config::default(),
+        )
+        .unwrap();
         assert_graph_equal(&g, &g2);
     }
 
@@ -1281,7 +1292,7 @@ mod parquet_tests {
             let mut writer = ZipWriter::new(Cursor::new(&mut bytes));
             g.encode_parquet_to_zip(&mut writer, "graph").unwrap();
             writer.finish().unwrap();
-            let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>, "graph").unwrap();
+            let g2 = Graph::decode_parquet_from_bytes(&bytes, None::<&std::path::Path>, "graph", Config::default()).unwrap();
 
             assert_graph_equal(&g, &g2);
         })

@@ -644,7 +644,10 @@ mod test {
 
         check_edges_support(edges, par_load, false, |graph_dir| {
             let config = BaseConfig::new(chunk_size, chunk_size);
-            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(
+                Some(graph_dir),
+                Extension::new(config, Some(graph_dir)).unwrap(),
+            )
         })
     }
 
@@ -655,7 +658,10 @@ mod test {
     ) {
         check_edges_support(edges, par_load, false, |graph_dir| {
             let config = BaseConfig::new(chunk_size, chunk_size);
-            Layer::new(Some(graph_dir), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(
+                Some(graph_dir),
+                Extension::new(config, Some(graph_dir)).unwrap(),
+            )
         })
     }
 
@@ -730,7 +736,7 @@ mod test {
         let config = BaseConfig::new(32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
-            Extension::new(config, Arc::new(NoWal)),
+            Extension::new(config, Some(graph_dir.path())).unwrap(),
         );
         g.add_edge(4, 7, 3).unwrap();
         assert_eq!(g.nodes().num_nodes(), 2);
@@ -742,7 +748,7 @@ mod test {
         let config = BaseConfig::new(32, 32);
         let g = GraphStore::new(
             Some(graph_dir.path()),
-            Extension::new(config, Arc::new(NoWal)),
+            Extension::new(config, Some(graph_dir.path())).unwrap(),
         );
         g.add_edge(4, 7, 3).unwrap();
 
@@ -788,7 +794,7 @@ mod test {
         let config = BaseConfig::new(32, 32);
         let g = Layer::new(
             Some(graph_dir.path()),
-            Extension::new(config, Arc::new(NoWal)),
+            Extension::new(config, Some(graph_dir.path())).unwrap(),
         );
         g.add_node_props::<String>(1, 0, 0, vec![])
             .expect("Failed to add node props");
@@ -1593,14 +1599,14 @@ mod test {
     fn check_graph_with_nodes(node_page_len: u32, edge_page_len: u32, fixture: &NodeFixture) {
         check_graph_with_nodes_support(fixture, false, |path| {
             let config = BaseConfig::new(node_page_len, edge_page_len);
-            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(Some(path), Extension::new(config, Some(path)).unwrap())
         });
     }
 
     fn check_graph_with_props(node_page_len: u32, edge_page_len: u32, fixture: &Fixture) {
         check_graph_with_props_support(fixture, false, |path| {
             let config = BaseConfig::new(node_page_len, edge_page_len);
-            Layer::new(Some(path), Extension::new(config, Arc::new(NoWal)))
+            Layer::new(Some(path), Extension::new(config, Some(path)).unwrap())
         });
     }
 }
