@@ -74,7 +74,6 @@ __all__ = [
     "max_weight_matching",
     "Matching",
     "Infected",
-    "connected_components",
 ]
 
 def dijkstra_single_source_shortest_paths(
@@ -923,5 +922,3 @@ class Infected(object):
         Returns:
             int:
         """
-
-def connected_components(graph): ...

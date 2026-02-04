@@ -156,7 +156,7 @@ def test_edges_filter_window_is_active(graph):
     run_graphql_test(query, expected_output, graph)
 
 
-@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_edges_filter_window_is_deleted(graph):
     query = """
     query {

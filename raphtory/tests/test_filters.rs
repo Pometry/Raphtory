@@ -8533,7 +8533,7 @@ mod test_edge_filter {
     use raphtory::db::graph::{
         assertions::{
             assert_filter_edges_results, assert_search_edges_results, assert_select_edges_results,
-            TestVariants,
+            TestGraphVariants, TestVariants,
         },
         views::filter::model::{
             edge_filter::EdgeFilter,
@@ -9774,21 +9774,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
 
         let filter = EdgeFilter.window(1, 4).is_valid();
@@ -9798,21 +9798,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
     }
 
@@ -9825,21 +9825,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
 
         let filter = EdgeFilter.snapshot_at(3).is_valid();
@@ -9849,21 +9849,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
     }
 
@@ -9883,24 +9883,25 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::PersistentOnly,
+            TestGraphVariants::PersistentGraph,
         );
     }
 
+    // Disk graph doesn't support deletions
     #[test]
     fn test_is_deleted_edge_after() {
         let filter = EdgeFilter.after(1).is_deleted();
@@ -9910,24 +9911,25 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::NonDiskOnly,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::NonDiskOnly,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::NonDiskOnly,
         );
     }
 
+    // Disk graph doesn't support deletions
     #[test]
     fn test_is_deleted_edge_before() {
         let filter = EdgeFilter.before(4).is_deleted();
@@ -9937,21 +9939,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::NonDiskOnly,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::NonDiskOnly,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::NonDiskOnly,
         );
     }
 

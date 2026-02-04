@@ -33,6 +33,12 @@ pub enum TestGraphVariants {
     PersistentDiskGraph,
 }
 
+impl Into<Vec<TestGraphVariants>> for TestGraphVariants {
+    fn into(self) -> Vec<TestGraphVariants> {
+        vec![self]
+    }
+}
+
 pub enum TestVariants {
     All,
     EventOnly,
