@@ -9,6 +9,7 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
+pub mod cli;
 pub mod config;
 #[cfg(feature = "python")]
 pub mod python;
