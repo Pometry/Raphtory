@@ -596,11 +596,11 @@ pub trait NodeViewFilterOps: ViewWrapOps {
     fn is_active(&self) -> Self::Output<IsActiveNode>;
 }
 
-pub trait DynNodeViewFilterOps {
+pub trait DynNodeViewFilterOps: DynInternalViewWrapPropOps {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
 }
 
-impl<T: NodeViewFilterOps> DynNodeViewFilterOps for T {
+impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps> DynNodeViewFilterOps for T {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
         Arc::new(self.is_active())
     }
@@ -618,7 +618,7 @@ pub trait EdgeViewFilterOps: ViewWrapOps {
     fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge>;
 }
 
-pub trait DynEdgeViewFilterOps {
+pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
 
     fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter>;
@@ -628,7 +628,7 @@ pub trait DynEdgeViewFilterOps {
     fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
 }
 
-impl<T: EdgeViewFilterOps> DynEdgeViewFilterOps for T {
+impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps> DynEdgeViewFilterOps for T {
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
         Arc::new(self.is_active())
     }
@@ -646,17 +646,7 @@ impl<T: EdgeViewFilterOps> DynEdgeViewFilterOps for T {
     }
 }
 
-pub trait DynNodeViewWrapPropOps:
-    DynInternalViewWrapPropOps + DynNodeViewFilterOps + Send + Sync + 'static
-{
-}
-
-impl<T> DynNodeViewWrapPropOps for T where
-    T: DynInternalViewWrapPropOps + DynNodeViewFilterOps + Send + Sync + 'static
-{
-}
-
-pub type DynNodeViewProps = Arc<dyn DynNodeViewWrapPropOps>;
+pub type DynNodeViewProps = Arc<dyn DynNodeViewFilterOps>;
 
 impl InternalViewWrapOps for DynNodeViewProps {
     type Window = DynNodeViewProps;
@@ -696,17 +686,7 @@ impl InternalPropertyFilterFactory for DynNodeViewProps {
     }
 }
 
-pub trait DynEdgeViewWrapPropOps:
-    DynInternalViewWrapPropOps + DynEdgeViewFilterOps + Send + Sync + 'static
-{
-}
-
-impl<T> DynEdgeViewWrapPropOps for T where
-    T: DynInternalViewWrapPropOps + DynEdgeViewFilterOps + Send + Sync + 'static
-{
-}
-
-pub type DynEdgeViewProps = Arc<dyn DynEdgeViewWrapPropOps>;
+pub type DynEdgeViewProps = Arc<dyn DynEdgeViewFilterOps>;
 
 impl InternalViewWrapOps for DynEdgeViewProps {
     type Window = DynEdgeViewProps;
