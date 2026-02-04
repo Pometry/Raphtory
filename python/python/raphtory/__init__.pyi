@@ -3872,7 +3872,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def metadata(self) -> MetadataListList:
+    def metadata(self):
         """
         Returns the node metadata.
 
@@ -5435,7 +5435,7 @@ class NestedEdges(object):
         """
 
     @property
-    def metadata(self) -> MetadataListList:
+    def metadata(self):
         """
         Get a view of the metadata only.
 
@@ -5453,7 +5453,7 @@ class NestedEdges(object):
         """
 
     @property
-    def properties(self) -> PyNestedPropsIterable:
+    def properties(self):
         """
         Returns all properties of the edges
 

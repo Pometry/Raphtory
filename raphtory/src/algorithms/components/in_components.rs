@@ -67,7 +67,10 @@ impl InState {
 /// - `g` - A reference to the graph
 /// - `threads` - Number of threads to use
 ///
-pub fn in_components<G>(g: &G, threads: Option<usize>) -> TypedNodeState<'static, InState, G, TransformedInState<'static, G>>
+pub fn in_components<G>(
+    g: &G,
+    threads: Option<usize>,
+) -> TypedNodeState<'static, InState, G, TransformedInState<'static, G>>
 where
     G: StaticGraphViewOps,
 {
@@ -161,7 +164,9 @@ pub struct InComponentState {
 ///
 /// The nodes within the given nodes in-component and their distances from the starting node.
 ///
-pub fn in_component<'graph, G>(node: NodeView<'graph, G>) -> TypedNodeState<'graph, InComponentState, G>
+pub fn in_component<'graph, G>(
+    node: NodeView<'graph, G>,
+) -> TypedNodeState<'graph, InComponentState, G>
 where
     G: GraphViewOps<'graph>,
 {
@@ -211,13 +216,15 @@ where
 
     let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
         in_components.into_iter().sorted().unzip();
-    Ok(TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
-        node.graph.clone(),
-        distances
-            .into_iter()
-            .map(|value| InComponentState { distance: value })
-            .collect(),
-        Some(Index::new(nodes)),
-        None,
-    )))
+    Ok(TypedNodeState::new(
+        GenericNodeState::new_from_eval_with_index(
+            node.graph.clone(),
+            distances
+                .into_iter()
+                .map(|value| InComponentState { distance: value })
+                .collect(),
+            Some(Index::new(nodes)),
+            None,
+        ),
+    ))
 }

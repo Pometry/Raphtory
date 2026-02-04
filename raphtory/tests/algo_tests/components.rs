@@ -214,9 +214,8 @@ mod in_component_test {
             api::mutation::AdditionOps,
             graph::views::filter::{
                 model::{
-                    graph_filter::GraphFilter, layered_filter::Layered,
-                    property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-                    TryAsCompositeFilter, ViewWrapOps,
+                    graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,
+                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
                 },
                 CreateFilter,
             },
@@ -245,7 +244,7 @@ mod in_component_test {
         let mut results: Vec<_> = in_component_filtered(graph.node(node_id).unwrap(), filter)
             .unwrap()
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
 
         results.sort();
@@ -384,9 +383,9 @@ mod in_component_test {
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.in_components
+                            .iter()
+                            .map(|value| value.as_u64())
                             .sorted()
                             .collect(),
                     )
@@ -516,7 +515,7 @@ mod components_test {
         let mut results: Vec<_> = out_component_filtered(graph.node(node_id).unwrap(), filter)
             .unwrap()
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
         results.sort();
         correct.sort();
@@ -687,9 +686,9 @@ mod components_test {
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.out_components
+                            .iter()
+                            .map(|value| value.as_u64())
                             .sorted()
                             .collect(),
                     )

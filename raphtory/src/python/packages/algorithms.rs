@@ -183,7 +183,8 @@ pub fn in_components(
     filter: Option<PyFilterExpr>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::in_components_filtered(&graph.graph, None, f).map(|result| Ok(result.to_output_nodestate())),
+        Some(f) => components::in_components_filtered(&graph.graph, None, f)
+            .map(|result| result.to_output_nodestate()),
         None => Ok(components::in_components(&graph.graph, None).to_output_nodestate()),
     }
 }
@@ -203,7 +204,8 @@ pub fn in_component(
     filter: Option<PyFilterExpr>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::in_component_filtered(node.node.clone(), f).map(|result| Ok(result.to_output_nodestate())),
+        Some(f) => components::in_component_filtered(node.node.clone(), f)
+            .map(|result| result.to_output_nodestate()),
         None => Ok(components::in_component(node.node.clone()).to_output_nodestate()),
     }
 }
@@ -223,7 +225,8 @@ pub fn out_components(
     filter: Option<PyFilterExpr>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::out_components_filtered(&graph.graph, None, f).map(|result| Ok(result.to_output_nodestate())),
+        Some(f) => components::out_components_filtered(&graph.graph, None, f)
+            .map(|result| result.to_output_nodestate()),
         None => Ok(components::out_components(&graph.graph, None).to_output_nodestate()),
     }
 }
@@ -243,7 +246,8 @@ pub fn out_component(
     filter: Option<PyFilterExpr>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::out_component_filtered(node.node.clone(), f).map(|result| Ok(result.to_output_nodestate())),
+        Some(f) => components::out_component_filtered(node.node.clone(), f)
+            .map(|result| result.to_output_nodestate()),
         None => Ok(components::out_component(node.node.clone()).to_output_nodestate()),
     }
 }

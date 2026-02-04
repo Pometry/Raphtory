@@ -96,6 +96,50 @@ where
 }
 
 impl<
+        'a,
+        'graph: 'a,
+        O: NodeOp + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        F: NodeFilterOp + Clone + 'graph,
+    > PartialEq<NodeState<'graph, O::Output, GH>> for LazyNodeState<'graph, O, G, GH, F>
+where
+    O::Output: PartialEq,
+{
+    fn eq(&self, other: &NodeState<'graph, O::Output, GH>) -> bool {
+        self.len() == other.len()
+            && self.par_iter().all(|(node, value)| {
+                other
+                    .get_by_node(node)
+                    .map(|v| *v == value)
+                    .unwrap_or(false)
+            })
+    }
+}
+
+impl<
+        'a,
+        'graph: 'a,
+        O: NodeOp + 'graph,
+        G: GraphViewOps<'graph>,
+        GH: GraphViewOps<'graph>,
+        F: NodeFilterOp + Clone + 'graph,
+    > PartialEq<LazyNodeState<'graph, O, G, GH, F>> for NodeState<'graph, O::Output, GH>
+where
+    O::Output: PartialEq,
+{
+    fn eq(&self, other: &LazyNodeState<'graph, O, G, GH, F>) -> bool {
+        self.len() == other.len()
+            && self.par_iter().all(|(node, value)| {
+                other
+                    .get_by_node(node)
+                    .map(|v| v == *value)
+                    .unwrap_or(false)
+            })
+    }
+}
+
+impl<
         'graph,
         O: NodeOp + 'graph,
         G: GraphViewOps<'graph>,
