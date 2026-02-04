@@ -34,7 +34,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{EdgeFilter, GraphViewOps},
+    prelude::GraphViewOps,
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};

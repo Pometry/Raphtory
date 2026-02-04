@@ -24,7 +24,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{entities::EID, storage::timeindex::AsTime};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 use tantivy::{
     collector::Collector, query::Query, schema::Value, DocAddress, Document, IndexReader, Score,
     Searcher, TantivyDocument,

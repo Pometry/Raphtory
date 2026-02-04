@@ -10,7 +10,6 @@ use crate::{
                     is_deleted_filter::IsDeletedEdge,
                     is_self_loop_filter::IsSelfLoopEdge,
                     is_valid_filter::IsValidEdge,
-                    layered_filter::Layered,
                     node_filter::builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
@@ -27,7 +26,7 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::{EdgeFilter, GraphViewOps, TimeOps},
+    prelude::{GraphViewOps, TimeOps},
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display};

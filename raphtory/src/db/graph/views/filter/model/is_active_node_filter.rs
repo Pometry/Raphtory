@@ -1,9 +1,6 @@
 use crate::{
     db::{
-        api::state::{
-            ops,
-            ops::{GraphView, HistoryOp, NodeOp},
-        },
+        api::state::ops::{GraphView, HistoryOp, Map, NodeOp},
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, ComposableFilter, CompositeExplodedEdgeFilter,
@@ -16,7 +13,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use std::{fmt, sync::Arc};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IsActiveNode;
@@ -35,7 +32,7 @@ impl CreateFilter for IsActiveNode {
         G: GraphViewOps<'graph>;
 
     type NodeFilter<'graph, G>
-        = Arc<dyn NodeOp<Output = bool> + 'graph>
+        = Map<HistoryOp<'graph, G>, bool>
     where
         Self: 'graph,
         G: GraphView + 'graph;
@@ -58,8 +55,8 @@ impl CreateFilter for IsActiveNode {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let op = HistoryOp::new(graph).map(|h| !h.is_empty());
-        Ok(Arc::new(op))
+        let op: Map<HistoryOp<G>, bool> = HistoryOp::new(graph).map(|h| !h.is_empty());
+        Ok(op)
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(

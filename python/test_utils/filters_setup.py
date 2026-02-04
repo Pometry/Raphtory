@@ -229,8 +229,6 @@ def init_graph3(graph):
 
 
 def init_graph4(graph):
-    graph = PersistentGraph()
-
     nodes = [
         (
             1,

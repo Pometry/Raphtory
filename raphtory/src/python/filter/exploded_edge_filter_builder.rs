@@ -8,8 +8,7 @@ use crate::{
         filter::{
             filter_expr::PyFilterExpr,
             property_filter_builders::{
-                PyEdgeViewPropsFilterBuilder, PyNodeViewPropsFilterBuilder, PyPropertyExprBuilder,
-                PyPropertyFilterBuilder,
+                PyEdgeViewPropsFilterBuilder, PyPropertyExprBuilder, PyPropertyFilterBuilder,
             },
         },
         types::iterable::FromIterable,

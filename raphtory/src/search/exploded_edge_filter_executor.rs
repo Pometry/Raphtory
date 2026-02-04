@@ -5,7 +5,6 @@ use crate::{
             edge::EdgeView,
             views::filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter,
                     exploded_edge_filter::{CompositeExplodedEdgeFilter, ExplodedEdgeFilter},
                     property_filter::PropertyRef,
                 },
@@ -20,7 +19,7 @@ use crate::{
             exploded_edge_property_filter_collector::ExplodedEdgePropertyFilterCollector,
             unique_entity_filter_collector::UniqueEntityFilterCollector,
         },
-        fallback_filter_edges, fallback_filter_exploded_edges, fields, get_reader,
+        fallback_filter_exploded_edges, fields, get_reader,
         graph_index::Index,
         property_index::PropertyIndex,
         query_builder::QueryBuilder,
@@ -32,7 +31,7 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
-use std::{collections::HashSet, ops::Deref, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 use tantivy::{collector::Collector, query::Query, IndexReader};
 
 #[derive(Clone, Copy)]

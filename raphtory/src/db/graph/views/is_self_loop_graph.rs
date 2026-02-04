@@ -1,16 +1,12 @@
 use crate::{
-    db::{
-        api::{
-            properties::internal::InheritPropertiesOps,
-            view::internal::{
-                EdgeTimeSemanticsOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-                InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritLayerOps,
-                InheritListOps, InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter,
-                InheritStorageOps, InheritTimeSemantics, InternalEdgeFilterOps,
-                InternalEdgeLayerFilterOps, Static,
-            },
+    db::api::{
+        properties::internal::InheritPropertiesOps,
+        view::internal::{
+            Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
+            InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
+            InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalEdgeFilterOps, Static,
         },
-        graph::views::layer_graph::LayeredGraph,
     },
     prelude::GraphViewOps,
 };

@@ -10,7 +10,6 @@ use crate::{
                     is_deleted_filter::IsDeletedEdge,
                     is_self_loop_filter::IsSelfLoopEdge,
                     is_valid_filter::IsValidEdge,
-                    layered_filter::Layered,
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     windowed_filter::Windowed,
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,

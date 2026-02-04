@@ -1,9 +1,6 @@
 use crate::{
     db::{
-        api::{
-            state::ops::{filter::NodeExistsOp, GraphView},
-            view::BoxableGraphView,
-        },
+        api::state::ops::{filter::NodeExistsOp, GraphView},
         graph::views::{
             filter::{
                 model::{
@@ -18,7 +15,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use std::{fmt, sync::Arc};
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IsSelfLoopEdge;

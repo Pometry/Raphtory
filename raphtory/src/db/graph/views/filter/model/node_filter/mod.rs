@@ -413,7 +413,7 @@ impl CreateFilter for CompositeNodeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_node_filter(dyn_graph)
             }
-            CompositeNodeFilter::IsActiveNode(i) => i.create_node_filter(graph),
+            CompositeNodeFilter::IsActiveNode(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
             CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
                 left: l.clone().create_node_filter(graph.clone())?,
                 right: r.clone().create_node_filter(graph.clone())?,

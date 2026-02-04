@@ -114,7 +114,8 @@ def test_edges_chained_selection_with_edge_filter(graph):
     run_graphql_test(query, expected_output, graph)
 
 
-PERSISTENT_GRAPH = init_graph4("dummy_graph")
+EVENT_GRAPH = init_graph4(Graph())
+PERSISTENT_GRAPH = init_graph4(PersistentGraph())
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])

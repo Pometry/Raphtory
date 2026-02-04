@@ -10,12 +10,10 @@ use crate::{
                     is_deleted_filter::IsDeletedEdge,
                     is_self_loop_filter::IsSelfLoopEdge,
                     is_valid_filter::IsValidEdge,
-                    latest_filter::Latest,
                     node_filter::builders::{
                         InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
                     },
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
-                    snapshot_filter::SnapshotLatest,
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
                     CompositeNodeFilter, EdgeViewFilterOps, InternalPropertyFilterBuilder,
                     InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, Op,
