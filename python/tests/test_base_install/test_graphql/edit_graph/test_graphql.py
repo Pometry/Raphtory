@@ -839,6 +839,46 @@ def test_graph_persistence_across_restarts():
             }
         }
 
+def test_reproduce_float_changes_on_roundtrip():
+    tmp_work_dir = tempfile.mkdtemp()
+    float_examples = [
+        -1.5186248156922167e+66,
+        -1.7177476606208664e+199,
+        -1.048551606005279e+71,
+    ]
+    prop_key = "p"
+
+    with GraphServer(tmp_work_dir).start(port=1738):
+        client = RaphtoryClient("http://localhost:1738")
+        client.new_graph(path="g", graph_type="EVENT")
+        remote_graph = client.remote_graph(path="g")
+
+        for i, num in enumerate(float_examples):
+            remote_graph.add_node(timestamp=i, id=i, properties={prop_key: num})
+            query = f"""
+                query {{
+                  graph(path: "g") {{
+                    node(name: "{i}") {{
+                      at(time: {i}) {{
+                        properties {{
+                          get(key: "p") {{
+                            value
+                          }}
+                        }}
+                      }}
+                    }}
+                  }}
+                }}
+            """
+            resp = client.query(query)
+            retrieved_float = resp["graph"]["node"]["at"]["properties"]["get"]["value"]
+            if retrieved_float != num:
+                print("Value of float changed after roundtrip from GraphQL server")
+                print(f"Old value: {num}")
+                print(f"New value: {retrieved_float}\n")
+            else:
+                print("Success: Float did not change value")
+
 
 # def test_disk_graph_name():
 #     import pandas as pd
