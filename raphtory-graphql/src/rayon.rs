@@ -37,12 +37,9 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 #[cfg(test)]
 mod deadlock_tests {
-    use std::{
-        sync::Arc,
-        time::Duration,
-    };
     use parking_lot::Mutex;
     use reqwest::{Client, StatusCode};
+    use std::{sync::Arc, time::Duration};
     use tempfile::TempDir;
 
     use crate::{
