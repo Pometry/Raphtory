@@ -1,3 +1,4 @@
+use crate::db::graph::edge::EdgeView;
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
@@ -57,7 +58,7 @@ impl PartialOrd for State {
 ///
 /// Returns a `HashMap` where the key is the target node and the value is a tuple containing
 /// the total cost and a vector of nodes representing the shortest path.
-///
+
 pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
     g: &G,
     source: T,
@@ -65,17 +66,6 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     weight: Option<&str>,
     direction: Direction,
 ) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
-    let source_ref = source.as_node_ref();
-    let source_node = match g.node(source_ref) {
-        Some(src) => src,
-        None => {
-            let gid = match source_ref {
-                NodeRef::Internal(vid) => g.node_id(vid),
-                NodeRef::External(gid) => gid.to_owned(),
-            };
-            return Err(GraphError::NodeMissingError(gid));
-        }
-    };
     let mut weight_type = PropType::U8;
     if let Some(weight) = weight {
         if let Some((_, dtype)) = g.edge_meta().get_prop_id_and_type(weight, false) {
@@ -84,14 +74,6 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             return Err(GraphError::PropertyMissingError(weight.to_string()));
         }
     }
-
-    let mut target_nodes = vec![false; g.unfiltered_num_nodes()];
-    for target in targets {
-        if let Some(target_node) = g.node(target) {
-            target_nodes[target_node.node.index()] = true;
-        }
-    }
-
     // Turn below into a generic function, then add a closure to ensure the prop is correctly unwrapped
     // after the calc is done
     let cost_val = match weight_type {
@@ -124,7 +106,56 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             })
         }
     };
+    let weight_fn = |edge: EdgeView<G>| -> Option<Prop> {
+        let edge_val = match weight{
+            None => Some(Prop::U8(1)),
+            Some(weight) => match edge.properties().get(weight) {
+                Some(prop) => Some(prop),
+                _ => None
+            }
+         };
+         edge_val
+    };
+    let targets_len = targets.len();
+    dijkstra_single_source_shortest_paths_algorithm(g, source, Some(targets), direction, targets_len, cost_val, max_val, weight_fn)
+}
+
+pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(EdgeView<G>) -> Option<Prop>>(
+    g: &G,
+    source: T,
+    targets: Option<Vec<T>>,
+    direction: Direction,
+    k: usize,
+    cost_val: Prop,
+    max_val: Prop,
+    weight_fn: F
+) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
+    let mut k = k;
+    let source_ref = source.as_node_ref();
+    let source_node = match g.node(source_ref) {
+        Some(src) => src,
+        None => {
+            let gid = match source_ref {
+                NodeRef::Internal(vid) => g.node_id(vid),
+                NodeRef::External(gid) => gid.to_owned(),
+            };
+            return Err(GraphError::NodeMissingError(gid));
+        }
+    };
+    let target_nodes = if let Some(targets) = targets {
+        let mut target_nodes = vec![false; g.unfiltered_num_nodes()];
+        for target in targets {
+            if let Some(target_node) = g.node(target) {
+                target_nodes[target_node.node.index()] = true;
+            }
+        }
+        target_nodes
+    } else {
+        vec![true; g.unfiltered_num_nodes()]
+    };
+
     let mut heap = BinaryHeap::new();
+
     heap.push(State {
         cost: cost_val.clone(),
         node: source_node.node,
@@ -152,6 +183,10 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             }
             path.reverse();
             paths.insert(node_vid, (cost.as_f64().unwrap(), path));
+            k -= 1;
+            if k == 0 {
+                break;
+            }
         }
         if !visited.insert(node_vid) {
             continue;
@@ -167,14 +202,11 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         for edge in edges {
             let next_node_vid = edge.nbr().node;
 
-            let edge_val = match weight {
-                None => Prop::U8(1),
-                Some(weight) => match edge.properties().get(weight) {
-                    Some(prop) => prop,
-                    _ => continue,
-                },
+            let edge_val = if let Some(w) = weight_fn(edge) {
+                w
+            } else {
+                continue;
             };
-
             let next_cost = cost.clone().add(edge_val).unwrap();
             if next_cost < *dist.entry(next_node_vid).or_insert(max_val.clone()) {
                 heap.push(State {
