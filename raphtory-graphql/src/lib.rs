@@ -19,7 +19,7 @@ pub mod rayon;
 #[cfg(test)]
 mod graphql_test {
     use crate::{
-        config::app_config::AppConfig,
+        config::app_config::{AppConfig, AppConfigBuilder},
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         url_encode::{url_decode_graph, url_encode_graph},
