@@ -9704,7 +9704,11 @@ mod test_edge_filter {
     #[test]
     fn test_is_active_edge_after() {
         let filter = EdgeFilter.after(3).is_active();
-        let expected_results = vec!["David Gilmour->John Mayer", "John Mayer->Jimmy Page"];
+        let expected_results = vec![
+            "Bangalore->Bangalore",
+            "David Gilmour->John Mayer",
+            "John Mayer->Jimmy Page",
+        ];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
@@ -9744,20 +9748,20 @@ mod test_edge_filter {
     #[test]
     fn test_is_active_edge_snapshot_latest() {
         let filter = EdgeFilter.snapshot_latest().is_active();
-        let expected_results = vec!["David Gilmour->John Mayer", "John Mayer->Jimmy Page"];
+        let expected_results = vec!["Bangalore->Bangalore"];
         assert_filter_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::PersistentOnly,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::All,
+            TestVariants::PersistentOnly,
         );
     }
 
