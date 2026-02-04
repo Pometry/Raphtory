@@ -1,4 +1,5 @@
 use crate::db::graph::edge::EdgeView;
+use crate::db::graph::node::NodeView;
 /// Bellman-Ford algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
@@ -163,34 +164,26 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
         }
     } 
 
-    for target in targets.into_iter() {
-        let target_ref = target.as_node_ref();
-        let target_node = match g.node(target_ref) {
-            Some(tgt) => tgt,
-            None => {
-                let gid = match target_ref {
-                    NodeRef::Internal(vid) => g.node_id(vid),
-                    NodeRef::External(gid) => gid.to_owned(),
-                };
-                return Err(GraphError::NodeMissingError(gid));
-            }
-        };
-        let mut path = IndexSet::default();
-        path.insert(target_node.node);
-        let mut current_node_id = target_node.node;
-        while let Some(prev_node) = predecessor.get(&current_node_id) {
-            if *prev_node == current_node_id {
-                break;
-            }
-            path.insert(*prev_node);
-            current_node_id = *prev_node;
+    if  let Some(targets) = Some(targets) { 
+        for target in targets.into_iter() {
+            let target_ref = target.as_node_ref();
+            let target_node = match g.node(target_ref) {
+                Some(tgt) => tgt,
+                None => {
+                    let gid = match target_ref {
+                        NodeRef::Internal(vid) => g.node_id(vid),
+                        NodeRef::External(gid) => gid.to_owned(),
+                    };
+                    return Err(GraphError::NodeMissingError(gid));
+                }
+            };
+            add_to_shortest_paths(&target_node, &mut shortest_paths, &dist, &predecessor); 
+        } 
+    } else {
+        for node in g.nodes() {
+            add_to_shortest_paths(&node, &mut shortest_paths, &dist, &predecessor);
         }
-        path.reverse();
-        shortest_paths.insert(
-            target_node.node,
-            (dist.get(&target_node.node).unwrap().as_f64().unwrap(), path),
-        );
-    } 
+    };
 
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = shortest_paths
         .into_iter()
@@ -206,4 +199,22 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
         values.into(),
         Some(Index::new(index)),
     ))
+}
+
+fn add_to_shortest_paths<G: StaticGraphViewOps>(target_node: &NodeView<G>, shortest_paths: &mut HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)>, dist: &HashMap<VID, Prop>, predecessor: &HashMap<VID, VID>) {
+    let mut path = IndexSet::default();
+    path.insert(target_node.node);
+    let mut current_node_id = target_node.node;
+    while let Some(prev_node) = predecessor.get(&current_node_id) {
+        if *prev_node == current_node_id {
+            break;
+        }
+        path.insert(*prev_node);
+        current_node_id = *prev_node;
+    }
+    path.reverse();
+    shortest_paths.insert(
+        target_node.node,
+        (dist.get(&target_node.node).unwrap().as_f64().unwrap(), path),
+    );
 }
