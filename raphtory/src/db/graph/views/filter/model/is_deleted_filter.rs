@@ -31,7 +31,7 @@ impl fmt::Display for IsDeletedEdge {
 
 impl CreateFilter for IsDeletedEdge {
     type EntityFiltered<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = IsDeletedGraph<G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -52,7 +52,7 @@ impl CreateFilter for IsDeletedEdge {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(Arc::new(IsDeletedGraph::new(graph)))
+        Ok(IsDeletedGraph::new(graph))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(

@@ -31,7 +31,7 @@ impl fmt::Display for IsValidEdge {
 
 impl CreateFilter for IsValidEdge {
     type EntityFiltered<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = ValidGraph<G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -52,7 +52,7 @@ impl CreateFilter for IsValidEdge {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(Arc::new(ValidGraph::new(graph)))
+        Ok(ValidGraph::new(graph))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(

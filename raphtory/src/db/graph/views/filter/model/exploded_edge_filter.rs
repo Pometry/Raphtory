@@ -391,10 +391,10 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 pw.create_filter(dyn_graph)
             }
-            Self::IsActiveEdge(pw) => pw.create_filter(graph),
-            Self::IsValidEdge(pw) => pw.create_filter(graph),
-            Self::IsDeletedEdge(pw) => pw.create_filter(graph),
-            Self::IsSelfLoopEdge(pw) => pw.create_filter(graph),
+            Self::IsActiveEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
+            Self::IsValidEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
+            Self::IsDeletedEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
+            Self::IsSelfLoopEdge(pw) => Ok(Arc::new(pw.create_filter(graph)?)),
             Self::And(l, r) => {
                 let (l, r) = (*l, *r); // move out, no clone
                 Ok(Arc::new(

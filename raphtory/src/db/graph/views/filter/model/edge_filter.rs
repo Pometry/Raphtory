@@ -402,10 +402,10 @@ impl CreateFilter for CompositeEdgeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)
             }
-            CompositeEdgeFilter::IsActiveEdge(i) => i.create_filter(graph),
-            CompositeEdgeFilter::IsValidEdge(i) => i.create_filter(graph),
-            CompositeEdgeFilter::IsDeletedEdge(i) => i.create_filter(graph),
-            CompositeEdgeFilter::IsSelfLoopEdge(i) => i.create_filter(graph),
+            CompositeEdgeFilter::IsActiveEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::IsValidEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::IsDeletedEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::IsSelfLoopEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeEdgeFilter::Layered(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)

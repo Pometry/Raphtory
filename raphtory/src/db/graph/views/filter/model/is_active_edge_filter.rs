@@ -31,7 +31,7 @@ impl fmt::Display for IsActiveEdge {
 
 impl CreateFilter for IsActiveEdge {
     type EntityFiltered<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = IsActiveGraph<G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -52,7 +52,7 @@ impl CreateFilter for IsActiveEdge {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(Arc::new(IsActiveGraph::new(graph)))
+        Ok(IsActiveGraph::new(graph))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(

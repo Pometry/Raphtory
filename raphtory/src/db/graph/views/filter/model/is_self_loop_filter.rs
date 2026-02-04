@@ -31,7 +31,7 @@ impl fmt::Display for IsSelfLoopEdge {
 
 impl CreateFilter for IsSelfLoopEdge {
     type EntityFiltered<'graph, G>
-        = Arc<dyn BoxableGraphView + 'graph>
+        = IsSelfLoopGraph<G>
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -52,7 +52,7 @@ impl CreateFilter for IsSelfLoopEdge {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        Ok(Arc::new(IsSelfLoopGraph::new(graph)))
+        Ok(IsSelfLoopGraph::new(graph))
     }
 
     fn create_node_filter<'graph, G: GraphView + 'graph>(
