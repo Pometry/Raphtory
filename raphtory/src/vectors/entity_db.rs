@@ -1,4 +1,4 @@
-use std::{collections::HashSet, ops::Deref};
+use std::{collections::HashSet, future::Future, ops::Deref, pin::Pin};
 
 use futures_util::StreamExt;
 
@@ -7,8 +7,10 @@ use super::{
     Embedding,
 };
 use crate::{
-    db::api::view::StaticGraphViewOps, errors::GraphResult, prelude::GraphViewOps,
-    vectors::vector_collection::VectorCollection,
+    db::api::view::StaticGraphViewOps,
+    errors::GraphResult,
+    prelude::GraphViewOps,
+    vectors::{vector_collection::VectorCollection, VectorsQuery},
 };
 
 #[derive(Clone)]
@@ -73,7 +75,7 @@ impl<D: VectorCollection + 'static> EntityDb for EdgeDb<D> {
 }
 
 pub(super) trait EntityDb: Sized {
-    type VectorDb: VectorCollection;
+    type VectorDb: VectorCollection + 'static;
     fn get_db(&self) -> &Self::VectorDb;
     fn into_entity_ref(id: u64) -> EntityRef;
     fn view_has_entity<G: StaticGraphViewOps>(entity: &EntityRef, view: &G) -> bool;
@@ -100,30 +102,36 @@ pub(super) trait EntityDb: Sized {
         Ok(())
     }
 
-    async fn top_k<G: StaticGraphViewOps>(
+    fn top_k<G: StaticGraphViewOps>(
         &self,
         query: &Embedding,
         k: usize,
         view: Option<G>,
         filter: Option<HashSet<EntityRef>>,
-    ) -> GraphResult<impl Iterator<Item = (EntityRef, f32)> + Send> {
-        let candidates: Option<Box<dyn Iterator<Item = u64> + Send>> = match (view, filter) {
+    ) -> VectorsQuery<GraphResult<Vec<(EntityRef, f32)>>> {
+        let candidates: Option<Vec<u64>> = match (view, filter) {
             (None, None) => None,
-            (view, Some(filter)) => Some(Box::new(
+            (view, Some(filter)) => Some(
                 filter
                     .into_iter()
                     .filter(move |entity| {
                         view.as_ref()
                             .is_none_or(|view| Self::view_has_entity(entity, view))
                     })
-                    .map(|entity| entity.id()),
-            )),
-            (Some(view), None) => Some(Box::new(Self::all_valid_entities(view))),
+                    .map(|entity| entity.id())
+                    .collect(),
+            ),
+            (Some(view), None) => Some(Self::all_valid_entities(view).collect()),
         };
-        Ok(self
-            .get_db()
-            .top_k_with_distances(query, k, candidates)
-            .await?
-            .map(|(id, distance)| (Self::into_entity_ref(id), distance)))
+
+        let db = self.get_db().clone();
+        let query = query.clone();
+        VectorsQuery::new(Box::pin(async move {
+            Ok(db
+                .top_k_with_distances(&query, k, candidates)
+                .await?
+                .map(|(id, distance)| (Self::into_entity_ref(id), distance))
+                .collect())
+        }))
     }
 }

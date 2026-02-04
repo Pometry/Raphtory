@@ -9,8 +9,9 @@ use either::Either;
 use raphtory_api::core::entities::GID;
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 
+// TODO: try to make private again if possible
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum EntityRef {
+pub enum EntityRef {
     Node(u64),
     Edge(u64),
 }

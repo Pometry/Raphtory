@@ -7,7 +7,7 @@ use crate::db::{
 };
 #[cfg(feature = "python")]
 use crate::python::types::repr::Repr;
-use std::ops::Deref;
+use std::{future::Future, ops::Deref, pin::Pin};
 
 pub mod cache;
 pub mod custom;
@@ -115,6 +115,28 @@ pub struct Document<G: StaticGraphViewOps> {
     pub embedding: Embedding,
 }
 
+pub struct VectorsQuery<T> {
+    future: Pin<Box<dyn Future<Output = T> + Send>>,
+}
+
+impl<T: Send> VectorsQuery<T> {
+    pub fn new(future: Pin<Box<dyn Future<Output = T> + Send>>) -> Self {
+        Self { future }
+    }
+
+    pub async fn execute(self) -> T {
+        self.future.await
+    }
+}
+
+impl<T: Send + 'static> VectorsQuery<T> {
+    pub fn resolved(resolved: T) -> Self {
+        Self {
+            future: Box::pin(async move { resolved }),
+        }
+    }
+}
+
 #[cfg(test)]
 mod vector_tests {
     use crate::{
@@ -124,6 +146,7 @@ mod vector_tests {
             custom::serve_custom_embedding,
             storage::OpenAIEmbeddings,
             template::DocumentTemplate,
+            vector_selection::noop_executor,
             vectorisable::Vectorisable,
         },
     };
@@ -234,10 +257,11 @@ mod vector_tests {
         let embedding = vectors.embed_text("whatever").await.unwrap();
         let mut selection = vectors
             .entities_by_similarity(&embedding, 10, None)
+            .execute()
             .await
             .unwrap();
         selection
-            .expand_entities_by_similarity(&embedding, 10, None)
+            .expand_entities_by_similarity(&embedding, 10, None, noop_executor)
             .await
             .unwrap();
         selection.expand(2, None);
@@ -333,6 +357,7 @@ mod vector_tests {
         let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
+            .execute()
             .await
             .unwrap()
             .get_documents()
@@ -345,6 +370,7 @@ mod vector_tests {
         let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, None)
+            .execute()
             .await
             .unwrap()
             .get_documents()
@@ -357,6 +383,7 @@ mod vector_tests {
         let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .nodes_by_similarity(&embedding, 1, Some((1, 3)))
+            .execute()
             .await
             .unwrap()
             .get_documents()
@@ -368,6 +395,7 @@ mod vector_tests {
         let embedding = vectors.embed_text(query).await.unwrap();
         let docs = vectors
             .edges_by_similarity(&embedding, 1, None)
+            .execute()
             .await
             .unwrap()
             .get_documents()

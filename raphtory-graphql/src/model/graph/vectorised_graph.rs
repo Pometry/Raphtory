@@ -1,3 +1,5 @@
+use crate::rayon::blocking_compute;
+
 use super::vector_selection::GqlVectorSelection;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
@@ -56,10 +58,9 @@ impl GqlVectorisedGraph {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        Ok(cloned
-            .entities_by_similarity(&vector, limit, w)
-            .await?
-            .into())
+        let query =
+            blocking_compute(move || cloned.entities_by_similarity(&vector, limit, w)).await;
+        Ok(query.execute().await?.into())
     }
 
     /// Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
@@ -72,7 +73,8 @@ impl GqlVectorisedGraph {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        Ok(cloned.nodes_by_similarity(&vector, limit, w).await?.into())
+        let query = blocking_compute(move || cloned.nodes_by_similarity(&vector, limit, w)).await;
+        Ok(query.execute().await?.into())
     }
 
     /// Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
@@ -85,6 +87,7 @@ impl GqlVectorisedGraph {
         let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        Ok(cloned.edges_by_similarity(&vector, limit, w).await?.into())
+        let query = blocking_compute(move || cloned.edges_by_similarity(&vector, limit, w)).await;
+        Ok(query.execute().await?.into())
     }
 }

@@ -714,6 +714,7 @@ mod tests {
             .vectors
             .unwrap()
             .nodes_by_similarity(&embedding.into(), limit, None)
+            .execute()
             .await;
 
         assert!(result.is_ok());
@@ -784,6 +785,7 @@ mod tests {
             .vectors
             .unwrap()
             .nodes_by_similarity(&embedding.into(), limit, None)
+            .execute()
             .await;
 
         assert!(result.is_ok());
@@ -859,6 +861,7 @@ mod tests {
             .vectors
             .unwrap()
             .edges_by_similarity(&embedding.into(), limit, None)
+            .execute()
             .await;
 
         assert!(result.is_ok());

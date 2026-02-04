@@ -13,7 +13,7 @@ use crate::{
         template::DocumentTemplate,
         utils::find_top_k,
         vector_collection::{lancedb::LanceDbCollection, VectorCollection},
-        Embedding,
+        Embedding, VectorsQuery,
     },
 };
 
@@ -93,17 +93,22 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub async fn entities_by_similarity(
+    pub fn entities_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> GraphResult<VectorSelection<G>> {
+    ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
         let view = apply_window(&self.source_graph, window);
-        let nodes = self.node_db.top_k(query, limit, view.clone(), None).await?;
-        let edges = self.edge_db.top_k(query, limit, view, None).await?;
-        let docs = find_top_k(nodes.chain(edges), limit).collect();
-        Ok(VectorSelection::new(self.clone(), docs))
+        let node_query = self.node_db.top_k(query, limit, view.clone(), None);
+        let edge_query = self.edge_db.top_k(query, limit, view, None);
+        let cloned = self.clone();
+        VectorsQuery::new(Box::pin(async move {
+            let nodes = node_query.execute().await?;
+            let edges = edge_query.execute().await?;
+            let docs = find_top_k(nodes.into_iter().chain(edges), limit).collect();
+            Ok(VectorSelection::new(cloned, docs))
+        }))
     }
 
     /// Search the closest nodes to `query` with no more than `limit` nodes
@@ -115,15 +120,19 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub async fn nodes_by_similarity(
+    pub fn nodes_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> GraphResult<VectorSelection<G>> {
+    ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.node_db.top_k(query, limit, view, None).await?;
-        Ok(VectorSelection::new(self.clone(), docs.collect()))
+        let query = self.node_db.top_k(query, limit, view, None);
+        let cloned = self.clone();
+        VectorsQuery::new(Box::pin(async move {
+            let docs = query.execute().await?;
+            Ok(VectorSelection::new(cloned, docs))
+        }))
     }
 
     /// Search the closest edges to `query` with no more than `limit` edges
@@ -135,15 +144,19 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     ///
     /// # Returns
     ///   The vector selection resulting from the search
-    pub async fn edges_by_similarity(
+    pub fn edges_by_similarity(
         &self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> GraphResult<VectorSelection<G>> {
+    ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
         let view = apply_window(&self.source_graph, window);
-        let docs = self.edge_db.top_k(query, limit, view, None).await?;
-        Ok(VectorSelection::new(self.clone(), docs.collect()))
+        let query = self.edge_db.top_k(query, limit, view, None);
+        let cloned = self.clone();
+        VectorsQuery::new(Box::pin(async move {
+            let docs = query.execute().await?;
+            Ok(VectorSelection::new(cloned, docs))
+        }))
     }
 
     /// Returns the embedding for the given text using the embedding model setup for this graph

@@ -10,7 +10,7 @@ use crate::{
         custom::{serve_custom_embedding, EmbeddingFunction, EmbeddingServer},
         storage::OpenAIEmbeddings,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
-        vector_selection::DynamicVectorSelection,
+        vector_selection::{noop_executor, DynamicVectorSelection},
         vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
         Document, DocumentEntity, Embedding,
@@ -376,7 +376,11 @@ impl PyVectorisedGraph {
     ) -> PyResult<DynamicVectorSelection> {
         let embedding = query.into_embedding(&self.0)?;
         let w = translate_window(window);
-        let s = block_on(self.0.entities_by_similarity(&embedding, limit, w))?;
+        let s = block_on(
+            self.0
+                .entities_by_similarity(&embedding, limit, w)
+                .execute(),
+        )?;
         Ok(s)
     }
 
@@ -398,7 +402,9 @@ impl PyVectorisedGraph {
     ) -> PyResult<DynamicVectorSelection> {
         let embedding = query.into_embedding(&self.0)?;
         let w = translate_window(window);
-        Ok(block_on(self.0.nodes_by_similarity(&embedding, limit, w))?)
+        Ok(block_on(
+            self.0.nodes_by_similarity(&embedding, limit, w).execute(),
+        )?)
     }
 
     /// Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked in ascending order of distance.
@@ -419,7 +425,9 @@ impl PyVectorisedGraph {
     ) -> PyResult<DynamicVectorSelection> {
         let embedding = query.into_embedding(&self.0)?;
         let w = translate_window(window);
-        Ok(block_on(self.0.edges_by_similarity(&embedding, limit, w))?)
+        Ok(block_on(
+            self.0.edges_by_similarity(&embedding, limit, w).execute(),
+        )?)
     }
 }
 
@@ -552,7 +560,10 @@ impl PyVectorSelection {
     ) -> PyResult<()> {
         let embedding = query.into_embedding(&slf.0.graph)?;
         let w = translate_window(window);
-        block_on(slf.0.expand_entities_by_similarity(&embedding, limit, w))?;
+        block_on(
+            slf.0
+                .expand_entities_by_similarity(&embedding, limit, w, noop_executor),
+        )?;
 
         Ok(())
     }
@@ -577,7 +588,10 @@ impl PyVectorSelection {
     ) -> PyResult<()> {
         let embedding = query.into_embedding(&slf.0.graph)?;
         let w = translate_window(window);
-        block_on(slf.0.expand_nodes_by_similarity(&embedding, limit, w))?;
+        block_on(
+            slf.0
+                .expand_nodes_by_similarity(&embedding, limit, w, noop_executor),
+        )?;
         Ok(())
     }
 
@@ -601,7 +615,10 @@ impl PyVectorSelection {
     ) -> PyResult<()> {
         let embedding = query.into_embedding(&slf.0.graph)?;
         let w = translate_window(window);
-        block_on(slf.0.expand_edges_by_similarity(&embedding, limit, w))?;
+        block_on(
+            slf.0
+                .expand_edges_by_similarity(&embedding, limit, w, noop_executor),
+        )?;
         Ok(())
     }
 }

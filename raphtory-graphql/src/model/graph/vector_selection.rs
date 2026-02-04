@@ -99,7 +99,7 @@ impl GqlVectorSelection {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         selection
-            .expand_entities_by_similarity(&vector, limit, window)
+            .expand_entities_by_similarity(&vector, limit, window, blocking_compute)
             .await?;
         Ok(selection.into())
     }
@@ -115,7 +115,7 @@ impl GqlVectorSelection {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         selection
-            .expand_nodes_by_similarity(&vector, limit, window)
+            .expand_nodes_by_similarity(&vector, limit, window, blocking_compute)
             .await?;
         Ok(selection.into())
     }
@@ -131,7 +131,7 @@ impl GqlVectorSelection {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         selection
-            .expand_edges_by_similarity(&vector, limit, window)
+            .expand_edges_by_similarity(&vector, limit, window, blocking_compute)
             .await?;
         Ok(selection.into())
     }
