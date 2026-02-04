@@ -127,7 +127,7 @@ where
     Ok(())
 }
 
-pub(crate) async fn cli() -> IoResult<()> {
+pub async fn cli() -> IoResult<()> {
     cli_with_args(std::env::args_os()).await
 }
 
