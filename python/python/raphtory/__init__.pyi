@@ -917,6 +917,31 @@ class Graph(GraphView):
             GraphError: If the operation fails.
         """
 
+    def delete_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        layer: Optional[str],
+        event_id: Optional[int],
+    ) -> MutableEdge:
+        """
+        Deletes an edge given the timestamp, src and dst nodes and layer (optional).
+
+        Arguments:
+          timestamp (int): The timestamp of the edge.
+          src (str | int): The id of the source node.
+          dst (str | int): The id of the destination node.
+          layer (str, optional): The layer of the edge.
+          event_id (int, optional): The optional integer which will be used as an event id.
+
+        Returns:
+          MutableEdge: The deleted edge
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
     @staticmethod
     def deserialise(bytes: bytes) -> Graph:
         """
