@@ -1033,3 +1033,41 @@ def test_edges_snapshot_latest_temporal_last(graph):
         }
     }
     run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH])
+def test_edges_graph_filter_gql(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        filter(expr:  {
+           window: {
+              start: 1
+              end: 4
+              expr:  {
+                 layers:  {
+                    names: ["fire_nation"]
+                 }
+              }
+            }
+        }) 
+        {
+          nodes {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {
+            "filter": {
+                "nodes": {
+                    "list": [{"name": "1"}, {"name": "2"}, {"name": "3"}, {"name": "4"}]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)

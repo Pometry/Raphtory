@@ -6,9 +6,10 @@ use crate::{
                 builders::{MetadataFilterBuilder, PropertyExprBuilder, PropertyFilterBuilder},
                 ops::{ElemQualifierOps, ListAggOps, PropertyFilterOps},
             },
-            DynInternalViewWrapOps, DynPropertyFilterBuilder, DynTemporalPropertyFilterBuilder,
-            EntityMarker, InternalPropertyFilterBuilder, PropertyFilterFactory,
-            TemporalPropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+            DynEdgeViewFilterOps, DynEdgeViewProps, DynNodeViewProps, DynPropertyFilterBuilder,
+            DynTemporalPropertyFilterBuilder, DynView, EntityMarker, InternalPropertyFilterBuilder,
+            PropertyFilterFactory, TemporalPropertyFilterFactory, TryAsCompositeFilter,
+            ViewWrapOps,
         },
         CreateFilter,
     },
@@ -361,28 +362,13 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
 #[pyclass(
     name = "ViewFilterBuilder",
     module = "raphtory.filter",
-    subclass,
+    extends = PyFilterExpr,
     frozen
 )]
-pub struct PyViewFilterBuilder(pub(crate) Arc<dyn DynInternalViewWrapOps>);
-
-impl PyViewFilterBuilder {
-    #[allow(dead_code)]
-    pub(crate) fn wrap<T: DynInternalViewWrapOps>(value: T) -> Self {
-        Self(Arc::new(value))
-    }
-}
+pub struct PyViewFilterBuilder(pub(crate) DynView);
 
 #[pymethods]
 impl PyViewFilterBuilder {
-    fn property(&self, name: String) -> PyPropertyFilterBuilder {
-        PyPropertyFilterBuilder(self.0.property(name))
-    }
-
-    fn metadata(&self, name: String) -> PyPropertyExprBuilder {
-        PyPropertyExprBuilder(self.0.metadata(name))
-    }
-
     fn window(&self, start: EventTime, end: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(self.0.clone().window(start, end))
     }
@@ -417,5 +403,144 @@ impl PyViewFilterBuilder {
 
     fn layers(&self, layers: FromIterable<String>) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(self.0.clone().layer(layers)))
+    }
+}
+
+impl<'py> IntoPyObject<'py> for PyViewFilterBuilder {
+    type Target = PyViewFilterBuilder;
+    type Output = Bound<'py, Self::Target>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let parent = PyFilterExpr(self.0.clone());
+        Bound::new(py, (self, parent))
+    }
+}
+
+#[pyclass(
+    name = "NodeViewPropsFilterBuilder",
+    module = "raphtory.filter",
+    frozen
+)]
+pub struct PyNodeViewPropsFilterBuilder(pub(crate) DynNodeViewProps);
+
+#[pymethods]
+impl PyNodeViewPropsFilterBuilder {
+    fn is_active(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_active())
+    }
+
+    fn property(&self, name: String) -> PyPropertyFilterBuilder {
+        PyPropertyFilterBuilder(self.0.property(name))
+    }
+
+    fn metadata(&self, name: String) -> PyPropertyExprBuilder {
+        PyPropertyExprBuilder(self.0.metadata(name))
+    }
+
+    fn window(&self, start: EventTime, end: EventTime) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(self.0.clone().window(start, end))
+    }
+
+    fn at(&self, time: EventTime) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(self.0.clone().at(time))
+    }
+
+    fn after(&self, time: EventTime) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(self.0.clone().after(time))
+    }
+
+    fn before(&self, time: EventTime) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(self.0.clone().before(time))
+    }
+
+    fn latest(&self) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(Arc::new(self.0.clone().latest()))
+    }
+
+    fn snapshot_at(&self, time: EventTime) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(Arc::new(self.0.clone().snapshot_at(time)))
+    }
+
+    fn snapshot_latest(&self) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(Arc::new(self.0.clone().snapshot_latest()))
+    }
+
+    fn layer(&self, layer: String) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(Arc::new(self.0.clone().layer(layer)))
+    }
+
+    fn layers(&self, layers: FromIterable<String>) -> PyNodeViewPropsFilterBuilder {
+        PyNodeViewPropsFilterBuilder(Arc::new(self.0.clone().layer(layers)))
+    }
+}
+
+#[pyclass(
+    name = "EdgeViewPropsFilterBuilder",
+    module = "raphtory.filter",
+    frozen
+)]
+pub struct PyEdgeViewPropsFilterBuilder(pub(crate) DynEdgeViewProps);
+
+#[pymethods]
+impl PyEdgeViewPropsFilterBuilder {
+    fn is_active(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_active())
+    }
+
+    fn is_valid(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_valid())
+    }
+
+    fn is_deleted(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_deleted())
+    }
+
+    fn is_self_loop(&self) -> PyFilterExpr {
+        PyFilterExpr(self.0.dyn_is_self_loop())
+    }
+
+    fn property(&self, name: String) -> PyPropertyFilterBuilder {
+        PyPropertyFilterBuilder(self.0.property(name))
+    }
+
+    fn metadata(&self, name: String) -> PyPropertyExprBuilder {
+        PyPropertyExprBuilder(self.0.metadata(name))
+    }
+
+    fn window(&self, start: EventTime, end: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(self.0.clone().window(start, end))
+    }
+
+    fn at(&self, time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(self.0.clone().at(time))
+    }
+
+    fn after(&self, time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(self.0.clone().after(time))
+    }
+
+    fn before(&self, time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(self.0.clone().before(time))
+    }
+
+    fn latest(&self) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(self.0.clone().latest()))
+    }
+
+    fn snapshot_at(&self, time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(self.0.clone().snapshot_at(time)))
+    }
+
+    fn snapshot_latest(&self) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(self.0.clone().snapshot_latest()))
+    }
+
+    fn layer(&self, layer: String) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(self.0.clone().layer(layer)))
+    }
+
+    fn layers(&self, layers: FromIterable<String>) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(self.0.clone().layer(layers)))
     }
 }

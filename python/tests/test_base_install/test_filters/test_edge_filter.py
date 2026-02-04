@@ -1,5 +1,5 @@
 from raphtory import filter
-from filters_setup import init_graph, init_graph2
+from filters_setup import init_graph, init_graph2, init_graph4
 from utils import with_disk_variants
 import pytest
 
@@ -518,5 +518,98 @@ def test_filter_edges_with_num_ids_error():
             match='Invalid filter: Filter value type does not match node ID type. Expected U64 but got "Str"',
         ):
             graph.filter(filter_expr).nodes.id
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+def test_filter_edges_is_active():
+    def check(graph):
+        filter_expr = filter.Edge.is_active()
+        result_ids = sorted(graph.window(1, 4).filter(filter_expr).edges.id)
+        expected_ids = sorted(
+            [("1", "2"), ("2", "1"), ("2", "3"), ("3", "1"), ("3", "4")]
+        )
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+def test_filter_edges_windowed_is_active():
+    def check(graph):
+        filter_expr = filter.Edge.window(1, 4).is_active()
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted(
+            [("1", "2"), ("2", "1"), ("2", "3"), ("3", "1"), ("3", "4")]
+        )
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["persistent_graph"])
+def test_filter_edges_snapshot_at_is_active():
+    def check(graph):
+        filter_expr = filter.Edge.snapshot_at(4).is_active()
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted(
+            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")]
+        )
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph, variants=["persistent_graph"])
+def test_filter_edges_is_valid():
+    def check(graph):
+        filter_expr = filter.Edge.is_valid()
+        result_ids = sorted(graph.after(2).filter(filter_expr).edges.id)
+        expected_ids = sorted(
+            [
+                ("1", "2"),
+                ("2", "1"),
+                ("2", "3"),
+                ("3", "1"),
+                ("3", "4"),
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ]
+        )
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph4, variants=["graph", "persistent_graph"])
+def test_filter_edges_is_deleted():
+    def check(graph):
+        filter_expr = filter.Edge.is_deleted()
+        result_ids = sorted(graph.after(2).filter(filter_expr).edges.id)
+        expected_ids = sorted([(3, 4)])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph4, variants=["graph", "persistent_graph"])
+def test_filter_edges_is_self_loop_persistent():
+    def check(graph):
+        filter_expr = filter.Edge.is_self_loop()
+        result_ids = sorted(graph.window(1, 6).filter(filter_expr).edges.id)
+        expected_ids = sorted([(6, 6)])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph4, variants=["graph", "persistent_graph"])
+def test_filter_edges_is_self_loop_wp():
+    def check(graph):
+        filter_expr = filter.Edge.is_self_loop()
+        result_ids = sorted(graph.filter(filter_expr).edges.id)
+        expected_ids = sorted([(6, 6)])
+        assert result_ids == expected_ids
 
     return check

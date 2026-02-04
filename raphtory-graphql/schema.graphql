@@ -397,6 +397,22 @@ input EdgeFilter @oneOf {
 	snapshotAt: EdgeTimeExpr
 	snapshotLatest: EdgeUnaryExpr
 	layers: EdgeLayersExpr
+	"""
+	Edge is active in the current view/window.
+	"""
+	isActive: Boolean
+	"""
+	Edge is valid (undeleted) in the current view/window.
+	"""
+	isValid: Boolean
+	"""
+	Edge is deleted in the current view/window.
+	"""
+	isDeleted: Boolean
+	"""
+	Edge is a self-loop in the current view/window.
+	"""
+	isSelfLoop: Boolean
 }
 
 input EdgeLayersExpr {
@@ -989,6 +1005,7 @@ type Graph {
 	Export all nodes and edges from this graph view to another existing graph
 	"""
 	exportTo(path: String!): Boolean!
+	filter(expr: GraphFilter): Graph!
 	filterNodes(expr: NodeFilter!): Graph!
 	filterEdges(expr: EdgeFilter!): Graph!
 	"""
@@ -1019,9 +1036,30 @@ type GraphAlgorithmPlugin {
 	shortest_path(source: String!, targets: [String!]!, direction: String): [ShortestPathOutput!]!
 }
 
+input GraphFilter @oneOf {
+	window: GraphWindowExpr
+	at: GraphTimeExpr
+	before: GraphTimeExpr
+	after: GraphTimeExpr
+	latest: GraphUnaryExpr
+	snapshotAt: GraphTimeExpr
+	snapshotLatest: GraphUnaryExpr
+	layers: GraphLayersExpr
+}
+
+input GraphLayersExpr {
+	names: [String!]!
+	expr: GraphFilter
+}
+
 type GraphSchema {
 	nodes: [NodeSchema!]!
 	layers: [LayerSchema!]!
+}
+
+input GraphTimeExpr {
+	time: TimeInput!
+	expr: GraphFilter
 }
 
 enum GraphType {
@@ -1033,6 +1071,10 @@ enum GraphType {
 	Event.
 	"""
 	EVENT
+}
+
+input GraphUnaryExpr {
+	expr: GraphFilter
 }
 
 input GraphViewCollection @oneOf {
@@ -1116,6 +1158,12 @@ input GraphViewCollection @oneOf {
 	Edge filter.
 	"""
 	edgeFilter: EdgeFilter
+}
+
+input GraphWindowExpr {
+	start: TimeInput!
+	end: TimeInput!
+	expr: GraphFilter
 }
 
 type GraphWindowSet {
@@ -1920,6 +1968,10 @@ input NodeFilter @oneOf {
 	snapshotAt: NodeTimeExpr
 	snapshotLatest: NodeUnaryExpr
 	layers: NodeLayersExpr
+	"""
+	Node is active in the current view/window.
+	"""
+	isActive: Boolean
 }
 
 input NodeLayersExpr {

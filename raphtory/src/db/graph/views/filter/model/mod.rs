@@ -3,12 +3,18 @@ use crate::db::{
     api::{state::NodeOp, view::BoxableGraphView},
     graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter,
+        is_active_edge_filter::IsActiveEdge,
+        is_active_node_filter::IsActiveNode,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
         latest_filter::Latest,
         layered_filter::Layered,
         property_filter::{
             builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
         },
         snapshot_filter::{SnapshotAt, SnapshotLatest},
+        windowed_filter::Windowed,
     },
 };
 pub use crate::{
@@ -48,6 +54,12 @@ pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
 pub mod filter_operator;
+pub mod graph_filter;
+pub mod is_active_edge_filter;
+pub mod is_active_node_filter;
+pub mod is_deleted_filter;
+pub mod is_self_loop_filter;
+pub mod is_valid_filter;
 pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_filter;
@@ -427,9 +439,7 @@ pub trait CombinedFilter: CreateFilter + TryAsCompositeFilter + Clone + 'static 
 impl<T: CreateFilter + TryAsCompositeFilter + Clone + 'static> CombinedFilter for T {}
 
 // This is implemented to avoid infinite recursive windowing.
-pub trait InternalViewWrapOps:
-    InternalPropertyFilterFactory + Send + Sync + Clone + 'static
-{
+pub trait InternalViewWrapOps: Send + Sync + Clone + 'static {
     type Window: InternalViewWrapOps;
 
     fn bounds(&self) -> (EventTime, EventTime) {
@@ -439,7 +449,7 @@ pub trait InternalViewWrapOps:
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window;
 }
 
-pub trait DynInternalViewWrapOps: DynPropertyFilterFactory {
+pub trait DynInternalViewWrapOps: Send + Sync + 'static {
     fn dyn_bounds(&self) -> (EventTime, EventTime);
 
     fn dyn_build_window(&self, start: EventTime, end: EventTime)
@@ -463,26 +473,12 @@ impl<T: InternalViewWrapOps> DynInternalViewWrapOps for T {
 impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapOps> {
     type Window = Arc<dyn DynInternalViewWrapOps>;
 
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         self.deref().dyn_build_window(start, end)
-    }
-}
-
-impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapOps> {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
     }
 }
 
@@ -537,3 +533,207 @@ pub trait ViewWrapOps: InternalViewWrapOps + Sized {
 }
 
 impl<T: InternalViewWrapOps + Sized> ViewWrapOps for T {}
+
+pub trait ViewWrapPropOps: InternalViewWrapOps + InternalPropertyFilterFactory + Sized {}
+
+impl<T> ViewWrapPropOps for T where T: InternalViewWrapOps + InternalPropertyFilterFactory + Sized {}
+
+pub trait DynInternalViewWrapPropOps: DynInternalViewWrapOps + DynPropertyFilterFactory {}
+
+impl<T> DynInternalViewWrapPropOps for T where T: DynInternalViewWrapOps + DynPropertyFilterFactory {}
+
+impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapPropOps> {
+    type Entity = EntityMarker;
+    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
+    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.deref().dyn_entity()
+    }
+
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.deref().dyn_property_builder(property)
+    }
+
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.deref().dyn_metadata_builder(property)
+    }
+}
+
+impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapPropOps> {
+    type Window = Arc<dyn DynInternalViewWrapPropOps>;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Arc::new(Windowed::new(start, end, self))
+    }
+}
+
+pub trait DynViewFilter: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static {}
+impl<T> DynViewFilter for T where T: DynInternalViewWrapOps + DynCreateFilter + Send + Sync + 'static
+{}
+
+pub type DynView = Arc<dyn DynViewFilter>;
+
+impl InternalViewWrapOps for DynView {
+    type Window = DynView;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Arc::new(Windowed::new(start, end, self))
+    }
+}
+
+pub trait NodeViewFilterOps: ViewWrapOps {
+    type Output<T: CombinedFilter>: CombinedFilter;
+
+    fn is_active(&self) -> Self::Output<IsActiveNode>;
+}
+
+pub trait DynNodeViewFilterOps: DynInternalViewWrapPropOps {
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
+}
+
+impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps> DynNodeViewFilterOps for T {
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_active())
+    }
+}
+
+pub trait EdgeViewFilterOps: ViewWrapOps {
+    type Output<T: CombinedFilter>: CombinedFilter;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge>;
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge>;
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge>;
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge>;
+}
+
+pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps {
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
+
+    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter>;
+
+    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter>;
+
+    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
+}
+
+impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps> DynEdgeViewFilterOps for T {
+    fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_active())
+    }
+
+    fn dyn_is_valid(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_valid())
+    }
+
+    fn dyn_is_deleted(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_deleted())
+    }
+
+    fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter> {
+        Arc::new(self.is_self_loop())
+    }
+}
+
+pub type DynNodeViewProps = Arc<dyn DynNodeViewFilterOps>;
+
+impl InternalViewWrapOps for DynNodeViewProps {
+    type Window = DynNodeViewProps;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Arc::new(Windowed::new(start, end, self))
+    }
+}
+
+impl NodeViewFilterOps for DynNodeViewProps {
+    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        self.deref().dyn_is_active()
+    }
+}
+
+impl InternalPropertyFilterFactory for DynNodeViewProps {
+    type Entity = EntityMarker;
+    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
+    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.deref().dyn_entity()
+    }
+
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.deref().dyn_property_builder(property)
+    }
+
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.deref().dyn_metadata_builder(property)
+    }
+}
+
+pub type DynEdgeViewProps = Arc<dyn DynEdgeViewFilterOps>;
+
+impl InternalViewWrapOps for DynEdgeViewProps {
+    type Window = DynEdgeViewProps;
+
+    fn bounds(&self) -> (EventTime, EventTime) {
+        self.deref().dyn_bounds()
+    }
+
+    fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
+        Arc::new(Windowed::new(start, end, self))
+    }
+}
+
+impl EdgeViewFilterOps for DynEdgeViewProps {
+    type Output<T: CombinedFilter> = Arc<dyn DynCreateFilter>;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        self.deref().dyn_is_active()
+    }
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge> {
+        self.deref().dyn_is_valid()
+    }
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
+        self.deref().dyn_is_deleted()
+    }
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
+        self.deref().dyn_is_self_loop()
+    }
+}
+
+impl InternalPropertyFilterFactory for DynEdgeViewProps {
+    type Entity = EntityMarker;
+    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
+    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
+
+    fn entity(&self) -> Self::Entity {
+        self.deref().dyn_entity()
+    }
+
+    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
+        self.deref().dyn_property_builder(property)
+    }
+
+    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
+        self.deref().dyn_metadata_builder(property)
+    }
+}

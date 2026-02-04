@@ -11,12 +11,19 @@ use raphtory::{
         edge_filter::{CompositeEdgeFilter, EdgeFilter},
         filter::{Filter, FilterValue},
         filter_operator::FilterOperator,
+        graph_filter::GraphFilter,
+        is_active_edge_filter::IsActiveEdge,
+        is_active_node_filter::IsActiveNode,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
         latest_filter::Latest as LatestWrap,
         layered_filter::Layered,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
+        DynView, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -359,6 +366,45 @@ impl PropCondition {
     }
 }
 
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphWindowExpr {
+    pub start: GqlTimeInput,
+    pub end: GqlTimeInput,
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphTimeExpr {
+    pub time: GqlTimeInput,
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphUnaryExpr {
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(InputObject, Clone, Debug)]
+pub struct GraphLayersExpr {
+    pub names: Vec<String>,
+    pub expr: Option<Wrapped<GqlGraphFilter>>,
+}
+
+#[derive(OneOfInput, Clone, Debug)]
+#[graphql(name = "GraphFilter")]
+pub enum GqlGraphFilter {
+    Window(GraphWindowExpr),
+    At(GraphTimeExpr),
+    Before(GraphTimeExpr),
+    After(GraphTimeExpr),
+
+    Latest(GraphUnaryExpr),
+    SnapshotAt(GraphTimeExpr),
+    SnapshotLatest(GraphUnaryExpr),
+
+    Layers(GraphLayersExpr),
+}
+
 #[derive(OneOfInput, Clone, Debug)]
 pub enum NodeFieldCondition {
     Eq(Value),
@@ -454,6 +500,9 @@ pub enum GqlNodeFilter {
     SnapshotAt(NodeTimeExpr),
     SnapshotLatest(NodeUnaryExpr),
     Layers(NodeLayersExpr),
+
+    /// Node is active in the current view/window.
+    IsActive(bool),
 }
 
 #[derive(InputObject, Clone, Debug)]
@@ -508,6 +557,18 @@ pub enum GqlEdgeFilter {
     SnapshotAt(EdgeTimeExpr),
     SnapshotLatest(EdgeUnaryExpr),
     Layers(EdgeLayersExpr),
+
+    /// Edge is active in the current view/window.
+    IsActive(bool),
+
+    /// Edge is valid (undeleted) in the current view/window.
+    IsValid(bool),
+
+    /// Edge is deleted in the current view/window.
+    IsDeleted(bool),
+
+    /// Edge is a self-loop in the current view/window.
+    IsSelfLoop(bool),
 }
 
 #[derive(Clone, Debug)]
@@ -1078,17 +1139,17 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             }
 
             GqlNodeFilter::Layers(l) => {
-                if l.names.is_empty() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "NodeFilter.layers.names must be non-empty".into(),
-                    ));
-                }
                 let layer = Layer::from(l.names.clone());
                 let inner: CompositeNodeFilter = l.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Layered(Box::new(Layered::new(
                     layer, inner,
                 ))))
             }
+
+            GqlNodeFilter::IsActive(true) => Ok(CompositeNodeFilter::IsActiveNode(IsActiveNode)),
+            GqlNodeFilter::IsActive(false) => Ok(CompositeNodeFilter::Not(Box::new(
+                CompositeNodeFilter::IsActiveNode(IsActiveNode),
+            ))),
         }
     }
 }
@@ -1249,6 +1310,95 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                     layer, inner,
                 ))))
             }
+
+            GqlEdgeFilter::IsActive(true) => Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge)),
+            GqlEdgeFilter::IsActive(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsActiveEdge(IsActiveEdge),
+            ))),
+
+            GqlEdgeFilter::IsValid(true) => Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge)),
+            GqlEdgeFilter::IsValid(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsValidEdge(IsValidEdge),
+            ))),
+
+            GqlEdgeFilter::IsDeleted(true) => Ok(CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge)),
+            GqlEdgeFilter::IsDeleted(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge),
+            ))),
+
+            GqlEdgeFilter::IsSelfLoop(true) => {
+                Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
+            }
+            GqlEdgeFilter::IsSelfLoop(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge),
+            ))),
         }
+    }
+}
+
+impl TryFrom<GqlGraphFilter> for DynView {
+    type Error = GraphError;
+
+    fn try_from(f: GqlGraphFilter) -> Result<Self, Self::Error> {
+        let default_inner: DynView = Arc::new(GraphFilter);
+
+        Ok(match f {
+            GqlGraphFilter::Window(w) => {
+                let inner: DynView = match w.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.window(w.start, w.end)
+            }
+            GqlGraphFilter::At(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.at(t.time)
+            }
+            GqlGraphFilter::Before(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.before(t.time)
+            }
+            GqlGraphFilter::After(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                inner.after(t.time)
+            }
+            GqlGraphFilter::Latest(u) => {
+                let inner: DynView = match u.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.latest())
+            }
+            GqlGraphFilter::SnapshotAt(t) => {
+                let inner: DynView = match t.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.snapshot_at(t.time))
+            }
+            GqlGraphFilter::SnapshotLatest(u) => {
+                let inner: DynView = match u.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.snapshot_latest())
+            }
+            GqlGraphFilter::Layers(l) => {
+                let inner: DynView = match l.expr {
+                    Some(e) => e.deref().clone().try_into()?,
+                    None => default_inner,
+                };
+                Arc::new(inner.layer(l.names))
+            }
+        })
     }
 }

@@ -1624,3 +1624,108 @@ def test_filter_edges_latest_layer():
         assert sorted(graph.filter(expr).edges.id) == []
 
     return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_graph_filter_window():
+    def check(graph):
+        expr = filter.Graph.window(1, 3)
+        assert sorted(graph.filter(expr).edges.id) == [(1, 2), (2, 3)]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_graph_filter_layer():
+    def check(graph):
+        expr = filter.Graph.layer("fire_nation")
+        assert sorted(graph.filter(expr).edges.id) == [(1, 2)]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_graph_filter_window_layer():
+    def check(graph):
+        expr = filter.Graph.window(1, 3).layer("fire_nation")
+        assert sorted(graph.filter(expr).edges.id) == [(1, 2)]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_graph_filter_at():
+    def check(graph):
+        expr = filter.Graph.at(2)
+        assert sorted(graph.filter(expr).edges.id) == [(1, 2), (2, 3)]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("persistent_graph"))
+def test_filter_edges_graph_filter_before():
+    def check(graph):
+        expr = filter.Graph.before(4)
+        assert sorted(graph.filter(expr).edges.id) == [
+            (1, 2),
+            (2, 1),
+            (2, 3),
+            (3, 1),
+            (3, 4),
+        ]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("persistent_graph"))
+def test_filter_edges_graph_filter_after():
+    def check(graph):
+        expr = filter.Graph.after(7)
+        assert sorted(graph.filter(expr).edges.id) == [
+            (1, 2),
+            (2, 1),
+            (2, 3),
+            (3, 1),
+            (3, 4),
+        ]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=("graph"))
+def test_filter_edges_graph_filter_latest():
+    def check(graph):
+        expr = filter.Graph.latest()
+        assert sorted(graph.filter(expr).edges.id) == [(2, 1), (2, 3), (3, 1), (3, 4)]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=(["graph", "persistent_graph"]))
+def test_filter_edges_graph_filter_snapshot_at():
+    def check(graph):
+        expr = filter.Graph.snapshot_at(7)
+        assert sorted(graph.filter(expr).edges.id) == [
+            (1, 2),
+            (2, 1),
+            (2, 3),
+            (3, 1),
+            (3, 4),
+        ]
+
+    return check
+
+
+@with_disk_variants(init_graph3, variants=(["graph", "persistent_graph"]))
+def test_filter_edges_graph_filter_snapshot_latest():
+    def check(graph):
+        expr = filter.Graph.snapshot_latest()
+        assert sorted(graph.filter(expr).edges.id) == [
+            (1, 2),
+            (2, 1),
+            (2, 3),
+            (3, 1),
+            (3, 4),
+        ]
+
+    return check
