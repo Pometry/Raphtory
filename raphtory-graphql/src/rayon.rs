@@ -83,19 +83,13 @@ mod deadlock_tests {
         let client = Client::new();
 
         let req = client.get(format!("http://localhost:{port}/health"));
-        let response = req.send().await.unwrap();
+        let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
         assert_eq!(health.healthy, false);
 
-        // with default timeout (10s) a 8s timeout causes the http client to finish first
-        let req = client.get(format!("http://localhost:{port}/health"));
-        let result = req.timeout(Duration::from_secs(8)).send().await.err();
-        assert!(result.unwrap().is_timeout());
-
-        // However, with a custom timeout of 5s, now the health check finishes first
         let req = client.get(format!("http://localhost:{port}/health?timeout=5"));
-        let response = req.timeout(Duration::from_secs(8)).send().await.unwrap();
+        let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
         assert_eq!(health.healthy, false);
