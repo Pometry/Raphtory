@@ -32,6 +32,7 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args {
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
+#[serde(default)]
 pub struct BaseConfig {
     #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_NODES, env="RAPHTORY_MAX_NODE_PAGE_LEN")]
     max_node_page_len: u32,
