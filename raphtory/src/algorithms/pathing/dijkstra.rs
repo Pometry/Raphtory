@@ -22,6 +22,7 @@ use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
+use super::to_prop;
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
 #[derive(PartialEq)]
@@ -66,47 +67,9 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     weight: Option<&str>,
     direction: Direction,
 ) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
-    let mut weight_type = PropType::U8;
-    if let Some(weight) = weight {
-        if let Some((_, dtype)) = g.edge_meta().get_prop_id_and_type(weight, false) {
-            weight_type = dtype;
-        } else {
-            return Err(GraphError::PropertyMissingError(weight.to_string()));
-        }
-    }
-    // Turn below into a generic function, then add a closure to ensure the prop is correctly unwrapped
-    // after the calc is done
-    let cost_val = match weight_type {
-        PropType::F32 => Prop::F32(0f32),
-        PropType::F64 => Prop::F64(0f64),
-        PropType::U8 => Prop::U8(0u8),
-        PropType::U16 => Prop::U16(0u16),
-        PropType::U32 => Prop::U32(0u32),
-        PropType::U64 => Prop::U64(0u64),
-        PropType::I32 => Prop::I32(0i32),
-        PropType::I64 => Prop::I64(0i64),
-        p_type => {
-            return Err(GraphError::InvalidProperty {
-                reason: format!("Weight type: {:?}, not supported", p_type),
-            })
-        }
-    };
-    let max_val = match weight_type {
-        PropType::F32 => Prop::F32(f32::MAX),
-        PropType::F64 => Prop::F64(f64::MAX),
-        PropType::U8 => Prop::U8(u8::MAX),
-        PropType::U16 => Prop::U16(u16::MAX),
-        PropType::U32 => Prop::U32(u32::MAX),
-        PropType::U64 => Prop::U64(u64::MAX),
-        PropType::I32 => Prop::I32(i32::MAX),
-        PropType::I64 => Prop::I64(i64::MAX),
-        p_type => {
-            return Err(GraphError::InvalidProperty {
-                reason: format!("Weight type: {:?}, not supported", p_type),
-            })
-        }
-    };
-    let weight_fn = |edge: EdgeView<G>| -> Option<Prop> {
+    let cost_val = to_prop(g, weight, 0.0)?;
+    let max_val = to_prop(g, weight, f64::MAX)?;
+    let weight_fn = |edge: &EdgeView<G>| -> Option<Prop> {
         let edge_val = match weight{
             None => Some(Prop::U8(1)),
             Some(weight) => match edge.properties().get(weight) {
@@ -120,7 +83,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     dijkstra_single_source_shortest_paths_algorithm(g, source, Some(targets), direction, targets_len, cost_val, max_val, weight_fn)
 }
 
-pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(EdgeView<G>) -> Option<Prop>>(
+pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(&EdgeView<G>) -> Option<Prop>>(
     g: &G,
     source: T,
     targets: Option<Vec<T>>,
@@ -202,7 +165,7 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
         for edge in edges {
             let next_node_vid = edge.nbr().node;
 
-            let edge_val = if let Some(w) = weight_fn(edge) {
+            let edge_val = if let Some(w) = weight_fn(&edge) {
                 w
             } else {
                 continue;
