@@ -2,7 +2,10 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::node_state_ops::{NodeStateOps, ToOwnedValue, ops::Const},
+            state::{
+                node_state_ops::{NodeStateOps, ToOwnedValue},
+                ops::Const,
+            },
             view::{
                 history::{
                     compose_history_from_items, CompositeHistory, History, HistoryDateTime,
@@ -153,12 +156,8 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
     }
 }
 
-impl<
-        'a,
-        'graph,
-        V: Clone + Send + Sync + PartialEq + 'graph,
-        G: GraphViewOps<'graph>,
-    > PartialEq<NodeState<'graph, V, G>> for NodeState<'graph, V, G>
+impl<'a, 'graph, V: Clone + Send + Sync + PartialEq + 'graph, G: GraphViewOps<'graph>>
+    PartialEq<NodeState<'graph, V, G>> for NodeState<'graph, V, G>
 {
     fn eq(&self, other: &NodeState<'graph, V, G>) -> bool {
         self.len() == other.len()
@@ -307,12 +306,8 @@ impl<'graph, V: Send + Sync + Clone + 'graph, G: GraphViewOps<'graph>> IntoItera
     }
 }
 
-impl<
-        'a,
-        'graph: 'a,
-        V: Clone + Send + Sync + 'graph,
-        G: GraphViewOps<'graph>,
-    > NodeStateOps<'a, 'graph> for NodeState<'graph, V, G>
+impl<'a, 'graph: 'a, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>>
+    NodeStateOps<'a, 'graph> for NodeState<'graph, V, G>
 {
     type Graph = G;
     type BaseGraph = G;
@@ -355,14 +350,7 @@ impl<
             .map(move |i| self.values[i].clone())
     }
 
-    fn iter(
-        &'a self,
-    ) -> impl Iterator<
-        Item = (
-            NodeView<'a, &'a Self::Graph>,
-            Self::Value,
-        ),
-    > + 'a
+    fn iter(&'a self) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)> + 'a
     where
         'graph: 'a,
     {
@@ -394,10 +382,7 @@ impl<
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<
-                'a,
-                &'a <Self as NodeStateOps<'a, 'graph>>::Graph,
-            >,
+            NodeView<'a, &'a <Self as NodeStateOps<'a, 'graph>>::Graph>,
             <Self as NodeStateOps<'a, 'graph>>::Value,
         ),
     >
@@ -423,10 +408,7 @@ impl<
     fn get_by_index(
         &'a self,
         index: usize,
-    ) -> Option<(
-        NodeView<'a, &'a Self::Graph>,
-        Self::Value,
-    )> {
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         match &self.keys {
             Some(node_index) => node_index.key(index).map(|n| {
                 (
@@ -442,7 +424,7 @@ impl<
     }
 
     fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value> {
-        let id = self.graph.internalise_node(node.as_node_ref())?;
+        let id = self.base_graph.internalise_node(node.as_node_ref())?;
         match &self.keys {
             Some(index) => index.index(&id).map(|i| &self.values[i]),
             None => Some(&self.values[id.0]),
@@ -456,7 +438,7 @@ impl<
     fn construct(
         &self,
         base_graph: Self::BaseGraph,
-        graph: Self::Graph,
+        _graph: Self::Graph,
         keys: IndexSet<VID, ahash::RandomState>,
         values: Vec<Self::OwnedValue>,
     ) -> Self

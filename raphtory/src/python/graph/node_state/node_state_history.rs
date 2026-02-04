@@ -2,9 +2,9 @@ use crate::{
     db::{
         api::{
             state::{
-                ops,
-                ops::{node::NodeOp, DynNodeFilter, HistoryOp},
-                LazyNodeState, NodeState,
+                ops::{self, node::NodeOp, DynNodeFilter, HistoryOp, IntoArrowNodeOp},
+                DateTimesStruct, EventIdsStruct, IntervalsStruct, LazyNodeState, NodeState,
+                TimeStampsStruct,
             },
             view::{
                 history::{History, InternalHistoryOps},
@@ -33,10 +33,12 @@ use raphtory_api::{core::storage::timeindex::EventTime, python::timeindex::PyOpt
 use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use std::{collections::HashMap, sync::Arc};
 
-use crate::db::graph::nodes::IntoDynNodes;
 pub(crate) use crate::{
-    db::api::state::ops::IntoDynNodeOp, py_borrowing_iter,
-    python::graph::node_state::node_state::ops::NodeFilterOp,
+    db::api::state::ops::IntoDynNodeOp, python::graph::node_state::node_state::ops::NodeFilterOp,
+};
+use crate::{
+    db::{api::state::OutputTypedNodeState, graph::nodes::IntoDynNodes},
+    python::graph::node_state::ops::{ArrowMap, Map},
 };
 
 /// A lazy view over History objects for each node.
@@ -84,13 +86,13 @@ impl HistoryView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryTimestamp>,
+        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyHistoryTimestamp>, TimeStampsStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.t().into());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 
     /// Access history events as UTC datetimes.
@@ -102,13 +104,13 @@ impl HistoryView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>,
+        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyHistoryDateTime>, DateTimesStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.dt().into());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 
     /// Access the unique event id of each time entry.
@@ -120,13 +122,13 @@ impl HistoryView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryOp<'static, DynamicGraph>, PyHistoryEventId>,
+        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyHistoryEventId>, EventIdsStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.event_id().into());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 
     /// Access the intervals between consecutive timestamps in milliseconds.
@@ -138,13 +140,13 @@ impl HistoryView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryOp<'static, DynamicGraph>, PyIntervals>,
+        ArrowMap<Map<HistoryOp<'static, DynamicGraph>, PyIntervals>, IntervalsStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|hist| hist.intervals().into());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 
     /// Get the earliest time entry.
@@ -435,6 +437,7 @@ impl<'py> FromPyObject<'py>
     }
 }
 
+#[allow(dead_code)]
 type HistoryOpType<G> = HistoryOp<'static, G>;
 
 /// A NodeState of History objects for each node.
@@ -744,8 +747,40 @@ impl<'py> FromPyObject<'py>
     }
 }
 
+impl From<PyHistoryTimestamp> for TimeStampsStruct {
+    fn from(history: PyHistoryTimestamp) -> Self {
+        TimeStampsStruct {
+            timestamps: history.history_t.collect(),
+        }
+    }
+}
+
+impl From<PyHistoryEventId> for EventIdsStruct {
+    fn from(event_ids: PyHistoryEventId) -> Self {
+        EventIdsStruct {
+            event_ids: event_ids.history_s.collect(),
+        }
+    }
+}
+
+impl From<PyHistoryDateTime> for DateTimesStruct {
+    fn from(datetimes: PyHistoryDateTime) -> Self {
+        DateTimesStruct {
+            datetimes: datetimes.history_dt.collect().ok(),
+        }
+    }
+}
+
+impl From<PyIntervals> for IntervalsStruct {
+    fn from(intervals: PyIntervals) -> Self {
+        IntervalsStruct {
+            intervals: intervals.intervals.collect(),
+        }
+    }
+}
+
 // we can use macros for the LazyNodeStates and computed NodeStates of PyHistoryTimestamp, PyHistoryEventId, and PyHistoryDateTime
-type HistoryI64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryTimestamp>;
+type HistoryI64<G> = ArrowMap<Map<HistoryOp<'static, G>, PyHistoryTimestamp>, TimeStampsStruct>;
 impl_lazy_node_state!(
     HistoryTimestampView<HistoryI64<DynamicGraph>>,
     "NodeStateHistoryTimestamp",
@@ -757,7 +792,7 @@ impl_node_state!(
     "HistoryTimestamp"
 );
 
-type HistoryU64<G> = ops::Map<HistoryOp<'static, G>, PyHistoryEventId>;
+type HistoryU64<G> = ArrowMap<Map<HistoryOp<'static, G>, PyHistoryEventId>, EventIdsStruct>;
 impl_lazy_node_state!(
     HistoryEventIdView<HistoryU64<DynamicGraph>>,
     "NodeStateHistoryEventId",
@@ -769,7 +804,7 @@ impl_node_state!(
     "HistoryEventId"
 );
 
-type HistoryDT<G> = ops::Map<HistoryOp<'static, G>, PyHistoryDateTime>;
+type HistoryDT<G> = ArrowMap<Map<HistoryOp<'static, G>, PyHistoryDateTime>, DateTimesStruct>;
 impl_lazy_node_state!(
     HistoryDateTimeView<HistoryDT<DynamicGraph>>,
     "NodeStateHistoryDateTime",

@@ -351,7 +351,7 @@ where
     let triadic_motifs = triangle_motifs(g, vec![delta], threads);
     debug!("Running rest of motifs");
 
-    let star_motif_step = ATask::new(move |evv: &mut EvalNodeView<G, MotifCounter>| {
+    let star_motif_step = ATask::new(move |evv: &mut EvalNodeView<_, MotifCounter>| {
         let two_nodes = twonode_motif_count(evv, vec![delta]);
         let star_nodes = star_motif_count(evv, vec![delta]);
 

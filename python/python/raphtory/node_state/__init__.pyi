@@ -153,6 +153,14 @@ class DegreeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateUsize:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateUsize: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateUsize:
         """
         Compute the k smallest values
@@ -1454,6 +1462,14 @@ class IdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateGID:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateGID: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateGID:
         """
         Compute the k smallest values
@@ -1808,6 +1824,14 @@ class EarliestTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionEventTime:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionEventTime: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionEventTime:
         """
         Compute the k smallest values
@@ -2031,6 +2055,14 @@ class EarliestTimestampView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -2226,6 +2258,14 @@ class EarliestEventIdView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateOptionUsize:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionUsize: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionUsize:
         """
@@ -2664,6 +2704,14 @@ class LatestTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -2887,6 +2935,14 @@ class LatestTimestampView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -3083,6 +3139,14 @@ class LatestEventIdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionUsize:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionUsize: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionUsize:
         """
         Compute the k smallest values
@@ -3247,7 +3311,7 @@ class LatestEventIdView(object):
         """
 
 class LatestDateTimeView(object):
-    """A lazy view over EarliestDateTime values for each node."""
+    """A lazy view over LatestDateTime values for each node."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -3521,6 +3585,14 @@ class NameView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateString:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateString: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateString:
         """
@@ -4065,6 +4137,14 @@ class HistoryTimestampView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateHistoryTimestamp:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateHistoryTimestamp: the computed `OutputTypedNodeState`
+        """
+
     def collect(self) -> list[HistoryTimestamp]:
         """
         Compute all values and return the result as a list
@@ -4170,6 +4250,14 @@ class HistoryDateTimeView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateHistoryDateTime:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateHistoryDateTime: the computed `OutputTypedNodeState`
+        """
 
     def collect(self) -> list[HistoryDateTime]:
         """
@@ -4277,6 +4365,14 @@ class HistoryEventIdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateHistoryEventId:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateHistoryEventId: the computed `OutputTypedNodeState`
+        """
+
     def collect(self) -> list[HistoryEventId]:
         """
         Compute all values and return the result as a list
@@ -4382,6 +4478,14 @@ class IntervalsView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateIntervals:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateIntervals: the computed `OutputTypedNodeState`
+        """
 
     def collect(self) -> list[Intervals]:
         """
@@ -4520,6 +4624,14 @@ class IntervalsFloatView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateOptionF64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionF64: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionF64:
         """
@@ -4709,6 +4821,14 @@ class IntervalsIntegerView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -4896,6 +5016,14 @@ class EdgeHistoryCountView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> EdgeHistoryCountView:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             EdgeHistoryCountView: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> EdgeHistoryCountView:
         """
@@ -5133,6 +5261,14 @@ class NodeTypeView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateOptionStr:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionStr: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionStr:
         """

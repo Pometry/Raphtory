@@ -1,3 +1,4 @@
+use crate::db::api::state::ops::ArrowNodeOp;
 pub(crate) use crate::db::api::{
     state::{generic_node_state::InputNodeStateValue, ops::IntoDynNodeOp, NodeOp},
     view::internal::{filtered_node::FilteredNodeStorageOps, FilterOps, FilterState, GraphView},
@@ -16,24 +17,26 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy)]
 pub struct Name;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct NameStruct {
     name: String,
+}
+impl From<String> for NameStruct {
+    fn from(name: String) -> Self {
+        NameStruct { name }
+    }
 }
 
 impl NodeOp for Name {
     type Output = String;
-    type ArrowOutput = NameStruct;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_name(node)
     }
+}
 
-    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
-        NameStruct {
-            name: self.apply(storage, node),
-        }
-    }
+impl ArrowNodeOp for Name {
+    type ArrowOutput = NameStruct;
 }
 
 impl IntoDynNodeOp for Name {}
@@ -41,24 +44,26 @@ impl IntoDynNodeOp for Name {}
 #[derive(Debug, Copy, Clone)]
 pub struct Id;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct IdStruct {
     id: GID,
+}
+impl From<GID> for IdStruct {
+    fn from(id: GID) -> Self {
+        IdStruct { id }
+    }
 }
 
 impl NodeOp for Id {
     type Output = GID;
-    type ArrowOutput = IdStruct;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_id(node)
     }
+}
 
-    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
-        IdStruct {
-            id: self.apply(storage, node),
-        }
-    }
+impl ArrowNodeOp for Id {
+    type ArrowOutput = IdStruct;
 }
 
 impl IntoDynNodeOp for Id {}
@@ -66,24 +71,26 @@ impl IntoDynNodeOp for Id {}
 #[derive(Debug, Copy, Clone)]
 pub struct Type;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct TypeStruct {
     node_type: Option<ArcStr>,
+}
+impl From<Option<ArcStr>> for TypeStruct {
+    fn from(node_type: Option<ArcStr>) -> Self {
+        TypeStruct { node_type }
+    }
 }
 
 impl NodeOp for Type {
     type Output = Option<ArcStr>;
-    type ArrowOutput = TypeStruct;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_type(node)
     }
+}
 
-    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
-        TypeStruct {
-            node_type: self.apply(storage, node),
-        }
-    }
+impl ArrowNodeOp for Type {
+    type ArrowOutput = TypeStruct;
 }
 
 impl IntoDynNodeOp for Type {}
@@ -91,24 +98,26 @@ impl IntoDynNodeOp for Type {}
 #[derive(Debug, Copy, Clone)]
 pub struct TypeId;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct TypeIdStruct {
     type_id: usize,
+}
+impl From<usize> for TypeIdStruct {
+    fn from(type_id: usize) -> Self {
+        TypeIdStruct { type_id }
+    }
 }
 
 impl NodeOp for TypeId {
     type Output = usize;
-    type ArrowOutput = TypeIdStruct;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         storage.node_type_id(node)
     }
+}
 
-    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
-        TypeIdStruct {
-            type_id: self.apply(storage, node),
-        }
-    }
+impl ArrowNodeOp for TypeId {
+    type ArrowOutput = TypeIdStruct;
 }
 
 impl IntoDynNodeOp for TypeId {}
@@ -119,14 +128,18 @@ pub struct Degree<G> {
     pub(crate) view: G,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct DegreeStruct {
     degree: usize,
+}
+impl From<usize> for DegreeStruct {
+    fn from(degree: usize) -> Self {
+        DegreeStruct { degree }
+    }
 }
 
 impl<G: GraphView> NodeOp for Degree<G> {
     type Output = usize;
-    type ArrowOutput = DegreeStruct;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> usize {
         let node = storage.core_node(node);
@@ -137,12 +150,10 @@ impl<G: GraphView> NodeOp for Degree<G> {
                 .count()
         }
     }
+}
 
-    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
-        DegreeStruct {
-            degree: self.apply(storage, node),
-        }
-    }
+impl<G: GraphView> ArrowNodeOp for Degree<G> {
+    type ArrowOutput = DegreeStruct;
 }
 
 impl<G: GraphView + 'static> IntoDynNodeOp for Degree<G> {}

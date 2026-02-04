@@ -3,7 +3,7 @@ use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGra
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::{
-        api::state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+        api::state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
         graph::nodes::Nodes,
     },
     errors::GraphError,
@@ -30,13 +30,12 @@ pub struct DistanceState {
 }
 
 #[derive(Clone, Debug)]
-pub struct TransformedDistanceState<'graph, G, GH = G>
+pub struct TransformedDistanceState<'graph, G>
 where
     G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
 {
     pub distance: f64,
-    pub path: Nodes<'graph, G, GH>,
+    pub path: Nodes<'graph, G, G>,
 }
 
 impl DistanceState {
@@ -51,9 +50,9 @@ impl DistanceState {
             distance: value.distance,
             path: Nodes::new_filtered(
                 state.base_graph.clone(),
-                state.graph.clone(),
+                state.base_graph.clone(),
+                Const(true),
                 Some(Index::from_iter(value.path)),
-                None,
             ),
         }
     }
@@ -102,7 +101,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     weight: Option<&str>,
     direction: Direction,
 ) -> Result<
-    TypedNodeState<'static, DistanceState, G, G, TransformedDistanceState<'static, G>>,
+    TypedNodeState<'static, DistanceState, G, TransformedDistanceState<'static, G>>,
     GraphError,
 > {
     let source_ref = source.as_node_ref();
@@ -242,12 +241,11 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     Ok(TypedNodeState::new_mapped(
         GenericNodeState::new_from_eval_with_index(
             g.clone(),
-            g.clone(),
             values,
             Some(Index::new(index)),
             Some(HashMap::from([(
                 "path".to_string(),
-                (NodeStateOutputType::Nodes, None, None),
+                (NodeStateOutputType::Nodes, None),
             )])),
         ),
         DistanceState::node_transform,

@@ -57,7 +57,7 @@ where
         Step::Continue
     });
 
-    let step2 = ATask::new(move |s: &mut EvalNodeView<G, LabelPropState>| {
+    let step2 = ATask::new(move |s: &mut EvalNodeView<_, LabelPropState>| {
         let prev_id = s.prev().community_id;
         let nbor_iter = s.neighbours();
         let state: &mut LabelPropState = s.get_mut();

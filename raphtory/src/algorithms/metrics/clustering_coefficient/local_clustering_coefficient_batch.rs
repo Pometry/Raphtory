@@ -50,7 +50,6 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
 
     TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
         graph.clone(),
-        graph.clone(),
         values,
         Some(Index::new(_index)),
         None,

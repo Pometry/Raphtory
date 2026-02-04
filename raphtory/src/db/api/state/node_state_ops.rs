@@ -1,10 +1,7 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::state::{
-            group_by::NodeGroups, node_state::NodeState, node_state_ord_ops, ops::NodeFilterOp,
-            Index,
-        },
+        api::state::{group_by::NodeGroups, node_state_ord_ops, ops::NodeFilterOp},
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::{GraphViewOps, NodeViewOps},
@@ -15,8 +12,6 @@ use num_traits::AsPrimitive;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::{borrow::Borrow, fmt::Debug, hash::Hash, iter::Sum};
-
-
 
 pub trait ToOwnedValue<T> {
     fn to_owned_value(self) -> T;
@@ -35,14 +30,7 @@ impl<'a, T: Clone> ToOwnedValue<T> for &'a T {
 }
 
 pub trait NodeStateOps<'a, 'graph: 'a>:
-    IntoIterator<
-        Item = (
-            NodeView<'graph, Self::Graph>,
-            Self::OwnedValue,
-        ),
-    > + Send
-    + Sync
-    + 'graph
+    IntoIterator<Item = (NodeView<'graph, Self::Graph>, Self::OwnedValue)> + Send + Sync + 'graph
 {
     type Graph: GraphViewOps<'graph>;
     type BaseGraph: GraphViewOps<'graph>;
@@ -50,7 +38,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
 
     type Value: Send + Sync + ToOwnedValue<Self::OwnedValue>;
     type OwnedValue: Clone + Send + Sync;
-    type OutputType: Sized;
+    type OutputType: Sized + 'graph;
 
     fn graph(&self) -> &Self::Graph;
 
@@ -64,14 +52,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
 
     fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue>;
 
-    fn iter(
-        &'a self,
-    ) -> impl Iterator<
-        Item = (
-            NodeView<'a, &'a Self::Graph>,
-            Self::Value,
-        ),
-    > + 'a;
+    fn iter(&'a self) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)> + 'a;
 
     fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph, Self::Select>
     where
@@ -80,20 +61,10 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
 
     fn par_iter(
         &'a self,
-    ) -> impl ParallelIterator<
-        Item = (
-            NodeView<'a, &'a Self::Graph>,
-            Self::Value,
-        ),
-    >;
+    ) -> impl ParallelIterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)>;
 
-    fn get_by_index(
-        &'a self,
-        index: usize,
-    ) -> Option<(
-        NodeView<'a, &'a Self::Graph>,
-        Self::Value,
-    )>;
+    fn get_by_index(&'a self, index: usize)
+        -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)>;
 
     fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value>;
 
@@ -112,14 +83,8 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
 
     fn sort_by<
         F: Fn(
-                (
-                    NodeView<'a, &'a Self::Graph>,
-                    &Self::Value,
-                ),
-                (
-                    NodeView<'a, &'a Self::Graph>,
-                    &Self::Value,
-                ),
+                (NodeView<'a, &'a Self::Graph>, &Self::Value),
+                (NodeView<'a, &'a Self::Graph>, &Self::Value),
             ) -> std::cmp::Ordering
             + Sync,
     >(
@@ -135,8 +100,8 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         let base_graph = self.base_graph();
         state.par_sort_by(|(n1, v1), (n2, v2)| {
             cmp(
-                (NodeView::new_internal(base_graph, *n1), v1),
-                (NodeView::new_internal(base_graph, *n2), v2),
+                (NodeView::new_internal(graph, *n1), v1),
+                (NodeView::new_internal(graph, *n2), v2),
             )
         });
 
@@ -160,14 +125,12 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
     fn sort_by_values_by<F: Fn(&Self::Value, &Self::Value) -> std::cmp::Ordering + Sync>(
         &'a self,
         cmp: F,
-    ) -> Self::OutputType
-    {
+    ) -> Self::OutputType {
         self.sort_by(|(_, v1), (_, v2)| cmp(v1, v2))
     }
 
     /// Sort the results by global node id
-    fn sort_by_id(&'a self) -> Self::OutputType
-    {
+    fn sort_by_id(&'a self) -> Self::OutputType {
         self.sort_by(|(n1, _), (n2, _)| n1.id().cmp(&n2.id()))
     }
 
@@ -189,8 +152,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         &'a self,
         cmp: F,
         k: usize,
-    ) -> Self::OutputType
-    {
+    ) -> Self::OutputType {
         let values = node_state_ord_ops::top_k(
             self.iter(),
             |(_, v1), (_, v2)| cmp(v1.borrow(), v2.borrow()),
@@ -213,38 +175,28 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         &'a self,
         cmp: F,
         k: usize,
-    ) -> Self::OutputType
-    {
+    ) -> Self::OutputType {
         self.top_k_by(|v1, v2| cmp(v1, v2).reverse(), k)
     }
 
     fn min_item_by<F: Fn(&Self::Value, &Self::Value) -> std::cmp::Ordering + Sync>(
         &'a self,
         cmp: F,
-    ) -> Option<(
-        NodeView<'a, &'a Self::Graph>,
-        Self::Value,
-    )> {
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         self.par_iter().min_by(|(_, v1), (_, v2)| cmp(v1, v2))
     }
 
     fn max_item_by<F: Fn(&Self::Value, &Self::Value) -> std::cmp::Ordering + Sync>(
         &'a self,
         cmp: F,
-    ) -> Option<(
-        NodeView<'a, &'a Self::Graph>,
-        Self::Value,
-    )> {
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         self.par_iter().max_by(|(_, v1), (_, v2)| cmp(v1, v2))
     }
 
     fn median_item_by<F: Fn(&Self::Value, &Self::Value) -> std::cmp::Ordering + Sync>(
         &'a self,
         cmp: F,
-    ) -> Option<(
-        NodeView<'a, &'a Self::Graph>,
-        Self::Value,
-    )> {
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         let mut values: Vec<_> = self.par_iter().collect();
         let len = values.len();
         if len == 0 {

@@ -317,13 +317,8 @@ class GraphView(object):
            list[Node]: the nodes that match the properties name and value
         """
 
-    def get_index_spec(self) -> IndexSpec:
-        """
-        Get index spec
-
-        Returns:
-            IndexSpec:
-        """
+    def get_index_spec(self):
+        """Get index spec"""
 
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
         """
@@ -845,52 +840,27 @@ class Graph(GraphView):
             None:
         """
 
-    def create_index(self) -> None:
-        """
-        Create graph index
+    def create_index(self):
+        """Create graph index"""
 
-        Returns:
-            None:
-        """
-
-    def create_index_in_ram(self) -> None:
+    def create_index_in_ram(self):
         """
         Creates a graph index in memory (RAM).
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
-
-        Returns:
-            None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
+    def create_index_in_ram_with_spec(self, py_spec):
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
-
-        Arguments:
-            py_spec: The specification for the in-memory index to be created.
-
-        Arguments:
-            py_spec (IndexSpec): - The specification for the in-memory index to be created.
-
-        Returns:
-            None:
         """
 
-    def create_index_with_spec(self, py_spec: Any) -> None:
-        """
-        Create graph index with the provided index spec.
-
-        Arguments:
-            py_spec: - The specification for the in-memory index to be created.
-
-        Returns:
-            None:
-        """
+    def create_index_with_spec(self, py_spec):
+        """Create graph index with the provided index spec."""
 
     def create_node(
         self,
@@ -1363,15 +1333,13 @@ class Graph(GraphView):
           bytes:
         """
 
-    def to_parquet(self, graph_dir: str | PathLike) -> None:
+    def to_parquet(self, graph_dir: str | PathLike):
         """
-        Persist graph to parquet files.
+        Persist graph to parquet files
 
         Arguments:
             graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
 
-        Returns:
-            None:
         """
 
     def update_metadata(self, metadata: PropInput) -> None:
@@ -3185,7 +3153,7 @@ class PathFromNode(object):
         """
 
     @property
-    def earliest_time(self) -> OptionEventTimeIterable:
+    def earliest_time(self):
         """
         The earliest time of each node.
 
@@ -3307,7 +3275,7 @@ class PathFromNode(object):
         """
 
     @property
-    def id(self) -> GIDIterable:
+    def id(self):
         """
         The node IDs.
 
@@ -3350,7 +3318,7 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self) -> OptionEventTimeIterable:
+    def latest_time(self):
         """
         The latest time of each node.
 
@@ -3392,7 +3360,7 @@ class PathFromNode(object):
         """
 
     @property
-    def name(self) -> StringIterable:
+    def name(self):
         """
         The node names.
 
@@ -3410,7 +3378,7 @@ class PathFromNode(object):
         """
 
     @property
-    def node_type(self) -> OptionArcStringIterable:
+    def node_type(self):
         """
         The node types.
 
@@ -3663,7 +3631,7 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def degree(self) -> NestedUsizeIterable:
+    def degree(self):
         """
         Returns the node degrees.
 
@@ -3672,7 +3640,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def earliest_time(self) -> NestedOptionEventTimeIterable:
+    def earliest_time(self):
         """
         The node earliest times.
 
@@ -3680,7 +3648,7 @@ class PathFromGraph(object):
             NestedOptionEventTimeIterable:
         """
 
-    def edge_history_count(self) -> NestedUsizeIterable:
+    def edge_history_count(self):
         """
         Returns the number of edge updates for each node.
 
@@ -3794,7 +3762,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Returns a history object for each node with time entries for when a node is added or change to a node is made.
 
@@ -3803,7 +3771,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def id(self) -> NestedGIDIterable:
+    def id(self):
         """
         The node ids
 
@@ -3811,7 +3779,7 @@ class PathFromGraph(object):
             NestedGIDIterable:
         """
 
-    def in_degree(self) -> NestedUsizeIterable:
+    def in_degree(self):
         """
         Returns the node in-degrees.
 
@@ -3846,7 +3814,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def latest_time(self) -> NestedOptionEventTimeIterable:
+    def latest_time(self):
         """
         The node latest times.
 
@@ -3888,7 +3856,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def name(self) -> NestedStringIterable:
+    def name(self):
         """
         The node names.
 
@@ -3906,7 +3874,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def node_type(self) -> NestedOptionArcStringIterable:
+    def node_type(self):
         """
         The node types.
 
@@ -3914,7 +3882,7 @@ class PathFromGraph(object):
             NestedOptionArcStringIterable:
         """
 
-    def out_degree(self) -> NestedUsizeIterable:
+    def out_degree(self):
         """
         Returns the node out-degrees.
 
@@ -4707,7 +4675,7 @@ class Edges(object):
         """
 
     @property
-    def deletions(self) -> HistoryIterable:
+    def deletions(self):
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -4725,7 +4693,7 @@ class Edges(object):
         """
 
     @property
-    def earliest_time(self) -> OptionEventTimeIterable:
+    def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
@@ -4835,7 +4803,7 @@ class Edges(object):
         """
 
     @property
-    def history(self) -> HistoryIterable:
+    def history(self):
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -4844,7 +4812,7 @@ class Edges(object):
         """
 
     @property
-    def id(self) -> GIDGIDIterable:
+    def id(self):
         """
         Returns all ids of the edges.
 
@@ -4852,7 +4820,7 @@ class Edges(object):
             GIDGIDIterable:
         """
 
-    def is_active(self) -> BoolIterable:
+    def is_active(self):
         """
         Check if the edges are active (there is at least one update during this time).
 
@@ -4860,7 +4828,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_deleted(self) -> BoolIterable:
+    def is_deleted(self):
         """
         Check if the edges are deleted.
 
@@ -4868,7 +4836,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_self_loop(self) -> BoolIterable:
+    def is_self_loop(self):
         """
         Check if the edges are on the same node.
 
@@ -4876,7 +4844,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_valid(self) -> BoolIterable:
+    def is_valid(self):
         """
         Check if the edges are valid (i.e. not deleted).
 
@@ -4893,7 +4861,7 @@ class Edges(object):
         """
 
     @property
-    def latest_time(self) -> OptionEventTimeIterable:
+    def latest_time(self):
         """
         Returns the latest times of the edges.
 
@@ -4914,7 +4882,7 @@ class Edges(object):
         """
 
     @property
-    def layer_name(self) -> ArcStringIterable:
+    def layer_name(self):
         """
         Get the layer name that all edges belong to - assuming they only belong to one layer
 
@@ -4923,7 +4891,7 @@ class Edges(object):
         """
 
     @property
-    def layer_names(self) -> ArcStringVecIterable:
+    def layer_names(self):
         """
         Get the layer names that all edges belong to - assuming they only belong to one layer.
 
@@ -5074,7 +5042,7 @@ class Edges(object):
         """
 
     @property
-    def time(self) -> EventTimeIterable:
+    def time(self):
         """
         Returns the times of exploded edges
 
@@ -5205,7 +5173,7 @@ class NestedEdges(object):
         """
 
     @property
-    def deletions(self) -> NestedHistoryIterable:
+    def deletions(self):
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -5223,7 +5191,7 @@ class NestedEdges(object):
         """
 
     @property
-    def earliest_time(self) -> NestedOptionEventTimeIterable:
+    def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
@@ -5333,7 +5301,7 @@ class NestedEdges(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -5342,7 +5310,7 @@ class NestedEdges(object):
         """
 
     @property
-    def id(self) -> NestedGIDGIDIterable:
+    def id(self):
         """
         Returns all ids of the edges.
 
@@ -5350,7 +5318,7 @@ class NestedEdges(object):
             NestedGIDGIDIterable:
         """
 
-    def is_active(self) -> NestedBoolIterable:
+    def is_active(self):
         """
         Check if the edges are active (there is at least one update during this time).
 
@@ -5358,7 +5326,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_deleted(self) -> NestedBoolIterable:
+    def is_deleted(self):
         """
         Check if edges are deleted.
 
@@ -5366,7 +5334,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_self_loop(self) -> NestedBoolIterable:
+    def is_self_loop(self):
         """
         Check if the edges are on the same node.
 
@@ -5374,7 +5342,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_valid(self) -> NestedBoolIterable:
+    def is_valid(self):
         """
         Check if edges are valid (i.e., not deleted).
 
@@ -5391,7 +5359,7 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_time(self) -> NestedOptionEventTimeIterable:
+    def latest_time(self):
         """
         Returns the latest time of the edges.
 
@@ -5412,7 +5380,7 @@ class NestedEdges(object):
         """
 
     @property
-    def layer_name(self) -> NestedArcStringIterable:
+    def layer_name(self):
         """
         Returns the name of the layer the edges belong to - assuming they only belong to one layer.
 
@@ -5421,7 +5389,7 @@ class NestedEdges(object):
         """
 
     @property
-    def layer_names(self) -> NestedArcStringVecIterable:
+    def layer_names(self):
         """
         Returns the names of the layers the edges belong to.
 
@@ -5572,7 +5540,7 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self) -> NestedEventTimeIterable:
+    def time(self):
         """
         Returns the times of exploded edges.
 
@@ -5776,12 +5744,12 @@ class Properties(object):
         """
 
     @property
-    def temporal(self):
+    def temporal(self) -> TemporalProperties:
         """
         Get a view of the temporal properties only.
 
         Returns:
-            TemporalProp:
+           TemporalProperties:
         """
 
     def values(self) -> list[PropValue]:
@@ -7040,145 +7008,30 @@ class IndexSpecBuilder(object):
     def __new__(cls, graph) -> IndexSpecBuilder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def build(self) -> IndexSpec:
-        """
-        Return a spec
-
-        Returns:
-            IndexSpec:
-        """
-
-    def with_all_edge_metadata(self) -> dict[str, Any]:
-        """
-        Adds all edge metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_edge_properties(self) -> dict[str, Any]:
-        """
-        Adds all edge properties to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_edge_properties_and_metadata(self) -> dict[str, Any]:
-        """
-        Adds all edge properties and metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_node_metadata(self) -> dict[str, Any]:
-        """
-        Adds all node metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_node_properties(self) -> dict[str, Any]:
-        """
-        Adds all node properties to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_all_node_properties_and_metadata(self) -> dict[str, Any]:
-        """
-        Adds all node properties and metadata to the spec.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_edge_metadata(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified edge metadata to the spec.
-
-        Arguments:
-            props: List of metadata.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_edge_properties(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified edge properties to the spec.
-
-        Arguments:
-            props: List of properties.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_node_metadata(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified node metadata to the spec.
-
-        Arguments:
-            props: list of metadata.
-
-        Returns:
-            dict[str, Any]:
-        """
-
-    def with_node_properties(self, props: Any) -> dict[str, Any]:
-        """
-        Adds specified node properties to the spec.
-
-        Arguments:
-            props: list of properties.
-
-        Returns:
-            dict[str, Any]:
-        """
+    def build(self): ...
+    def with_all_edge_metadata(self): ...
+    def with_all_edge_properties(self): ...
+    def with_all_edge_properties_and_metadata(self): ...
+    def with_all_node_metadata(self): ...
+    def with_all_node_properties(self): ...
+    def with_all_node_properties_and_metadata(self): ...
+    def with_edge_metadata(self, props): ...
+    def with_edge_properties(self, props): ...
+    def with_node_metadata(self, props): ...
+    def with_node_properties(self, props): ...
 
 class IndexSpec(object):
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def edge_metadata(self) -> list[str]:
-        """
-        Get edge metadata.
-
-        Returns:
-            list[str]:
-        """
-
+    def edge_metadata(self): ...
     @property
-    def edge_properties(self) -> list[str]:
-        """
-        Get edge properties.
-
-        Returns:
-            list[str]:
-        """
-
+    def edge_properties(self): ...
     @property
-    def node_metadata(self) -> list[str]:
-        """
-        Get node metadata.
-
-        Returns:
-            list[str]:
-        """
-
+    def node_metadata(self): ...
     @property
-    def node_properties(self) -> list[str]:
-        """
-        Get node properties.
-
-        Returns:
-            list[str]:
-        """
+    def node_properties(self): ...
 
 class Prop(object):
     def __repr__(self):

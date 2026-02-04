@@ -195,6 +195,7 @@ impl<'a> QueryBuilder<'a> {
         Ok((Arc::from(node_index.clone()), query))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn build_edge_query(
         &self,
         filter: &Filter,
@@ -379,6 +380,7 @@ fn create_node_tokenized_tantivy_terms(
     create_terms_from_tokens(field, tokens)
 }
 
+#[allow(dead_code)]
 fn create_edge_exact_tantivy_term(
     edge_index: &EdgeIndex,
     field_name: &str,
@@ -388,6 +390,7 @@ fn create_edge_exact_tantivy_term(
     Ok(Term::from_field_text(field, field_value))
 }
 
+#[allow(dead_code)]
 fn create_edge_tokenized_tantivy_terms(
     edge_index: &EdgeIndex,
     field_name: &str,

@@ -140,7 +140,7 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 pub fn weakly_connected_components(
     graph: &PyGraphView,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    components::weakly_connected_components(&graph.graph).transform()
+    components::weakly_connected_components(&graph.graph).to_output_nodestate()
 }
 
 /// Strongly connected components
@@ -157,7 +157,7 @@ pub fn weakly_connected_components(
 pub fn strongly_connected_components(
     graph: &PyGraphView,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    components::strongly_connected_components(&graph.graph).transform()
+    components::strongly_connected_components(&graph.graph).to_output_nodestate()
 }
 
 #[cfg(feature = "storage")]
@@ -177,7 +177,7 @@ pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn in_components(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
-    components::in_components(&graph.graph, None).transform()
+    components::in_components(&graph.graph, None).to_output_nodestate()
 }
 
 /// In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -190,7 +190,7 @@ pub fn in_components(graph: &PyGraphView) -> OutputTypedNodeState<'static, Dynam
 #[pyfunction]
 #[pyo3(signature = (node))]
 pub fn in_component(node: &PyNode) -> OutputTypedNodeState<'static, DynamicGraph> {
-    components::in_component(node.node.clone()).transform()
+    components::in_component(node.node.clone()).to_output_nodestate()
 }
 
 /// Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
@@ -203,7 +203,7 @@ pub fn in_component(node: &PyNode) -> OutputTypedNodeState<'static, DynamicGraph
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn out_components(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
-    components::out_components(&graph.graph, None).transform()
+    components::out_components(&graph.graph, None).to_output_nodestate()
 }
 
 /// Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
@@ -216,7 +216,7 @@ pub fn out_components(graph: &PyGraphView) -> OutputTypedNodeState<'static, Dyna
 #[pyfunction]
 #[pyo3(signature = (node))]
 pub fn out_component(node: &PyNode) -> OutputTypedNodeState<'static, DynamicGraph> {
-    components::out_component(node.node.clone()).transform()
+    components::out_component(node.node.clone()).to_output_nodestate()
 }
 
 /// Pagerank -- pagerank centrality value of the nodes in a graph
@@ -253,7 +253,7 @@ pub fn pagerank(
         use_l2_norm,
         damping_factor,
     )
-    .transform()
+    .to_output_nodestate()
 }
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
@@ -288,7 +288,7 @@ pub fn temporally_reachable_nodes(
         seed_nodes,
         stop_nodes,
     )
-    .transform()
+    .to_output_nodestate()
 }
 
 /// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
@@ -324,9 +324,9 @@ pub fn local_clustering_coefficient_batch(
 ) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
     if v.is_some() {
         let v = process_node_param(v.unwrap())?;
-        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).transform());
+        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate());
     }
-    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]).transform())
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]).to_output_nodestate())
 }
 
 /// Graph density - measures how dense or sparse a graph is.
@@ -435,7 +435,7 @@ pub fn global_reciprocity(graph: &PyGraphView) -> f64 {
 ///
 #[pyfunction]
 pub fn all_local_reciprocity(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
-    all_local_reciprocity_rs(&graph.graph).transform()
+    all_local_reciprocity_rs(&graph.graph).to_output_nodestate()
 }
 
 /// Computes the number of connected triplets within a graph
@@ -584,7 +584,7 @@ pub fn local_temporal_three_node_motifs(
     delta: i64,
     threads: Option<usize>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    local_three_node_rs(&graph.graph, delta, threads).transform()
+    local_three_node_rs(&graph.graph, delta, threads).to_output_nodestate()
 }
 
 /// HITS (Hubs and Authority) Algorithm:
@@ -609,7 +609,7 @@ pub fn hits(
     iter_count: usize,
     threads: Option<usize>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    hits_rs(&graph.graph, iter_count, threads).transform()
+    hits_rs(&graph.graph, iter_count, threads).to_output_nodestate()
 }
 
 /// Sums the weights of edges in the graph based on the specified direction.
@@ -634,7 +634,7 @@ pub fn balance(
     name: String,
     direction: Direction,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
-    balance_rs(&graph.graph, name.clone(), direction).map(|result| result.transform())
+    balance_rs(&graph.graph, name.clone(), direction).map(|result| result.to_output_nodestate())
 }
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized
@@ -649,7 +649,7 @@ pub fn balance(
 #[pyfunction]
 #[pyo3[signature = (graph)]]
 pub fn degree_centrality(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
-    degree_centrality_rs(&graph.graph).transform()
+    degree_centrality_rs(&graph.graph).to_output_nodestate()
 }
 
 /// Returns the largest degree found in the graph
@@ -695,7 +695,7 @@ pub fn single_source_shortest_path(
     source: PyNodeRef,
     cutoff: Option<usize>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    single_source_shortest_path_rs(&graph.graph, source, cutoff).transform()
+    single_source_shortest_path_rs(&graph.graph, source, cutoff).to_output_nodestate()
 }
 
 /// Finds the shortest paths from a single source to multiple targets in a graph.
@@ -720,7 +720,7 @@ pub fn dijkstra_single_source_shortest_paths(
     weight: Option<&str>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     dijkstra_single_source_shortest_paths_rs(&graph.graph, source, targets, weight, direction)
-        .map(|result| result.transform())
+        .map(|result| result.to_output_nodestate())
 }
 
 /// Computes the betweenness centrality for nodes in a given graph.
@@ -740,7 +740,7 @@ pub fn betweenness_centrality(
     k: Option<usize>,
     normalized: bool,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    betweenness_rs(&graph.graph, k, normalized).transform()
+    betweenness_rs(&graph.graph, k, normalized).to_output_nodestate()
 }
 
 /// Computes components using a label propagation algorithm
@@ -760,7 +760,7 @@ pub fn label_propagation(
     iter_count: usize,
     seed: Option<[u8; 32]>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    label_propagation_rs(&graph.graph, iter_count, seed, None).transform()
+    label_propagation_rs(&graph.graph, iter_count, seed, None).to_output_nodestate()
     // match  {
     //Ok(result) => Ok(result),
     //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
@@ -845,7 +845,7 @@ pub fn temporal_SEIR(
         seeds,
         &mut rng,
     )
-    .map(|result| result.transform())
+    .map(|result| result.to_output_nodestate())
 }
 
 /// Louvain algorithm for community detection
@@ -866,7 +866,8 @@ pub fn louvain(
     weight_prop: Option<&str>,
     tol: Option<f64>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol).transform()
+    louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
+        .to_output_nodestate()
 }
 
 /// Fruchterman Reingold layout algorithm
@@ -899,7 +900,7 @@ pub fn fruchterman_reingold(
         cooloff_factor,
         dt,
     )
-    .transform()
+    .to_output_nodestate()
 }
 
 /// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
@@ -932,7 +933,7 @@ pub fn cohesive_fruchterman_reingold(
         cooloff_factor,
         dt,
     )
-    .transform()
+    .to_output_nodestate()
 }
 
 /// Temporal rich club coefficient
@@ -1049,5 +1050,5 @@ pub fn fast_rp(
         seed,
         threads,
     )
-    .transform()
+    .to_output_nodestate()
 }

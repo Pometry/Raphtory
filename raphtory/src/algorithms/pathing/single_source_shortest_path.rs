@@ -5,7 +5,7 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+        api::state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
@@ -38,9 +38,9 @@ impl PathState {
         TransformedPathState {
             path: Nodes::new_filtered(
                 state.base_graph.clone(),
-                state.graph.clone(),
+                state.base_graph.clone(),
+                Const(true),
                 Some(Index::from_iter(value.path)),
-                None,
             ),
         }
     }
@@ -62,7 +62,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
     g: &G,
     source: T,
     cutoff: Option<usize>,
-) -> TypedNodeState<'graph, PathState, G, G, TransformedPathState<'graph, G>> {
+) -> TypedNodeState<'graph, PathState, G, TransformedPathState<'graph, G>> {
     let mut paths: HashMap<VID, Vec<VID>> = HashMap::new();
     if let Some(source_node) = g.node(source) {
         let node_internal_id = source_node.node;
@@ -95,13 +95,12 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
     TypedNodeState::new_mapped(
         GenericNodeState::new_from_eval_with_index_mapped(
             g.clone(),
-            g.clone(),
             paths,
             Some(Index::from_iter(targets)),
             |value| PathState { path: value },
             Some(HashMap::from([(
                 "path".to_string(),
-                (NodeStateOutputType::Nodes, None, None),
+                (NodeStateOutputType::Nodes, None),
             )])),
         ),
         PathState::node_transform,

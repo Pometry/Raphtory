@@ -367,6 +367,7 @@ impl<'py> IntoPyObject<'py> for PyPropertyFilterBuilder {
 pub struct PyViewFilterBuilder(pub(crate) Arc<dyn DynInternalViewWrapOps>);
 
 impl PyViewFilterBuilder {
+    #[allow(dead_code)]
     pub(crate) fn wrap<T: DynInternalViewWrapOps>(value: T) -> Self {
         Self(Arc::new(value))
     }

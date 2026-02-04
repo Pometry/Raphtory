@@ -6,14 +6,13 @@ pub(crate) use crate::{
         api::{
             state::{
                 ops, ops::IntoDynNodeOp, LazyNodeState, NodeGroups, NodeOp, NodeState,
-                NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps, OutputTypedNodeState,
+                NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps,
             },
             view::{DynamicGraph, GraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
-    py_borrowing_iter,
     python::{
         graph::node_state::node_state::ops::NodeFilterOp,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
@@ -30,7 +29,10 @@ use pyo3::{
 use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
 use std::collections::HashMap;
 
-use crate::db::{api::state::ops::DynNodeFilter, graph::nodes::IntoDynNodes};
+use crate::db::{
+    api::state::{ops::DynNodeFilter, OutputTypedNodeState},
+    graph::nodes::IntoDynNodes,
+};
 
 #[macro_export]
 macro_rules! impl_node_state_ops {
@@ -201,7 +203,7 @@ macro_rules! impl_node_state_group_by_ops {
 
 #[macro_export]
 macro_rules! impl_node_state_ord_ops {
-    ($name:ident, $value:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
+    ($name:ident, $inner_type:ty, $to_owned:expr, $computed:literal, $py_value:literal) => {
         #[pymethods]
         impl $name {
             /// Sort by value
@@ -212,7 +214,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Returns:
             #[doc = concat!("     ", $computed, ": Sorted node state")]
             #[pyo3(signature = (reverse = false))]
-            fn sorted(&self, reverse: bool) -> NodeState<'static, $value, DynamicGraph> {
+            fn sorted<'a>(&'a self, reverse: bool) -> <$inner_type as NodeStateOps<'a, 'static>>::OutputType { //NodeState<'static, $value, DynamicGraph> {
                 self.inner.sort_by_values(reverse)
             }
 
@@ -223,7 +225,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     ", $computed, ": The k largest values as a node state")]
-            fn top_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
+            fn top_k<'a>(&'a self, k: usize) -> <$inner_type as NodeStateOps<'a, 'static>>::OutputType { //NodeState<'static, $value, DynamicGraph> {
                 self.inner.top_k(k)
             }
 
@@ -234,7 +236,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     ", $computed, ": The k smallest values as a node state")]
-            fn bottom_k(&self, k: usize) -> NodeState<'static, $value, DynamicGraph> {
+            fn bottom_k<'a>(&'a self, k: usize) -> <$inner_type as NodeStateOps<'a, 'static>>::OutputType { //NodeState<'static, $value, DynamicGraph> {
                 self.inner.bottom_k(k)
             }
 
@@ -242,7 +244,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and minimum value or `None` if empty")]
-            fn min_item(&self) -> Option<(NodeView<'static, DynamicGraph>, $value)> {
+            fn min_item(&self) -> Option<(NodeView<'static, DynamicGraph>, <$inner_type as NodeStateOps<'_, 'static>>::OwnedValue)> {
                 self.inner
                     .min_item()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
@@ -252,7 +254,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[", $py_value, "]: The minimum value or `None` if empty")]
-            fn min(&self) -> Option<$value> {
+            fn min(&self) -> Option<<$inner_type as NodeStateOps<'_, 'static>>::OwnedValue> {
                 self.inner.min().map($to_owned)
             }
 
@@ -260,7 +262,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The Node and maximum value or `None` if empty")]
-            fn max_item(&self) -> Option<(NodeView<'static, DynamicGraph>, $value)> {
+            fn max_item(&self) -> Option<(NodeView<'static, DynamicGraph>, <$inner_type as NodeStateOps<'_, 'static>>::OwnedValue)> {
                 self.inner
                     .max_item()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
@@ -270,7 +272,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[", $py_value, "]: The maximum value or `None` if empty")]
-            fn max(&self) -> Option<$value> {
+            fn max(&self) -> Option<<$inner_type as NodeStateOps<'_, 'static>>::OwnedValue> {
                 self.inner.max().map($to_owned)
             }
 
@@ -279,7 +281,7 @@ macro_rules! impl_node_state_ord_ops {
             /// Returns:
             ///     PropValue:
             #[doc = concat!("     Optional[", $py_value, "]:")]
-            fn median(&self) -> Option<$value> {
+            fn median(&self) -> Option<<$inner_type as NodeStateOps<'_, 'static>>::OwnedValue> {
                 self.inner.median().map($to_owned)
             }
 
@@ -287,7 +289,7 @@ macro_rules! impl_node_state_ord_ops {
             ///
             /// Returns:
             #[doc = concat!("     Optional[Tuple[Node, ", $py_value,"]]: The median value or `None` if empty")]
-            fn median_item(&self) -> Option<(NodeView<'static, DynamicGraph>, $value)> {
+            fn median_item(&self) -> Option<(NodeView<'static, DynamicGraph>, <$inner_type as NodeStateOps<'_, 'static>>::OwnedValue)> {
                 self.inner
                     .median_item()
                     .map(|(n, v)| (n.cloned(), ($to_owned)(v)))
@@ -348,12 +350,12 @@ macro_rules! impl_lazy_node_state {
                 self.inner.compute()
             }
 
-            /// Compute all values and return the result as a OutputNodeState
+            /// Compute all values and return the result as a OutputTypedNodeState
             ///
             /// Returns:
-            #[doc = concat!("     ", $computed, ": the computed `OutputNodeState`")]
+            #[doc = concat!("     ", $computed, ": the computed `OutputTypedNodeState`")]
             fn arrow_compute(&self) -> OutputTypedNodeState<'static, DynamicGraph> {
-                self.inner.arrow_compute().transform()
+                self.inner.arrow_compute().to_output_nodestate()
             }
 
             /// Compute all values and return the result as a list
@@ -459,7 +461,7 @@ macro_rules! impl_lazy_node_state_ord {
         impl_lazy_node_state!($name<$value>, $computed, $py_value);
         impl_node_state_ord_ops!(
             $name,
-            <$value as NodeOp>::Output,
+            LazyNodeState<'static, $value, DynamicGraph, DynamicGraph, DynNodeFilter>, //<$value as NodeOp>::Output,
             |v: <$value as NodeOp>::Output| v,
             $computed,
             $py_value
@@ -471,7 +473,13 @@ macro_rules! impl_lazy_node_state_ord {
 macro_rules! impl_node_state_ord {
     ($name:ident<$value:ty>, $computed:literal, $py_value:literal) => {
         impl_node_state!($name<$value>, $computed, $py_value);
-        impl_node_state_ord_ops!($name, $value, |v: &$value| v.clone(), $computed, $py_value);
+        impl_node_state_ord_ops!(
+            $name,
+            NodeState<'static, $value, DynamicGraph>,
+            |v: &$value| v.clone(),
+            $computed,
+            $py_value
+        );
     };
 }
 

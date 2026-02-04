@@ -5,7 +5,7 @@ use crate::{
     db::{
         api::{
             state::{
-                GenericNodeState, MergePriority, NodeStateOutput, OutputTypedNodeState,
+                ops::Const, GenericNodeState, MergePriority, NodeStateOutput, OutputTypedNodeState,
                 TransformedPropMap, TypedNodeState,
             },
             view::DynamicGraph,
@@ -13,9 +13,11 @@ use crate::{
         graph::nodes::Nodes,
     },
     prelude::{GraphViewOps, NodeStateOps, Prop},
-    py_borrowing_iter,
     python::{
-        graph::node::{PyNode, PyNodes},
+        graph::{
+            node::{PyNode, PyNodes},
+            node_state::NodeFilterOp,
+        },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
     },
@@ -40,7 +42,8 @@ pub struct PyOutputNodeState {
 impl PyOutputNodeState {
     pub fn new(state: GenericNodeState<'static, DynamicGraph>) -> PyOutputNodeState {
         PyOutputNodeState {
-            inner: TypedNodeState::new_mapped(state, GenericNodeState::get_nodes).transform(),
+            inner: TypedNodeState::new_mapped(state, GenericNodeState::get_nodes)
+                .to_output_nodestate(),
         }
     }
 }
@@ -160,13 +163,24 @@ impl PyOutputNodeState {
     //    self.inner.sort_by_id()
     //}
 
-    // TODO(wyatt)
+    /// Convert TypedNodeState to Parquet
+    ///
+    /// Arguments:
+    ///     file_path (str): filepath to which TypedNodeState is written
+    ///     id_column (str): column containing IDs of nodes
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn to_parquet(&self, file_path: String, id_column: String) {
         self.inner.state.to_parquet(file_path, Some(id_column));
     }
 
-    // TODO(wyatt)
+    /// Get TypedNodeState from Parquet
+    ///
+    /// Arguments:
+    ///     file_path (str): filepath from which to read TypedNodeState
+    ///     id_column (str): column to which node IDs will be written
+    ///
+    /// Returns:
+    ///     TypedNodeState
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn from_parquet(&self, file_path: String, id_column: String) -> PyResult<Self> {
         Ok(PyOutputNodeState {
@@ -177,7 +191,16 @@ impl PyOutputNodeState {
         })
     }
 
-    // TODO(wyatt)
+    /// Merge with another TypedNodeState (produces new TypedNodeState)
+    ///
+    /// Arguments:
+    ///     other (TypedNodeState): TypedNodeState to merge with
+    ///     index_merge_priority (str): "left" or "right" to take left or right index, "union" to union index sets
+    ///     default_column_merge_priority (str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default
+    ///     column_merge_priority_map (dict): map of column names (str) to merge priority ("left", "right", or "exclude")
+    ///
+    /// Returns:
+    ///     TypedNodeState
     #[pyo3(signature = (other, index_merge_priority="left".to_string(), default_column_merge_priority="left".to_string(), column_merge_priority_map=None::<HashMap<String, String>>))]
     fn merge<'py>(
         &self,
@@ -191,7 +214,7 @@ impl PyOutputNodeState {
         let merge_priority_enum_map: HashMap<String, MergePriority> = HashMap::from([
             ("left".to_string(), MergePriority::Left),
             ("right".to_string(), MergePriority::Right),
-            ("exclude".to_string(), MergePriority::Exclude),
+            ("union".to_string(), MergePriority::Exclude),
         ]);
 
         let index_merge_priority = merge_priority_enum_map
@@ -271,7 +294,14 @@ impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
 impl<'py> FromPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         if let Ok(nodes) = ob.downcast::<PyNodes>() {
-            return Ok(NodeStateOutput::Nodes(nodes.get().nodes.clone()));
+            if nodes.get().nodes.predicate.is_filtered() {
+                return Err(PyTypeError::new_err(
+                    "Trying to read filtered Nodes object.",
+                ));
+            }
+            let nodes: Nodes<'static, DynamicGraph, DynamicGraph, Const<bool>> =
+                Nodes::new(nodes.get().nodes.graph.clone());
+            return Ok(NodeStateOutput::Nodes(nodes));
         }
 
         if let Ok(node) = ob.downcast::<PyNode>() {

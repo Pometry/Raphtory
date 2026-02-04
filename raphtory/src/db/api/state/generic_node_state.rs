@@ -2,7 +2,7 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::{node_state_ops::NodeStateOps, Index},
+            state::{node_state_ops::NodeStateOps, ops::Const, Index},
             view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -48,7 +48,11 @@ use std::{
     sync::Arc,
 };
 
-// TODO(wyatt)
+// The bundle of traits which are useful/essential for the underlying value types
+// of a GenericNodeState.
+// We need serialize and deserialize to create a GenericNodeState/RecordBatch from a Vec of structs
+// and to extract a Vec of structs from a GenericNodeState
+// the others are useful for implementing various traits
 pub trait NodeStateValue:
     Clone + PartialEq + Serialize + DeserializeOwned + Send + Sync + Debug
 {
@@ -58,11 +62,11 @@ impl<T> NodeStateValue for T where
 {
 }
 
-// TODO(wyatt)
-pub trait InputNodeStateValue: Clone + Serialize + DeserializeOwned + Debug {}
-impl<T> InputNodeStateValue for T where T: Clone + Serialize + DeserializeOwned + Debug {}
+// These I think are the minimum required to create a GenericNodeState/RecordBatch
+pub trait InputNodeStateValue<V>: NodeStateValue + From<V> {}
+impl<T, V> InputNodeStateValue<V> for T where T: NodeStateValue + From<V> {}
 
-// TODO(wyatt)
+// These are the options for merging NodeState indexes/columns
 #[derive(Clone, PartialEq)]
 pub enum MergePriority {
     Left,
@@ -70,15 +74,16 @@ pub enum MergePriority {
     Exclude,
 }
 
-// TODO(wyatt)
+// This enum is very useful for interfacing with Python.
+// When exposing a TypedNodeState to Python, the columns all fall into one of these variants.
 #[derive(Clone, PartialEq, Debug)]
-pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph> = G> {
-    Node(NodeView<'graph, G, GH>),
-    Nodes(Nodes<'graph, G, GH>),
+pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>> {
+    Node(NodeView<'graph, G>),
+    Nodes(Nodes<'graph, G, G>),
     Prop(Option<Prop>),
 }
 
-// TODO(wyatt)
+// This exists because GenericNodeStates have a data structure (node_cols) exposing which columns contain nodes.
 #[derive(Clone, PartialEq, Debug)]
 pub enum NodeStateOutputType {
     Node,
@@ -86,28 +91,27 @@ pub enum NodeStateOutputType {
     Prop,
 }
 
-// TODO(wyatt)
+// Rows of TypedNodeStates containing references to nodes are first deserialized into this type,
+// a map of column names to generic values.
 pub type PropMap = IndexMap<String, Option<Prop>>;
 
-// TODO(wyatt)
-pub type TransformedPropMap<'graph, G, GH = G> = IndexMap<String, NodeStateOutput<'graph, G, GH>>;
+// Then, using node_cols, the values which are actually nodes get converted into the correct NodeStateOutput variant.
+pub type TransformedPropMap<'graph, G> = IndexMap<String, NodeStateOutput<'graph, G>>;
 
-// TODO(wyatt)
-pub type OutputTypedNodeState<'graph, G, GH = G> =
-    TypedNodeState<'graph, PropMap, G, GH, TransformedPropMap<'graph, G, GH>>;
+// Shorthand for a TypedNodeState which is ideal for usage in Python.
+pub type OutputTypedNodeState<'graph, G> =
+    TypedNodeState<'graph, PropMap, G, TransformedPropMap<'graph, G>>;
 
-// TODO(wyatt)
 pub trait NodeTransform {
     type Input;
     type Output;
 
-    fn transform<'graph, G, GH>(
-        state: &GenericNodeState<'graph, G, GH>,
+    fn transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
         value: Self::Input,
     ) -> Self::Output
     where
-        G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>;
+        G: GraphViewOps<'graph>;
 }
 
 impl<T> NodeTransform for T
@@ -117,39 +121,42 @@ where
     type Input = Self;
     type Output = Self;
 
-    fn transform<'graph, G, GH>(
-        _state: &GenericNodeState<'graph, G, GH>,
+    fn transform<'graph, G>(
+        _state: &GenericNodeState<'graph, G>,
         value: Self::Input,
     ) -> Self::Output
     where
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
     {
         value
     }
 }
 
-// TODO(wyatt)
 #[derive(Clone, Debug)]
-pub struct GenericNodeState<'graph, G, GH = G> {
+pub struct GenericNodeState<'graph, G> {
     pub base_graph: G,
-    pub graph: GH,
     values: RecordBatch,
     keys: Option<Index<VID>>,
-    node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>, //
+    // Data structure mapping which columns are node-containing and, if so, which graph they belong to
+    // note: maybe change that Option<G> to a Option<Box<dyn GraphViewOps>> or something
+    node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
     _marker: PhantomData<&'graph ()>,
 }
 
-// TODO(wyatt)
+// This is what most code will interface with. A TypedNodeState is a wrapper around a GenericNodeState
+// with a struct type, V, that values from the RecordBatch can be dumped into. If there are nodes in
+// any columns, T exists as a second struct type into which V can be transformed.
+// (there is no easy way to go directly from raw arrow values to nodes, hence the two struct types)
 #[derive(Clone)]
-pub struct TypedNodeState<'graph, V: NodeStateValue, G, GH = G, T: Clone + Sync + Send = V> {
-    pub state: GenericNodeState<'graph, G, GH>,
-    pub converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T, //
+pub struct TypedNodeState<'graph, V: NodeStateValue, G, T: Clone + Sync + Send = V> {
+    pub state: GenericNodeState<'graph, G>,
+    // function for converting primary struct type to secondary struct type in the event of node-containing columns
+    pub converter: fn(&GenericNodeState<'graph, G>, V) -> T,
     _v_marker: PhantomData<V>,
     _t_marker: PhantomData<T>,
 }
 
-// TODO(wyatt)
+// Helper struct to facilitate iteration and row-fetching over RecordBatches
 pub struct RecordBatchIterator<'a, T> {
     deserializer: Deserializer<'a>,
     idx: usize,
@@ -170,7 +177,6 @@ where
         }
     }
 
-    // TODO(wyatt)
     pub fn get(&self, idx: usize) -> Option<T> {
         Some(T::deserialize(self.deserializer.get(idx)?).unwrap())
     }
@@ -193,26 +199,16 @@ where
     }
 }
 
-impl<'graph, G: IntoDynamic, GH: IntoDynamic> GenericNodeState<'graph, G, GH> {
+impl<'graph, G: IntoDynamic> GenericNodeState<'graph, G> {
     pub fn into_dyn(self) -> GenericNodeState<'graph, DynamicGraph> {
         let node_cols = Some(
             self.node_cols
                 .into_iter()
-                .map(|(k, (output_type, bg, g))| {
-                    (
-                        k,
-                        (
-                            output_type,
-                            bg.map(|bg| bg.into_dynamic()),
-                            g.map(|g| g.into_dynamic()),
-                        ),
-                    )
-                })
+                .map(|(k, (output_type, bg))| (k, (output_type, bg.map(|bg| bg.into_dynamic()))))
                 .collect(),
         );
         GenericNodeState::new(
             self.base_graph.into_dynamic(),
-            self.graph.into_dynamic(),
             self.values,
             self.keys,
             node_cols,
@@ -220,17 +216,15 @@ impl<'graph, G: IntoDynamic, GH: IntoDynamic> GenericNodeState<'graph, G, GH> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState<'graph, G, GH> {
+impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn new(
         base_graph: G,
-        graph: GH,
         values: RecordBatch,
         keys: Option<Index<VID>>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
     ) -> Self {
         Self {
             base_graph,
-            graph,
             values,
             keys,
             node_cols: node_cols.unwrap_or(HashMap::new()),
@@ -238,11 +232,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
     }
 
-    // TODO(wyatt)
+    // PropMap is the primary struct type for Python-facing TypedNodeStates
+    // TransformedPropMap is the secondary struct type in case any columns contain nodes
+    // This function performs the conversion from primary to secondary
     pub fn get_nodes(
-        state: &GenericNodeState<'graph, G, GH>,
+        state: &GenericNodeState<'graph, G>,
         value_map: PropMap,
-    ) -> TransformedPropMap<'graph, G, GH> {
+    ) -> TransformedPropMap<'graph, G> {
         // for column in aux data structure
         value_map
             .into_iter()
@@ -252,14 +248,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 if value.is_none() || node_col_entry.is_none() {
                     return (key, NodeStateOutput::Prop(value));
                 } else {
-                    let (node_state_type, base_graph, graph) = node_col_entry.unwrap();
+                    let (node_state_type, base_graph) = node_col_entry.unwrap();
                     if node_state_type == &NodeStateOutputType::Node {
                         if let Some(Prop::U64(vid)) = value {
                             result = Some((
                                 key,
-                                NodeStateOutput::Node(NodeView::new_one_hop_filtered(
+                                NodeStateOutput::Node(NodeView::new_internal(
                                     base_graph.as_ref().unwrap_or(&state.base_graph).clone(),
-                                    graph.as_ref().unwrap_or(&state.graph).clone(),
                                     VID(vid as usize),
                                 )),
                             ));
@@ -270,13 +265,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                                 key,
                                 NodeStateOutput::Nodes(Nodes::new_filtered(
                                     base_graph.as_ref().unwrap_or(&state.base_graph).clone(),
-                                    graph.as_ref().unwrap_or(&state.graph).clone(),
+                                    base_graph.as_ref().unwrap_or(&state.base_graph).clone(),
+                                    Const(true),
                                     Some(Index::from_iter(
                                         vid_arr
                                             .iter_prop()
                                             .map(|vid| VID(vid.into_u64().unwrap() as usize)),
                                     )),
-                                    None,
                                 )),
                             );
                         } else if let Some(PropType::List(_)) =
@@ -291,7 +286,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                                                 .as_ref()
                                                 .unwrap_or(&state.base_graph)
                                                 .clone(),
-                                            graph.as_ref().unwrap_or(&state.graph).clone(),
+                                            base_graph
+                                                .as_ref()
+                                                .unwrap_or(&state.base_graph)
+                                                .clone(),
+                                            Const(true),
                                             Some(Index::from_iter(vid_list.into_iter().map(
                                                 |vid| {
                                                     VID(vid
@@ -302,7 +301,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                                                         as usize)
                                                 },
                                             ))),
-                                            None,
                                         )),
                                     ));
                                 }
@@ -315,8 +313,8 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             .collect()
     }
 
-    // TODO(wyatt)
-    pub fn transform(self) -> OutputTypedNodeState<'graph, G, GH> {
+    // Convert any TypedNodeState to a form suitable for Python
+    pub fn to_output_nodestate(self) -> OutputTypedNodeState<'graph, G> {
         TypedNodeState::new_mapped(self, Self::get_nodes)
     }
 
@@ -329,19 +327,19 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
     }
 
     fn get_index_by_node<N: AsNodeRef>(&self, node: &N) -> Option<usize> {
-        let id = self.graph.internalise_node(node.as_node_ref())?;
+        let id = self.base_graph.internalise_node(node.as_node_ref())?;
         match &self.keys {
             Some(index) => index.index(&id),
             None => Some(id.0),
         }
     }
 
-    fn nodes(&self) -> Nodes<'graph, G, GH> {
+    fn nodes(&self) -> Nodes<'graph, G> {
         Nodes::new_filtered(
             self.base_graph.clone(),
-            self.graph.clone(),
+            self.base_graph.clone(),
+            Const(true),
             self.keys.clone(),
-            None,
         )
     }
 
@@ -349,12 +347,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         self.values.num_rows()
     }
 
-    // TODO(wyatt)
     pub fn from_parquet<P: AsRef<Path>>(
         &self,
         file_path: P,
+        // If ID column is specified and exists, try to construct index using that column
         id_column: Option<String>,
-    ) -> Result<GenericNodeState<'graph, G, GH>, GraphError> {
+    ) -> Result<GenericNodeState<'graph, G>, GraphError> {
+        let num_nodes = self.base_graph.unfiltered_num_nodes();
         let file = File::open(file_path)?;
         let builder = ParquetRecordBatchReaderBuilder::try_new(file)?;
         let schema = builder.schema().clone();
@@ -376,12 +375,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
         let mut batch = arrow::compute::concat_batches(&schema, &batches)?;
 
-        if batch.num_rows() > self.graph.unfiltered_num_nodes() {
+        if batch.num_rows() > num_nodes {
             return Err(GraphError::ParquetError(ParquetError::ArrowError(
                 format!(
                     "Number of rows ({}) exceeds order of graph ({}).",
                     batch.num_rows(),
-                    self.graph.unfiltered_num_nodes()
+                    num_nodes,
                 )
                 .to_string(),
             )));
@@ -398,12 +397,11 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 .as_primitive_opt::<UInt64Type>()
             {
                 let max_node_id = arr.iter().max().unwrap_or(Some(0)).unwrap() as usize;
-                if max_node_id >= self.graph.unfiltered_num_nodes() {
+                if max_node_id >= num_nodes {
                     return Err(GraphError::ParquetError(ParquetError::ArrowError(
                         format!(
                             "Max Node ID ({}) exceeds order of graph ({}).",
-                            max_node_id,
-                            self.graph.unfiltered_num_nodes()
+                            max_node_id, num_nodes,
                         )
                         .to_string(),
                     )));
@@ -417,13 +415,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
                 )));
             }
             batch.remove_column(schema.column_with_name(col_name).unwrap().0);
-        } else if batch.num_rows() < self.graph.unfiltered_num_nodes() {
+        } else if batch.num_rows() < num_nodes {
             index = Some(Index::from_iter((0..batch.num_rows()).map(VID)));
         }
 
         Ok(GenericNodeState {
             base_graph: self.base_graph.clone(),
-            graph: self.graph.clone(),
             values: batch,
             keys: index,
             node_cols: self.node_cols.clone(),
@@ -431,7 +428,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         })
     }
 
-    // TODO(wyatt)
     pub fn to_parquet<P: AsRef<Path>>(&self, file_path: P, id_column: Option<String>) {
         let mut batch: Option<RecordBatch> = None;
         let mut schema = self.values.schema();
@@ -462,7 +458,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             batch = Some(RecordBatch::try_new(schema.clone(), columns).unwrap());
         }
 
-        // Now write this new_batch to Parquet
         let file = File::create(file_path).unwrap();
         let props = WriterProperties::builder()
             .set_compression(Compression::SNAPPY)
@@ -474,16 +469,18 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         writer.close().unwrap();
     }
 
-    // TODO(wyatt)
+    // Auxiliary function to merge columns of merging GenericNodeStates
     fn merge_columns(
         col_name: &String,
-        tgt_idx_set: Option<&Index<VID>>,
+        tgt_idx_set: Option<&Index<VID>>, // index set of the merged GenricNodeState
         tgt_idx_set_len: usize,
         lh: Option<&Index<VID>>,
         rh: Option<&Index<VID>>,
         lh_batch: &RecordBatch,
         rh_batch: &RecordBatch,
     ) -> (Arc<dyn Array>, Field) {
+        // clever tricks with take array_select::take to work with generic columns
+        // need to construct a 'take index' to figure out which values we're grabbing
         let iter = if tgt_idx_set.is_some() {
             Either::Left(tgt_idx_set.as_ref().unwrap().iter())
         } else {
@@ -531,22 +528,27 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         )
     }
 
-    // TODO(wyatt)
+    // Merge with another GenericNodeState. Produces a new GenericNodeState.
+    // Options for merging index sets are exclusively use left or right, or to union the sets
+    // Options for merging columns are to prioritize left or right, or exclude the column
     pub fn merge(
         &self,
-        other: &GenericNodeState<'graph, G, GH>,
-        index_merge_priority: MergePriority,
+        other: &GenericNodeState<'graph, G>,
+        index_merge_priority: MergePriority, // Exclude = Union of index sets
         default_column_merge_priority: MergePriority,
         column_merge_priority_map: Option<HashMap<String, MergePriority>>,
     ) -> Self {
-        let mut merge_node_cols: HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> =
+        // if any columns contain nodes, you need to preserve that information in the node_cols structure
+        let mut merge_node_cols: HashMap<String, (NodeStateOutputType, Option<G>)> =
             HashMap::default();
-        let default_node_cols: &HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)> =
+        let default_node_cols: &HashMap<String, (NodeStateOutputType, Option<G>)> =
             if default_column_merge_priority == MergePriority::Left {
                 &self.node_cols
             } else {
                 &other.node_cols
             };
+
+        // handle index set merging
         let new_idx_set = if self.keys.is_none() || other.keys.is_none() {
             None
         } else {
@@ -566,8 +568,10 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             MergePriority::Right => other.keys.as_ref(),
             MergePriority::Exclude => new_idx_set.as_ref(),
         };
-        let tgt_index_set_len =
-            tgt_idx_set.map_or(self.graph.unfiltered_num_nodes(), |idx_set| idx_set.len());
+        let tgt_index_set_len = tgt_idx_set
+            .map_or(self.base_graph.unfiltered_num_nodes(), |idx_set| {
+                idx_set.len()
+            });
 
         let mut cols: Vec<Arc<dyn Array>> = vec![];
         let mut fields: Vec<Field> = vec![];
@@ -638,7 +642,6 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
             MergePriority::Exclude => {
                 return GenericNodeState::new(
                     self.base_graph.clone(),
-                    self.graph.clone(),
                     RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
                     tgt_idx_set.cloned(),
                     Some(merge_node_cols),
@@ -673,14 +676,13 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
         }
         GenericNodeState::new(
             self.base_graph.clone(),
-            self.graph.clone(),
             RecordBatch::try_new(Schema::new(fields).into(), cols).unwrap(),
             tgt_idx_set.cloned(),
             Some(merge_node_cols),
         )
     }
 
-    // TODO(wyatt)
+    // by default RecordBatch columns aren't nullable. This post-processing step makes them nullable
     fn convert_recordbatch(
         recordbatch: RecordBatch,
     ) -> Result<RecordBatch, arrow_schema::ArrowError> {
@@ -705,13 +707,12 @@ impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState
     }
 }
 
-impl<'graph, V, G, GH> TypedNodeState<'graph, V, G, GH>
+impl<'graph, V, G> TypedNodeState<'graph, V, G>
 where
     V: NodeStateValue,
     G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
 {
-    pub fn new(state: GenericNodeState<'graph, G, GH>) -> Self {
+    pub fn new(state: GenericNodeState<'graph, G>) -> Self {
         Self {
             state,
             converter: V::transform,
@@ -726,12 +727,11 @@ impl<
         V: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > TypedNodeState<'graph, V, G, GH, T>
+    > TypedNodeState<'graph, V, G, T>
 {
     pub fn new_mapped(
-        state: GenericNodeState<'graph, G, GH>,
-        converter: fn(&GenericNodeState<'graph, G, GH>, V) -> T,
+        state: GenericNodeState<'graph, G>,
+        converter: fn(&GenericNodeState<'graph, G>, V) -> T,
     ) -> Self {
         TypedNodeState {
             state,
@@ -750,7 +750,7 @@ impl<
             .collect()
     }
 
-    pub fn transform(self) -> OutputTypedNodeState<'graph, G, GH> {
+    pub fn to_output_nodestate(self) -> OutputTypedNodeState<'graph, G> {
         TypedNodeState::new_mapped(self.state, GenericNodeState::get_nodes)
     }
 
@@ -775,10 +775,9 @@ impl<
         V: NodeStateValue + 'graph,
         T: Clone + Sync + Send + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > PartialEq<TypedNodeState<'graph, V, G, GH, T>> for TypedNodeState<'graph, V, G, GH, T>
+    > PartialEq<TypedNodeState<'graph, V, G, T>> for TypedNodeState<'graph, V, G, T>
 {
-    fn eq(&self, other: &TypedNodeState<'graph, V, G, GH, T>) -> bool {
+    fn eq(&self, other: &TypedNodeState<'graph, V, G, T>) -> bool {
         self.len() == other.len()
             && self
                 .par_iter()
@@ -791,8 +790,7 @@ impl<
         RHS: NodeStateValue + Send + Sync + 'graph,
         T: Clone + Sync + Send + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > PartialEq<Vec<RHS>> for TypedNodeState<'graph, RHS, G, GH, T>
+    > PartialEq<Vec<RHS>> for TypedNodeState<'graph, RHS, G, T>
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values_to_rows().par_iter().eq(other)
@@ -805,9 +803,8 @@ impl<
         RHS: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
         S,
-    > PartialEq<HashMap<K, RHS, S>> for TypedNodeState<'graph, RHS, G, GH, T>
+    > PartialEq<HashMap<K, RHS, S>> for TypedNodeState<'graph, RHS, G, T>
 {
     fn eq(&self, other: &HashMap<K, RHS, S>) -> bool {
         other.len() == self.len()
@@ -817,9 +814,7 @@ impl<
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: Debug + GraphViewOps<'graph>>
-    OutputTypedNodeState<'graph, G, GH>
-{
+impl<'graph, G: GraphViewOps<'graph>> OutputTypedNodeState<'graph, G> {
     pub fn try_eq_hashmap<K: AsNodeRef>(
         &self,
         other: HashMap<K, HashMap<String, Option<Prop>>>,
@@ -870,8 +865,7 @@ impl<
         V: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
         G: GraphViewOps<'graph>,
-        GH: Debug + GraphViewOps<'graph>,
-    > Debug for TypedNodeState<'graph, V, G, GH, T>
+    > Debug for TypedNodeState<'graph, V, G, T>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self.iter()).finish()
@@ -883,10 +877,9 @@ impl<
         V: NodeStateValue + 'graph,
         T: Clone + Sync + Send + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > IntoIterator for TypedNodeState<'graph, V, G, GH, T>
+    > IntoIterator for TypedNodeState<'graph, V, G, T>
 {
-    type Item = (NodeView<'graph, G, GH>, V);
+    type Item = (NodeView<'graph, G>, V);
     type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'graph>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -904,19 +897,18 @@ impl<
         V: NodeStateValue + 'graph,
         T: Clone + Sync + Send + 'graph,
         G: GraphViewOps<'graph>,
-        GH: GraphViewOps<'graph>,
-    > NodeStateOps<'a, 'graph> for TypedNodeState<'graph, V, G, GH, T>
+    > NodeStateOps<'a, 'graph> for TypedNodeState<'graph, V, G, T>
 {
-    type Graph = GH;
+    type Graph = G;
     type BaseGraph = G;
-
+    type Select = Const<bool>;
     type Value = V;
     type OwnedValue = V;
 
     type OutputType = Self;
 
     fn graph(&self) -> &Self::Graph {
-        &self.state.graph
+        &self.state.base_graph
     }
 
     fn base_graph(&self) -> &Self::BaseGraph {
@@ -946,97 +938,53 @@ impl<
             .map(move |i| self.get_by_index(i).unwrap().1)
     }
 
-    fn iter(
-        &'a self,
-    ) -> impl Iterator<
-        Item = (
-            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
-            Self::Value,
-        ),
-    > + 'a {
+    fn iter(&'a self) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)> + 'a {
         match &self.state.keys {
             Some(index) => index
                 .iter()
                 .zip(self.iter_values())
-                .map(|(n, v)| {
-                    (
-                        NodeView::new_one_hop_filtered(
-                            &self.state.base_graph,
-                            &self.state.graph,
-                            n,
-                        ),
-                        v,
-                    )
-                })
+                .map(|(n, v)| (NodeView::new_internal(&self.state.base_graph, n), v))
                 .into_dyn_boxed(),
             None => self
                 .iter_values()
                 .enumerate()
-                .map(|(i, v)| {
-                    (
-                        NodeView::new_one_hop_filtered(
-                            &self.state.base_graph,
-                            &self.state.graph,
-                            VID(i),
-                        ),
-                        v,
-                    )
-                })
+                .map(|(i, v)| (NodeView::new_internal(&self.state.base_graph, VID(i)), v))
                 .into_dyn_boxed(),
         }
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph> {
+    fn nodes(&self) -> Nodes<'graph, Self::Graph> {
         self.state.nodes()
     }
 
     fn par_iter(
         &'a self,
-    ) -> impl ParallelIterator<
-        Item = (
-            NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
-            Self::Value,
-        ),
-    > {
+    ) -> impl ParallelIterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)> {
         match &self.state.keys {
-            Some(index) => {
-                Either::Left(index.par_iter().zip(self.par_iter_values()).map(|(n, v)| {
-                    (
-                        NodeView::new_one_hop_filtered(
-                            &self.state.base_graph,
-                            &self.state.graph,
-                            n,
-                        ),
-                        v,
-                    )
-                }))
-            }
-            None => Either::Right(self.par_iter_values().enumerate().map(|(i, v)| {
-                (
-                    NodeView::new_one_hop_filtered(
-                        &self.state.base_graph,
-                        &self.state.graph,
-                        VID(i),
-                    ),
-                    v,
-                )
-            })),
+            Some(index) => Either::Left(
+                index
+                    .par_iter()
+                    .zip(self.par_iter_values())
+                    .map(|(n, v)| (NodeView::new_internal(&self.state.base_graph, n), v)),
+            ),
+            None => Either::Right(
+                self.par_iter_values()
+                    .enumerate()
+                    .map(|(i, v)| (NodeView::new_internal(&self.state.base_graph, VID(i)), v)),
+            ),
         }
     }
 
     fn get_by_index(
         &'a self,
         index: usize,
-    ) -> Option<(
-        NodeView<'a, &'a Self::BaseGraph, &'a Self::Graph>,
-        Self::Value,
-    )> {
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         let vid = match &self.state.keys {
             Some(node_index) => node_index.key(index).unwrap(),
             None => VID(index),
         };
         Some((
-            NodeView::new_one_hop_filtered(&self.state.base_graph, &self.state.graph, vid),
+            NodeView::new_internal(&self.state.base_graph, vid),
             self.get_by_node(vid).unwrap(), // &self.values[index],
         ))
     }
@@ -1061,7 +1009,7 @@ impl<
     fn construct(
         &self,
         base_graph: Self::BaseGraph,
-        graph: Self::Graph,
+        _graph: Self::Graph,
         keys: IndexSet<VID, ahash::RandomState>,
         values: Vec<Self::OwnedValue>,
     ) -> Self::OutputType
@@ -1071,12 +1019,11 @@ impl<
     {
         let state = GenericNodeState::new_from_eval_with_index(
             base_graph,
-            graph,
             values,
             Some(Index::new(keys)),
             Some(self.state.node_cols.clone()),
         );
-        TypedNodeState::<'graph, V, Self::BaseGraph, Self::Graph, T> {
+        TypedNodeState::<'graph, V, Self::Graph, T> {
             state: state,
             converter: self.converter,
             _v_marker: PhantomData,
@@ -1085,36 +1032,27 @@ impl<
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>> GenericNodeState<'graph, G, GH> {
-    pub fn new_from_eval_with_index<V: InputNodeStateValue>(
+impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
+    pub fn new_from_eval_with_index<V: NodeStateValue>(
         graph: G,
-        filtered_graph: GH,
         values: Vec<V>,
         index: Option<Index<VID>>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
     ) -> Self {
-        Self::new_from_eval_with_index_mapped(
-            graph,
-            filtered_graph,
-            values,
-            index,
-            |v| v,
-            node_cols,
-        )
+        Self::new_from_eval_with_index_mapped(graph, values, index, |v| v, node_cols)
     }
 
-    pub fn new_from_eval_with_index_mapped<R: Clone, V: InputNodeStateValue>(
+    pub fn new_from_eval_with_index_mapped<R: Clone, V: NodeStateValue>(
         graph: G,
-        filtered_graph: GH,
         values: Vec<R>,
         index: Option<Index<VID>>,
         map: impl Fn(R) -> V,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<GH>)>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
-        Self::new(graph, filtered_graph, values, index, node_cols)
+        Self::new(graph, values, index, node_cols)
     }
 }
 
@@ -1123,7 +1061,6 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn new_empty(graph: G) -> Self {
         Self::new(
             graph.clone(),
-            graph,
             RecordBatch::new_empty(Schema::empty().into()),
             Some(Index::default()),
             None,
@@ -1135,10 +1072,10 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// # Arguments
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
-    pub fn new_from_eval<V: InputNodeStateValue>(
+    pub fn new_from_eval<V: NodeStateValue>(
         graph: G,
         values: Vec<V>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
     ) -> Self {
         Self::new_from_eval_mapped(graph, values, |v| v, node_cols)
     }
@@ -1149,14 +1086,14 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// - `graph`: the graph view
     /// - `values`: the unfiltered values (i.e., `values.len() == graph.unfiltered_num_nodes()`). This method handles the filtering.
     /// - `map`: Closure mapping input to output values
-    pub fn new_from_eval_mapped<R: Clone, V: InputNodeStateValue>(
+    pub fn new_from_eval_mapped<R: Clone, V: NodeStateValue>(
         graph: G,
         values: Vec<R>,
         map: impl Fn(R) -> V,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
     ) -> Self {
         let index = Index::for_graph(graph.clone());
-        Self::new_from_eval_with_index_mapped(graph.clone(), graph, values, index, map, node_cols)
+        Self::new_from_eval_with_index_mapped(graph.clone(), values, index, map, node_cols)
     }
 
     /// create a new NodeState from a list of values for the node (takes care of creating an index for
@@ -1164,12 +1101,11 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn new_from_values(
         graph: G,
         values: impl Into<RecordBatch>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
     ) -> Self {
         let index = Index::for_graph(&graph);
         Self::new(
             graph.clone(),
-            graph,
             Self::convert_recordbatch(values.into()).unwrap(),
             index,
             node_cols,
@@ -1181,7 +1117,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         mut values: HashMap<VID, R, S>,
         map: impl Fn(R) -> V,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>, Option<G>)>>,
+        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
     ) -> Self {
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         if values.len() == graph.count_nodes() {
@@ -1199,13 +1135,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 .flat_map(|node| Some((node.node, map(values.remove(&node.node)?))))
                 .unzip();
             let values = to_record_batch(&fields, &values).unwrap();
-            Self::new(
-                graph.clone(),
-                graph,
-                values,
-                Some(Index::new(index)),
-                node_cols,
-            )
+            Self::new(graph.clone(), values, Some(Index::new(index)), node_cols)
         }
     }
 }

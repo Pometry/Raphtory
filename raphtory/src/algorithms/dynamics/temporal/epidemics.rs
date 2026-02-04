@@ -248,7 +248,6 @@ where
     Ok(TypedNodeState::new(
         GenericNodeState::new_from_eval_with_index(
             g.clone(),
-            g.clone(),
             values,
             Some(Index::new(index)),
             None,

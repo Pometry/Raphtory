@@ -4,15 +4,18 @@ use crate::{
     db::{
         api::{
             state::{
-                ops,
                 ops::{
-                    Const, DynNodeFilter, EarliestTime, HistoryOp, IntoDynNodeOp, LatestTime,
-                    NodeFilterOp, NodeOp,
+                    ArrowMap, ArrowNodeOp, Const, DynNodeFilter, EarliestTime, FilterOps,
+                    HistoryOp, IntoArrowNodeOp, IntoDynNodeOp, LatestTime, Map, NodeFilterOp,
+                    NodeOp,
                 },
                 GenericNodeState, Index, NodeState, NodeStateOps,
             },
             view::{
-                history::{History, HistoryDateTime, HistoryEventId, HistoryTimestamp, Intervals},
+                history::{
+                    History, HistoryDateTime, HistoryEventId, HistoryTimestamp, InternalHistoryOps,
+                    Intervals,
+                },
                 internal::NodeList,
                 BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
@@ -28,6 +31,7 @@ use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
 use raphtory_api::core::storage::timeindex::{AsTime, EventTime, TimeError};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -71,16 +75,16 @@ where
 
 impl<
         'a,
-        'graph,
+        'graph: 'a,
         O: NodeOp + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
         F: NodeFilterOp + Clone + 'graph,
-    > PartialEq<LazyNodeState<'graph, O, G, GH>> for LazyNodeState<'graph, O, G, GH, F>
+    > PartialEq<LazyNodeState<'graph, O, G, GH, F>> for LazyNodeState<'graph, O, G, GH, F>
 where
     O::Output: PartialEq,
 {
-    fn eq(&self, other: &LazyNodeState<'graph, Op, G, GH>) -> bool {
+    fn eq(&self, other: &LazyNodeState<'graph, O, G, GH, F>) -> bool {
         self.len() == other.len()
             && self.par_iter().all(|(node, value)| {
                 other
@@ -155,7 +159,7 @@ impl<O, G: IntoDynamic, GH: IntoDynamic, F: IntoDynNodeOp + NodeFilterOp + 'stat
 
 impl<
         'graph,
-        O: NodeOp + 'graph,
+        O: ArrowNodeOp + 'graph,
         G: GraphViewOps<'graph>,
         GH: GraphViewOps<'graph>,
         F: NodeFilterOp + Clone + 'graph,
@@ -240,8 +244,9 @@ impl<
         }
     }
 
-    // TODO: if value is node, construct node_cols accordingly
-    pub fn arrow_compute(&self) -> GenericNodeState<'graph, G, GH> {
+    // TODO(wyatt): if value is node(s), construct node_cols accordingly
+    // Convert LazyNodeState to GenericNodeState
+    pub fn arrow_compute(&self) -> GenericNodeState<'graph, G> {
         if self.nodes.is_filtered() {
             let storage = self.graph().core_graph().lock();
             let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = self
@@ -251,7 +256,6 @@ impl<
                 .unzip();
             GenericNodeState::new_from_eval_with_index(
                 self.nodes.base_graph.clone(),
-                self.nodes.graph.clone(),
                 values,
                 Some(Index::new(keys)),
                 None,
@@ -265,12 +269,116 @@ impl<
                 .collect();
             GenericNodeState::new_from_eval_with_index(
                 self.nodes.base_graph.clone(),
-                self.nodes.graph.clone(),
                 values,
                 None,
                 None,
             )
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct IntervalsStruct {
+    pub intervals: Vec<i64>,
+}
+impl<T: InternalHistoryOps> From<Intervals<T>> for IntervalsStruct {
+    fn from(intervals: Intervals<T>) -> Self {
+        IntervalsStruct {
+            intervals: intervals.collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct IntervalStruct {
+    pub interval: Option<i64>,
+}
+impl From<Option<i64>> for IntervalStruct {
+    fn from(interval: Option<i64>) -> Self {
+        IntervalStruct { interval }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct AvgIntervalStruct {
+    pub avg_interval: Option<f64>,
+}
+impl From<Option<f64>> for AvgIntervalStruct {
+    fn from(avg_interval: Option<f64>) -> Self {
+        AvgIntervalStruct { avg_interval }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct TimeStampsStruct {
+    pub timestamps: Vec<i64>,
+}
+impl<T: InternalHistoryOps> From<HistoryTimestamp<T>> for TimeStampsStruct {
+    fn from(history: HistoryTimestamp<T>) -> Self {
+        TimeStampsStruct {
+            timestamps: history.collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct DateTimesStruct {
+    pub datetimes: Option<Vec<DateTime<Utc>>>,
+}
+impl<T: InternalHistoryOps> From<HistoryDateTime<T>> for DateTimesStruct {
+    fn from(history: HistoryDateTime<T>) -> Self {
+        DateTimesStruct {
+            datetimes: history.collect().ok(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct EventIdsStruct {
+    pub event_ids: Vec<usize>,
+}
+impl<T: InternalHistoryOps> From<HistoryEventId<T>> for EventIdsStruct {
+    fn from(history: HistoryEventId<T>) -> Self {
+        EventIdsStruct {
+            event_ids: history.collect(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct TimeStampStruct {
+    pub timestamp: Option<i64>,
+}
+impl From<Option<i64>> for TimeStampStruct {
+    fn from(timestamp: Option<i64>) -> Self {
+        TimeStampStruct { timestamp }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct DateTimeStruct {
+    pub datetime: Option<DateTime<Utc>>,
+}
+impl From<Result<Option<DateTime<Utc>>, TimeError>> for DateTimeStruct {
+    fn from(datetime: Result<Option<DateTime<Utc>>, TimeError>) -> Self {
+        DateTimeStruct {
+            datetime: datetime.ok().flatten(),
+        }
+    }
+}
+impl From<Option<DateTime<Utc>>> for DateTimeStruct {
+    fn from(datetime: Option<DateTime<Utc>>) -> Self {
+        DateTimeStruct { datetime }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct EventIdStruct {
+    pub event_id: Option<usize>,
+}
+impl From<Option<usize>> for EventIdStruct {
+    fn from(event_id: Option<usize>) -> Self {
+        EventIdStruct { event_id }
     }
 }
 
@@ -297,49 +405,60 @@ impl<
 
     pub fn intervals(
         &self,
-    ) -> LazyNodeState<'graph, ops::Map<HistoryOp<'graph, GH>, Intervals<NodeView<'_, GH>>>, G, GH, F>
-    {
+    ) -> LazyNodeState<
+        'graph,
+        ArrowMap<Map<HistoryOp<'graph, GH>, Intervals<NodeView<'graph, GH>>>, IntervalsStruct>,
+        G,
+        GH,
+        F,
+    > {
         let op = self.op.clone().map(|hist| hist.intervals());
-        LazyNodeState::new(op, self.nodes.clone())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes.clone())
     }
 
     pub fn t(
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<HistoryOp<'graph, GH>, HistoryTimestamp<NodeView<'_, GH>>>,
+        ArrowMap<
+            Map<HistoryOp<'graph, GH>, HistoryTimestamp<NodeView<'graph, GH>>>,
+            TimeStampsStruct,
+        >,
         G,
         GH,
         F,
     > {
         let op = self.op.clone().map(|hist| hist.t());
-        LazyNodeState::new(op, self.nodes.clone())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes.clone())
     }
 
     pub fn dt(
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<HistoryOp<'graph, GH>, HistoryDateTime<NodeView<'_, GH>>>,
+        ArrowMap<
+            Map<HistoryOp<'graph, GH>, HistoryDateTime<NodeView<'graph, GH>>>,
+            DateTimesStruct,
+        >,
         G,
         GH,
         F,
     > {
         let op = self.op.clone().map(|hist| hist.dt());
-        LazyNodeState::new(op, self.nodes.clone())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes.clone())
     }
 
     pub fn event_id(
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<HistoryOp<'graph, GH>, HistoryEventId<NodeView<'_, GH>>>,
+        ArrowMap<Map<HistoryOp<'graph, GH>, HistoryEventId<NodeView<'_, GH>>>, EventIdsStruct>,
         G,
         GH,
         F,
     > {
         let op = self.op.clone().map(|hist| hist.event_id());
-        LazyNodeState::new(op, self.nodes.clone())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes.clone())
     }
 
     pub fn collect_time_entries(&self) -> Vec<EventTime> {
@@ -354,16 +473,24 @@ impl<
         F: NodeFilterOp + Clone + 'graph,
     > LazyNodeState<'graph, EarliestTime<GH>, G, GH, F>
 {
-    pub fn t(&self) -> LazyNodeState<'graph, ops::Map<EarliestTime<GH>, Option<i64>>, G, GH, F> {
+    pub fn t(
+        &self,
+    ) -> LazyNodeState<
+        'graph,
+        ArrowMap<Map<EarliestTime<GH>, Option<i64>>, TimeStampStruct>,
+        G,
+        GH,
+        F,
+    > {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
-        LazyNodeState::new(op, self.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 
     pub fn dt(
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<EarliestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>,
+        ArrowMap<Map<EarliestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>, DateTimeStruct>,
         G,
         GH,
         F,
@@ -372,14 +499,20 @@ impl<
             .op
             .clone()
             .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
-        LazyNodeState::new(op, self.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 
     pub fn event_id(
         &self,
-    ) -> LazyNodeState<'graph, ops::Map<EarliestTime<GH>, Option<usize>>, G, GH, F> {
+    ) -> LazyNodeState<
+        'graph,
+        ArrowMap<Map<EarliestTime<GH>, Option<usize>>, EventIdStruct>,
+        G,
+        GH,
+        F,
+    > {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
-        LazyNodeState::new(op, self.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 }
 
@@ -390,16 +523,19 @@ impl<
         F: NodeFilterOp + Clone + 'graph,
     > LazyNodeState<'graph, LatestTime<GH>, G, GH, F>
 {
-    pub fn t(&self) -> LazyNodeState<'graph, ops::Map<LatestTime<GH>, Option<i64>>, G, GH, F> {
+    pub fn t(
+        &self,
+    ) -> LazyNodeState<'graph, ArrowMap<Map<LatestTime<GH>, Option<i64>>, TimeStampStruct>, G, GH, F>
+    {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.t()));
-        LazyNodeState::new(op, self.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 
     pub fn dt(
         &self,
     ) -> LazyNodeState<
         'graph,
-        ops::Map<LatestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>,
+        ArrowMap<Map<LatestTime<GH>, Result<Option<DateTime<Utc>>, TimeError>>, DateTimeStruct>,
         G,
         GH,
         F,
@@ -408,14 +544,15 @@ impl<
             .op
             .clone()
             .map(|t_opt| t_opt.map(|t| t.dt()).transpose());
-        LazyNodeState::new(op, self.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 
     pub fn event_id(
         &self,
-    ) -> LazyNodeState<'graph, ops::Map<LatestTime<GH>, Option<usize>>, G, GH, F> {
+    ) -> LazyNodeState<'graph, ArrowMap<Map<LatestTime<GH>, Option<usize>>, EventIdStruct>, G, GH, F>
+    {
         let op = self.op.clone().map(|t_opt| t_opt.map(|t| t.i()));
-        LazyNodeState::new(op, self.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.nodes())
     }
 }
 
@@ -432,12 +569,12 @@ impl<
     type BaseGraph = G;
     type Select = F;
     type Value
-        = Op::Output
+        = O::Output
     where
         'graph: 'a,
         Self: 'a;
     type OwnedValue = O::Output;
-    type OutputType = NodeState<'graph, Self::Value, Self::Graph>;
+    type OutputType = NodeState<'graph, Self::OwnedValue, Self::Graph>;
 
     fn graph(&self) -> &Self::Graph {
         &self.nodes.graph
@@ -477,14 +614,7 @@ impl<
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
-    fn iter(
-        &'a self,
-    ) -> impl Iterator<
-        Item = (
-            NodeView<'a, &'a Self::Graph>,
-            Self::Value,
-        ),
-    > + 'a {
+    fn iter(&'a self) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)> + 'a {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .iter()
@@ -497,12 +627,7 @@ impl<
 
     fn par_iter(
         &'a self,
-    ) -> impl ParallelIterator<
-        Item = (
-            NodeView<'a, &'a Self::Graph>,
-            Self::Value,
-        ),
-    > {
+    ) -> impl ParallelIterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)> {
         let storage = self.graph().core_graph().lock();
         self.nodes
             .par_iter()
@@ -512,10 +637,7 @@ impl<
     fn get_by_index(
         &'a self,
         index: usize,
-    ) -> Option<(
-        NodeView<'a, &'a Self::Graph>,
-        Self::Value,
-    )> {
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         if self.graph().filtered() {
             self.iter().nth(index)
         } else {
@@ -548,7 +670,7 @@ impl<
 
     fn construct(
         &self,
-        base_graph: Self::BaseGraph,
+        _base_graph: Self::BaseGraph,
         graph: Self::Graph,
         keys: IndexSet<VID, ahash::RandomState>,
         values: Vec<Self::OwnedValue>,

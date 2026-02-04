@@ -2,7 +2,7 @@ use crate::{
     core::{entities::VID, state::compute_state::ComputeStateVec},
     db::{
         api::{
-            state::{GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+            state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -26,12 +26,11 @@ pub struct OutState {
 }
 
 #[derive(Clone, Debug)]
-pub struct TransformedOutState<'graph, G, GH = G>
+pub struct TransformedOutState<'graph, G>
 where
     G: GraphViewOps<'graph>,
-    GH: GraphViewOps<'graph>,
 {
-    pub out_components: Nodes<'graph, G, GH>,
+    pub out_components: Nodes<'graph, G, G>,
 }
 
 impl OutState {
@@ -45,9 +44,9 @@ impl OutState {
         TransformedOutState {
             out_components: Nodes::new_filtered(
                 state.base_graph.clone(),
-                state.graph.clone(),
+                state.base_graph.clone(),
+                Const(true),
                 Some(Index::from_iter(value.out_components)),
-                None,
             ),
         }
     }
@@ -67,12 +66,12 @@ impl OutState {
 pub fn out_components<G>(
     g: &G,
     threads: Option<usize>,
-) -> TypedNodeState<'static, OutState, G, G, TransformedOutState<'static, G>>
+) -> TypedNodeState<'static, OutState, G, TransformedOutState<'static, G>>
 where
     G: StaticGraphViewOps,
 {
     let ctx: Context<G, ComputeStateVec> = g.into();
-    let step1 = ATask::new(move |vv: &mut EvalNodeView<G, OutState>| {
+    let step1 = ATask::new(move |vv: &mut EvalNodeView<_, OutState>| {
         let mut out_components = HashSet::new();
         let mut to_check_stack = Vec::new();
         vv.out_neighbours().iter().for_each(|node| {
@@ -110,7 +109,7 @@ where
                     local,
                     Some(HashMap::from([(
                         "out_components".to_string(),
-                        (NodeStateOutputType::Nodes, None, None),
+                        (NodeStateOutputType::Nodes, None),
                     )])),
                 ),
                 OutState::node_transform,
@@ -138,8 +137,8 @@ pub struct OutComponentState {
 ///
 /// Nodes in the out-component with their distances from the starting node.
 ///
-pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
-    node: NodeView<'graph, G, GH>,
+pub fn out_component<'graph, G: GraphViewOps<'graph>>(
+    node: NodeView<'graph, G>,
 ) -> TypedNodeState<'graph, OutComponentState, G> {
     let mut out_components = HashMap::new();
     let mut to_check_stack = VecDeque::new();
@@ -164,8 +163,7 @@ pub fn out_component<'graph, G: GraphViewOps<'graph>, GH: GraphViewOps<'graph>>(
     let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
         out_components.into_iter().sorted().unzip();
     TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
-        node.base_graph.clone(),
-        node.base_graph.clone(),
+        node.graph.clone(),
         distances
             .into_iter()
             .map(|value| OutComponentState { distance: value })
