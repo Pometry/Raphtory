@@ -20,7 +20,7 @@ use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 
 #[derive(Parser)]
-#[command(name = "raphtory", about = "Raphtory CLI")]
+#[command(name = "raphtory", about = "Raphtory CLI", version = raphtory::version())]
 struct Args {
     #[command(subcommand)]
     command: Commands,
@@ -28,55 +28,60 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(about = "Start the GraphQL server")]
+    #[command(about = "Run the GraphQL server")]
     Server(ServerArgs),
-    #[command(about = "Print the GraphQL schema to the standard output")]
+    #[command(about = "Print the GraphQL schema")]
     Schema,
 }
 
 #[derive(clap::Args)]
 struct ServerArgs {
-    #[arg(long, env = "RAPHTORY_WORKING_DIR", default_value = ".")]
-    working_dir: PathBuf,
+    #[arg(
+        long,
+        env = "RAPHTORY_WORK_DIR",
+        default_value = ".",
+        help = "Working directory"
+    )]
+    work_dir: PathBuf,
 
-    #[arg(long, env = "RAPHTORY_PORT", default_value_t = DEFAULT_PORT)]
+    #[arg(long, env = "RAPHTORY_PORT", default_value_t = DEFAULT_PORT, help = "Port for Raphtory to run on")]
     port: u16,
 
-    #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", default_value_t = DEFAULT_CAPACITY)]
+    #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", default_value_t = DEFAULT_CAPACITY, help = "Cache capacity")]
     cache_capacity: u64,
 
-    #[arg(long, env = "RAPHTORY_CACHE_TTI_SECONDS", default_value_t = DEFAULT_TTI_SECONDS)]
+    #[arg(long, env = "RAPHTORY_CACHE_TTI_SECONDS", default_value_t = DEFAULT_TTI_SECONDS, help = "Cache time-to-idle in seconds")]
     cache_tti_seconds: u64,
 
-    #[arg(long, env = "RAPHTORY_LOG_LEVEL", default_value = DEFAULT_LOG_LEVEL)]
+    #[arg(long, env = "RAPHTORY_LOG_LEVEL", default_value = DEFAULT_LOG_LEVEL, help = "Log level")]
     log_level: String,
 
-    #[arg(long, env = "RAPHTORY_TRACING", default_value_t = DEFAULT_TRACING_ENABLED)]
+    #[arg(long, env = "RAPHTORY_TRACING", default_value_t = DEFAULT_TRACING_ENABLED, help = "Enable tracing")]
     tracing: bool,
 
-    #[arg(long, env = "RAPHTORY_TRACING_LEVEL", default_value_t = DEFAULT_TRACING_LEVEL)]
+    #[arg(long, env = "RAPHTORY_TRACING_LEVEL", default_value_t = DEFAULT_TRACING_LEVEL, help = "Set tracing level. Options are:\n'COMPLETE': for full traces through each query.\n'ESSENTIAL': which tracks these key functions addEdge, addEdges, deleteEdge, graph, updateGraph, addNode, node, nodes, edge, edges.\n'MINIMAL': which provides only summary execution times.")]
     tracing_level: TracingLevel,
 
-    #[arg(long, env = "RAPHTORY_OTLP_AGENT_HOST", default_value = DEFAULT_OTLP_AGENT_HOST)]
+    #[arg(long, env = "RAPHTORY_OTLP_AGENT_HOST", default_value = DEFAULT_OTLP_AGENT_HOST, help = "OTLP agent host")]
     otlp_agent_host: String,
 
-    #[arg(long, env = "RAPHTORY_OTLP_AGENT_PORT", default_value = DEFAULT_OTLP_AGENT_PORT)]
+    #[arg(long, env = "RAPHTORY_OTLP_AGENT_PORT", default_value = DEFAULT_OTLP_AGENT_PORT, help = "OTLP agent port")]
     otlp_agent_port: String,
 
-    #[arg(long, env = "RAPHTORY_OTLP_TRACING_SERVICE_NAME", default_value = DEFAULT_OTLP_TRACING_SERVICE_NAME)]
+    #[arg(long, env = "RAPHTORY_OTLP_TRACING_SERVICE_NAME", default_value = DEFAULT_OTLP_TRACING_SERVICE_NAME, help = "OTLP tracing service name")]
     otlp_tracing_service_name: String,
 
-    #[arg(long, env = "RAPHTORY_AUTH_PUBLIC_KEY", default_value = None)]
+    #[arg(long, env = "RAPHTORY_AUTH_PUBLIC_KEY", default_value = None, help = "Public key for auth")]
     auth_public_key: Option<String>,
 
-    #[arg(long, env = "RAPHTORY_AUTH_ENABLED_FOR_READS", default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS)]
+    #[arg(long, env = "RAPHTORY_AUTH_ENABLED_FOR_READS", default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS, help = "Enable auth for reads")]
     auth_enabled_for_reads: bool,
 
-    #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None)]
+    #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None, help = "Public directory path")]
     public_dir: Option<PathBuf>,
 
     #[cfg(feature = "search")]
-    #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX)]
+    #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX, help = "Enable index creation")]
     create_index: bool,
 }
 
@@ -114,7 +119,7 @@ where
 
             let app_config = Some(builder.build());
 
-            GraphServer::new(server_args.working_dir, app_config, None)?
+            GraphServer::new(server_args.work_dir, app_config, None)?
                 .run_with_port(server_args.port)
                 .await?;
         }
@@ -129,7 +134,6 @@ pub(crate) async fn cli() -> IoResult<()> {
 #[cfg(feature = "python")]
 #[pyo3::pyfunction(name = "cli")]
 pub fn python_cli() -> pyo3::PyResult<()> {
-    dbg!(std::env::args().collect::<Vec<_>>());
     // Replace argv[0] with "raphtory" so clap doesn't interpret the script path as a subcommand
     let args = std::iter::once("raphtory".to_string()).chain(std::env::args().skip(2));
 
