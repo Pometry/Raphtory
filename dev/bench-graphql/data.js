@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1769685295852,
+  "lastUpdate": 1770214279740,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3725,6 +3725,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1380,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+shivamka1@users.noreply.github.com",
+            "name": "Shivam",
+            "username": "shivamka1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e53eee265ee607e7d4ef9fa372e502eec457d00",
+          "message": "impl bool filters, add tests (#2467)\n\n* impl bool filters, add tests\n\n* fix imports\n\n* add review suggestions\n\n* add more tests\n\n* add gql tests\n\n* more tests\n\n* fix test\n\n* add more review suggestions\n\n* add more review suggestions\n\n* add delete_edge for py graph, add tests, add review suggestions\n\n* fix tests\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-02-04T13:35:24Z",
+          "tree_id": "4e4023d527ce1171bfc7739726f73de9fe0b954a",
+          "url": "https://github.com/Pometry/Raphtory/commit/5e53eee265ee607e7d4ef9fa372e502eec457d00"
+        },
+        "date": 1770214275579,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 34,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 208,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 142,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1126,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 909,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1336,
             "unit": "req/s"
           }
         ]
