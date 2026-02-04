@@ -113,3 +113,51 @@ def test_nodes_chained_selection_with_node_filter(graph):
         }
     }
     run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH])
+def test_nodes_filter_windowed_is_active(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          select(expr: {window: {start: 1, end: 4, expr: {isActive: true}}}) {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+
+    expected = {
+        "graph": {
+            "nodes": {
+                "select": {
+                    "list": [{"name": "1"}, {"name": "2"}, {"name": "3"}, {"name": "4"}]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_nodes_filter_windowed_is_not_active(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        nodes {
+          select(expr: {window: {start: 1, end: 4, expr: {isActive: false}}}) {
+            list {
+              name
+            }
+          }
+        }
+      }
+    }
+    """
+
+    expected = {"graph": {"nodes": {"select": {"list": []}}}}
+    run_graphql_test(query, expected, graph)

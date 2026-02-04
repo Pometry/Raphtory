@@ -2,11 +2,14 @@ use crate::{
     db::graph::views::filter::model::{
         exploded_edge_filter::ExplodedEdgeFilter,
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
-        PropertyFilterFactory, ViewWrapOps,
+        EdgeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
     },
     python::{
-        filter::property_filter_builders::{
-            PyPropertyExprBuilder, PyPropertyFilterBuilder, PyViewPropsFilterBuilder,
+        filter::{
+            filter_expr::PyFilterExpr,
+            property_filter_builders::{
+                PyEdgeViewPropsFilterBuilder, PyPropertyExprBuilder, PyPropertyFilterBuilder,
+            },
         },
         types::iterable::FromIterable,
     },
@@ -39,47 +42,67 @@ impl PyExplodedEdgeFilter {
     }
 
     #[staticmethod]
-    fn window(start: EventTime, end: EventTime) -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.window(start, end)))
+    fn window(start: EventTime, end: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.window(start, end)))
     }
 
     #[staticmethod]
-    fn at(time: EventTime) -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.at(time)))
+    fn at(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.at(time)))
     }
 
     #[staticmethod]
-    fn after(time: EventTime) -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.after(time)))
+    fn after(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.after(time)))
     }
 
     #[staticmethod]
-    fn before(time: EventTime) -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.before(time)))
+    fn before(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.before(time)))
     }
 
     #[staticmethod]
-    fn latest() -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.latest()))
+    fn latest() -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.latest()))
     }
 
     #[staticmethod]
-    fn snapshot_at(time: EventTime) -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_at(time)))
+    fn snapshot_at(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_at(time)))
     }
 
     #[staticmethod]
-    fn snapshot_latest() -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_latest()))
+    fn snapshot_latest() -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_latest()))
     }
 
     #[staticmethod]
-    fn layer(layer: String) -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layer)))
+    fn layer(layer: String) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layer)))
     }
 
     #[staticmethod]
-    fn layers(layers: FromIterable<String>) -> PyViewPropsFilterBuilder {
-        PyViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layers)))
+    fn layers(layers: FromIterable<String>) -> PyEdgeViewPropsFilterBuilder {
+        PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layers)))
+    }
+
+    #[staticmethod]
+    fn is_active() -> PyFilterExpr {
+        PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_active()))
+    }
+
+    #[staticmethod]
+    fn is_valid() -> PyFilterExpr {
+        PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_valid()))
+    }
+
+    #[staticmethod]
+    fn is_deleted() -> PyFilterExpr {
+        PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_deleted()))
+    }
+
+    #[staticmethod]
+    fn is_self_loop() -> PyFilterExpr {
+        PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_self_loop()))
     }
 }
