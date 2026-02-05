@@ -1,11 +1,12 @@
+use std::hash::RandomState;
+
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::{
-        state::{GenericNodeState, Index, TypedNodeState},
+        state::{GenericNodeState, TypedNodeState},
         view::*,
     },
 };
-use indexmap::IndexSet;
 use itertools::Itertools;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
@@ -20,7 +21,7 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
 ) -> TypedNodeState<'static, LCCState, G> {
-    let (_index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = v
+    let state: std::collections::HashMap<VID, LCCState, RandomState> = v
         .par_iter()
         .filter_map(|n| {
             let s = (&graph).node(n)?;
@@ -46,12 +47,12 @@ fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
                 },
             ))
         })
-        .unzip();
+        .collect();
 
-    TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+    TypedNodeState::new(GenericNodeState::new_from_map(
         graph.clone(),
-        values,
-        Some(Index::new(_index)),
+        state,
+        |value| value,
         None,
     ))
 }

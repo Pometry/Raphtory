@@ -40,6 +40,7 @@ def test_local_clustering_coefficient():
         "7": 0.0,
         "8": 0.0,
     }
+
     actual = {
         str(i): algorithms.local_clustering_coefficient(g, g.node(i))
         for i in range(1, 9)
