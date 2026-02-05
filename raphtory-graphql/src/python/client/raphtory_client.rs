@@ -1,27 +1,27 @@
 use crate::{
+    client::{ClientError, RaphtoryGraphQLClient, is_online},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph,
-        server::is_online,
         translate_from_python, translate_map_to_python,
     },
-    url_encode::url_decode_graph,
 };
 use pyo3::{
     exceptions::{PyException, PyValueError},
     prelude::*,
     types::PyDict,
 };
-use raphtory::{
-    db::api::{storage::storage::Config, view::MaterializedGraph},
-    serialise::GraphFolder,
-};
-use raphtory_api::python::error::adapt_err_value;
-use reqwest::{multipart, multipart::Part, Client};
-use serde_json::{json, Value as JsonValue};
-use std::{collections::HashMap, future::Future, io::Cursor, sync::Arc};
+use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
+use serde_json::Value as JsonValue;
+use std::collections::HashMap;
+use std::future::Future;
+use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tracing::debug;
+
+fn adapt_client_error(e: ClientError) -> PyErr {
+    PyException::new_err(e.to_string())
+}
 
 /// A client for handling GraphQL operations in the context of Raphtory.
 ///
@@ -31,88 +31,32 @@ use tracing::debug;
 #[derive(Clone)]
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
 pub struct PyRaphtoryClient {
-    pub(crate) url: String,
-    pub(crate) token: String,
-    client: Client,
+    pub(crate) client: RaphtoryGraphQLClient,
     runtime: Arc<Runtime>,
 }
 
 impl PyRaphtoryClient {
+    /// Run an async operation that returns Result<O, ClientError> and map errors to PyErr.
+    fn run_async<F, Fut, O>(&self, f: F) -> PyResult<O>
+    where
+        F: FnOnce(RaphtoryGraphQLClient) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<O, ClientError>> + Send + 'static,
+        O: Send + 'static,
+    {
+        let client = self.client.clone();
+        let fut = f(client);
+        let result = self.execute_async_task(|| fut);
+        result.map_err(adapt_client_error)
+    }
+
     pub(crate) fn query_with_json_variables(
         &self,
         query: String,
         variables: HashMap<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
-        let client = self.clone();
-        let (graphql_query, mut graphql_result) = self.execute_async_task(move || async move {
-            client.send_graphql_query(query, variables).await
-        })?;
-
-        match graphql_result.remove("errors") {
-            None => {}
-            Some(errors) => {
-                let exception = match errors {
-                    JsonValue::Array(errors) => {
-                        let formatted_errors = errors
-                            .iter()
-                            .map(|err| format!("{}", err))
-                            .collect::<Vec<_>>()
-                            .join("\n\t");
-
-                        PyException::new_err(format!(
-                            "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
-                            graphql_query.to_string(),
-                            formatted_errors
-                        ))
-                    }
-                    _ => PyException::new_err(format!(
-                        "Error while reading server response for query:\n\t{graphql_query}"
-                    )),
-                };
-                return Err(exception);
-            }
-        }
-        match graphql_result.remove("data") {
-            Some(JsonValue::Object(data)) => Ok(data.into_iter().collect()),
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{graphql_query}"
-            ))),
-        }
+        self.run_async(move |client| async move { client.query_async(&query, variables).await })
     }
 
-    /// Returns the query sent and the response.
-    ///
-    /// Arguments:
-    ///     query (str):
-    ///     variables (tuple(string, JsonValue)):
-    ///
-    /// Returns:
-    ///     PyResult:
-    async fn send_graphql_query(
-        &self,
-        query: String,
-        variables: HashMap<String, JsonValue>,
-    ) -> PyResult<(JsonValue, HashMap<String, JsonValue>)> {
-        let request_body = json!({
-            "query": query,
-            "variables": variables
-        });
-
-        let response = self
-            .client
-            .post(&self.url)
-            .bearer_auth(&self.token)
-            .json(&request_body)
-            .send()
-            .await
-            .map_err(|err| adapt_err_value(&err))?;
-
-        response
-            .json()
-            .await
-            .map_err(|err| adapt_err_value(&err))
-            .map(|json| (request_body, json))
-    }
     pub fn execute_async_task<T, F, O>(&self, task: T) -> O
     where
         T: FnOnce() -> F + Send + 'static,
@@ -128,38 +72,14 @@ impl PyRaphtoryClient {
     #[new]
     #[pyo3(signature = (url, token=None))]
     pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
-        let token = token.unwrap_or("".to_owned());
-        match reqwest::blocking::Client::new()
-            .get(&url)
-            .bearer_auth(&token)
-            .send()
-        {
-            Ok(response) => {
-                if response.status() == 200 {
-                    let client = Client::new();
-                    let runtime = Arc::new(
-                        tokio::runtime::Builder::new_multi_thread()
-                            .enable_all()
-                            .build()?,
-                    );
-                    Ok(Self {
-                        url,
-                        token,
-                        client,
-                        runtime,
-                    })
-                } else {
-                    Err(PyValueError::new_err(format!(
-                        "Could not connect to the given server - response {}",
-                        response.status()
-                    )))
-                }
-            }
-            Err(e) => Err(PyValueError::new_err(format!(
-                "Could not connect to the given server - no response --{}",
-                e.to_string()
-            ))),
-        }
+        let client = RaphtoryGraphQLClient::connect(url, token).map_err(adapt_client_error)?;
+        let runtime = Arc::new(
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| PyException::new_err(e.to_string()))?,
+        );
+        Ok(Self { client, runtime })
     }
 
     /// Check if the server is online.
@@ -167,7 +87,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///     bool: Returns true if server is online otherwise false.
     fn is_server_online(&self) -> bool {
-        is_online(&self.url)
+        is_online(&self.client.url)
     }
 
     /// Make a GraphQL query against the server.
@@ -207,31 +127,14 @@ impl PyRaphtoryClient {
     #[pyo3(signature = (path, graph, overwrite = false))]
     fn send_graph(&self, path: String, graph: MaterializedGraph, overwrite: bool) -> PyResult<()> {
         let encoded_graph = encode_graph(graph)?;
-
-        let query = r#"
-            mutation SendGraph($path: String!, $graph: String!, $overwrite: Boolean!) {
-                sendGraph(path: $path, graph: $graph, overwrite: $overwrite)
-            }
-        "#
-        .to_owned();
-        let variables = [
-            ("path".to_owned(), json!(path)),
-            ("graph".to_owned(), json!(encoded_graph)),
-            ("overwrite".to_owned(), json!(overwrite)),
-        ];
-
-        let data = self.query_with_json_variables(query, variables.into())?;
-
-        match data.get("sendGraph") {
-            Some(JsonValue::String(name)) => {
-                debug!("Sent graph '{name}' to the server");
-                Ok(())
-            }
-            _ => Err(PyException::new_err(format!(
-                "Error Sending Graph. Got response {:?}",
-                data
-            ))),
-        }
+        let path_clone = path.clone();
+        self.run_async(move |client| async move {
+            client
+                .send_graph_async(&path_clone, &encoded_graph, overwrite)
+                .await
+        })?;
+        debug!("Sent graph '{path}' to the server");
+        Ok(())
     }
 
     /// Upload graph file from a path file_path on the client
@@ -245,71 +148,8 @@ impl PyRaphtoryClient {
     ///     dict[str, Any]: The data field from the graphQL response after executing the mutation.
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
-        let remote_client = self.clone();
-        let client = self.client.clone();
-
-        self.execute_async_task(move || async move {
-            let folder = GraphFolder::from(file_path.clone());
-            let mut buffer = Vec::new();
-            folder.zip_from_folder(Cursor::new(&mut buffer))?;
-
-            let variables = format!(
-                r#""path": "{}", "overwrite": {}, "graph": null"#,
-                path, overwrite
-            );
-
-            let operations = format!(
-                r#"{{
-            "query": "mutation UploadGraph($path: String!, $graph: Upload!, $overwrite: Boolean!) {{ uploadGraph(path: $path, graph: $graph, overwrite: $overwrite) }}",
-            "variables": {{ {} }}
-        }}"#,
-                variables
-            );
-
-            let form = multipart::Form::new()
-                .text("operations", operations)
-                .text("map", r#"{"0": ["variables.graph"]}"#)
-                .part("0", Part::bytes(buffer).file_name(file_path.clone()));
-
-            let response = client
-                .post(&remote_client.url)
-                .bearer_auth(&remote_client.token)
-                .multipart(form)
-                .send()
-                .await
-                .map_err(|err| adapt_err_value(&err))?;
-
-            let status = response.status();
-            let text = response.text().await.map_err(|err| adapt_err_value(&err))?;
-
-            if !status.is_success() {
-                return Err(PyException::new_err(format!(
-                    "Error Uploading Graph. Status: {}. Response: {}",
-                    status, text
-                )));
-            }
-
-            let mut data: HashMap<String, JsonValue> =
-                serde_json::from_str(&text).map_err(|err| {
-                    PyException::new_err(format!(
-                        "Failed to parse JSON response: {}. Response text: {}",
-                        err, text
-                    ))
-                })?;
-
-            match data.remove("data") {
-                Some(JsonValue::Object(_)) => Ok(()),
-                _ => match data.remove("errors") {
-                    Some(JsonValue::Array(errors)) => Err(PyException::new_err(format!(
-                        "Error Uploading Graph. Got errors:\n\t{:#?}",
-                        errors
-                    ))),
-                    _ => Err(PyException::new_err(format!(
-                        "Error Uploading Graph. Unexpected response: {}",
-                        text
-                    ))),
-                },
-            }
+        self.run_async(move |client| async move {
+            client.upload_graph_async(&path, &file_path, overwrite).await
         })
     }
 
@@ -323,28 +163,9 @@ impl PyRaphtoryClient {
     ///     None:
     #[pyo3(signature = (path, new_path))]
     fn copy_graph(&self, path: String, new_path: String) -> PyResult<()> {
-        let query = r#"
-            mutation CopyGraph($path: String!, $newPath: String!) {
-              copyGraph(
-                path: $path,
-                newPath: $newPath,
-              )
-            }"#
-        .to_owned();
-
-        let variables = [
-            ("path".to_owned(), json!(path)),
-            ("newPath".to_owned(), json!(new_path)),
-        ];
-
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-        match data.get("copyGraph") {
-            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }?;
-        Ok(())
+        self.run_async(move |client| async move {
+            client.copy_graph_async(&path, &new_path).await
+        })
     }
 
     /// Move graph from a path path on the server to a new_path on the server
@@ -357,28 +178,9 @@ impl PyRaphtoryClient {
     ///     None:
     #[pyo3(signature = (path, new_path))]
     fn move_graph(&self, path: String, new_path: String) -> PyResult<()> {
-        let query = r#"
-            mutation MoveGraph($path: String!, $newPath: String!) {
-              moveGraph(
-                path: $path,
-                newPath: $newPath,
-              )
-            }"#
-        .to_owned();
-
-        let variables = [
-            ("path".to_owned(), json!(path)),
-            ("newPath".to_owned(), json!(new_path)),
-        ];
-
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-        match data.get("moveGraph") {
-            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }?;
-        Ok(())
+        self.run_async(move |client| async move {
+            client.move_graph_async(&path, &new_path).await
+        })
     }
 
     /// Delete graph from a path path on the server
@@ -390,24 +192,7 @@ impl PyRaphtoryClient {
     ///     None:
     #[pyo3(signature = (path))]
     fn delete_graph(&self, path: String) -> PyResult<()> {
-        let query = r#"
-            mutation DeleteGraph($path: String!) {
-              deleteGraph(
-                path: $path,
-              )
-            }"#
-        .to_owned();
-
-        let variables = [("path".to_owned(), json!(path))];
-
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-        match data.get("deleteGraph") {
-            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }?;
-        Ok(())
+        self.run_async(move |client| async move { client.delete_graph_async(&path).await })
     }
 
     /// Receive graph from a path path on the server
@@ -421,22 +206,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///     Union[Graph, PersistentGraph]: A copy of the graph
     fn receive_graph(&self, path: String) -> PyResult<MaterializedGraph> {
-        let query = r#"
-            query ReceiveGraph($path: String!) {
-                receiveGraph(path: $path)
-            }"#
-        .to_owned();
-        let variables = [("path".to_owned(), json!(path))];
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-        match data.get("receiveGraph") {
-            Some(JsonValue::String(graph)) => {
-                let mat_graph = url_decode_graph(graph, Config::default())?;
-                Ok(mat_graph)
-            }
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }
+        self.run_async(move |client| async move { client.receive_graph_decoded_async(&path).await })
     }
 
     /// Create a new empty Graph on the server at path
@@ -449,26 +219,9 @@ impl PyRaphtoryClient {
     ///     None:
     ///
     fn new_graph(&self, path: String, graph_type: String) -> PyResult<()> {
-        let query = r#"
-            mutation NewGraph($path: String!) {
-              newGraph(
-                path: $path,
-                graphType: EVENT
-              )
-            }"#
-        .to_owned();
-        let query = query.replace("EVENT", &*graph_type);
-
-        let variables = [("path".to_owned(), json!(path))];
-
-        let data = self.query_with_json_variables(query.clone(), variables.into())?;
-        match data.get("newGraph") {
-            Some(JsonValue::Bool(res)) => Ok((*res).clone()),
-            _ => Err(PyException::new_err(format!(
-                "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
-            ))),
-        }?;
-        Ok(())
+        self.run_async(move |client| async move {
+            client.new_graph_async(&path, &graph_type).await
+        })
     }
 
     /// Get a RemoteGraph reference to a graph on the server at path
@@ -503,28 +256,10 @@ impl PyRaphtoryClient {
         index_spec: PyRemoteIndexSpec,
         in_ram: bool,
     ) -> PyResult<()> {
-        let query = r#"
-            mutation CreateIndex($path: String!, $indexSpec: IndexSpecInput!, $inRam: Boolean!) {
-                createIndex(path: $path, indexSpec: $indexSpec, inRam: $inRam)
-            }
-        "#
-        .to_owned();
-
-        let variables = [
-            ("path".to_string(), json!(path)),
-            ("indexSpec".to_string(), json!(index_spec)),
-            ("inRam".to_string(), json!(in_ram)),
-        ]
-        .into_iter()
-        .collect();
-
-        let data = self.query_with_json_variables(query, variables)?;
-
-        match data.get("createIndex") {
-            Some(JsonValue::Bool(true)) => Ok(()),
-            _ => Err(PyException::new_err(format!(
-                "Failed to create index, server returned: {data:?}"
-            ))),
-        }
+        let spec_value = serde_json::to_value(&index_spec)
+            .map_err(|e| PyException::new_err(e.to_string()))?;
+        self.run_async(move |client| async move {
+            client.create_index_async(&path, spec_value, in_ram).await
+        })
     }
 }

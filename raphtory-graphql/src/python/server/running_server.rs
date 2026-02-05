@@ -1,6 +1,7 @@
+use crate::client::is_online;
 use crate::python::{
     client::raphtory_client::PyRaphtoryClient,
-    server::{is_online, wait_server, BridgeCommand},
+    server::{wait_server, BridgeCommand},
     RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
 };
 use crossbeam_channel::Sender as CrossbeamSender;
