@@ -80,7 +80,8 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
          };
          edge_val
     };
-    let (distances, predecessor) = dijkstra_single_source_shortest_paths_algorithm(g, source, direction, usize::MAX, cost_val, max_val, weight_fn)?;
+    let n_nodes = g.count_nodes();
+    let (distances, predecessor) = dijkstra_single_source_shortest_paths_algorithm(g, source, direction, n_nodes - 1, cost_val, max_val, weight_fn)?;
     let mut paths: HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)> = HashMap::new();
     for target in targets.into_iter() {
         let target_ref = target.as_node_ref();
