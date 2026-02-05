@@ -1,18 +1,37 @@
-use rand::{rngs::StdRng, seq::SliceRandom, thread_rng, SeedableRng};
-use raphtory_api::core::entities::GID;
-use std::collections::{BTreeMap, HashMap, HashSet};
-
 use crate::{
-    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
+    core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
+    db::{
+        api::{
+            state::{GenericNodeState, TypedNodeState},
+            view::StaticGraphViewOps,
+        },
+        task::{
+            context::{Context, GlobalState},
+            node::eval_node::EvalNodeView,
+            task::{ATask, Job, Step},
+            task_runner::TaskRunner,
+        },
+    },
     prelude::*,
 };
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct LabelPropState {
+    #[serde(skip)]
+    nbors: HashMap<usize, usize>,
+    pub community_id: usize,
+}
 
 /// Computes components using a label propagation algorithm
 ///
 /// # Arguments
 ///
 /// - `g` - A reference to the graph
+/// - `iter_count` - Number of iterations
 /// - `seed` - (Optional) Array of 32 bytes of u8 which is set as the rng seed
+/// - `threads` - (Optional) Number of threads to use
 ///
 /// # Returns
 ///
@@ -20,57 +39,69 @@ use crate::{
 ///
 pub fn label_propagation<G>(
     g: &G,
-    seed: Option<[u8; 32]>,
-) -> Result<Vec<HashSet<NodeView<'static, G>>>, &'static str>
+    iter_count: usize,
+    _seed: Option<[u8; 32]>,
+    threads: Option<usize>,
+) -> TypedNodeState<'static, LabelPropState, G>
 where
     G: StaticGraphViewOps,
 {
-    let mut labels: HashMap<NodeView<&G>, GID> = HashMap::new();
-    let nodes = &g.nodes();
-    for node in nodes.iter() {
-        labels.insert(node, node.id());
-    }
+    let mut ctx: Context<G, ComputeStateVec> = g.into();
+    let global_diff = accumulators::sum::<usize>(2);
+    ctx.global_agg_reset(global_diff);
 
-    let mut shuffled_nodes: Vec<NodeView<&G>> = nodes.iter().collect();
-    if let Some(seed_value) = seed {
-        let mut rng = StdRng::from_seed(seed_value);
-        shuffled_nodes.shuffle(&mut rng);
-    } else {
-        let mut rng = thread_rng();
-        shuffled_nodes.shuffle(&mut rng);
-    }
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for node in &shuffled_nodes {
-            let neighbors = node.neighbours();
-            let mut label_count: BTreeMap<GID, f64> = BTreeMap::new();
+    let step1 = ATask::new(move |s| {
+        let id = s.node.index();
+        let state: &mut LabelPropState = s.get_mut();
+        state.community_id = id;
+        Step::Continue
+    });
 
-            for neighbour in neighbors {
-                *label_count.entry(labels[&neighbour].clone()).or_insert(0.0) += 1.0;
-            }
-
-            if let Some(max_label) = find_max_label(&label_count) {
-                if max_label != labels[node] {
-                    labels.insert(*node, max_label);
-                    changed = true;
-                }
-            }
+    let step2 = ATask::new(move |s: &mut EvalNodeView<_, LabelPropState>| {
+        let prev_id = s.prev().community_id;
+        let nbor_iter = s.neighbours();
+        let state: &mut LabelPropState = s.get_mut();
+        state.nbors = HashMap::from([(prev_id, 1)]);
+        // get labels from neighbors
+        for nbor in nbor_iter {
+            let nbor_id = nbor.prev().community_id;
+            state
+                .nbors
+                .insert(nbor_id, *state.nbors.get(&nbor_id).unwrap_or(&(0)) + 1);
         }
-    }
+        // get max label (use usize ID to resolve tie)
+        if let Some((&label, _)) = state
+            .nbors
+            .iter()
+            .max_by(|(k1, v1), (k2, v2)| v1.cmp(v2).then(k1.cmp(k2)))
+        {
+            state.community_id = label;
+        }
+        if state.community_id != prev_id {
+            s.global_update(&global_diff, 1);
+        }
+        Step::Continue
+    });
 
-    // Group nodes by their labels to form communities
-    let mut communities: HashMap<GID, HashSet<NodeView<'static, G>>> = HashMap::new();
-    for (node, label) in labels {
-        communities.entry(label).or_default().insert(node.cloned());
-    }
+    let step3 = Job::Check(Box::new(move |state: &GlobalState<ComputeStateVec>| {
+        if state.read(&global_diff) > 0 {
+            Step::Continue
+        } else {
+            Step::Done
+        }
+    }));
 
-    Ok(communities.values().cloned().collect())
-}
-
-fn find_max_label(label_count: &BTreeMap<GID, f64>) -> Option<GID> {
-    label_count
-        .iter()
-        .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-        .map(|(label, _)| label.clone())
+    let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
+    runner.run(
+        vec![Job::new(step1)],
+        vec![Job::new(step2), step3],
+        None,
+        |_, _, _, local| {
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+        },
+        threads,
+        iter_count,
+        None,
+        None,
+    )
 }

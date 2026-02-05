@@ -1,9 +1,19 @@
+use serde::{Deserialize, Serialize};
+
 use crate::{
     core::entities::VID,
-    db::{api::state::NodeState, graph::node::NodeView},
+    db::{
+        api::state::{GenericNodeState, TypedNodeState},
+        graph::node::NodeView,
+    },
     prelude::{GraphViewOps, NodeViewOps},
 };
 use std::collections::{HashMap, VecDeque};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
+pub struct BetweennessCentrality {
+    pub betweenness_centrality: f64,
+}
 
 /// Computes the betweenness centrality for nodes in a given graph.
 ///
@@ -20,7 +30,7 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
     g: &G,
     k: Option<usize>,
     normalized: bool,
-) -> NodeState<'graph, f64, G> {
+) -> TypedNodeState<'graph, BetweennessCentrality, G> {
     // Initialize a hashmap to store betweenness centrality values.
     let mut betweenness: Vec<f64> = vec![0.0; g.unfiltered_num_nodes()];
 
@@ -97,5 +107,12 @@ pub fn betweenness_centrality<'graph, G: GraphViewOps<'graph>>(
         }
     }
 
-    NodeState::new_from_eval(g.clone(), betweenness)
+    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(
+        g.clone(),
+        betweenness,
+        |value| BetweennessCentrality {
+            betweenness_centrality: value,
+        },
+        None,
+    ))
 }
