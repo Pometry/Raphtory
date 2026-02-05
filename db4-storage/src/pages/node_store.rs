@@ -130,7 +130,7 @@ impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
 
     #[inline(always)]
     pub fn num_nodes(&self) -> usize {
-        self.stats.get(0)
+        self.stats.num_nodes()
     }
 
     // FIXME: this should be called by the high level APIs on layer filter
