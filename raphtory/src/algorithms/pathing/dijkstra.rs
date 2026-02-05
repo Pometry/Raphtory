@@ -26,7 +26,7 @@ use std::{
 use super::to_prop;
 
 pub trait GraphMap<T: Clone> {
-    fn new(capacity: usize, default: T) -> Self;
+    fn new(n_nodes: usize, s: usize, default: T) -> Self;
     
     fn get_item(&self, vid: VID) -> T;
     
@@ -34,8 +34,8 @@ pub trait GraphMap<T: Clone> {
 }
 
 impl<T: Clone> GraphMap<T> for Vec<T> {
-    fn new(capacity: usize, default: T) -> Self {
-        vec![default; capacity] 
+    fn new(n_nodes: usize, s: usize, default: T) -> Self {
+        vec![default; n_nodes] 
     }
 
     fn get_item(&self, vid: VID) -> T {
@@ -48,8 +48,8 @@ impl<T: Clone> GraphMap<T> for Vec<T> {
 }
 
 impl<T: Clone> GraphMap<T> for HashMap<VID, T> {
-    fn new(capacity: usize, default: T) -> Self {
-        HashMap::with_capacity(capacity) 
+    fn new(n_nodes: usize, s: usize, default: T) -> Self {
+        HashMap::with_capacity(s) 
     }
 
     fn get_item(&self, vid: VID) -> T {
@@ -62,14 +62,14 @@ impl<T: Clone> GraphMap<T> for HashMap<VID, T> {
 }
 
 pub trait GraphSet {
-    fn new(capacity: usize) -> Self;
+    fn new(n_nodes: usize, s: usize) -> Self;
     fn mark_visited(&mut self, vid: VID);
     fn is_visited(&self, vid: VID) -> bool;
 }
 
 impl GraphSet for Vec<bool> {
-    fn new(capacity: usize) -> Self {
-        vec![false; capacity]
+    fn new(n_nodes: usize, s: usize) -> Self {
+        vec![false; n_nodes]
     }
     fn mark_visited(&mut self, vid: VID) {
         self[vid.index()] = true;
@@ -80,8 +80,8 @@ impl GraphSet for Vec<bool> {
 }
 
 impl GraphSet for HashSet<VID> {
-    fn new(capacity: usize) -> Self {
-        HashSet::with_capacity(capacity)
+    fn new(n_nodes: usize, s: usize) -> Self {
+        HashSet::with_capacity(s)
     }
     fn mark_visited(&mut self, vid: VID) {
         self.insert(vid);
@@ -218,13 +218,11 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
         cost: cost_val.clone(),
         node: source_node.node,
     });
-    let mut dist = D::new(n_nodes, max_val.clone());
+    let s = n_nodes.min(k + 1);
+    let mut dist = D::new(n_nodes, s, max_val.clone());
     dist.set_item(source_node.node, cost_val);
-    let mut predecessor = P::new(n_nodes, VID(usize::MAX));
-    for node in g.nodes() {
-        predecessor.set_item(node.node, node.node);
-    }
-    let mut visited = V::new(n_nodes);
+    let mut predecessor = P::new(n_nodes, s, VID(usize::MAX));
+    let mut visited = V::new(n_nodes, s);
     let mut visited_count = 0;
 
     while let Some(State {
