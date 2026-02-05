@@ -138,7 +138,7 @@ impl Storage {
         let wal = temporal_graph.wal()?;
 
         // Replay any pending writes from the WAL.
-        if wal.has_entries() {
+        if wal.has_entries()? {
             let mut write_locked_graph = temporal_graph.write_lock()?;
             wal.replay_to_graph(&mut write_locked_graph)?;
         }
