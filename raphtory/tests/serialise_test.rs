@@ -23,6 +23,7 @@ mod serialise_test {
     use raphtory_core::{entities::GidRef, storage::timeindex::EventTime};
     use raphtory_storage::core_ops::CoreGraphOps;
     use std::{collections::HashMap, path::PathBuf, sync::Arc};
+    use storage::Config;
     use tempfile::TempDir;
 
     #[test]

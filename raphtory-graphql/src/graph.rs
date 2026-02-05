@@ -1,17 +1,23 @@
 use crate::paths::{ExistingGraphFolder, ValidGraphPaths};
+#[cfg(feature = "search")]
+use raphtory::prelude::IndexMutationOps;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::view::{
-            internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+        api::{
+            storage::storage::Config,
+            view::{
+                internal::{
+                    InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+                },
+                Base, InheritViewOps, MaterializedGraph,
             },
-            Base, InheritViewOps, MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
     prelude::EdgeViewOps,
+    serialise::{GraphPaths, StableDecode},
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
 use raphtory_storage::{
@@ -22,10 +28,6 @@ use std::sync::{
     Arc,
 };
 use tracing::info;
-
-#[cfg(feature = "search")]
-use raphtory::prelude::IndexMutationOps;
-use raphtory::serialise::{GraphPaths, StableDecode};
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -85,12 +87,13 @@ impl GraphWithVectors {
         folder: &ExistingGraphFolder,
         cache: Option<VectorCache>,
         create_index: bool,
+        config: Config,
     ) -> Result<Self, GraphError> {
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
             MaterializedGraph::load_from_path(graph_folder)?
         } else {
-            MaterializedGraph::decode(graph_folder)?
+            MaterializedGraph::decode_with_config(graph_folder, config)?
         };
         let vectors = cache.and_then(|cache| {
             VectorisedGraph::read_from_path(&folder.vectors_path().ok()?, graph.clone(), cache).ok()

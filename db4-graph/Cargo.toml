@@ -12,10 +12,6 @@ rust-version.workspace = true
 edition.workspace = true
 
 [dependencies]
-boxcar.workspace = true
 storage.workspace = true
 raphtory-api.workspace = true
 raphtory-core.workspace = true
-parking_lot.workspace = true
-uuid.workspace = true
-tempfile.workspace = true

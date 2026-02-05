@@ -23,7 +23,7 @@ use crate::{
     prelude::*,
 };
 use ahash::HashSet;
-use db4_graph::{GraphDir, TemporalGraph};
+use db4_graph::TemporalGraph;
 use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
@@ -53,7 +53,7 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-use storage::{persist::strategy::PersistenceStrategy, wal::WalOps, Extension, Wal};
+use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[cfg(feature = "search")]
 use crate::{
@@ -77,7 +77,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
 
     /// Materializes the view into a new graph.
     /// If a path is provided, it will be used to store the new graph
-    /// (assuming the storage feature is enabled).
+    /// (assuming the storage feature is enabled). Inherits config from the graph.
     ///
     /// Arguments:
     ///     path: Option<&Path>: An optional path used to store the new graph.
@@ -88,6 +88,22 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     fn materialize_at(
         &self,
         path: &(impl GraphPaths + ?Sized),
+    ) -> Result<MaterializedGraph, GraphError> {
+        self.materialize_at_with_config(path, self.core_graph().extension().config().clone())
+    }
+
+    /// Materializes the view into a new graph.
+    /// If a path is provided, it will be used to store the new graph
+    /// (assuming the storage feature is enabled). Sets a new config.
+    ///
+    /// # Arguments
+    ///     path: The path for the new graph.
+    ///     config: The new config.
+    #[cfg(feature = "io")]
+    fn materialize_at_with_config(
+        &self,
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
     ) -> Result<MaterializedGraph, GraphError>;
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError>;
@@ -230,6 +246,7 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
 fn materialize_impl(
     graph: &impl GraphView,
     path: Option<&Path>,
+    config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
     let storage = graph.core_graph().lock();
     let mut node_meta = Meta::new_for_nodes();
@@ -289,11 +306,7 @@ fn materialize_impl(
     node_meta.set_layer_mapper(layer_meta.clone());
 
     // Create new WAL file for the new materialized graph.
-    let graph_dir = path.map(|p| GraphDir::from(p));
-    let wal_dir = graph_dir.map(|dir| dir.wal_dir());
-    let wal = Wal::new(wal_dir.as_deref())?;
-    let config = storage.extension().config().clone();
-    let ext = Extension::new(config, Arc::new(wal));
+    let ext = Extension::new(config, path)?;
 
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),
@@ -601,18 +614,19 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     }
 
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
-        materialize_impl(self, None)
+        materialize_impl(self, None, self.core_graph().extension().config().clone())
     }
 
     #[cfg(feature = "io")]
-    fn materialize_at(
+    fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
+        config: Config,
     ) -> Result<MaterializedGraph, GraphError> {
         if Extension::disk_storage_enabled() {
             path.init()?;
             let graph_path = path.graph_path()?;
-            let graph = materialize_impl(self, Some(graph_path.as_ref()))?;
+            let graph = materialize_impl(self, Some(graph_path.as_ref()), config)?;
             path.write_metadata(&graph)?;
             Ok(graph)
         } else {

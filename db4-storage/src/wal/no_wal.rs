@@ -7,15 +7,16 @@ use crate::{
 
 /// `NoWAL` is a no-op WAL implementation that discards all writes.
 /// Used for in-memory only graphs.
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct NoWal;
 
 impl WalOps for NoWal {
-    fn new(_dir: Option<&Path>) -> Result<Self, StorageError> {
+    type Config = ();
+    fn new(_dir: Option<&Path>, _config: ()) -> Result<Self, StorageError> {
         Ok(Self)
     }
 
-    fn load(_dir: Option<&Path>) -> Result<Self, StorageError> {
+    fn load(_dir: Option<&Path>, _config: ()) -> Result<Self, StorageError> {
         Ok(Self)
     }
 

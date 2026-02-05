@@ -1,5 +1,6 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    error::StorageError,
     persist::config::{BaseConfig, ConfigOps},
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
@@ -8,7 +9,7 @@ use crate::{
     },
     wal::{WalOps, no_wal::NoWal},
 };
-use std::{fmt::Debug, ops::DerefMut, sync::Arc};
+use std::{fmt::Debug, ops::DerefMut, path::Path};
 
 pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
@@ -17,7 +18,9 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type Wal: WalOps;
     type Config: ConfigOps;
 
-    fn new(config: Self::Config, wal: Arc<Self::Wal>) -> Self;
+    fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
+
+    fn load(graph_dir: &Path) -> Result<Self, StorageError>;
 
     fn config(&self) -> &Self::Config;
 
@@ -51,7 +54,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 #[derive(Debug, Clone)]
 pub struct NoOpStrategy {
     config: BaseConfig,
-    wal: Arc<NoWal>,
+    wal: NoWal,
 }
 
 impl PersistenceStrategy for NoOpStrategy {
@@ -61,8 +64,12 @@ impl PersistenceStrategy for NoOpStrategy {
     type Wal = NoWal;
     type Config = BaseConfig;
 
-    fn new(config: Self::Config, wal: Arc<Self::Wal>) -> Self {
-        Self { config, wal }
+    fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
+        Ok(Self { config, wal: NoWal })
+    }
+
+    fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
+        Err(StorageError::DiskStorageNotSupported)
     }
 
     fn config(&self) -> &Self::Config {
