@@ -23,7 +23,7 @@ use std::hash::Hash;
 use std::{
     collections::{HashMap},
 };
-use super::to_prop;
+use super::{to_prop, get_prop_val};
 
 
 /// Finds the shortest paths from a single source to multiple targets in a graph.
@@ -117,6 +117,7 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
     max_val: Prop,
     weight_fn: F
 ) -> Result<(Vec<Prop>, Vec<VID>), GraphError> {
+    let max_bound = get_prop_val(max_val.dtype(), f64::MAX)?;
     let mut dummy_node = false;
     // creates a dummy node if source node is none
     let source_node_vid = if let Some(source) = source {  
@@ -178,7 +179,7 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
                 };
                 let neighbor_vid = edge.nbr().node;
                 let neighbor_dist = dist[neighbor_vid.index()].clone();
-                if neighbor_dist == max_val {
+                if neighbor_dist == max_bound {
                     continue;
                 }
                 let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
@@ -211,7 +212,7 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
             };
             let neighbor_vid = edge.nbr().node;
             let neighbor_dist = &dist[neighbor_vid.index()];
-            if *neighbor_dist == max_val {
+            if *neighbor_dist == max_bound {
                 continue;
             }
             let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
@@ -223,3 +224,209 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
     Ok((dist, predecessor))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::{api::mutation::AdditionOps, graph::graph::Graph};
+    use raphtory_api::core::Direction;
+
+    fn load_graph(edges: Vec<(i64, &str, &str, Vec<(&str, f32)>)>) -> Graph {
+        let graph = Graph::new();
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+        graph
+    }
+
+    fn graph_with_negative_weights() -> Graph {
+        load_graph(vec![
+            (0, "A", "B", vec![("weight", 4.0f32)]),
+            (1, "A", "C", vec![("weight", 2.0f32)]),
+            (2, "B", "C", vec![("weight", -3.0f32)]),
+            (3, "C", "D", vec![("weight", 2.0f32)]),
+            (4, "B", "D", vec![("weight", 5.0f32)]),
+        ])
+    }
+
+    #[test]
+    fn test_bellman_ford_with_virtual_source() {
+        // Test with source = None and max_val = 0 (same as dist_val)
+        // This simulates adding a virtual source node with zero-weight edges to all nodes
+        // Used in Johnson's algorithm to compute potential function h(v)
+        let graph = graph_with_negative_weights();
+
+        let dist_val = Prop::F32(0.0);
+        let max_val = Prop::F32(0.0);
+        
+        let weight_fn = |edge: &EdgeView<Graph>| -> Option<Prop> {
+            edge.properties().get("weight")
+        };
+
+        let result = bellman_ford_single_source_shortest_paths_algorithm(
+            &graph,
+            None::<NodeRef>,
+            Direction::OUT,
+            dist_val,
+            max_val,
+            weight_fn,
+        );
+
+        assert!(result.is_ok(), "Bellman-Ford with virtual source should succeed");
+        
+        let (distances, predecessors) = result.unwrap();
+        
+        // All nodes should have distances computed from virtual source
+        assert_eq!(distances.len(), graph.count_nodes());
+        assert_eq!(predecessors.len(), graph.count_nodes());
+        
+        // All distances should be non-infinite (reachable from virtual source)
+        for (i, dist) in distances.iter().enumerate() {
+            let dist_f64 = dist.as_f64().unwrap();
+            assert!(
+                dist_f64.is_finite(),
+                "Node index {} should have finite distance, got: {}",
+                i,
+                dist_f64
+            );
+        }
+        
+        // Check that reweighted edges would be non-negative
+        // w'(u,v) = w(u,v) + h(u) - h(v) where h = distances from virtual source
+        for edge in graph.edges() {
+            let u_idx = edge.src().node.index();
+            let v_idx = edge.dst().node.index();
+            
+            let h_u = distances[u_idx].as_f64().unwrap();
+            let h_v = distances[v_idx].as_f64().unwrap();
+            let w_uv = edge.properties().get("weight").unwrap().as_f64().unwrap();
+            
+            let reweighted = w_uv + h_u - h_v;
+            
+            assert!(
+                reweighted >= -1e-10,
+                "Reweighted edge {} -> {} should be non-negative: {} + {} - {} = {}",
+                edge.src().name(),
+                edge.dst().name(),
+                w_uv,
+                h_u,
+                h_v,
+                reweighted
+            );
+        }
+    }
+
+    #[test]
+    fn test_bellman_ford_virtual_source_with_positive_weights() {
+        let graph = load_graph(vec![
+            (0, "A", "B", vec![("weight", 1.0f32)]),
+            (1, "B", "C", vec![("weight", 2.0f32)]),
+            (2, "A", "C", vec![("weight", 4.0f32)]),
+        ]);
+
+        let dist_val = Prop::F32(0.0);
+        let max_val = Prop::F32(0.0);
+        
+        let weight_fn = |edge: &EdgeView<Graph>| -> Option<Prop> {
+            edge.properties().get("weight")
+        };
+
+        let result = bellman_ford_single_source_shortest_paths_algorithm(
+            &graph,
+            None::<NodeRef>,
+            Direction::OUT,
+            dist_val,
+            max_val,
+            weight_fn,
+        );
+
+        assert!(result.is_ok());
+        
+        let (distances, _) = result.unwrap();
+        
+        // With all positive weights and virtual source at 0,
+        // all distances should be <= 0 (since we're finding minimum distances)
+        for dist in distances.iter() {
+            let dist_f64 = dist.as_f64().unwrap();
+            assert!(dist_f64 <= 1e-10, "Distance should be <= 0, got: {}", dist_f64);
+        }
+    }
+
+    #[test]
+    fn test_bellman_ford_virtual_source_detects_negative_cycle() {
+        // Create a graph with a negative cycle
+        let graph = load_graph(vec![
+            (0, "A", "B", vec![("weight", 1.0f32)]),
+            (1, "B", "C", vec![("weight", -2.0f32)]),
+            (2, "C", "A", vec![("weight", -1.0f32)]),
+        ]);
+
+        let dist_val = Prop::F32(0.0);
+        let max_val = Prop::F32(0.0);
+        
+        let weight_fn = |edge: &EdgeView<Graph>| -> Option<Prop> {
+            edge.properties().get("weight")
+        };
+
+        let result = bellman_ford_single_source_shortest_paths_algorithm(
+            &graph,
+            None::<NodeRef>,
+            Direction::OUT,
+            dist_val,
+            max_val,
+            weight_fn,
+        );
+
+        assert!(result.is_err(), "Should detect negative cycle");
+        
+        if let Err(GraphError::InvalidProperty { reason }) = result {
+            assert!(reason.contains("Negative cycle"));
+        } else {
+            panic!("Expected InvalidProperty error with negative cycle message");
+        }
+    }
+
+    #[test]
+    fn test_bellman_ford_virtual_source_with_integer_weights() {
+        let edges = vec![
+            (0, 1, 2, vec![("weight", 4i64)]),
+            (1, 1, 3, vec![("weight", 2i64)]),
+            (2, 2, 3, vec![("weight", -3i64)]),
+            (3, 3, 4, vec![("weight", 2i64)]),
+        ];
+
+        let graph = Graph::new();
+        for (t, src, dst, props) in edges {
+            graph.add_edge(t, src, dst, props, None).unwrap();
+        }
+
+        let dist_val = Prop::I64(0);
+        let max_val = Prop::I64(0);
+        
+        let weight_fn = |edge: &EdgeView<Graph>| -> Option<Prop> {
+            edge.properties().get("weight")
+        };
+
+        let result = bellman_ford_single_source_shortest_paths_algorithm(
+            &graph,
+            None::<NodeRef>,
+            Direction::OUT,
+            dist_val,
+            max_val,
+            weight_fn,
+        );
+
+        assert!(result.is_ok());
+        
+        let (distances, _) = result.unwrap();
+        
+        // Check all distances are finite
+        for dist in distances.iter() {
+            let dist_f64 = dist.as_f64().unwrap();
+            assert!(
+                dist_f64.abs() < i64::MAX as f64 / 2.0,
+                "Distance should be finite, got: {}",
+                dist_f64
+            );
+        }
+    }
+}

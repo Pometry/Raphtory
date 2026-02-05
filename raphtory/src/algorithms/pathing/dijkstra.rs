@@ -23,7 +23,7 @@ use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
-use super::to_prop;
+use super::{to_prop, get_prop_val};
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
 #[derive(PartialEq)]

@@ -21,39 +21,25 @@ use raphtory_api::core::{
 use std::{
     collections::{HashMap},
 };
-use super::super::pathing::{bellman_ford::bellman_ford_single_source_shortest_paths_algorithm, dijkstra::dijkstra_single_source_shortest_paths_algorithm, to_prop};
+use super::super::pathing::{reweighting::get_johnson_reweighting_function, dijkstra::dijkstra_single_source_shortest_paths_algorithm, to_prop};
 
-// pub fn diameter_approximation<G: StaticGraphViewOps>(
-//     g: &G,
-//     weight: Option<&str>,
-//     direction: Direction,
-// ) {
-//     let dist_val = to_prop(g, weight, 0.0)?;
-//     let weight_fn = |edge: &EdgeView<G>| -> Option<Prop> {
-//         let edge_val = match weight{
-//             None => Some(Prop::U8(1)),
-//             Some(weight) => match edge.properties().get(weight) {
-//                 Some(prop) => Some(prop),
-//                 _ => None
-//             }
-//          };
-//          edge_val
-//     };
-//     let source_node = if let Some(source_node) = g.nodes().iter().next() {
-//         source_node
-//     } else {
-//         return;;
-//     };  
-//     let nonnegative_weight_fn = |edge: &EdgeView<G>| -> Option<Prop> {
-//         let edge_val = match weight{
-//             None => Some(Prop::U8(1)),
-//             Some(weight) => match edge.properties().get(weight) {
-//                 Some(prop) => Some(prop),
-//                 _ => None
-//             }
-//          };
-//          edge_val
-//     };
-     
-//     let result = bellman_ford_single_source_shortest_paths_algorithm(g, source_node, None, direction, dist_val, max_val, weight_fn)?;
-// }
+pub fn diameter_approximation<G: StaticGraphViewOps>(
+    g: &G,
+    weight: Option<&str>,
+    direction: Direction,
+    s: usize
+) -> Result<f64, GraphError> {
+    let n_nodes = g.count_nodes();
+    let mut idx_to_vid = vec![VID::default(); n_nodes]; 
+    for node in g.nodes().iter() {
+        idx_to_vid[node.node.index()] = node.node;
+    }
+    let weight_fn = get_johnson_reweighting_function(g, weight, direction)?;
+    let cost_val = to_prop(g, weight, 0.0)?;
+    let max_val = to_prop(g, weight, f64::MAX)?;
+    let max_vertex = g.nodes().par_iter().map(|node| {
+        let mut max_distance = 0.0;
+        let mut max_idx = node.node.index();
+        let (distances, _) = dijkstra_single_source_shortest_paths_algorithm(g, node, direction, s, cost_val, max_val, weight_fn)?;  
+    }).max();    
+}

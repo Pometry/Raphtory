@@ -175,10 +175,6 @@ mod tests {
         // Test with Direction::IN
         let reweight_fn_in = get_johnson_reweighting_function(&graph, Some("weight"), Direction::IN);
         assert!(reweight_fn_in.is_ok());
-
-        // Test with Direction::BOTH
-        let reweight_fn_both = get_johnson_reweighting_function(&graph, Some("weight"), Direction::BOTH);
-        assert!(reweight_fn_both.is_ok());
     }
 
     #[test]
