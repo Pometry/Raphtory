@@ -15,12 +15,10 @@ on:
         type: boolean
         default: false
       python:
-        type: boolean
-        description: If selected will build the python version of the image
-        default: false
+        type: string
+        description: If set, will build the python image using this as the tag for the base python image, e.g. '3.14.2-slim-trixie'
   workflow_call:
     inputs: *inputs
-
 
 permissions:
   contents: read
@@ -52,10 +50,12 @@ jobs:
 
       - name: Set dockerfile path and cache image
         run: |
-          if [ "${{ inputs.python }}" = "true" ]; then
+          if [ -n "${{ inputs.python }}" ]; then
+            echo "Building Python image with base python:${{ inputs.python }}"
             echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
             echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-python-${{ env.PLATFORM_PAIR }}" >> $GITHUB_ENV
           else
+            echo "Building Rust image"
             echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
             echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-rust-${{ env.PLATFORM_PAIR }}" >> $GITHUB_ENV
           fi
@@ -81,7 +81,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          build-args: RUST_VERSION=${{ env.RUST_VERSION }}
+          build-args: |
+            RUST_VERSION=${{ env.RUST_VERSION }}
+            BASE_PYTHON_IMAGE_TAG=${{ inputs.python }}
           file: ${{ env.DOCKERFILE_PATH }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
