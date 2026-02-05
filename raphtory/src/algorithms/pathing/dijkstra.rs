@@ -80,106 +80,30 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
          edge_val
     };
     let targets_len = targets.len();
-    dijkstra_single_source_shortest_paths_algorithm(g, source, Some(targets), direction, targets_len, cost_val, max_val, weight_fn)
-}
-
-pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(&EdgeView<G>) -> Option<Prop>>(
-    g: &G,
-    source: T,
-    targets: Option<Vec<T>>,
-    direction: Direction,
-    k: usize,
-    cost_val: Prop,
-    max_val: Prop,
-    weight_fn: F
-) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
-    let mut k = k;
-    let source_ref = source.as_node_ref();
-    let source_node = match g.node(source_ref) {
-        Some(src) => src,
-        None => {
-            let gid = match source_ref {
-                NodeRef::Internal(vid) => g.node_id(vid),
-                NodeRef::External(gid) => gid.to_owned(),
-            };
-            return Err(GraphError::NodeMissingError(gid));
-        }
-    };
-    let target_nodes = if let Some(targets) = targets {
-        let mut target_nodes = vec![false; g.unfiltered_num_nodes()];
-        for target in targets {
-            if let Some(target_node) = g.node(target) {
-                target_nodes[target_node.node.index()] = true;
-            }
-        }
-        target_nodes
-    } else {
-        vec![true; g.unfiltered_num_nodes()]
-    };
-
-    let mut heap = BinaryHeap::new();
-
-    heap.push(State {
-        cost: cost_val.clone(),
-        node: source_node.node,
-    });
-
-    let mut dist: HashMap<VID, Prop> = HashMap::new();
-    let mut predecessor: HashMap<VID, VID> = HashMap::new();
-    let mut visited: HashSet<VID> = HashSet::new();
+    let (distances, predecessor) = dijkstra_single_source_shortest_paths_algorithm(g, source, direction, targets_len, cost_val, max_val, weight_fn)?;
     let mut paths: HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)> = HashMap::new();
-
-    dist.insert(source_node.node, cost_val.clone());
-
-    while let Some(State {
-        cost,
-        node: node_vid,
-    }) = heap.pop()
-    {
-        if target_nodes[node_vid.index()] && !paths.contains_key(&node_vid) {
-            let mut path = IndexSet::default();
-            path.insert(node_vid);
-            let mut current_node_id = node_vid;
-            while let Some(prev_node) = predecessor.get(&current_node_id) {
-                path.insert(*prev_node);
-                current_node_id = *prev_node;
+    for target in targets.into_iter() {
+        let target_ref = target.as_node_ref();
+        let target_node = match g.node(target_ref) {
+            Some(tgt) => tgt,
+            None => {
+                let gid = match target_ref {
+                    NodeRef::Internal(vid) => g.node_id(vid),
+                    NodeRef::External(gid) => gid.to_owned(),
+                };
+                return Err(GraphError::NodeMissingError(gid));
             }
-            path.reverse();
-            paths.insert(node_vid, (cost.as_f64().unwrap(), path));
-            k -= 1;
-            if k == 0 {
-                break;
-            }
-        }
-        if !visited.insert(node_vid) {
-            continue;
-        }
-
-        let edges = match direction {
-            Direction::OUT => g.node(node_vid).unwrap().out_edges(),
-            Direction::IN => g.node(node_vid).unwrap().in_edges(),
-            Direction::BOTH => g.node(node_vid).unwrap().edges(),
         };
-
-        // Replace this loop with your actual logic to iterate over the outgoing edges
-        for edge in edges {
-            let next_node_vid = edge.nbr().node;
-
-            let edge_val = if let Some(w) = weight_fn(&edge) {
-                w
-            } else {
-                continue;
-            };
-            let next_cost = cost.clone().add(edge_val).unwrap();
-            if next_cost < *dist.entry(next_node_vid).or_insert(max_val.clone()) {
-                heap.push(State {
-                    cost: next_cost.clone(),
-                    node: next_node_vid,
-                });
-                dist.insert(next_node_vid, next_cost);
-                predecessor.insert(next_node_vid, node_vid);
-            }
+        let mut path = IndexSet::default();
+        let node_vid = target_node.node;
+        path.insert(node_vid);
+        let mut current_node_id = node_vid;
+        while let Some(prev_node) = predecessor.get(current_node_id.index()) {
+            path.insert(*prev_node);
+            current_node_id = *prev_node;
         }
+        path.reverse();
+        paths.insert(node_vid, (distances[node_vid.index()].as_f64().unwrap(), path));
     }
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = paths
         .into_iter()
@@ -194,4 +118,86 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
         values.into(),
         Some(Index::new(index)),
     ))
+}
+
+pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(&EdgeView<G>) -> Option<Prop>>(
+    g: &G,
+    source: T,
+    direction: Direction,
+    k: usize,
+    cost_val: Prop,
+    max_val: Prop,
+    weight_fn: F
+) -> Result<(Vec<Prop>, Vec<VID>), GraphError> {
+    let source_ref = source.as_node_ref();
+    let source_node = match g.node(source_ref) {
+        Some(src) => src,
+        None => {
+            let gid = match source_ref {
+                NodeRef::Internal(vid) => g.node_id(vid),
+                NodeRef::External(gid) => gid.to_owned(),
+            };
+            return Err(GraphError::NodeMissingError(gid));
+        }
+    };
+    let n_nodes = g.count_nodes();
+
+    let mut heap = BinaryHeap::new();
+
+    heap.push(State {
+        cost: cost_val.clone(),
+        node: source_node.node,
+    });
+
+    let mut dist: Vec<Prop> = vec![max_val.clone(); n_nodes];
+    dist[source_node.node.index()] = cost_val.clone();
+    let mut predecessor: Vec<VID> = vec![VID(usize::MAX); n_nodes]; 
+    for node in g.nodes() {
+        predecessor[node.node.index()] = node.node;
+    }
+    let mut visited: Vec<bool> = vec![false; n_nodes];
+    let mut visited_count = 0;
+
+    while let Some(State {
+        cost,
+        node: node_vid,
+    }) = heap.pop()
+    {
+        if visited_count == k {
+            break;
+        }
+        if visited[node_vid.index()] {
+            continue;
+        } else {
+            visited[node_vid.index()] = true;
+            visited_count += 1;
+        }
+        let edges = match direction {
+            Direction::OUT => g.node(node_vid).unwrap().out_edges(),
+            Direction::IN => g.node(node_vid).unwrap().in_edges(),
+            Direction::BOTH => g.node(node_vid).unwrap().edges(),
+        };
+
+        // Replace this loop with your actual logic to iterate over the outgoing edges
+        for edge in edges {
+            let next_node_vid = edge.nbr().node;
+            let next_node_idx = next_node_vid.index();
+
+            let edge_val = if let Some(w) = weight_fn(&edge) {
+                w
+            } else {
+                continue;
+            };
+            let next_cost = cost.clone().add(edge_val).unwrap();
+            if next_cost < dist[next_node_idx] {
+                heap.push(State {
+                    cost: next_cost.clone(),
+                    node: next_node_vid,
+                });
+                dist[next_node_idx] = next_cost;
+                predecessor[next_node_idx] = node_vid;
+            }
+        }
+    }
+    Ok((dist, predecessor))
 }

@@ -30,7 +30,7 @@ pub(crate) fn to_prop<G: StaticGraphViewOps>(g: &G, weight: Option<&str>, val: f
 
 pub mod bellman_ford;
 pub mod dijkstra;
-pub mod johnson;
+pub mod reweighting;
 pub mod single_source_shortest_path;
 pub mod temporal_reachability;
 

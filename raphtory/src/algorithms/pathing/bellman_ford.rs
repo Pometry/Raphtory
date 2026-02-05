@@ -19,6 +19,7 @@ use raphtory_api::core::{
     },
     Direction,
 };
+use std::hash::Hash;
 use std::{
     collections::{HashMap},
 };
@@ -62,129 +63,22 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
          };
          edge_val
     };
-    bellman_ford_single_source_shortest_paths_algorithm(g, source, targets, direction, dist_val, max_val, weight_fn)
-}
-
-pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(&EdgeView<G>) -> Option<Prop>>(
-    g: &G,
-    source: T,
-    targets: Vec<T>,
-    direction: Direction,
-    dist_val: Prop,
-    max_val: Prop,
-    weight_fn: F
-) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
-    let source_ref = source.as_node_ref();
-    let source_node = match g.node(source_ref) {
-        Some(src) => src,
-        None => {
-            let gid = match source_ref {
-                NodeRef::Internal(vid) => g.node_id(vid),
-                NodeRef::External(gid) => gid.to_owned(),
-            };
-            return Err(GraphError::NodeMissingError(gid));
-        }
-    };
+    let (distances, predecessor) = bellman_ford_single_source_shortest_paths_algorithm(g, Some(source), direction, dist_val, max_val, weight_fn)?;
     let mut shortest_paths: HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)> = HashMap::new();
-    let mut dist: HashMap<VID, Prop> = HashMap::new(); 
-    let mut predecessor: HashMap<VID, VID> = HashMap::new();
-
-    let n_nodes = g.count_nodes();
-   
-    for node in g.nodes() {
-        predecessor.insert(node.node, node.node);   
-        if node.node == source_node.node {
-            dist.insert(source_node.node, dist_val.clone());
-        } else {
-            dist.insert(node.node, max_val.clone());
-        }
-    }
-
-    for _ in 1..n_nodes {
-        let mut changed = false;
-        for node in g.nodes() {
-            if node.node == source_node.node {
-                continue;
-            }
-            let mut min_dist = dist.get(&node.node).unwrap().clone();
-            let mut min_node = predecessor.get(&node.node).unwrap().clone();
-            let edges = match direction {
-                Direction::IN => node.out_edges(),
-                Direction::OUT => node.in_edges(),
-                Direction::BOTH => node.edges(),
-            };
-            for edge in edges {
-                let edge_val = if let Some(w) = weight_fn(&edge) {
-                    w
-                } else {
-                    continue;
+    for target in targets.into_iter() {
+        let target_ref = target.as_node_ref();
+        let target_node = match g.node(target_ref) {
+            Some(tgt) => tgt,
+            None => {
+                let gid = match target_ref {
+                    NodeRef::Internal(vid) => g.node_id(vid),
+                    NodeRef::External(gid) => gid.to_owned(),
                 };
-                let neighbor_vid = edge.nbr().node;
-                let neighbor_dist = dist.get(&neighbor_vid).unwrap(); 
-                if neighbor_dist == &max_val {
-                    continue;
-                }
-                let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
-                if new_dist < min_dist {
-                    min_dist = new_dist;
-                    min_node = neighbor_vid;
-                    changed = true;
-                }
+                return Err(GraphError::NodeMissingError(gid));
             }
-            dist.insert(node.node, min_dist);
-            predecessor.insert(node.node, min_node);
-        }
-        if !changed {
-            break;
-        }
-    }
-
-    for node in g.nodes() {
-        let edges = match direction {
-            Direction::IN => node.out_edges(),
-            Direction::OUT => node.in_edges(),
-            Direction::BOTH => node.edges(),
         };
-        let node_dist = dist.get(&node.node).unwrap();
-        for edge in edges {
-            let edge_val = if let Some(w) = weight_fn(&edge) {
-                w
-            } else {
-                continue;
-            };
-            let neighbor_vid = edge.nbr().node;
-            let neighbor_dist = dist.get(&neighbor_vid).unwrap(); 
-            if neighbor_dist == &max_val {
-                continue;
-            }
-            let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
-            if new_dist < *node_dist {
-                return Err(GraphError::InvalidProperty { reason: "Negative cycle detected".to_string() });
-            }
-        }
+        add_to_shortest_paths(&target_node, &mut shortest_paths, &distances, &predecessor); 
     } 
-
-    if  let Some(targets) = Some(targets) { 
-        for target in targets.into_iter() {
-            let target_ref = target.as_node_ref();
-            let target_node = match g.node(target_ref) {
-                Some(tgt) => tgt,
-                None => {
-                    let gid = match target_ref {
-                        NodeRef::Internal(vid) => g.node_id(vid),
-                        NodeRef::External(gid) => gid.to_owned(),
-                    };
-                    return Err(GraphError::NodeMissingError(gid));
-                }
-            };
-            add_to_shortest_paths(&target_node, &mut shortest_paths, &dist, &predecessor); 
-        } 
-    } else {
-        for node in g.nodes() {
-            add_to_shortest_paths(&node, &mut shortest_paths, &dist, &predecessor);
-        }
-    };
-
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = shortest_paths
         .into_iter()
         .map(|(id, (dist, path))| {
@@ -198,7 +92,121 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
         g.clone(),
         values.into(),
         Some(Index::new(index)),
-    ))
+    )) 
+}
+
+pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(&EdgeView<G>) -> Option<Prop>>(
+    g: &G,
+    source: Option<T>,
+    direction: Direction,
+    dist_val: Prop,
+    max_val: Prop,
+    weight_fn: F
+) -> Result<(Vec<Prop>, Vec<VID>), GraphError> {
+    let mut dummy_node = false;
+    // creates a dummy node if source node is none
+    let source_node_vid = if let Some(source) = source {  
+        let source_ref = source.as_node_ref();
+        let source_node = match g.node(source_ref) {
+            Some(src) => src,
+            None => {
+                let gid = match source_ref {
+                    NodeRef::Internal(vid) => g.node_id(vid),
+                    NodeRef::External(gid) => gid.to_owned(),
+                };
+                return Err(GraphError::NodeMissingError(gid));
+            }
+        };
+        source_node.node
+    } else {
+        dummy_node = true;
+        VID(usize::MAX)
+    };
+    let n_nodes = g.count_nodes();
+    let mut dist: Vec<Prop> = vec![max_val.clone(); n_nodes];
+    let mut predecessor: Vec<VID> = vec![VID(usize::MAX); n_nodes];
+
+    let n_nodes = g.count_nodes();
+   
+    for node in g.nodes() {
+        let node_idx = node.node.index(); 
+        if dummy_node {
+            predecessor[node_idx] = source_node_vid;   
+        } else {
+            predecessor[node_idx] = node.node;   
+            if node.node == source_node_vid {
+                dist[source_node_vid.index()] = dist_val.clone();
+            } else {
+                dist[node_idx] = max_val.clone();
+            }
+        }
+    }
+
+    for _ in 1..n_nodes {
+        let mut changed = false;
+        for node in g.nodes() {
+            if node.node == source_node_vid {
+                continue;
+            }
+            let node_idx = node.node.index();
+            let mut min_dist = dist[node_idx].clone();
+            let mut min_node = predecessor[node_idx];
+            let edges = match direction {
+                Direction::IN => node.out_edges(),
+                Direction::OUT => node.in_edges(),
+                Direction::BOTH => node.edges(),
+            };
+            for edge in edges {
+                let edge_val = if let Some(w) = weight_fn(&edge) {
+                    w
+                } else {
+                    continue;
+                };
+                let neighbor_vid = edge.nbr().node;
+                let neighbor_dist = dist[neighbor_vid.index()].clone();
+                if neighbor_dist == max_val {
+                    continue;
+                }
+                let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
+                if new_dist < min_dist {
+                    min_dist = new_dist;
+                    min_node = neighbor_vid;
+                    changed = true;
+                }
+            }
+            dist[node_idx] = min_dist;
+            predecessor[node_idx] = min_node;
+        }
+        if !changed {
+            break;
+        }
+    }
+
+    for node in g.nodes() {
+        let edges = match direction {
+            Direction::IN => node.out_edges(),
+            Direction::OUT => node.in_edges(),
+            Direction::BOTH => node.edges(),
+        };
+        let node_dist = dist[node.node.index()];
+        for edge in edges {
+            let edge_val = if let Some(w) = weight_fn(&edge) {
+                w
+            } else {
+                continue;
+            };
+            let neighbor_vid = edge.nbr().node;
+            let neighbor_dist = dist[neighbor_vid.index()];
+            if neighbor_dist == max_val {
+                continue;
+            }
+            let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
+            if new_dist < *node_dist {
+                return Err(GraphError::InvalidProperty { reason: "Negative cycle detected".to_string() });
+            }
+        }
+    } 
+    Ok((dist, predecessor))
 }
 
 fn add_to_shortest_paths<G: StaticGraphViewOps>(target_node: &NodeView<G>, shortest_paths: &mut HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)>, dist: &HashMap<VID, Prop>, predecessor: &HashMap<VID, VID>) {
