@@ -18,6 +18,7 @@ use raphtory_api::core::{
     },
     Direction,
 };
+use std::usize;
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
@@ -79,8 +80,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
          };
          edge_val
     };
-    let targets_len = targets.len();
-    let (distances, predecessor) = dijkstra_single_source_shortest_paths_algorithm(g, source, direction, targets_len, cost_val, max_val, weight_fn)?;
+    let (distances, predecessor) = dijkstra_single_source_shortest_paths_algorithm(g, source, direction, usize::MAX, cost_val, max_val, weight_fn)?;
     let mut paths: HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)> = HashMap::new();
     for target in targets.into_iter() {
         let target_ref = target.as_node_ref();
@@ -99,6 +99,9 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         path.insert(node_vid);
         let mut current_node_id = node_vid;
         while let Some(prev_node) = predecessor.get(current_node_id.index()) {
+            if *prev_node == current_node_id {
+                break;
+            }
             path.insert(*prev_node);
             current_node_id = *prev_node;
         }
@@ -163,7 +166,8 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
         node: node_vid,
     }) = heap.pop()
     {
-        if visited_count == k {
+        // accounts for source node
+        if visited_count == k + 1 {
             break;
         }
         if visited[node_vid.index()] {
