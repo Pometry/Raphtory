@@ -15,9 +15,6 @@ raphtory-api.workspace = true
 raphtory-api-macros.workspace = true
 raphtory-core = { workspace = true }
 fast_merge = { workspace = true }
-# db4-common = {path = "../db4-common"}
-
-bitvec = { workspace = true, features = ["serde"] }
 bigdecimal.workspace = true
 either.workspace = true
 parking_lot.workspace = true
