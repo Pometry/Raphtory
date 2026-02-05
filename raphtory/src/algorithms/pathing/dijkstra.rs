@@ -25,6 +25,8 @@ use std::{
 };
 use super::to_prop;
 
+const NO_VID: VID = VID(usize::MAX);
+
 pub trait GraphMap<T: Clone> {
     fn new(n_nodes: usize, s: usize, default: T) -> Self;
     
@@ -34,7 +36,7 @@ pub trait GraphMap<T: Clone> {
 }
 
 impl<T: Clone> GraphMap<T> for Vec<T> {
-    fn new(n_nodes: usize, s: usize, default: T) -> Self {
+    fn new(n_nodes: usize, capacity: usize, default: T) -> Self {
         vec![default; n_nodes] 
     }
 
@@ -48,8 +50,8 @@ impl<T: Clone> GraphMap<T> for Vec<T> {
 }
 
 impl<T: Clone> GraphMap<T> for HashMap<VID, T> {
-    fn new(n_nodes: usize, s: usize, default: T) -> Self {
-        HashMap::with_capacity(s) 
+    fn new(n_nodes: usize, capacity: usize, default: T) -> Self {
+        HashMap::with_capacity(capacity) 
     }
 
     fn get_item(&self, vid: VID) -> T {
@@ -62,13 +64,13 @@ impl<T: Clone> GraphMap<T> for HashMap<VID, T> {
 }
 
 pub trait GraphSet {
-    fn new(n_nodes: usize, s: usize) -> Self;
+    fn new(n_nodes: usize, capacity: usize) -> Self;
     fn mark_visited(&mut self, vid: VID);
     fn is_visited(&self, vid: VID) -> bool;
 }
 
 impl GraphSet for Vec<bool> {
-    fn new(n_nodes: usize, s: usize) -> Self {
+    fn new(n_nodes: usize, capacity: usize) -> Self {
         vec![false; n_nodes]
     }
     fn mark_visited(&mut self, vid: VID) {
@@ -80,8 +82,8 @@ impl GraphSet for Vec<bool> {
 }
 
 impl GraphSet for HashSet<VID> {
-    fn new(n_nodes: usize, s: usize) -> Self {
-        HashSet::with_capacity(s)
+    fn new(n_nodes: usize, capacity: usize) -> Self {
+        HashSet::with_capacity(capacity)
     }
     fn mark_visited(&mut self, vid: VID) {
         self.insert(vid);
@@ -147,7 +149,7 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
          edge_val
     };
     let n_nodes = g.count_nodes();
-    let (distances, predecessor) = dijkstra_single_source_shortest_paths_algorithm::<G, T, _, Vec<Prop>, Vec<VID>, Vec<bool>>(g, source, direction, n_nodes - 1, cost_val, max_val, weight_fn)?;
+    let (distances, predecessor, _) = dijkstra_single_source_shortest_paths_algorithm::<G, T, _, Vec<Prop>, Vec<VID>, Vec<bool>>(g, source, direction, n_nodes - 1, cost_val, max_val, weight_fn)?;
     let mut paths: HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)> = HashMap::new();
     for target in targets.into_iter() {
         let target_ref = target.as_node_ref();
@@ -198,7 +200,7 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
     cost_val: Prop,
     max_val: Prop,
     weight_fn: F
-) -> Result<(D, P), GraphError> {
+) -> Result<(D, P, Vec<VID>), GraphError> {
     let source_ref = source.as_node_ref();
     let source_node = match g.node(source_ref) {
         Some(src) => src,
@@ -218,13 +220,13 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
         cost: cost_val.clone(),
         node: source_node.node,
     });
-    let s = n_nodes.min(k + 1);
-    let mut dist = D::new(n_nodes, s, max_val.clone());
+    let mut dist = D::new(n_nodes, k + 1, max_val.clone());
     dist.set_item(source_node.node, cost_val);
-    let mut predecessor = P::new(n_nodes, s, VID(usize::MAX));
+    let mut predecessor = P::new(n_nodes, k + 1, NO_VID);
     predecessor.set_item(source_node.node, source_node.node);
-    let mut visited = V::new(n_nodes, s);
+    let mut visited = V::new(n_nodes, k + 1);
     let mut visited_count = 0;
+    let mut k_ordered = vec![NO_VID; k + 1];  
 
     while let Some(State {
         cost,
@@ -238,6 +240,7 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
         if visited.is_visited(node_vid) {
             continue;
         } else {
+            k_ordered[visited_count] = node_vid;
             visited.mark_visited(node_vid);
             visited_count += 1;
         }
@@ -267,5 +270,5 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
             }
         }
     }
-    Ok((dist, predecessor))
+    Ok((dist, predecessor, k_ordered))
 }
