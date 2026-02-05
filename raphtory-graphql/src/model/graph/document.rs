@@ -27,6 +27,7 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<DocumentEntity<G>> for GqlDocumen
 
 /// Document in a vector graph
 #[derive(SimpleObject)]
+#[graphql(name = "Document")]
 pub struct GqlDocument {
     /// Entity associated with document.
     pub(crate) entity: GqlDocumentEntity,

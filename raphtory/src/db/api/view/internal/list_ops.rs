@@ -27,7 +27,7 @@ where
 }
 
 #[derive(Debug)]
-pub enum List<I: Hash + Eq> {
+pub enum List<I> {
     All { len: usize },
     List { elems: Index<I> },
 }
@@ -35,7 +35,7 @@ pub enum List<I: Hash + Eq> {
 pub type NodeList = List<VID>;
 pub type EdgeList = List<EID>;
 
-impl<I: Hash + Eq> Clone for List<I> {
+impl<I> Clone for List<I> {
     fn clone(&self) -> Self {
         match self {
             List::All { len } => List::All { len: *len },

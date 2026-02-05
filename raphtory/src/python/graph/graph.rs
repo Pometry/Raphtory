@@ -191,11 +191,13 @@ impl PyGraph {
         self.graph.persist_as_disk_graph(graph_dir)
     }
 
-    /// Persist graph to parquet files
+    /// Persist graph to parquet files.
     ///
     /// Arguments:
     ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
     ///
+    /// Returns:
+    ///     None:
     pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
         self.graph.encode_parquet(graph_dir)
     }
@@ -1085,11 +1087,20 @@ impl PyGraph {
     }
 
     /// Create graph index
+    ///
+    /// Returns:
+    ///     None:
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
 
     /// Create graph index with the provided index spec.
+    ///
+    /// Arguments:
+    ///     py_spec: - The specification for the in-memory index to be created.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -1098,6 +1109,9 @@ impl PyGraph {
     ///
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -1106,6 +1120,15 @@ impl PyGraph {
     ///
     /// This is primarily intended for use in tests and should not be used in production environments,
     /// as the index will not be persisted to disk.
+    ///
+    /// Arguments:
+    ///     py_spec: The specification for the in-memory index to be created.
+    ///
+    /// Arguments:
+    ///     py_spec (IndexSpec): - The specification for the in-memory index to be created.
+    ///
+    /// Returns:
+    ///     None:
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())
