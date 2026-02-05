@@ -379,18 +379,18 @@ mod in_component_test {
             correct.insert("6".to_string(), vec![1, 2, 4]);
 
             let map: HashMap<String, Vec<u64>> = results
-                .into_iter()
-                .map(|(k, v)| {
-                    (
-                        k.name(),
-                        v.in_components
-                            .iter()
-                            .map(|value| value.as_u64())
-                            .sorted()
-                            .collect(),
-                    )
-                })
-                .collect();
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    k.name(),
+                    v.in_components
+                        .into_iter()
+                        .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
+                        .sorted()
+                        .collect(),
+                )
+            })
+            .collect();
 
             assert_eq!(map, correct);
         });
@@ -682,18 +682,18 @@ mod components_test {
             correct.insert("200".to_string(), vec![]);
 
             let map: HashMap<String, Vec<u64>> = results
-                .into_iter()
-                .map(|(k, v)| {
-                    (
-                        k.name(),
-                        v.out_components
-                            .iter()
-                            .map(|value| value.as_u64())
-                            .sorted()
-                            .collect(),
-                    )
-                })
-                .collect();
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    k.name(),
+                    v.out_components
+                        .into_iter()
+                        .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
+                        .sorted()
+                        .collect(),
+                )
+            })
+            .collect();
 
             assert_eq!(map, correct);
         });

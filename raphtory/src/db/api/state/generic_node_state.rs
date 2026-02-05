@@ -139,7 +139,7 @@ pub struct GenericNodeState<'graph, G> {
     keys: Option<Index<VID>>,
     // Data structure mapping which columns are node-containing and, if so, which graph they belong to
     // note: maybe change that Option<G> to a Option<Box<dyn GraphViewOps>> or something
-    node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
+    pub node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -747,6 +747,12 @@ impl<
     {
         self.into_iter()
             .map(|(node, value)| (node.name(), f(value)))
+            .collect()
+    }
+
+    pub fn to_transformed_hashmap(&self) -> HashMap<String, T> {
+        self.iter()
+            .map(|(node, value)| (node.name(), self.convert(value.clone())))
             .collect()
     }
 
