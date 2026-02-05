@@ -77,8 +77,22 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
                 return Err(GraphError::NodeMissingError(gid));
             }
         };
-        add_to_shortest_paths(&target_node, &mut shortest_paths, &distances, &predecessor); 
-    } 
+        let mut path = IndexSet::default();
+        path.insert(target_node.node);
+        let mut current_node_id = target_node.node;
+        while let Some(prev_node) = predecessor.get(&current_node_id) {
+            if *prev_node == current_node_id {
+                break;
+            }
+            path.insert(*prev_node);
+            current_node_id = *prev_node;
+        }
+        path.reverse();
+        shortest_paths.insert(
+            target_node.node,
+            (distances[target_node.node.index()].as_f64().unwrap(), path),
+        );
+        } 
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = shortest_paths
         .into_iter()
         .map(|(id, (dist, path))| {
@@ -201,7 +215,7 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
                 continue;
             }
             let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
-            if new_dist < *node_dist {
+            if new_dist < node_dist {
                 return Err(GraphError::InvalidProperty { reason: "Negative cycle detected".to_string() });
             }
         }
@@ -209,20 +223,3 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
     Ok((dist, predecessor))
 }
 
-fn add_to_shortest_paths<G: StaticGraphViewOps>(target_node: &NodeView<G>, shortest_paths: &mut HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)>, dist: &HashMap<VID, Prop>, predecessor: &HashMap<VID, VID>) {
-    let mut path = IndexSet::default();
-    path.insert(target_node.node);
-    let mut current_node_id = target_node.node;
-    while let Some(prev_node) = predecessor.get(&current_node_id) {
-        if *prev_node == current_node_id {
-            break;
-        }
-        path.insert(*prev_node);
-        current_node_id = *prev_node;
-    }
-    path.reverse();
-    shortest_paths.insert(
-        target_node.node,
-        (dist.get(&target_node.node).unwrap().as_f64().unwrap(), path),
-    );
-}
