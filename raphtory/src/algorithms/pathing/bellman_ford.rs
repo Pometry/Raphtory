@@ -80,7 +80,7 @@ pub fn bellman_ford_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNod
         let mut path = IndexSet::default();
         path.insert(target_node.node);
         let mut current_node_id = target_node.node;
-        while let Some(prev_node) = predecessor.get(&current_node_id) {
+        while let Some(prev_node) = predecessor.get(current_node_id.index()) {
             if *prev_node == current_node_id {
                 break;
             }
@@ -202,7 +202,7 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
             Direction::OUT => node.in_edges(),
             Direction::BOTH => node.edges(),
         };
-        let node_dist = dist[node.node.index()];
+        let node_dist = &dist[node.node.index()];
         for edge in edges {
             let edge_val = if let Some(w) = weight_fn(&edge) {
                 w
@@ -210,12 +210,12 @@ pub(crate) fn bellman_ford_single_source_shortest_paths_algorithm<G: StaticGraph
                 continue;
             };
             let neighbor_vid = edge.nbr().node;
-            let neighbor_dist = dist[neighbor_vid.index()];
-            if neighbor_dist == max_val {
+            let neighbor_dist = &dist[neighbor_vid.index()];
+            if *neighbor_dist == max_val {
                 continue;
             }
             let new_dist = neighbor_dist.clone().add(edge_val).unwrap();
-            if new_dist < node_dist {
+            if new_dist < *node_dist {
                 return Err(GraphError::InvalidProperty { reason: "Negative cycle detected".to_string() });
             }
         }
