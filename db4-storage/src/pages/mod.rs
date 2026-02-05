@@ -207,6 +207,7 @@ impl<
         &self.ext
     }
 
+    #[inline(always)]
     pub fn nodes(&self) -> &Arc<NodeStorageInner<NS, EXT>> {
         &self.nodes
     }

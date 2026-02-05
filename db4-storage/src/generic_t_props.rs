@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, ops::Range};
 
 use either::Either;
-use itertools::Itertools;
+use fast_merge::FastMergeExt;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{entities::LayerIds, storage::timeindex::EventTime};
@@ -107,8 +107,8 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'a {
         let tprops = self.tprops(self.prop_id);
         tprops
-            .map(|t_prop| t_prop.iter_inner(w.clone()))
-            .kmerge_by(|(a, _), (b, _)| a < b)
+            .map(move |t_prop| t_prop.iter_inner(w.clone()))
+            .fast_merge_by(|(a, _), (b, _)| a < b)
     }
 
     fn iter_inner_rev(
@@ -118,7 +118,7 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
         let tprops = self
             .tprops(self.prop_id)
             .map(move |t_cell| t_cell.iter_inner_rev(w.clone()));
-        tprops.kmerge_by(|(a, _), (b, _)| a > b)
+        tprops.fast_merge_by(|(a, _), (b, _)| a > b)
     }
 
     fn at(&self, ti: &EventTime) -> Option<Prop> {

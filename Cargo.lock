@@ -1478,6 +1478,7 @@ dependencies = [
  "bytemuck",
  "chrono",
  "either",
+ "fast_merge",
  "iter-enum",
  "itertools 0.13.0",
  "parking_lot",

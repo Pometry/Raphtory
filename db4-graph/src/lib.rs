@@ -208,6 +208,7 @@ where
         self.storage().read_event_id()
     }
 
+    #[inline(always)]
     pub fn storage(&self) -> &Arc<Layer<EXT>> {
         &self.storage
     }
@@ -241,7 +242,7 @@ where
 
     #[inline]
     pub fn internal_num_nodes(&self) -> usize {
-        self.logical_to_physical.len()
+        self.storage().nodes().num_nodes()
     }
 
     #[inline]

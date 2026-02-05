@@ -72,6 +72,7 @@ impl GIDResolverOps for MappingResolver {
         Ok(self.mapping.validate_gids(gids)?)
     }
 
+    #[inline(always)]
     fn get_str(&self, gid: &str) -> Option<VID> {
         self.mapping.get_str(gid)
     }

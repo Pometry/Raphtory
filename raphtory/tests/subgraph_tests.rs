@@ -18,12 +18,11 @@ fn test_materialize_no_edges() {
     graph.add_node(1, 1, NO_PROPS, None).unwrap();
     graph.add_node(2, 2, NO_PROPS, None).unwrap();
 
-    test_storage!(&graph, |graph| {
-        let sg = graph.subgraph([1, 2, 1]); // <- duplicated nodes should have no effect
+    let sg = graph.subgraph([1, 2, 1]); // <- duplicated nodes should have no effect
+    assert_eq!(graph.count_nodes(), 2);
 
-        let actual = sg.materialize().unwrap().into_events().unwrap();
-        assert_graph_equal(&actual, &sg);
-    });
+    let actual = sg.materialize().unwrap().into_events().unwrap();
+    assert_graph_equal(&actual, &sg);
 }
 
 #[test]
