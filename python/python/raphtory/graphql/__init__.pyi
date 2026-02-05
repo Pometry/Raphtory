@@ -43,6 +43,7 @@ __all__ = [
     "encode_graph",
     "decode_graph",
     "schema",
+    "cli",
 ]
 
 class GraphServer(object):
@@ -700,3 +701,5 @@ def schema():
     Returns
     str: Graphql schema
     """
+
+def cli(): ...
