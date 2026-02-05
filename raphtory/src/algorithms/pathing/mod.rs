@@ -10,7 +10,12 @@ pub(crate) fn to_prop<G: StaticGraphViewOps>(g: &G, weight: Option<&str>, val: f
             return Err(GraphError::PropertyMissingError(weight.to_string()));
         }
     }
-    let prop_val = match weight_type {
+    let prop_val = get_prop_val(weight_type, val)?; 
+    Ok(prop_val)
+}
+
+pub(crate) fn get_prop_val(prop_type: PropType, val: f64) -> Result<Prop, GraphError> {
+    let prop_type = match prop_type {
         PropType::F32 => Prop::F32(val as f32),
         PropType::F64 => Prop::F64(val as f64),
         PropType::U8 => Prop::U8(val as u8),
@@ -25,7 +30,7 @@ pub(crate) fn to_prop<G: StaticGraphViewOps>(g: &G, weight: Option<&str>, val: f
             })
         }
     };
-    Ok(prop_val)
+    Ok(prop_type)
 }
 
 pub mod bellman_ford;
