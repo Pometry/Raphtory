@@ -986,13 +986,17 @@ impl<
         index: usize,
     ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         let vid = match &self.state.keys {
-            Some(node_index) => node_index.key(index).unwrap(),
-            None => VID(index),
+            Some(node_index) => node_index.key(index),
+            None => Some(VID(index)),
         };
-        Some((
-            NodeView::new_internal(&self.state.base_graph, vid),
-            self.get_by_node(vid).unwrap(), // &self.values[index],
-        ))
+        if let Some(vid) = vid {
+            Some((
+                NodeView::new_internal(&self.state.base_graph, vid),
+                self.get_by_node(vid).unwrap(), // &self.values[index],
+            ))
+        } else {
+            return None;
+        }
     }
 
     fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value> {
@@ -1039,6 +1043,24 @@ impl<
 }
 
 impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
+    fn take_values<V: NodeStateValue>(index: &Option<Index<VID>>, values: Vec<V>) -> Vec<V> {
+        let Some(index) = index else {
+            return values;
+        };
+
+        let mut values: Vec<Option<V>> = values.into_iter().map(Some).collect();
+
+        index
+            .iter()
+            .map(|vid| {
+                values
+                    .get_mut(vid.0)
+                    .and_then(Option::take)
+                    .expect("index out of bounds")
+            })
+            .collect()
+    }
+
     pub fn new_from_eval_with_index<V: NodeStateValue>(
         graph: G,
         values: Vec<V>,
@@ -1057,6 +1079,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
+        let values = Self::take_values(&index, values);
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
         Self::new(graph, values, index, node_cols)
     }

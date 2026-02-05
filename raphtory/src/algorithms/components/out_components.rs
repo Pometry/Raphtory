@@ -211,17 +211,10 @@ where
         }
     }
 
-    let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
-        out_components.into_iter().sorted().unzip();
-    Ok(TypedNodeState::new(
-        GenericNodeState::new_from_eval_with_index(
-            node.graph.clone(),
-            distances
-                .into_iter()
-                .map(|value| OutComponentState { distance: value })
-                .collect(),
-            Some(Index::new(nodes)),
-            None,
-        ),
-    ))
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
+        node.graph.clone(),
+        out_components,
+        |distance| OutComponentState { distance },
+        None,
+    )))
 }

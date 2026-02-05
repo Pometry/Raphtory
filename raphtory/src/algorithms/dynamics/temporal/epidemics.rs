@@ -244,15 +244,13 @@ where
             }
         }
     }
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
-    Ok(TypedNodeState::new(
-        GenericNodeState::new_from_eval_with_index(
-            g.clone(),
-            values,
-            Some(Index::new(index)),
-            None,
-        ),
-    ))
+    //let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
+        g.clone(),
+        states,
+        |value| value,
+        None,
+    )))
 }
 
 #[cfg(test)]

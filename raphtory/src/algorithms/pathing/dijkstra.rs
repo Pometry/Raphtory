@@ -225,24 +225,14 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             }
         }
     }
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = paths
-        .into_iter()
-        .map(|(id, (cost, path))| {
-            let nodes: Vec<VID> = path.into_iter().collect();
-            (
-                id,
-                DistanceState {
-                    distance: cost,
-                    path: nodes,
-                },
-            )
-        })
-        .unzip();
     Ok(TypedNodeState::new_mapped(
-        GenericNodeState::new_from_eval_with_index(
+        GenericNodeState::new_from_map(
             g.clone(),
-            values,
-            Some(Index::new(index)),
+            paths,
+            |(cost, path)| DistanceState {
+                distance: cost,
+                path: path.into_iter().collect(),
+            },
             Some(HashMap::from([(
                 "path".to_string(),
                 (NodeStateOutputType::Nodes, None),

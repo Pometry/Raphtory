@@ -3,6 +3,7 @@ use crate::{
     db::{
         api::{
             state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
+            storage::graph,
             view::{Filter, NodeViewOps, StaticGraphViewOps},
         },
         graph::{
@@ -214,17 +215,10 @@ where
         }
     }
 
-    let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
-        in_components.into_iter().sorted().unzip();
-    Ok(TypedNodeState::new(
-        GenericNodeState::new_from_eval_with_index(
-            node.graph.clone(),
-            distances
-                .into_iter()
-                .map(|value| InComponentState { distance: value })
-                .collect(),
-            Some(Index::new(nodes)),
-            None,
-        ),
-    ))
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
+        node.graph.clone(),
+        in_components,
+        |distance| InComponentState { distance },
+        None,
+    )))
 }
