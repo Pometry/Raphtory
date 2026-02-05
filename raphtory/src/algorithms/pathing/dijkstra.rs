@@ -222,6 +222,7 @@ pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphView
     let mut dist = D::new(n_nodes, s, max_val.clone());
     dist.set_item(source_node.node, cost_val);
     let mut predecessor = P::new(n_nodes, s, VID(usize::MAX));
+    predecessor.set_item(source_node.node, source_node.node);
     let mut visited = V::new(n_nodes, s);
     let mut visited_count = 0;
 
