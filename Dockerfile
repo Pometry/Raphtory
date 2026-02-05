@@ -23,5 +23,6 @@ FROM debian:bookworm-slim
 ARG RAPHTORY_PROFILE
 COPY --from=builder /app/target/${RAPHTORY_PROFILE}/raphtory-graphql /raphtory-graphql
 WORKDIR /var/lib/raphtory
+VOLUME [ "/var/lib/raphtory" ]
 
 ENTRYPOINT ["/raphtory-graphql"]

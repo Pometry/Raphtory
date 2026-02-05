@@ -4478,6 +4478,7 @@ dependencies = [
  "opentelemetry-otlp",
  "opentelemetry_sdk",
  "ordered-float 4.6.0",
+ "parking_lot",
  "poem",
  "pretty_assertions",
  "pyo3",

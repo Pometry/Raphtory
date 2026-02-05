@@ -1,6 +1,6 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import init_graph, init_graph2
+from filters_setup import init_graph, init_graph2, init_graph4
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = init_graph(Graph())
@@ -108,6 +108,78 @@ def test_edges_chained_selection_with_edge_filter(graph):
                 "select": {
                     "select": {"list": [{"dst": {"name": "2"}, "src": {"name": "1"}}]}
                 }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+EVENT_GRAPH = init_graph4(Graph())
+PERSISTENT_GRAPH = init_graph4(PersistentGraph())
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_filter_window_is_active(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          select(expr: {window: {start: 1, end: 4, expr: {isActive: true}}}) {
+            list {
+              src {
+                name
+              }
+              dst {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {
+                    "list": [
+                        {"dst": {"name": "2"}, "src": {"name": "1"}},
+                        {"dst": {"name": "3"}, "src": {"name": "2"}},
+                        {"dst": {"name": "1"}, "src": {"name": "3"}},
+                        {"dst": {"name": "4"}, "src": {"name": "3"}},
+                        {"dst": {"name": "1"}, "src": {"name": "2"}},
+                    ]
+                }
+            }
+        }
+    }
+    run_graphql_test(query, expected_output, graph)
+
+
+@pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
+def test_edges_filter_window_is_deleted(graph):
+    query = """
+    query {
+      graph(path: "g") {
+        edges {
+          select(expr: {window: {start: 1, end: 5, expr: {isDeleted: true}}}) {
+            list {
+              src {
+                name
+              }
+              dst {
+                name
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected_output = {
+        "graph": {
+            "edges": {
+                "select": {"list": [{"dst": {"name": "4"}, "src": {"name": "3"}}]}
             }
         }
     }

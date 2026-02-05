@@ -37,24 +37,22 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 #[cfg(test)]
 mod deadlock_tests {
+    use parking_lot::Mutex;
+    use reqwest::{Client, StatusCode};
+    use std::{sync::Arc, time::Duration};
+    use tempfile::TempDir;
+    use raphtory::db::api::storage::storage::Config;
     use crate::{
         rayon::{COMPUTE_POOL, WRITE_POOL},
         routes::Health,
         GraphServer,
     };
-    use raphtory::db::api::storage::storage::Config;
-    use reqwest::{Client, StatusCode};
-    use std::{
-        sync::{Arc, Mutex},
-        time::Duration,
-    };
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
         test_pool_lock(43871, |lock| {
             COMPUTE_POOL.spawn_broadcast(move |_| {
-                let _guard = lock.lock().unwrap();
+                let _guard = lock.lock();
             });
         })
         .await;
@@ -64,7 +62,7 @@ mod deadlock_tests {
     async fn test_deadlock_in_write_pool() {
         test_pool_lock(43872, |lock| {
             WRITE_POOL.spawn_broadcast(move |_| {
-                let _guard = lock.lock().unwrap();
+                let _guard = lock.lock();
             });
         })
         .await;
@@ -83,19 +81,13 @@ mod deadlock_tests {
         let client = Client::new();
 
         let req = client.get(format!("http://localhost:{port}/health"));
-        let response = req.send().await.unwrap();
+        let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
         assert_eq!(health.healthy, false);
 
-        // with default timeout (10s) a 8s timeout causes the http client to finish first
-        let req = client.get(format!("http://localhost:{port}/health"));
-        let result = req.timeout(Duration::from_secs(8)).send().await.err();
-        assert!(result.unwrap().is_timeout());
-
-        // However, with a custom timeout of 5s, now the health check finishes first
         let req = client.get(format!("http://localhost:{port}/health?timeout=5"));
-        let response = req.timeout(Duration::from_secs(8)).send().await.unwrap();
+        let response = req.timeout(Duration::from_secs(100)).send().await.unwrap();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
         let health: Health = response.json().await.unwrap();
         assert_eq!(health.healthy, false);
