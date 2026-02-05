@@ -49,6 +49,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::python::config::PyConfig;
 #[cfg(feature = "search")]
 use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 
@@ -116,10 +117,16 @@ impl PyPersistentGraph {
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
-    #[pyo3(signature = (path = None))]
-    pub fn py_new(path: Option<PathBuf>) -> Result<(Self, PyGraphView), GraphError> {
+    #[pyo3(signature = (path = None, config=None))]
+    pub fn py_new(
+        path: Option<PathBuf>,
+        config: Option<PyConfig>,
+    ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
-            Some(path) => PersistentGraph::new_at_path(&path)?,
+            Some(path) => match config {
+                None => PersistentGraph::new_at_path(&path)?,
+                Some(PyConfig(config)) => PersistentGraph::new_at_path_with_config(&path, config)?,
+            },
             None => PersistentGraph::new(),
         };
         Ok((
