@@ -1,12 +1,11 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::api::{
-        state::{GenericNodeState, Index, TypedNodeState},
+        state::{GenericNodeState, TypedNodeState},
         view::StaticGraphViewOps,
     },
     prelude::*,
 };
-use indexmap::IndexSet;
 use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
 use rand_distr::{Distribution, Exp};
 use raphtory_api::core::{

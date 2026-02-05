@@ -317,8 +317,13 @@ class GraphView(object):
            list[Node]: the nodes that match the properties name and value
         """
 
-    def get_index_spec(self):
-        """Get index spec"""
+    def get_index_spec(self) -> IndexSpec:
+        """
+        Get index spec
+
+        Returns:
+            IndexSpec:
+        """
 
     def has_edge(self, src: NodeInput, dst: NodeInput) -> bool:
         """
@@ -840,27 +845,52 @@ class Graph(GraphView):
             None:
         """
 
-    def create_index(self):
-        """Create graph index"""
+    def create_index(self) -> None:
+        """
+        Create graph index
 
-    def create_index_in_ram(self):
+        Returns:
+            None:
+        """
+
+    def create_index_in_ram(self) -> None:
         """
         Creates a graph index in memory (RAM).
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Returns:
+            None:
         """
 
-    def create_index_in_ram_with_spec(self, py_spec):
+    def create_index_in_ram_with_spec(self, py_spec: IndexSpec) -> None:
         """
         Creates a graph index in memory (RAM) with the provided index spec.
 
         This is primarily intended for use in tests and should not be used in production environments,
         as the index will not be persisted to disk.
+
+        Arguments:
+            py_spec: The specification for the in-memory index to be created.
+
+        Arguments:
+            py_spec (IndexSpec): - The specification for the in-memory index to be created.
+
+        Returns:
+            None:
         """
 
-    def create_index_with_spec(self, py_spec):
-        """Create graph index with the provided index spec."""
+    def create_index_with_spec(self, py_spec: Any) -> None:
+        """
+        Create graph index with the provided index spec.
+
+        Arguments:
+            py_spec: - The specification for the in-memory index to be created.
+
+        Returns:
+            None:
+        """
 
     def create_node(
         self,
@@ -1358,13 +1388,15 @@ class Graph(GraphView):
           bytes:
         """
 
-    def to_parquet(self, graph_dir: str | PathLike):
+    def to_parquet(self, graph_dir: str | PathLike) -> None:
         """
-        Persist graph to parquet files
+        Persist graph to parquet files.
 
         Arguments:
             graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
 
+        Returns:
+            None:
         """
 
     def update_metadata(self, metadata: PropInput) -> None:
@@ -7033,30 +7065,145 @@ class IndexSpecBuilder(object):
     def __new__(cls, graph) -> IndexSpecBuilder:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def build(self): ...
-    def with_all_edge_metadata(self): ...
-    def with_all_edge_properties(self): ...
-    def with_all_edge_properties_and_metadata(self): ...
-    def with_all_node_metadata(self): ...
-    def with_all_node_properties(self): ...
-    def with_all_node_properties_and_metadata(self): ...
-    def with_edge_metadata(self, props): ...
-    def with_edge_properties(self, props): ...
-    def with_node_metadata(self, props): ...
-    def with_node_properties(self, props): ...
+    def build(self) -> IndexSpec:
+        """
+        Return a spec
+
+        Returns:
+            IndexSpec:
+        """
+
+    def with_all_edge_metadata(self) -> dict[str, Any]:
+        """
+        Adds all edge metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_edge_properties(self) -> dict[str, Any]:
+        """
+        Adds all edge properties to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_edge_properties_and_metadata(self) -> dict[str, Any]:
+        """
+        Adds all edge properties and metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_node_metadata(self) -> dict[str, Any]:
+        """
+        Adds all node metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_node_properties(self) -> dict[str, Any]:
+        """
+        Adds all node properties to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_all_node_properties_and_metadata(self) -> dict[str, Any]:
+        """
+        Adds all node properties and metadata to the spec.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_edge_metadata(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified edge metadata to the spec.
+
+        Arguments:
+            props: List of metadata.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_edge_properties(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified edge properties to the spec.
+
+        Arguments:
+            props: List of properties.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_node_metadata(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified node metadata to the spec.
+
+        Arguments:
+            props: list of metadata.
+
+        Returns:
+            dict[str, Any]:
+        """
+
+    def with_node_properties(self, props: Any) -> dict[str, Any]:
+        """
+        Adds specified node properties to the spec.
+
+        Arguments:
+            props: list of properties.
+
+        Returns:
+            dict[str, Any]:
+        """
 
 class IndexSpec(object):
     def __repr__(self):
         """Return repr(self)."""
 
     @property
-    def edge_metadata(self): ...
+    def edge_metadata(self) -> list[str]:
+        """
+        Get edge metadata.
+
+        Returns:
+            list[str]:
+        """
+
     @property
-    def edge_properties(self): ...
+    def edge_properties(self) -> list[str]:
+        """
+        Get edge properties.
+
+        Returns:
+            list[str]:
+        """
+
     @property
-    def node_metadata(self): ...
+    def node_metadata(self) -> list[str]:
+        """
+        Get node metadata.
+
+        Returns:
+            list[str]:
+        """
+
     @property
-    def node_properties(self): ...
+    def node_properties(self) -> list[str]:
+        """
+        Get node properties.
+
+        Returns:
+            list[str]:
+        """
 
 class Prop(object):
     def __repr__(self):

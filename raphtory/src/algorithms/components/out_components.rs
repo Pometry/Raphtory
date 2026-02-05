@@ -20,8 +20,6 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use indexmap::IndexSet;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
