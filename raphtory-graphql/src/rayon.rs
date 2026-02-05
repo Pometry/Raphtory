@@ -37,16 +37,16 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 #[cfg(test)]
 mod deadlock_tests {
-    use parking_lot::Mutex;
-    use reqwest::{Client, StatusCode};
-    use std::{sync::Arc, time::Duration};
-    use tempfile::TempDir;
-    use raphtory::db::api::storage::storage::Config;
     use crate::{
         rayon::{COMPUTE_POOL, WRITE_POOL},
         routes::Health,
         GraphServer,
     };
+    use parking_lot::Mutex;
+    use raphtory::db::api::storage::storage::Config;
+    use reqwest::{Client, StatusCode};
+    use std::{sync::Arc, time::Duration};
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
