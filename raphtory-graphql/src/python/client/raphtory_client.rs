@@ -37,7 +37,7 @@ pub struct PyRaphtoryClient {
 
 impl PyRaphtoryClient {
     /// Run an async operation that returns Result<O, ClientError> and map errors to PyErr.
-    fn run_async<F, Fut, O>(&self, f: F) -> PyResult<O>
+    pub(crate) fn run_async<F, Fut, O>(&self, f: F) -> PyResult<O>
     where
         F: FnOnce(RaphtoryGraphQLClient) -> Fut + Send + 'static,
         Fut: Future<Output = Result<O, ClientError>> + Send + 'static,

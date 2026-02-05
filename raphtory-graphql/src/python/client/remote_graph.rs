@@ -1,6 +1,9 @@
-use crate::python::client::{
-    build_property_string, build_query, raphtory_client::PyRaphtoryClient,
-    remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
+use crate::{
+    client::remote_graph::GraphQLRemoteGraph,
+    python::client::{
+        build_query, raphtory_client::PyRaphtoryClient,
+        remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
+    },
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
@@ -11,7 +14,6 @@ use raphtory_api::core::{
     utils::time::IntoTime,
 };
 use std::collections::HashMap;
-
 #[derive(Clone)]
 #[pyclass(name = "RemoteGraph", module = "raphtory.graphql")]
 pub struct PyRemoteGraph {
@@ -204,37 +206,29 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
-        py: Python,
+        _py: Python,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<PyRemoteNode, GraphError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                addNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
-                    success
-                }
-            }
-        }
-        "#;
+        let path = self.path.clone();
+        let id_str = id.to_string();
+        let node_type= node_type.map(|s| s.to_string());
 
-        let query_context = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            name => id.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            node_type => node_type
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteGraph::new(path, inner_client);
+                remote
+                    .add_node(timestamp, id, properties, node_type)
+                    .await
+            })
+            .map_err(|e| GraphError::from(e))?;
 
         Ok(PyRemoteNode::new(
             self.path.clone(),
             self.client.clone(),
-            id.to_string(),
+            id_str,
         ))
     }
 
@@ -251,37 +245,29 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn create_node(
         &self,
-        py: Python,
+        _py: Python,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<PyRemoteNode, GraphError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                createNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
-                    success
-                }
-            }
-        }
-        "#;
+        let path = self.path.clone();
+        let id_str = id.to_string();
+        let node_type = node_type.map(|s| s.to_string());
 
-        let query_context = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            name => id.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            node_type => node_type
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteGraph::new(path, inner_client);
+                remote
+                    .add_node(timestamp, id, properties, node_type)
+                    .await
+            })
+            .map_err(|e| GraphError::from(e))?;
 
         Ok(PyRemoteNode::new(
             self.path.clone(),
             self.client.clone(),
-            id.to_string(),
+            id_str,
         ))
     }
 
@@ -295,25 +281,17 @@ impl PyRemoteGraph {
     ///     None:
     pub fn add_property(
         &self,
-        py: Python,
+        _py: Python,
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            addProperties(t: {{t}} properties: {{ properties | safe }})
-          }
-        }
-        "#;
-        let query_context = context! {
-            path => self.path,
-            t => timestamp.into_time().t(),
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let path = self.path.clone();
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteGraph::new(path, inner_client);
+                remote.add_property(timestamp, properties).await
+            })
+            .map_err(|e| GraphError::from(e))?;
 
         Ok(())
     }
@@ -327,24 +305,16 @@ impl PyRemoteGraph {
     ///     None:
     pub fn add_metadata(
         &self,
-        py: Python,
+        _py: Python,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            addMetadata(properties: {{ properties | safe }})
-          }
-        }
-        "#;
-
-        let query_context = context! {
-            path => self.path,
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let path = self.path.clone();
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteGraph::new(path, inner_client);
+                remote.add_metadata(properties).await
+            })
+            .map_err(|e| GraphError::from(e))?;
 
         Ok(())
     }
@@ -358,25 +328,16 @@ impl PyRemoteGraph {
     ///     None:
     pub fn update_metadata(
         &self,
-        py: Python,
+        _py: Python,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            updateMetadata(properties: {{ properties | safe }})
-          }
-        }
-        "#;
-
-        let query_context = context! {
-            path => self.path,
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-
-        let _ = &self.client.query(py, query, None)?;
+        let path = self.path.clone();
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteGraph::new(path, inner_client);
+                remote.update_metadata(properties).await
+            })
+            .map_err(|e| GraphError::from(e))?;
 
         Ok(())
     }
@@ -395,39 +356,31 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
-        py: Python,
+        _py: Python,
         timestamp: EventTime,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<PyRemoteEdge, GraphError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                addEdge(time: {{ time }}, src: "{{ src }}", dst: "{{ dst }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if layer is not none %}, layer: "{{ layer }}"{% endif %}) {
-                    success
-                }
-            }
-        }
-        "#;
+        let path = self.path.clone();
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        let layer = layer.map(|s| s.to_string());
 
-        let query_context = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            src => src.to_string(),
-            dst => dst.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            layer => layer
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteGraph::new(path, inner_client);
+                remote
+                    .add_edge(timestamp, src, dst, properties, layer)
+                    .await
+            })
+            .map_err(|e| GraphError::from(e))?;
         Ok(PyRemoteEdge::new(
             self.path.clone(),
             self.client.clone(),
-            src.to_string(),
-            dst.to_string(),
+            src_str,
+            dst_str,
         ))
     }
 

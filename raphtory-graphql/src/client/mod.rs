@@ -3,8 +3,10 @@
 //! No Python dependency; usable from Rust and from PyO3 bindings.
 
 mod error;
+pub mod remote_graph;
 
 pub use error::ClientError;
+pub use remote_graph::GraphQLRemoteGraph;
 
 use crate::url_encode::url_decode_graph;
 use reqwest::{multipart, multipart::Part, Client};
@@ -14,6 +16,7 @@ use std::io::Cursor;
 use raphtory::db::api::storage::storage::Config;
 use raphtory::db::api::view::MaterializedGraph;
 use raphtory::serialise::GraphFolder;
+use raphtory_api::core::entities::properties::prop::Prop;
 
 /// Check if a server at the given URL is online (responds with 200).
 pub fn is_online(url: &str) -> bool {
@@ -368,4 +371,82 @@ impl RaphtoryGraphQLClient {
             ))),
         }
     }
+}
+
+pub(crate) fn inner_collection(value: &Prop) -> String {
+    match value {
+        Prop::Str(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::U8(value) => format!("{{ u64: {} }}", value),
+        Prop::U16(value) => format!("{{ u64: {} }}", value),
+        Prop::I32(value) => format!("{{ i64: {} }}", value),
+        Prop::I64(value) => format!("{{ i64: {} }}", value),
+        Prop::U32(value) => format!("{{ u64: {} }}", value),
+        Prop::U64(value) => format!("{{ u64: {} }}", value),
+        Prop::F32(value) => format!("{{ f64: {} }}", value),
+        Prop::F64(value) => format!("{{ f64: {} }}", value),
+        Prop::Bool(value) => format!("{{ bool: {} }}", value),
+        Prop::List(value) => {
+            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
+            format!("{{ list: [{}] }}", vec.join(", "))
+        }
+        Prop::Map(value) => {
+            let properties_array: Vec<String> = value
+                .iter()
+                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
+                .collect();
+            format!("{{ object: [{}] }}", properties_array.join(", "))
+        }
+        Prop::DTime(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::NDTime(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::Decimal(value) => format!("{{ decimal: {} }}", value),
+    }
+}
+
+fn to_graphql_valid(key: &String, value: &Prop) -> String {
+    match value {
+        Prop::Str(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
+        Prop::U8(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::U16(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::I32(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
+        Prop::I64(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
+        Prop::U32(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::U64(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
+        Prop::F32(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
+        Prop::F64(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
+        Prop::Bool(value) => format!("{{ key: \"{}\", value: {{ bool: {} }} }}", key, value),
+        Prop::List(value) => {
+            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
+            format!(
+                "{{ key: \"{}\", value: {{ list: [{}] }} }}",
+                key,
+                vec.join(", ")
+            )
+        }
+        Prop::Map(value) => {
+            let properties_array: Vec<String> = value
+                .iter()
+                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
+                .collect();
+            format!(
+                "{{ key: \"{}\", value: {{ object: [{}] }} }}",
+                key,
+                properties_array.join(", ")
+            )
+        }
+        Prop::DTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
+        Prop::NDTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
+        Prop::Decimal(value) => format!(
+            "{{ key: \"{}\", value: {{ decimal: \"{}\" }} }}",
+            key, value
+        ),
+    }
+}
+
+pub(crate) fn build_property_string(properties: HashMap<String, Prop>) -> String {
+    let properties_array: Vec<String> = properties
+        .iter()
+        .map(|(k, v)| to_graphql_valid(k, v))
+        .collect();
+
+    format!("[{}]", properties_array.join(", "))
 }

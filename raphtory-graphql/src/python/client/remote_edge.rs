@@ -1,5 +1,5 @@
 use crate::python::client::{
-    build_property_string, build_query, raphtory_client::PyRaphtoryClient,
+    build_query, raphtory_client::PyRaphtoryClient,
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
@@ -10,6 +10,7 @@ use raphtory_api::core::{
     utils::time::IntoTime,
 };
 use std::collections::HashMap;
+use crate::client::build_property_string;
 
 /// A remote edge reference
 ///
