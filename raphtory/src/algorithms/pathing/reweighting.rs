@@ -23,7 +23,7 @@ use std::{
 };
 use super::super::pathing::{bellman_ford::bellman_ford_single_source_shortest_paths_algorithm, dijkstra::dijkstra_single_source_shortest_paths_algorithm, get_prop_val, to_prop};
 
-pub fn get_johnson_reweighting_function<'a, G: StaticGraphViewOps, F: Fn(&EdgeView<G>) -> Option<Prop>>(
+pub fn get_johnson_reweighting_function<'a, G: StaticGraphViewOps>(
     g: &G,
     weight: Option<&'a str>,
     direction: Direction,
