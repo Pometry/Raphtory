@@ -114,6 +114,10 @@ impl PyPersistentGraph {
 }
 
 /// A temporal graph that allows edges and nodes to be deleted.
+///
+/// Arguments:
+///     path (str | PathLike, optional): the path to persist the graph (only works with disk storage enabled)
+///     config (Config, optional): the configuration options for the graph
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
@@ -137,9 +141,21 @@ impl PyPersistentGraph {
         ))
     }
 
+    /// Load a disk graph from path
+    ///
+    /// Arguments:
+    ///     path (str | PathLike): the path of the graph folder
+    ///     config (Config, optional): specify a new config to override the values saved for the graph
+    ///                                (note that the page sizes cannot be overridden and are ignored)
+    ///
+    /// Returns:
+    ///     PersistentGraph: the graph
     #[staticmethod]
-    pub fn load(path: PathBuf) -> Result<PersistentGraph, GraphError> {
-        PersistentGraph::load_from_path(&path)
+    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<PersistentGraph, GraphError> {
+        match config {
+            None => PersistentGraph::load_from_path(&path),
+            Some(PyConfig(config)) => PersistentGraph::load_from_path_with_config(&path, config),
+        }
     }
 
     /// Trigger a flush of the underlying storage if disk storage is enabled

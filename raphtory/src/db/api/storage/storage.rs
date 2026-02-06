@@ -40,6 +40,7 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
+use crate::prelude::Graph;
 use raphtory_storage::mutation::durability_ops::DurabilityOps;
 #[cfg(feature = "search")]
 use {
@@ -129,8 +130,7 @@ impl Storage {
         })
     }
 
-    pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let ext = Extension::load(path.as_ref())?;
+    fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
         let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
         let wal = temporal_graph.wal()?;
 
@@ -145,6 +145,18 @@ impl Storage {
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
+    }
+
+    pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load(path)?;
+        Self::load_with_extension(path, ext)
+    }
+
+    pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load_with_config(path, config)?;
+        Self::load_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
