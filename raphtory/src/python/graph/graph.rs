@@ -195,14 +195,10 @@ impl PyGraph {
     #[staticmethod]
     pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<Graph, GraphError> {
         match config {
-            None => {Graph::load_from_path(&path)}
-            Some(PyConfig(config)) => {
-                Graph::load_from_path_with_config(&path, config)
-            }
+            None => Graph::load_from_path(&path),
+            Some(PyConfig(config)) => Graph::load_from_path_with_config(&path, config),
         }
-
     }
-
 
     /// Trigger a flush of the underlying storage if disk storage is enabled
     ///
