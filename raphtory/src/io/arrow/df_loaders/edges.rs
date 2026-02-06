@@ -90,46 +90,7 @@ impl<'a> ColumnNames<'a> {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df_pandas<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
-    I2: Iterator<Item = Result<DFChunk, GraphError>>,
->(
-    df_view: DFView<I2>,
-    column_names: ColumnNames,
-    resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
-    properties: &[&str],
-    metadata: &[&str],
-    shared_metadata: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    graph: &G,
-    delete: bool, // whether to update edge deletions or additions
-) -> Result<(), GraphError> {
-    let DFView {
-        names,
-        chunks,
-        num_rows,
-    } = df_view;
-    let df_view_meta = DFView {
-        names,
-        chunks: std::iter::empty(),
-        num_rows,
-    };
-    load_edges_from_df_inner(
-        chunks,
-        df_view_meta,
-        column_names,
-        resolve_nodes,
-        properties,
-        metadata,
-        shared_metadata,
-        layer,
-        graph,
-        delete,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df<
+pub fn load_edges_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
     I1: Iterator<Item = Result<DFChunk, GraphError>> + Send,
 >(
@@ -148,11 +109,7 @@ pub fn load_edges_from_df<
         chunks,
         num_rows,
     } = df_view;
-    let df_view_meta = DFView {
-        names,
-        chunks: std::iter::empty(),
-        num_rows,
-    };
+
     rayon::scope(|s| {
         let (tx, rx) = mpsc::sync_channel(2);
 
@@ -166,9 +123,14 @@ pub fn load_edges_from_df<
             }
         });
 
-        load_edges_from_df_inner(
-            rx,
-            df_view_meta,
+        let df_view_prefetch = DFView {
+            names,
+            chunks: rx,
+            num_rows,
+        };
+
+        load_edges_from_df(
+            df_view_prefetch,
             column_names,
             resolve_nodes,
             properties,
@@ -184,10 +146,8 @@ pub fn load_edges_from_df<
     Ok(())
 }
 
-fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    chunks: impl IntoIterator<Item = Result<DFChunk, GraphError>>,
-    df_view: DFView<impl Iterator<Item = ()>>, // for metadata only
-
+pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>>>,
     column_names: ColumnNames,
     resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
     properties: &[&str],
@@ -256,7 +216,7 @@ fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + Additi
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
-    for chunk in chunks {
+    for chunk in df_view.chunks {
         let df = chunk?;
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
