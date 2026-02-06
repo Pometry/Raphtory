@@ -6307,6 +6307,35 @@ Metadata.
 
 ### EdgeFilter
 
+GraphQL input type for filtering edges.
+
+`EdgeFilter` represents a composable boolean expression evaluated
+against edges in a graph. Filters can target:
+
+- edge **endpoints** (source / destination nodes),
+- edge **properties** and **metadata**,
+- **temporal scope** (windows, snapshots, latest),
+- **layer membership**,
+- and **structural edge state** (active, valid, deleted, self-loop).
+
+Filters can be combined recursively using logical operators
+(`And`, `Or`, `Not`).
+
+Examples (GraphQL):
+```graphql
+{
+edges(filter: {
+And: [
+{ IsActive: true },
+{ Property: { name: "weight", gt: 0.5 } }
+]
+}) {
+src
+dst
+}
+}
+```
+
 <table>
 <thead>
 <tr>
@@ -6321,7 +6350,12 @@ Metadata.
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
 <td>
 
-Source node filter.
+Applies a filter to the **source node** of the edge.
+
+The nested `NodeFilter` is evaluated against the source endpoint.
+
+Example:
+`{ Src: { Name: { contains: "alice" } } }`
 
 </td>
 </tr>
@@ -6330,7 +6364,12 @@ Source node filter.
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
 <td>
 
-Destination node filter.
+Applies a filter to the **destination node** of the edge.
+
+The nested `NodeFilter` is evaluated against the destination endpoint.
+
+Example:
+`{ Dst: { Id: { eq: 42 } } }`
 
 </td>
 </tr>
@@ -6339,7 +6378,12 @@ Destination node filter.
 <td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Property filter.
+Filters an edge **property** by name and value.
+
+Applies to static or temporal properties depending on context.
+
+Example:
+`{ Property: { name: "weight", gt: 0.5 } }`
 
 </td>
 </tr>
@@ -6348,7 +6392,12 @@ Property filter.
 <td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Metadata filter.
+Filters an edge **metadata field**.
+
+Metadata is shared across all temporal versions of an edge.
+
+Example:
+`{ Metadata: { name: "source", eq: "imported" } }`
 
 </td>
 </tr>
@@ -6357,7 +6406,13 @@ Metadata filter.
 <td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Temporal property filter.
+Filters a **temporal edge property**.
+
+Used when the property value varies over time and must be
+evaluated within a temporal context.
+
+Example:
+`{ TemporalProperty: { name: "status", eq: "active" } }`
 
 </td>
 </tr>
@@ -6366,7 +6421,12 @@ Temporal property filter.
 <td valign="top">[<a href="#edgefilter">EdgeFilter</a>!]</td>
 <td>
 
-AND operator.
+Logical **AND** over multiple edge filters.
+
+All nested filters must evaluate to `true`.
+
+Example:
+`{ And: [ { IsActive: true }, { IsValid: true } ] }`
 
 </td>
 </tr>
@@ -6375,7 +6435,12 @@ AND operator.
 <td valign="top">[<a href="#edgefilter">EdgeFilter</a>!]</td>
 <td>
 
-OR operator.
+Logical **OR** over multiple edge filters.
+
+At least one nested filter must evaluate to `true`.
+
+Example:
+`{ Or: [ { IsDeleted: true }, { IsSelfLoop: true } ] }`
 
 </td>
 </tr>
@@ -6384,56 +6449,102 @@ OR operator.
 <td valign="top"><a href="#edgefilter">EdgeFilter</a></td>
 <td>
 
-NOT operator.
+Logical **NOT** over a nested edge filter.
+
+Negates the result of the wrapped filter.
+
+Example:
+`{ Not: { IsDeleted: true } }`
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.window">window</strong></td>
 <td valign="top"><a href="#edgewindowexpr">EdgeWindowExpr</a></td>
-<td></td>
+<td>
+
+Restricts edge evaluation to a **time window**.
+
+The window is inclusive of `start` and exclusive of `end`.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.at">at</strong></td>
 <td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td></td>
+<td>
+
+Restricts edge evaluation to a **single point in time**.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.before">before</strong></td>
 <td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td></td>
+<td>
+
+Restricts edge evaluation to times **strictly before** a given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.after">after</strong></td>
 <td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td></td>
+<td>
+
+Restricts edge evaluation to times **strictly after** a given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.latest">latest</strong></td>
 <td valign="top"><a href="#edgeunaryexpr">EdgeUnaryExpr</a></td>
-<td></td>
+<td>
+
+Evaluates edge predicates against the **latest available state**.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#edgetimeexpr">EdgeTimeExpr</a></td>
-<td></td>
+<td>
+
+Evaluates edge predicates against a **snapshot** of the graph
+at a specific time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#edgeunaryexpr">EdgeUnaryExpr</a></td>
-<td></td>
+<td>
+
+Evaluates edge predicates against the **most recent snapshot**
+of the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.layers">layers</strong></td>
 <td valign="top"><a href="#edgelayersexpr">EdgeLayersExpr</a></td>
-<td></td>
+<td>
+
+Restricts evaluation to edges belonging to one or more **layers**.
+
+Example:
+`{ Layers: { values: ["fire_nation", "air_nomads"] } }`
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgefilter.isactive">isActive</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Edge is active in the current view/window.
+Matches edges that have at least one event in the current view/window.
+
+When `true`, only active edges are matched.
 
 </td>
 </tr>
@@ -6442,7 +6553,8 @@ Edge is active in the current view/window.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Edge is valid (undeleted) in the current view/window.
+Matches edges that are structurally valid (i.e. not deleted)
+in the current view/window.
 
 </td>
 </tr>
@@ -6451,7 +6563,7 @@ Edge is valid (undeleted) in the current view/window.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Edge is deleted in the current view/window.
+Matches edges that have been deleted in the current view/window.
 
 </td>
 </tr>
@@ -6460,7 +6572,8 @@ Edge is deleted in the current view/window.
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Edge is a self-loop in the current view/window.
+Matches edges that are **self-loops**
+(source node == destination node).
 
 </td>
 </tr>
@@ -6468,6 +6581,10 @@ Edge is a self-loop in the current view/window.
 </table>
 
 ### EdgeLayersExpr
+
+Restricts edge evaluation to one or more layers and applies a nested `EdgeFilter`.
+
+Used by `GqlEdgeFilter::Layers`.
 
 <table>
 <thead>
@@ -6481,12 +6598,20 @@ Edge is a self-loop in the current view/window.
 <tr>
 <td colspan="2" valign="top"><strong id="edgelayersexpr.names">names</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Layer names to include.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgelayersexpr.expr">expr</strong></td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated within the layer-restricted view.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6552,6 +6677,10 @@ Property
 
 ### EdgeTimeExpr
 
+Restricts edge evaluation to a single time bound and applies a nested `EdgeFilter`.
+
+Used by `At`, `Before`, and `After` edge filters.
+
 <table>
 <thead>
 <tr>
@@ -6564,17 +6693,29 @@ Property
 <tr>
 <td colspan="2" valign="top"><strong id="edgetimeexpr.time">time</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Reference time for the operation.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgetimeexpr.expr">expr</strong></td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated within the restricted time scope.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### EdgeUnaryExpr
+
+Applies a unary edge-view operation and then evaluates a nested `EdgeFilter`.
+
+Used by `Latest` and `SnapshotLatest` edge filters.
 
 <table>
 <thead>
@@ -6588,7 +6729,11 @@ Property
 <tr>
 <td colspan="2" valign="top"><strong id="edgeunaryexpr.expr">expr</strong></td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated after applying the unary operation.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6744,6 +6889,12 @@ Edge filter
 
 ### EdgeWindowExpr
 
+Restricts edge evaluation to a time window and applies a nested `EdgeFilter`.
+
+Used by `GqlEdgeFilter::Window`.
+
+The window is inclusive of `start` and exclusive of `end`.
+
 <table>
 <thead>
 <tr>
@@ -6756,17 +6907,29 @@ Edge filter
 <tr>
 <td colspan="2" valign="top"><strong id="edgewindowexpr.start">start</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Window start time (inclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgewindowexpr.end">end</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Window end time (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="edgewindowexpr.expr">expr</strong></td>
 <td valign="top"><a href="#edgefilter">EdgeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated within the restricted window.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -6945,6 +7108,19 @@ OpenAI embedding models or compatible providers
 
 ### GraphFilter
 
+GraphQL input type for restricting a graph view.
+
+`GraphFilter` controls the **evaluation scope** for subsequent node/edge filters:
+- time windows (`Window`)
+- time points (`At`)
+- open-ended ranges (`Before`, `After`)
+- latest evaluation (`Latest`)
+- snapshots (`SnapshotAt`, `SnapshotLatest`)
+- layer membership (`Layers`)
+
+These filters can be nested via the `expr` field on the corresponding
+`*Expr` input objects to form pipelines.
+
 <table>
 <thead>
 <tr>
@@ -6957,47 +7133,83 @@ OpenAI embedding models or compatible providers
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.window">window</strong></td>
 <td valign="top"><a href="#graphwindowexpr">GraphWindowExpr</a></td>
-<td></td>
+<td>
+
+Restrict evaluation to a time window (inclusive start, exclusive end).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.at">at</strong></td>
 <td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td></td>
+<td>
+
+Restrict evaluation to a single point in time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.before">before</strong></td>
 <td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td></td>
+<td>
+
+Restrict evaluation to times strictly before the given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.after">after</strong></td>
 <td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td></td>
+<td>
+
+Restrict evaluation to times strictly after the given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.latest">latest</strong></td>
 <td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
-<td></td>
+<td>
+
+Evaluate against the latest available state.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#graphtimeexpr">GraphTimeExpr</a></td>
-<td></td>
+<td>
+
+Evaluate against a snapshot of the graph at a given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#graphunaryexpr">GraphUnaryExpr</a></td>
-<td></td>
+<td>
+
+Evaluate against the most recent snapshot of the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphfilter.layers">layers</strong></td>
 <td valign="top"><a href="#graphlayersexpr">GraphLayersExpr</a></td>
-<td></td>
+<td>
+
+Restrict evaluation to one or more layers.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### GraphLayersExpr
+
+Graph view restriction by layer membership, optionally chaining another `GraphFilter`.
+
+Used by `GqlGraphFilter::Layers`.
 
 <table>
 <thead>
@@ -7011,17 +7223,32 @@ OpenAI embedding models or compatible providers
 <tr>
 <td colspan="2" valign="top"><strong id="graphlayersexpr.names">names</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Layer names to include.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphlayersexpr.expr">expr</strong></td>
 <td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td></td>
+<td>
+
+Optional nested filter applied after the layer restriction.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### GraphTimeExpr
+
+Graph view restriction to a single time bound, optionally chaining another `GraphFilter`.
+
+Used by `At`, `Before`, and `After` graph filters.
+
+Example:
+`{ At: { time: 5, expr: { Layers: { names: ["L1"] } } } }`
 
 <table>
 <thead>
@@ -7035,17 +7262,29 @@ OpenAI embedding models or compatible providers
 <tr>
 <td colspan="2" valign="top"><strong id="graphtimeexpr.time">time</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Reference time for the operation.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphtimeexpr.expr">expr</strong></td>
 <td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td></td>
+<td>
+
+Optional nested filter applied after the time restriction.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### GraphUnaryExpr
+
+Graph view restriction that takes only a nested expression.
+
+Used for unary view operations like `Latest` and `SnapshotLatest`.
 
 <table>
 <thead>
@@ -7059,7 +7298,11 @@ OpenAI embedding models or compatible providers
 <tr>
 <td colspan="2" valign="top"><strong id="graphunaryexpr.expr">expr</strong></td>
 <td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td></td>
+<td>
+
+Optional nested filter applied after the unary operation.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7260,6 +7503,18 @@ Edge filter.
 
 ### GraphWindowExpr
 
+Graph view restriction to a time window, optionally chaining another `GraphFilter`.
+
+Used by `GqlGraphFilter::Window`.
+
+- `start` and `end` define the window (inclusive start, exclusive end).
+- `expr` optionally nests another graph filter to apply *within* this window.
+
+Example (GraphQL):
+```graphql
+{ Window: { start: 0, end: 10, expr: { Layers: { names: ["A"] } } } }
+```
+
 <table>
 <thead>
 <tr>
@@ -7272,17 +7527,29 @@ Edge filter.
 <tr>
 <td colspan="2" valign="top"><strong id="graphwindowexpr.start">start</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Window start time (inclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphwindowexpr.end">end</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Window end time (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="graphwindowexpr.expr">expr</strong></td>
 <td valign="top"><a href="#graphfilter">GraphFilter</a></td>
-<td></td>
+<td>
+
+Optional nested filter applied after the window restriction.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7403,6 +7670,14 @@ Updates.
 
 ### NodeFieldCondition
 
+Boolean expression over a built-in node field (ID, name, or type).
+
+This is used by `NodeFieldFilterNew.where_` when filtering a specific
+`NodeField`.
+
+Supports comparisons, string predicates, and set membership.
+(Presence checks and aggregations are handled via property filters instead.)
+
 <table>
 <thead>
 <tr>
@@ -7415,67 +7690,122 @@ Updates.
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.eq">eq</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Equality.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.ne">ne</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Inequality.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.gt">gt</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Greater-than.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.ge">ge</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Greater-than-or-equal.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.lt">lt</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Less-than.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.le">le</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Less-than-or-equal.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.startswith">startsWith</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+String prefix match.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.endswith">endsWith</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+String suffix match.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.contains">contains</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Substring match.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.notcontains">notContains</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Negated substring match.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.isin">isIn</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Set membership.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldcondition.isnotin">isNotIn</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Negated set membership.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### NodeFieldFilterNew
+
+Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
+
+Example (GraphQL):
+```graphql
+{ Node: { field: NodeName, where: { Contains: "ali" } } }
+```
 
 <table>
 <thead>
@@ -7489,17 +7819,42 @@ Updates.
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldfilternew.field">field</strong></td>
 <td valign="top"><a href="#nodefield">NodeField</a>!</td>
-<td></td>
+<td>
+
+Which built-in field to filter.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefieldfilternew.where">where</strong></td>
 <td valign="top"><a href="#nodefieldcondition">NodeFieldCondition</a>!</td>
-<td></td>
+<td>
+
+Condition applied to the selected field.
+
+Exposed as `where` in GraphQL.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### NodeFilter
+
+GraphQL input type for filtering nodes.
+
+`NodeFilter` represents a composable boolean expression evaluated
+against nodes in a graph. Filters can target:
+
+- built-in node fields (`Node` / `NodeFieldFilterNew`),
+- node properties and metadata,
+- temporal properties,
+- temporal scope (windows, snapshots, latest),
+- and layer membership,
+- plus node state predicates (e.g. `IsActive`).
+
+Filters can be combined recursively using logical operators
+(`And`, `Or`, `Not`).
 
 <table>
 <thead>
@@ -7515,7 +7870,7 @@ Updates.
 <td valign="top"><a href="#nodefieldfilternew">NodeFieldFilterNew</a></td>
 <td>
 
-Node filter.
+Filters a built-in node field (ID, name, or type).
 
 </td>
 </tr>
@@ -7524,7 +7879,7 @@ Node filter.
 <td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Property filter.
+Filters a node property by name and condition.
 
 </td>
 </tr>
@@ -7533,7 +7888,9 @@ Property filter.
 <td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Metadata filter.
+Filters a node metadata field by name and condition.
+
+Metadata is shared across all temporal versions of a node.
 
 </td>
 </tr>
@@ -7542,7 +7899,10 @@ Metadata filter.
 <td valign="top"><a href="#propertyfilternew">PropertyFilterNew</a></td>
 <td>
 
-Temporal property filter.
+Filters a temporal node property by name and condition.
+
+Used when the property value varies over time and must be evaluated
+within a temporal context.
 
 </td>
 </tr>
@@ -7551,7 +7911,7 @@ Temporal property filter.
 <td valign="top">[<a href="#nodefilter">NodeFilter</a>!]</td>
 <td>
 
-AND operator.
+Logical AND over multiple node filters.
 
 </td>
 </tr>
@@ -7560,7 +7920,7 @@ AND operator.
 <td valign="top">[<a href="#nodefilter">NodeFilter</a>!]</td>
 <td>
 
-OR operator.
+Logical OR over multiple node filters.
 
 </td>
 </tr>
@@ -7569,56 +7929,90 @@ OR operator.
 <td valign="top"><a href="#nodefilter">NodeFilter</a></td>
 <td>
 
-NOT operator.
+Logical NOT over a nested node filter.
 
 </td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.window">window</strong></td>
 <td valign="top"><a href="#nodewindowexpr">NodeWindowExpr</a></td>
-<td></td>
+<td>
+
+Restricts evaluation to a time window (inclusive start, exclusive end).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.at">at</strong></td>
 <td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
-<td></td>
+<td>
+
+Restricts evaluation to a single point in time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.before">before</strong></td>
 <td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
-<td></td>
+<td>
+
+Restricts evaluation to times strictly before the given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.after">after</strong></td>
 <td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
-<td></td>
+<td>
+
+Restricts evaluation to times strictly after the given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.latest">latest</strong></td>
 <td valign="top"><a href="#nodeunaryexpr">NodeUnaryExpr</a></td>
-<td></td>
+<td>
+
+Evaluates predicates against the latest available node state.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.snapshotat">snapshotAt</strong></td>
 <td valign="top"><a href="#nodetimeexpr">NodeTimeExpr</a></td>
-<td></td>
+<td>
+
+Evaluates predicates against a snapshot of the graph at a given time.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.snapshotlatest">snapshotLatest</strong></td>
 <td valign="top"><a href="#nodeunaryexpr">NodeUnaryExpr</a></td>
-<td></td>
+<td>
+
+Evaluates predicates against the most recent snapshot of the graph.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.layers">layers</strong></td>
 <td valign="top"><a href="#nodelayersexpr">NodeLayersExpr</a></td>
-<td></td>
+<td>
+
+Restricts evaluation to nodes belonging to one or more layers.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodefilter.isactive">isActive</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
 <td>
 
-Node is active in the current view/window.
+Matches nodes that have at least one event in the current view/window.
+
+When `true`, only active nodes are matched.
 
 </td>
 </tr>
@@ -7626,6 +8020,10 @@ Node is active in the current view/window.
 </table>
 
 ### NodeLayersExpr
+
+Restricts node evaluation to one or more layers and applies a nested `NodeFilter`.
+
+Used by `GqlNodeFilter::Layers`.
 
 <table>
 <thead>
@@ -7639,12 +8037,20 @@ Node is active in the current view/window.
 <tr>
 <td colspan="2" valign="top"><strong id="nodelayersexpr.names">names</strong></td>
 <td valign="top">[<a href="#string">String</a>!]!</td>
-<td></td>
+<td>
+
+Layer names to include.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodelayersexpr.expr">expr</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated within the layer-restricted view.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7701,6 +8107,10 @@ Property
 
 ### NodeTimeExpr
 
+Restricts node evaluation to a single time bound and applies a nested `NodeFilter`.
+
+Used by `At`, `Before`, and `After` node filters.
+
 <table>
 <thead>
 <tr>
@@ -7713,17 +8123,29 @@ Property
 <tr>
 <td colspan="2" valign="top"><strong id="nodetimeexpr.time">time</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Reference time for the operation.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodetimeexpr.expr">expr</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated within the restricted time scope.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### NodeUnaryExpr
+
+Applies a unary node-view operation and then evaluates a nested `NodeFilter`.
+
+Used by `Latest` and `SnapshotLatest` node filters.
 
 <table>
 <thead>
@@ -7737,7 +8159,11 @@ Property
 <tr>
 <td colspan="2" valign="top"><strong id="nodeunaryexpr.expr">expr</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated after applying the unary operation.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -7893,6 +8319,12 @@ Node filter.
 
 ### NodeWindowExpr
 
+Restricts node evaluation to a time window and applies a nested `NodeFilter`.
+
+Used by `GqlNodeFilter::Window`.
+
+The window is inclusive of `start` and exclusive of `end`.
+
 <table>
 <thead>
 <tr>
@@ -7905,17 +8337,29 @@ Node filter.
 <tr>
 <td colspan="2" valign="top"><strong id="nodewindowexpr.start">start</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Window start time (inclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodewindowexpr.end">end</strong></td>
 <td valign="top"><a href="#timeinput">TimeInput</a>!</td>
-<td></td>
+<td>
+
+Window end time (exclusive).
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="nodewindowexpr.expr">expr</strong></td>
 <td valign="top"><a href="#nodefilter">NodeFilter</a>!</td>
-<td></td>
+<td>
+
+Filter evaluated within the restricted window.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -8282,6 +8726,24 @@ Set the window end to a specified time.
 
 ### PropCondition
 
+Boolean expression over a property value.
+
+`PropCondition` is used inside `PropertyFilterNew.where` to describe
+how a property’s value should be matched.
+
+It supports:
+- comparisons (`Eq`, `Gt`, `Le`, …),
+- string predicates (`Contains`, `StartsWith`, …),
+- set membership (`IsIn`, `IsNotIn`),
+- presence checks (`IsSome`, `IsNone`),
+- boolean composition (`And`, `Or`, `Not`),
+- and list/aggregate qualifiers (`First`, `Sum`, `Len`, …).
+
+Notes:
+- `Value` is interpreted according to the property’s type.
+- Aggregators/qualifiers like `Sum` and `Len` apply when the underlying
+property is list-like or aggregatable (depending on your engine rules).
+
 <table>
 <thead>
 <tr>
@@ -8294,137 +8756,259 @@ Set the window end to a specified time.
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.eq">eq</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Equality: property value equals the given value.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.ne">ne</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Inequality: property value does not equal the given value.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.gt">gt</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Greater-than: property value is greater than the given value.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.ge">ge</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Greater-than-or-equal: property value is >= the given value.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.lt">lt</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Less-than: property value is less than the given value.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.le">le</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Less-than-or-equal: property value is <= the given value.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.startswith">startsWith</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+String prefix match against the property's string representation.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.endswith">endsWith</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+String suffix match against the property's string representation.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.contains">contains</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Substring match against the property's string representation.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.notcontains">notContains</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Negated substring match against the property's string representation.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.isin">isIn</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Set membership: property value is contained in the given list of values.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.isnotin">isNotIn</strong></td>
 <td valign="top"><a href="#value">Value</a></td>
-<td></td>
+<td>
+
+Negated set membership: property value is not contained in the given list of values.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.issome">isSome</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Presence check: property value is present (not null/missing).
+
+When set to `true`, requires the property to exist.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.isnone">isNone</strong></td>
 <td valign="top"><a href="#boolean">Boolean</a></td>
-<td></td>
+<td>
+
+Absence check: property value is missing / null.
+
+When set to `true`, requires the property to be missing.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.and">and</strong></td>
 <td valign="top">[<a href="#propcondition">PropCondition</a>!]</td>
-<td></td>
+<td>
+
+Logical AND over nested conditions.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.or">or</strong></td>
 <td valign="top">[<a href="#propcondition">PropCondition</a>!]</td>
-<td></td>
+<td>
+
+Logical OR over nested conditions.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.not">not</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Logical NOT over a nested condition.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.first">first</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Applies the nested condition to the **first** element of a list-like property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.last">last</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Applies the nested condition to the **last** element of a list-like property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.any">any</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Requires that **any** element of a list-like property matches the nested condition.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.all">all</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Requires that **all** elements of a list-like property match the nested condition.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.sum">sum</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Applies the nested condition to the **sum** of a numeric list-like property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.avg">avg</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Applies the nested condition to the **average** of a numeric list-like property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.min">min</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Applies the nested condition to the **minimum** element of a list-like property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.max">max</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Applies the nested condition to the **maximum** element of a list-like property.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propcondition.len">len</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a></td>
-<td></td>
+<td>
+
+Applies the nested condition to the **length** of a list-like property.
+
+</td>
 </tr>
 </tbody>
 </table>
 
 ### PropertyFilterNew
+
+Filters an entity property or metadata field by name and condition.
+
+This input is used by both node and edge filters when targeting
+a specific property key (or metadata key) and applying a `PropCondition`.
+
+Fields:
+- `name`: The property key to query.
+- `where_`: The condition to apply to that property’s value.
+
+Example (GraphQL):
+```graphql
+{ Property: { name: "weight", where: { Gt: 0.5 } } }
+```
 
 <table>
 <thead>
@@ -8438,12 +9022,22 @@ Set the window end to a specified time.
 <tr>
 <td colspan="2" valign="top"><strong id="propertyfilternew.name">name</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td></td>
+<td>
+
+Property (or metadata) key.
+
+</td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="propertyfilternew.where">where</strong></td>
 <td valign="top"><a href="#propcondition">PropCondition</a>!</td>
-<td></td>
+<td>
+
+Condition applied to the property value.
+
+Exposed as `where` in GraphQL.
+
+</td>
 </tr>
 </tbody>
 </table>
@@ -8963,7 +9557,9 @@ Event.
 <td valign="top"><strong>NODE_ID</strong></td>
 <td>
 
-Node id.
+Node ID field.
+
+Represents the graph’s node identifier (numeric or string-backed in the API).
 
 </td>
 </tr>
@@ -8971,7 +9567,9 @@ Node id.
 <td valign="top"><strong>NODE_NAME</strong></td>
 <td>
 
-Node name.
+Node name field.
+
+Represents the human-readable node name (string).
 
 </td>
 </tr>
@@ -8979,7 +9577,9 @@ Node name.
 <td valign="top"><strong>NODE_TYPE</strong></td>
 <td>
 
-Node type.
+Node type field.
+
+Represents the optional node type assigned at node creation (string).
 
 </td>
 </tr>
