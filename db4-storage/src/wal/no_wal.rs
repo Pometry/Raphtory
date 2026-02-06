@@ -37,7 +37,7 @@ impl WalOps for NoWal {
         std::iter::once(Err(StorageError::GenericFailure(error.to_string())))
     }
 
-    fn has_entries(&self) -> bool {
-        false
+    fn has_entries(&self) -> Result<bool, StorageError> {
+        Ok(false)
     }
 }
