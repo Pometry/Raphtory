@@ -233,4 +233,16 @@ where
 
         Ok(())
     }
+
+    fn replay_add_node(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        t: EventTime,
+        node_name: Option<GID>,
+        node_id: VID,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
