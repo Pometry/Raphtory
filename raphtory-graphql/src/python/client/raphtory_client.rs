@@ -1,5 +1,5 @@
 use crate::{
-    client::{is_online, ClientError, RaphtoryGraphQLClient},
+    client::{graphql_client::RaphtoryGraphQLClient, is_online, ClientError},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph, translate_from_python, translate_map_to_python,
@@ -51,7 +51,9 @@ impl PyRaphtoryClient {
         query: String,
         variables: HashMap<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
-        self.run_async(move |client| async move { client.query_async(&query, variables).await })
+        self.run_async(
+            move |client| async move { client.json_query_async(&query, variables).await },
+        )
     }
 
     pub fn execute_async_task<T, F, O>(&self, task: T) -> O

@@ -1,0 +1,11 @@
+mutation DeleteGraph(
+  $path: String!
+) {
+  deleteGraph(path: $path)
+}
+
+mutation CreateGraph(
+  $path: String!
+) {
+  newGraph(path: $path, graphType: EVENT)
+}

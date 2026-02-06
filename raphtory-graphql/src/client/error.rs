@@ -21,4 +21,7 @@ pub enum ClientError {
 
     #[error("Graph encode/decode error: {0}")]
     Graph(#[from] raphtory::errors::GraphError),
+
+    #[error("Operation failed: {0}")]
+    OperationFailed(String),
 }
