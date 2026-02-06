@@ -568,7 +568,6 @@ mod test {
             config::BaseConfig,
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
-        wal::no_wal::NoWal,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},

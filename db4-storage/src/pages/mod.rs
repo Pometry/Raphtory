@@ -604,14 +604,12 @@ mod test {
             make_nodes,
         },
         persist::{config::BaseConfig, strategy::PersistenceStrategy},
-        wal::no_wal::NoWal,
     };
     use chrono::DateTime;
     use proptest::prelude::*;
     use raphtory_api::core::entities::properties::prop::Prop;
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
     use rayon::iter::ParallelIterator;
-    use std::sync::Arc;
     use tempfile;
 
     #[test]

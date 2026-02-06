@@ -28,7 +28,7 @@ use std::{
 };
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    Extension,
+    Config, Extension,
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
@@ -93,6 +93,34 @@ fn persisted_prop_value_at<'a>(
 impl PersistentGraph {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = PersistentGraph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+        path.init()?;
+        let graph = Self(Arc::new(Storage::new_at_path_with_config(
+            path.graph_path()?,
+            config,
+        )?));
+        path.write_metadata(&graph)?;
+        Ok(graph)
     }
 
     /// Create a new persistent graph at a specific path

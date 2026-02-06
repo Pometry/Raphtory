@@ -65,6 +65,7 @@ rust-embed = { workspace = true }
 
 
 [dev-dependencies]
+parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 arrow-array = { workspace = true }
