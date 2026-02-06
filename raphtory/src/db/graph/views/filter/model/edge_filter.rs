@@ -8,6 +8,10 @@ use crate::{
             edge_node_filtered_graph::EdgeNodeFilteredGraph,
             model::{
                 exploded_edge_filter::CompositeExplodedEdgeFilter,
+                is_active_edge_filter::IsActiveEdge,
+                is_deleted_filter::IsDeletedEdge,
+                is_self_loop_filter::IsSelfLoopEdge,
+                is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
@@ -25,9 +29,9 @@ use crate::{
                 },
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, ComposableFilter, EntityMarker, InternalPropertyFilterBuilder,
-                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
-                TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                AndFilter, CombinedFilter, ComposableFilter, EdgeViewFilterOps, EntityMarker,
+                InternalPropertyFilterBuilder, InternalPropertyFilterFactory, InternalViewWrapOps,
+                NotFilter, OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -91,6 +95,26 @@ impl InternalPropertyFilterFactory for EdgeFilter {
 
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
         MetadataFilterBuilder(property, self.entity())
+    }
+}
+
+impl EdgeViewFilterOps for EdgeFilter {
+    type Output<T: CombinedFilter> = T;
+
+    fn is_active(&self) -> Self::Output<IsActiveEdge> {
+        IsActiveEdge
+    }
+
+    fn is_valid(&self) -> Self::Output<IsValidEdge> {
+        IsValidEdge
+    }
+
+    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
+        IsDeletedEdge
+    }
+
+    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
+        IsSelfLoopEdge
     }
 }
 
@@ -299,6 +323,10 @@ pub enum CompositeEdgeFilter {
     Latest(Box<Latest<CompositeEdgeFilter>>),
     SnapshotAt(Box<SnapshotAt<CompositeEdgeFilter>>),
     SnapshotLatest(Box<SnapshotLatest<CompositeEdgeFilter>>),
+    IsActiveEdge(IsActiveEdge),
+    IsValidEdge(IsValidEdge),
+    IsDeletedEdge(IsDeletedEdge),
+    IsSelfLoopEdge(IsSelfLoopEdge),
     Layered(Box<Layered<CompositeEdgeFilter>>),
     And(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
     Or(Box<CompositeEdgeFilter>, Box<CompositeEdgeFilter>),
@@ -315,6 +343,10 @@ impl Display for CompositeEdgeFilter {
             CompositeEdgeFilter::Latest(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::IsActiveEdge(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::IsValidEdge(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::IsDeletedEdge(filter) => write!(f, "{}", filter),
+            CompositeEdgeFilter::IsSelfLoopEdge(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeEdgeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeEdgeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -370,6 +402,10 @@ impl CreateFilter for CompositeEdgeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)
             }
+            CompositeEdgeFilter::IsActiveEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::IsValidEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::IsDeletedEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
+            CompositeEdgeFilter::IsSelfLoopEdge(i) => Ok(Arc::new(i.create_filter(graph)?)),
             CompositeEdgeFilter::Layered(i) => {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_filter(dyn_graph)
@@ -420,6 +456,10 @@ impl CreateFilter for CompositeEdgeFilter {
             CompositeEdgeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeEdgeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeEdgeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeEdgeFilter::IsActiveEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeEdgeFilter::IsValidEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeEdgeFilter::IsDeletedEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeEdgeFilter::IsSelfLoopEdge(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeEdgeFilter::Layered(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeEdgeFilter::And(l, r) => {
                 let (l, r) = (*l, *r);

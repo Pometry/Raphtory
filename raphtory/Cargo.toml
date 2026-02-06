@@ -94,6 +94,7 @@ num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
+pythonize = { workspace = true, optional = true }
 
 # test utils
 proptest = { workspace = true, optional = true }
@@ -156,6 +157,7 @@ python = [
     "dep:num",
     "dep:display-error-chain",
     "dep:pyo3-arrow",
+    "dep:pythonize",
     "raphtory-api/python",
     "raphtory-core/python",
     "kdam/notebook",

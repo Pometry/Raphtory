@@ -57,7 +57,6 @@ jobs:
       tag: |
         ${{ needs.read-raphtory-version.outputs.version }}
         latest
-      python: false
     secrets: inherit
   call-release-docker-workflow-python:
     name: Release python docker image

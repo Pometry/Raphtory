@@ -35,10 +35,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{
-    persist::config::ConfigOps,
-    wal::{GraphWalOps, WalOps, LSN},
-};
+use storage::wal::{GraphWalOps, WalOps, LSN};
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};

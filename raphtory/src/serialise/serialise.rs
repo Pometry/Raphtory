@@ -13,7 +13,6 @@ use crate::{
         GRAPH_META_PATH, ROOT_META_PATH,
     },
 };
-use arrow_json::reader;
 use std::{
     fs::File,
     io::{Cursor, Read, Seek, Write},
