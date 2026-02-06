@@ -12,6 +12,7 @@ use crate::{
 use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
 use std::ops::Range;
+use storage::Config;
 
 #[derive(Clone)]
 pub enum MaterializedGraph {
@@ -102,6 +103,26 @@ impl MaterializedGraph {
                 GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_from_path(path)?)),
                 GraphType::PersistentGraph => Ok(Self::PersistentGraph(
                     PersistentGraph::load_from_path(path)?,
+                )),
+            }
+        } else {
+            Err(GraphError::NotADiskGraph)
+        }
+    }
+
+    #[cfg(feature = "io")]
+    pub fn load_from_path_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let meta = path.read_metadata()?;
+        if meta.is_diskgraph {
+            match meta.graph_type {
+                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load_from_path_with_config(
+                    path, config,
+                )?)),
+                GraphType::PersistentGraph => Ok(Self::PersistentGraph(
+                    PersistentGraph::load_from_path_with_config(path, config)?,
                 )),
             }
         } else {

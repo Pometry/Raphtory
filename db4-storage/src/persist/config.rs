@@ -35,6 +35,8 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args {
         serde_json::to_writer_pretty(config_file, self)?;
         Ok(())
     }
+
+    fn update(&mut self, new: Self);
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Args)]
@@ -122,6 +124,10 @@ impl ConfigOps for BaseConfig {
 
     fn with_node_types(&self, _node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
         *self
+    }
+
+    fn update(&mut self, _new: Self) {
+        // cannot update page lengths for an existing graph
     }
 }
 
