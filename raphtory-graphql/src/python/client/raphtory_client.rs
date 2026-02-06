@@ -12,7 +12,10 @@ use pyo3::{
     prelude::*,
     types::PyDict,
 };
-use raphtory::{db::api::view::MaterializedGraph, serialise::GraphFolder};
+use raphtory::{
+    db::api::{storage::storage::Config, view::MaterializedGraph},
+    serialise::GraphFolder,
+};
 use raphtory_api::python::error::adapt_err_value;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
@@ -427,7 +430,7 @@ impl PyRaphtoryClient {
         let data = self.query_with_json_variables(query.clone(), variables.into())?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(graph)) => {
-                let mat_graph = url_decode_graph(graph)?;
+                let mat_graph = url_decode_graph(graph, Config::default())?;
                 Ok(mat_graph)
             }
             _ => Err(PyException::new_err(format!(

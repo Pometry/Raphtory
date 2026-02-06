@@ -243,11 +243,49 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         shard_initial_state: Option<Shard<CS>>,
         global_initial_state: Option<Global<CS>>,
     ) -> B {
+        let node_index = Index::for_graph(self.ctx.graph());
+        self.run_with_index(
+            node_index,
+            init_tasks,
+            tasks,
+            init,
+            f,
+            num_threads,
+            steps,
+            shard_initial_state,
+            global_initial_state,
+        )
+    }
+
+    /// Execute tasks over nodes in `node_index`. Used for running algorithms over a super- or subset
+    /// of the nodes in the graph view.
+    pub fn run_with_index<
+        B,
+        F: FnOnce(
+            GlobalState<CS>,
+            EvalShardState<G, CS>,
+            EvalLocalState<G, CS>,
+            Vec<S>,
+            Index<VID>,
+        ) -> B,
+        S: Send + Sync + Clone + 'static + std::fmt::Debug + Default,
+    >(
+        &mut self,
+        index: Index<VID>,
+        init_tasks: Vec<Job<G, CS, S>>,
+        tasks: Vec<Job<G, CS, S>>,
+        init: Option<Vec<S>>,
+        f: F,
+        num_threads: Option<usize>,
+        steps: usize,
+        shard_initial_state: Option<Shard<CS>>,
+        global_initial_state: Option<Global<CS>>,
+    ) -> B {
         let pool = num_threads.map(custom_pool).unwrap_or_else(|| POOL.clone());
 
         let graph = self.ctx.graph();
-        let node_index = Index::for_graph(graph.clone());
-        let num_nodes = node_index.len();
+
+        let num_nodes = index.len();
         let storage = graph.core_graph();
         let morcel_size = num_nodes.min(16_000);
         let num_chunks = if morcel_size == 0 {
@@ -255,8 +293,6 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
         } else {
             (num_nodes + morcel_size - 1) / morcel_size
         };
-
-        let index = Index::for_graph(graph.clone());
 
         let mut shard_state =
             shard_initial_state.unwrap_or_else(|| Shard::new(num_nodes, num_chunks, morcel_size));
@@ -268,11 +304,11 @@ impl<G: StaticGraphViewOps, CS: ComputeState> TaskRunner<G, CS> {
 
         let mut _done = false;
 
-        let mut reverse_vids = vec![VID(0); node_index.len()];
+        let mut reverse_vids = vec![VID(0); index.len()];
         {
             let atom_vids = atomic_vid_from_mut_slice(&mut reverse_vids);
 
-            node_index.par_iter().for_each(|(i, vid)| {
+            index.par_iter().for_each(|(i, vid)| {
                 atom_vids[i].store(vid.0, Ordering::Relaxed);
             });
         }

@@ -21,6 +21,7 @@ use poem::{
     EndpointExt, Route, Server,
 };
 use raphtory::{
+    db::api::storage::storage::Config,
     errors::GraphResult,
     vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
 };
@@ -112,12 +113,13 @@ impl GraphServer {
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         config_path: Option<PathBuf>,
+        graph_config: Config,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
         let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
-        let data = Data::new(work_dir.as_path(), &config);
+        let data = Data::new(work_dir.as_path(), &config, graph_config);
         Ok(Self { data, config })
     }
 
@@ -199,6 +201,16 @@ impl GraphServer {
 
         self.data.vectorise_all_graphs_that_are_not().await?;
         let work_dir = self.data.work_dir.clone();
+
+        // Otherwise evictions are only triggered when the cache is actively touched
+        let cache_clone = self.data.cache.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
+            loop {
+                interval.tick().await;
+                cache_clone.run_pending_tasks().await;
+            }
+        });
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
@@ -339,6 +351,7 @@ mod server_tests {
     use crate::server::GraphServer;
     use chrono::prelude::*;
     use raphtory::{
+        db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
         vectors::{embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
     };
@@ -351,7 +364,8 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let server =
+            GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default()).unwrap();
         info!("Calling start at time {}", Local::now());
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(1)).await;
@@ -377,7 +391,8 @@ mod server_tests {
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let server =
+            GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default()).unwrap();
         let template = DocumentTemplate {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()

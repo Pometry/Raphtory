@@ -11,25 +11,34 @@ pub trait GIDResolverOps {
     fn new() -> Result<Self, StorageError>
     where
         Self: Sized;
+
     fn new_with_path(path: impl AsRef<Path>, dtype: Option<GidType>) -> Result<Self, StorageError>
     where
         Self: Sized;
+
     fn len(&self) -> usize;
+
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
     fn dtype(&self) -> Option<GidType>;
+
     fn set(&self, gid: GidRef, vid: VID) -> Result<(), StorageError>;
+
     fn get_or_init<NFN: FnMut() -> VID>(
         &self,
         gid: GidRef,
         next_id: NFN,
     ) -> Result<MaybeNew<VID>, StorageError>;
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
     ) -> Result<(), StorageError>;
+
     fn get_str(&self, gid: &str) -> Option<VID>;
+
     fn get_u64(&self, gid: u64) -> Option<VID>;
 
     fn bulk_set_str<S: AsRef<str>>(

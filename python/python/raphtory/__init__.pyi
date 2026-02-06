@@ -286,12 +286,12 @@ class GraphView(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> GraphView:
+    def filter(self, filter: filter.FilterExpr) -> GraphView:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             GraphView: The filtered view
@@ -708,7 +708,7 @@ class Graph(GraphView):
         num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
     """
 
-    def __new__(cls, path=None) -> Graph:
+    def __new__(cls, path=None, config=None) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -819,6 +819,31 @@ class Graph(GraphView):
 
         Returns:
             MutableNode: The created node.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def delete_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        layer: Optional[str],
+        event_id: Optional[int],
+    ) -> MutableEdge:
+        """
+        Deletes an edge given the timestamp, src and dst nodes and layer (optional).
+
+        Arguments:
+          timestamp (int): The timestamp of the edge.
+          src (str | int): The id of the source node.
+          dst (str | int): The id of the destination node.
+          layer (str, optional): The layer of the edge.
+          event_id (int, optional): The optional integer which will be used as an event id.
+
+        Returns:
+          MutableEdge: The deleted edge
 
         Raises:
             GraphError: If the operation fails.
@@ -1297,7 +1322,7 @@ class Graph(GraphView):
 class PersistentGraph(GraphView):
     """A temporal graph that allows edges and nodes to be deleted."""
 
-    def __new__(cls, path=None) -> PersistentGraph:
+    def __new__(cls, path=None, config=None) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -1774,6 +1799,39 @@ class PersistentGraph(GraphView):
            PersistentGraph:
         """
 
+    def load_graph_properties(
+        self,
+        data: Any,
+        time: str,
+        properties: Optional[List[str]] = None,
+        metadata: Optional[List[str]] = None,
+        schema: Optional[
+            list[tuple[str, DataType | PropType | str]]
+            | dict[str, DataType | PropType | str]
+        ] = None,
+        event_id: Optional[str] = None,
+    ) -> None:
+        """
+        Load graph properties from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+        or a path to a Parquet file, or a directory containing multiple Parquet files.
+        The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+        Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
+
+        Arguments:
+            data (Any): The data source containing graph properties.
+            time (str): The column name for the update timestamps.
+            properties (List[str], optional): List of temporal property column names. Defaults to None.
+            metadata (List[str], optional): List of constant property column names. Defaults to None.
+            schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+            event_id (str, optional): The column name for the secondary index.
+
+        Returns:
+            None: This function does not return a value if the operation is successful.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
     def load_node_metadata(
         self,
         data: Any,
@@ -1900,6 +1958,17 @@ class PersistentGraph(GraphView):
 
         Returns:
           bytes:
+        """
+
+    def to_parquet(self, graph_dir: str | PathLike) -> None:
+        """
+        Persist graph to parquet files
+
+        Arguments:
+            graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
+
+        Returns:
+            None:
         """
 
     def update_metadata(self, metadata: dict) -> None:
@@ -2094,12 +2163,12 @@ class Node(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> Node:
+    def filter(self, filter: filter.FilterExpr) -> Node:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Node: The filtered view
@@ -2600,12 +2669,12 @@ class Nodes(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> Nodes:
+    def filter(self, filter: filter.FilterExpr) -> Nodes:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             Nodes: The filtered view
@@ -3115,12 +3184,12 @@ class PathFromNode(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> PathFromNode:
+    def filter(self, filter: filter.FilterExpr) -> PathFromNode:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromNode: The filtered view
@@ -3602,12 +3671,12 @@ class PathFromGraph(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def filter(self, filter: Any) -> PathFromGraph:
+    def filter(self, filter: filter.FilterExpr) -> PathFromGraph:
         """
         Return a filtered view that only includes nodes and edges that satisfy the filter
 
         Arguments:
-            filter (FilterExpr): The filter to apply to the nodes and edges.
+            filter (filter.FilterExpr): The filter to apply to the nodes and edges.
 
         Returns:
             PathFromGraph: The filtered view
@@ -3710,7 +3779,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataListList:
         """
         Returns the node metadata.
 
@@ -4159,20 +4228,20 @@ class Edge(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self):
+    def explode(self) -> Edges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
-    def explode_layers(self):
+    def explode_layers(self) -> Edges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
     def has_layer(self, name: str) -> bool:
@@ -4638,20 +4707,20 @@ class Edges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self):
+    def explode(self) -> Edges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
-    def explode_layers(self):
+    def explode_layers(self) -> Edges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
     def has_layer(self, name: str) -> bool:
@@ -5136,20 +5205,20 @@ class NestedEdges(object):
             WindowSet: A `WindowSet` object.
         """
 
-    def explode(self):
+    def explode(self) -> Edges:
         """
         Explodes returns an edge object for each update within the original edge.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
-    def explode_layers(self):
+    def explode_layers(self) -> Edges:
         """
         Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
 
         Returns:
-            Exploded:
+            Edges:
         """
 
     def has_layer(self, name: str) -> bool:
@@ -5273,7 +5342,7 @@ class NestedEdges(object):
         """
 
     @property
-    def metadata(self):
+    def metadata(self) -> MetadataListList:
         """
         Get a view of the metadata only.
 
@@ -5291,7 +5360,7 @@ class NestedEdges(object):
         """
 
     @property
-    def properties(self):
+    def properties(self) -> PyNestedPropsIterable:
         """
         Returns all properties of the edges
 
@@ -5607,12 +5676,12 @@ class Properties(object):
         """
 
     @property
-    def temporal(self):
+    def temporal(self) -> TemporalProperties:
         """
         Get a view of the temporal properties only.
 
         Returns:
-            TemporalProp:
+           TemporalProperties:
         """
 
     def values(self) -> list[PropValue]:

@@ -655,7 +655,7 @@ mod tests {
     };
     use itertools::Itertools;
     use raphtory::{
-        db::api::view::MaterializedGraph,
+        db::api::{storage::storage::Config, view::MaterializedGraph},
         vectors::{
             cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate, Embedding,
         },
@@ -687,7 +687,7 @@ mod tests {
         let tmp_dir = tempdir().unwrap();
 
         let config = AppConfig::default();
-        let mut data = Data::new(tmp_dir.path(), &config);
+        let mut data = Data::new(tmp_dir.path(), &config, Config::default());
 
         // Override the embedding function with a mock for testing.
         data.embedding_conf = Some(EmbeddingConf {

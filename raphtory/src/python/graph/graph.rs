@@ -15,6 +15,7 @@ use crate::{
     io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
     prelude::*,
     python::{
+        config::PyConfig,
         graph::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
@@ -31,10 +32,7 @@ use crate::{
         types::iterable::FromIterable,
         utils::PyNodeRef,
     },
-    serialise::{
-        parquet::{ParquetDecoder, ParquetEncoder},
-        StableDecode, StableEncode,
-    },
+    serialise::{StableDecode, StableEncode},
 };
 use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
 use raphtory_api::{
@@ -163,11 +161,17 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature = (path = None))]
-    pub fn py_new(path: Option<PathBuf>) -> Result<(Self, PyGraphView), GraphError> {
+    #[pyo3(signature = (path = None, config=None))]
+    pub fn py_new(
+        path: Option<PathBuf>,
+        config: Option<PyConfig>,
+    ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
             None => Graph::new(),
-            Some(path) => Graph::new_at_path(&path)?,
+            Some(path) => match config {
+                None => Graph::new_at_path(&path)?,
+                Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
+            },
         };
         Ok((
             Self {
@@ -203,7 +207,7 @@ impl PyGraph {
     /// Returns:
     ///     None:
     pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
-        self.graph.encode_parquet(graph_dir)
+        self.graph.encode(graph_dir)
     }
 
     /// Read graph from parquet files
@@ -216,9 +220,7 @@ impl PyGraph {
     ///
     #[staticmethod]
     pub fn from_parquet(graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        let path_for_decoded_graph = None;
-
-        Graph::decode_parquet(&graph_dir, path_for_decoded_graph)
+        Graph::decode(&graph_dir)
     }
 
     /// Adds a new node with the given id and properties to the graph.
@@ -389,6 +391,36 @@ impl PyGraph {
                 properties.unwrap_or_default(),
                 layer,
             ),
+        }
+    }
+
+    /// Deletes an edge given the timestamp, src and dst nodes and layer (optional).
+    ///
+    /// Arguments:
+    ///   timestamp (int): The timestamp of the edge.
+    ///   src (str | int): The id of the source node.
+    ///   dst (str | int): The id of the destination node.
+    ///   layer (str, optional): The layer of the edge.
+    ///   event_id (int, optional): The optional integer which will be used as an event id.
+    ///
+    /// Returns:
+    ///   MutableEdge: The deleted edge
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    pub fn delete_edge(
+        &self,
+        timestamp: EventTimeComponent,
+        src: GID,
+        dst: GID,
+        layer: Option<&str>,
+        event_id: Option<usize>,
+    ) -> Result<EdgeView<Graph>, GraphError> {
+        match event_id {
+            None => self.graph.delete_edge(timestamp, src, dst, layer),
+            Some(event_id) => self
+                .graph
+                .delete_edge((timestamp, event_id), src, dst, layer),
         }
     }
 

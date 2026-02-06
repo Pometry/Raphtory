@@ -568,7 +568,6 @@ mod test {
             config::BaseConfig,
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
-        wal::no_wal::NoWal,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},
@@ -584,7 +583,7 @@ mod test {
         let edge_meta = Arc::new(Meta::default());
         let path = tempdir().unwrap();
         let config = BaseConfig::new(10, 10);
-        let ext = NoOpStrategy::new(config, Arc::new(NoWal));
+        let ext = NoOpStrategy::new(config, None).unwrap();
         let segment_id = 0;
         let segment = NodeSegmentView::new(
             segment_id,

@@ -13,7 +13,7 @@ use crate::{
     },
     errors::GraphError,
     io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
-    prelude::{DeletionOps, GraphViewOps, ImportOps},
+    prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
         graph::{
             edge::PyEdge,
@@ -22,8 +22,9 @@ use crate::{
                 load_edge_deletions_from_arrow_c_stream, load_edge_deletions_from_csv_path,
                 load_edge_metadata_from_arrow_c_stream, load_edge_metadata_from_csv_path,
                 load_edges_from_arrow_c_stream, load_edges_from_csv_path,
-                load_node_metadata_from_arrow_c_stream, load_node_metadata_from_csv_path,
-                load_nodes_from_arrow_c_stream, load_nodes_from_csv_path, CsvReadOptions,
+                load_graph_props_from_arrow_c_stream, load_node_metadata_from_arrow_c_stream,
+                load_node_metadata_from_csv_path, load_nodes_from_arrow_c_stream,
+                load_nodes_from_csv_path, CsvReadOptions,
             },
             node::PyNode,
             views::graph_view::PyGraphView,
@@ -48,6 +49,7 @@ use std::{
     sync::Arc,
 };
 
+use crate::python::config::PyConfig;
 #[cfg(feature = "search")]
 use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 
@@ -115,10 +117,16 @@ impl PyPersistentGraph {
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
-    #[pyo3(signature = (path = None))]
-    pub fn py_new(path: Option<PathBuf>) -> Result<(Self, PyGraphView), GraphError> {
+    #[pyo3(signature = (path = None, config=None))]
+    pub fn py_new(
+        path: Option<PathBuf>,
+        config: Option<PyConfig>,
+    ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
-            Some(path) => PersistentGraph::new_at_path(&path)?,
+            Some(path) => match config {
+                None => PersistentGraph::new_at_path(&path)?,
+                Some(PyConfig(config)) => PersistentGraph::new_at_path_with_config(&path, config)?,
+            },
             None => PersistentGraph::new(),
         };
         Ok((
@@ -145,6 +153,17 @@ impl PyPersistentGraph {
     fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {
         let state = self.graph.encode_to_bytes()?;
         Ok((PyGraphEncoder, (state,)))
+    }
+
+    /// Persist graph to parquet files
+    ///
+    /// Arguments:
+    ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
+    ///
+    /// Returns:
+    ///     None:
+    pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
+        self.graph.encode_parquet(graph_dir)
     }
 
     /// Adds a new node with the given id and properties to the graph.
@@ -581,7 +600,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     PersistentGraph: the graph with persistent semantics applied
-    pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
+    pub fn persistent_graph(&self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
@@ -861,6 +880,7 @@ impl PyPersistentGraph {
                 &self.graph,
                 data,
                 time,
+                event_id,
                 src,
                 dst,
                 layer,
@@ -1121,6 +1141,76 @@ impl PyPersistentGraph {
             Ok(())
         } else {
             Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet or CSV file, a directory containing Parquet or CSV files, and objects that implement an __arrow_c_stream__ method.")))
+        }
+    }
+
+    /// Load graph properties from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+    /// or a path to a Parquet file, or a directory containing multiple Parquet files.
+    /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing graph properties.
+    ///     time (str): The column name for the update timestamps.
+    ///     properties (List[str], optional): List of temporal property column names. Defaults to None.
+    ///     metadata (List[str], optional): List of constant property column names. Defaults to None.
+    ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(
+        signature = (data, time, properties = None, metadata = None, schema = None, event_id = None)
+    )]
+    fn load_graph_properties(
+        &self,
+        data: &Bound<PyAny>,
+        time: &str,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        schema: Option<Bound<PyAny>>,
+        event_id: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        let column_schema = convert_py_schema(schema)?;
+        if data.hasattr("__arrow_c_stream__")? {
+            load_graph_props_from_arrow_c_stream(
+                &self.graph,
+                data,
+                time,
+                event_id,
+                Some(&properties),
+                Some(&metadata),
+                column_schema,
+            )
+        } else if let Ok(path) = data.extract::<PathBuf>() {
+            // extracting PathBuf handles Strings too
+            let is_parquet = is_parquet_path(&path)?;
+
+            // wrap in Arc to avoid cloning the entire schema for Parquet and inner loops
+            let arced_schema = column_schema.map(Arc::new);
+
+            if is_parquet {
+                load_graph_props_from_parquet(
+                    &self.graph,
+                    path.as_path(),
+                    time,
+                    event_id,
+                    &properties,
+                    &metadata,
+                    None,
+                    arced_schema,
+                )?;
+            } else {
+                return Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet file, or a directory containing Parquet files")));
+            }
+            Ok(())
+        } else {
+            Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet file, a directory containing Parquet files, and objects that implement an __arrow_c_stream__ method.")))
         }
     }
 

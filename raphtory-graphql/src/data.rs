@@ -12,7 +12,7 @@ use crate::{
 use futures_util::FutureExt;
 use moka::future::Cache;
 use raphtory::{
-    db::api::view::MaterializedGraph,
+    db::api::{storage::storage::Config, view::MaterializedGraph},
     errors::GraphError,
     serialise::GraphPaths,
     vectors::{
@@ -132,13 +132,14 @@ pub(crate) fn get_relative_path(
 
 pub struct Data {
     pub(crate) work_dir: PathBuf,
-    cache: Cache<String, GraphWithVectors>,
+    pub(crate) cache: Cache<String, GraphWithVectors>,
     pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
+    pub(crate) graph_conf: Config,
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
         let cache_configs = &configs.cache;
 
         let cache = Cache::<String, GraphWithVectors>::builder()
@@ -171,6 +172,7 @@ impl Data {
             cache,
             create_index,
             embedding_conf: Default::default(),
+            graph_conf,
         }
     }
 
@@ -213,8 +215,9 @@ impl Data {
     ) -> Result<(), InsertionError> {
         self.invalidate(writeable_folder.local_path()).await;
         let vectors = self.vectorise(graph.clone(), &writeable_folder).await;
+        let config = self.graph_conf.clone();
         let graph = blocking_compute(move || {
-            writeable_folder.write_graph_data(graph.clone())?;
+            writeable_folder.write_graph_data(graph.clone(), config)?;
             let folder = writeable_folder.finish()?;
             let graph = GraphWithVectors::new(graph, vectors, folder.as_existing()?);
             Ok::<_, InsertionError>(graph)
@@ -234,10 +237,12 @@ impl Data {
     ) -> Result<(), InsertionError> {
         self.invalidate(folder.local_path()).await;
         let folder_clone = folder.clone();
-        blocking_io(move || folder_clone.write_graph_bytes(bytes)).await?;
+        let conf = self.graph_conf.clone();
+        blocking_io(move || folder_clone.write_graph_bytes(bytes, conf)).await?;
         if let Some(template) = self.resolve_template(folder.local_path()) {
             let folder_clone = folder.clone();
-            let graph = blocking_io(move || folder_clone.read_graph()).await?;
+            let conf = self.graph_conf.clone();
+            let graph = blocking_io(move || folder_clone.read_graph(conf)).await?;
             self.vectorise_with_template(graph, &folder, template).await;
         }
         blocking_io(move || folder.finish()).await?;
@@ -350,10 +355,11 @@ impl Data {
     ) -> Result<GraphWithVectors, GQLError> {
         let cache = self.embedding_conf.as_ref().map(|conf| conf.cache.clone());
         let create_index = self.create_index;
-        Ok(
-            blocking_io(move || GraphWithVectors::read_from_folder(&folder, cache, create_index))
-                .await?,
-        )
+        let config = self.graph_conf.clone();
+        Ok(blocking_io(move || {
+            GraphWithVectors::read_from_folder(&folder, cache, create_index, config)
+        })
+        .await?)
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
@@ -424,7 +430,7 @@ pub(crate) mod data_tests {
         let mut graphs = HashMap::new();
 
         graphs.insert("test_g".to_string(), graph);
-        let data = Data::new(tmp_work_dir.path(), &Default::default());
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
 
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
@@ -453,7 +459,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(2)
             .build();
 
-        let data = Data::new(tmp_work_dir.path(), &configs);
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
         assert!(!data.cache.contains_key("test_g"));
         assert!(!data.cache.contains_key("test_g2"));
@@ -470,6 +476,14 @@ pub(crate) mod data_tests {
         sleep(Duration::from_secs(3)).await;
         assert!(!data.cache.contains_key("test_g"));
         assert!(!data.cache.contains_key("test_g2"));
+        // FIXME: this test is not doing anything because calling cache.contains_key() runs
+        // any pending evictions. To actually test it we need this assertion:
+        //   assert_eq!(data.cache.entry_count(), 0);
+        // Which currently does not work because the server task to trigger evictions is not running
+        // in this context. The problem is if we do run it by creating a server and calling
+        // server.start() the server gets consumed and we loose access to the cache to be able to run
+        // the check. If rework the server implementation and this becomes feasible we should change
+        // this test
     }
 
     #[tokio::test]
@@ -503,7 +517,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(2)
             .build();
 
-        let data = Data::new(work_dir, &configs);
+        let data = Data::new(work_dir, &configs, Default::default());
 
         let paths = data
             .get_all_graph_folders()
@@ -565,7 +579,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(300)
             .build();
 
-        let data = Data::new(tmp_work_dir.path(), &configs);
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
         let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
         let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
@@ -649,7 +663,7 @@ pub(crate) mod data_tests {
             .with_cache_tti_seconds(3)
             .build();
 
-        let data = Data::new(tmp_work_dir.path(), &configs);
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
         // Load first graph
         let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();

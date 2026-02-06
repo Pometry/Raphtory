@@ -14,41 +14,33 @@ edition = "2024"
 raphtory-api.workspace = true
 raphtory-api-macros.workspace = true
 raphtory-core = { workspace = true }
-# db4-common = {path = "../db4-common"}
-
-bitvec = { workspace = true, features = ["serde"] }
 bigdecimal.workspace = true
-rustc-hash.workspace = true
 either.workspace = true
 parking_lot.workspace = true
 serde.workspace = true
 boxcar.workspace = true
 serde_json.workspace = true
-arrow.workspace = true
 arrow-array.workspace = true
-arrow-csv.workspace = true
 arrow-schema.workspace = true
-serde_arrow.workspace = true
 parquet.workspace = true
-bytemuck.workspace = true
 rayon.workspace = true
 itertools.workspace = true
 thiserror.workspace = true
-roaring.workspace = true
-sysinfo.workspace = true
 tinyvec.workspace = true
 proptest = { workspace = true, optional = true }
-tempfile = { workspace = true, optional = true }
+tempfile = { workspace = true }
 iter-enum = { workspace = true, features = ["rayon"] }
 chrono = { workspace = true, optional = true }
+clap.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
 tempfile.workspace = true
 chrono.workspace = true
 rayon.workspace = true
-bincode.workspace = true
+test-log.workspace = true
 
 [features]
-test-utils = ["proptest", "tempfile", "chrono"]
+test-utils = ["dep:proptest", "dep:chrono"]
 default = ["test-utils"]
