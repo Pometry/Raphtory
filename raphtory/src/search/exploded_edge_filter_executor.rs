@@ -279,6 +279,18 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
                     .map(|x| EdgeView::new(graph.clone(), x.edge))
                     .collect())
             }
+            CompositeExplodedEdgeFilter::IsActiveEdge(filter) => {
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
+            CompositeExplodedEdgeFilter::IsValidEdge(filter) => {
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
+            CompositeExplodedEdgeFilter::IsDeletedEdge(filter) => {
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
+            CompositeExplodedEdgeFilter::IsSelfLoopEdge(filter) => {
+                fallback_filter_exploded_edges(graph, filter, limit, offset)
+            }
             CompositeExplodedEdgeFilter::And(left, right) => {
                 let left_result = self.filter_exploded_edges(graph, left, limit, offset)?;
                 let right_result = self.filter_exploded_edges(graph, right, limit, offset)?;

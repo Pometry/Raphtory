@@ -6392,6 +6392,42 @@ NOT operator.
 <td valign="top"><a href="#edgelayersexpr">EdgeLayersExpr</a></td>
 <td></td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.isactive">isActive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Edge is active in the current view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.isvalid">isValid</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Edge is valid (undeleted) in the current view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.isdeleted">isDeleted</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Edge is deleted in the current view/window.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="edgefilter.isselfloop">isSelfLoop</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Edge is a self-loop in the current view/window.
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -7517,6 +7553,15 @@ NOT operator.
 <td colspan="2" valign="top"><strong id="nodefilter.layers">layers</strong></td>
 <td valign="top"><a href="#nodelayersexpr">NodeLayersExpr</a></td>
 <td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodefilter.isactive">isActive</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+Node is active in the current view/window.
+
+</td>
 </tr>
 </tbody>
 </table>
