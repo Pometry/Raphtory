@@ -1,8 +1,10 @@
-use crate::client::is_online;
-use crate::python::{
-    client::raphtory_client::PyRaphtoryClient,
-    server::{wait_server, BridgeCommand},
-    RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
+use crate::{
+    client::is_online,
+    python::{
+        client::raphtory_client::PyRaphtoryClient,
+        server::{wait_server, BridgeCommand},
+        RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
+    },
 };
 use crossbeam_channel::Sender as CrossbeamSender;
 use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyAny, PyResult, Python};

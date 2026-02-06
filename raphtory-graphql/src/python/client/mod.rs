@@ -1,3 +1,4 @@
+use crate::client::inner_collection;
 use minijinja::{Environment, Value};
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
 use raphtory::errors::GraphError;
@@ -12,7 +13,6 @@ use raphtory_api::{
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
 use std::collections::HashMap;
-use crate::client::inner_collection;
 
 pub mod raphtory_client;
 pub mod remote_edge;

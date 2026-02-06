@@ -1,8 +1,8 @@
 use crate::{
     client::remote_graph::GraphQLRemoteGraph,
     python::client::{
-        build_query, raphtory_client::PyRaphtoryClient,
-        remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
+        build_query, raphtory_client::PyRaphtoryClient, remote_edge::PyRemoteEdge,
+        remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
     },
 };
 use minijinja::context;
@@ -214,14 +214,12 @@ impl PyRemoteGraph {
     ) -> Result<PyRemoteNode, GraphError> {
         let path = self.path.clone();
         let id_str = id.to_string();
-        let node_type= node_type.map(|s| s.to_string());
+        let node_type = node_type.map(|s| s.to_string());
 
         self.client
             .run_async(move |inner_client| async move {
                 let remote = GraphQLRemoteGraph::new(path, inner_client);
-                remote
-                    .add_node(timestamp, id, properties, node_type)
-                    .await
+                remote.add_node(timestamp, id, properties, node_type).await
             })
             .map_err(|e| GraphError::from(e))?;
 
@@ -258,9 +256,7 @@ impl PyRemoteGraph {
         self.client
             .run_async(move |inner_client| async move {
                 let remote = GraphQLRemoteGraph::new(path, inner_client);
-                remote
-                    .add_node(timestamp, id, properties, node_type)
-                    .await
+                remote.add_node(timestamp, id, properties, node_type).await
             })
             .map_err(|e| GraphError::from(e))?;
 

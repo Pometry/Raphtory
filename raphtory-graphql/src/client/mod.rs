@@ -9,14 +9,14 @@ pub use error::ClientError;
 pub use remote_graph::GraphQLRemoteGraph;
 
 use crate::url_encode::url_decode_graph;
+use raphtory::{
+    db::api::{storage::storage::Config, view::MaterializedGraph},
+    serialise::GraphFolder,
+};
+use raphtory_api::core::entities::properties::prop::Prop;
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
-use std::collections::HashMap;
-use std::io::Cursor;
-use raphtory::db::api::storage::storage::Config;
-use raphtory::db::api::view::MaterializedGraph;
-use raphtory::serialise::GraphFolder;
-use raphtory_api::core::entities::properties::prop::Prop;
+use std::{collections::HashMap, io::Cursor};
 
 /// Check if a server at the given URL is online (responds with 200).
 pub fn is_online(url: &str) -> bool {
@@ -60,7 +60,10 @@ impl RaphtoryGraphQLClient {
             let text = response.text().unwrap_or_default();
             return Err(ClientError::HttpStatus(
                 status,
-                format!("Could not connect to the given server - response {}", status),
+                format!(
+                    "Could not connect to the given server - response {}",
+                    status
+                ),
             ));
         }
         Ok(Self {
@@ -194,7 +197,10 @@ impl RaphtoryGraphQLClient {
         if !status.is_success() {
             return Err(ClientError::HttpStatus(
                 status.as_u16(),
-                format!("Error Uploading Graph. Status: {}. Response: {}", status, text),
+                format!(
+                    "Error Uploading Graph. Status: {}. Response: {}",
+                    status, text
+                ),
             ));
         }
 
@@ -215,11 +221,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Copy graph on the server.
-    pub async fn copy_graph_async(
-        &self,
-        path: &str,
-        new_path: &str,
-    ) -> Result<(), ClientError> {
+    pub async fn copy_graph_async(&self, path: &str, new_path: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation CopyGraph($path: String!, $newPath: String!) {
               copyGraph(path: $path, newPath: $newPath)
@@ -242,11 +244,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Move graph on the server.
-    pub async fn move_graph_async(
-        &self,
-        path: &str,
-        new_path: &str,
-    ) -> Result<(), ClientError> {
+    pub async fn move_graph_async(&self, path: &str, new_path: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation MoveGraph($path: String!, $newPath: String!) {
               moveGraph(path: $path, newPath: $newPath)
@@ -316,11 +314,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Create a new empty graph on the server.
-    pub async fn new_graph_async(
-        &self,
-        path: &str,
-        graph_type: &str,
-    ) -> Result<(), ClientError> {
+    pub async fn new_graph_async(&self, path: &str, graph_type: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation NewGraph($path: String!) {
               newGraph(path: $path, graphType: EVENT)

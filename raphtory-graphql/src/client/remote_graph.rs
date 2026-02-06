@@ -1,4 +1,4 @@
-use crate::client::{ClientError, RaphtoryGraphQLClient};
+use crate::client::{build_property_string, ClientError, RaphtoryGraphQLClient};
 use minijinja::{context, Environment, Value};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
@@ -7,8 +7,6 @@ use raphtory_api::core::{
     utils::time::IntoTime,
 };
 use std::collections::HashMap;
-use crate::client::build_property_string;
-
 
 pub fn build_query(template: &str, context: Value) -> Result<String, GraphError> {
     let mut env = Environment::new();
@@ -34,10 +32,10 @@ impl GraphQLRemoteGraph {
         Self { path, client }
     }
 
-    pub async fn add_node(
+    pub async fn add_node<G: Into<GID> + ToString, T: IntoTime>(
         &self,
-        timestamp: EventTime,
-        id: GID,
+        timestamp: T,
+        id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
     ) -> Result<(), ClientError> {
@@ -66,11 +64,11 @@ impl GraphQLRemoteGraph {
             .map(|_| ())
     }
 
-    pub async fn add_edge(
+    pub async fn add_edge<G: Into<GID> + ToString, T: IntoTime>(
         &self,
-        timestamp: EventTime,
-        src: GID,
-        dst: GID,
+        timestamp: T,
+        src: G,
+        dst: G,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
     ) -> Result<(), ClientError> {
@@ -126,10 +124,7 @@ impl GraphQLRemoteGraph {
             .map(|_| ())
     }
 
-    pub async fn add_metadata(
-        &self,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), ClientError> {
+    pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let template = r#"
         {
           updateGraph(path: "{{ path }}") {
@@ -174,4 +169,3 @@ impl GraphQLRemoteGraph {
             .map(|_| ())
     }
 }
-
