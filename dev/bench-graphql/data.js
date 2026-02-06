@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770230872280,
+  "lastUpdate": 1770422322639,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3887,6 +3887,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1291,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+shivamka1@users.noreply.github.com",
+            "name": "Shivam",
+            "username": "shivamka1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b4ca25faa7646c49a5e716000532a2f6ba738325",
+          "message": "impl docs (#2472)\n\n* impl docs\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-02-06T23:22:46Z",
+          "tree_id": "2d319305e19d4e5ef1a11551ddb1e1ac9c79f98a",
+          "url": "https://github.com/Pometry/Raphtory/commit/b4ca25faa7646c49a5e716000532a2f6ba738325"
+        },
+        "date": 1770422318685,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1357,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 210,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 139,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1111,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 953,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1178,
             "unit": "req/s"
           }
         ]
