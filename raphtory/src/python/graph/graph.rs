@@ -15,6 +15,7 @@ use crate::{
     io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
     prelude::*,
     python::{
+        config::PyConfig,
         graph::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
@@ -160,11 +161,17 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature = (path = None))]
-    pub fn py_new(path: Option<PathBuf>) -> Result<(Self, PyGraphView), GraphError> {
+    #[pyo3(signature = (path = None, config=None))]
+    pub fn py_new(
+        path: Option<PathBuf>,
+        config: Option<PyConfig>,
+    ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
             None => Graph::new(),
-            Some(path) => Graph::new_at_path(&path)?,
+            Some(path) => match config {
+                None => Graph::new_at_path(&path)?,
+                Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
+            },
         };
         Ok((
             Self {

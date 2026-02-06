@@ -32,12 +32,14 @@ tempfile = { workspace = true }
 iter-enum = { workspace = true, features = ["rayon"] }
 chrono = { workspace = true, optional = true }
 clap.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
 tempfile.workspace = true
 chrono.workspace = true
 rayon.workspace = true
+test-log.workspace = true
 
 [features]
 test-utils = ["dep:proptest", "dep:chrono"]
