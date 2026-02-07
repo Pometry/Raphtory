@@ -112,23 +112,36 @@ class GraphServer(object):
     def turn_off_index(self):
         """Turn off index for all graphs"""
 
+    def vectorise_all_graphs(
+        self,
+        embeddings: OpenAIEmbeddings,
+        nodes: bool | str = True,
+        edges: bool | str = True,
+    ):
+        """
+        Vectorise all graphs in the server working directory.
+
+        Arguments:
+            embeddings (OpenAIEmbeddings): the embeddings to use
+            nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+            edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+        """
+
     def vectorise_graph(
         self,
         name: list[str],
-        embeddings,
+        embeddings: OpenAIEmbeddings,
         nodes: bool | str = True,
         edges: bool | str = True,
-    ) -> GraphServer:
+    ):
         """
         Vectorise the graph name in the server working directory.
 
         Arguments:
             name (list[str]): the name of the graph to vectorise.
+            embeddings (OpenAIEmbeddings): the embeddings to use
             nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
             edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-
-        Returns:
-            GraphServer: A new server object containing the vectorised graphs.
         """
 
 class RunningGraphServer(object):

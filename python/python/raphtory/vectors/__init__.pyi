@@ -135,6 +135,8 @@ class Embedding(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def to_arrow(self): ...
+
 class VectorSelection(object):
     def add_edges(self, edges: list) -> None:
         """
@@ -302,4 +304,4 @@ class OpenAIEmbeddings(object):
     ) -> OpenAIEmbeddings:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-def embedding_server(address): ...
+def embedding_server(function): ...
