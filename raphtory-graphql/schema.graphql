@@ -916,6 +916,13 @@ type EdgesWindowSet {
 	list: [Edges!]!
 }
 
+input EmbeddingModel @oneOf {
+	"""
+	OpenAI embedding models or compatible providers
+	"""
+	openAI: OpenAIConfig
+}
+
 """
 Raphtory’s EventTime.
 Represents a unique timepoint in the graph’s history as (timestamp, event_id).
@@ -2715,6 +2722,14 @@ input ObjectEntry {
 	value: Value!
 }
 
+input OpenAIConfig {
+	model: String!
+	apiBase: String
+	apiKeyEnv: String
+	orgId: String
+	projectId: String
+}
+
 """
 PageRank score.
 """
@@ -3150,6 +3165,12 @@ type QueryRoot {
 	"""
 	updateGraph(path: String!): MutableGraph!
 	"""
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
+	"""
+	vectoriseGraph(path: String!, model: EmbeddingModel, nodes: Template, edges: Template): Boolean!
+	"""
 	Create vectorised graph in the format used for queries
 	
 	Returns:: GqlVectorisedGraph
@@ -3214,6 +3235,17 @@ enum SortByTime {
 	Earliest time
 	"""
 	EARLIEST
+}
+
+input Template @oneOf {
+	"""
+	The default template.
+	"""
+	enabled: Boolean
+	"""
+	A custom template.
+	"""
+	custom: String
 }
 
 type TemporalProperties {
@@ -3372,6 +3404,10 @@ type VectorSelection {
 }
 
 type VectorisedGraph {
+	"""
+	Optmize the vector index
+	"""
+	optimizeIndex: Boolean!
 	"""
 	Returns an empty selection of documents.
 	"""

@@ -1,5 +1,5 @@
 name: Run Rust test
-permissions: { }
+permissions: {}
 on:
   workflow_call:
     inputs:
@@ -12,9 +12,10 @@ jobs:
   rust-test-no-storage:
     if: ${{ !inputs.skip_tests }}
     name: Rust Tests
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     env:
       RUST_BACKTRACE: 1
+      CARGO_BUILD_JOBS: 2
     strategy:
       matrix:
         include:
@@ -54,7 +55,7 @@ jobs:
           tool: nextest@0.9.99
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Run all Tests (no disk_graph)
         env:
           RUSTFLAGS: -Awarnings
@@ -64,7 +65,7 @@ jobs:
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:
