@@ -1,5 +1,12 @@
 use crate::python::types::repr::Repr;
-use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use raphtory_api::core::{entities::properties::prop::{Prop, PropUntagged}, storage::timeindex::EventTime};
+
+impl Repr for PropUntagged {
+    fn repr(&self) -> String {
+        self.0.repr()
+    }
+}
+
 impl Repr for Prop {
     fn repr(&self) -> String {
         match &self {

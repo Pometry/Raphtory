@@ -8,7 +8,7 @@ pub mod ops;
 
 pub use generic_node_state::{
     GenericNodeState, MergePriority, NodeStateOutput, NodeStateOutputType, NodeStateValue,
-    OutputTypedNodeState, PropMap, TransformedPropMap, TypedNodeState,
+    OutputTypedNodeState, PropMap, TransformedPropMap, TypedNodeState, convert_prop_map,
 };
 pub use group_by::{NodeGroups, NodeStateGroupBy};
 pub use lazy_node_state::{

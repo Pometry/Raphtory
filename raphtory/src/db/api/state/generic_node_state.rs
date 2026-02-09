@@ -28,7 +28,7 @@ use parquet::{
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
-use raphtory_api::core::entities::properties::prop::{Prop, PropType, PropUnwrap};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType, PropUntagged, PropUnwrap};
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -80,7 +80,7 @@ pub enum MergePriority {
 pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>> {
     Node(NodeView<'graph, G>),
     Nodes(Nodes<'graph, G, G>),
-    Prop(Option<Prop>),
+    Prop(Option<PropUntagged>),
 }
 
 // This exists because GenericNodeStates have a data structure (node_cols) exposing which columns contain nodes.
@@ -93,7 +93,16 @@ pub enum NodeStateOutputType {
 
 // Rows of TypedNodeStates containing references to nodes are first deserialized into this type,
 // a map of column names to generic values.
-pub type PropMap = IndexMap<String, Option<Prop>>;
+pub type PropMap = IndexMap<String, Option<PropUntagged>>;
+
+pub fn convert_prop_map<A, B>(map: IndexMap<String, Option<A>>) -> IndexMap<String, Option<B>>
+where
+    B: From<A>,
+{
+    map.into_iter()
+        .map(|(k, v)| (k, v.map(Into::into)))
+        .collect()
+}
 
 // Then, using node_cols, the values which are actually nodes get converted into the correct NodeStateOutput variant.
 pub type TransformedPropMap<'graph, G> = IndexMap<String, NodeStateOutput<'graph, G>>;
@@ -250,7 +259,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 } else {
                     let (node_state_type, base_graph) = node_col_entry.unwrap();
                     if node_state_type == &NodeStateOutputType::Node {
-                        if let Some(Prop::U64(vid)) = value {
+                        if let Some(PropUntagged(Prop::U64(vid))) = value {
                             result = Some((
                                 key,
                                 NodeStateOutput::Node(NodeView::new_internal(
@@ -260,7 +269,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                             ));
                         }
                     } else if node_state_type == &NodeStateOutputType::Nodes {
-                        if let Some(Prop::Array(vid_arr)) = value {
+                        if let Some(PropUntagged(Prop::Array(vid_arr))) = value {
                             return (
                                 key,
                                 NodeStateOutput::Nodes(Nodes::new_filtered(
@@ -275,9 +284,9 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                                 )),
                             );
                         } else if let Some(PropType::List(_)) =
-                            value.as_ref().map(|value| value.dtype())
+                            value.as_ref().map(|value| value.0.dtype())
                         {
-                            if let Some(Prop::List(vid_list)) = value {
+                            if let Some(PropUntagged(Prop::List(vid_list))) = value {
                                 if let Some(vid_list) = Arc::into_inner(vid_list) {
                                     result = Some((
                                         key,
@@ -805,6 +814,21 @@ impl<
 
 impl<
         'graph,
+        T: Clone + Sync + Send + 'graph,
+        G: GraphViewOps<'graph>,
+    > PartialEq<Vec<IndexMap<String, Option<Prop>>>> for TypedNodeState<'graph, PropMap, G, T>
+{
+    fn eq(&self, other: &Vec<IndexMap<String, Option<Prop>>>) -> bool {
+        let rows: Vec<_> = self.values_to_rows();
+        rows.len() == other.len()
+            && rows.into_par_iter()
+                .zip(other.par_iter())
+                .all(|(a, b)| convert_prop_map::<PropUntagged, Prop>(a) == *b)
+    }
+}
+
+impl<
+        'graph,
         K: AsNodeRef,
         RHS: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
@@ -853,10 +877,10 @@ impl<'graph, G: GraphViewOps<'graph>> OutputTypedNodeState<'graph, G> {
                 let rhs_val = rhs_val.unwrap();
 
                 let casted_rhs = rhs_val
-                    .try_cast(lhs_val.dtype())
+                    .try_cast(lhs_val.0.dtype())
                     .map_err(|_| "Failed to cast rhs value")?;
 
-                if casted_rhs != lhs_val {
+                if casted_rhs != lhs_val.0 {
                     return Ok(false);
                 }
             }
