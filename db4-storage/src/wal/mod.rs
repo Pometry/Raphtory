@@ -140,6 +140,7 @@ pub trait GraphReplay {
         t: EventTime,
         node_name: Option<GID>,
         node_id: VID,
+        node_type: Option<String>,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 }

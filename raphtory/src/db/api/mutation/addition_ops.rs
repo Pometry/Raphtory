@@ -194,7 +194,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Start modifying the graph.
         let node_id = {
             let (node_id, _) = self
-                .resolve_and_update_node_and_type(v.as_node_ref(), node_type)
+                .resolve_and_update_node_and_type(node_ref, node_type)
                 .map_err(into_graph_err)?
                 .inner();
 

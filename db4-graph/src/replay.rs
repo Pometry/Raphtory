@@ -16,7 +16,7 @@ use raphtory_api::core::{
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::resolve_pos,
+    pages::{node_page::writer::node_info_as_props, resolve_pos},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     resolver::GIDResolverOps,
     wal::{GraphReplay, TransactionID, LSN},
@@ -241,6 +241,7 @@ where
         t: EventTime,
         node_name: Option<GID>,
         node_id: VID,
+        node_type: Option<String>,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         // 1. Insert node id into resolver.
