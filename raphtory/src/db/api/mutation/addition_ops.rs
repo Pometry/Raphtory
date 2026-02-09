@@ -203,6 +203,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
+            // Create a wal entry to mark operation as durable.
             let lsn = wal.log_add_node(
                 transaction_id,
                 ti,
@@ -299,6 +300,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
+            // Create a wal entry to mark operation as durable.
             let lsn = wal.log_add_node(
                 transaction_id,
                 ti,

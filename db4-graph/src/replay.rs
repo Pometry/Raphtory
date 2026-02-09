@@ -33,7 +33,7 @@ where
     fn replay_add_edge(
         &mut self,
         lsn: LSN,
-        transaction_id: TransactionID,
+        _transaction_id: TransactionID,
         t: EventTime,
         src_name: Option<GID>,
         src_id: VID,
@@ -237,12 +237,77 @@ where
     fn replay_add_node(
         &mut self,
         lsn: LSN,
-        transaction_id: TransactionID,
+        _transaction_id: TransactionID,
         t: EventTime,
         node_name: Option<GID>,
         node_id: VID,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
+        // 1. Insert node id into resolver.
+        if let Some(ref name) = node_name {
+            self.graph().logical_to_physical.set(name.as_ref(), node_id)?;
+        }
+
+        // 2. Resolve segment and check LSN.
+        let node_max_page_len = self.graph().extension().config().max_node_page_len();
+        let (segment_id, pos) = resolve_pos(node_id, node_max_page_len);
+        let resize_vid = VID::from(node_id.index() + 1);
+        self.resize_chunks_to_vid(resize_vid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(segment_id);
+        let immut_lsn = segment.immut_lsn();
+
+        // Replay this entry only if it doesn't exist in immut.
+        if immut_lsn < lsn {
+            let node_meta = self.graph().node_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = node_meta.temporal_prop_mapper();
+                match prop_mapper.get_dtype(*prop_id) {
+                    None => {
+                        prop_mapper.set_id_and_dtype(
+                            prop_name.as_str(),
+                            *prop_id,
+                            prop_value.dtype(),
+                        );
+                    }
+                    Some(old_dtype) => {
+                        let dtype = prop_value.dtype();
+                        let mut unified = false;
+                        let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
+                        if unified {
+                            prop_mapper.set_dtype(*prop_id, new_dtype);
+                        }
+                    }
+                }
+            }
+
+            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
+
+            if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
+                node_writer.increment_seg_num_nodes();
+            }
+
+            if let Some(name) = node_name {
+                node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
+            }
+
+            // 3. Write node props
+            node_writer.add_props(
+                t,
+                pos,
+                STATIC_GRAPH_LAYER_ID,
+                props.into_iter()
+                    .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
+            );
+
+            node_writer.mut_segment.set_lsn(lsn);
+        }
+
         Ok(())
     }
 }
