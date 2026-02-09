@@ -5,6 +5,8 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
+    db::api::view::graph::GraphViewOps,
+    db::api::view::node::NodeViewOps,
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop,
@@ -55,6 +57,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError>;
 
+    /// Add a node to the graph, returning an error if the node already exists.
     fn create_node<
         V: AsNodeRef,
         T: TryIntoInputTime,
@@ -288,9 +291,17 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Start modifying the graph.
         let node_id = {
             let (node_id, _) = self
-                .resolve_and_update_node_and_type(v.as_node_ref(), node_type)
+                .resolve_and_update_node_and_type(node_ref, node_type)
                 .map_err(into_graph_err)?
                 .inner();
+
+            let is_new = node_id.is_new();
+            let node_id = node_id.inner();
+
+            if !is_new {
+                let node_id = self.node(node_id).unwrap().id();
+                return Err(GraphError::NodeExistsError(node_id));
+            }
 
             let props_for_wal = props_with_status
                 .iter()
@@ -305,7 +316,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 transaction_id,
                 ti,
                 node_gid,
-                node_id.inner(),
+                node_id,
                 node_type,
                 props_for_wal,
             )?;
@@ -318,7 +329,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            let mut writer = self.internal_add_node(ti, node_id.inner(), props)
+            let mut writer = self.internal_add_node(ti, node_id, props)
                 .map_err(into_graph_err)?;
 
             // Update node segment with the lsn of the wal entry.
@@ -334,7 +345,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
             self.core_graph().wal()?.flush(lsn)?;
 
-            Ok::<_, GraphError>(node_id.inner())
+            Ok::<_, GraphError>(node_id)
         }?;
 
         Ok(NodeView::new_internal(self.clone(), node_id))
