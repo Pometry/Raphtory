@@ -705,10 +705,13 @@ class Graph(GraphView):
     A temporal graph with event semantics.
 
     Arguments:
-        num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
+        path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
+        config (Config, optional): The configuration options for the graph
     """
 
-    def __new__(cls, path=None, config=None) -> Graph:
+    def __new__(
+        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+    ) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -1069,7 +1072,19 @@ class Graph(GraphView):
         """
 
     @staticmethod
-    def load(path): ...
+    def load(path: str | PathLike, config: Optional[Config] = None) -> Graph:
+        """
+        Load a disk graph from path
+
+        Arguments:
+            path (str | PathLike): the path of the graph folder
+            config (Config, optional): specify a new config to override the values saved for the graph
+                                       (note that the page sizes cannot be overridden and are ignored)
+
+        Returns:
+            Graph: the graph
+        """
+
     def load_edge_metadata(
         self,
         data: Any,
@@ -1663,7 +1678,19 @@ class PersistentGraph(GraphView):
         """
 
     @staticmethod
-    def load(path): ...
+    def load(path: str | PathLike, config: Optional[Config]) -> PersistentGraph:
+        """
+        Load a disk graph from path
+
+        Arguments:
+            path (str | PathLike): the path of the graph folder
+            config (Config, optional): specify a new config to override the values saved for the graph
+                                       (note that the page sizes cannot be overridden and are ignored)
+
+        Returns:
+            PersistentGraph: the graph
+        """
+
     def load_edge_deletions(
         self,
         data: Any,
