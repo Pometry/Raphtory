@@ -289,7 +289,7 @@ where
                 }
             }
 
-            // Set node_type_id metadata early to prevent issues with borrowing node_writer.
+            // Set node type metadata early to prevent issues with borrowing node_writer.
             if let Some((ref node_type, node_type_id)) = node_type_and_id {
                 node_meta
                     .node_type_meta()
