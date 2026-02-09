@@ -1,12 +1,13 @@
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{mutation::time_from_input_session, view::StaticGraphViewOps},
+        api::{
+            mutation::time_from_input_session,
+            view::{graph::GraphViewOps, node::NodeViewOps, StaticGraphViewOps},
+        },
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
-    db::api::view::graph::GraphViewOps,
-    db::api::view::node::NodeViewOps,
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop,
@@ -228,7 +229,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            let mut writer = self.internal_add_node(ti, node_id.inner(), props)
+            let mut writer = self
+                .internal_add_node(ti, node_id.inner(), props)
                 .map_err(into_graph_err)?;
 
             // Update node segment with the lsn of the wal entry.
@@ -337,7 +339,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            let mut writer = self.internal_add_node(ti, node_id, props)
+            let mut writer = self
+                .internal_add_node(ti, node_id, props)
                 .map_err(into_graph_err)?;
 
             // Update node segment with the lsn of the wal entry.

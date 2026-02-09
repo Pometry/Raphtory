@@ -246,7 +246,9 @@ where
     ) -> Result<(), StorageError> {
         // Insert node id into resolver.
         if let Some(ref name) = node_name {
-            self.graph().logical_to_physical.set(name.as_ref(), node_id)?;
+            self.graph()
+                .logical_to_physical
+                .set(name.as_ref(), node_id)?;
         }
 
         // Resolve segment and check LSN.
@@ -289,7 +291,9 @@ where
 
             // Set node_type_id metadata early to prevent issues with borrowing node_writer.
             if let Some((ref node_type, node_type_id)) = node_type_and_id {
-                node_meta.node_type_meta().set_id(node_type.as_str(), node_type_id);
+                node_meta
+                    .node_type_meta()
+                    .set_id(node_type.as_str(), node_type_id);
             }
 
             let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
@@ -311,7 +315,8 @@ where
                 t,
                 pos,
                 STATIC_GRAPH_LAYER_ID,
-                props.into_iter()
+                props
+                    .into_iter()
                     .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
             );
 
