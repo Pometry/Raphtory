@@ -1,7 +1,7 @@
 use crate::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
     durability_ops::DurabilityOps,
-    MutationError,
+    MutationError, NodeWriterT,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -320,11 +320,11 @@ impl InternalAdditionOps for TemporalGraph {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
         node_writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, props);
-        Ok(())
+        Ok(node_writer)
     }
 
     fn validate_props<PN: AsRef<str>>(
