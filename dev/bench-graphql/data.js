@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770422322639,
+  "lastUpdate": 1770646707237,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3941,6 +3941,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1178,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "97447091+ljeub-pometry@users.noreply.github.com",
+            "name": "ljeub-pometry",
+            "username": "ljeub-pometry"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "470706294e8a740d9127f34cf46d95c93ad38bb1",
+          "message": "fix the schema casting (#2479)",
+          "timestamp": "2026-02-09T14:40:49+01:00",
+          "tree_id": "151e9384aff3f9e45337594d4c5deef3c8f198d7",
+          "url": "https://github.com/Pometry/Raphtory/commit/470706294e8a740d9127f34cf46d95c93ad38bb1"
+        },
+        "date": 1770646703829,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1302,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 195,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 139,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1120,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 826,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1366,
             "unit": "req/s"
           }
         ]
