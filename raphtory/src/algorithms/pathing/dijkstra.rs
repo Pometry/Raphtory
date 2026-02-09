@@ -1,3 +1,4 @@
+use crate::db::graph::edge::EdgeView;
 /// Dijkstra's algorithm
 use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGraphViewOps};
 use crate::{
@@ -17,10 +18,80 @@ use raphtory_api::core::{
     },
     Direction,
 };
+use std::usize;
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
+use super::to_prop;
+
+const NO_VID: VID = VID(usize::MAX);
+
+pub trait GraphMap<T: Clone> {
+    fn new(n_nodes: usize, s: usize, default: T) -> Self;
+    
+    fn get_item(&self, vid: VID) -> T;
+    
+    fn set_item(&mut self, vid: VID, value: T);
+}
+
+impl<T: Clone> GraphMap<T> for Vec<T> {
+    fn new(n_nodes: usize, capacity: usize, default: T) -> Self {
+        vec![default; n_nodes] 
+    }
+
+    fn get_item(&self, vid: VID) -> T {
+        self[vid.index()].clone()
+    }
+
+    fn set_item(&mut self, vid: VID, value: T) {
+        self[vid.index()] = value; 
+    }
+}
+
+impl<T: Clone> GraphMap<T> for HashMap<VID, T> {
+    fn new(n_nodes: usize, capacity: usize, default: T) -> Self {
+        HashMap::with_capacity(capacity) 
+    }
+
+    fn get_item(&self, vid: VID) -> T {
+        self.get(&vid).cloned().unwrap()
+    }
+
+    fn set_item(&mut self, vid: VID, value: T) {
+        self.insert(vid, value);
+    }
+}
+
+pub trait GraphSet {
+    fn new(n_nodes: usize, capacity: usize) -> Self;
+    fn mark_visited(&mut self, vid: VID);
+    fn is_visited(&self, vid: VID) -> bool;
+}
+
+impl GraphSet for Vec<bool> {
+    fn new(n_nodes: usize, capacity: usize) -> Self {
+        vec![false; n_nodes]
+    }
+    fn mark_visited(&mut self, vid: VID) {
+        self[vid.index()] = true;
+    }
+    fn is_visited(&self, vid: VID) -> bool {
+        self[vid.index()]
+    }
+}
+
+impl GraphSet for HashSet<VID> {
+    fn new(n_nodes: usize, capacity: usize) -> Self {
+        HashSet::with_capacity(capacity)
+    }
+    fn mark_visited(&mut self, vid: VID) {
+        self.insert(vid);
+    }
+    fn is_visited(&self, vid: VID) -> bool {
+        self.contains(&vid)
+    }
+}
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
 #[derive(PartialEq)]
@@ -57,7 +128,7 @@ impl PartialOrd for State {
 ///
 /// Returns a `HashMap` where the key is the target node and the value is a tuple containing
 /// the total cost and a vector of nodes representing the shortest path.
-///
+
 pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef>(
     g: &G,
     source: T,
@@ -65,126 +136,46 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     weight: Option<&str>,
     direction: Direction,
 ) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
-    let source_ref = source.as_node_ref();
-    let source_node = match g.node(source_ref) {
-        Some(src) => src,
-        None => {
-            let gid = match source_ref {
-                NodeRef::Internal(vid) => g.node_id(vid),
-                NodeRef::External(gid) => gid.to_owned(),
-            };
-            return Err(GraphError::NodeMissingError(gid));
-        }
+    let cost_val = to_prop(g, weight, 0.0)?;
+    let max_val = to_prop(g, weight, f64::MAX)?;
+    let weight_fn = |edge: &EdgeView<G>| -> Option<Prop> {
+        let edge_val = match weight{
+            None => Some(Prop::U8(1)),
+            Some(weight) => match edge.properties().get(weight) {
+                Some(prop) => Some(prop),
+                _ => None
+            }
+         };
+         edge_val
     };
-    let mut weight_type = PropType::U8;
-    if let Some(weight) = weight {
-        if let Some((_, dtype)) = g.edge_meta().get_prop_id_and_type(weight, false) {
-            weight_type = dtype;
-        } else {
-            return Err(GraphError::PropertyMissingError(weight.to_string()));
-        }
-    }
-
-    let mut target_nodes = vec![false; g.unfiltered_num_nodes()];
-    for target in targets {
-        if let Some(target_node) = g.node(target) {
-            target_nodes[target_node.node.index()] = true;
-        }
-    }
-
-    // Turn below into a generic function, then add a closure to ensure the prop is correctly unwrapped
-    // after the calc is done
-    let cost_val = match weight_type {
-        PropType::F32 => Prop::F32(0f32),
-        PropType::F64 => Prop::F64(0f64),
-        PropType::U8 => Prop::U8(0u8),
-        PropType::U16 => Prop::U16(0u16),
-        PropType::U32 => Prop::U32(0u32),
-        PropType::U64 => Prop::U64(0u64),
-        PropType::I32 => Prop::I32(0i32),
-        PropType::I64 => Prop::I64(0i64),
-        p_type => {
-            return Err(GraphError::InvalidProperty {
-                reason: format!("Weight type: {:?}, not supported", p_type),
-            })
-        }
-    };
-    let max_val = match weight_type {
-        PropType::F32 => Prop::F32(f32::MAX),
-        PropType::F64 => Prop::F64(f64::MAX),
-        PropType::U8 => Prop::U8(u8::MAX),
-        PropType::U16 => Prop::U16(u16::MAX),
-        PropType::U32 => Prop::U32(u32::MAX),
-        PropType::U64 => Prop::U64(u64::MAX),
-        PropType::I32 => Prop::I32(i32::MAX),
-        PropType::I64 => Prop::I64(i64::MAX),
-        p_type => {
-            return Err(GraphError::InvalidProperty {
-                reason: format!("Weight type: {:?}, not supported", p_type),
-            })
-        }
-    };
-    let mut heap = BinaryHeap::new();
-    heap.push(State {
-        cost: cost_val.clone(),
-        node: source_node.node,
-    });
-
-    let mut dist: HashMap<VID, Prop> = HashMap::new();
-    let mut predecessor: HashMap<VID, VID> = HashMap::new();
-    let mut visited: HashSet<VID> = HashSet::new();
+    let n_nodes = g.count_nodes();
+    let (distances, predecessor, _) = dijkstra_single_source_shortest_paths_algorithm::<G, T, _, Vec<Prop>, Vec<VID>, Vec<bool>>(g, source, direction, n_nodes - 1, cost_val, max_val, weight_fn)?;
     let mut paths: HashMap<VID, (f64, IndexSet<VID, ahash::RandomState>)> = HashMap::new();
-
-    dist.insert(source_node.node, cost_val.clone());
-
-    while let Some(State {
-        cost,
-        node: node_vid,
-    }) = heap.pop()
-    {
-        if target_nodes[node_vid.index()] && !paths.contains_key(&node_vid) {
-            let mut path = IndexSet::default();
-            path.insert(node_vid);
-            let mut current_node_id = node_vid;
-            while let Some(prev_node) = predecessor.get(&current_node_id) {
-                path.insert(*prev_node);
-                current_node_id = *prev_node;
+    for target in targets.into_iter() {
+        let target_ref = target.as_node_ref();
+        let target_node = match g.node(target_ref) {
+            Some(tgt) => tgt,
+            None => {
+                let gid = match target_ref {
+                    NodeRef::Internal(vid) => g.node_id(vid),
+                    NodeRef::External(gid) => gid.to_owned(),
+                };
+                return Err(GraphError::NodeMissingError(gid));
             }
-            path.reverse();
-            paths.insert(node_vid, (cost.as_f64().unwrap(), path));
-        }
-        if !visited.insert(node_vid) {
-            continue;
-        }
-
-        let edges = match direction {
-            Direction::OUT => g.node(node_vid).unwrap().out_edges(),
-            Direction::IN => g.node(node_vid).unwrap().in_edges(),
-            Direction::BOTH => g.node(node_vid).unwrap().edges(),
         };
-
-        // Replace this loop with your actual logic to iterate over the outgoing edges
-        for edge in edges {
-            let next_node_vid = edge.nbr().node;
-
-            let edge_val = match weight {
-                None => Prop::U8(1),
-                Some(weight) => match edge.properties().get(weight) {
-                    Some(prop) => prop,
-                    _ => continue,
-                },
-            };
-
-            let next_cost = cost.clone().add(edge_val).unwrap();
-            if next_cost < *dist.entry(next_node_vid).or_insert(max_val.clone()) {
-                heap.push(State {
-                    cost: next_cost.clone(),
-                    node: next_node_vid,
-                });
-                dist.insert(next_node_vid, next_cost);
-                predecessor.insert(next_node_vid, node_vid);
+        let mut path = IndexSet::default();
+        let node_vid = target_node.node;
+        path.insert(node_vid);
+        let mut current_node_id = node_vid;
+        while let Some(prev_node) = predecessor.get(current_node_id.index()) {
+            if *prev_node == current_node_id {
+                break;
             }
+            path.insert(*prev_node);
+            current_node_id = *prev_node;
         }
+        path.reverse();
+        paths.insert(node_vid, (distances[node_vid.index()].as_f64().unwrap(), path));
     }
     let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = paths
         .into_iter()
@@ -199,4 +190,85 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
         values.into(),
         Some(Index::new(index)),
     ))
+}
+
+pub(crate) fn dijkstra_single_source_shortest_paths_algorithm<G: StaticGraphViewOps, T: AsNodeRef, F: Fn(&EdgeView<G>) -> Option<Prop>,D: GraphMap<Prop>, P: GraphMap<VID>, V: GraphSet>(
+    g: &G,
+    source: T,
+    direction: Direction,
+    k: usize,
+    cost_val: Prop,
+    max_val: Prop,
+    weight_fn: F
+) -> Result<(D, P, Vec<VID>), GraphError> {
+    let source_ref = source.as_node_ref();
+    let source_node = match g.node(source_ref) {
+        Some(src) => src,
+        None => {
+            let gid = match source_ref {
+                NodeRef::Internal(vid) => g.node_id(vid),
+                NodeRef::External(gid) => gid.to_owned(),
+            };
+            return Err(GraphError::NodeMissingError(gid));
+        }
+    };
+    let n_nodes = g.count_nodes();
+
+    let mut heap = BinaryHeap::new();
+
+    heap.push(State {
+        cost: cost_val.clone(),
+        node: source_node.node,
+    });
+    let mut dist = D::new(n_nodes, k + 1, max_val.clone());
+    dist.set_item(source_node.node, cost_val);
+    let mut predecessor = P::new(n_nodes, k + 1, NO_VID);
+    predecessor.set_item(source_node.node, source_node.node);
+    let mut visited = V::new(n_nodes, k + 1);
+    let mut visited_count = 0;
+    let mut k_ordered = vec![NO_VID; k + 1];  
+
+    while let Some(State {
+        cost,
+        node: node_vid,
+    }) = heap.pop()
+    {
+        // accounts for source node
+        if visited_count == k + 1 {
+            break;
+        }
+        if visited.is_visited(node_vid) {
+            continue;
+        } else {
+            k_ordered[visited_count] = node_vid;
+            visited.mark_visited(node_vid);
+            visited_count += 1;
+        }
+        let edges = match direction {
+            Direction::OUT => g.node(node_vid).unwrap().out_edges(),
+            Direction::IN => g.node(node_vid).unwrap().in_edges(),
+            Direction::BOTH => g.node(node_vid).unwrap().edges(),
+        };
+
+        // Replace this loop with your actual logic to iterate over the outgoing edges
+        for edge in edges {
+            let next_node_vid = edge.nbr().node;
+
+            let edge_val = if let Some(w) = weight_fn(&edge) {
+                w
+            } else {
+                continue;
+            };
+            let next_cost = cost.clone().add(edge_val).unwrap();
+            if next_cost < dist.get_item(next_node_vid) {
+                heap.push(State {
+                    cost: next_cost.clone(),
+                    node: next_node_vid,
+                });
+                dist.set_item(next_node_vid, next_cost);
+                predecessor.set_item(next_node_vid, node_vid);
+            }
+        }
+    }
+    Ok((dist, predecessor, k_ordered))
 }
