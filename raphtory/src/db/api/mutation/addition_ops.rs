@@ -5,7 +5,6 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
-    prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::{
     entities::properties::prop::Prop,
@@ -221,9 +220,21 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            // FIXME: Pass in lsn here.
-            self.internal_add_node(ti, node_id.inner(), props)
+            let mut writer = self.internal_add_node(ti, node_id.inner(), props)
                 .map_err(into_graph_err)?;
+
+            // Update node segment with the lsn of the wal entry.
+            writer.mut_segment.set_lsn(lsn);
+
+            self.core_graph()
+                .transaction_manager()?
+                .end_transaction(transaction_id);
+
+            // Segment lock can be released before flush to allow
+            // other operations to proceed.
+            drop(writer);
+
+            self.core_graph().wal()?.flush(lsn)?;
 
             Ok::<_, GraphError>(node_id.inner())
         }?;
@@ -305,9 +316,21 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            // FIXME: Pass in lsn here.
-            self.internal_add_node(ti, node_id.inner(), props)
+            let mut writer = self.internal_add_node(ti, node_id.inner(), props)
                 .map_err(into_graph_err)?;
+
+            // Update node segment with the lsn of the wal entry.
+            writer.mut_segment.set_lsn(lsn);
+
+            self.core_graph()
+                .transaction_manager()?
+                .end_transaction(transaction_id);
+
+            // Segment lock can be released before flush to allow
+            // other operations to proceed.
+            drop(writer);
+
+            self.core_graph().wal()?.flush(lsn)?;
 
             Ok::<_, GraphError>(node_id.inner())
         }?;
@@ -435,7 +458,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 .transaction_manager()?
                 .end_transaction(transaction_id);
 
-            // Drop to release all the segment locks.
+            // Segment locks can be released before flush to allow
+            // other operations to proceed.
             drop(add_edge_op);
 
             // Flush the wal entry to disk.
