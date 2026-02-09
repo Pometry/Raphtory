@@ -20,7 +20,8 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
     VID,
 };
-use std::{future::Future, thread};
+use std::{future::Future, sync::OnceLock};
+use tokio::runtime::{Builder, Runtime};
 
 pub mod errors;
 pub(crate) mod export;
@@ -417,27 +418,22 @@ where
     F: Future<Output = O> + 'static,
     O: Send + 'static,
 {
-    Python::with_gil(|py| {
-        py.allow_threads(move || {
-            // we call `allow_threads` because the task might need to grab the GIL // FIXME: this might not be the case anymore, also remember removing the imlpementation of EmbeddingFunction for a python function
-            // FIXME: why do we need a thread here??? DO I need it as well in the implementation for the VectorisedGraph functions
-            thread::spawn(move || {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-                    .block_on(task())
-            })
-            .join()
-            .expect("error when waiting for async task to complete")
-        })
+    Python::with_gil(|py| py.allow_threads(move || get_runtime().block_on(task())))
+}
+
+static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+pub fn get_runtime() -> &'static Runtime {
+    RUNTIME.get_or_init(|| {
+        Builder::new_multi_thread()
+            .enable_all()
+            // Optional: limit threads if you want to leave room for Python
+            .worker_threads(4)
+            .build()
+            .expect("Failed to create Tokio runtime")
     })
 }
 
 pub fn block_on<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_multi_thread() // TODO: double-check this is fine, with no thread??
-        .enable_all()
-        .build()
-        .unwrap()
-        .block_on(future)
+    get_runtime().block_on(future)
 }

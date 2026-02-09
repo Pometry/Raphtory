@@ -13,6 +13,7 @@ use raphtory_graphql::python::pymodule::base_graphql_module;
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     let _ = add_raphtory_classes(m);
+    // console_subscriber::init();
 
     let graphql_module = base_graphql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;

@@ -159,10 +159,9 @@ impl PyGraphServer {
         edges: TemplateConfig,
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
         // allow threads just in case the embedding server is using the same python runtime
         py.allow_threads(|| {
-            rt.block_on(async move {
+            block_on(async move {
                 self.0
                     .vectorise_graph(name, &template, embeddings.into())
                     .await?;
@@ -188,10 +187,9 @@ impl PyGraphServer {
         edges: TemplateConfig,
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
-        let rt = tokio::runtime::Runtime::new().unwrap();
         // allow threads just in case the embedding server is using the same python runtime
         py.allow_threads(|| {
-            rt.block_on(async move {
+            block_on(async move {
                 self.0
                     .vectorise_all_graphs(&template, embeddings.into())
                     .await?;
@@ -219,8 +217,7 @@ impl PyGraphServer {
         let server = self.0.clone();
 
         let join_handle = thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async move {
+            block_on(async move {
                 let handler = server.start_with_port(port);
                 let running_server = handler.await?;
                 let tokio_sender = running_server._get_sender().clone();

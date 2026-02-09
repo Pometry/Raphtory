@@ -19,6 +19,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { workspace = true }
+console-subscriber = "0.5"
 raphtory = { workspace = true, features = [
     "python",
     "search",
