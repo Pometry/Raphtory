@@ -131,7 +131,10 @@ impl PyPersistentGraph {
                 None => PersistentGraph::new_at_path(&path)?,
                 Some(PyConfig(config)) => PersistentGraph::new_at_path_with_config(&path, config)?,
             },
-            None => PersistentGraph::new(),
+            None => match config {
+                None => PersistentGraph::new(),
+                Some(PyConfig(config)) => PersistentGraph::new_with_config(config)?,
+            },
         };
         Ok((
             Self {
@@ -153,8 +156,8 @@ impl PyPersistentGraph {
     #[staticmethod]
     pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<PersistentGraph, GraphError> {
         match config {
-            None => PersistentGraph::load_from_path(&path),
-            Some(PyConfig(config)) => PersistentGraph::load_from_path_with_config(&path, config),
+            None => PersistentGraph::load(&path),
+            Some(PyConfig(config)) => PersistentGraph::load_with_config(&path, config),
         }
     }
 

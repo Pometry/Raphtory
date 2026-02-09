@@ -116,6 +116,16 @@ impl Storage {
         })
     }
 
+    pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
+        let ext = Extension::new(config, None)?;
+        let temporal_graph = TemporalGraph::new(ext)?;
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
     pub(crate) fn new_at_path_with_config(
         path: impl AsRef<Path>,
         config: Config,
@@ -131,7 +141,7 @@ impl Storage {
     }
 
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
-        let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
+        let temporal_graph = TemporalGraph::load(path, ext)?;
         let wal = temporal_graph.wal()?;
 
         // Replay any pending writes from the WAL.

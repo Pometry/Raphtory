@@ -13,10 +13,14 @@ pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
 pub const CONFIG_FILE: &str = "config.json";
 
-pub trait ConfigOps: Serialize + DeserializeOwned + Args {
+pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn max_node_page_len(&self) -> u32;
 
+    fn with_max_node_page_len(self, page_len: u32) -> Self;
+
     fn max_edge_page_len(&self) -> u32;
+
+    fn with_max_edge_page_len(self, page_len: u32) -> Self;
 
     fn node_types(&self) -> &[String];
 
@@ -114,8 +118,18 @@ impl ConfigOps for BaseConfig {
         self.max_node_page_len
     }
 
+    fn with_max_node_page_len(mut self, page_len: u32) -> Self {
+        self.max_node_page_len = page_len;
+        self
+    }
+
     fn max_edge_page_len(&self) -> u32 {
         self.max_edge_page_len
+    }
+
+    fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
+        self.max_edge_page_len = page_len;
+        self
     }
 
     fn node_types(&self) -> &[String] {

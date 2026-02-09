@@ -369,7 +369,7 @@ impl ValidWriteableGraphFolder {
     pub fn read_graph(&self, config: Config) -> Result<MaterializedGraph, PathValidationError> {
         self.with_internal_errors(|| {
             if self.graph_folder().read_metadata()?.is_diskgraph {
-                MaterializedGraph::load_from_path_with_config(self.graph_folder(), config)
+                MaterializedGraph::load_with_config(self.graph_folder(), config)
             } else {
                 MaterializedGraph::decode_with_config(self.graph_folder(), config)
             }

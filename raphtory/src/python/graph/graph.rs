@@ -168,7 +168,10 @@ impl PyGraph {
         config: Option<PyConfig>,
     ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
-            None => Graph::new(),
+            None => match config {
+                None => Graph::new(),
+                Some(PyConfig(config)) => Graph::new_with_config(config)?,
+            },
             Some(path) => match config {
                 None => Graph::new_at_path(&path)?,
                 Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
@@ -195,8 +198,8 @@ impl PyGraph {
     #[staticmethod]
     pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<Graph, GraphError> {
         match config {
-            None => Graph::load_from_path(&path),
-            Some(PyConfig(config)) => Graph::load_from_path_with_config(&path, config),
+            None => Graph::load(&path),
+            Some(PyConfig(config)) => Graph::load_with_config(&path, config),
         }
     }
 

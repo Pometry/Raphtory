@@ -95,6 +95,23 @@ impl PersistentGraph {
         Self::default()
     }
 
+    /// Create a new graph with config
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::prelude::*;
+    ///
+    /// let g = PersistentGraph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// ```
+    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::new_with_config(config)?)))
+    }
+
     /// Create a new persistent graph at a specific path
     ///
     /// # Arguments
@@ -153,10 +170,9 @@ impl PersistentGraph {
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_path("/path/to/storage");
-    ///
+    /// let g = Graph::load("/path/to/storage");    ///
     #[cfg(feature = "io")]
-    pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+    pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
         Ok(Self(Arc::new(Storage::load(path.graph_path()?)?)))
     }
 
@@ -169,10 +185,9 @@ impl PersistentGraph {
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_path("/path/to/storage");
-    ///
+    /// let g = Graph::load("/path/to/storage");    ///
     #[cfg(feature = "io")]
-    pub fn load_from_path_with_config(
+    pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),
         config: Config,
     ) -> Result<Self, GraphError> {

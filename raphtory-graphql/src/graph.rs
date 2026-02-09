@@ -91,7 +91,7 @@ impl GraphWithVectors {
     ) -> Result<Self, GraphError> {
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
-            MaterializedGraph::load_from_path_with_config(graph_folder, config)?
+            MaterializedGraph::load_with_config(graph_folder, config)?
         } else {
             MaterializedGraph::decode_with_config(graph_folder, config)?
         };
