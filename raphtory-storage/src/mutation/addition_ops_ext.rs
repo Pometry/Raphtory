@@ -247,11 +247,11 @@ impl InternalAdditionOps for TemporalGraph {
                 MaybeNew::Existing(0)
             }
             Some(node_type) => {
-                let old_type = writer
+                let old_type_id = writer
                     .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
                     .into_u64();
 
-                match old_type {
+                match old_type_id {
                     None => {
                         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
 
@@ -266,10 +266,10 @@ impl InternalAdditionOps for TemporalGraph {
 
                         node_type_id
                     }
-                    Some(old_type) => MaybeNew::Existing(
+                    Some(old_type_id) => MaybeNew::Existing(
                         self.node_meta()
                             .get_node_type_id(node_type)
-                            .filter(|&new_id| new_id == old_type as usize)
+                            .filter(|&new_id| new_id == old_type_id as usize)
                             .ok_or(MutationError::NodeTypeError)?,
                     ),
                 }

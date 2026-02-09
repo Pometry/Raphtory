@@ -193,7 +193,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         // Start modifying the graph.
         let node_id = {
-            let (node_id, _) = self
+            let (node_id, node_type_id) = self
                 .resolve_and_update_node_and_type(node_ref, node_type)
                 .map_err(into_graph_err)?
                 .inner();
@@ -206,13 +206,17 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
+            let node_type_and_id = Some(node_type_id.inner())
+                .filter(|&id| id != 0)
+                .and_then(|id| node_type.map(|name| (name, id)));
+
             // Create a wal entry to mark operation as durable.
             let lsn = wal.log_add_node(
                 transaction_id,
                 ti,
                 node_gid,
                 node_id.inner(),
-                node_type,
+                node_type_and_id,
                 props_for_wal,
             )?;
 
@@ -290,7 +294,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         // Start modifying the graph.
         let node_id = {
-            let (node_id, _) = self
+            let (node_id, node_type_id) = self
                 .resolve_and_update_node_and_type(node_ref, node_type)
                 .map_err(into_graph_err)?
                 .inner();
@@ -311,13 +315,17 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
+            let node_type_and_id = Some(node_type_id.inner())
+                .filter(|&id| id != 0)
+                .and_then(|id| node_type.map(|name| (name, id)));
+
             // Create a wal entry to mark operation as durable.
             let lsn = wal.log_add_node(
                 transaction_id,
                 ti,
                 node_gid,
                 node_id,
-                node_type,
+                node_type_and_id,
                 props_for_wal,
             )?;
 

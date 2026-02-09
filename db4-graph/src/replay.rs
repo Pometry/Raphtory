@@ -47,11 +47,11 @@ where
         let node_max_page_len = self.graph().extension().config().max_node_page_len();
         let edge_max_page_len = self.graph().extension().config().max_edge_page_len();
 
-        // 1. Insert prop ids into edge meta.
+        // Insert prop ids into edge meta.
         // No need to validate props again since they are already validated before
         // being logged to the WAL.
 
-        // 2. Insert node ids into resolver.
+        // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
             self.graph()
                 .logical_to_physical
@@ -64,7 +64,7 @@ where
                 .set(dst_name.as_ref(), dst_id)?;
         }
 
-        // 4. Grab src writer and add edge data.
+        // Grab src writer and add edge data.
         let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
         let resize_vid = VID::from(src_id.index() + 1);
         self.resize_chunks_to_vid(resize_vid); // Create enough segments.
@@ -112,7 +112,7 @@ where
             drop(src_writer);
         }
 
-        // 5. Grab dst writer and add edge data.
+        // Grab dst writer and add edge data.
         let (dst_segment_id, dst_pos) = resolve_pos(dst_id, node_max_page_len);
         let resize_vid = VID::from(dst_id.index() + 1);
         self.resize_chunks_to_vid(resize_vid);
@@ -157,7 +157,7 @@ where
             drop(dst_writer);
         }
 
-        // 6. Grab edge writer and add temporal props & metadata.
+        // Grab edge writer and add temporal props & metadata.
         let (edge_segment_id, edge_pos) = resolve_pos(eid, edge_max_page_len);
         let resize_eid = EID::from(eid.index() + 1);
         self.resize_chunks_to_eid(resize_eid);
@@ -194,7 +194,7 @@ where
                 }
             }
 
-            // 3. Insert layer id into the layer meta of both edge and node.
+            // Insert layer id into the layer meta of both edge and node.
             let node_meta = self.graph().node_meta();
 
             edge_meta
@@ -241,15 +241,15 @@ where
         t: EventTime,
         node_name: Option<GID>,
         node_id: VID,
-        node_type: Option<String>,
+        node_type_and_id: Option<(String, usize)>,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
-        // 1. Insert node id into resolver.
+        // Insert node id into resolver.
         if let Some(ref name) = node_name {
             self.graph().logical_to_physical.set(name.as_ref(), node_id)?;
         }
 
-        // 2. Resolve segment and check LSN.
+        // Resolve segment and check LSN.
         let node_max_page_len = self.graph().extension().config().max_node_page_len();
         let (segment_id, pos) = resolve_pos(node_id, node_max_page_len);
         let resize_vid = VID::from(node_id.index() + 1);
@@ -287,6 +287,11 @@ where
                 }
             }
 
+            // Set node_type_id metadata early to prevent issues with borrowing node_writer.
+            if let Some((ref node_type, node_type_id)) = node_type_and_id {
+                node_meta.node_type_meta().set_id(node_type.as_str(), node_type_id);
+            }
+
             let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
 
             if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
@@ -297,7 +302,11 @@ where
                 node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
             }
 
-            // 3. Write node props
+            if let Some((_, node_type_id)) = node_type_and_id {
+                node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
+            }
+
+            // Add the node with its timestamp and props.
             node_writer.add_props(
                 t,
                 pos,

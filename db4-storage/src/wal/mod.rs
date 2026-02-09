@@ -100,7 +100,7 @@ pub trait GraphWalOps {
         t: EventTime,
         node_name: Option<GidRef<'_>>,
         node_id: VID,
-        node_type: Option<&str>,
+        node_type_and_id: Option<(&str, usize)>,
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
@@ -140,7 +140,7 @@ pub trait GraphReplay {
         t: EventTime,
         node_name: Option<GID>,
         node_id: VID,
-        node_type: Option<String>,
+        node_type_and_id: Option<(String, usize)>,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 }

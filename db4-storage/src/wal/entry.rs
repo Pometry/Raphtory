@@ -34,7 +34,7 @@ impl GraphWalOps for NoWal {
         _t: EventTime,
         _node_name: Option<GidRef<'_>>,
         _node_id: VID,
-        _node_type: Option<&str>,
+        _node_type_and_id: Option<(&str, usize)>,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
         Ok(0)
