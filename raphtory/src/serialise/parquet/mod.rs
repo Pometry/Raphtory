@@ -450,7 +450,7 @@ fn decode_graph_storage(
     let graph = if let Some(storage_path) = path_for_decoded_graph {
         Arc::new(Storage::new_at_path_with_config(storage_path, config)?)
     } else {
-        Arc::new(Storage::default())
+        Arc::new(Storage::new_with_config(config)?)
     };
 
     let c_graph_path = path.as_ref().join(GRAPH_C_PATH);

@@ -22,7 +22,15 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn load(graph_dir: &Path) -> Result<Self, StorageError>;
 
+    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError> {
+        let mut extension = Self::load(graph_dir)?;
+        extension.config_mut().update(config);
+        Ok(extension)
+    }
+
     fn config(&self) -> &Self::Config;
+
+    fn config_mut(&mut self) -> &mut Self::Config;
 
     fn wal(&self) -> &Self::Wal;
 
@@ -74,6 +82,10 @@ impl PersistenceStrategy for NoOpStrategy {
 
     fn config(&self) -> &Self::Config {
         &self.config
+    }
+
+    fn config_mut(&mut self) -> &mut Self::Config {
+        &mut self.config
     }
 
     fn wal(&self) -> &Self::Wal {

@@ -50,7 +50,8 @@ use std::{
 /// A temporal graph with event semantics.
 ///
 /// Arguments:
-///     num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
+///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
+///     config (Config, optional): The configuration options for the graph
 #[derive(Clone)]
 #[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen)]
 pub struct PyGraph {
@@ -167,7 +168,10 @@ impl PyGraph {
         config: Option<PyConfig>,
     ) -> Result<(Self, PyGraphView), GraphError> {
         let graph = match path {
-            None => Graph::new(),
+            None => match config {
+                None => Graph::new(),
+                Some(PyConfig(config)) => Graph::new_with_config(config)?,
+            },
             Some(path) => match config {
                 None => Graph::new_at_path(&path)?,
                 Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
@@ -181,9 +185,22 @@ impl PyGraph {
         ))
     }
 
+    /// Load a disk graph from path
+    ///
+    /// Arguments:
+    ///     path (str | PathLike): the path of the graph folder
+    ///     config (Config, optional): specify a new config to override the values saved for the graph
+    ///                                (note that the page sizes cannot be overridden and are ignored)
+    ///
+    /// Returns:
+    ///     Graph: the graph
+    #[pyo3(signature = (path, config = None))]
     #[staticmethod]
-    pub fn load(path: PathBuf) -> Result<Graph, GraphError> {
-        Graph::load_from_path(&path)
+    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<Graph, GraphError> {
+        match config {
+            None => Graph::load(&path),
+            Some(PyConfig(config)) => Graph::load_with_config(&path, config),
+        }
     }
 
     /// Trigger a flush of the underlying storage if disk storage is enabled
