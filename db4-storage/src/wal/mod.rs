@@ -40,7 +40,7 @@ pub trait WalOps {
     fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
     /// Returns true if there are entries in the WAL file on disk.
-    fn has_entries(&self) -> bool;
+    fn has_entries(&self) -> Result<bool, StorageError>;
 }
 
 #[derive(Debug)]
