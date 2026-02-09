@@ -359,6 +359,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         self.selected.extend_with_limit(docs, limit);
 
         let increment = self.selected.len() - initial_size;
+        println!("limit {increment}, limit: {limit}, stop? {}", increment > 0 && increment < limit);
         if increment > 0 && increment < limit {
             Box::pin(self.expand_by_similarity(query, limit, window, path, executor)).await?
         }

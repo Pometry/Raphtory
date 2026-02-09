@@ -123,6 +123,9 @@ impl VectorCollection for LanceDbCollection {
         k: usize,
         candidates: Option<impl IntoIterator<Item = u64>>,
     ) -> GraphResult<impl Iterator<Item = (u64, f32)> + Send> {
+        let candidates = candidates.map(|c|c.into_iter().collect::<Vec<_>>());
+        println!("performing top-k search with candidates: {:?}", candidates.as_ref().map(|c| c.len()));
+
         let vector_query = self.table.query().nearest_to(query.as_ref())?;
         let limited = vector_query.limit(k);
         let filtered = if let Some(candidates) = candidates {
@@ -131,12 +134,16 @@ impl VectorCollection for LanceDbCollection {
                 let id_list = iter.map(|id| id.to_string()).join(",");
                 limited.only_if(format!("id IN ({id_list})"))
             } else {
+                println!("candidates list is empty, returning empty results");
                 limited.only_if("false") // this is a bit hacky, maybe the top layer shouldnt even call this one if the candidates list is empty
             }
         } else {
             limited
         };
+        let text = filtered.explain_plan(true).await?;
+        println!("Performing top-k query with plan:\n{text}");
         let stream = filtered.execute().await?;
+        println!("Executed top-k query, processing results...");
         let result = stream.try_collect::<Vec<_>>().await?;
 
         let downcasted = result
@@ -157,6 +164,7 @@ impl VectorCollection for LanceDbCollection {
             .ok_or(GraphError::InvalidVectorDbSchema)?
             .into_iter()
             .flatten();
+        println!("top-k query returned {} results", downcasted.size_hint().0);
         Ok(downcasted)
     }
 

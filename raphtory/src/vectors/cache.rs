@@ -6,6 +6,7 @@ use crate::{
         Embedding,
     },
 };
+use ahash::RandomState;
 use futures_util::StreamExt;
 use heed::{types::SerdeBincode, Database, Env, EnvOpenOptions};
 use moka::future::Cache;
@@ -13,7 +14,7 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, VecDeque},
-    hash::{DefaultHasher, Hash, Hasher},
+    hash::{BuildHasher, Hash, Hasher},
     ops::Deref,
     path::Path,
     sync::Arc,
@@ -51,9 +52,18 @@ impl VectorStore {
             (MAX_DISK_ITEMS * (MAX_VECTOR_DIM * 4 + MAX_TEXT_LENGTH)) / page_size * page_size;
 
         let env = unsafe { EnvOpenOptions::new().map_size(max_size).open(path) }?;
-        let mut wtxn = env.write_txn().unwrap();
-        let db: VectorDb = env.create_database(&mut wtxn, None)?;
-        wtxn.commit()?;
+
+        let db:VectorDb = if path.exists() {
+            let rtxn = env.read_txn().unwrap();
+            let db = env.open_database(&rtxn, None)?.unwrap();
+            db
+        } else {
+            let mut wtxn = env.write_txn().unwrap();
+            let db = env.create_database(&mut wtxn, None)?;
+            wtxn.commit()?;
+            db
+        };
+        
         Ok(Self::Disk { env, db })
     }
 
@@ -282,10 +292,11 @@ impl CachedEmbeddingModel {
 }
 
 fn hash(model: &EmbeddingModel, text: &str) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    model.hash(&mut hasher);
-    text.hash(&mut hasher);
-    hasher.finish()
+    let hasher = RandomState::with_seeds(2576675592427417589, 14681663747860293331, 5162080899205198708, 4782991468701587167);
+    let mut state = hasher.build_hasher();
+    model.hash(&mut state);
+    text.hash(&mut state);
+    state.finish()
 }
 
 #[cfg(test)]
@@ -309,6 +320,16 @@ mod cache_tests {
             org_id: None,
             project_id: None,
         }
+    }
+
+    #[test]
+    fn stable_hash() {
+        // 7674783272731444064
+        let hash_value = super::hash(&EmbeddingModel {
+            model: ModelConfig::OpenAI(placeholder_config()),
+            sample: vec![1.0].into(),
+        }, CONTENT_SAMPLE);
+        assert_eq!(hash_value, 7674783272731444064);
     }
 
     #[test]
