@@ -369,7 +369,7 @@ impl RaphtoryGraphQLClient {
 
 pub(crate) fn inner_collection(value: &Prop) -> String {
     match value {
-        Prop::Str(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::Str(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
         Prop::U8(value) => format!("{{ u64: {} }}", value),
         Prop::U16(value) => format!("{{ u64: {} }}", value),
         Prop::I32(value) => format!("{{ i64: {} }}", value),
@@ -386,52 +386,113 @@ pub(crate) fn inner_collection(value: &Prop) -> String {
         Prop::Map(value) => {
             let properties_array: Vec<String> = value
                 .iter()
-                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
+                .map(|(k, v)| {
+                    format!(
+                        "{{ key: {}, value: {} }}",
+                        serde_json::to_string(k).unwrap(),
+                        inner_collection(v)
+                    )
+                })
                 .collect();
             format!("{{ object: [{}] }}", properties_array.join(", "))
         }
-        Prop::DTime(value) => format!("{{ str: \"{}\" }}", value),
-        Prop::NDTime(value) => format!("{{ str: \"{}\" }}", value),
+        Prop::DTime(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
+        Prop::NDTime(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
         Prop::Decimal(value) => format!("{{ decimal: {} }}", value),
     }
 }
 
 fn to_graphql_valid(key: &String, value: &Prop) -> String {
     match value {
-        Prop::Str(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
-        Prop::U8(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::U16(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::I32(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
-        Prop::I64(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
-        Prop::U32(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::U64(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::F32(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
-        Prop::F64(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
-        Prop::Bool(value) => format!("{{ key: \"{}\", value: {{ bool: {} }} }}", key, value),
+        Prop::Str(value) => format!(
+            "{{ key: {}, value: {{ str: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            serde_json::to_string(value).unwrap()
+        ),
+        Prop::U8(value) => format!(
+            "{{ key: {}, value: {{ u64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::U16(value) => format!(
+            "{{ key: {}, value: {{ u64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::I32(value) => format!(
+            "{{ key: {}, value: {{ i64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::I64(value) => format!(
+            "{{ key: {}, value: {{ i64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::U32(value) => format!(
+            "{{ key: {}, value: {{ u64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::U64(value) => format!(
+            "{{ key: {}, value: {{ u64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::F32(value) => format!(
+            "{{ key: {}, value: {{ f64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::F64(value) => format!(
+            "{{ key: {}, value: {{ f64: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
+        Prop::Bool(value) => format!(
+            "{{ key: {}, value: {{ bool: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
+        ),
         Prop::List(value) => {
             let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
             format!(
-                "{{ key: \"{}\", value: {{ list: [{}] }} }}",
-                key,
+                "{{ key: {}, value: {{ list: [{}] }} }}",
+                serde_json::to_string(key).unwrap(),
                 vec.join(", ")
             )
         }
         Prop::Map(value) => {
             let properties_array: Vec<String> = value
                 .iter()
-                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
+                .map(|(k, v)| {
+                    format!(
+                        "{{ key: {}, value: {} }}",
+                        serde_json::to_string(k).unwrap(),
+                        inner_collection(v)
+                    )
+                })
                 .collect();
             format!(
-                "{{ key: \"{}\", value: {{ object: [{}] }} }}",
-                key,
+                "{{ key: {}, value: {{ object: [{}] }} }}",
+                serde_json::to_string(key).unwrap(),
                 properties_array.join(", ")
             )
         }
-        Prop::DTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
-        Prop::NDTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
+        Prop::DTime(value) => format!(
+            "{{ key: {}, value: {{ str: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            serde_json::to_string(value).unwrap()
+        ),
+        Prop::NDTime(value) => format!(
+            "{{ key: {}, value: {{ str: {} }} }}",
+            serde_json::to_string(key).unwrap(),
+            serde_json::to_string(value).unwrap()
+        ),
         Prop::Decimal(value) => format!(
-            "{{ key: \"{}\", value: {{ decimal: \"{}\" }} }}",
-            key, value
+            "{{ key: {}, value: {{ decimal: \"{}\" }} }}",
+            serde_json::to_string(key).unwrap(),
+            value
         ),
     }
 }
