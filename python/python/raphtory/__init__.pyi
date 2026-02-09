@@ -705,10 +705,13 @@ class Graph(GraphView):
     A temporal graph with event semantics.
 
     Arguments:
-        num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
+        path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
+        config (Config, optional): The configuration options for the graph
     """
 
-    def __new__(cls, path=None) -> Graph:
+    def __new__(
+        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+    ) -> Graph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -819,6 +822,31 @@ class Graph(GraphView):
 
         Returns:
             MutableNode: The created node.
+
+        Raises:
+            GraphError: If the operation fails.
+        """
+
+    def delete_edge(
+        self,
+        timestamp: int,
+        src: str | int,
+        dst: str | int,
+        layer: Optional[str],
+        event_id: Optional[int],
+    ) -> MutableEdge:
+        """
+        Deletes an edge given the timestamp, src and dst nodes and layer (optional).
+
+        Arguments:
+          timestamp (int): The timestamp of the edge.
+          src (str | int): The id of the source node.
+          dst (str | int): The id of the destination node.
+          layer (str, optional): The layer of the edge.
+          event_id (int, optional): The optional integer which will be used as an event id.
+
+        Returns:
+          MutableEdge: The deleted edge
 
         Raises:
             GraphError: If the operation fails.
@@ -1044,7 +1072,19 @@ class Graph(GraphView):
         """
 
     @staticmethod
-    def load(path): ...
+    def load(path: str | PathLike, config: Optional[Config] = None) -> Graph:
+        """
+        Load a disk graph from path
+
+        Arguments:
+            path (str | PathLike): the path of the graph folder
+            config (Config, optional): specify a new config to override the values saved for the graph
+                                       (note that the page sizes cannot be overridden and are ignored)
+
+        Returns:
+            Graph: the graph
+        """
+
     def load_edge_metadata(
         self,
         data: Any,
@@ -1297,7 +1337,7 @@ class Graph(GraphView):
 class PersistentGraph(GraphView):
     """A temporal graph that allows edges and nodes to be deleted."""
 
-    def __new__(cls, path=None) -> PersistentGraph:
+    def __new__(cls, path=None, config=None) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -1638,7 +1678,19 @@ class PersistentGraph(GraphView):
         """
 
     @staticmethod
-    def load(path): ...
+    def load(path: str | PathLike, config: Optional[Config]) -> PersistentGraph:
+        """
+        Load a disk graph from path
+
+        Arguments:
+            path (str | PathLike): the path of the graph folder
+            config (Config, optional): specify a new config to override the values saved for the graph
+                                       (note that the page sizes cannot be overridden and are ignored)
+
+        Returns:
+            PersistentGraph: the graph
+        """
+
     def load_edge_deletions(
         self,
         data: Any,

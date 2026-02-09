@@ -1,5 +1,5 @@
 from datetime import datetime, date
-from typing import Union, Literal, Mapping
+from typing import Union, Literal, Mapping, Any
 import raphtory
 
 PropValue = Union[
@@ -24,3 +24,5 @@ NodeInput = Union[int, str, "Node"]
 TimeInput = Union[
     int, str, float, datetime, date, raphtory.EventTime, raphtory.OptionalEventTime
 ]
+
+Config = Mapping[str, Any]

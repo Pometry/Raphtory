@@ -35,6 +35,9 @@ jobs:
           - linux/amd64
           - linux/arm64
     steps:
+      - name: Print input
+        run: echo '${{ toJSON(inputs) }}'
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.base }}
@@ -50,10 +53,12 @@ jobs:
 
       - name: Set dockerfile path and cache image
         run: |
-          if [ -n "${{ inputs.python }}"]; then
+          if [ -n "${{ inputs.python }}" ]; then
+            echo "Building Python image"
             echo "DOCKERFILE_PATH=python.Dockerfile" >> $GITHUB_ENV
             echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-python-${{ env.PLATFORM_PAIR }}" >> $GITHUB_ENV
           else
+            echo "Building Rust image"
             echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
             echo "CACHE_IMAGE=${{ env.REGISTRY_IMAGE }}:buildcache-rust-${{ env.PLATFORM_PAIR }}" >> $GITHUB_ENV
           fi

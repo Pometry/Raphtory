@@ -151,6 +151,8 @@ pub mod prelude {
 
     pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
+    pub use storage::{persist::config::ConfigOps, Config};
+
     #[cfg(feature = "io")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},

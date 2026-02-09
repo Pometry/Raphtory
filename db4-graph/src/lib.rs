@@ -131,7 +131,7 @@ where
         })
     }
 
-    pub fn load_from_path(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+    pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let storage = Layer::load(path, ext)?;
         let id_type = storage.nodes().id_type();
