@@ -10,7 +10,7 @@ mod test {
         io::arrow::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
-                edges::{load_edges_from_df, ColumnNames},
+                edges::{load_edges_from_df_prefetch, ColumnNames},
                 nodes::load_nodes_from_df,
             },
         },
@@ -58,7 +58,7 @@ mod test {
         let layer_col: Option<&str> = None;
         let secondary_index: Option<&str> = None;
 
-        load_edges_from_df(
+        load_edges_from_df_prefetch(
             df,
             ColumnNames::new("time", secondary_index, "src", "dst", layer_col),
             true,

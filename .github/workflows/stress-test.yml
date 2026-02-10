@@ -33,6 +33,8 @@ jobs:
         with:
           k6-version: '1.0.0'
       - name: Run stress test
+        env:
+          RUST_BACKTRACE: 1
         run: |
           cd graphql-bench
           raphtory server &

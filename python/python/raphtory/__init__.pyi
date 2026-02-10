@@ -3868,12 +3868,12 @@ class PathFromGraph(object):
         """
 
     @property
-    def properties(self):
+    def properties(self) -> PyNestedPropsIterable:
         """
         Returns the node properties.
 
         Returns:
-            NestedPropsIterable:
+            PyNestedPropsIterable:
         """
 
     def rolling(
