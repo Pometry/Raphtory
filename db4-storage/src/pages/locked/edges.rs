@@ -50,6 +50,7 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     #[inline(always)]
     pub fn resolve_pos(&self, edge_id: EID) -> Option<LocalPOS> {
         let (page, pos) = resolve_pos(edge_id, self.max_page_len);
+
         if page == self.page_id {
             Some(pos)
         } else {

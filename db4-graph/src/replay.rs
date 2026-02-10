@@ -16,8 +16,7 @@ use raphtory_api::core::{
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::{node_page::writer::node_info_as_props, resolve_pos},
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     wal::{GraphReplay, TransactionID, LSN},
     ES, GS, NS,
@@ -44,9 +43,6 @@ where
         layer_id: usize,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
-        let node_max_page_len = self.graph().extension().config().max_node_page_len();
-        let edge_max_page_len = self.graph().extension().config().max_edge_page_len();
-
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
             self.graph()
@@ -61,7 +57,7 @@ where
         }
 
         // Grab src writer and add edge data.
-        let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
+        let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
         self.resize_segments_to_vid(src_id); // Create enough segments.
 
         let segment = self
@@ -109,7 +105,7 @@ where
         }
 
         // Grab dst writer and add edge data.
-        let (dst_segment_id, dst_pos) = resolve_pos(dst_id, node_max_page_len);
+        let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
         self.resize_segments_to_vid(dst_id);
 
         let segment = self
@@ -154,7 +150,7 @@ where
         }
 
         // Grab edge writer and add temporal props & metadata.
-        let (edge_segment_id, edge_pos) = resolve_pos(eid, edge_max_page_len);
+        let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
         self.resize_segments_to_eid(eid);
 
         let segment = self
@@ -250,8 +246,7 @@ where
         }
 
         // Resolve segment and check LSN.
-        let node_max_page_len = self.graph().extension().config().max_node_page_len();
-        let (segment_id, pos) = resolve_pos(node_id, node_max_page_len);
+        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
         self.resize_segments_to_vid(node_id);
 
         let segment = self
