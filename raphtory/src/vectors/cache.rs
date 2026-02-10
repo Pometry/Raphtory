@@ -1,7 +1,7 @@
 use crate::{
     errors::GraphResult,
     vectors::{
-        embeddings::{EmbeddingError, EmbeddingModel, ModelConfig},
+        embeddings::{EmbeddingError, ModelConfig},
         storage::OpenAIEmbeddings,
         Embedding,
     },
@@ -18,7 +18,6 @@ use std::{
     ops::Deref,
     path::Path,
     sync::Arc,
-    u64,
 };
 
 const CONTENT_SAMPLE: &str = "raphtory"; // DON'T CHANGE THIS STRING BY ANY MEANS
@@ -29,7 +28,7 @@ const MAX_TEXT_LENGTH: usize = 200_000;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct CacheEntry {
-    model: EmbeddingModel,
+    model: ModelConfig,
     text: String,
     vector: Embedding,
 }
@@ -53,17 +52,18 @@ impl VectorStore {
 
         let env = unsafe { EnvOpenOptions::new().map_size(max_size).open(path) }?;
 
-        let db:VectorDb = if path.exists() {
-            let rtxn = env.read_txn().unwrap();
-            let db = env.open_database(&rtxn, None)?.unwrap();
-            db
-        } else {
-            let mut wtxn = env.write_txn().unwrap();
-            let db = env.create_database(&mut wtxn, None)?;
-            wtxn.commit()?;
-            db
-        };
-        
+        let rtxn = env.read_txn()?;
+        let db = env
+            .open_database(&rtxn, None)
+            .transpose()
+            .unwrap_or_else(|| {
+                let mut wtxn = env.write_txn()?;
+                let db = env.create_database(&mut wtxn, None);
+                wtxn.commit()?;
+                db
+            })?;
+        drop(rtxn);
+
         Ok(Self::Disk { env, db })
     }
 
@@ -125,7 +125,7 @@ impl VectorStore {
 pub struct VectorCache {
     store: Arc<VectorStore>,
     cache: Arc<Cache<u64, ()>>,
-    models: Arc<Cache<ModelConfig, EmbeddingModel>>, // this always lives only in memory, precisely to force resampling from different environments
+    models: Arc<Cache<ModelConfig, ModelConfig>>, // this always lives only in memory, precisely to force resampling from different environments
 }
 
 impl VectorCache {
@@ -153,55 +153,45 @@ impl VectorCache {
 
         Ok(Self {
             store,
-            cache: cache.into(),
+            cache,
             models: build_model_cache(),
         })
     }
 
-    pub async fn openai(&self, config: OpenAIEmbeddings) -> GraphResult<CachedEmbeddingModel> {
-        self.sample_and_cache_model(ModelConfig::OpenAI(config))
-            .await
+    pub async fn openai(&self, config: ModelConfig) -> GraphResult<CachedEmbeddingModel> {
+        self.validate_and_set_dim(config).await
     }
 
-    async fn sample_and_cache_model(
+    // async fn sample_and_cache_model(
+    //     &self,
+    //     model: ModelConfig,
+    // ) -> GraphResult<CachedEmbeddingModel> {
+    //     let expected_model = self.load_model_dim(model.clone()).await?;
+    //     Ok(CachedEmbeddingModel {
+    //         cache: self.clone(),
+    //         model,
+    //     })
+    // }
+
+    pub(super) async fn validate_and_set_dim(
         &self,
         model: ModelConfig,
     ) -> GraphResult<CachedEmbeddingModel> {
+        let expected_model = self.load_model_dim(model.clone()).await?;
         Ok(CachedEmbeddingModel {
+            model: expected_model,
             cache: self.clone(),
-            model: self.sample_model(model).await?,
         })
     }
 
-    pub(super) async fn validate_and_cache_model(
-        &self,
-        model: EmbeddingModel,
-    ) -> GraphResult<CachedEmbeddingModel> {
-        let expected_model = self.sample_model(model.model.clone()).await?;
-        if model == expected_model {
-            Ok(CachedEmbeddingModel {
-                model,
-                cache: self.clone(),
-            })
-        } else {
-            Err(crate::errors::GraphError::InvalidModelSample(
-                expected_model.sample,
-                model.sample,
-            ))
-        }
-    }
-
-    async fn sample_model(&self, config: ModelConfig) -> GraphResult<EmbeddingModel> {
+    async fn load_model_dim(&self, config: ModelConfig) -> GraphResult<ModelConfig> {
         let cloned_config = config.clone();
         let model = self
             .models
             .try_get_with(config, async {
                 let mut vectors = cloned_config.call(vec![CONTENT_SAMPLE.to_owned()]).await?;
                 let sample = vectors.remove(0);
-                Ok(EmbeddingModel {
-                    model: cloned_config,
-                    sample,
-                })
+                Ok(cloned_config.with_dimension(sample.len()))
             })
             .await
             .map_err(|error: Arc<EmbeddingError>| {
@@ -211,7 +201,7 @@ impl VectorCache {
         Ok(model)
     }
 
-    async fn get(&self, model: &EmbeddingModel, text: &str) -> Option<Embedding> {
+    async fn get(&self, model: &ModelConfig, text: &str) -> Option<Embedding> {
         let hash = hash(model, text);
         self.cache.get(&hash).await?;
         let entry = self.store.get(&hash)?;
@@ -222,7 +212,7 @@ impl VectorCache {
         }
     }
 
-    async fn insert(&self, model: EmbeddingModel, text: String, vector: Embedding) {
+    async fn insert(&self, model: ModelConfig, text: String, vector: Embedding) {
         let hash = hash(&model, &text);
         let entry = CacheEntry {
             model,
@@ -234,19 +224,19 @@ impl VectorCache {
     }
 }
 
-fn build_model_cache() -> Arc<Cache<ModelConfig, EmbeddingModel>> {
+fn build_model_cache() -> Arc<Cache<ModelConfig, ModelConfig>> {
     Cache::new(u64::MAX).into()
 }
 
 #[derive(Clone)]
 pub struct CachedEmbeddingModel {
-    cache: VectorCache, // TODO: review if ok using here a parking_lot::RwLock
-    pub(super) model: EmbeddingModel, // this is kind of duplicated, but enables skipping the rwlock
+    cache: VectorCache,
+    pub(super) model: ModelConfig,
 }
 
 impl CachedEmbeddingModel {
-    pub(super) fn get_sample(&self) -> &Embedding {
-        &self.model.sample
+    pub fn dim(&self) -> Option<usize> {
+        self.model.dim()
     }
 
     pub(super) async fn get_embeddings(
@@ -291,8 +281,13 @@ impl CachedEmbeddingModel {
     }
 }
 
-fn hash(model: &EmbeddingModel, text: &str) -> u64 {
-    let hasher = RandomState::with_seeds(2576675592427417589, 14681663747860293331, 5162080899205198708, 4782991468701587167);
+fn hash(model: &ModelConfig, text: &str) -> u64 {
+    let hasher = RandomState::with_seeds(
+        2576675592427417589,
+        14681663747860293331,
+        5162080899205198708,
+        4782991468701587167,
+    );
     let mut state = hasher.build_hasher();
     model.hash(&mut state);
     text.hash(&mut state);
@@ -301,11 +296,12 @@ fn hash(model: &EmbeddingModel, text: &str) -> u64 {
 
 #[cfg(test)]
 mod cache_tests {
+    use once_cell::sync::Lazy;
     use tempfile::tempdir;
 
     use crate::vectors::{
         cache::{CachedEmbeddingModel, CONTENT_SAMPLE},
-        embeddings::{EmbeddingModel, ModelConfig},
+        embeddings::ModelConfig,
         storage::OpenAIEmbeddings,
         Embedding,
     };
@@ -313,23 +309,20 @@ mod cache_tests {
     use super::VectorCache;
 
     fn placeholder_config() -> OpenAIEmbeddings {
-        OpenAIEmbeddings {
-            model: "whatever".to_owned(),
-            api_base: None,
-            api_key_env: None,
-            org_id: None,
-            project_id: None,
-        }
+        OpenAIEmbeddings::empty("whatever")
     }
+
+    fn other_config() -> OpenAIEmbeddings {
+        OpenAIEmbeddings::empty("other")
+    }
+
+    static PLACEHOLDER_MODEL: Lazy<ModelConfig> =
+        Lazy::new(|| ModelConfig::OpenAI(placeholder_config()));
 
     #[test]
     fn stable_hash() {
-        // 7674783272731444064
-        let hash_value = super::hash(&EmbeddingModel {
-            model: ModelConfig::OpenAI(placeholder_config()),
-            sample: vec![1.0].into(),
-        }, CONTENT_SAMPLE);
-        assert_eq!(hash_value, 7674783272731444064);
+        let hash_value = super::hash(&PLACEHOLDER_MODEL, CONTENT_SAMPLE);
+        assert_eq!(hash_value, 17143601129976616271);
     }
 
     #[test]
@@ -341,17 +334,8 @@ mod cache_tests {
     async fn test_empty_request() {
         let model = CachedEmbeddingModel {
             cache: VectorCache::in_memory(),
-            model: EmbeddingModel {
-                // this model will definetely error out if called, as the api base is invalid
-                model: ModelConfig::OpenAI(OpenAIEmbeddings {
-                    api_base: Some("invalid-api-base".to_owned()),
-                    model: "whatever".to_owned(),
-                    api_key_env: None,
-                    project_id: None,
-                    org_id: None,
-                }),
-                sample: vec![1.0].into(),
-            },
+            // this model will definetely error out if called, as the api base is invalid
+            model: ModelConfig::OpenAI(OpenAIEmbeddings::new("whatever", "invalid-api-base")),
         };
         let result: Vec<_> = model.get_embeddings(vec![]).await.unwrap().collect();
         assert_eq!(result, vec![]);
@@ -363,14 +347,8 @@ mod cache_tests {
         let vector_b: Embedding = [0.5].into();
 
         // TOOD: try to do this using VectorCache::in_memory().openai()
-        let model_a = EmbeddingModel {
-            model: ModelConfig::OpenAI(placeholder_config()),
-            sample: vec![1.0].into(),
-        };
-        let model_b = EmbeddingModel {
-            model: ModelConfig::OpenAI(placeholder_config()),
-            sample: vec![0.0, 1.0].into(),
-        };
+        let model_a = ModelConfig::OpenAI(placeholder_config());
+        let model_b = ModelConfig::OpenAI(other_config());
 
         assert_eq!(cache.get(&model_a, "a").await, None);
         assert_eq!(cache.get(&model_b, "a").await, None);
@@ -412,10 +390,7 @@ mod cache_tests {
 
     #[tokio::test]
     async fn test_on_disk_cache_loading() {
-        let model = EmbeddingModel {
-            model: ModelConfig::OpenAI(placeholder_config()),
-            sample: vec![1.0].into(),
-        };
+        let model = ModelConfig::OpenAI(placeholder_config());
         let vector: Embedding = [1.0].into();
         let dir = tempdir().unwrap();
 

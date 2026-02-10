@@ -641,16 +641,9 @@ mod tests {
 
         let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
 
-        let api_base = format!("http://localhost:{port}");
-        let config = OpenAIEmbeddings {
-            model: "whatever".to_owned(),
-            api_base: Some(api_base),
-            api_key_env: None,
-            project_id: None,
-            org_id: None,
-        };
+        let config = OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}"));
         let vector_cache = data.vector_cache.resolve().await.unwrap();
-        let model = vector_cache.openai(config).await.unwrap();
+        let model = vector_cache.openai(config.into()).await.unwrap();
         data.vectorise_folder(
             &ExistingGraphFolder::try_from(tmp_dir.path().to_path_buf(), graph_name).unwrap(),
             &template,

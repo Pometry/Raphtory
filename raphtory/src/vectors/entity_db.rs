@@ -124,7 +124,10 @@ pub(super) trait EntityDb: Sized {
             (Some(view), None) => Some(Self::all_valid_entities(view).collect()),
         };
 
-        println!("performing top-k search with candidates: {:?}", candidates.as_ref().map(|c| c.len()));
+        println!(
+            "performing top-k search with candidates: {:?}",
+            candidates.as_ref().map(|c| c.len())
+        );
 
         let db = self.get_db().clone();
         println!("Got a db instance");
@@ -135,7 +138,10 @@ pub(super) trait EntityDb: Sized {
                 .await?
                 .map(|(id, distance)| (Self::into_entity_ref(id), distance))
                 .collect::<Vec<_>>();
-            println!("top-k search completed with results: {:?}", &vals[..10.min(vals.len())]);
+            println!(
+                "top-k search completed with results: {:?}",
+                &vals[..10.min(vals.len())]
+            );
             Ok(vals)
         }))
     }

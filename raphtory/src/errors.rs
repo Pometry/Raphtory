@@ -311,8 +311,8 @@ pub enum GraphError {
     },
 
     #[cfg(feature = "vectors")]
-    #[error("Embedding model sample changed from {0:?} to {1:?}")]
-    InvalidModelSample(Embedding, Embedding),
+    #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
+    UnresolvedModel,
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]

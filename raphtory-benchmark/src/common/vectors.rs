@@ -38,13 +38,7 @@ pub fn create_graph_for_vector_bench(size: usize) -> Graph {
 pub async fn vectorise_graph_for_bench_async(graph: Graph) -> VectorisedGraph<Graph> {
     let cache = VectorCache::in_memory();
     let model = cache
-        .openai(OpenAIEmbeddings {
-            model: "whatever".to_owned(),
-            api_base: Some("localhost://1783".to_owned()), // TODO: run embedding server as well on the background so that this works
-            api_key_env: None,
-            project_id: None,
-            org_id: None,
-        })
+        .openai(OpenAIEmbeddings::new("whatever", "localhost://1783").into())
         .await
         .unwrap();
     let template = DocumentTemplate {

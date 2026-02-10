@@ -40,18 +40,20 @@ pub struct PyOpenAIEmbeddings {
     api_key_env: Option<String>,
     org_id: Option<String>,
     project_id: Option<String>,
+    dim: Option<usize>,
 }
 
 #[pymethods]
 impl PyOpenAIEmbeddings {
     #[new]
-    #[pyo3(signature = (model="text-embedding-3-small", api_base=None, api_key_env=None, org_id=None, project_id=None))]
+    #[pyo3(signature = (model="text-embedding-3-small", api_base=None, api_key_env=None, org_id=None, project_id=None, dim=None))]
     fn new(
         model: &str,
         api_base: Option<String>,
         api_key_env: Option<String>,
         org_id: Option<String>,
         project_id: Option<String>,
+        dim: Option<usize>,
     ) -> Self {
         Self {
             model: model.to_owned(),
@@ -59,6 +61,7 @@ impl PyOpenAIEmbeddings {
             api_key_env,
             org_id,
             project_id,
+            dim,
         }
     }
 }
@@ -70,6 +73,7 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
             api_key_env: value.api_key_env.clone(),
             org_id: value.org_id.clone(),
             project_id: value.project_id.clone(),
+            dim: value.dim,
         }
     }
 }
@@ -302,7 +306,9 @@ impl PyGraphView {
             } else {
                 VectorCache::in_memory()
             };
-            let model = cache.openai(embedding.into()).await?;
+            let model = cache
+                .openai(OpenAIEmbeddings::from(embedding).into())
+                .await?;
             Ok(graph.vectorise(model, template, None, verbose).await?)
         })
     }

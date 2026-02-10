@@ -143,7 +143,7 @@ impl GraphServer {
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
         let vector_cache = self.data.vector_cache.resolve().await?;
-        let model = vector_cache.openai(embeddings).await?;
+        let model = vector_cache.openai(embeddings.into()).await?;
         for folder in self.data.get_all_graph_folders() {
             self.data
                 .vectorise_folder(&folder, template, model.clone()) // TODO: avoid clone, just ask for a ref
@@ -164,7 +164,7 @@ impl GraphServer {
         embeddings: OpenAIEmbeddings,
     ) -> GraphResult<()> {
         let vetor_cache = self.data.vector_cache.resolve();
-        let model = vetor_cache.await?.openai(embeddings).await?;
+        let model = vetor_cache.await?.openai(embeddings.into()).await?;
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
         self.data.vectorise_folder(&folder, template, model).await
     }
@@ -390,13 +390,7 @@ mod server_tests {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()
         };
-        let model = OpenAIEmbeddings {
-            api_base: Some("wrong-api-base".to_owned()),
-            model: "whatever".to_owned(),
-            api_key_env: None,
-            project_id: None,
-            org_id: None,
-        };
+        let model = OpenAIEmbeddings::new("whatever", "wrong-api-base");
         let result = server.vectorise_all_graphs(&template, model).await;
         assert!(result.is_err());
         let handler = server.start_with_port(0);

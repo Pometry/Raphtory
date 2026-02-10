@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     db::api::view::{internal::IntoDynamic, StaticGraphViewOps},
-    errors::GraphResult,
+    errors::{GraphError, GraphResult},
     prelude::GraphViewOps,
     vectors::{
         cache::CachedEmbeddingModel,
@@ -54,7 +54,7 @@ impl<G: StaticGraphViewOps + IntoDynamic + Send> Vectorisable<G> for G {
             .map(|path| Ok::<CollectionPath, std::io::Error>(Arc::new(db_path(path))))
             .unwrap_or_else(|| Ok(Arc::new(tempfile::tempdir()?)))?;
         let factory = LanceDb;
-        let dim = model.get_sample().len();
+        let dim = model.dim().ok_or_else(|| GraphError::UnresolvedModel)?;
         if verbose {
             info!("computing embeddings for nodes");
         }

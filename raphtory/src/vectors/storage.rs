@@ -8,7 +8,7 @@ use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{GraphError, GraphResult},
     vectors::{
-        embeddings::EmbeddingModel,
+        embeddings::ModelConfig,
         vector_collection::{lancedb::LanceDb, VectorCollectionFactory},
     },
 };
@@ -28,9 +28,32 @@ pub struct OpenAIEmbeddings {
     pub api_key_env: Option<String>,
     pub org_id: Option<String>,
     pub project_id: Option<String>,
+    pub dim: Option<usize>,
 }
 
 impl OpenAIEmbeddings {
+    pub fn empty(name: impl AsRef<str>) -> Self {
+        Self {
+            model: name.as_ref().to_owned(),
+            api_base: None,
+            api_key_env: None,
+            org_id: None,
+            project_id: None,
+            dim: None,
+        }
+    }
+
+    pub fn new(model: impl AsRef<str>, api_base: impl AsRef<str>) -> Self {
+        Self {
+            model: model.as_ref().to_owned(),
+            api_base: Some(api_base.as_ref().to_owned()),
+            api_key_env: None,
+            org_id: None,
+            project_id: None,
+            dim: None,
+        }
+    }
+
     pub(super) fn resolve_config(&self) -> OpenAIConfig {
         let api_key_env = self
             .api_key_env
@@ -51,7 +74,7 @@ impl OpenAIEmbeddings {
 #[derive(Serialize, Deserialize, Debug)]
 pub(super) struct VectorMeta {
     pub(super) template: DocumentTemplate,
-    pub(super) model: EmbeddingModel,
+    pub(super) model: ModelConfig,
 }
 
 impl VectorMeta {
@@ -100,13 +123,14 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
 
         let factory = LanceDb;
         let db_path = Arc::new(db_path(path));
-        let dim = meta.model.sample.len();
         // TODO: put table names in common place? maybe some trait function for EntityDb that returns it
-        let node_db = NodeDb(factory.from_path(db_path.clone(), "nodes", dim).await?);
-        let edge_db = EdgeDb(factory.from_path(db_path, "edges", dim).await?);
 
         let resolved = cache.resolve().await?;
-        let model = resolved.validate_and_cache_model(meta.model).await?.into();
+        let model = resolved.validate_and_set_dim(meta.model).await?;
+        let dim = model.dim().ok_or_else(|| GraphError::UnresolvedModel)?;
+
+        let node_db = NodeDb(factory.from_path(db_path.clone(), "nodes", dim).await?);
+        let edge_db = EdgeDb(factory.from_path(db_path, "edges", dim).await?);
 
         Ok(VectorisedGraph {
             template: meta.template,

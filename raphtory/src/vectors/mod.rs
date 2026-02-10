@@ -144,6 +144,7 @@ mod vector_tests {
         vectors::{
             cache::{CachedEmbeddingModel, VectorCache},
             custom::serve_custom_embedding,
+            embeddings::ModelConfig,
             storage::OpenAIEmbeddings,
             template::DocumentTemplate,
             vector_selection::noop_executor,
@@ -168,13 +169,13 @@ mod vector_tests {
         });
         tokio::time::sleep(Duration::from_secs(1)).await;
         VectorCache::in_memory()
-            .openai(OpenAIEmbeddings {
-                api_base: Some("http://localhost:3070".to_owned()),
-                model: "whatever".to_owned(),
-                api_key_env: None,
-                project_id: None,
-                org_id: None,
-            })
+            .openai(
+                super::embeddings::ModelConfig::OpenAI(OpenAIEmbeddings::new(
+                    "whatever",
+                    "http://localhost:3070",
+                ))
+                .with_dimension(10),
+            )
             .await
             .unwrap()
     }
@@ -187,13 +188,7 @@ mod vector_tests {
         tokio::spawn(async {
             serve_custom_embedding(None, 3071, panicking_embedding).await;
         });
-        OpenAIEmbeddings {
-            api_base: Some("http://localhost:3071".to_owned()),
-            model: "whatever".to_owned(),
-            api_key_env: None,
-            project_id: None,
-            org_id: None,
-        }
+        OpenAIEmbeddings::new("whatever", "http://localhost:3071")
     }
 
     fn custom_template() -> DocumentTemplate {
@@ -341,13 +336,10 @@ mod vector_tests {
         dotenv::dotenv().ok();
 
         let model = VectorCache::in_memory()
-            .openai(OpenAIEmbeddings {
-                model: "text-embedding-3-small".to_owned(),
-                api_base: None,
-                api_key_env: None,
-                org_id: None,
-                project_id: None,
-            })
+            .openai(
+                ModelConfig::OpenAI(OpenAIEmbeddings::empty("text-embedding-3-small"))
+                    .with_dimension(10),
+            )
             .await
             .unwrap();
 

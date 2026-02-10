@@ -1,6 +1,5 @@
 use std::{
     hash::{Hash, Hasher},
-    ops::Deref,
     pin::Pin,
     sync::Arc,
 };
@@ -29,48 +28,69 @@ pub enum ModelConfig {
     OpenAI(OpenAIEmbeddings),
 }
 
+impl From<OpenAIEmbeddings> for ModelConfig {
+    fn from(embeddings: OpenAIEmbeddings) -> Self {
+        ModelConfig::OpenAI(embeddings)
+    }
+}
+
 impl ModelConfig {
     pub(super) async fn call(&self, texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
         match self {
             ModelConfig::OpenAI(model) => model.call(texts).await,
         }
     }
-}
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
-pub struct EmbeddingModel {
-    pub(super) model: ModelConfig,
-    pub(super) sample: Embedding,
-}
+    pub fn with_dimension(self, dim: usize) -> Self {
+        match self {
+            ModelConfig::OpenAI(mut embeddings) => {
+                embeddings.dim = Some(dim);
+                ModelConfig::OpenAI(embeddings)
+            }
+        }
+    }
 
-impl Hash for EmbeddingModel {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.model.hash(state);
-        for &x in self.sample.iter() {
-            // This way, embeddings with the same values (including +0.0 vs -0.0, different NaNs) hash consistently.
-            x.to_bits().hash(state);
+    pub fn dim(&self) -> Option<usize> {
+        match self {
+            ModelConfig::OpenAI(embeddings) => embeddings.dim,
         }
     }
 }
 
-// this is just so that we can call model.call() on an embeddig model
-impl Deref for EmbeddingModel {
-    type Target = ModelConfig;
-    fn deref(&self) -> &Self::Target {
-        &self.model
-    }
-}
+// #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+// pub struct EmbeddingModel {
+//     pub(super) model: ModelConfig,
+//     pub(super) sample: Embedding,
+// }
 
-impl EmbeddingModel {
-    pub(super) fn call(
-        &self,
-        texts: Vec<String>,
-    ) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-        match &self.model {
-            ModelConfig::OpenAI(embeddings) => embeddings.call(texts),
-        }
-    }
-}
+// impl Hash for EmbeddingModel {
+//     fn hash<H: Hasher>(&self, state: &mut H) {
+//         self.model.hash(state);
+//         for &x in self.sample.iter() {
+//             // This way, embeddings with the same values (including +0.0 vs -0.0, different NaNs) hash consistently.
+//             x.to_bits().hash(state);
+//         }
+//     }
+// }
+
+// // this is just so that we can call model.call() on an embeddig model
+// impl Deref for EmbeddingModel {
+//     type Target = ModelConfig;
+//     fn deref(&self) -> &Self::Target {
+//         &self.model
+//     }
+// }
+
+// impl EmbeddingModel {
+//     pub(super) fn call(
+//         &self,
+//         texts: Vec<String>,
+//     ) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
+//         match &self.model {
+//             ModelConfig::OpenAI(embeddings) => embeddings.call(texts),
+//         }
+//     }
+// }
 
 impl OpenAIEmbeddings {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {

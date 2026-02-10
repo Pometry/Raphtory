@@ -99,7 +99,9 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
-        println!("searching for similar entities to query with limit {limit} and window {window:?}");
+        println!(
+            "searching for similar entities to query with limit {limit} and window {window:?}"
+        );
         let view = apply_window(&self.source_graph, window);
         let node_query = self.node_db.top_k(query, limit, view.clone(), None);
         println!("initiated node similarity query");
@@ -109,9 +111,16 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         VectorsQuery::new(Box::pin(async move {
             println!("executing node similarity query");
             let nodes = node_query.execute().await?;
-            println!("found {} similar nodes, executing edge similarity query", nodes.len());
+            println!(
+                "found {} similar nodes, executing edge similarity query",
+                nodes.len()
+            );
             let edges = edge_query.execute().await?;
-            println!("found {} similar nodes and {} similar edges, merging results", nodes.len(), edges.len());
+            println!(
+                "found {} similar nodes and {} similar edges, merging results",
+                nodes.len(),
+                edges.len()
+            );
             let docs = find_top_k(nodes.into_iter().chain(edges), limit).collect::<Vec<_>>();
             println!("merged results, returning selection len: {}", docs.len());
             Ok(VectorSelection::new(cloned, docs))
@@ -169,5 +178,9 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
     /// Returns the embedding for the given text using the embedding model setup for this graph
     pub async fn embed_text<T: Into<String>>(&self, text: T) -> GraphResult<Embedding> {
         self.model.get_single(text.into()).await
+    }
+
+    pub fn model(&self) -> &CachedEmbeddingModel {
+        &self.model
     }
 }
