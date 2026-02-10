@@ -163,92 +163,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
-        let transaction_manager = self.core_graph().transaction_manager()?;
-        let wal = self.core_graph().wal()?;
-        let transaction_id = transaction_manager.begin_transaction();
-        let session = self.write_session().map_err(|err| err.into())?;
-        let node_ref = v.as_node_ref();
-
-        self.validate_gids(
-            [node_ref]
-                .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
-        )
-        .map_err(into_graph_err)?;
-
-        let props_with_status = self
-            .validate_props_with_status(
-                false,
-                self.node_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
-
-        let node_gid = node_ref.as_gid_ref().left();
-        let ti = time_from_input_session(&session, t)?;
-
-        // Start modifying the graph.
-        let node_id = {
-            let (node_id, node_type_id) = self
-                .resolve_and_update_node_and_type(node_ref, node_type)
-                .map_err(into_graph_err)?
-                .inner();
-
-            let node_id = node_id.inner();
-            let node_type_id = node_type_id.inner();
-
-            let props_for_wal = props_with_status
-                .iter()
-                .map(|maybe_new| {
-                    let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                    (prop_name.as_ref(), *prop_id, prop.clone())
-                })
-                .collect::<Vec<_>>();
-
-            // We don't care about logging the default node type.
-            let node_type_and_id = Some(node_type_id)
-                .filter(|&id| id != DEFAULT_NODE_TYPE_ID)
-                .and_then(|id| node_type.map(|name| (name, id)));
-
-            // Create a wal entry to mark operation as durable.
-            let lsn = wal.log_add_node(
-                transaction_id,
-                ti,
-                node_gid,
-                node_id,
-                node_type_and_id,
-                props_for_wal,
-            )?;
-
-            let props = props_with_status
-                .into_iter()
-                .map(|maybe_new| {
-                    let (_, prop_id, prop) = maybe_new.inner();
-                    (prop_id, prop)
-                })
-                .collect::<Vec<_>>();
-
-            let mut writer = self
-                .internal_add_node(ti, node_id, props)
-                .map_err(into_graph_err)?;
-
-            // Update node segment with the lsn of the wal entry.
-            writer.mut_segment.set_lsn(lsn);
-
-            self.core_graph()
-                .transaction_manager()?
-                .end_transaction(transaction_id);
-
-            // Segment lock can be released before flush to allow
-            // other operations to proceed.
-            drop(writer);
-
-            self.core_graph().wal()?.flush(lsn)?;
-
-            Ok::<_, GraphError>(node_id)
-        }?;
-
-        Ok(NodeView::new_internal(self.clone(), node_id))
+        let error_if_exists = false;
+        add_node_impl(self, t, v, props, node_type, error_if_exists)
     }
 
     fn create_node<
@@ -265,97 +181,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
-        let transaction_manager = self.core_graph().transaction_manager()?;
-        let wal = self.core_graph().wal()?;
-        let transaction_id = transaction_manager.begin_transaction();
-        let session = self.write_session().map_err(|err| err.into())?;
-        let node_ref = v.as_node_ref();
-
-        self.validate_gids(
-            [node_ref]
-                .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
-        )
-        .map_err(into_graph_err)?;
-
-        let props_with_status = self
-            .validate_props_with_status(
-                false,
-                self.node_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
-
-        let node_gid = node_ref.as_gid_ref().left();
-        let ti = time_from_input_session(&session, t)?;
-
-        // Start modifying the graph.
-        let node_id = {
-            let (node_id, node_type_id) = self
-                .resolve_and_update_node_and_type(node_ref, node_type)
-                .map_err(into_graph_err)?
-                .inner();
-
-            let is_new = node_id.is_new();
-            let node_id = node_id.inner();
-            let node_type_id = node_type_id.inner();
-
-            if !is_new {
-                let node_id = self.node(node_id).unwrap().id();
-                return Err(GraphError::NodeExistsError(node_id));
-            }
-
-            let props_for_wal = props_with_status
-                .iter()
-                .map(|maybe_new| {
-                    let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                    (prop_name.as_ref(), *prop_id, prop.clone())
-                })
-                .collect::<Vec<_>>();
-
-            let node_type_and_id = Some(node_type_id)
-                .filter(|&id| id != 0)
-                .and_then(|id| node_type.map(|name| (name, id)));
-
-            // Create a wal entry to mark operation as durable.
-            let lsn = wal.log_add_node(
-                transaction_id,
-                ti,
-                node_gid,
-                node_id,
-                node_type_and_id,
-                props_for_wal,
-            )?;
-
-            let props = props_with_status
-                .into_iter()
-                .map(|maybe_new| {
-                    let (_, prop_id, prop) = maybe_new.inner();
-                    (prop_id, prop)
-                })
-                .collect::<Vec<_>>();
-
-            let mut writer = self
-                .internal_add_node(ti, node_id, props)
-                .map_err(into_graph_err)?;
-
-            // Update node segment with the lsn of the wal entry.
-            writer.mut_segment.set_lsn(lsn);
-
-            self.core_graph()
-                .transaction_manager()?
-                .end_transaction(transaction_id);
-
-            // Segment lock can be released before flush to allow
-            // other operations to proceed.
-            drop(writer);
-
-            self.core_graph().wal()?.flush(lsn)?;
-
-            Ok::<_, GraphError>(node_id)
-        }?;
-
-        Ok(NodeView::new_internal(self.clone(), node_id))
+        let error_if_exists = true;
+        add_node_impl(self, t, v, props, node_type, error_if_exists)
     }
 
     fn add_edge<
@@ -492,4 +319,115 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .flush()
             .map_err(|err| MutationError::from(err).into())
     }
+}
+
+fn add_node_impl<
+    G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps,
+    V: AsNodeRef,
+    T: TryIntoInputTime,
+    PN: AsRef<str>,
+    P: Into<Prop>,
+    PII: IntoIterator<Item = (PN, P)>,
+>(
+    graph: &G,
+    t: T,
+    v: V,
+    props: PII,
+    node_type: Option<&str>,
+    error_if_exists: bool,
+) -> Result<NodeView<'static, G>, GraphError> {
+    let transaction_manager = graph.core_graph().transaction_manager()?;
+    let wal = graph.core_graph().wal()?;
+    let transaction_id = transaction_manager.begin_transaction();
+    let session = graph.write_session().map_err(|err| err.into())?;
+    let node_ref = v.as_node_ref();
+
+    graph
+        .validate_gids(
+            [node_ref]
+                .iter()
+                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+        )
+        .map_err(into_graph_err)?;
+
+    let props_with_status = graph
+        .validate_props_with_status(
+            false,
+            graph.node_meta(),
+            props.into_iter().map(|(k, v)| (k, v.into())),
+        )
+        .map_err(into_graph_err)?;
+
+    let node_gid = node_ref.as_gid_ref().left();
+    let ti = time_from_input_session(&session, t)?;
+
+    // Start modifying the graph.
+    let node_id = {
+        let (node_id, node_type_id) = graph
+            .resolve_and_update_node_and_type(node_ref, node_type)
+            .map_err(into_graph_err)?
+            .inner();
+
+        let is_new = node_id.is_new();
+        let node_id = node_id.inner();
+        let node_type_id = node_type_id.inner();
+
+        if error_if_exists && !is_new {
+            let node_id = graph.node(node_id).unwrap().id();
+            return Err(GraphError::NodeExistsError(node_id));
+        }
+
+        // We don't care about logging the default node type.
+        let node_type_and_id = Some(node_type_id)
+            .filter(|&id| id != DEFAULT_NODE_TYPE_ID)
+            .and_then(|id| node_type.map(|name| (name, id)));
+
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let mut writer = graph
+            .internal_add_node(ti, node_id, props)
+            .map_err(into_graph_err)?;
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        // Create a wal entry to mark operation as durable.
+        let lsn = wal.log_add_node(
+            transaction_id,
+            ti,
+            node_gid,
+            node_id,
+            node_type_and_id,
+            props_for_wal,
+        )?;
+
+        // Update node segment with the lsn of the wal entry.
+        writer.mut_segment.set_lsn(lsn);
+
+        graph
+            .core_graph()
+            .transaction_manager()?
+            .end_transaction(transaction_id);
+
+        // Segment lock can be released before flush to allow
+        // other operations to proceed.
+        drop(writer);
+
+        graph.core_graph().wal()?.flush(lsn)?;
+
+        Ok::<_, GraphError>(node_id)
+    }?;
+
+    Ok(NodeView::new_internal(graph.clone(), node_id))
 }
