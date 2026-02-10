@@ -8,7 +8,8 @@ use crate::{
 use arrow::{
     array::{Array, RecordBatch, StructArray},
     compute::cast,
-    datatypes::{DataType, Field, Fields},
+    datatypes::{DataType, Field, FieldRef, Fields, SchemaRef},
+    error::ArrowError,
 };
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
 #[cfg(feature = "storage")]
@@ -19,6 +20,7 @@ use std::{
     ffi::OsStr,
     fs,
     fs::File,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -398,6 +400,69 @@ pub fn get_parquet_file_paths(parquet_path: &Path) -> Result<Vec<PathBuf>, Graph
     Ok(parquet_files)
 }
 
+fn cast_type(old_type: &DataType, target_type: &PropType) -> Result<DataType, GraphError> {
+    let casted = match target_type {
+        PropType::List(inner) | PropType::Array(inner) => match old_type {
+            DataType::List(old_inner) => {
+                let casted_inner_dtype = cast_type(old_inner.data_type(), inner)?;
+                DataType::List(FieldRef::new(
+                    old_inner.deref().clone().with_data_type(casted_inner_dtype),
+                ))
+            }
+            DataType::ListView(old_inner) => {
+                let casted_inner_dtype = cast_type(old_inner.data_type(), inner)?;
+                DataType::ListView(FieldRef::new(
+                    old_inner.deref().clone().with_data_type(casted_inner_dtype),
+                ))
+            }
+            DataType::FixedSizeList(old_inner, len) => {
+                let casted_inner_dtype = cast_type(old_inner.data_type(), inner)?;
+                DataType::FixedSizeList(
+                    FieldRef::new(old_inner.deref().clone().with_data_type(casted_inner_dtype)),
+                    *len,
+                )
+            }
+            DataType::LargeList(old_inner) => {
+                let casted_inner_dtype = cast_type(old_inner.data_type(), inner)?;
+                DataType::LargeList(FieldRef::new(
+                    old_inner.deref().clone().with_data_type(casted_inner_dtype),
+                ))
+            }
+            DataType::LargeListView(old_inner) => {
+                let casted_inner_dtype = cast_type(old_inner.data_type(), inner)?;
+                DataType::LargeListView(FieldRef::new(
+                    old_inner.deref().clone().with_data_type(casted_inner_dtype),
+                ))
+            }
+            _ => Err(ArrowError::CastError(format!(
+                "Cannot cast {old_type:?} to {target_type:?}"
+            )))?,
+        },
+        PropType::Map(inner) => match old_type {
+            DataType::Struct(old_fields) => {
+                let casted_fields: Fields = old_fields
+                    .iter()
+                    .map(|old_field| match inner.get(old_field.name()) {
+                        None => Ok(old_field.clone()),
+                        Some(new_dtype) => {
+                            let casted_inner_dtype = cast_type(old_field.data_type(), new_dtype)?;
+                            Ok(FieldRef::new(
+                                old_field.deref().clone().with_data_type(casted_inner_dtype),
+                            ))
+                        }
+                    })
+                    .collect::<Result<_, GraphError>>()?;
+                DataType::Struct(casted_fields)
+            }
+            _ => Err(ArrowError::CastError(format!(
+                "Cannot cast {old_type:?} to {target_type:?}"
+            )))?,
+        },
+        _ => arrow_dtype_from_prop_type(target_type),
+    };
+    Ok(casted)
+}
+
 pub(crate) fn cast_columns(
     batch: RecordBatch,
     schema: &HashMap<String, PropType>,
@@ -405,18 +470,17 @@ pub(crate) fn cast_columns(
     let old_schema_ref = batch.schema();
     let old_fields = old_schema_ref.fields();
 
-    let mut target_fields: Vec<Field> = Vec::with_capacity(old_fields.len());
+    let mut target_fields: Vec<FieldRef> = Vec::with_capacity(old_fields.len());
 
     for field in old_fields.iter() {
-        if let Some(target_prop_type) = schema.get(field.name()) {
-            let target_dtype = arrow_dtype_from_prop_type(target_prop_type);
-            target_fields.push(
-                Field::new(field.name(), target_dtype, field.is_nullable())
-                    .with_metadata(field.metadata().clone()),
-            );
-        } else {
-            // schema doesn't say anything about this column
-            target_fields.push(field.as_ref().clone());
+        match schema.get(field.name()) {
+            None => target_fields.push(field.clone()),
+            Some(target_dtype) => {
+                let new_dtype = cast_type(field.data_type(), target_dtype)?;
+                target_fields.push(FieldRef::new(
+                    field.deref().clone().with_data_type(new_dtype),
+                ))
+            }
         }
     }
     let struct_array = StructArray::from(batch);
