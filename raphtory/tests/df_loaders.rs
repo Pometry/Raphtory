@@ -11,7 +11,7 @@ mod io_tests {
         io::arrow::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
-                edges::{load_edges_from_df, ColumnNames},
+                edges::{load_edges_from_df_prefetch, ColumnNames},
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
@@ -216,7 +216,7 @@ mod io_tests {
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
             let secondary_index = None;
-            load_edges_from_df(df_view,
+            load_edges_from_df_prefetch(df_view,
                 ColumnNames::new("time", secondary_index, "src", "dst", None),
                 true,
                 &props, &[], None, None, &g, false).unwrap();
@@ -290,7 +290,7 @@ mod io_tests {
         // Load edges into graph
         let g = Graph::new();
         let props = ["weight", "marbles"];
-        load_edges_from_df(
+        load_edges_from_df_prefetch(
             df_view,
             ColumnNames::new("time", None, "src", "dst", None),
             true,
@@ -359,7 +359,7 @@ mod io_tests {
         let props = ["str_prop", "int_prop"];
         let secondary_index = None;
 
-        load_edges_from_df(
+        load_edges_from_df_prefetch(
             df_view,
             ColumnNames::new("time", secondary_index, "src", "dst", None),
             true,
@@ -401,7 +401,7 @@ mod io_tests {
             let df_view = build_df_str(chunk_size, &edges);
             let g = Graph::new();
             let props = ["str_prop", "int_prop"];
-            load_edges_from_df(df_view, ColumnNames::new("time", None, "src", "dst", None), true, &props, &[], None, None, &g, false).unwrap();
+            load_edges_from_df_prefetch(df_view, ColumnNames::new("time", None, "src", "dst", None), true, &props, &[], None, None, &g, false).unwrap();
 
             let g2 = Graph::new();
 
@@ -421,7 +421,7 @@ mod io_tests {
         let df_view = build_df_str(1, &edges);
         let g = Graph::new();
         let props = ["str_prop", "int_prop"];
-        load_edges_from_df(
+        load_edges_from_df_prefetch(
             df_view,
             ColumnNames::new("time", None, "src", "dst", None),
             true,
@@ -460,7 +460,7 @@ mod io_tests {
         let secondary_index = Some("secondary_index");
 
         // Load edges from DataFrame with secondary_index
-        load_edges_from_df(
+        load_edges_from_df_prefetch(
             df_view,
             ColumnNames::new("time", secondary_index, "src", "dst", None),
             true,
@@ -519,7 +519,7 @@ mod io_tests {
             let props = ["str_prop", "int_prop"];
             let secondary_index = Some("secondary_index");
 
-            load_edges_from_df(
+            load_edges_from_df_prefetch(
                 df_view,
                 ColumnNames::new("time", secondary_index, "src", "dst", None),
                 true,
@@ -1178,13 +1178,13 @@ mod parquet_tests {
 
     #[test]
     fn write_nodes_any_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(0..10, 0..=10, 0..=10))| {
+        proptest!(|(nodes in build_nodes_dyn(0..=10, 0..=10, 0..=10))| {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
     fn write_edges_any_props_to_parquet() {
-        proptest!(|(edges in build_edge_list_dyn(0..=10, 0..10, 0..=10, 0..=10, true))| {
+        proptest!(|(edges in build_edge_list_dyn(0..=10, 0..=10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
     }
