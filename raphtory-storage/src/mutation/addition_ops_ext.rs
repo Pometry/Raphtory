@@ -6,7 +6,7 @@ use crate::mutation::{
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
-        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
         prop::{Prop, PropType, PropUnwrap},
     },
     storage::dict_mapper::MaybeNew,
@@ -94,25 +94,11 @@ where
     }
 
     fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.static_session.resolve_node_pos(vid);
-
-            self.static_session
-                .node_writers()
-                .get_mut_src()
-                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
-        };
+        self.static_session.store_src_node_info(vid, node_id);
     }
 
     fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.static_session.resolve_node_pos(vid);
-
-            self.static_session
-                .node_writers()
-                .get_mut_dst()
-                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
-        };
+        self.static_session.store_dst_node_info(vid, node_id);
     }
 
     fn set_lsn(&mut self, lsn: LSN) {

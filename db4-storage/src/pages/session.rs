@@ -2,7 +2,6 @@ use super::{
     GraphStore, edge_page::writer::EdgeWriter, node_page::writer::NodeWriters, resolve_pos,
 };
 use crate::{
-    LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     persist::strategy::PersistenceStrategy,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
@@ -10,11 +9,11 @@ use crate::{
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+    entities::properties::{meta::{NODE_ID_IDX, STATIC_GRAPH_LAYER_ID}, prop::Prop},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::{EID, ELID, VID},
+    entities::{EID, GidRef, ELID, VID},
     storage::timeindex::AsTime,
 };
 
@@ -50,8 +49,24 @@ impl<
         }
     }
 
-    pub fn resolve_node_pos(&self, vid: impl Into<VID>) -> LocalPOS {
-        self.graph.nodes().resolve_pos(vid.into()).1
+    pub fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
+        if let Some(id) = node_id {
+            let pos = self.graph.nodes().resolve_pos(vid.into()).1;
+
+            self.node_writers()
+                .get_mut_src()
+                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
+        }
+    }
+
+    pub fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
+        if let Some(id) = node_id {
+            let pos = self.graph.nodes().resolve_pos(vid.into()).1;
+
+            self.node_writers()
+                .get_mut_dst()
+                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
+        }
     }
 
     pub fn add_edge_into_layer<T: AsTime>(
