@@ -5,7 +5,8 @@ use crate::{
     db::{
         api::{
             state::{
-                GenericNodeState, MergePriority, NodeStateOutput, OutputTypedNodeState, TransformedPropMap, TypedNodeState, convert_prop_map, ops::Const
+                convert_prop_map, ops::Const, GenericNodeState, MergePriority, NodeStateOutput,
+                OutputTypedNodeState, TransformedPropMap, TypedNodeState,
             },
             view::DynamicGraph,
         },

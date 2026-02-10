@@ -1,5 +1,8 @@
 use crate::python::types::repr::Repr;
-use raphtory_api::core::{entities::properties::prop::{Prop, PropUntagged}, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::properties::prop::{Prop, PropUntagged},
+    storage::timeindex::EventTime,
+};
 
 impl Repr for PropUntagged {
     fn repr(&self) -> String {
