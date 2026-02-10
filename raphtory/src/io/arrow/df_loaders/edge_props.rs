@@ -37,9 +37,8 @@ use storage::{
 };
 
 #[allow(clippy::too_many_arguments)]
-fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    chunks: impl IntoIterator<Item = Result<DFChunk, GraphError>>,
-    df_view: DFView<impl Iterator<Item = ()>>,
+pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+    df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>>>,
     column_names: ColumnNames,
     resolve_nodes: bool,
     metadata: &[&str],
@@ -83,7 +82,7 @@ fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + Additi
     let mut dst_col_resolved: Vec<VID> = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
 
-    for chunk in chunks {
+    for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
             combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
@@ -163,42 +162,7 @@ fn load_edges_from_df_inner<G: StaticGraphViewOps + PropertyAdditionOps + Additi
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df_pandas<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    column_names: ColumnNames,
-    resolve_nodes: bool,
-    metadata: &[&str],
-    shared_metadata: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    graph: &G,
-) -> Result<(), GraphError> {
-    let DFView {
-        names,
-        chunks,
-        num_rows,
-    } = df_view;
-    let df_view_meta = DFView {
-        names,
-        chunks: std::iter::empty(),
-        num_rows,
-    };
-
-    load_edges_from_df_inner(
-        chunks,
-        df_view_meta,
-        column_names,
-        resolve_nodes,
-        metadata,
-        shared_metadata,
-        layer,
-        graph,
-    )?;
-
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
+pub fn load_edges_from_df_prefetch<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     column_names: ColumnNames,
     resolve_nodes: bool,
@@ -212,11 +176,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         chunks,
         num_rows,
     } = df_view;
-    let df_view_meta = DFView {
-        names,
-        chunks: std::iter::empty(),
-        num_rows,
-    };
     rayon::scope(|s| {
         let (tx, rx) = mpsc::sync_channel(2);
 
@@ -230,9 +189,14 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             }
         });
 
-        load_edges_from_df_inner(
-            rx,
-            df_view_meta,
+        let df_view_prefetch = DFView {
+            names,
+            chunks: rx,
+            num_rows,
+        };
+
+        load_edges_from_df(
+            df_view_prefetch,
             column_names,
             resolve_nodes,
             metadata,

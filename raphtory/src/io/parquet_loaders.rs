@@ -4,7 +4,7 @@ use crate::{
     io::arrow::{
         dataframe::*,
         df_loaders::{
-            edges::{load_edges_from_df, ColumnNames},
+            edges::{load_edges_from_df_prefetch, ColumnNames},
             nodes::{load_node_props_from_df, load_nodes_from_df},
             *,
         },
@@ -175,7 +175,7 @@ pub fn load_edges_from_parquet<G: StaticGraphViewOps + PropertyAdditionOps + Add
         num_rows: Some(count_rows),
     };
 
-    load_edges_from_df(
+    load_edges_from_df_prefetch(
         df_view,
         column_names,
         resolve_nodes,
@@ -268,7 +268,7 @@ pub fn load_edge_metadata_from_parquet<
             schema.clone(),
         )?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edges_props_from_df(
+        load_edges_props_from_df_prefetch(
             df_view,
             src,
             dst,
@@ -320,7 +320,7 @@ pub fn load_edge_deletions_from_parquet<
             schema.clone(),
         )?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_edge_deletions_from_df(df_view, column_names, resolve_nodes, layer, graph)?;
+        load_edge_deletions_from_df_prefetch(df_view, column_names, resolve_nodes, layer, graph)?;
     }
     Ok(())
 }

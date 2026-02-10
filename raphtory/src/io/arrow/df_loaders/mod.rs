@@ -60,10 +60,32 @@ fn process_shared_properties(
     }
 }
 
-pub(crate) fn load_edge_deletions_from_df<
+pub(crate) fn load_edge_deletions_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
+    column_names: ColumnNames,
+    resolve_nodes: bool,
+    layer: Option<&str>,
+    graph: &G,
+) -> Result<(), GraphError> {
+    edges::load_edges_from_df_prefetch(
+        df_view,
+        column_names,
+        resolve_nodes,
+        &[],
+        &[],
+        None,
+        layer,
+        graph,
+        true,
+    )
+}
+
+pub(crate) fn load_edge_deletions_from_df<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
+>(
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
     column_names: ColumnNames,
     resolve_nodes: bool,
     layer: Option<&str>,
@@ -82,29 +104,7 @@ pub(crate) fn load_edge_deletions_from_df<
     )
 }
 
-pub(crate) fn load_edge_deletions_from_df_pandas<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + DeletionOps,
->(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    column_names: ColumnNames,
-    resolve_nodes: bool,
-    layer: Option<&str>,
-    graph: &G,
-) -> Result<(), GraphError> {
-    edges::load_edges_from_df_pandas(
-        df_view,
-        column_names,
-        resolve_nodes,
-        &[],
-        &[],
-        None,
-        layer,
-        graph,
-        true,
-    )
-}
-
-pub(crate) fn load_edges_props_from_df<
+pub(crate) fn load_edges_props_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
@@ -117,31 +117,7 @@ pub(crate) fn load_edges_props_from_df<
     graph: &G,
     resolve_nodes: bool,
 ) -> Result<(), GraphError> {
-    edge_props::load_edges_from_df(
-        df_view,
-        ColumnNames::new("", None, src, dst, layer_col),
-        resolve_nodes,
-        metadata,
-        shared_metadata,
-        layer,
-        graph,
-    )
-}
-
-pub(crate) fn load_edges_props_from_df_pandas<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    src: &str,
-    dst: &str,
-    metadata: &[&str],
-    shared_metadata: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    layer_col: Option<&str>,
-    graph: &G,
-    resolve_nodes: bool,
-) -> Result<(), GraphError> {
-    edge_props::load_edges_from_df_pandas(
+    edge_props::load_edges_from_df_prefetch(
         df_view,
         ColumnNames::new("", None, src, dst, layer_col),
         resolve_nodes,
