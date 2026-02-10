@@ -6,7 +6,7 @@ use crate::mutation::{
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::properties::{
-        meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
         prop::{Prop, PropType, PropUnwrap},
     },
     storage::dict_mapper::MaybeNew,
@@ -237,6 +237,7 @@ impl InternalAdditionOps for TemporalGraph {
         let vid = self.resolve_node(id)?;
         let (segment_id, local_pos) = self.storage().nodes().resolve_pos(vid.inner());
         let mut writer = self.storage().nodes().writer(segment_id);
+
         let node_type_id = match node_type {
             None => {
                 writer.update_c_props(
@@ -290,7 +291,7 @@ impl InternalAdditionOps for TemporalGraph {
                 .node_meta()
                 .get_or_create_node_type_id(node_type)
                 .inner(),
-            None => 0,
+            None => DEFAULT_NODE_TYPE_ID,
         };
         Ok((vid, node_type_id))
     }

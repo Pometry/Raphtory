@@ -10,7 +10,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
+    entities::properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
@@ -199,6 +199,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 .map_err(into_graph_err)?
                 .inner();
 
+            let node_id = node_id.inner();
+            let node_type_id = node_type_id.inner();
+
             let props_for_wal = props_with_status
                 .iter()
                 .map(|maybe_new| {
@@ -207,8 +210,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            let node_type_and_id = Some(node_type_id.inner())
-                .filter(|&id| id != 0)
+            // We don't care about logging the default node type.
+            let node_type_and_id = Some(node_type_id)
+                .filter(|&id| id != DEFAULT_NODE_TYPE_ID)
                 .and_then(|id| node_type.map(|name| (name, id)));
 
             // Create a wal entry to mark operation as durable.
@@ -216,7 +220,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 transaction_id,
                 ti,
                 node_gid,
-                node_id.inner(),
+                node_id,
                 node_type_and_id,
                 props_for_wal,
             )?;
@@ -230,7 +234,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 .collect::<Vec<_>>();
 
             let mut writer = self
-                .internal_add_node(ti, node_id.inner(), props)
+                .internal_add_node(ti, node_id, props)
                 .map_err(into_graph_err)?;
 
             // Update node segment with the lsn of the wal entry.
@@ -246,7 +250,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
             self.core_graph().wal()?.flush(lsn)?;
 
-            Ok::<_, GraphError>(node_id.inner())
+            Ok::<_, GraphError>(node_id)
         }?;
 
         Ok(NodeView::new_internal(self.clone(), node_id))
@@ -303,6 +307,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
             let is_new = node_id.is_new();
             let node_id = node_id.inner();
+            let node_type_id = node_type_id.inner();
 
             if !is_new {
                 let node_id = self.node(node_id).unwrap().id();
@@ -317,7 +322,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            let node_type_and_id = Some(node_type_id.inner())
+            let node_type_and_id = Some(node_type_id)
                 .filter(|&id| id != 0)
                 .and_then(|id| node_type.map(|name| (name, id)));
 
