@@ -33,7 +33,8 @@ use std::{
     borrow::Cow,
     collections::{hash_map, HashMap},
     fmt::{Debug, Formatter},
-    ops::{Range, RangeInclusive},
+    mem,
+    ops::{Deref, Range, RangeInclusive},
     sync::Arc,
 };
 
@@ -902,7 +903,7 @@ fn edge_updates(
 }
 
 pub fn build_nodes_dyn(
-    num_nodes: Range<usize>,
+    num_nodes: RangeInclusive<usize>,
     num_props: RangeInclusive<usize>,
     num_updates: RangeInclusive<usize>,
 ) -> impl Strategy<Value = NodeFixture> {
@@ -929,7 +930,7 @@ pub fn build_nodes_dyn(
 
 pub fn build_edge_list_dyn(
     num_edges: RangeInclusive<usize>,
-    num_nodes: Range<usize>,
+    num_nodes: RangeInclusive<usize>,
     num_properties: RangeInclusive<usize>,
     num_updates: RangeInclusive<usize>,
     del_edges: bool,
@@ -974,7 +975,7 @@ pub fn build_graph_strat(
     del_edges: bool,
 ) -> impl Strategy<Value = GraphFixture> {
     build_graph_strat_r(
-        0..num_nodes,
+        0..=num_nodes,
         0..=num_edges,
         0..=num_properties,
         0..=num_updates,
@@ -983,7 +984,7 @@ pub fn build_graph_strat(
 }
 
 pub fn build_graph_strat_r(
-    num_nodes: Range<usize>,
+    num_nodes: RangeInclusive<usize>,
     num_edges: RangeInclusive<usize>,
     num_properties: RangeInclusive<usize>,
     num_updates: RangeInclusive<usize>,
@@ -1212,6 +1213,154 @@ pub fn node_filtered_graph(
             .filter(|(.., str_v, int_v)| filter(*str_v, int_v.as_ref())),
     );
     g
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub enum GraphMutation {
+    AddNode {
+        node: u64,
+        time: i64,
+        props: Vec<(String, Prop)>,
+        node_type: Option<Cow<'static, str>>,
+        metadata: Vec<(String, Prop)>,
+    },
+    AddEdge {
+        src: u64,
+        dst: u64,
+        time: i64,
+        layer: Option<Cow<'static, str>>,
+        props: Vec<(String, Prop)>,
+        metadata: Vec<(String, Prop)>,
+    },
+    DeleteEdge {
+        src: u64,
+        dst: u64,
+        time: i64,
+        layer: Option<Cow<'static, str>>,
+    },
+    DropAndLoad,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct GraphMutations(pub Vec<GraphMutation>);
+
+impl Deref for GraphMutations {
+    type Target = Vec<GraphMutation>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl IntoIterator for GraphMutations {
+    type Item = GraphMutation;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl Debug for GraphMutations {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
+}
+
+impl Debug for GraphMutation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct TestInput {
+    pub fixture: GraphFixture,
+    pub updates: GraphMutations,
+}
+
+impl Debug for TestInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let json = serde_json::to_string(self).unwrap();
+        f.write_str(&json)
+    }
+}
+
+pub fn generate_mutations(
+    num_nodes: RangeInclusive<usize>,
+    num_edges: RangeInclusive<usize>,
+    num_properties: RangeInclusive<usize>,
+    num_updates: RangeInclusive<usize>,
+    num_drops: usize,
+) -> impl Strategy<Value = TestInput> {
+    let fixture = build_graph_strat_r(num_nodes, num_edges, num_properties, num_updates, true);
+    let drops = 0..=num_drops;
+
+    (fixture, drops).prop_perturb(|(fixture, num_drops), mut rng| {
+        let mut updates = Vec::new();
+        let mut earliest = i64::MAX;
+        let mut latest = i64::MIN;
+
+        for (node, update_fixture) in fixture.nodes.clone() {
+            let mut c_props = update_fixture.props.c_props;
+            let node_type = update_fixture.node_type;
+
+            for (time, props) in update_fixture.props.t_props {
+                let metadata = mem::take(&mut c_props);
+                earliest = earliest.min(time);
+                latest = latest.max(time);
+
+                updates.push(GraphMutation::AddNode {
+                    node,
+                    time,
+                    props,
+                    node_type: node_type.clone(),
+                    metadata,
+                })
+            }
+        }
+
+        for ((src, dst, layer), update_fixture) in fixture.edges.clone() {
+            let mut c_props = update_fixture.props.c_props;
+
+            for (time, props) in update_fixture.props.t_props {
+                let metadata = mem::take(&mut c_props);
+                earliest = earliest.min(time);
+                latest = latest.max(time);
+                updates.push(GraphMutation::AddEdge {
+                    src,
+                    dst,
+                    time,
+                    layer: layer.clone(),
+                    props,
+                    metadata,
+                })
+            }
+
+            for time in update_fixture.deletions {
+                earliest = earliest.min(time);
+                latest = latest.max(time);
+                updates.push(GraphMutation::DeleteEdge {
+                    time,
+                    src,
+                    dst,
+                    layer: layer.clone(),
+                })
+            }
+        }
+
+        for _ in 0..num_drops {
+            updates.push(GraphMutation::DropAndLoad);
+        }
+
+        updates.shuffle(&mut rng);
+        TestInput {
+            fixture,
+            updates: GraphMutations(updates),
+        }
+    })
 }
 
 #[cfg(test)]
