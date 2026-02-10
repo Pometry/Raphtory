@@ -10,8 +10,10 @@ members = [
     "raphtory-api",
     "raphtory-core",
     "raphtory-storage", "raphtory-api-macros", "fast_merge",
+    "clam-core",
 ]
 default-members = ["raphtory"]
+exclude = ["optd"]
 resolver = "2"
 
 [workspace.package]
@@ -55,6 +57,7 @@ raphtory-api-macros = { version = "0.17.0", path = "raphtory-api-macros", defaul
 raphtory-core = { version = "0.17.0", path = "raphtory-core", default-features = false }
 raphtory-graphql = { version = "0.17.0", path = "raphtory-graphql", default-features = false }
 raphtory-storage = { version = "0.17.0", path = "raphtory-storage", default-features = false }
+clam-core = { path = "clam-core" }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
 bincode = { version = "2", features = ["serde"] }
 async-graphql-poem = "7.0.16"
@@ -181,4 +184,3 @@ test-log = "0.2.19"
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
-
