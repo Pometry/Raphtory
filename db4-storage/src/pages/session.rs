@@ -9,11 +9,14 @@ use crate::{
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{meta::{NODE_ID_IDX, STATIC_GRAPH_LAYER_ID}, prop::Prop},
+    entities::properties::{
+        meta::{NODE_ID_IDX, STATIC_GRAPH_LAYER_ID},
+        prop::Prop,
+    },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::{EID, GidRef, ELID, VID},
+    entities::{EID, ELID, GidRef, VID},
     storage::timeindex::AsTime,
 };
 
@@ -53,9 +56,11 @@ impl<
         if let Some(id) = node_id {
             let pos = self.graph.nodes().resolve_pos(vid.into()).1;
 
-            self.node_writers()
-                .get_mut_src()
-                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
+            self.node_writers().get_mut_src().update_c_props(
+                pos,
+                STATIC_GRAPH_LAYER_ID,
+                [(NODE_ID_IDX, id.into())],
+            );
         }
     }
 
@@ -63,9 +68,11 @@ impl<
         if let Some(id) = node_id {
             let pos = self.graph.nodes().resolve_pos(vid.into()).1;
 
-            self.node_writers()
-                .get_mut_dst()
-                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
+            self.node_writers().get_mut_dst().update_c_props(
+                pos,
+                STATIC_GRAPH_LAYER_ID,
+                [(NODE_ID_IDX, id.into())],
+            );
         }
     }
 

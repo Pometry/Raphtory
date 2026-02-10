@@ -514,7 +514,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                 });
 
                 // The segment has been created.
-                if segment_id <= new_segment_id  {
+                if segment_id <= new_segment_id {
                     loop {
                         if let Some(segment) = self.segments.get(segment_id) {
                             return segment;
