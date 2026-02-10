@@ -298,6 +298,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
     ///             fails unless the layer matches the edge view. If the edge view is not restricted
     ///             to a single layer, 'None' sets the properties on the default layer and 'Some("name")'
     ///             sets the properties on layer '"name"' and fails if that layer doesn't exist.
+    ///
+    /// Returns:
+    ///     Ok(()) if metadata added successfully.
+    ///     Err(GraphError) if the operation fails.
     pub fn add_metadata<C: CollectProperties>(
         &self,
         properties: C,

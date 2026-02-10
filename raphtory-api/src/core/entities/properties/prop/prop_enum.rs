@@ -25,9 +25,49 @@ pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equ
 #[error("Decimal {0} too large.")]
 pub struct InvalidBigDecimal(BigDecimal);
 
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct PropUntagged(#[serde(with = "PropUntaggedDef")] pub Prop);
+
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+#[serde(remote = "Prop")]
+enum PropUntaggedDef {
+    Str(ArcStr),
+    U8(u8),
+    U16(u16),
+    I32(i32),
+    I64(i64),
+    U32(u32),
+    U64(u64),
+    F64(f64),
+    F32(f32),
+    Bool(bool),
+    #[cfg(feature = "arrow")]
+    Array(PropArray),
+    List(Arc<Vec<Prop>>),
+    Map(Arc<FxHashMap<ArcStr, Prop>>),
+    NDTime(NaiveDateTime),
+    DTime(DateTime<Utc>),
+    Decimal(BigDecimal),
+}
+
+impl From<Prop> for PropUntagged {
+    fn from(p: Prop) -> Self { PropUntagged(p) }
+}
+
+impl From<PropUntagged> for Prop {
+    fn from(p: PropUntagged) -> Self { p.0 }
+}
+
+impl PartialEq<Prop> for PropUntagged {
+    fn eq(&self, other: &Prop) -> bool {
+        self.0.clone().try_cast(other.dtype()).map_or(false, |p| p == *other)
+    }
+}
+
 /// Denotes the types of properties allowed to be stored in the graph.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-#[serde(untagged)]
 pub enum Prop {
     Str(ArcStr),
     U8(u8),
@@ -36,8 +76,8 @@ pub enum Prop {
     I64(i64),
     U32(u32),
     U64(u64),
-    F32(f32),
     F64(f64),
+    F32(f32),
     Bool(bool),
     #[cfg(feature = "arrow")]
     Array(PropArray),

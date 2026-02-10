@@ -230,7 +230,7 @@ Join the growing community of open-source enthusiasts using Raphtory to power th
 
 - Follow [![Slack](https://img.shields.io/twitter/follow/raphtory?label=@raphtory)](https://twitter.com/raphtory) for the latest Raphtory news and development
 
-- Join our [![Slack](https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg) to chat with us and get answers to your questions!
+- Join our [Slack](https://join.slack.com/t/raphtory/shared_invite/zt-38j5i1bib-9BovBVoRTJB71APB_VzHyg) to chat with us and get answers to your questions!
 
 ### Contributors
 

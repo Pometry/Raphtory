@@ -91,13 +91,11 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
             level += 1;
         }
     }
-    let (targets, paths): (Vec<_>, Vec<_>) = paths.into_iter().unzip();
     TypedNodeState::new_mapped(
-        GenericNodeState::new_from_eval_with_index_mapped(
+        GenericNodeState::new_from_map(
             g.clone(),
             paths,
-            Some(Index::from_iter(targets)),
-            |value| PathState { path: value },
+            |path| PathState { path },
             Some(HashMap::from([(
                 "path".to_string(),
                 (NodeStateOutputType::Nodes, None),

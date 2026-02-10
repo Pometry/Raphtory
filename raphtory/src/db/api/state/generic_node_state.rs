@@ -28,7 +28,7 @@ use parquet::{
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
-use raphtory_api::core::entities::properties::prop::{Prop, PropType, PropUnwrap};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType, PropUntagged, PropUnwrap};
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -80,7 +80,7 @@ pub enum MergePriority {
 pub enum NodeStateOutput<'graph, G: GraphViewOps<'graph>> {
     Node(NodeView<'graph, G>),
     Nodes(Nodes<'graph, G, G>),
-    Prop(Option<Prop>),
+    Prop(Option<PropUntagged>),
 }
 
 // This exists because GenericNodeStates have a data structure (node_cols) exposing which columns contain nodes.
@@ -93,7 +93,16 @@ pub enum NodeStateOutputType {
 
 // Rows of TypedNodeStates containing references to nodes are first deserialized into this type,
 // a map of column names to generic values.
-pub type PropMap = IndexMap<String, Option<Prop>>;
+pub type PropMap = IndexMap<String, Option<PropUntagged>>;
+
+pub fn convert_prop_map<A, B>(map: IndexMap<String, Option<A>>) -> IndexMap<String, Option<B>>
+where
+    B: From<A>,
+{
+    map.into_iter()
+        .map(|(k, v)| (k, v.map(Into::into)))
+        .collect()
+}
 
 // Then, using node_cols, the values which are actually nodes get converted into the correct NodeStateOutput variant.
 pub type TransformedPropMap<'graph, G> = IndexMap<String, NodeStateOutput<'graph, G>>;
@@ -139,7 +148,7 @@ pub struct GenericNodeState<'graph, G> {
     pub(crate) keys: Option<Index<VID>>,
     // Data structure mapping which columns are node-containing and, if so, which graph they belong to
     // note: maybe change that Option<G> to a Option<Box<dyn GraphViewOps>> or something
-    node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
+    pub node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -262,7 +271,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 } else {
                     let (node_state_type, base_graph) = node_col_entry.unwrap();
                     if node_state_type == &NodeStateOutputType::Node {
-                        if let Some(Prop::U64(vid)) = value {
+                        if let Some(PropUntagged(Prop::U64(vid))) = value {
                             result = Some((
                                 key,
                                 NodeStateOutput::Node(NodeView::new_internal(
@@ -272,7 +281,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                             ));
                         }
                     } else if node_state_type == &NodeStateOutputType::Nodes {
-                        if let Some(Prop::Array(vid_arr)) = value {
+                        if let Some(PropUntagged(Prop::Array(vid_arr))) = value {
                             return (
                                 key,
                                 NodeStateOutput::Nodes(Nodes::new_filtered(
@@ -287,9 +296,9 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                                 )),
                             );
                         } else if let Some(PropType::List(_)) =
-                            value.as_ref().map(|value| value.dtype())
+                            value.as_ref().map(|value| value.0.dtype())
                         {
-                            if let Some(Prop::List(vid_list)) = value {
+                            if let Some(PropUntagged(Prop::List(vid_list))) = value {
                                 if let Some(vid_list) = Arc::into_inner(vid_list) {
                                     result = Some((
                                         key,
@@ -762,6 +771,12 @@ impl<
             .collect()
     }
 
+    pub fn to_transformed_hashmap(&self) -> HashMap<String, T> {
+        self.iter()
+            .map(|(node, value)| (node.name(), self.convert(value.clone())))
+            .collect()
+    }
+
     pub fn to_output_nodestate(self) -> OutputTypedNodeState<'graph, G> {
         TypedNodeState::new_mapped(self.state, GenericNodeState::get_nodes)
     }
@@ -806,6 +821,21 @@ impl<
 {
     fn eq(&self, other: &Vec<RHS>) -> bool {
         self.values_to_rows().par_iter().eq(other)
+    }
+}
+
+impl<
+        'graph,
+        T: Clone + Sync + Send + 'graph,
+        G: GraphViewOps<'graph>,
+    > PartialEq<Vec<IndexMap<String, Option<Prop>>>> for TypedNodeState<'graph, PropMap, G, T>
+{
+    fn eq(&self, other: &Vec<IndexMap<String, Option<Prop>>>) -> bool {
+        let rows: Vec<_> = self.values_to_rows();
+        rows.len() == other.len()
+            && rows.into_par_iter()
+                .zip(other.par_iter())
+                .all(|(a, b)| convert_prop_map::<PropUntagged, Prop>(a) == *b)
     }
 }
 
@@ -859,10 +889,10 @@ impl<'graph, G: GraphViewOps<'graph>> OutputTypedNodeState<'graph, G> {
                 let rhs_val = rhs_val.unwrap();
 
                 let casted_rhs = rhs_val
-                    .try_cast(lhs_val.dtype())
+                    .try_cast(lhs_val.0.dtype())
                     .map_err(|_| "Failed to cast rhs value")?;
 
-                if casted_rhs != lhs_val {
+                if casted_rhs != lhs_val.0 {
                     return Ok(false);
                 }
             }
@@ -992,13 +1022,17 @@ impl<
         index: usize,
     ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
         let vid = match &self.state.keys {
-            Some(node_index) => node_index.key(index).unwrap(),
-            None => VID(index),
+            Some(node_index) => node_index.key(index),
+            None => Some(VID(index)),
         };
-        Some((
-            NodeView::new_internal(&self.state.base_graph, vid),
-            self.get_by_node(vid).unwrap(), // &self.values[index],
-        ))
+        if let Some(vid) = vid {
+            Some((
+                NodeView::new_internal(&self.state.base_graph, vid),
+                self.get_by_node(vid).unwrap(), // &self.values[index],
+            ))
+        } else {
+            return None;
+        }
     }
 
     fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value> {
@@ -1045,6 +1079,24 @@ impl<
 }
 
 impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
+    fn take_values<V: NodeStateValue>(index: &Option<Index<VID>>, values: Vec<V>) -> Vec<V> {
+        let Some(index) = index else {
+            return values;
+        };
+
+        let mut values: Vec<Option<V>> = values.into_iter().map(Some).collect();
+
+        index
+            .iter()
+            .map(|vid| {
+                values
+                    .get_mut(vid.0)
+                    .and_then(Option::take)
+                    .expect("index out of bounds")
+            })
+            .collect()
+    }
+
     pub fn new_from_eval_with_index<V: NodeStateValue>(
         graph: G,
         values: Vec<V>,
@@ -1063,6 +1115,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
+        let values = Self::take_values(&index, values);
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
         Self::new(graph, values, index, node_cols)
     }

@@ -384,8 +384,8 @@ mod in_component_test {
                     (
                         k.name(),
                         v.in_components
-                            .iter()
-                            .map(|value| value.as_u64())
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )
@@ -687,8 +687,8 @@ mod components_test {
                     (
                         k.name(),
                         v.out_components
-                            .iter()
-                            .map(|value| value.as_u64())
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )

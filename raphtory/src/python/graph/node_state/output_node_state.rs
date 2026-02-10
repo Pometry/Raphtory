@@ -5,8 +5,7 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::Const, GenericNodeState, MergePriority, NodeStateOutput, OutputTypedNodeState,
-                TransformedPropMap, TypedNodeState,
+                GenericNodeState, MergePriority, NodeStateOutput, OutputTypedNodeState, TransformedPropMap, TypedNodeState, convert_prop_map, ops::Const
             },
             view::DynamicGraph,
         },
@@ -29,6 +28,7 @@ use pyo3::{
     types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
 };
+use raphtory_api::core::entities::properties::prop::PropUntagged;
 
 #[pyclass(
     name = "OutputNodeState",
@@ -82,6 +82,7 @@ impl PyOutputNodeState {
                         self.inner
                             .get_by_node(node_ref)
                             .map(|l_value| {
+                                let l_value = convert_prop_map::<PropUntagged, Prop>(l_value);
                                 if let Ok(l_value_py) = l_value.into_bound_py_any(py) {
                                     l_value_py.eq(value).unwrap_or(false)
                                 } else {
@@ -286,7 +287,7 @@ impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
         Ok(match self {
             NodeStateOutput::Node(node_view) => node_view.into_pyobject(py)?.into_any(),
             NodeStateOutput::Nodes(nodes) => nodes.into_pyobject(py)?.into_any(),
-            NodeStateOutput::Prop(prop) => prop.into_pyobject(py)?.into_any(),
+            NodeStateOutput::Prop(prop) => prop.map(Prop::from).into_pyobject(py)?.into_any(),
         })
     }
 }
@@ -309,7 +310,7 @@ impl<'py> FromPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
         }
 
         if let Ok(prop) = ob.extract::<Option<Prop>>() {
-            return Ok(NodeStateOutput::Prop(prop));
+            return Ok(NodeStateOutput::Prop(prop.map(PropUntagged::from)));
         }
 
         return Err(PyTypeError::new_err("Invalid type conversion"));

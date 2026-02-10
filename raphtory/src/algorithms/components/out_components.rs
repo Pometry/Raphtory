@@ -20,8 +20,6 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use indexmap::IndexSet;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
 
@@ -211,17 +209,10 @@ where
         }
     }
 
-    let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
-        out_components.into_iter().sorted().unzip();
-    Ok(TypedNodeState::new(
-        GenericNodeState::new_from_eval_with_index(
-            node.graph.clone(),
-            distances
-                .into_iter()
-                .map(|value| OutComponentState { distance: value })
-                .collect(),
-            Some(Index::new(nodes)),
-            None,
-        ),
-    ))
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
+        node.graph.clone(),
+        out_components,
+        |distance| OutComponentState { distance },
+        None,
+    )))
 }
