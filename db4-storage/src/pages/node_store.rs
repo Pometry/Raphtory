@@ -62,7 +62,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
     ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
         let locked_segment = &self.locked_segments.get(segment_id)?;
-        Some(locked_segment.entry_ref(pos))
+        if pos.0 < locked_segment.num_nodes() {
+            Some(locked_segment.entry_ref(pos))
+        } else {
+            None
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -300,7 +304,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub fn try_node(&self, node: VID) -> Option<NS::Entry<'_>> {
         let (page_id, pos) = self.resolve_pos(node);
         let node_page = self.segments.get(page_id)?;
-        Some(node_page.entry(pos))
+        if pos.0 < node_page.num_nodes() {
+            Some(node_page.entry(pos))
+        } else {
+            None
+        }
     }
 
     #[inline(always)]
