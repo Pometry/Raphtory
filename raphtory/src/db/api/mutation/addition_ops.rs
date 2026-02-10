@@ -13,7 +13,6 @@ use raphtory_api::core::{
     entities::properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_core::entities::nodes::node_ref::NodeRef;
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
     durability_ops::DurabilityOps,
@@ -185,11 +184,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
 
-        let node_gid = match node_ref {
-            NodeRef::Internal(_) => None,
-            NodeRef::External(gid_ref) => Some(gid_ref),
-        };
-
+        let node_gid = node_ref.as_gid_ref().left();
         let ti = time_from_input_session(&session, t)?;
 
         // Start modifying the graph.
@@ -291,11 +286,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
 
-        let node_gid = match node_ref {
-            NodeRef::Internal(_) => None,
-            NodeRef::External(gid_ref) => Some(gid_ref),
-        };
-
+        let node_gid = node_ref.as_gid_ref().left();
         let ti = time_from_input_session(&session, t)?;
 
         // Start modifying the graph.
@@ -405,16 +396,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .map_err(into_graph_err)?;
 
         let ti = time_from_input_session(&session, t)?;
-
-        let src_gid = match src {
-            NodeRef::Internal(_) => None,
-            NodeRef::External(gid_ref) => Some(gid_ref),
-        };
-
-        let dst_gid = match dst {
-            NodeRef::Internal(_) => None,
-            NodeRef::External(gid_ref) => Some(gid_ref),
-        };
+        let src_gid = src.as_gid_ref().left();
+        let dst_gid = dst.as_gid_ref().left();
 
         // Start modifying the graph.
         let (edge_id, src_id, dst_id, layer_id) = {
@@ -477,8 +460,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 props,
             );
 
-            add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
-            add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
+            add_edge_op.store_src_node_info(src_id, src_gid);
+            add_edge_op.store_dst_node_info(dst_id, dst_gid);
 
             // Update the src, dst and edge segments with the lsn of the wal entry.
             add_edge_op.set_lsn(lsn);
