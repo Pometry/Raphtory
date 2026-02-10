@@ -410,7 +410,7 @@ fn materialize_impl(
             new_eids.push(new_eid);
             max_eid = new_eid.0.max(max_eid);
         }
-        new_storage.resize_chunks_to_eid(EID(max_eid));
+        new_storage.resize_segments_to_eid(EID(max_eid));
 
         for layer_id in &layer_map {
             new_storage.edges.ensure_layer(*layer_id);

@@ -47,10 +47,6 @@ where
         let node_max_page_len = self.graph().extension().config().max_node_page_len();
         let edge_max_page_len = self.graph().extension().config().max_edge_page_len();
 
-        // Insert prop ids into edge meta.
-        // No need to validate props again since they are already validated before
-        // being logged to the WAL.
-
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
             self.graph()
@@ -66,14 +62,14 @@ where
 
         // Grab src writer and add edge data.
         let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
-        let resize_vid = VID::from(src_id.index() + 1);
-        self.resize_chunks_to_vid(resize_vid); // Create enough segments.
+        self.resize_segments_to_vid(src_id); // Create enough segments.
 
         let segment = self
             .graph()
             .storage()
             .nodes()
             .get_or_create_segment(src_segment_id);
+
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
@@ -114,14 +110,14 @@ where
 
         // Grab dst writer and add edge data.
         let (dst_segment_id, dst_pos) = resolve_pos(dst_id, node_max_page_len);
-        let resize_vid = VID::from(dst_id.index() + 1);
-        self.resize_chunks_to_vid(resize_vid);
+        self.resize_segments_to_vid(dst_id);
 
         let segment = self
             .graph()
             .storage()
             .nodes()
             .get_or_create_segment(dst_segment_id);
+
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
@@ -159,22 +155,24 @@ where
 
         // Grab edge writer and add temporal props & metadata.
         let (edge_segment_id, edge_pos) = resolve_pos(eid, edge_max_page_len);
-        let resize_eid = EID::from(eid.index() + 1);
-        self.resize_chunks_to_eid(resize_eid);
+        self.resize_segments_to_eid(eid);
 
         let segment = self
             .graph()
             .storage()
             .edges()
             .get_or_create_segment(edge_segment_id);
+
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
             let edge_meta = self.graph().edge_meta();
 
+            // Insert prop ids into edge meta.
             for (prop_name, prop_id, prop_value) in &props {
                 let prop_mapper = edge_meta.temporal_prop_mapper();
+
                 match prop_mapper.get_dtype(*prop_id) {
                     None => {
                         prop_mapper.set_id_and_dtype(
@@ -254,14 +252,14 @@ where
         // Resolve segment and check LSN.
         let node_max_page_len = self.graph().extension().config().max_node_page_len();
         let (segment_id, pos) = resolve_pos(node_id, node_max_page_len);
-        let resize_vid = VID::from(node_id.index() + 1);
-        self.resize_chunks_to_vid(resize_vid);
+        self.resize_segments_to_vid(node_id);
 
         let segment = self
             .graph()
             .storage()
             .nodes()
             .get_or_create_segment(segment_id);
+
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
