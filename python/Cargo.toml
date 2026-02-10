@@ -28,10 +28,12 @@ raphtory = { workspace = true, features = [
 raphtory-graphql = { workspace = true, features = [
     "python", "search"
 ] }
+clam-core = { path = "../clam-core", features = ["python"] }
 
 [features]
 storage = ["raphtory/storage", "raphtory-graphql/storage"]
 extension-module = ["pyo3/extension-module"]
+
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }

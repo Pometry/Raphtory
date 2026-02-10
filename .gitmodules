@@ -4,3 +4,9 @@
 [submodule "ui-tests"]
 	path = ui-tests
 	url = git@github.com:Pometry/ui-tests.git
+[submodule "optd"]
+	path = optd
+	url = https://github.com/Pometry/optd.git
+[submodule "clam-core"]
+	path = clam-core
+	url = https://github.com/Pometry/optd-graph.git
