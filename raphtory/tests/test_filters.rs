@@ -2511,7 +2511,7 @@ mod test_node_filter {
 
         let typed_state = dummy_typed_nodestate_bool_col(graph.clone());
 
-        let filtered = graph.filter(NodeFilter::by_state_column(&typed_state, "bool_col1").unwrap()).unwrap();
+        let filtered = graph.filter(NodeFilter::by_column(&typed_state, "bool_col1").unwrap()).unwrap();
 
         let names = filtered.nodes()
             .iter()
@@ -2520,7 +2520,7 @@ mod test_node_filter {
 
         println!("filtered ids: {:?}", names);
         
-        let filtered = graph.nodes().select(NodeFilter::by_state_column(&typed_state, "bool_col1").unwrap()).unwrap();
+        let filtered = graph.nodes().select(NodeFilter::by_column(&typed_state, "bool_col1").unwrap()).unwrap();
 
         let names = filtered
             .iter()

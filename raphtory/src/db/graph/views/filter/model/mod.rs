@@ -68,7 +68,7 @@ pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
 pub mod windowed_filter;
-mod node_state_filter;
+pub mod node_state_filter;
 
 pub trait Wrap {
     type Wrapped<T>;

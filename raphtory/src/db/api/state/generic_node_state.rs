@@ -47,6 +47,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use crate::db::graph::views::filter::model::node_state_filter::NodeStateBoolColOp;
 
 // The bundle of traits which are useful/essential for the underlying value types
 // of a GenericNodeState.
@@ -793,6 +794,16 @@ impl<
 
     pub fn convert(&self, value: V) -> T {
         (self.converter)(&self.state, value)
+    }
+}
+
+impl<'graph, V, G, T> TypedNodeState<'graph, V, G, T>
+where
+    V: NodeStateValue + 'graph,
+    T: Clone + Send + Sync + 'graph,
+{
+    pub fn bool_col_filter(&self, col: &str) -> Result<NodeStateBoolColOp, GraphError> {
+        NodeStateBoolColOp::new(self, col)
     }
 }
 
