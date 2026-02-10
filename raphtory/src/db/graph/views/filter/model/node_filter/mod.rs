@@ -36,6 +36,8 @@ use crate::{
 };
 use raphtory_api::core::storage::timeindex::EventTime;
 use std::{fmt, fmt::Display, sync::Arc};
+use crate::db::api::state::{NodeStateValue, TypedNodeState};
+use crate::db::graph::views::filter::model::node_state_filter::{NodeStateFilter};
 
 pub mod builders;
 pub mod ops;
@@ -64,6 +66,20 @@ impl NodeFilter {
     #[inline]
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
+    }
+
+    /// Build a filter from a boolean column inside a TypedNodeState.
+    pub fn by_state_column<'graph, V, G, T>(
+        state: &TypedNodeState<'graph, V, G, T>,
+        col: &str,
+    ) -> Result<NodeStateFilter, GraphError>
+    where
+        V: NodeStateValue + 'graph,
+        T: Clone + Send + Sync + 'graph,
+    {
+
+        let op = state.bool_col_filter(col)?;
+        Ok(NodeStateFilter(Arc::new(op)))
     }
 }
 

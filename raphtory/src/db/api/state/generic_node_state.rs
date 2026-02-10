@@ -136,11 +136,23 @@ where
 pub struct GenericNodeState<'graph, G> {
     pub base_graph: G,
     values: RecordBatch,
-    keys: Option<Index<VID>>,
+    pub(crate) keys: Option<Index<VID>>,
     // Data structure mapping which columns are node-containing and, if so, which graph they belong to
     // note: maybe change that Option<G> to a Option<Box<dyn GraphViewOps>> or something
     node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G> GenericNodeState<'graph, G> {
+    #[inline]
+    pub fn values_ref(&self) -> &RecordBatch {
+        &self.values
+    }
+
+    #[inline]
+    pub fn keys_ref(&self) -> Option<&Index<VID>> {
+        self.keys.as_ref()
+    }
 }
 
 // This is what most code will interface with. A TypedNodeState is a wrapper around a GenericNodeState

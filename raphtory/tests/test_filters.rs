@@ -1651,10 +1651,13 @@ fn init_edges_graph_with_str_ids_del<
 
 #[cfg(test)]
 mod test_node_filter {
+    use std::collections::HashMap;
     use crate::{
         init_nodes_graph, init_nodes_graph_with_num_ids, init_nodes_graph_with_str_ids,
         IdentityGraphTransformer,
     };
+    use raphtory::db::api::state::{GenericNodeState, TypedNodeState};
+    use raphtory::prelude::{AdditionOps, NO_PROPS};
     use raphtory::{
         db::{
             api::view::filter_ops::NodeSelect,
@@ -1672,6 +1675,8 @@ mod test_node_filter {
         },
         prelude::{Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps},
     };
+    use raphtory::db::api::view::Filter;
+    use raphtory_api::core::entities::VID;
 
     #[test]
     fn test_node_list_is_preserved() {
@@ -2464,6 +2469,65 @@ mod test_node_filter {
             &expected_results,
             TestVariants::PersistentOnly,
         );
+    }
+
+    #[test]
+    fn test_filter_by_column() {
+        use serde::{Deserialize, Serialize};
+
+        // This becomes your RecordBatch schema. Column will be named "bool_col1".
+        #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+        struct MyRow {
+            bool_col1: bool,
+        }
+
+        fn dummy_typed_nodestate_bool_col<'graph, G>(graph: G) -> TypedNodeState<'graph, MyRow, G>
+        where
+            G: GraphViewOps<'graph> + Clone,
+        {
+            // Build values keyed by the graph's *actual* node VIDs
+            let mut map: HashMap<VID, MyRow> = HashMap::new();
+
+            // Enumerate nodes in the same order your filter pipeline will use
+            // and assign bool_col1 based on that enumeration (even positions true).
+            for (i, node) in graph.nodes().iter().enumerate() {
+                map.insert(node.node, MyRow { bool_col1: i % 2 == 0 });
+            }
+
+            let state = GenericNodeState::new_from_map(graph, map, |v| v, None);
+            TypedNodeState::new(state)
+        }
+
+        let graph = Graph::new();
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, None).unwrap();
+        graph.add_node(1, 3, NO_PROPS, None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, None).unwrap();
+        graph.add_node(1, 5, NO_PROPS, None).unwrap();
+
+        // graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        // graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        // graph.add_edge(0, 3, 4, NO_PROPS, None).unwrap();
+
+        let typed_state = dummy_typed_nodestate_bool_col(graph.clone());
+
+        let filtered = graph.filter(NodeFilter::by_state_column(&typed_state, "bool_col1").unwrap()).unwrap();
+
+        let names = filtered.nodes()
+            .iter()
+            .map(|n| n.id().to_string())
+            .collect::<Vec<_>>();
+
+        println!("filtered ids: {:?}", names);
+        
+        let filtered = graph.nodes().select(NodeFilter::by_state_column(&typed_state, "bool_col1").unwrap()).unwrap();
+
+        let names = filtered
+            .iter()
+            .map(|n| n.id().to_string())
+            .collect::<Vec<_>>();
+
+        println!("selected ids: {:?}", names);
     }
 
     #[test]
