@@ -903,7 +903,7 @@ fn edge_updates(
 }
 
 pub fn build_nodes_dyn(
-    num_nodes: Range<usize>,
+    num_nodes: RangeInclusive<usize>,
     num_props: RangeInclusive<usize>,
     num_updates: RangeInclusive<usize>,
 ) -> impl Strategy<Value = NodeFixture> {
@@ -930,7 +930,7 @@ pub fn build_nodes_dyn(
 
 pub fn build_edge_list_dyn(
     num_edges: RangeInclusive<usize>,
-    num_nodes: Range<usize>,
+    num_nodes: RangeInclusive<usize>,
     num_properties: RangeInclusive<usize>,
     num_updates: RangeInclusive<usize>,
     del_edges: bool,
@@ -975,7 +975,7 @@ pub fn build_graph_strat(
     del_edges: bool,
 ) -> impl Strategy<Value = GraphFixture> {
     build_graph_strat_r(
-        0..num_nodes,
+        0..=num_nodes,
         0..=num_edges,
         0..=num_properties,
         0..=num_updates,
@@ -984,7 +984,7 @@ pub fn build_graph_strat(
 }
 
 pub fn build_graph_strat_r(
-    num_nodes: Range<usize>,
+    num_nodes: RangeInclusive<usize>,
     num_edges: RangeInclusive<usize>,
     num_properties: RangeInclusive<usize>,
     num_updates: RangeInclusive<usize>,
@@ -1289,7 +1289,7 @@ impl Debug for TestInput {
 }
 
 pub fn generate_mutations(
-    num_nodes: Range<usize>,
+    num_nodes: RangeInclusive<usize>,
     num_edges: RangeInclusive<usize>,
     num_properties: RangeInclusive<usize>,
     num_updates: RangeInclusive<usize>,

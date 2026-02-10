@@ -1178,13 +1178,13 @@ mod parquet_tests {
 
     #[test]
     fn write_nodes_any_props_to_parquet() {
-        proptest!(|(nodes in build_nodes_dyn(0..10, 0..=10, 0..=10))| {
+        proptest!(|(nodes in build_nodes_dyn(0..=10, 0..=10, 0..=10))| {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
     fn write_edges_any_props_to_parquet() {
-        proptest!(|(edges in build_edge_list_dyn(0..=10, 0..10, 0..=10, 0..=10, true))| {
+        proptest!(|(edges in build_edge_list_dyn(0..=10, 0..=10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
     }
