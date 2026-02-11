@@ -107,7 +107,7 @@ python-fmt:
 	cd python && black .
 
 debug-python-public: deactivate-storage
-	cd python && maturin develop --profile=debug
+	cd python && maturin develop --profile=dev
 
 build-python-rtd:
 	cd python && maturin build --profile=build-fast && pip install ../target/wheels/*.whl
