@@ -300,7 +300,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // Flush the wal entry to disk.
         // Any error here is fatal.
         if let Err(e) = wal.flush(lsn) {
-            panic!("Failed to flush add_edge wal entry: {}", e);
+            return Err(GraphError::FatalWriteError(e));
         }
 
         Ok(EdgeView::new(
@@ -417,7 +417,7 @@ fn add_node_impl<
     // Flush the wal entry to disk.
     // Any error here is fatal.
     if let Err(e) = wal.flush(lsn) {
-        panic!("Failed to flush add_node wal entry: {}", e);
+        return Err(GraphError::FatalWriteError(e));
     }
 
     Ok(NodeView::new_internal(graph.clone(), node_id))
