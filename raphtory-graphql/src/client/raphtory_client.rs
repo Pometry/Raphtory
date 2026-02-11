@@ -16,7 +16,7 @@ impl RaphtoryGraphQLClient {
     /// Create a new client. Does not perform a connectivity check; use [`client::is_online`] first if needed.
     pub fn new(url: String, token: String) -> Self {
         Self {
-            url: url.clone(),
+            url,
             token,
             client: Client::new(),
         }
