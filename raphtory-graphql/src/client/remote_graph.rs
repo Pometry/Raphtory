@@ -1,4 +1,4 @@
-use crate::client::{build_property_string, ClientError, RaphtoryGraphQLClient};
+use crate::client::{build_property_string, raphtory_client::RaphtoryGraphQLClient, ClientError};
 use minijinja::{context, Environment, Value};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{

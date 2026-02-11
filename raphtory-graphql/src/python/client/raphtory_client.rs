@@ -1,5 +1,5 @@
 use crate::{
-    client::{is_online, ClientError, RaphtoryGraphQLClient},
+    client::{is_online, raphtory_client::RaphtoryGraphQLClient, ClientError},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph, translate_from_python, translate_map_to_python,
