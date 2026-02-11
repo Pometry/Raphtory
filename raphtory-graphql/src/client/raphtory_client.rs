@@ -27,21 +27,17 @@ impl RaphtoryGraphQLClient {
     pub fn connect(url: String, token: Option<String>) -> Result<Self, ClientError> {
         let token = token.unwrap_or_default();
         let client = reqwest::blocking::Client::new();
-        let response = client
-            .get(&url)
-            .bearer_auth(&token)
-            .send()
-            .map_err(ClientError::from)?;
+        let response = client.get(&url).bearer_auth(&token).send().map_err(|e| {
+            ClientError::HttpError(format!(
+                "Could not connect to the given server - no response --{e}"
+            ))
+        })?;
         if response.status() != 200 {
-            let status = response.status().as_u16();
             let text = response.text().unwrap_or_default();
-            return Err(ClientError::HttpStatus(
-                status,
-                format!(
-                    "Could not connect to the given server - response {}",
-                    status
-                ),
-            ));
+            return Err(ClientError::HttpError(format!(
+                "Could not connect to the given server - response {}",
+                text
+            )));
         }
         Ok(Self {
             url,
@@ -73,7 +69,9 @@ impl RaphtoryGraphQLClient {
         if !response.status().is_success() {
             let status = response.status().as_u16();
             let text = response.text().await.unwrap_or_default();
-            return Err(ClientError::HttpStatus(status, text));
+            return Err(ClientError::HttpError(format!(
+                "HTTP error: status {status}, body: {text}"
+            )));
         }
 
         let mut graphql_result: HashMap<String, JsonValue> = response.json().await?;
@@ -172,13 +170,11 @@ impl RaphtoryGraphQLClient {
         let text = response.text().await?;
 
         if !status.is_success() {
-            return Err(ClientError::HttpStatus(
+            return Err(ClientError::HttpError(format!(
+                "Error Uploading Graph. Status: {}. Response: {}",
                 status.as_u16(),
-                format!(
-                    "Error Uploading Graph. Status: {}. Response: {}",
-                    status, text
-                ),
-            ));
+                text
+            )));
         }
 
         let mut data: HashMap<String, JsonValue> = serde_json::from_str(&text)?;

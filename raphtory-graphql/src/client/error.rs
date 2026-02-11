@@ -7,8 +7,8 @@ pub enum ClientError {
     #[error("Network/request error: {0}")]
     Request(#[from] reqwest::Error),
 
-    #[error("HTTP error: status {0}, body: {1}")]
-    HttpStatus(u16, String),
+    #[error("{0}")]
+    HttpError(String),
 
     #[error("GraphQL errors: {0}")]
     GraphQLErrors(String),
