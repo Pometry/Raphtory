@@ -32,6 +32,7 @@ __all__ = [
     "Embedding",
     "VectorSelection",
     "OpenAIEmbeddings",
+    "VectorCache",
     "embedding_server",
 ]
 
@@ -301,7 +302,12 @@ class OpenAIEmbeddings(object):
         api_key_env=None,
         org_id=None,
         project_id=None,
+        dim=None,
     ) -> OpenAIEmbeddings:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class VectorCache(object):
+    def __new__(cls, v_cache, cache=None) -> VectorCache:
         """Create and return a new object.  See help(type) for accurate signature."""
 
 def embedding_server(function): ...
