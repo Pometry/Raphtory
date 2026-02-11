@@ -1,9 +1,15 @@
-import pytest
 import json
-from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+
+import pytest
 from raphtory import Graph
-from raphtory.vectors import VectorisedGraph, OpenAIEmbeddings, embedding_server
+from raphtory.vectors import (
+    OpenAIEmbeddings,
+    VectorCache,
+    VectorisedGraph,
+    embedding_server,
+)
 
 embedding_map = {
     "raphtory": [1.0, 0.0, 0.0],  # this is now needed,
@@ -81,7 +87,8 @@ def create_graph() -> VectorisedGraph:
     g.add_edge(4, "node3", "node4", {"name": "edge3"})
 
     embeddings = OpenAIEmbeddings(api_base="http://localhost:7340")
-    vg = g.vectorise(embeddings, nodes="{{ name }}", edges="{{ properties.name }}")
+    v_cache = VectorCache(embeddings)
+    vg = g.vectorise(v_cache, nodes="{{ name }}", edges="{{ properties.name }}")
 
     return vg
 

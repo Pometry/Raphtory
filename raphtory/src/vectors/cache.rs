@@ -162,17 +162,6 @@ impl VectorCache {
         self.validate_and_set_dim(config).await
     }
 
-    // async fn sample_and_cache_model(
-    //     &self,
-    //     model: ModelConfig,
-    // ) -> GraphResult<CachedEmbeddingModel> {
-    //     let expected_model = self.load_model_dim(model.clone()).await?;
-    //     Ok(CachedEmbeddingModel {
-    //         cache: self.clone(),
-    //         model,
-    //     })
-    // }
-
     pub(super) async fn validate_and_set_dim(
         &self,
         model: ModelConfig,
