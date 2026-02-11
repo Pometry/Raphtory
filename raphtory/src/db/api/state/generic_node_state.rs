@@ -269,6 +269,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                             ));
                         }
                     } else if node_state_type == &NodeStateOutputType::Nodes {
+                        #[cfg(feature = "arrow")]
                         if let Some(PropUntagged(Prop::Array(vid_arr))) = value {
                             return (
                                 key,
@@ -283,7 +284,9 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                                     )),
                                 )),
                             );
-                        } else if let Some(PropType::List(_)) =
+                        }
+                        
+                        if let Some(PropType::List(_)) =
                             value.as_ref().map(|value| value.0.dtype())
                         {
                             if let Some(PropUntagged(Prop::List(vid_list))) = value {

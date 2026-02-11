@@ -1,9 +1,4 @@
 import pytest
-import pandas as pd
-import pandas.core.frame
-from networkx.algorithms.bipartite.centrality import degree_centrality
-from networkx.algorithms.link_analysis.pagerank_alg import pagerank
-from networkx.classes import degree
 
 from raphtory import Graph
 from raphtory import algorithms
