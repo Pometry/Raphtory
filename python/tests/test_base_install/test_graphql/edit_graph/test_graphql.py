@@ -839,12 +839,13 @@ def test_graph_persistence_across_restarts():
             }
         }
 
+
 def test_reproduce_float_changes_on_roundtrip():
     tmp_work_dir = tempfile.mkdtemp()
     float_examples = [
-        -1.5186248156922167e+66,
-        -1.7177476606208664e+199,
-        -1.048551606005279e+71,
+        -1.5186248156922167e66,
+        -1.7177476606208664e199,
+        -1.048551606005279e71,
     ]
     prop_key = "p"
 
