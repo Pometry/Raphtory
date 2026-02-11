@@ -37,12 +37,9 @@ use raphtory::{
         },
         graph::{
             node::NodeView,
-            views::filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
-                    node_filter::CompositeNodeFilter, DynView, DynViewFilter,
-                },
-                CreateFilter,
+            views::filter::model::{
+                edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
+                node_filter::CompositeNodeFilter, DynView,
             },
         },
     },

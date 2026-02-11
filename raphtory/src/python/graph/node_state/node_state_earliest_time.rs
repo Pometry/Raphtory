@@ -2,7 +2,9 @@ use crate::{
     db::{
         api::{
             state::{
-                ops, ops::DynNodeFilter, LazyNodeState, NodeGroups, NodeOp, NodeState, NodeStateOps,
+                ops::{self, ArrowMap, DynNodeFilter, IntoArrowNodeOp, Map},
+                DateTimeStruct, EventIdStruct, LazyNodeState, NodeGroups, NodeOp, NodeState,
+                NodeStateOps, OutputTypedNodeState, TimeStampStruct,
             },
             view::DynamicGraph,
         },
@@ -36,7 +38,6 @@ use crate::{
         state::{ops::IntoDynNodeOp, NodeStateGroupBy, OrderedNodeStateOps},
         view::GraphViewOps,
     },
-    py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 type EarliestTimeOp = ops::history::EarliestTime<DynamicGraph>;
@@ -85,7 +86,13 @@ impl EarliestTimeView {
 }
 
 // EarliestTimestamp and EarliestEventId can use macros
-type EarliestTimestamp = ops::Map<EarliestTimeOp, Option<i64>>;
+type EarliestTimestamp = ArrowMap<Map<EarliestTimeOp, Option<i64>>, TimeStampStruct>;
+type EarliestEventId = ArrowMap<Map<EarliestTimeOp, Option<usize>>, EventIdStruct>;
+// EarliestDateTime needs special implementation for Result type handling
+type EarliestDateTime =
+    ArrowMap<Map<EarliestTimeOp, Result<Option<DateTime<Utc>>, TimeError>>, DateTimeStruct>;
+/// Type: Result<Option<DateTime<Utc>>, TimeError>
+type EarliestDateTimeOutput = <EarliestDateTime as NodeOp>::Output;
 
 impl_lazy_node_state_ord!(
     EarliestTimestampView<EarliestTimestamp>,
@@ -94,20 +101,12 @@ impl_lazy_node_state_ord!(
 );
 impl_node_state_group_by_ops!(EarliestTimestampView, Option<i64>);
 
-type EarliestEventId = ops::Map<EarliestTimeOp, Option<usize>>;
-
 impl_lazy_node_state_ord!(
     EarliestEventIdView<EarliestEventId>,
     "NodeStateOptionUsize",
     "Optional[int]"
 ); // usize gets converted to int in python
 impl_node_state_group_by_ops!(EarliestEventIdView, Option<usize>);
-
-// EarliestDateTime needs special implementation for Result type handling
-type EarliestDateTime = ops::Map<EarliestTimeOp, Result<Option<DateTime<Utc>>, TimeError>>;
-
-/// Type: Result<Option<DateTime\<Utc>>, TimeError>
-type EarliestDateTimeOutput = <EarliestDateTime as NodeOp>::Output;
 
 /// A lazy view over EarliestDateTime values for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
@@ -390,7 +389,21 @@ impl EarliestDateTimeView {
             return Err(PyErr::from(err));
         }
         // make the Result be on the outside, not inside the NodeState
-        let op = self.inner.op.clone().map(|r| r.unwrap());
+        let op: ArrowMap<
+            Map<
+                ArrowMap<
+                    Map<ops::EarliestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
+                    DateTimeStruct,
+                >,
+                Option<DateTime<Utc>>,
+            >,
+            DateTimeStruct,
+        > = self
+            .inner
+            .op
+            .clone()
+            .map(|r| r.unwrap())
+            .into_arrow_node_op();
         let lazy_node_state = LazyNodeState::new(op, self.inner.nodes());
         Ok(if reverse {
             lazy_node_state.sort_by_values_by(|a, b| a.cmp(b).reverse())
@@ -543,7 +556,7 @@ impl EarliestDateTimeView {
             return Err(PyErr::from(err));
         }
         Ok(self.inner.group_by(|result| match result {
-            Ok(Some(dt)) => Some(*dt),
+            Ok(Some(dt)) => Some(dt),
             _ => None, // can't be an error because we already checked for those
         }))
     }

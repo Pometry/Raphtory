@@ -2,15 +2,18 @@ use crate::{
     db::{
         api::{
             properties::{Metadata, Properties},
-            state::ops::NodeOp,
+            state::ops::{ArrowNodeOp, GraphView, NodeOp},
         },
         graph::node::NodeView,
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, PropertiesOps},
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, VID},
+    storage::arc_str::ArcStr,
+};
 use raphtory_storage::graph::graph::GraphStorage;
-use std::marker::PhantomData;
+use std::{collections::HashMap, fmt::Debug, marker::PhantomData};
 
 #[derive(Debug, Clone)]
 pub struct GetProperties<'graph, G> {
@@ -27,12 +30,24 @@ impl<'graph, G> GetProperties<'graph, G> {
     }
 }
 
+impl<'graph, G: GraphView + 'graph> From<Properties<NodeView<'graph, G>>>
+    for HashMap<ArcStr, Option<Prop>>
+{
+    fn from(properties: Properties<NodeView<'graph, G>>) -> Self {
+        HashMap::from_iter(properties.iter())
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetProperties<'graph, G> {
     type Output = Properties<NodeView<'graph, G>>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Properties::new(NodeView::new_internal(self.graph.clone(), node))
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> ArrowNodeOp for GetProperties<'graph, G> {
+    type ArrowOutput = HashMap<ArcStr, Option<Prop>>;
 }
 
 #[derive(Debug, Clone)]
@@ -50,10 +65,22 @@ impl<'graph, G> GetMetadata<'graph, G> {
     }
 }
 
+impl<'graph, G: GraphView + 'graph> From<Metadata<'graph, NodeView<'graph, G>>>
+    for HashMap<ArcStr, Option<Prop>>
+{
+    fn from(metadata: Metadata<'graph, NodeView<'graph, G>>) -> Self {
+        HashMap::from_iter(metadata.iter())
+    }
+}
+
 impl<'graph, G: GraphViewOps<'graph>> NodeOp for GetMetadata<'graph, G> {
     type Output = Metadata<'graph, NodeView<'graph, G>>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Self::Output {
         Metadata::new(NodeView::new_internal(self.graph.clone(), node))
     }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> ArrowNodeOp for GetMetadata<'graph, G> {
+    type ArrowOutput = HashMap<ArcStr, Option<Prop>>;
 }

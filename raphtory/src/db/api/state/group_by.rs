@@ -11,6 +11,8 @@ use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
+use super::node_state_ops::ToOwnedValue;
+
 #[derive(Clone, Debug)]
 pub struct NodeGroups<V, G> {
     groups: Arc<[(V, Index<VID>)]>,
@@ -114,15 +116,15 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
     }
 }
 
-pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph>;
+pub trait NodeStateGroupBy<'a, 'graph: 'a>: NodeStateOps<'a, 'graph> {
+    fn groups(&'a self) -> NodeGroups<Self::OwnedValue, Self::Graph>;
 }
 
-impl<'graph, S: NodeStateOps<'graph>> NodeStateGroupBy<'graph> for S
+impl<'a, 'graph: 'a, S: NodeStateOps<'a, 'graph>> NodeStateGroupBy<'a, 'graph> for S
 where
     S::OwnedValue: Hash + Eq + Debug,
 {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph> {
-        self.group_by(|v| v.clone())
+    fn groups(&'a self) -> NodeGroups<Self::OwnedValue, Self::Graph> {
+        self.group_by(|v| v.to_owned_value())
     }
 }
