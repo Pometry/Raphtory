@@ -285,9 +285,8 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                                 )),
                             );
                         }
-                        
-                        if let Some(PropType::List(_)) =
-                            value.as_ref().map(|value| value.0.dtype())
+
+                        if let Some(PropType::List(_)) = value.as_ref().map(|value| value.0.dtype())
                         {
                             if let Some(PropUntagged(Prop::List(vid_list))) = value {
                                 if let Some(vid_list) = Arc::into_inner(vid_list) {

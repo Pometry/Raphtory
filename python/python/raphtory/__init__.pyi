@@ -3966,7 +3966,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def properties(self) -> PyNestedPropsIterable:
+    def properties(self):
         """
         Returns the node properties.
 
