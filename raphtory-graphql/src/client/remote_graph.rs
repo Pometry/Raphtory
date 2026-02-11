@@ -1,4 +1,7 @@
-use crate::client::{build_property_string, raphtory_client::RaphtoryGraphQLClient, ClientError};
+use crate::client::{
+    build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_edge::GraphQLRemoteEdge,
+    remote_node::GraphQLRemoteNode, ClientError,
+};
 use minijinja::{context, Environment, Value};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{
@@ -30,6 +33,21 @@ pub struct GraphQLRemoteGraph {
 impl GraphQLRemoteGraph {
     pub fn new(path: String, client: RaphtoryGraphQLClient) -> Self {
         Self { path, client }
+    }
+
+    /// Returns a remote node reference for the given node id.
+    pub fn node(&self, id: impl ToString) -> GraphQLRemoteNode {
+        GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string())
+    }
+
+    /// Returns a remote edge reference for the given source and destination node ids.
+    pub fn edge(&self, src: impl ToString, dst: impl ToString) -> GraphQLRemoteEdge {
+        GraphQLRemoteEdge::new(
+            self.path.clone(),
+            self.client.clone(),
+            src.to_string(),
+            dst.to_string(),
+        )
     }
 
     pub async fn add_node<G: Into<GID> + ToString, T: IntoTime>(

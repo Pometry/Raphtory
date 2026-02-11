@@ -2,10 +2,14 @@
 
 mod error;
 pub mod raphtory_client;
+pub mod remote_edge;
 pub mod remote_graph;
+pub mod remote_node;
 
 pub use error::ClientError;
+pub use remote_edge::GraphQLRemoteEdge;
 pub use remote_graph::GraphQLRemoteGraph;
+pub use remote_node::GraphQLRemoteNode;
 
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::collections::HashMap;

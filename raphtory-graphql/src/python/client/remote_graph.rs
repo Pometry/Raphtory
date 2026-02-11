@@ -206,7 +206,6 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
-        _py: Python,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -243,7 +242,6 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn create_node(
         &self,
-        _py: Python,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
@@ -277,7 +275,6 @@ impl PyRemoteGraph {
     ///     None:
     pub fn add_property(
         &self,
-        _py: Python,
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), GraphError> {
@@ -299,11 +296,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn add_metadata(
-        &self,
-        _py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
+    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
         let path = self.path.clone();
         self.client
             .run_async(move |inner_client| async move {
@@ -322,11 +315,7 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn update_metadata(
-        &self,
-        _py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
+    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
         let path = self.path.clone();
         self.client
             .run_async(move |inner_client| async move {
@@ -352,7 +341,6 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
-        _py: Python,
         timestamp: EventTime,
         src: GID,
         dst: GID,

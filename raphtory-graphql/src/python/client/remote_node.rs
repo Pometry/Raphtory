@@ -1,15 +1,9 @@
 use crate::{
-    client::build_property_string,
-    python::client::{build_query, raphtory_client::PyRaphtoryClient},
+    client::remote_node::GraphQLRemoteNode, python::client::raphtory_client::PyRaphtoryClient,
 };
-use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
 use raphtory::errors::GraphError;
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
-};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::collections::HashMap;
 
 #[derive(Clone)]
@@ -45,25 +39,17 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  setNodeType(newType: "{{new_type}}")
-                }
-              }
-            }
-        "#;
+    pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+        let path = self.path.clone();
+        let id = self.id.clone();
+        let new_type = new_type.to_string();
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            new_type => new_type
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteNode::new(path, inner_client, id);
+                remote.set_node_type(new_type).await
+            })
+            .map_err(|e| GraphError::from(e))?;
         Ok(())
     }
 
@@ -79,29 +65,18 @@ impl PyRemoteNode {
     #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
-        py: Python,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  addUpdates(time: {{t}} {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %})
-                }
-              }
-            }
-        "#;
+        let path = self.path.clone();
+        let id = self.id.clone();
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            t => t.into_time().t(),
-            properties =>  properties.map(|p| build_property_string(p)),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteNode::new(path, inner_client, id);
+                remote.add_updates(t, properties).await
+            })
+            .map_err(|e| GraphError::from(e))?;
 
         Ok(())
     }
@@ -115,29 +90,16 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn add_metadata(
-        &self,
-        py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  addMetadata(properties: {{ properties | safe }} )
-                }
-              }
-            }
-        "#;
+    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+        let path = self.path.clone();
+        let id = self.id.clone();
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            properties =>  build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteNode::new(path, inner_client, id);
+                remote.add_metadata(properties).await
+            })
+            .map_err(|e| GraphError::from(e))?;
         Ok(())
     }
 
@@ -150,29 +112,16 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn update_metadata(
-        &self,
-        py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  updateMetadata(properties: {{ properties | safe }} )
-                }
-              }
-            }
-        "#;
+    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+        let path = self.path.clone();
+        let id = self.id.clone();
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            properties =>  build_property_string(properties)
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        self.client
+            .run_async(move |inner_client| async move {
+                let remote = GraphQLRemoteNode::new(path, inner_client, id);
+                remote.update_metadata(properties).await
+            })
+            .map_err(|e| GraphError::from(e))?;
         Ok(())
     }
 }
