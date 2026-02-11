@@ -1,12 +1,13 @@
 use crate::{
     db::api::view::{DynamicGraph, IntoDynamic, MaterializedGraph, StaticGraphViewOps},
+    errors::GraphError,
     python::{
         graph::{edge::PyEdge, node::PyNode, views::graph_view::PyGraphView},
         types::wrappers::document::PyDocument,
         utils::{block_on, execute_async_task, PyNodeRef},
     },
     vectors::{
-        cache::VectorCache,
+        cache::{CachedEmbeddingModel, VectorCache},
         custom::{serve_custom_embedding, EmbeddingFunction, EmbeddingServer},
         storage::OpenAIEmbeddings,
         template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
@@ -75,6 +76,30 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
             project_id: value.project_id.clone(),
             dim: value.dim,
         }
+    }
+}
+
+#[pyclass(name = "VectorCache")]
+#[derive(Clone)]
+pub struct PyVectorCache {
+    cache_model: CachedEmbeddingModel,
+}
+
+#[pymethods]
+impl PyVectorCache {
+    #[new]
+    #[pyo3(signature = (v_cache, cache=None))]
+    fn new(v_cache: PyOpenAIEmbeddings, cache: Option<String>) -> PyResult<Self> {
+        let cache_model = execute_async_task(|| async move {
+            let cache = if let Some(cache) = cache {
+                VectorCache::on_disk(&PathBuf::from(cache)).await?
+            } else {
+                VectorCache::in_memory()
+            };
+            let model = cache.openai(OpenAIEmbeddings::from(v_cache).into()).await?;
+            Ok::<_, GraphError>(model)
+        })?;
+        Ok(Self { cache_model })
     }
 }
 
@@ -286,13 +311,12 @@ impl PyGraphView {
     ///
     /// Returns:
     ///   VectorisedGraph: A VectorisedGraph with all the documents and their embeddings, with an initial empty selection.
-    #[pyo3(signature = (embedding, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), cache = None, verbose = false))]
+    #[pyo3(signature = (model, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true), verbose = false))]
     fn vectorise(
         &self,
-        embedding: PyOpenAIEmbeddings,
+        model: PyVectorCache,
         nodes: TemplateConfig,
         edges: TemplateConfig,
-        cache: Option<String>,
         verbose: bool,
     ) -> PyResult<DynamicVectorisedGraph> {
         let template = DocumentTemplate {
@@ -301,15 +325,9 @@ impl PyGraphView {
         };
         let graph = self.graph.clone();
         execute_async_task(move || async move {
-            let cache = if let Some(cache) = cache {
-                VectorCache::on_disk(&PathBuf::from(cache)).await?
-            } else {
-                VectorCache::in_memory()
-            };
-            let model = cache
-                .openai(OpenAIEmbeddings::from(embedding).into())
-                .await?;
-            Ok(graph.vectorise(model, template, None, verbose).await?)
+            Ok(graph
+                .vectorise(model.cache_model, template, None, verbose)
+                .await?)
         })
     }
 }

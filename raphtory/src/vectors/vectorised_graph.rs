@@ -99,30 +99,15 @@ impl<G: StaticGraphViewOps> VectorisedGraph<G> {
         limit: usize,
         window: Option<(i64, i64)>,
     ) -> VectorsQuery<GraphResult<VectorSelection<G>>> {
-        println!(
-            "searching for similar entities to query with limit {limit} and window {window:?}"
-        );
         let view = apply_window(&self.source_graph, window);
         let node_query = self.node_db.top_k(query, limit, view.clone(), None);
-        println!("initiated node similarity query");
         let edge_query = self.edge_db.top_k(query, limit, view, None);
-        println!("initiated edge similarity query");
         let cloned = self.clone();
         VectorsQuery::new(Box::pin(async move {
             println!("executing node similarity query");
             let nodes = node_query.execute().await?;
-            println!(
-                "found {} similar nodes, executing edge similarity query",
-                nodes.len()
-            );
             let edges = edge_query.execute().await?;
-            println!(
-                "found {} similar nodes and {} similar edges, merging results",
-                nodes.len(),
-                edges.len()
-            );
             let docs = find_top_k(nodes.into_iter().chain(edges), limit).collect::<Vec<_>>();
-            println!("merged results, returning selection len: {}", docs.len());
             Ok(VectorSelection::new(cloned, docs))
         }))
     }

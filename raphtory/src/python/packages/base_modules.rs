@@ -30,7 +30,10 @@ use crate::{
             algorithms::*,
             graph_gen::*,
             graph_loader::*,
-            vectors::{embedding_server, PyOpenAIEmbeddings, PyVectorSelection, PyVectorisedGraph},
+            vectors::{
+                embedding_server, PyOpenAIEmbeddings, PyVectorCache, PyVectorSelection,
+                PyVectorisedGraph,
+            },
         },
         types::{
             result_iterable::{
@@ -260,7 +263,8 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
         PyDocument,
         PyEmbedding,
         PyVectorSelection,
-        PyOpenAIEmbeddings
+        PyOpenAIEmbeddings,
+        PyVectorCache,
     );
     add_functions!(&vectors_module, embedding_server);
     Ok(vectors_module)
