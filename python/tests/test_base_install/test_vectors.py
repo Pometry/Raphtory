@@ -266,7 +266,9 @@ def test_default_template():
 
     running = constant_embedding.start(7341)
 
-    vg = g.vectorise(OpenAIEmbeddings(api_base="http://localhost:7341"))
+    embeddings = OpenAIEmbeddings(api_base="http://localhost:7341")
+    v_cache = VectorCache(embeddings)
+    vg = g.vectorise(v_cache)
 
     node_docs = vg.nodes_by_similarity(query="whatever", limit=10).get_documents()
     assert len(node_docs) == 1
