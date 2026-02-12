@@ -13,7 +13,7 @@ use crate::{
         ProtoGraph,
     },
 };
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 use prost::Message;
 use raphtory_api::core::{
     entities::{
@@ -67,11 +67,11 @@ impl GraphWriter {
         }
     }
 
-    pub fn write(&self) -> Result<(), GraphError> {
+    pub fn write(&self) -> Result<Option<MutexGuard<()>>, GraphError> {
         let mut proto = mem::take(self.proto_delta.lock().deref_mut());
         let bytes = proto.encode_to_vec();
         if !bytes.is_empty() {
-            let _guard = self.write_lock.lock();
+            let guard = self.write_lock.lock();
             if let Err(write_err) = try_write(&self.folder, &bytes) {
                 // If the write fails, try to put the updates back
                 let mut new_delta = self.proto_delta.lock();
@@ -88,9 +88,10 @@ impl GraphWriter {
                 }
                 return Err(write_err.into());
             }
+            return Ok(Some(guard));
             // should we flush the file?
         }
-        Ok(())
+        Ok(None)
     }
 
     #[inline]
@@ -299,10 +300,11 @@ impl<G: InternalCache + InternalStableDecode + StableEncode + AdditionOps> Cache
     #[instrument(level = "debug", skip(self))]
     fn write_updates(&self) -> Result<(), GraphError> {
         let cache = self.get_cache().ok_or(GraphError::CacheNotInnitialised)?;
-        cache.write()?;
-        cache.folder.write_metadata(self)?;
-        #[cfg(feature = "search")]
-        self.persist_index_to_disk(&cache.folder)?;
+        if let Some(_guard) = cache.write()? {
+            cache.folder.write_metadata(self)?;
+            #[cfg(feature = "search")]
+            self.persist_index_to_disk(&cache.folder)?;
+        }
         Ok(())
     }
 
