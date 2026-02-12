@@ -1,10 +1,9 @@
-use crate::{
-    client::remote_edge::GraphQLRemoteEdge, python::client::raphtory_client::PyRaphtoryClient,
-};
-use pyo3::{pyclass, pymethods, Python};
+use crate::client::remote_edge::GraphQLRemoteEdge;
+use pyo3::{pyclass, pymethods};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future, sync::Arc};
+use tokio::runtime::Runtime;
 
 /// A remote edge reference
 ///
@@ -14,22 +13,25 @@ use std::collections::HashMap;
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdge", module = "raphtory.graphql")]
 pub struct PyRemoteEdge {
-    pub(crate) path: String,
-    pub(crate) client: PyRaphtoryClient,
-    pub(crate) src: String,
-    pub(crate) dst: String,
+    pub(crate) edge: GraphQLRemoteEdge,
+    pub(crate) runtime: Arc<Runtime>,
 }
 
 impl PyRemoteEdge {
-    pub(crate) fn new(path: String, client: PyRaphtoryClient, src: String, dst: String) -> Self {
-        PyRemoteEdge {
-            path,
-            client,
-            src,
-            dst,
-        }
+    pub(crate) fn new(edge: GraphQLRemoteEdge, runtime: Arc<Runtime>) -> Self {
+        PyRemoteEdge { edge, runtime }
+    }
+
+    fn execute_async_task<T, F, O>(&self, task: T) -> O
+    where
+        T: FnOnce() -> F + Send + 'static,
+        F: Future<Output = O> + 'static,
+        O: Send + 'static,
+    {
+        pyo3::Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
     }
 }
+
 #[pymethods]
 impl PyRemoteEdge {
     /// Add updates to an edge in the remote graph at a specified time.
@@ -51,17 +53,11 @@ impl PyRemoteEdge {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let src = self.src.clone();
-        let dst = self.dst.clone();
+        let edge = self.edge.clone();
         let layer_str = layer.map(|s| s.to_string());
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteEdge::new(path, inner_client, src, dst);
-                remote.add_updates(t, properties, layer_str).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { edge.add_updates(t, properties, layer_str).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
 
         Ok(())
     }
@@ -79,17 +75,11 @@ impl PyRemoteEdge {
     ///   GraphError: If the operation fails.
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, t: EventTime, layer: Option<&str>) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let src = self.src.clone();
-        let dst = self.dst.clone();
+        let edge = self.edge.clone();
         let layer_str = layer.map(|s| s.to_string());
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteEdge::new(path, inner_client, src, dst);
-                remote.delete(t, layer_str).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { edge.delete(t, layer_str).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
 
         Ok(())
     }
@@ -110,17 +100,11 @@ impl PyRemoteEdge {
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let src = self.src.clone();
-        let dst = self.dst.clone();
+        let edge = self.edge.clone();
         let layer_str = layer.map(|s| s.to_string());
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteEdge::new(path, inner_client, src, dst);
-                remote.add_metadata(properties, layer_str).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { edge.add_metadata(properties, layer_str).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
 
         Ok(())
     }
@@ -141,17 +125,11 @@ impl PyRemoteEdge {
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let src = self.src.clone();
-        let dst = self.dst.clone();
+        let edge = self.edge.clone();
         let layer_str = layer.map(|s| s.to_string());
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteEdge::new(path, inner_client, src, dst);
-                remote.update_metadata(properties, layer_str).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { edge.update_metadata(properties, layer_str).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
 
         Ok(())
     }

@@ -1,5 +1,8 @@
 use crate::{
-    client::remote_graph::GraphQLRemoteGraph,
+    client::{
+        remote_edge::GraphQLRemoteEdge, remote_graph::GraphQLRemoteGraph,
+        remote_node::GraphQLRemoteNode,
+    },
     python::client::{
         build_query, remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition,
         PyNodeAddition,
@@ -43,7 +46,12 @@ impl PyRemoteGraph {
     /// Returns:
     ///     RemoteNode: the remote node reference
     pub fn node(&self, id: GID) -> PyRemoteNode {
-        PyRemoteNode::new(self.graph.clone(), self.runtime.clone(), id.to_string())
+        let node = GraphQLRemoteNode::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
+            id.to_string(),
+        );
+        PyRemoteNode::new(node, self.runtime.clone())
     }
 
     /// Gets a remote edge with the specified source and destination nodes
@@ -56,12 +64,13 @@ impl PyRemoteGraph {
     ///     RemoteEdge: the remote edge reference
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
-        PyRemoteEdge::new(
-            self.graph.clone(),
-            self.runtime.clone(),
+        let edge = GraphQLRemoteEdge::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
             src.to_string(),
             dst.to_string(),
-        )
+        );
+        PyRemoteEdge::new(edge, self.runtime.clone())
     }
 
     /// Batch add node updates to the remote graph
@@ -239,11 +248,9 @@ impl PyRemoteGraph {
             move || async move { graph.add_node(timestamp, id, properties, node_type).await };
         self.execute_async_task(task).map_err(GraphError::from)?;
 
-        Ok(PyRemoteNode::new(
-            self.graph.clone(),
-            self.runtime.clone(),
-            id_str,
-        ))
+        let node =
+            GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
+        Ok(PyRemoteNode::new(node, self.runtime.clone()))
     }
 
     /// Create a new node with the given id and properties to the remote graph and fail if the node already exists.
@@ -275,11 +282,9 @@ impl PyRemoteGraph {
         };
         self.execute_async_task(task).map_err(GraphError::from)?;
 
-        Ok(PyRemoteNode::new(
-            self.graph.clone(),
-            self.runtime.clone(),
-            id_str,
-        ))
+        let node =
+            GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
+        Ok(PyRemoteNode::new(node, self.runtime.clone()))
     }
 
     /// Adds properties to the remote graph.
@@ -360,12 +365,13 @@ impl PyRemoteGraph {
         let task =
             move || async move { graph.add_edge(timestamp, src, dst, properties, layer).await };
         self.execute_async_task(task).map_err(GraphError::from)?;
-        Ok(PyRemoteEdge::new(
-            self.graph.clone(),
-            self.runtime.clone(),
+        let edge = GraphQLRemoteEdge::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
             src_str,
             dst_str,
-        ))
+        );
+        Ok(PyRemoteEdge::new(edge, self.runtime.clone()))
     }
 
     /// Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
@@ -394,11 +400,12 @@ impl PyRemoteGraph {
         let task = move || async move { graph.delete_edge(timestamp, src, dst, layer).await };
         self.execute_async_task(task).map_err(GraphError::from)?;
 
-        Ok(PyRemoteEdge::new(
-            self.graph.clone(),
-            self.runtime.clone(),
+        let edge = GraphQLRemoteEdge::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
             src_str,
             dst_str,
-        ))
+        );
+        Ok(PyRemoteEdge::new(edge, self.runtime.clone()))
     }
 }

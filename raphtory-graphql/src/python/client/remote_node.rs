@@ -1,17 +1,15 @@
-use crate::{
-    client::remote_node::GraphQLRemoteNode, python::client::raphtory_client::PyRaphtoryClient,
-};
-use pyo3::{pyclass, pymethods, Python};
+use crate::client::remote_node::GraphQLRemoteNode;
+use pyo3::{pyclass, pymethods};
 use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future, sync::Arc};
+use tokio::runtime::Runtime;
 
 #[derive(Clone)]
 #[pyclass(name = "RemoteNode", module = "raphtory.graphql")]
 pub struct PyRemoteNode {
-    pub(crate) path: String,
-    pub(crate) client: PyRaphtoryClient,
-    pub(crate) id: String,
+    pub(crate) node: GraphQLRemoteNode,
+    pub(crate) runtime: Arc<Runtime>,
 }
 
 impl PyRemoteNode {
@@ -24,8 +22,17 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub(crate) fn new(path: String, client: PyRaphtoryClient, id: String) -> Self {
-        Self { path, client, id }
+    pub(crate) fn new(node: GraphQLRemoteNode, runtime: Arc<Runtime>) -> Self {
+        Self { node, runtime }
+    }
+
+    fn execute_async_task<T, F, O>(&self, task: T) -> O
+    where
+        T: FnOnce() -> F + Send + 'static,
+        F: Future<Output = O> + 'static,
+        O: Send + 'static,
+    {
+        pyo3::Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
     }
 }
 
@@ -40,16 +47,11 @@ impl PyRemoteNode {
     /// Returns:
     ///   None:
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let id = self.id.clone();
+        let node = self.node.clone();
         let new_type = new_type.to_string();
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteNode::new(path, inner_client, id);
-                remote.set_node_type(new_type).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { node.set_node_type(new_type).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
         Ok(())
     }
 
@@ -68,15 +70,10 @@ impl PyRemoteNode {
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let id = self.id.clone();
+        let node = self.node.clone();
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteNode::new(path, inner_client, id);
-                remote.add_updates(t, properties).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { node.add_updates(t, properties).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
 
         Ok(())
     }
@@ -91,15 +88,10 @@ impl PyRemoteNode {
     /// Returns:
     ///   None:
     pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let id = self.id.clone();
+        let node = self.node.clone();
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteNode::new(path, inner_client, id);
-                remote.add_metadata(properties).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { node.add_metadata(properties).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
         Ok(())
     }
 
@@ -113,15 +105,10 @@ impl PyRemoteNode {
     /// Returns:
     ///   None:
     pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
-        let path = self.path.clone();
-        let id = self.id.clone();
+        let node = self.node.clone();
 
-        self.client
-            .run_async(move |inner_client| async move {
-                let remote = GraphQLRemoteNode::new(path, inner_client, id);
-                remote.update_metadata(properties).await
-            })
-            .map_err(|e| GraphError::from(e))?;
+        let task = move || async move { node.update_metadata(properties).await };
+        self.execute_async_task(task).map_err(GraphError::from)?;
         Ok(())
     }
 }
