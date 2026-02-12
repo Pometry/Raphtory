@@ -275,29 +275,28 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         LocalPOS,
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
     ) {
-        let slot_idx = row % N;
+        let mut slot_idx = row % N;
         let mut page_id = *self.free_segments[slot_idx].read_recursive();
-        let mut writer = self.writer(page_id);
-        match self.reserve_segment_rows(writer.page, required_space) {
-            None => {
-                // segment is full, we need to create a new one
-                let mut slot = self.free_segments[slot_idx].write();
-                if *slot == page_id {
-                    // page_id is unchanged, no other thread created a new segment before we got the lock
-                    page_id = self.push_new_segment();
+        loop {
+            match self.try_writer(page_id) {
+                None => {
+                    slot_idx = (slot_idx + 1) % N;
+                    page_id = *self.free_segments[slot_idx].read_recursive();
                 }
-                loop {
-                    writer = self.writer(page_id);
+                Some(writer) => {
                     match self.reserve_segment_rows(writer.page, required_space) {
-                        None => page_id = self.push_new_segment(),
-                        Some(local_pos) => {
-                            *slot = page_id;
-                            return (LocalPOS(local_pos), writer);
+                        None => {
+                            // segment is full, we need to create a new one
+                            let mut slot = self.free_segments[slot_idx].write();
+                            if *slot == page_id {
+                                // page_id is unchanged, no other thread created a new segment before we got the lock
+                                page_id = self.push_new_segment();
+                            }
                         }
+                        Some(local_pos) => return (LocalPOS(local_pos), writer),
                     }
                 }
             }
-            Some(local_pos) => (LocalPOS(local_pos), writer),
         }
     }
 
@@ -362,7 +361,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         &'a self,
         segment_id: usize,
     ) -> Option<NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>> {
-        let segment = &self.segments[segment_id];
+        let segment = self.get_or_create_segment(segment_id);
         let head = segment.try_head_mut()?;
         Some(NodeWriter::new(segment, &self.stats, head))
     }
