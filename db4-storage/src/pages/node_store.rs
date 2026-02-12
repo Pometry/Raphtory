@@ -270,6 +270,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub fn reserve_and_lock_segment(
         &self,
         row: usize,
+        required_space: u32,
     ) -> (
         LocalPOS,
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
@@ -277,7 +278,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         let slot_idx = row % N;
         let mut page_id = *self.free_segments[slot_idx].read_recursive();
         let mut writer = self.writer(page_id);
-        match self.reserve_segment_row(writer.page) {
+        match self.reserve_segment_rows(writer.page, required_space) {
             None => {
                 // segment is full, we need to create a new one
                 let mut slot = self.free_segments[slot_idx].write();
@@ -287,7 +288,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                 }
                 loop {
                     writer = self.writer(page_id);
-                    match self.reserve_segment_row(writer.page) {
+                    match self.reserve_segment_rows(writer.page, required_space) {
                         None => page_id = self.push_new_segment(),
                         Some(local_pos) => {
                             *slot = page_id;
@@ -303,7 +304,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     fn reserve_segment_row(&self, segment: &NS) -> Option<u32> {
         // TODO: if this becomes a hotspot, we can switch to a fetch_add followed by a fetch_min
         // this means when we read the counter we need to clamp it to max_page_len so the iterators don't break
-        increment_and_clamp(segment.nodes_counter(), self.max_segment_len())
+        increment_and_clamp(segment.nodes_counter(), 1, self.max_segment_len())
+    }
+
+    fn reserve_segment_rows(&self, segment: &NS, rows: u32) -> Option<u32> {
+        increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
 
     fn push_new_segment(&self) -> usize {
@@ -578,14 +583,19 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 }
 
-pub fn increment_and_clamp(counter: &AtomicU32, max_segment_len: u32) -> Option<u32> {
+pub fn increment_and_clamp(
+    counter: &AtomicU32,
+    increment: u32,
+    max_segment_len: u32,
+) -> Option<u32> {
     counter
         .fetch_update(
             std::sync::atomic::Ordering::Relaxed,
             std::sync::atomic::Ordering::Relaxed,
             |current| {
-                if current < max_segment_len {
-                    Some(current + 1)
+                let updated = current + increment;
+                if updated <= max_segment_len {
+                    Some(updated)
                 } else {
                     None
                 }

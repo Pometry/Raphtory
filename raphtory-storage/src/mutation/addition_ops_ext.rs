@@ -292,133 +292,144 @@ impl InternalAdditionOps for TemporalGraph {
         e_id: Option<EID>,
         _layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        let mut src_writer = None;
-        let mut dst_writer = None;
+        let mut new_writer = None;
         let nodes = self.storage().nodes();
-        let src_id = match src {
-            NodeRef::External(src) => self.logical_to_physical.get_or_init(src, || {
-                let (pos, mut writer) = nodes
-                    .reserve_and_lock_segment(self.event_counter.fetch_add(1, Ordering::Relaxed));
 
-                writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, src.into())]);
-                let vid = pos.as_vid(
-                    writer.page.segment_id(),
-                    self.extension().config().max_node_page_len(),
-                );
-                src_writer = Some(writer);
-                vid
-            })?,
-            NodeRef::Internal(id) => MaybeNew::Existing(id),
-        };
-        let dst_id = match dst {
-            NodeRef::Internal(id) => MaybeNew::Existing(id),
-            NodeRef::External(dst) => match src_writer.as_mut() {
-                None => self.logical_to_physical.get_or_init(dst, || {
+        let (src_id, dst_id) = match (src, dst) {
+            (NodeRef::External(src), NodeRef::External(dst)) => {
+                let src_id = self.logical_to_physical.get_or_init(src, || {
                     let (pos, mut writer) = nodes.reserve_and_lock_segment(
                         self.event_counter.fetch_add(1, Ordering::Relaxed),
+                        2,
                     );
-                    writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, dst.into())]);
+                    let vid = pos.as_vid(
+                        writer.page.segment_id(),
+                        self.extension().config().max_node_page_len(),
+                    );
+                    new_writer = Some((pos, writer));
+                    vid
+                })?;
+                let dst_id = if let Some((src_pos, writer)) = new_writer.as_mut() {
+                    writer.update_c_props(
+                        *src_pos,
+                        STATIC_GRAPH_LAYER_ID,
+                        [(NODE_ID_IDX, src.into())],
+                    );
+                    let dst_id = self.logical_to_physical.get_or_init(dst, || {
+                        let dst_pos = LocalPOS(src_pos.0 + 1); // we reserved space for both nodes above
+                        let vid = dst_pos
+                            .as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                        vid
+                    })?;
+
+                    if dst_id.is_new() {
+                        writer.update_c_props(
+                            LocalPOS(src_pos.0 + 1),
+                            STATIC_GRAPH_LAYER_ID,
+                            [(NODE_ID_IDX, dst.into())],
+                        );
+                    } else {
+                        // need to un-reserve the space for the destination node
+                        writer.page.nodes_counter().fetch_sub(1, Ordering::Relaxed);
+                    }
+                    dst_id
+                } else {
+                    let dst_id = self.logical_to_physical.get_or_init(dst, || {
+                        let (pos, mut writer) = nodes.reserve_and_lock_segment(
+                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            1,
+                        );
+                        let vid =
+                            pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                        new_writer = Some((pos, writer));
+                        vid
+                    })?;
+                    if let Some((pos, writer)) = new_writer.as_mut() {
+                        writer.update_c_props(
+                            *pos,
+                            STATIC_GRAPH_LAYER_ID,
+                            [(NODE_ID_IDX, dst.into())],
+                        );
+                    }
+                    dst_id
+                };
+                (src_id, dst_id)
+            }
+            (NodeRef::Internal(src_id), NodeRef::External(dst)) => {
+                let dst_id = self.logical_to_physical.get_or_init(dst, || {
+                    let (pos, mut writer) = nodes.reserve_and_lock_segment(
+                        self.event_counter.fetch_add(1, Ordering::Relaxed),
+                        1,
+                    );
                     let vid =
                         pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
-                    dst_writer = Some(writer);
+                    new_writer = Some((pos, writer));
                     vid
-                })?,
-                Some(writer) => self.logical_to_physical.get_or_init(dst, || {
-                    match increment_and_clamp(
-                        writer.page.nodes_counter(),
-                        writer.mut_segment.max_page_len(),
-                    ) {
-                        Some(pos) => {
-                            let pos = LocalPOS(pos);
-                            writer.update_c_props(
-                                pos,
-                                STATIC_GRAPH_LAYER_ID,
-                                [(NODE_ID_IDX, dst.into())],
-                            );
-                            pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len())
-                        }
-                        None => {
-                            let (pos, mut writer) = nodes.reserve_and_lock_segment(
-                                self.event_counter.fetch_add(1, Ordering::Relaxed),
-                            );
-                            writer.update_c_props(
-                                pos,
-                                STATIC_GRAPH_LAYER_ID,
-                                [(NODE_ID_IDX, dst.into())],
-                            );
-                            let vid = pos.as_vid(
-                                writer.page.segment_id(),
-                                writer.mut_segment.max_page_len(),
-                            );
-                            dst_writer = Some(writer);
-                            vid
-                        }
-                    }
-                })?,
-            },
+                })?;
+                (MaybeNew::Existing(src_id), dst_id)
+            }
+            (NodeRef::External(src), NodeRef::Internal(dst_id)) => {
+                let src_id = self.logical_to_physical.get_or_init(src, || {
+                    let (pos, mut writer) = nodes.reserve_and_lock_segment(
+                        self.event_counter.fetch_add(1, Ordering::Relaxed),
+                        1,
+                    );
+                    let vid =
+                        pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                    new_writer = Some((pos, writer));
+                    vid
+                })?;
+                (src_id, MaybeNew::Existing(dst_id))
+            }
+            (NodeRef::Internal(src_id), NodeRef::Internal(dst_id)) => {
+                (MaybeNew::Existing(src_id), MaybeNew::Existing(dst_id))
+            }
         };
 
         let (src_chunk, src_pos) = nodes.resolve_pos(src_id.inner());
         let (dst_chunk, dst_pos) = nodes.resolve_pos(dst_id.inner());
 
-        let mut node_writers = match src_writer {
-            None => match dst_writer {
-                None => {
-                    if src_chunk == dst_chunk {
-                        let writer = nodes.writer(src_chunk);
-                        NodeWriters {
-                            src: writer,
-                            dst: None,
-                        }
-                    } else {
-                        loop {
-                            if let Some(src_writer) = nodes.try_writer(src_chunk) {
-                                if let Some(dst_writer) = nodes.try_writer(dst_chunk) {
-                                    break NodeWriters {
-                                        src: src_writer,
-                                        dst: Some(dst_writer),
-                                    };
-                                }
+        let mut node_writers = match new_writer {
+            None => {
+                if src_chunk == dst_chunk {
+                    let writer = nodes.writer(src_chunk);
+                    NodeWriters {
+                        src: writer,
+                        dst: None,
+                    }
+                } else {
+                    loop {
+                        if let Some(src_writer) = nodes.try_writer(src_chunk) {
+                            if let Some(dst_writer) = nodes.try_writer(dst_chunk) {
+                                break NodeWriters {
+                                    src: src_writer,
+                                    dst: Some(dst_writer),
+                                };
                             }
                         }
                     }
                 }
-                Some(dst_writer) => {
-                    if src_chunk == dst_writer.page.segment_id() {
+            }
+            Some((_, writer)) => {
+                if src_chunk == dst_chunk {
+                    NodeWriters {
+                        src: writer,
+                        dst: None,
+                    }
+                } else {
+                    if src_id.is_new() {
+                        let dst_writer = nodes.writer(dst_chunk);
                         NodeWriters {
-                            src: dst_writer,
-                            dst: None,
+                            src: writer,
+                            dst: Some(dst_writer),
                         }
                     } else {
                         let src_writer = nodes.writer(src_chunk);
                         NodeWriters {
                             src: src_writer,
-                            dst: Some(dst_writer),
+                            dst: Some(writer),
                         }
                     }
-                }
-            },
-            Some(src_writer) => {
-                match dst_writer {
-                    None => {
-                        if dst_id.is_new() || src_chunk == dst_chunk {
-                            // new id reuses the src writer if possible
-                            NodeWriters {
-                                src: src_writer,
-                                dst: None,
-                            }
-                        } else {
-                            let dst_writer = nodes.writer(dst_chunk);
-                            NodeWriters {
-                                src: src_writer,
-                                dst: Some(dst_writer),
-                            }
-                        }
-                    }
-                    Some(dst_writer) => NodeWriters {
-                        src: src_writer,
-                        dst: Some(dst_writer),
-                    },
                 }
             }
         };
