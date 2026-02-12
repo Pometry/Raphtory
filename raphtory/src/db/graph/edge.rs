@@ -36,7 +36,7 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
-use raphtory_core::entities::graph::tgraph::InvalidLayer;
+use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef};
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
@@ -387,15 +387,19 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         let src = self.src().node;
         let dst = self.dst().node;
-
         let e_id = self.edge.pid();
+
         let mut writer = self
             .graph
-            .atomic_add_edge(src, dst, Some(e_id), layer_id)
+            .atomic_add_edge(
+                NodeRef::Internal(src),
+                NodeRef::Internal(dst),
+                Some(e_id),
+                layer_id,
+            )
             .map_err(into_graph_err)?;
 
-        writer.internal_add_edge(t, src, dst, MaybeNew::New(e_id.with_layer(layer_id)), props);
-
+        writer.internal_add_update(t, layer_id, props);
         Ok(())
     }
 }

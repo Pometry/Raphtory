@@ -242,8 +242,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % N;
         let maybe_free_page = {
-            let lock_slot = self.free_segments[slot_idx].read_recursive();
-            let page_id = *lock_slot;
+            let page_id = *self.free_segments[slot_idx].read_recursive();
             let page = self.segments.get(page_id);
 
             page.and_then(|page| {
@@ -268,7 +267,40 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
     }
 
-    fn reserve_segment_row(&self, segment: &Arc<NS>) -> Option<u32> {
+    pub fn reserve_and_lock_segment(
+        &self,
+        row: usize,
+    ) -> (
+        LocalPOS,
+        NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
+    ) {
+        let slot_idx = row % N;
+        let mut page_id = *self.free_segments[slot_idx].read_recursive();
+        let mut writer = self.writer(page_id);
+        match self.reserve_segment_row(writer.page) {
+            None => {
+                // segment is full, we need to create a new one
+                let mut slot = self.free_segments[slot_idx].write();
+                if *slot == page_id {
+                    // page_id is unchanged, no other thread created a new segment before we got the lock
+                    page_id = self.push_new_segment();
+                }
+                loop {
+                    writer = self.writer(page_id);
+                    match self.reserve_segment_row(writer.page) {
+                        None => page_id = self.push_new_segment(),
+                        Some(local_pos) => {
+                            *slot = page_id;
+                            return (LocalPOS(local_pos), writer);
+                        }
+                    }
+                }
+            }
+            Some(local_pos) => (LocalPOS(local_pos), writer),
+        }
+    }
+
+    fn reserve_segment_row(&self, segment: &NS) -> Option<u32> {
         // TODO: if this becomes a hotspot, we can switch to a fetch_add followed by a fetch_min
         // this means when we read the counter we need to clamp it to max_page_len so the iterators don't break
         increment_and_clamp(segment.nodes_counter(), self.max_segment_len())

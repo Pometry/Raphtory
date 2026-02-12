@@ -4,6 +4,7 @@ use crate::mutation::{
     MutationError,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{
         meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
@@ -19,15 +20,20 @@ use raphtory_core::{
     },
     storage::timeindex::EventTime,
 };
+use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    pages::{node_page::writer::node_info_as_props, session::WriteSession},
+    pages::{
+        node_page::writer::{node_info_as_props, NodeWriter, NodeWriters},
+        node_store::increment_and_clamp,
+        session::WriteSession,
+    },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
     wal::LSN,
-    Extension, Wal, ES, GS, NS,
+    Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct WriteS<'a, EXT>
@@ -38,6 +44,9 @@ where
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
     static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
+    src: MaybeNew<VID>,
+    dst: MaybeNew<VID>,
+    eid: MaybeNew<EID>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -52,71 +61,44 @@ where
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    fn internal_add_static_edge(
-        &mut self,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-    ) -> MaybeNew<EID> {
-        self.static_session.add_static_edge(src, dst)
-    }
-
-    fn internal_add_edge(
+    fn internal_add_update(
         &mut self,
         t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        eid: MaybeNew<ELID>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> MaybeNew<ELID> {
-        self.static_session
-            .add_edge_into_layer(t, src, dst, eid, props);
-
-        eid
-    }
-
-    fn internal_delete_edge(
-        &mut self,
-        t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
         layer: usize,
-    ) -> MaybeNew<ELID> {
-        let src = src.into();
-        let dst = dst.into();
-        let eid = self
-            .static_session
-            .add_static_edge(src, dst)
-            .map(|eid| eid.with_layer_deletion(layer));
-
-        self.static_session.delete_edge_from_layer(t, src, dst, eid);
-
-        eid
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        self.static_session.add_edge_into_layer(
+            t,
+            self.src.inner(),
+            self.dst.inner(),
+            self.eid.map(|eid| eid.with_layer(layer)),
+            props,
+        );
     }
 
-    fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.static_session.resolve_node_pos(vid);
-
-            self.static_session
-                .node_writers()
-                .get_mut_src()
-                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
-        };
-    }
-
-    fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.static_session.resolve_node_pos(vid);
-
-            self.static_session
-                .node_writers()
-                .get_mut_dst()
-                .update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, id.into())]);
-        };
+    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+        self.static_session.delete_edge_from_layer(
+            t,
+            self.src.inner(),
+            self.dst.inner(),
+            self.eid.map(|eid| eid.with_layer_deletion(layer)),
+        );
     }
 
     fn set_lsn(&mut self, lsn: LSN) {
         self.static_session.set_lsn(lsn);
+    }
+
+    fn src(&self) -> MaybeNew<VID> {
+        self.src
+    }
+
+    fn dst(&self) -> MaybeNew<VID> {
+        self.dst
+    }
+
+    fn eid(&self) -> MaybeNew<EID> {
+        self.eid
     }
 }
 
@@ -242,7 +224,7 @@ impl InternalAdditionOps for TemporalGraph {
                 writer.update_c_props(
                     local_pos,
                     STATIC_GRAPH_LAYER_ID,
-                    node_info_as_props(id.as_gid_ref().left(), None),
+                    node_info_as_props(id.as_gid_ref(), None),
                 );
                 MaybeNew::Existing(0)
             }
@@ -257,7 +239,7 @@ impl InternalAdditionOps for TemporalGraph {
                             local_pos,
                             STATIC_GRAPH_LAYER_ID,
                             node_info_as_props(
-                                id.as_gid_ref().left(),
+                                id.as_gid_ref(),
                                 Some(node_type_id.inner()).filter(|&id| id != 0),
                             ),
                         );
@@ -305,13 +287,184 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn atomic_add_edge(
         &self,
-        src: VID,
-        dst: VID,
+        src: NodeRef,
+        dst: NodeRef,
         e_id: Option<EID>,
         _layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        let mut src_writer = None;
+        let mut dst_writer = None;
+        let nodes = self.storage().nodes();
+        let src_id = match src {
+            NodeRef::External(src) => self.logical_to_physical.get_or_init(src, || {
+                let (pos, mut writer) = nodes
+                    .reserve_and_lock_segment(self.event_counter.fetch_add(1, Ordering::Relaxed));
+
+                writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, src.into())]);
+                let vid = pos.as_vid(
+                    writer.page.segment_id(),
+                    self.extension().config().max_node_page_len(),
+                );
+                src_writer = Some(writer);
+                vid
+            })?,
+            NodeRef::Internal(id) => MaybeNew::Existing(id),
+        };
+        let dst_id = match dst {
+            NodeRef::Internal(id) => MaybeNew::Existing(id),
+            NodeRef::External(dst) => match src_writer.as_mut() {
+                None => self.logical_to_physical.get_or_init(dst, || {
+                    let (pos, mut writer) = nodes.reserve_and_lock_segment(
+                        self.event_counter.fetch_add(1, Ordering::Relaxed),
+                    );
+                    writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, [(NODE_ID_IDX, dst.into())]);
+                    let vid =
+                        pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                    dst_writer = Some(writer);
+                    vid
+                })?,
+                Some(writer) => self.logical_to_physical.get_or_init(dst, || {
+                    match increment_and_clamp(
+                        writer.page.nodes_counter(),
+                        writer.mut_segment.max_page_len(),
+                    ) {
+                        Some(pos) => {
+                            let pos = LocalPOS(pos);
+                            writer.update_c_props(
+                                pos,
+                                STATIC_GRAPH_LAYER_ID,
+                                [(NODE_ID_IDX, dst.into())],
+                            );
+                            pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len())
+                        }
+                        None => {
+                            let (pos, mut writer) = nodes.reserve_and_lock_segment(
+                                self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            );
+                            writer.update_c_props(
+                                pos,
+                                STATIC_GRAPH_LAYER_ID,
+                                [(NODE_ID_IDX, dst.into())],
+                            );
+                            let vid = pos.as_vid(
+                                writer.page.segment_id(),
+                                writer.mut_segment.max_page_len(),
+                            );
+                            dst_writer = Some(writer);
+                            vid
+                        }
+                    }
+                })?,
+            },
+        };
+
+        let (src_chunk, src_pos) = nodes.resolve_pos(src_id.inner());
+        let (dst_chunk, dst_pos) = nodes.resolve_pos(dst_id.inner());
+
+        let mut node_writers = match src_writer {
+            None => match dst_writer {
+                None => {
+                    if src_chunk == dst_chunk {
+                        let writer = nodes.writer(src_chunk);
+                        NodeWriters {
+                            src: writer,
+                            dst: None,
+                        }
+                    } else {
+                        loop {
+                            if let Some(src_writer) = nodes.try_writer(src_chunk) {
+                                if let Some(dst_writer) = nodes.try_writer(dst_chunk) {
+                                    break NodeWriters {
+                                        src: src_writer,
+                                        dst: Some(dst_writer),
+                                    };
+                                }
+                            }
+                        }
+                    }
+                }
+                Some(dst_writer) => {
+                    if src_chunk == dst_writer.page.segment_id() {
+                        NodeWriters {
+                            src: dst_writer,
+                            dst: None,
+                        }
+                    } else {
+                        let src_writer = nodes.writer(src_chunk);
+                        NodeWriters {
+                            src: src_writer,
+                            dst: Some(dst_writer),
+                        }
+                    }
+                }
+            },
+            Some(src_writer) => {
+                match dst_writer {
+                    None => {
+                        if dst_id.is_new() || src_chunk == dst_chunk {
+                            // new id reuses the src writer if possible
+                            NodeWriters {
+                                src: src_writer,
+                                dst: None,
+                            }
+                        } else {
+                            let dst_writer = nodes.writer(dst_chunk);
+                            NodeWriters {
+                                src: src_writer,
+                                dst: Some(dst_writer),
+                            }
+                        }
+                    }
+                    Some(dst_writer) => NodeWriters {
+                        src: src_writer,
+                        dst: Some(dst_writer),
+                    },
+                }
+            }
+        };
+
+        let existing_eid =
+            node_writers
+                .src
+                .get_out_edge(src_pos, dst_id.inner(), STATIC_GRAPH_LAYER_ID);
+
+        let (edge_id, edge_writer) = match e_id.or(existing_eid) {
+            Some(edge_id) => (
+                MaybeNew::Existing(edge_id),
+                self.storage().edge_writer(edge_id),
+            ),
+            None => {
+                let mut edge_writer = self.storage().get_free_writer();
+                let edge_pos = None;
+                let already_counted = false;
+                let edge_pos = edge_writer.add_static_edge(
+                    edge_pos,
+                    src_id.inner(),
+                    dst_id.inner(),
+                    already_counted,
+                );
+                let edge_id =
+                    edge_pos.as_eid(edge_writer.segment_id(), edge_writer.writer.max_page_len());
+
+                node_writers.get_mut_src().add_static_outbound_edge(
+                    src_pos,
+                    dst_id.inner(),
+                    edge_id,
+                );
+                node_writers.get_mut_dst().add_static_inbound_edge(
+                    dst_pos,
+                    src_id.inner(),
+                    edge_id,
+                );
+                (MaybeNew::New(edge_id), edge_writer)
+            }
+        };
+
         Ok(WriteS {
-            static_session: self.storage().write_session(src, dst, e_id),
+            static_session: WriteSession::new(node_writers, edge_writer, self.storage()),
+            src: src_id,
+            dst: dst_id,
+            eid: edge_id,
         })
     }
 

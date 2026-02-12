@@ -17,6 +17,7 @@ use raphtory_storage::mutation::{
     durability_ops::DurabilityOps,
     MutationError,
 };
+use std::time::Instant;
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
@@ -165,7 +166,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         self.validate_gids(
             [v.as_node_ref()]
                 .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
         )
         .map_err(into_graph_err)?;
 
@@ -206,7 +207,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         self.validate_gids(
             [v.as_node_ref()]
                 .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
         )
         .map_err(into_graph_err)?;
 
@@ -262,7 +263,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         self.validate_gids(
             [src, dst]
                 .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
         )
         .map_err(into_graph_err)?;
 
@@ -288,25 +289,17 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // At this point we start modifying the graph, any error after this point is fatal and should
         // panic!
         let (edge_id, src_id, dst_id, layer_id) = {
-            // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
-            // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
-            let src_id = self.resolve_node(src).map_err(into_graph_err)?;
-            let dst_id = self.resolve_node(dst).map_err(into_graph_err)?;
             let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
-
-            let src_id = src_id.inner();
-            let dst_id = dst_id.inner();
             let layer_id = layer_id.inner();
 
             // Hold all locks for src node, dst node and edge until add_edge_op goes out of scope.
             let mut add_edge_op = self
-                .atomic_add_edge(src_id, dst_id, None, layer_id)
+                .atomic_add_edge(src, dst, None, layer_id)
                 .map_err(into_graph_err)?;
 
             // NOTE: We log edge id after it is inserted into the edge segment.
             // This is fine as long as we hold onto the edge segment lock through add_edge_op
             // for the entire operation.
-            let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id);
 
             // All names, ids and values have been generated for this operation.
             // Create a wal entry to mark it as durable.
@@ -318,6 +311,10 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
+            let src_id = add_edge_op.src().inner();
+            let dst_id = add_edge_op.dst().inner();
+            let edge_id = add_edge_op.eid().inner();
+
             let lsn = wal.log_add_edge(
                 transaction_id,
                 ti,
@@ -325,7 +322,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 src_id,
                 dst_gid,
                 dst_id,
-                edge_id.inner(),
+                edge_id,
                 layer,
                 layer_id,
                 props_for_wal,
@@ -339,17 +336,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 })
                 .collect::<Vec<_>>();
 
-            let edge_id = add_edge_op.internal_add_edge(
-                ti,
-                src_id,
-                dst_id,
-                edge_id.map(|eid| eid.with_layer(layer_id)),
-                props,
-            );
-
-            add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
-            add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
-
+            add_edge_op.internal_add_update(ti, layer_id, props);
             // Update the src, dst and edge segments with the lsn of the wal entry.
             add_edge_op.set_lsn(lsn);
 
@@ -369,7 +356,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
+            EdgeRef::new_outgoing(edge_id, src_id, dst_id).at_layer(layer_id),
         ))
     }
 

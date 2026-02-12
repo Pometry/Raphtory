@@ -66,8 +66,8 @@ pub trait InternalAdditionOps {
 
     fn atomic_add_edge(
         &self,
-        src: VID,
-        dst: VID,
+        src: NodeRef,
+        dst: NodeRef,
         e_id: Option<EID>,
         layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error>;
@@ -96,34 +96,23 @@ pub trait InternalAdditionOps {
 }
 
 pub trait EdgeWriteLock: Send + Sync {
-    fn internal_add_static_edge(
-        &mut self,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-    ) -> MaybeNew<EID>;
-
     /// add edge update
-    fn internal_add_edge(
+    fn internal_add_update(
         &mut self,
         t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        eid: MaybeNew<ELID>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> MaybeNew<ELID>;
-
-    fn internal_delete_edge(
-        &mut self,
-        t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
         layer: usize,
-    ) -> MaybeNew<ELID>;
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    );
 
-    fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
-    fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
+    fn internal_delete_edge(&mut self, t: EventTime, layer: usize);
 
     fn set_lsn(&mut self, lsn: LSN);
+
+    fn src(&self) -> MaybeNew<VID>;
+
+    fn dst(&self) -> MaybeNew<VID>;
+
+    fn eid(&self) -> MaybeNew<EID>;
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -207,8 +196,8 @@ impl InternalAdditionOps for GraphStorage {
 
     fn atomic_add_edge(
         &self,
-        src: VID,
-        dst: VID,
+        src: NodeRef,
+        dst: NodeRef,
         e_id: Option<EID>,
         layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
@@ -315,8 +304,8 @@ where
     #[inline]
     fn atomic_add_edge(
         &self,
-        src: VID,
-        dst: VID,
+        src: NodeRef,
+        dst: NodeRef,
         e_id: Option<EID>,
         layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {

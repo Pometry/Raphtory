@@ -287,7 +287,7 @@ fn import_node_internal<
     merge: bool,
 ) -> Result<NodeView<'static, G>, GraphError> {
     let id = id.as_node_ref();
-    let gid_ref = id.as_gid_ref().left();
+    let gid_ref = id.as_gid_ref();
     graph.validate_gids(gid_ref).map_err(into_graph_err)?;
     if !merge {
         if let Some(existing_node) = graph.node(id) {
