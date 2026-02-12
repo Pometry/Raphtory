@@ -1,6 +1,5 @@
-use crate::client::remote_node::GraphQLRemoteNode;
+use crate::client::{remote_node::GraphQLRemoteNode, ClientError};
 use pyo3::{pyclass, pymethods};
-use raphtory::errors::GraphError;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tokio::runtime::Runtime;
@@ -46,12 +45,12 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+    pub fn set_node_type(&self, new_type: &str) -> Result<(), ClientError> {
         let node = self.node.clone();
         let new_type = new_type.to_string();
 
         let task = move || async move { node.set_node_type(new_type).await };
-        self.execute_async_task(task).map_err(GraphError::from)?;
+        self.execute_async_task(task)?;
         Ok(())
     }
 
@@ -69,11 +68,11 @@ impl PyRemoteNode {
         &self,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<(), ClientError> {
         let node = self.node.clone();
 
         let task = move || async move { node.add_updates(t, properties).await };
-        self.execute_async_task(task).map_err(GraphError::from)?;
+        self.execute_async_task(task)?;
 
         Ok(())
     }
@@ -87,11 +86,11 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let node = self.node.clone();
 
         let task = move || async move { node.add_metadata(properties).await };
-        self.execute_async_task(task).map_err(GraphError::from)?;
+        self.execute_async_task(task)?;
         Ok(())
     }
 
@@ -104,11 +103,11 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), GraphError> {
+    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let node = self.node.clone();
 
         let task = move || async move { node.update_metadata(properties).await };
-        self.execute_async_task(task).map_err(GraphError::from)?;
+        self.execute_async_task(task)?;
         Ok(())
     }
 }

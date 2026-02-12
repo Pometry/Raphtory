@@ -3,7 +3,6 @@ use crate::client::{
     remote_node::GraphQLRemoteNode, ClientError,
 };
 use minijinja::{context, Environment, Value};
-use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::{AsTime, EventTime},
@@ -11,15 +10,15 @@ use raphtory_api::core::{
 };
 use std::collections::HashMap;
 
-pub fn build_query(template: &str, context: Value) -> Result<String, GraphError> {
+pub fn build_query(template: &str, context: Value) -> Result<String, ClientError> {
     let mut env = Environment::new();
     env.add_template("template", template)
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?;
+        .map_err(|e| ClientError::JinjaError(e.to_string()))?;
     let query = env
         .get_template("template")
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?
+        .map_err(|e| ClientError::JinjaError(e.to_string()))?
         .render(context)
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?;
+        .map_err(|e| ClientError::JinjaError(e.to_string()))?;
     Ok(query)
 }
 
@@ -75,7 +74,7 @@ impl GraphQLRemoteGraph {
             node_type => node_type,
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client
             .query_async(&query, HashMap::new())
             .await
@@ -108,7 +107,7 @@ impl GraphQLRemoteGraph {
             node_type => node_type,
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client
             .query_async(&query, HashMap::new())
             .await
@@ -142,7 +141,7 @@ impl GraphQLRemoteGraph {
             layer => layer,
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client
             .query_async(&query, HashMap::new())
             .await
@@ -168,7 +167,7 @@ impl GraphQLRemoteGraph {
             properties => build_property_string(properties),
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client
             .query_async(&query, HashMap::new())
             .await
@@ -189,7 +188,7 @@ impl GraphQLRemoteGraph {
             properties => build_property_string(properties),
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client
             .query_async(&query, HashMap::new())
             .await
@@ -213,7 +212,7 @@ impl GraphQLRemoteGraph {
             properties => build_property_string(properties),
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client
             .query_async(&query, HashMap::new())
             .await
@@ -246,7 +245,7 @@ impl GraphQLRemoteGraph {
             layer => layer,
         };
 
-        let query = build_query(template, ctx).map_err(ClientError::from)?;
+        let query = build_query(template, ctx)?;
         self.client
             .query_async(&query, HashMap::new())
             .await

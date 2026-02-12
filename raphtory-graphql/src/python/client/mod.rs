@@ -1,14 +1,12 @@
-use crate::client::inner_collection;
-use minijinja::{Environment, Value};
+use crate::client::{inner_collection, ClientError};
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
-use raphtory::errors::GraphError;
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
         storage::timeindex::EventTime,
         utils::time::IntoTime,
     },
-    python::timeindex::PyEventTime,
+    python::{error::adapt_err_value, timeindex::PyEventTime},
 };
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
@@ -233,18 +231,6 @@ impl PyEdgeAddition {
     }
 }
 
-pub(crate) fn build_query(template: &str, context: Value) -> Result<String, GraphError> {
-    let mut env = Environment::new();
-    env.add_template("template", template)
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?;
-    let query = env
-        .get_template("template")
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?
-        .render(context)
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?;
-    Ok(query)
-}
-
 /// Specifies that **all** properties should be included when creating an index.
 /// Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
 #[derive(Clone, Serialize, PartialEq)]
@@ -345,5 +331,11 @@ impl PyRemoteIndexSpec {
             node_props,
             edge_props,
         }
+    }
+}
+
+impl From<ClientError> for PyErr {
+    fn from(err: ClientError) -> Self {
+        adapt_err_value(&err)
     }
 }

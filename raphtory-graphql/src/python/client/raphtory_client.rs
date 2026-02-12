@@ -8,12 +8,8 @@ use crate::{
         encode_graph, translate_from_python, translate_map_to_python,
     },
 };
-use pyo3::{
-    exceptions::{PyException, PyValueError},
-    prelude::*,
-    types::PyDict,
-};
-use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
+use pyo3::{exceptions::PyException, prelude::*, types::PyDict};
+use raphtory::db::api::view::MaterializedGraph;
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tokio::runtime::Runtime;

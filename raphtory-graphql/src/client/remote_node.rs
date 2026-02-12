@@ -6,9 +6,7 @@ use crate::client::{
 };
 use minijinja::context;
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
+    entities::properties::prop::Prop, storage::timeindex::AsTime, utils::time::IntoTime,
 };
 use std::collections::HashMap;
 
