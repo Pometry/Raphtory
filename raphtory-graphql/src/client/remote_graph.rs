@@ -1,6 +1,6 @@
 use crate::client::{
-    build_property_string, inner_collection, raphtory_client::RaphtoryGraphQLClient,
-    remote_edge::GraphQLRemoteEdge, remote_node::GraphQLRemoteNode, ClientError,
+    build_property_string, raphtory_client::RaphtoryGraphQLClient, remote_edge::GraphQLRemoteEdge,
+    remote_node::GraphQLRemoteNode, ClientError,
 };
 use minijinja::{context, Environment, Value};
 use raphtory::errors::GraphError;
@@ -9,7 +9,6 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
-use serde::Serialize;
 use std::collections::HashMap;
 
 pub fn build_query(template: &str, context: Value) -> Result<String, GraphError> {

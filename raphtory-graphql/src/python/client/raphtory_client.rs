@@ -1,5 +1,8 @@
 use crate::{
-    client::{is_online, raphtory_client::RaphtoryGraphQLClient, ClientError},
+    client::{
+        is_online, raphtory_client::RaphtoryGraphQLClient, remote_graph::GraphQLRemoteGraph,
+        ClientError,
+    },
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph, translate_from_python, translate_map_to_python,
@@ -229,8 +232,8 @@ impl PyRaphtoryClient {
     ///
     fn remote_graph(&self, path: String) -> PyRemoteGraph {
         PyRemoteGraph {
-            path,
-            client: self.clone(),
+            graph: GraphQLRemoteGraph::new(path, self.client.clone()),
+            runtime: self.runtime.clone(),
         }
     }
 
