@@ -7,7 +7,7 @@ use tokio::runtime::Runtime;
 #[derive(Clone)]
 #[pyclass(name = "RemoteNode", module = "raphtory.graphql")]
 pub struct PyRemoteNode {
-    pub(crate) node: GraphQLRemoteNode,
+    pub(crate) node: Arc<GraphQLRemoteNode>,
     pub(crate) runtime: Arc<Runtime>,
 }
 
@@ -22,7 +22,10 @@ impl PyRemoteNode {
     /// Returns:
     ///   None:
     pub(crate) fn new(node: GraphQLRemoteNode, runtime: Arc<Runtime>) -> Self {
-        Self { node, runtime }
+        Self {
+            node: Arc::new(node),
+            runtime,
+        }
     }
 
     fn execute_async_task<T, F, O>(&self, task: T) -> O
@@ -46,7 +49,7 @@ impl PyRemoteNode {
     /// Returns:
     ///   None:
     pub fn set_node_type(&self, new_type: &str) -> Result<(), ClientError> {
-        let node = self.node.clone();
+        let node = Arc::clone(&self.node);
         let new_type = new_type.to_string();
 
         let task = move || async move { node.set_node_type(new_type).await };
@@ -69,7 +72,7 @@ impl PyRemoteNode {
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
     ) -> Result<(), ClientError> {
-        let node = self.node.clone();
+        let node = Arc::clone(&self.node);
 
         let task = move || async move { node.add_updates(t, properties).await };
         self.execute_async_task(task)?;
@@ -87,7 +90,7 @@ impl PyRemoteNode {
     /// Returns:
     ///   None:
     pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
-        let node = self.node.clone();
+        let node = Arc::clone(&self.node);
 
         let task = move || async move { node.add_metadata(properties).await };
         self.execute_async_task(task)?;
@@ -104,7 +107,7 @@ impl PyRemoteNode {
     /// Returns:
     ///   None:
     pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
-        let node = self.node.clone();
+        let node = Arc::clone(&self.node);
 
         let task = move || async move { node.update_metadata(properties).await };
         self.execute_async_task(task)?;

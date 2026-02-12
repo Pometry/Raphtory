@@ -334,6 +334,7 @@ impl PyRemoteIndexSpec {
     }
 }
 
+// Takes care of the ClientError -> PyException conversion
 impl From<ClientError> for PyErr {
     fn from(err: ClientError) -> Self {
         adapt_err_value(&err)

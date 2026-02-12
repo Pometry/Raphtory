@@ -15,10 +15,6 @@ use std::{collections::HashMap, future::Future, sync::Arc};
 use tokio::runtime::Runtime;
 use tracing::debug;
 
-fn adapt_client_error(e: ClientError) -> PyErr {
-    PyException::new_err(e.to_string())
-}
-
 /// A client for handling GraphQL operations in the context of Raphtory.
 ///
 /// Arguments:
@@ -42,7 +38,7 @@ impl PyRaphtoryClient {
         let client = self.client.clone();
         let fut = f(client);
         let result = self.execute_async_task(|| fut);
-        result.map_err(adapt_client_error)
+        result.map_err(PyErr::from)
     }
 
     pub(crate) fn query_with_json_variables(
@@ -68,7 +64,7 @@ impl PyRaphtoryClient {
     #[new]
     #[pyo3(signature = (url, token=None))]
     pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
-        let client = RaphtoryGraphQLClient::connect(url, token).map_err(adapt_client_error)?;
+        let client = RaphtoryGraphQLClient::connect(url, token).map_err(PyErr::from)?;
         let runtime = Arc::new(
             tokio::runtime::Builder::new_multi_thread()
                 .enable_all()
@@ -224,7 +220,7 @@ impl PyRaphtoryClient {
     ///
     fn remote_graph(&self, path: String) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: GraphQLRemoteGraph::new(path, self.client.clone()),
+            graph: Arc::new(GraphQLRemoteGraph::new(path, self.client.clone())),
             runtime: self.runtime.clone(),
         }
     }

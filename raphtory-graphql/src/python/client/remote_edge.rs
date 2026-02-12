@@ -12,13 +12,16 @@ use tokio::runtime::Runtime;
 #[derive(Clone)]
 #[pyclass(name = "RemoteEdge", module = "raphtory.graphql")]
 pub struct PyRemoteEdge {
-    pub(crate) edge: GraphQLRemoteEdge,
+    pub(crate) edge: Arc<GraphQLRemoteEdge>,
     pub(crate) runtime: Arc<Runtime>,
 }
 
 impl PyRemoteEdge {
     pub(crate) fn new(edge: GraphQLRemoteEdge, runtime: Arc<Runtime>) -> Self {
-        PyRemoteEdge { edge, runtime }
+        PyRemoteEdge {
+            edge: Arc::new(edge),
+            runtime,
+        }
     }
 
     fn execute_async_task<T, F, O>(&self, task: T) -> O
@@ -52,7 +55,7 @@ impl PyRemoteEdge {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
-        let edge = self.edge.clone();
+        let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.add_updates(t, properties, layer_str).await };
@@ -74,7 +77,7 @@ impl PyRemoteEdge {
     ///   GraphError: If the operation fails.
     #[pyo3(signature = (t, layer=None))]
     fn delete(&self, t: EventTime, layer: Option<&str>) -> Result<(), ClientError> {
-        let edge = self.edge.clone();
+        let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.delete(t, layer_str).await };
@@ -99,7 +102,7 @@ impl PyRemoteEdge {
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
-        let edge = self.edge.clone();
+        let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.add_metadata(properties, layer_str).await };
@@ -124,7 +127,7 @@ impl PyRemoteEdge {
         properties: HashMap<String, Prop>,
         layer: Option<&str>,
     ) -> Result<(), ClientError> {
-        let edge = self.edge.clone();
+        let edge = Arc::clone(&self.edge);
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.update_metadata(properties, layer_str).await };

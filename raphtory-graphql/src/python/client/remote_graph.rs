@@ -21,7 +21,7 @@ use tokio::runtime::Runtime;
 #[derive(Clone)]
 #[pyclass(name = "RemoteGraph", module = "raphtory.graphql")]
 pub struct PyRemoteGraph {
-    pub(crate) graph: GraphQLRemoteGraph,
+    pub(crate) graph: Arc<GraphQLRemoteGraph>,
     pub(crate) runtime: Arc<Runtime>,
 }
 
@@ -139,13 +139,15 @@ impl PyRemoteGraph {
 
         let query = build_query(template, query_context)?;
         let task = {
-            let graph = self.graph.clone();
+            let graph = Arc::clone(&self.graph);
             move || async move { graph.client.query(&query, HashMap::new()).await }
         };
         self.execute_async_task(task)?;
 
         Ok(())
     }
+
+    // TODO: Still need to move add_nodes and add_edges logic over to Rust client in src/client/raphtory_client.rs
 
     /// Batch add edge updates to the remote graph
     ///
@@ -214,7 +216,7 @@ impl PyRemoteGraph {
 
         let query = build_query(template, query_context)?;
         let task = {
-            let graph = self.graph.clone();
+            let graph = Arc::clone(&self.graph);
             move || async move { graph.client.query(&query, HashMap::new()).await }
         };
         self.execute_async_task(task)?;
@@ -240,7 +242,7 @@ impl PyRemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
-        let graph = self.graph.clone();
+        let graph = Arc::clone(&self.graph);
         let id_str = id.to_string();
         let node_type = node_type.map(|s| s.to_string());
 
@@ -271,7 +273,7 @@ impl PyRemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
-        let graph = self.graph.clone();
+        let graph = Arc::clone(&self.graph);
         let id_str = id.to_string();
         let node_type = node_type.map(|s| s.to_string());
 
@@ -300,7 +302,7 @@ impl PyRemoteGraph {
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
     ) -> Result<(), ClientError> {
-        let graph = self.graph.clone();
+        let graph = Arc::clone(&self.graph);
         let task = move || async move { graph.add_property(timestamp, properties).await };
         self.execute_async_task(task)?;
 
@@ -315,7 +317,7 @@ impl PyRemoteGraph {
     /// Returns:
     ///     None:
     pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
-        let graph = self.graph.clone();
+        let graph = Arc::clone(&self.graph);
         let task = move || async move { graph.add_metadata(properties).await };
         self.execute_async_task(task)?;
 
@@ -330,7 +332,7 @@ impl PyRemoteGraph {
     /// Returns:
     ///     None:
     pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
-        let graph = self.graph.clone();
+        let graph = Arc::clone(&self.graph);
         let task = move || async move { graph.update_metadata(properties).await };
         self.execute_async_task(task)?;
 
@@ -357,7 +359,7 @@ impl PyRemoteGraph {
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
     ) -> Result<PyRemoteEdge, ClientError> {
-        let graph = self.graph.clone();
+        let graph = Arc::clone(&self.graph);
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let layer = layer.map(|s| s.to_string());
@@ -392,7 +394,7 @@ impl PyRemoteGraph {
         dst: GID,
         layer: Option<&str>,
     ) -> Result<PyRemoteEdge, ClientError> {
-        let graph = self.graph.clone();
+        let graph = Arc::clone(&self.graph);
         let src_str = src.to_string();
         let dst_str = dst.to_string();
         let layer = layer.map(|s| s.to_string());
