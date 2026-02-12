@@ -48,7 +48,7 @@ impl RaphtoryGraphQLClient {
 
     /// Execute a GraphQL query asynchronously.
     /// Returns the `data` object as a map; errors if the response contains GraphQL `errors`.
-    pub async fn query_async(
+    pub async fn query(
         &self,
         query: &str,
         variables: HashMap<String, JsonValue>,
@@ -100,7 +100,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Send a graph (base64-encoded string) to the server.
-    pub async fn send_graph_async(
+    pub async fn send_graph(
         &self,
         path: &str,
         encoded_graph: &str,
@@ -120,7 +120,7 @@ impl RaphtoryGraphQLClient {
         .into_iter()
         .collect();
 
-        let data = self.query_async(&query, variables).await?;
+        let data = self.query(&query, variables).await?;
         match data.get("sendGraph") {
             Some(JsonValue::String(_)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(
@@ -131,7 +131,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Upload a graph from a local file path (zip) via multipart.
-    pub async fn upload_graph_async(
+    pub async fn upload_graph(
         &self,
         path: &str,
         file_path: &str,
@@ -194,7 +194,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Copy graph on the server.
-    pub async fn copy_graph_async(&self, path: &str, new_path: &str) -> Result<(), ClientError> {
+    pub async fn copy_graph(&self, path: &str, new_path: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation CopyGraph($path: String!, $newPath: String!) {
               copyGraph(path: $path, newPath: $newPath)
@@ -207,7 +207,7 @@ impl RaphtoryGraphQLClient {
         .into_iter()
         .collect();
 
-        let data = self.query_async(&query, variables).await?;
+        let data = self.query(&query, variables).await?;
         match data.get("copyGraph") {
             Some(JsonValue::Bool(true)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(
@@ -217,7 +217,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Move graph on the server.
-    pub async fn move_graph_async(&self, path: &str, new_path: &str) -> Result<(), ClientError> {
+    pub async fn move_graph(&self, path: &str, new_path: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation MoveGraph($path: String!, $newPath: String!) {
               moveGraph(path: $path, newPath: $newPath)
@@ -230,7 +230,7 @@ impl RaphtoryGraphQLClient {
         .into_iter()
         .collect();
 
-        let data = self.query_async(&query, variables).await?;
+        let data = self.query(&query, variables).await?;
         match data.get("moveGraph") {
             Some(JsonValue::Bool(true)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(
@@ -240,7 +240,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Delete graph on the server.
-    pub async fn delete_graph_async(&self, path: &str) -> Result<(), ClientError> {
+    pub async fn delete_graph(&self, path: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation DeleteGraph($path: String!) {
               deleteGraph(path: $path)
@@ -249,7 +249,7 @@ impl RaphtoryGraphQLClient {
         let variables: HashMap<String, JsonValue> =
             [("path".to_owned(), json!(path))].into_iter().collect();
 
-        let data = self.query_async(&query, variables).await?;
+        let data = self.query(&query, variables).await?;
         match data.get("deleteGraph") {
             Some(JsonValue::Bool(true)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(
@@ -259,7 +259,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Receive graph from the server. Returns the base64-encoded graph string.
-    pub async fn receive_graph_async(&self, path: &str) -> Result<String, ClientError> {
+    pub async fn receive_graph(&self, path: &str) -> Result<String, ClientError> {
         let query = r#"
             query ReceiveGraph($path: String!) {
                 receiveGraph(path: $path)
@@ -268,7 +268,7 @@ impl RaphtoryGraphQLClient {
         let variables: HashMap<String, JsonValue> =
             [("path".to_owned(), json!(path))].into_iter().collect();
 
-        let data = self.query_async(&query, variables).await?;
+        let data = self.query(&query, variables).await?;
         match data.get("receiveGraph") {
             Some(JsonValue::String(s)) => Ok(s.clone()),
             _ => Err(ClientError::InvalidResponse(format!(
@@ -278,16 +278,16 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Receive graph from the server and decode to MaterializedGraph.
-    pub async fn receive_graph_decoded_async(
+    pub async fn receive_graph_decoded(
         &self,
         path: &str,
     ) -> Result<MaterializedGraph, ClientError> {
-        let encoded = self.receive_graph_async(path).await?;
+        let encoded = self.receive_graph(path).await?;
         url_decode_graph(encoded, Config::default()).map_err(ClientError::from)
     }
 
     /// Create a new empty graph on the server.
-    pub async fn new_graph_async(&self, path: &str, graph_type: &str) -> Result<(), ClientError> {
+    pub async fn new_graph(&self, path: &str, graph_type: &str) -> Result<(), ClientError> {
         let query = r#"
             mutation NewGraph($path: String!) {
               newGraph(path: $path, graphType: EVENT)
@@ -298,7 +298,7 @@ impl RaphtoryGraphQLClient {
         let variables: HashMap<String, JsonValue> =
             [("path".to_owned(), json!(path))].into_iter().collect();
 
-        let data = self.query_async(&query, variables).await?;
+        let data = self.query(&query, variables).await?;
         match data.get("newGraph") {
             Some(JsonValue::Bool(true)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(
@@ -308,7 +308,7 @@ impl RaphtoryGraphQLClient {
     }
 
     /// Create index on the server. `index_spec` must serialize to the GraphQL IndexSpecInput shape.
-    pub async fn create_index_async(
+    pub async fn create_index(
         &self,
         path: &str,
         index_spec: JsonValue,
@@ -329,7 +329,7 @@ impl RaphtoryGraphQLClient {
         .into_iter()
         .collect();
 
-        let data = self.query_async(&query, variables).await?;
+        let data = self.query(&query, variables).await?;
         match data.get("createIndex") {
             Some(JsonValue::Bool(true)) => Ok(()),
             _ => Err(ClientError::InvalidResponse(format!(

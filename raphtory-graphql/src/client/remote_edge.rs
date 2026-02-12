@@ -56,10 +56,7 @@ impl GraphQLRemoteEdge {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Mark the edge as deleted at the specified time.
@@ -87,10 +84,7 @@ impl GraphQLRemoteEdge {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Add metadata to the edge (properties that do not change over time).
@@ -118,10 +112,7 @@ impl GraphQLRemoteEdge {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Update metadata of the edge, overwriting existing values.
@@ -149,9 +140,6 @@ impl GraphQLRemoteEdge {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 }

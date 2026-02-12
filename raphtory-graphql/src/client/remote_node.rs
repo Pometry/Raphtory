@@ -42,10 +42,7 @@ impl GraphQLRemoteNode {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Add temporal updates to the node at the specified time.
@@ -72,10 +69,7 @@ impl GraphQLRemoteNode {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Add metadata to the node (properties that do not change over time).
@@ -97,10 +91,7 @@ impl GraphQLRemoteNode {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Update metadata of the node, overwriting existing values.
@@ -125,9 +116,6 @@ impl GraphQLRemoteNode {
         };
 
         let query = build_query(template, ctx).map_err(ClientError::from)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 }

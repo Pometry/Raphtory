@@ -75,10 +75,7 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Create a new node (fails if the node already exists). Uses the createNode mutation.
@@ -108,10 +105,7 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     pub async fn add_edge<G: Into<GID> + ToString, T: IntoTime>(
@@ -142,10 +136,7 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     pub async fn add_property(
@@ -168,10 +159,7 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
@@ -189,10 +177,7 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     pub async fn update_metadata(
@@ -213,10 +198,7 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 
     /// Deletes an edge at the given time, src, dst and optional layer.
@@ -246,9 +228,6 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query_async(&query, HashMap::new())
-            .await
-            .map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| ())
     }
 }

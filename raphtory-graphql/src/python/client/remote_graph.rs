@@ -140,7 +140,7 @@ impl PyRemoteGraph {
         let query = build_query(template, query_context)?;
         let task = {
             let graph = self.graph.clone();
-            move || async move { graph.client.query_async(&query, HashMap::new()).await }
+            move || async move { graph.client.query(&query, HashMap::new()).await }
         };
         self.execute_async_task(task)?;
 
@@ -215,7 +215,7 @@ impl PyRemoteGraph {
         let query = build_query(template, query_context)?;
         let task = {
             let graph = self.graph.clone();
-            move || async move { graph.client.query_async(&query, HashMap::new()).await }
+            move || async move { graph.client.query(&query, HashMap::new()).await }
         };
         self.execute_async_task(task)?;
 

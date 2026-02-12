@@ -50,7 +50,7 @@ impl PyRaphtoryClient {
         query: String,
         variables: HashMap<String, JsonValue>,
     ) -> PyResult<HashMap<String, JsonValue>> {
-        self.run_async(move |client| async move { client.query_async(&query, variables).await })
+        self.run_async(move |client| async move { client.query(&query, variables).await })
     }
 
     pub fn execute_async_task<T, F, O>(&self, task: T) -> O
@@ -126,7 +126,7 @@ impl PyRaphtoryClient {
         let path_clone = path.clone();
         self.run_async(move |client| async move {
             client
-                .send_graph_async(&path_clone, &encoded_graph, overwrite)
+                .send_graph(&path_clone, &encoded_graph, overwrite)
                 .await
         })?;
         debug!("Sent graph '{path}' to the server");
@@ -145,9 +145,7 @@ impl PyRaphtoryClient {
     #[pyo3(signature = (path, file_path, overwrite = false))]
     fn upload_graph(&self, path: String, file_path: String, overwrite: bool) -> PyResult<()> {
         self.run_async(move |client| async move {
-            client
-                .upload_graph_async(&path, &file_path, overwrite)
-                .await
+            client.upload_graph(&path, &file_path, overwrite).await
         })
     }
 
@@ -161,7 +159,7 @@ impl PyRaphtoryClient {
     ///     None:
     #[pyo3(signature = (path, new_path))]
     fn copy_graph(&self, path: String, new_path: String) -> PyResult<()> {
-        self.run_async(move |client| async move { client.copy_graph_async(&path, &new_path).await })
+        self.run_async(move |client| async move { client.copy_graph(&path, &new_path).await })
     }
 
     /// Move graph from a path path on the server to a new_path on the server
@@ -174,7 +172,7 @@ impl PyRaphtoryClient {
     ///     None:
     #[pyo3(signature = (path, new_path))]
     fn move_graph(&self, path: String, new_path: String) -> PyResult<()> {
-        self.run_async(move |client| async move { client.move_graph_async(&path, &new_path).await })
+        self.run_async(move |client| async move { client.move_graph(&path, &new_path).await })
     }
 
     /// Delete graph from a path path on the server
@@ -186,7 +184,7 @@ impl PyRaphtoryClient {
     ///     None:
     #[pyo3(signature = (path))]
     fn delete_graph(&self, path: String) -> PyResult<()> {
-        self.run_async(move |client| async move { client.delete_graph_async(&path).await })
+        self.run_async(move |client| async move { client.delete_graph(&path).await })
     }
 
     /// Receive graph from a path path on the server
@@ -200,7 +198,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///     Union[Graph, PersistentGraph]: A copy of the graph
     fn receive_graph(&self, path: String) -> PyResult<MaterializedGraph> {
-        self.run_async(move |client| async move { client.receive_graph_decoded_async(&path).await })
+        self.run_async(move |client| async move { client.receive_graph_decoded(&path).await })
     }
 
     /// Create a new empty Graph on the server at path
@@ -213,9 +211,7 @@ impl PyRaphtoryClient {
     ///     None:
     ///
     fn new_graph(&self, path: String, graph_type: String) -> PyResult<()> {
-        self.run_async(
-            move |client| async move { client.new_graph_async(&path, &graph_type).await },
-        )
+        self.run_async(move |client| async move { client.new_graph(&path, &graph_type).await })
     }
 
     /// Get a RemoteGraph reference to a graph on the server at path
@@ -252,8 +248,8 @@ impl PyRaphtoryClient {
     ) -> PyResult<()> {
         let spec_value =
             serde_json::to_value(&index_spec).map_err(|e| PyException::new_err(e.to_string()))?;
-        self.run_async(move |client| async move {
-            client.create_index_async(&path, spec_value, in_ram).await
-        })
+        self.run_async(
+            move |client| async move { client.create_index(&path, spec_value, in_ram).await },
+        )
     }
 }
