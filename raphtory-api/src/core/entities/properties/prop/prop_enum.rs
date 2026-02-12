@@ -25,7 +25,7 @@ pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equ
 #[error("Decimal {0} too large.")]
 pub struct InvalidBigDecimal(BigDecimal);
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 #[serde(transparent)]
 pub struct PropUntagged(#[serde(with = "PropUntaggedDef")] pub Prop);
 
@@ -61,6 +61,57 @@ impl From<Prop> for PropUntagged {
 impl From<PropUntagged> for Prop {
     fn from(p: PropUntagged) -> Self {
         p.0
+    }
+}
+
+impl<'de> Deserialize<'de> for PropUntagged {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum PropUntaggedHelper {
+            Bool(bool),
+            U8(u8),
+            U16(u16),
+            U32(u32),
+            U64(u64),
+            I32(i32),
+            I64(i64),
+            F64(f64),
+            F32(f32),
+            Str(ArcStr),
+            List(Vec<PropUntagged>), // recursively uses PropUntagged
+            Map(FxHashMap<ArcStr, PropUntagged>), // recursively uses PropUntagged
+            NDTime(NaiveDateTime),
+            DTime(DateTime<Utc>),
+            Decimal(BigDecimal),
+        }
+
+        let helper = PropUntaggedHelper::deserialize(deserializer)?;
+        let prop = match helper {
+            PropUntaggedHelper::Bool(v) => Prop::Bool(v),
+            PropUntaggedHelper::U8(v) => Prop::U8(v),
+            PropUntaggedHelper::U16(v) => Prop::U16(v),
+            PropUntaggedHelper::U32(v) => Prop::U32(v),
+            PropUntaggedHelper::U64(v) => Prop::U64(v),
+            PropUntaggedHelper::I32(v) => Prop::I32(v),
+            PropUntaggedHelper::I64(v) => Prop::I64(v),
+            PropUntaggedHelper::F64(v) => Prop::F64(v),
+            PropUntaggedHelper::F32(v) => Prop::F32(v),
+            PropUntaggedHelper::Str(v) => Prop::Str(v),
+            PropUntaggedHelper::List(v) => {
+                Prop::List(Arc::new(v.into_iter().map(|p| p.0).collect()))
+            }
+            PropUntaggedHelper::Map(v) => {
+                Prop::Map(Arc::new(v.into_iter().map(|(k, p)| (k, p.0)).collect()))
+            }
+            PropUntaggedHelper::NDTime(v) => Prop::NDTime(v),
+            PropUntaggedHelper::DTime(v) => Prop::DTime(v),
+            PropUntaggedHelper::Decimal(v) => Prop::Decimal(v),
+        };
+        Ok(PropUntagged(prop))
     }
 }
 

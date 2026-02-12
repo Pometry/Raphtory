@@ -3971,7 +3971,7 @@ class PathFromGraph(object):
         Returns the node properties.
 
         Returns:
-            NestedPropsIterable:
+            PyNestedPropsIterable:
         """
 
     def rolling(
