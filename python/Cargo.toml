@@ -28,6 +28,7 @@ raphtory-graphql = { workspace = true, features = [
 ] }
 clam-core = { path = "../clam-core", features = ["python"] }
 
+
 [features]
 extension-module = ["pyo3/extension-module"]
 search = ["raphtory/search", "raphtory-graphql/search"]
@@ -36,3 +37,6 @@ proto = ["raphtory/proto"]
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }
+
+[target.'cfg(not(target_env = "msvc"))'.dependencies]
+tikv-jemallocator.workspace = true
