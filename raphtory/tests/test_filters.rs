@@ -1656,8 +1656,12 @@ mod test_node_filter {
         IdentityGraphTransformer,
     };
     use raphtory::{
+        algorithms::alternating_mask::alternating_mask,
         db::{
-            api::view::filter_ops::NodeSelect,
+            api::{
+                state::{GenericNodeState, TypedNodeState},
+                view::{filter_ops::NodeSelect, Filter},
+            },
             graph::{
                 assertions::{
                     assert_filter_nodes_results, assert_search_nodes_results,
@@ -1665,13 +1669,15 @@ mod test_node_filter {
                 },
                 views::filter::model::{
                     node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
-                    ViewWrapOps,
+                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
+                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
                 },
             },
         },
-        prelude::{Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps},
+        prelude::{AdditionOps, Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps, NO_PROPS},
     };
+    use raphtory_api::core::entities::VID;
+    use std::collections::HashMap;
 
     #[test]
     fn test_node_list_is_preserved() {
@@ -2467,6 +2473,42 @@ mod test_node_filter {
     }
 
     #[test]
+    fn test_filter_by_column() {
+        let graph = Graph::new();
+        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, None).unwrap();
+        graph.add_node(1, 3, NO_PROPS, None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, None).unwrap();
+        graph.add_node(1, 5, NO_PROPS, None).unwrap();
+
+        let mask = alternating_mask(&graph);
+
+        let filtered = graph
+            .filter(NodeFilter::by_column(&mask, "bool_col").unwrap())
+            .unwrap();
+
+        let names = filtered
+            .nodes()
+            .iter()
+            .map(|n| n.id().to_string())
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["2", "4"]);
+
+        let filtered = graph
+            .nodes()
+            .select(NodeFilter::by_column(&mask, "bool_col").unwrap())
+            .unwrap();
+
+        let names = filtered
+            .iter()
+            .map(|n| n.id().to_string())
+            .collect::<Vec<_>>();
+
+        assert_eq!(names, vec!["2", "4"]);
+    }
+
+    #[test]
     fn test_is_active_node_snapshot_at() {
         let filter = NodeFilter.snapshot_at(2).is_active();
         let expected_results = vec!["2"];
@@ -2499,6 +2541,7 @@ mod test_node_property_filter {
 
     #[test]
     fn test_exact_match() {
+        // let filter = NodeFilter.degree > 5
         let filter = NodeFilter.property("p10").eq("Paper_airplane");
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
