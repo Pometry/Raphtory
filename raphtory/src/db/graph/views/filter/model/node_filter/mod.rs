@@ -1,13 +1,15 @@
-use crate::db::api::state::{NodeStateValue, TypedNodeState};
-use crate::db::graph::views::filter::model::node_state_filter::NodeStateBoolColOp;
 use crate::{
     db::{
         api::{
-            state::ops::{
-                filter::{
-                    AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp, OrOp,
+            state::{
+                ops::{
+                    filter::{
+                        AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
+                        OrOp,
+                    },
+                    NodeOp, TypeId,
                 },
-                NodeOp, TypeId,
+                NodeStateValue, TypedNodeState,
             },
             view::{internal::GraphView, BoxableGraphView},
         },
@@ -22,6 +24,7 @@ use crate::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
                 },
+                node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,

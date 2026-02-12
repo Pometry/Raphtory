@@ -53,16 +53,23 @@ enum PropUntaggedDef {
 }
 
 impl From<Prop> for PropUntagged {
-    fn from(p: Prop) -> Self { PropUntagged(p) }
+    fn from(p: Prop) -> Self {
+        PropUntagged(p)
+    }
 }
 
 impl From<PropUntagged> for Prop {
-    fn from(p: PropUntagged) -> Self { p.0 }
+    fn from(p: PropUntagged) -> Self {
+        p.0
+    }
 }
 
 impl PartialEq<Prop> for PropUntagged {
     fn eq(&self, other: &Prop) -> bool {
-        self.0.clone().try_cast(other.dtype()).map_or(false, |p| p == *other)
+        self.0
+            .clone()
+            .try_cast(other.dtype())
+            .map_or(false, |p| p == *other)
     }
 }
 

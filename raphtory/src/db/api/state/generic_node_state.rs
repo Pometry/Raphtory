@@ -37,6 +37,7 @@ use serde_arrow::{
     to_record_batch, Deserializer,
 };
 
+use crate::db::graph::views::filter::model::node_state_filter::NodeStateBoolColOp;
 use std::{
     cmp::PartialEq,
     collections::HashMap,
@@ -47,7 +48,6 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use crate::db::graph::views::filter::model::node_state_filter::NodeStateBoolColOp;
 
 // The bundle of traits which are useful/essential for the underlying value types
 // of a GenericNodeState.
@@ -835,16 +835,14 @@ impl<
     }
 }
 
-impl<
-        'graph,
-        T: Clone + Sync + Send + 'graph,
-        G: GraphViewOps<'graph>,
-    > PartialEq<Vec<IndexMap<String, Option<Prop>>>> for TypedNodeState<'graph, PropMap, G, T>
+impl<'graph, T: Clone + Sync + Send + 'graph, G: GraphViewOps<'graph>>
+    PartialEq<Vec<IndexMap<String, Option<Prop>>>> for TypedNodeState<'graph, PropMap, G, T>
 {
     fn eq(&self, other: &Vec<IndexMap<String, Option<Prop>>>) -> bool {
         let rows: Vec<_> = self.values_to_rows();
         rows.len() == other.len()
-            && rows.into_par_iter()
+            && rows
+                .into_par_iter()
                 .zip(other.par_iter())
                 .all(|(a, b)| convert_prop_map::<PropUntagged, Prop>(a) == *b)
     }

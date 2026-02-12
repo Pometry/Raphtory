@@ -63,12 +63,12 @@ pub mod is_valid_filter;
 pub mod latest_filter;
 pub mod layered_filter;
 pub mod node_filter;
+pub mod node_state_filter;
 pub mod not_filter;
 pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
 pub mod windowed_filter;
-pub mod node_state_filter;
 
 pub trait Wrap {
     type Wrapped<T>;
