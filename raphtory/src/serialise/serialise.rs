@@ -549,8 +549,7 @@ impl InternalStableDecode for TemporalGraph {
             );
         }
 
-        let mut temp_prop_types =
-            vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
+        let mut temp_prop_types = vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
 
         for update in graph.updates.iter() {
             if let Some(update) = update.update.as_ref() {
