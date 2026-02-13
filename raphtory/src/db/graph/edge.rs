@@ -399,7 +399,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             .collect::<Vec<_>>();
 
         let src = self.src().node;
+        let src_name = None;
         let dst = self.dst().node;
+        let dst_name = None;
 
         let e_id = self.edge.pid();
 
@@ -408,10 +410,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             .atomic_add_edge(src, dst, Some(e_id), layer_id)
             .map_err(into_graph_err)?;
 
-        let lsn = wal.log_add_edge_properties(
+        let lsn = wal.log_add_edge(
             transaction_id,
             t,
+            src_name,
             src,
+            dst_name,
             dst,
             e_id,
             layer,
