@@ -64,7 +64,9 @@ impl EmbeddingServer {
     }
 
     pub async fn stop(&self) {
-        self.stop_signal.send(()).await.unwrap();
+        if let Err(e) = self.stop_signal.send(()).await {
+            eprintln!("Failed to send stop signal to embedding server: {}", e);
+        }
     }
 }
 

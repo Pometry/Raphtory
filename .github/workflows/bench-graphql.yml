@@ -28,11 +28,8 @@ jobs:
         run: pip install maturin==1.8.3
       - name: Build raphtory
         run: |
-          make build-wheel
-          mv target/wheels /tmp/wheels
-          rm -fr target
-          pip install /tmp/wheels/*.whl
-        # ↑ this is for freeing up space used by cargo before installing raphtory
+          make install-python clean
+        #                     ↑ this is for freeing up space used by cargo before installing raphtory
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:

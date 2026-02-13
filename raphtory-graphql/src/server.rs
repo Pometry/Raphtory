@@ -23,11 +23,7 @@ use poem::{
 };
 use raphtory::{
     errors::GraphResult,
-    vectors::{
-        cache::{CachedEmbeddingModel, VectorCache},
-        storage::OpenAIEmbeddings,
-        template::DocumentTemplate,
-    },
+    vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 use serde_json::json;
 use std::{fs::create_dir_all, path::PathBuf};

@@ -57,41 +57,6 @@ impl ModelConfig {
     }
 }
 
-// #[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
-// pub struct EmbeddingModel {
-//     pub(super) model: ModelConfig,
-//     pub(super) sample: Embedding,
-// }
-
-// impl Hash for EmbeddingModel {
-//     fn hash<H: Hasher>(&self, state: &mut H) {
-//         self.model.hash(state);
-//         for &x in self.sample.iter() {
-//             // This way, embeddings with the same values (including +0.0 vs -0.0, different NaNs) hash consistently.
-//             x.to_bits().hash(state);
-//         }
-//     }
-// }
-
-// // this is just so that we can call model.call() on an embeddig model
-// impl Deref for EmbeddingModel {
-//     type Target = ModelConfig;
-//     fn deref(&self) -> &Self::Target {
-//         &self.model
-//     }
-// }
-
-// impl EmbeddingModel {
-//     pub(super) fn call(
-//         &self,
-//         texts: Vec<String>,
-//     ) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
-//         match &self.model {
-//             ModelConfig::OpenAI(embeddings) => embeddings.call(texts),
-//         }
-//     }
-// }
-
 impl OpenAIEmbeddings {
     fn call(&self, texts: Vec<String>) -> BoxFuture<'static, EmbeddingResult<Vec<Embedding>>> {
         let client = Client::with_config(self.resolve_config());

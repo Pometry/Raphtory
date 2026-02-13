@@ -660,19 +660,19 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_nodes_empty_list() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1745).await;
+        let (mutable_graph, _tmp_dir, embedding_server) = create_mutable_graph(1745).await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap());
-        _embedding_server.stop();
+        embedding_server.stop().await;
     }
 
     #[tokio::test]
     async fn test_add_nodes_simple() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1746).await;
+        let (mutable_graph, _tmp_dir, es) = create_mutable_graph(1746).await;
 
         let nodes = vec![
             NodeAddition {
@@ -712,11 +712,12 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+        es.stop().await;
     }
 
     #[tokio::test]
     async fn test_add_nodes_with_properties() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1747).await;
+        let (mutable_graph, _tmp_dir, es) = create_mutable_graph(1747).await;
 
         let nodes = vec![
             NodeAddition {
@@ -783,11 +784,12 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 3);
+        es.stop().await;
     }
 
     #[tokio::test]
     async fn test_add_edges_simple() {
-        let (mutable_graph, _tmp_dir, _embedding_server) = create_mutable_graph(1748).await;
+        let (mutable_graph, _tmp_dir, es) = create_mutable_graph(1748).await;
 
         // First add some nodes.
         let nodes = vec![
@@ -859,5 +861,6 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+        es.stop().await;
     }
 }

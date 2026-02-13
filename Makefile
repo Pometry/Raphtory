@@ -86,6 +86,9 @@ rust-test-all-public:
 build-wheel:
 	cd python && maturin build
 
+clean:
+	cargo clean
+
 install-python: build-wheel
 	pip install target/wheels/*.whl
 
