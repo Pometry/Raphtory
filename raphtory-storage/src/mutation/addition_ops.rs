@@ -121,6 +121,7 @@ pub trait EdgeWriteLock: Send + Sync {
     ) -> MaybeNew<ELID>;
 
     fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
+
     fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>);
 
     fn set_lsn(&mut self, lsn: LSN);

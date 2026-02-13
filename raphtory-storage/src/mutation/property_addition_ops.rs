@@ -113,11 +113,14 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
+
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
             panic!("Edge with EID {eid:?} not found in layer {layer}");
         });
+
         writer.check_metadata(edge_pos, layer, &props)?;
         writer.update_c_props(edge_pos, src, dst, layer, props);
+
         Ok(writer)
     }
 
@@ -129,10 +132,13 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
+
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
             panic!("Edge with EID {eid:?} not found in layer {layer}");
         });
+
         writer.update_c_props(edge_pos, src, dst, layer, props);
+
         Ok(writer)
     }
 }

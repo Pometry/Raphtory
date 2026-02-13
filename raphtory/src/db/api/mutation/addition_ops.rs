@@ -237,14 +237,14 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         let layer_id = layer_id.inner();
 
         // Hold all locks for src node, dst node and edge until add_edge_op goes out of scope.
-        let mut add_edge_op = self
+        let mut writers = self
             .atomic_add_edge(src_id, dst_id, None, layer_id)
             .map_err(into_graph_err)?;
 
         // NOTE: We log edge id after it is inserted into the edge segment.
         // This is fine as long as we hold onto the edge segment lock through add_edge_op
         // for the entire operation.
-        let edge_id = add_edge_op.internal_add_static_edge(src_id, dst_id);
+        let edge_id = writers.internal_add_static_edge(src_id, dst_id);
 
         let props_for_wal = props_with_status
             .iter()
@@ -277,7 +277,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             })
             .collect::<Vec<_>>();
 
-        let edge_id = add_edge_op.internal_add_edge(
+        let edge_id = writers.internal_add_edge(
             ti,
             src_id,
             dst_id,
@@ -285,17 +285,17 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             props,
         );
 
-        add_edge_op.store_src_node_info(src_id, src_gid);
-        add_edge_op.store_dst_node_info(dst_id, dst_gid);
+        writers.store_src_node_info(src_id, src_gid);
+        writers.store_dst_node_info(dst_id, dst_gid);
 
         // Update the src, dst and edge segments with the lsn of the wal entry.
-        add_edge_op.set_lsn(lsn);
+        writers.set_lsn(lsn);
 
         transaction_manager.end_transaction(transaction_id);
 
         // Segment locks can be released before flush to allow
         // other operations to proceed.
-        drop(add_edge_op);
+        drop(writers);
 
         // Flush the wal entry to disk.
         // Any error here is fatal.

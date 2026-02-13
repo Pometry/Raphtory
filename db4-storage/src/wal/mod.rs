@@ -94,6 +94,17 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
+    fn log_add_edge_metadata(
+        &self,
+        transaction_id: TransactionID,
+        t: EventTime,
+        src_id: VID,
+        dst_id: VID,
+        eid: EID,
+        layer_id: usize,
+        props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError>;
+
     fn log_add_node(
         &self,
         transaction_id: TransactionID,
@@ -129,6 +140,18 @@ pub trait GraphReplay {
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
+        layer_id: usize,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError>;
+
+    fn replay_add_edge_metadata(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        t: EventTime,
+        src_id: VID,
+        dst_id: VID,
+        eid: EID,
         layer_id: usize,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
