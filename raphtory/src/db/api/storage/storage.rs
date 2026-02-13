@@ -480,9 +480,9 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "search")]
         node_and_type
             .if_new(|(node_id, _)| {
-                let name = match id.as_gid_ref() {
-                    Either::Left(gid) => gid.to_string(),
-                    Either::Right(vid) => self.core_node(vid).name().to_string(),
+                let name = match id {
+                    NodeRef::Internal(vid) => self.graph.node_name(vid),
+                    NodeRef::External(gid) => gid.to_string(),
                 };
                 self.if_index_mut(|index| index.add_new_node(node_id.inner(), name, node_type))
             })

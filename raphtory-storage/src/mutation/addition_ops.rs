@@ -19,7 +19,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
-use raphtory_core::entities::{nodes::node_ref::NodeRef, ELID};
+use raphtory_core::entities::nodes::node_ref::NodeRef;
 use storage::{wal::LSN, Extension};
 
 pub trait InternalAdditionOps {
