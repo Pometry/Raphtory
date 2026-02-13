@@ -208,6 +208,7 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         }
     }
 
+    #[inline(always)]
     fn find_edge(&self, dst: VID, layers: &LayerIds) -> Option<EdgeRef> {
         let eid = match layers {
             LayerIds::One(layer_id) => self.ns.get_out_edge(self.pos, dst, *layer_id),

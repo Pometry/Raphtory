@@ -146,6 +146,10 @@ impl<'a, T: TimeIndexOps<'a> + Clone> TimeIndexOps<'a> for &'a T {
         T::active(*self, w)
     }
 
+    fn is_empty(&self) -> bool {
+        T::is_empty(*self)
+    }
+
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         T::range(*self, w)
     }
