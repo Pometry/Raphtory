@@ -549,50 +549,36 @@ impl InternalStableDecode for TemporalGraph {
             );
         }
 
-        let graph_prop_new_types = graph
-            .updates
-            .par_iter()
-            .map(|update| {
-                let mut metadata_types =
-                    vec![PropType::Empty; storage.graph_meta.metadata_mapper().len()];
-                let mut graph_prop_types =
-                    vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
+        let mut temp_prop_types = vec![PropType::Empty; storage.graph_meta.temporal_mapper().len()];
 
-                if let Some(update) = update.update.as_ref() {
-                    match update {
-                        Update::UpdateGraphCprops(props) => {
-                            let c_props = proto_ext::collect_props(&props.properties)?;
-                            for (id, prop) in &c_props {
-                                metadata_types[*id] = prop.dtype();
-                            }
-                            storage.internal_update_metadata(&c_props)?;
-                        }
-                        Update::UpdateGraphTprops(props) => {
-                            let time = TimeIndexEntry(props.time, props.secondary as usize);
-                            let t_props = proto_ext::collect_props(&props.properties)?;
-                            for (id, prop) in &t_props {
-                                graph_prop_types[*id] = prop.dtype();
-                            }
-                            storage.internal_add_properties(time, &t_props)?;
-                        }
-                        _ => {}
+        for update in graph.updates.iter() {
+            if let Some(update) = update.update.as_ref() {
+                match update {
+                    Update::UpdateGraphCprops(props) => {
+                        let c_props = proto_ext::collect_props(&props.properties)?;
+                        storage.internal_update_metadata(&c_props)?;
                     }
+                    Update::UpdateGraphTprops(props) => {
+                        let time = TimeIndexEntry(props.time, props.secondary as usize);
+                        let t_props = proto_ext::collect_props(&props.properties)?;
+                        for (id, prop) in &t_props {
+                            temp_prop_types[*id] =
+                                unify_types(&temp_prop_types[*id], &prop.dtype(), &mut false)?;
+                        }
+                        storage.internal_add_properties(time, &t_props)?;
+                    }
+                    _ => {}
                 }
-                Ok::<_, GraphError>((metadata_types, graph_prop_types))
-            })
-            .try_reduce_with(|(l_const, l_temp), (r_const, r_temp)| {
-                unify_property_types(&l_const, &r_const, &l_temp, &r_temp)
-            })
-            .transpose()?;
-
-        if let Some((metadata_types, temp_prop_types)) = graph_prop_new_types {
-            update_meta(
-                metadata_types,
-                temp_prop_types,
-                &PropMapper::default(),
-                storage.graph_meta.temporal_mapper(),
-            );
+            }
         }
+
+        update_meta(
+            vec![],
+            temp_prop_types,
+            &PropMapper::default(),
+            storage.graph_meta.temporal_mapper(),
+        );
+
         Ok(storage)
     }
 }

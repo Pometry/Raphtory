@@ -719,6 +719,24 @@ mod proto_test {
     }
 
     #[test]
+    fn test_graph_metadata_updates() {
+        let g = PersistentGraph::new();
+        let test_dir = TempDir::new().unwrap();
+        g.cache(test_dir.path()).unwrap();
+        for i in 0..100 {
+            // append some metadata updates to the file (it is important these are written separately)
+            g.update_metadata([("test", Prop::I32(i))]).unwrap();
+            g.write_updates().unwrap();
+        }
+
+        for _ in 0..100 {
+            let g = PersistentGraph::decode(test_dir.path()).unwrap();
+            // this should be the last update
+            assert_eq!(g.metadata().get("test"), Some(Prop::I32(99)))
+        }
+    }
+
+    #[test]
     fn encode_decode_prop_test() {
         proptest!(|(edges in build_edge_list(100, 100))| {
             let g = build_graph_from_edge_list(&edges);
