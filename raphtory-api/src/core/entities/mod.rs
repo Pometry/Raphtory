@@ -38,6 +38,11 @@ impl VID {
     pub fn as_u64(&self) -> u64 {
         self.0 as u64
     }
+
+    /// check if the VID points to a node
+    pub fn is_initialised(&self) -> bool {
+        self.0 != usize::MAX
+    }
 }
 
 impl From<usize> for VID {

@@ -346,45 +346,33 @@ pub struct AtomicAddEdgeSession<'a> {
 }
 
 impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
-    fn internal_add_static_edge(
-        &mut self,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-    ) -> MaybeNew<EID> {
-        self.session.internal_add_static_edge(src, dst)
-    }
-
-    fn internal_add_edge(
+    fn internal_add_update(
         &mut self,
         t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        e_id: MaybeNew<ELID>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> MaybeNew<ELID> {
-        self.session.internal_add_edge(t, src, dst, e_id, props)
-    }
-
-    fn internal_delete_edge(
-        &mut self,
-        t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
         layer: usize,
-    ) -> MaybeNew<ELID> {
-        self.session.internal_delete_edge(t, src, dst, layer)
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        self.session.internal_add_update(t, layer, props)
     }
 
-    fn store_src_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
-        self.session.store_src_node_info(id, node_id);
-    }
-
-    fn store_dst_node_info(&mut self, id: impl Into<VID>, node_id: Option<GidRef>) {
-        self.session.store_dst_node_info(id, node_id);
+    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+        self.session.internal_delete_edge(t, layer)
     }
 
     fn set_lsn(&mut self, lsn: LSN) {
         self.session.set_lsn(lsn);
+    }
+
+    fn src(&self) -> MaybeNew<VID> {
+        self.session.src()
+    }
+
+    fn dst(&self) -> MaybeNew<VID> {
+        self.session.dst()
+    }
+
+    fn eid(&self) -> MaybeNew<EID> {
+        self.session.eid()
     }
 }
 
@@ -492,9 +480,9 @@ impl InternalAdditionOps for Storage {
         #[cfg(feature = "search")]
         node_and_type
             .if_new(|(node_id, _)| {
-                let name = match id.as_gid_ref() {
-                    Either::Left(gid) => gid.to_string(),
-                    Either::Right(vid) => self.core_node(vid).name().to_string(),
+                let name = match id {
+                    NodeRef::Internal(vid) => self.graph.node_name(vid),
+                    NodeRef::External(gid) => gid.to_string(),
                 };
                 self.if_index_mut(|index| index.add_new_node(node_id.inner(), name, node_type))
             })
@@ -513,8 +501,8 @@ impl InternalAdditionOps for Storage {
 
     fn atomic_add_edge(
         &self,
-        src: VID,
-        dst: VID,
+        src: NodeRef,
+        dst: NodeRef,
         e_id: Option<EID>,
         layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {

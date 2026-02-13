@@ -1,16 +1,53 @@
-use dashmap::mapref::entry::Entry;
+use dashmap::{
+    mapref::{entry::Entry, one::Ref},
+    VacantEntry,
+};
+use lock_api::ArcMutexGuard;
 use once_cell::sync::OnceCell;
+use parking_lot::{Mutex, MutexGuard, RawMutex};
 use raphtory_api::core::{
     entities::{GidRef, GidType, VID},
     storage::{dict_mapper::MaybeNew, FxDashMap},
 };
 use serde::{Deserialize, Deserializer, Serialize};
+use std::{
+    borrow::Borrow,
+    hash::Hash,
+    ops::Deref,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+};
 use thiserror::Error;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug)]
 enum Map {
-    U64(FxDashMap<u64, VID>),
-    Str(FxDashMap<String, VID>),
+    U64(FxDashMap<u64, MaybeInit>),
+    Str(FxDashMap<String, MaybeInit>),
+}
+
+#[derive(Debug, Copy, Clone)]
+enum MaybeInit {
+    VID(VID),
+    Init(usize),
+}
+
+impl MaybeInit {
+    fn value(self) -> Option<VID> {
+        match self {
+            MaybeInit::VID(vid) => Some(vid),
+            MaybeInit::Init(_) => None,
+        }
+    }
+}
+
+enum InitGuard<'a> {
+    Init {
+        init_id: usize,
+        guard: ArcMutexGuard<RawMutex, VID>,
+    },
+    Read(Ref<'a, usize, Arc<Mutex<VID>>>),
 }
 
 #[derive(Error, Debug)]
@@ -22,14 +59,14 @@ pub enum InvalidNodeId {
 }
 
 impl Map {
-    fn as_u64(&self) -> Option<&FxDashMap<u64, VID>> {
+    fn as_u64(&self) -> Option<&FxDashMap<u64, MaybeInit>> {
         match self {
             Map::U64(map) => Some(map),
             _ => None,
         }
     }
 
-    fn as_str(&self) -> Option<&FxDashMap<String, VID>> {
+    fn as_str(&self) -> Option<&FxDashMap<String, MaybeInit>> {
         match self {
             Map::Str(map) => Some(map),
             _ => None,
@@ -46,6 +83,8 @@ impl Default for Map {
 #[derive(Debug, Default)]
 pub struct Mapping {
     map: OnceCell<Map>,
+    uninitialised: FxDashMap<usize, Arc<Mutex<VID>>>,
+    init_counter: AtomicUsize,
 }
 
 impl Mapping {
@@ -69,18 +108,70 @@ impl Mapping {
     pub fn new() -> Self {
         Mapping {
             map: OnceCell::new(),
+            uninitialised: Default::default(),
+            init_counter: Default::default(),
         }
     }
 
     pub fn new_u64() -> Self {
         Mapping {
             map: OnceCell::with_value(Map::U64(Default::default())),
+            uninitialised: Default::default(),
+            init_counter: Default::default(),
         }
     }
 
     pub fn new_str() -> Self {
         Mapping {
             map: OnceCell::with_value(Map::Str(Default::default())),
+            uninitialised: Default::default(),
+            init_counter: Default::default(),
+        }
+    }
+
+    fn push_uninit<K: Eq + Hash>(&self, entry: VacantEntry<K, MaybeInit>) -> InitGuard<'static> {
+        let lock = Arc::new(Mutex::new(VID::default()));
+        let guard = lock.lock_arc();
+        let init_id = self.init_counter.fetch_add(1, Ordering::Relaxed);
+        self.uninitialised.insert(init_id, lock);
+        entry.insert(MaybeInit::Init(init_id));
+        InitGuard::Init { init_id, guard }
+    }
+
+    fn get_uninit(&self, init_id: &usize) -> Ref<'_, usize, Arc<Mutex<VID>>> {
+        self.uninitialised
+            .get(init_id)
+            .expect("initialisation guard should exist")
+    }
+
+    fn get_value_from_map<Q, K>(&self, map: &FxDashMap<K, MaybeInit>, key: &Q) -> Option<VID>
+    where
+        K: Borrow<Q> + Eq + Hash,
+        Q: Hash + Eq + ?Sized,
+    {
+        map.get(key)?.value().value()
+    }
+
+    fn handle_init_guard<K: Eq + Hash>(
+        &self,
+        init_guard: InitGuard,
+        map: &FxDashMap<K, MaybeInit>,
+        key: K,
+        next_id: impl FnOnce() -> VID,
+    ) -> MaybeNew<VID> {
+        match init_guard {
+            InitGuard::Init { mut guard, init_id } => {
+                let vid = next_id();
+                *guard = vid;
+                map.insert(key, MaybeInit::VID(vid));
+                self.uninitialised.remove(&init_id);
+                MaybeNew::New(vid)
+            }
+            InitGuard::Read(guard) => {
+                let vid = *guard.lock();
+                assert!(vid.is_initialised(), "VID should be initialised on read");
+                MaybeNew::Existing(vid)
+            }
         }
     }
 
@@ -93,14 +184,14 @@ impl Mapping {
             GidRef::U64(id) => {
                 map.as_u64()
                     .ok_or(InvalidNodeId::InvalidNodeIdU64(id))?
-                    .insert(id, vid);
+                    .insert(id, MaybeInit::VID(vid));
             }
             GidRef::Str(id) => {
                 let id = id.to_owned();
                 match map.as_str() {
                     None => return Err(InvalidNodeId::InvalidNodeIdStr(id)),
                     Some(map) => {
-                        map.insert(id, vid);
+                        map.insert(id, MaybeInit::VID(vid));
                     }
                 }
             }
@@ -118,31 +209,36 @@ impl Mapping {
             GidRef::Str(_) => Map::Str(FxDashMap::default()),
         });
         let vid = match gid {
-            GidRef::U64(id) => {
-                let map = map.as_u64().ok_or(InvalidNodeId::InvalidNodeIdU64(id))?;
-                match map.entry(id) {
-                    Entry::Occupied(id) => MaybeNew::Existing(*id.get()),
-                    Entry::Vacant(entry) => {
-                        let vid = next_id();
-                        entry.insert(vid);
-                        MaybeNew::New(vid)
-                    }
-                }
+            GidRef::U64(key) => {
+                let map = map.as_u64().ok_or(InvalidNodeId::InvalidNodeIdU64(key))?;
+                let init_guard = match map.entry(key) {
+                    Entry::Occupied(id) => match id.get() {
+                        MaybeInit::VID(vid) => return Ok(MaybeNew::Existing(*vid)),
+                        MaybeInit::Init(init_id) => InitGuard::Read(self.get_uninit(init_id)),
+                    },
+                    Entry::Vacant(entry) => self.push_uninit(entry),
+                };
+                self.handle_init_guard(init_guard, map, key, next_id)
             }
-            GidRef::Str(id) => {
+            GidRef::Str(key) => {
                 let map = map
                     .as_str()
-                    .ok_or_else(|| InvalidNodeId::InvalidNodeIdStr(id.into()))?;
-                map.get(id)
-                    .map(|vid| MaybeNew::Existing(*vid))
-                    .unwrap_or_else(|| match map.entry(id.to_owned()) {
-                        Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
-                        Entry::Vacant(entry) => {
-                            let vid = next_id();
-                            entry.insert(vid);
-                            MaybeNew::New(vid)
-                        }
-                    })
+                    .ok_or_else(|| InvalidNodeId::InvalidNodeIdStr(key.into()))?;
+
+                let init_guard = match map.get(key) {
+                    None => match map.entry(key.to_owned()) {
+                        Entry::Occupied(entry) => match entry.get() {
+                            MaybeInit::VID(vid) => return Ok(MaybeNew::Existing(*vid)),
+                            MaybeInit::Init(init_id) => InitGuard::Read(self.get_uninit(init_id)),
+                        },
+                        Entry::Vacant(entry) => self.push_uninit(entry),
+                    },
+                    Some(maybe_vid) => match maybe_vid.value() {
+                        MaybeInit::VID(vid) => return Ok(MaybeNew::Existing(*vid)),
+                        MaybeInit::Init(init_id) => InitGuard::Read(self.get_uninit(init_id)),
+                    },
+                };
+                self.handle_init_guard(init_guard, map, key.to_owned(), next_id)
             }
         };
         Ok(vid)
@@ -174,13 +270,13 @@ impl Mapping {
     #[inline]
     pub fn get_str(&self, gid: &str) -> Option<VID> {
         let map = self.map.get()?;
-        map.as_str().and_then(|m| m.get(gid).map(|id| *id))
+        map.as_str().and_then(|m| self.get_value_from_map(m, gid))
     }
 
     #[inline]
     pub fn get_u64(&self, gid: u64) -> Option<VID> {
         let map = self.map.get()?;
-        map.as_u64().and_then(|m| m.get(&gid).map(|id| *id))
+        map.as_u64().and_then(|m| self.get_value_from_map(m, &gid))
     }
 
     pub fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_ {
@@ -190,7 +286,7 @@ impl Mapping {
             .into_iter()
             .flat_map(|m| {
                 m.iter()
-                    .map(|entry| (entry.key().to_owned(), *(entry.value())))
+                    .filter_map(|entry| Some((entry.key().to_owned(), (entry.value().value()?))))
             })
     }
 
@@ -199,35 +295,9 @@ impl Mapping {
             .get()
             .and_then(|map| map.as_u64())
             .into_iter()
-            .flat_map(|m| m.iter().map(|entry| (*entry.key(), *(entry.value()))))
-    }
-}
-
-impl<'de> Deserialize<'de> for Mapping {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        if let Some(map) = Option::<Map>::deserialize(deserializer)? {
-            let once = OnceCell::with_value(map);
-            Ok(Mapping { map: once })
-        } else {
-            Ok(Mapping {
-                map: OnceCell::new(),
+            .flat_map(|m| {
+                m.iter()
+                    .filter_map(|entry| Some((*entry.key(), (entry.value().value()?))))
             })
-        }
-    }
-}
-
-impl Serialize for Mapping {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        if let Some(map) = self.map.get() {
-            Some(map).serialize(serializer)
-        } else {
-            serializer.serialize_none()
-        }
     }
 }
