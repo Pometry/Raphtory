@@ -4,6 +4,7 @@ use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 mod auth;
+pub mod client;
 pub mod data;
 mod embeddings;
 mod graph;

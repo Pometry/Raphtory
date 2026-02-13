@@ -20,8 +20,11 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
-    storage::{arc_str::ArcStr, timeindex::EventTime},
-    utils::time::IntoTime,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, EventTime},
+    },
+    utils::time::{IntoTime, TryIntoTime},
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -67,6 +70,10 @@ pub enum Value {
     List(Vec<Value>),
     /// Object.
     Object(Vec<ObjectEntry>),
+    /// Timezone-aware datetime
+    DTime(String),
+    /// Naive datetime (no timezone)
+    NDTime(String),
 }
 
 impl Display for Value {
@@ -93,6 +100,8 @@ impl Display for Value {
                     .join(", ");
                 write!(f, "Object({{{}}})", inner)
             }
+            Value::DTime(v) => write!(f, "DTime({})", v),
+            Value::NDTime(v) => write!(f, "NDTime({})", v),
         }
     }
 }
@@ -130,6 +139,16 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
                 .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
                 .collect::<Result<FxHashMap<_, _>, _>>()?;
             Ok(Prop::Map(Arc::new(prop_map)))
+        }
+        Value::DTime(s) => {
+            let t = s.try_into_time().map_err(GraphError::from)?;
+            t.dt().map(|dt| Prop::DTime(dt)).map_err(GraphError::from)
+        }
+        Value::NDTime(s) => {
+            let t = s.try_into_time().map_err(GraphError::from)?;
+            t.dt()
+                .map(|dt| Prop::NDTime(dt.naive_utc()))
+                .map_err(GraphError::from)
         }
     }
 }

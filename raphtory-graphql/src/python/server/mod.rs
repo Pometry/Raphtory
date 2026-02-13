@@ -34,9 +34,3 @@ pub(crate) fn wait_server(running_server: &mut Option<ServerHandler>) -> PyResul
         .expect("error when waiting for the server thread to complete")
         .map_err(|e| adapt_err_value(&e))
 }
-
-pub(crate) fn is_online(url: &String) -> bool {
-    reqwest::blocking::get(url)
-        .map(|response| response.status().as_u16() == 200)
-        .unwrap_or(false)
-}

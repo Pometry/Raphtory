@@ -1,22 +1,39 @@
-use crate::python::client::{
-    build_property_string, build_query, raphtory_client::PyRaphtoryClient,
-    remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
+use crate::{
+    client::{
+        remote_edge::GraphQLRemoteEdge,
+        remote_graph::{build_query, GraphQLRemoteGraph},
+        remote_node::GraphQLRemoteNode,
+        ClientError,
+    },
+    python::client::{
+        remote_edge::PyRemoteEdge, remote_node::PyRemoteNode, PyEdgeAddition, PyNodeAddition,
+    },
 };
 use minijinja::context;
 use pyo3::{pyclass, pymethods, Python};
-use raphtory::errors::GraphError;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
-    storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
+    storage::timeindex::EventTime,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future, sync::Arc};
+use tokio::runtime::Runtime;
 
 #[derive(Clone)]
 #[pyclass(name = "RemoteGraph", module = "raphtory.graphql")]
 pub struct PyRemoteGraph {
-    pub(crate) path: String,
-    pub(crate) client: PyRaphtoryClient,
+    pub(crate) graph: Arc<GraphQLRemoteGraph>,
+    pub(crate) runtime: Arc<Runtime>,
+}
+
+impl PyRemoteGraph {
+    fn execute_async_task<T, F, O>(&self, task: T) -> O
+    where
+        T: FnOnce() -> F + Send + 'static,
+        F: Future<Output = O> + 'static,
+        O: Send + 'static,
+    {
+        Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
+    }
 }
 
 #[pymethods]
@@ -29,7 +46,12 @@ impl PyRemoteGraph {
     /// Returns:
     ///     RemoteNode: the remote node reference
     pub fn node(&self, id: GID) -> PyRemoteNode {
-        PyRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string())
+        let node = GraphQLRemoteNode::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
+            id.to_string(),
+        );
+        PyRemoteNode::new(node, self.runtime.clone())
     }
 
     /// Gets a remote edge with the specified source and destination nodes
@@ -42,12 +64,13 @@ impl PyRemoteGraph {
     ///     RemoteEdge: the remote edge reference
     #[pyo3(signature = (src, dst))]
     pub fn edge(&self, src: GID, dst: GID) -> PyRemoteEdge {
-        PyRemoteEdge::new(
-            self.path.clone(),
-            self.client.clone(),
+        let edge = GraphQLRemoteEdge::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
             src.to_string(),
             dst.to_string(),
-        )
+        );
+        PyRemoteEdge::new(edge, self.runtime.clone())
     }
 
     /// Batch add node updates to the remote graph
@@ -58,7 +81,7 @@ impl PyRemoteGraph {
     /// Returns:
     ///     None:
     #[pyo3(signature = (updates))]
-    pub fn add_nodes(&self, py: Python, updates: Vec<PyNodeAddition>) -> Result<(), GraphError> {
+    pub fn add_nodes(&self, updates: Vec<PyNodeAddition>) -> Result<(), ClientError> {
         let template = r#"
         {
         updateGraph(path: "{{ path }}") {
@@ -110,15 +133,21 @@ impl PyRemoteGraph {
         "#;
 
         let query_context = context! {
-            path => self.path,
+            path => self.graph.path.clone(),
             nodes => updates
         };
 
         let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let task = {
+            let graph = Arc::clone(&self.graph);
+            move || async move { graph.client.query(&query, HashMap::new()).await }
+        };
+        self.execute_async_task(task)?;
 
         Ok(())
     }
+
+    // TODO: Still need to move add_nodes and add_edges logic over to Rust client in src/client/raphtory_client.rs
 
     /// Batch add edge updates to the remote graph
     ///
@@ -128,7 +157,7 @@ impl PyRemoteGraph {
     /// Returns:
     ///     None:
     #[pyo3(signature = (updates))]
-    pub fn add_edges(&self, py: Python, updates: Vec<PyEdgeAddition>) -> Result<(), GraphError> {
+    pub fn add_edges(&self, updates: Vec<PyEdgeAddition>) -> Result<(), ClientError> {
         let template = r#"
                 {
                 updateGraph(path: "{{ path }}") {
@@ -181,12 +210,16 @@ impl PyRemoteGraph {
         "#;
 
         let query_context = context! {
-            path => self.path,
+            path => self.graph.path.clone(),
             edges => updates,
         };
 
         let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let task = {
+            let graph = Arc::clone(&self.graph);
+            move || async move { graph.client.query(&query, HashMap::new()).await }
+        };
+        self.execute_async_task(task)?;
 
         Ok(())
     }
@@ -204,38 +237,22 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn add_node(
         &self,
-        py: Python,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-    ) -> Result<PyRemoteNode, GraphError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                addNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
-                    success
-                }
-            }
-        }
-        "#;
+    ) -> Result<PyRemoteNode, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let id_str = id.to_string();
+        let node_type = node_type.map(|s| s.to_string());
 
-        let query_context = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            name => id.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            node_type => node_type
-        };
+        let task =
+            move || async move { graph.add_node(timestamp, id, properties, node_type).await };
+        self.execute_async_task(task)?;
 
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
-
-        Ok(PyRemoteNode::new(
-            self.path.clone(),
-            self.client.clone(),
-            id.to_string(),
-        ))
+        let node =
+            GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
+        Ok(PyRemoteNode::new(node, self.runtime.clone()))
     }
 
     /// Create a new node with the given id and properties to the remote graph and fail if the node already exists.
@@ -251,38 +268,25 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, id, properties = None, node_type = None))]
     pub fn create_node(
         &self,
-        py: Python,
         timestamp: EventTime,
         id: GID,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
-    ) -> Result<PyRemoteNode, GraphError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                createNode(time: {{ time }}, name: "{{ name }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if node_type is not none %}, nodeType: "{{ node_type }}"{% endif %}) {
-                    success
-                }
-            }
-        }
-        "#;
+    ) -> Result<PyRemoteNode, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let id_str = id.to_string();
+        let node_type = node_type.map(|s| s.to_string());
 
-        let query_context = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            name => id.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            node_type => node_type
+        let task = move || async move {
+            graph
+                .create_node(timestamp, id, properties, node_type)
+                .await
         };
+        self.execute_async_task(task)?;
 
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
-
-        Ok(PyRemoteNode::new(
-            self.path.clone(),
-            self.client.clone(),
-            id.to_string(),
-        ))
+        let node =
+            GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
+        Ok(PyRemoteNode::new(node, self.runtime.clone()))
     }
 
     /// Adds properties to the remote graph.
@@ -295,25 +299,12 @@ impl PyRemoteGraph {
     ///     None:
     pub fn add_property(
         &self,
-        py: Python,
         timestamp: EventTime,
         properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            addProperties(t: {{t}} properties: {{ properties | safe }})
-          }
-        }
-        "#;
-        let query_context = context! {
-            path => self.path,
-            t => timestamp.into_time().t(),
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+    ) -> Result<(), ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let task = move || async move { graph.add_property(timestamp, properties).await };
+        self.execute_async_task(task)?;
 
         Ok(())
     }
@@ -325,26 +316,10 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn add_metadata(
-        &self,
-        py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            addMetadata(properties: {{ properties | safe }})
-          }
-        }
-        "#;
-
-        let query_context = context! {
-            path => self.path,
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let task = move || async move { graph.add_metadata(properties).await };
+        self.execute_async_task(task)?;
 
         Ok(())
     }
@@ -356,27 +331,10 @@ impl PyRemoteGraph {
     ///
     /// Returns:
     ///     None:
-    pub fn update_metadata(
-        &self,
-        py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-        {
-          updateGraph(path: "{{ path }}") {
-            updateMetadata(properties: {{ properties | safe }})
-          }
-        }
-        "#;
-
-        let query_context = context! {
-            path => self.path,
-            properties => build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-
-        let _ = &self.client.query(py, query, None)?;
+    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let task = move || async move { graph.update_metadata(properties).await };
+        self.execute_async_task(task)?;
 
         Ok(())
     }
@@ -395,40 +353,27 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, properties = None, layer = None))]
     pub fn add_edge(
         &self,
-        py: Python,
         timestamp: EventTime,
         src: GID,
         dst: GID,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<&str>,
-    ) -> Result<PyRemoteEdge, GraphError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                addEdge(time: {{ time }}, src: "{{ src }}", dst: "{{ dst }}" {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %}{% if layer is not none %}, layer: "{{ layer }}"{% endif %}) {
-                    success
-                }
-            }
-        }
-        "#;
+    ) -> Result<PyRemoteEdge, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        let layer = layer.map(|s| s.to_string());
 
-        let query_context = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            src => src.to_string(),
-            dst => dst.to_string(),
-            properties => properties.map(|p| build_property_string(p)),
-            layer => layer
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
-        Ok(PyRemoteEdge::new(
-            self.path.clone(),
-            self.client.clone(),
-            src.to_string(),
-            dst.to_string(),
-        ))
+        let task =
+            move || async move { graph.add_edge(timestamp, src, dst, properties, layer).await };
+        self.execute_async_task(task)?;
+        let edge = GraphQLRemoteEdge::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
+            src_str,
+            dst_str,
+        );
+        Ok(PyRemoteEdge::new(edge, self.runtime.clone()))
     }
 
     /// Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
@@ -444,37 +389,25 @@ impl PyRemoteGraph {
     #[pyo3(signature = (timestamp, src, dst, layer=None))]
     pub fn delete_edge(
         &self,
-        py: Python,
         timestamp: EventTime,
         src: GID,
         dst: GID,
         layer: Option<&str>,
-    ) -> Result<PyRemoteEdge, GraphError> {
-        let template = r#"
-        {
-            updateGraph(path: "{{ path }}") {
-                deleteEdge(time: {{ time }}, src: "{{ src }}", dst: "{{ dst }}" {% if layer is not none %}, layer: "{{ layer }}"{% endif %}) {
-                    success
-                }
-            }
-        }
-        "#;
+    ) -> Result<PyRemoteEdge, ClientError> {
+        let graph = Arc::clone(&self.graph);
+        let src_str = src.to_string();
+        let dst_str = dst.to_string();
+        let layer = layer.map(|s| s.to_string());
 
-        let query_context = context! {
-            path => self.path,
-            time => timestamp.into_time().t(),
-            src => src.to_string(),
-            dst => dst.to_string(),
-            layer => layer
-        };
+        let task = move || async move { graph.delete_edge(timestamp, src, dst, layer).await };
+        self.execute_async_task(task)?;
 
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
-        Ok(PyRemoteEdge::new(
-            self.path.clone(),
-            self.client.clone(),
-            src.to_string(),
-            dst.to_string(),
-        ))
+        let edge = GraphQLRemoteEdge::new(
+            self.graph.path.clone(),
+            self.graph.client.clone(),
+            src_str,
+            dst_str,
+        );
+        Ok(PyRemoteEdge::new(edge, self.runtime.clone()))
     }
 }

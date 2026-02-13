@@ -1,22 +1,14 @@
-use crate::python::client::{
-    build_property_string, build_query, raphtory_client::PyRaphtoryClient,
-};
-use minijinja::context;
-use pyo3::{pyclass, pymethods, Python};
-use raphtory::errors::GraphError;
-use raphtory_api::core::{
-    entities::properties::prop::Prop,
-    storage::timeindex::{AsTime, EventTime},
-    utils::time::IntoTime,
-};
-use std::collections::HashMap;
+use crate::client::{remote_node::GraphQLRemoteNode, ClientError};
+use pyo3::{pyclass, pymethods};
+use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
+use std::{collections::HashMap, future::Future, sync::Arc};
+use tokio::runtime::Runtime;
 
 #[derive(Clone)]
 #[pyclass(name = "RemoteNode", module = "raphtory.graphql")]
 pub struct PyRemoteNode {
-    pub(crate) path: String,
-    pub(crate) client: PyRaphtoryClient,
-    pub(crate) id: String,
+    pub(crate) node: Arc<GraphQLRemoteNode>,
+    pub(crate) runtime: Arc<Runtime>,
 }
 
 impl PyRemoteNode {
@@ -29,8 +21,20 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub(crate) fn new(path: String, client: PyRaphtoryClient, id: String) -> Self {
-        Self { path, client, id }
+    pub(crate) fn new(node: GraphQLRemoteNode, runtime: Arc<Runtime>) -> Self {
+        Self {
+            node: Arc::new(node),
+            runtime,
+        }
+    }
+
+    fn execute_async_task<T, F, O>(&self, task: T) -> O
+    where
+        T: FnOnce() -> F + Send + 'static,
+        F: Future<Output = O> + 'static,
+        O: Send + 'static,
+    {
+        pyo3::Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
     }
 }
 
@@ -44,25 +48,12 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn set_node_type(&self, py: Python, new_type: &str) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  setNodeType(newType: "{{new_type}}")
-                }
-              }
-            }
-        "#;
+    pub fn set_node_type(&self, new_type: &str) -> Result<(), ClientError> {
+        let node = Arc::clone(&self.node);
+        let new_type = new_type.to_string();
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            new_type => new_type
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let task = move || async move { node.set_node_type(new_type).await };
+        self.execute_async_task(task)?;
         Ok(())
     }
 
@@ -78,29 +69,13 @@ impl PyRemoteNode {
     #[pyo3(signature = (t, properties=None))]
     pub fn add_updates(
         &self,
-        py: Python,
         t: EventTime,
         properties: Option<HashMap<String, Prop>>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  addUpdates(time: {{t}} {% if properties is not none %}, properties:  {{ properties | safe }} {% endif %})
-                }
-              }
-            }
-        "#;
+    ) -> Result<(), ClientError> {
+        let node = Arc::clone(&self.node);
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            t => t.into_time().t(),
-            properties =>  properties.map(|p| build_property_string(p)),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let task = move || async move { node.add_updates(t, properties).await };
+        self.execute_async_task(task)?;
 
         Ok(())
     }
@@ -114,29 +89,11 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn add_metadata(
-        &self,
-        py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  addMetadata(properties: {{ properties | safe }} )
-                }
-              }
-            }
-        "#;
+    pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+        let node = Arc::clone(&self.node);
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            properties =>  build_property_string(properties),
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let task = move || async move { node.add_metadata(properties).await };
+        self.execute_async_task(task)?;
         Ok(())
     }
 
@@ -149,29 +106,11 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub fn update_metadata(
-        &self,
-        py: Python,
-        properties: HashMap<String, Prop>,
-    ) -> Result<(), GraphError> {
-        let template = r#"
-            {
-              updateGraph(path: "{{path}}") {
-                node(name: "{{name}}") {
-                  updateMetadata(properties: {{ properties | safe }} )
-                }
-              }
-            }
-        "#;
+    pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
+        let node = Arc::clone(&self.node);
 
-        let query_context = context! {
-            path => self.path,
-            name => self.id,
-            properties =>  build_property_string(properties)
-        };
-
-        let query = build_query(template, query_context)?;
-        let _ = &self.client.query(py, query, None)?;
+        let task = move || async move { node.update_metadata(properties).await };
+        self.execute_async_task(task)?;
         Ok(())
     }
 }

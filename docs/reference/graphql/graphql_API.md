@@ -9193,6 +9193,24 @@ Object.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.dtime">dtime</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Timezone-aware datetime
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.ndtime">ndtime</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Naive datetime (no timezone)
+
+</td>
+</tr>
 </tbody>
 </table>
 
