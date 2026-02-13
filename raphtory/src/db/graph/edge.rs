@@ -46,7 +46,6 @@ use raphtory_storage::{
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };
-use storage::wal::{GraphWalOps, WalOps};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -54,6 +53,7 @@ use std::{
     iter,
     sync::Arc,
 };
+use storage::wal::{GraphWalOps, WalOps};
 
 /// A view of an edge in the graph.
 #[derive(Copy, Clone)]
@@ -339,10 +339,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
-        let writer = self.graph
+        let writer = self
+            .graph
             .internal_add_edge_metadata(self.edge.pid(), input_layer_id, properties)
             .map_err(into_graph_err)?;
-
 
         Ok(())
     }
@@ -413,19 +413,20 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             .atomic_add_edge(src, dst, Some(edge_id), layer_id)
             .map_err(into_graph_err)?;
 
-        let lsn = wal.log_add_edge(
-            transaction_id,
-            t,
-            src_name,
-            src,
-            dst_name,
-            dst,
-            edge_id,
-            layer,
-            layer_id,
-            props_for_wal,
-        )
-        .map_err(into_graph_err)?;
+        let lsn = wal
+            .log_add_edge(
+                transaction_id,
+                t,
+                src_name,
+                src,
+                dst_name,
+                dst,
+                edge_id,
+                layer,
+                layer_id,
+                props_for_wal,
+            )
+            .map_err(into_graph_err)?;
 
         let props = props_with_status
             .into_iter()
@@ -435,7 +436,13 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             })
             .collect::<Vec<_>>();
 
-        writers.internal_add_edge(t, src, dst, MaybeNew::New(edge_id.with_layer(layer_id)), props);
+        writers.internal_add_edge(
+            t,
+            src,
+            dst,
+            MaybeNew::New(edge_id.with_layer(layer_id)),
+            props,
+        );
         writers.set_lsn(lsn);
 
         transaction_manager.end_transaction(transaction_id);

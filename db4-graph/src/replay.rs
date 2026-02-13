@@ -5,18 +5,18 @@
 use crate::WriteLockedGraph;
 use raphtory_api::core::{
     entities::{
-        properties::{
-            meta::STATIC_GRAPH_LAYER_ID,
-            prop::Prop,
-        },
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
         EID, GID, VID,
     },
     storage::timeindex::EventTime,
 };
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError, persist::strategy::PersistenceStrategy,
-    resolver::GIDResolverOps, wal::{GraphReplay, TransactionID, LSN}, ES, GS, NS
+    error::StorageError,
+    persist::strategy::PersistenceStrategy,
+    resolver::GIDResolverOps,
+    wal::{GraphReplay, TransactionID, LSN},
+    ES, GS, NS,
 };
 
 impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
@@ -170,7 +170,7 @@ where
                 write_locked_mapper.set_or_unify_id_and_dtype(
                     prop_name.as_ref(),
                     *prop_id,
-                    prop_value.dtype()
+                    prop_value.dtype(),
                 )?;
             }
 
@@ -308,7 +308,7 @@ where
                 write_locked_mapper.set_or_unify_id_and_dtype(
                     prop_name.as_ref(),
                     *prop_id,
-                    prop_value.dtype()
+                    prop_value.dtype(),
                 )?;
             }
 
