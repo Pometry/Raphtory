@@ -16,8 +16,7 @@ use raphtory_api::core::{
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    pages::resolve_pos,
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     wal::{GraphReplay, TransactionID, LSN},
     ES, GS, NS,
@@ -33,7 +32,7 @@ where
     fn replay_add_edge(
         &mut self,
         lsn: LSN,
-        transaction_id: TransactionID,
+        _transaction_id: TransactionID,
         t: EventTime,
         src_name: Option<GID>,
         src_id: VID,
@@ -44,14 +43,7 @@ where
         layer_id: usize,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
-        let node_max_page_len = self.graph().extension().config().max_node_page_len();
-        let edge_max_page_len = self.graph().extension().config().max_edge_page_len();
-
-        // 1. Insert prop ids into edge meta.
-        // No need to validate props again since they are already validated before
-        // being logged to the WAL.
-
-        // 2. Insert node ids into resolver.
+        // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
             self.graph()
                 .logical_to_physical
@@ -64,16 +56,16 @@ where
                 .set(dst_name.as_ref(), dst_id)?;
         }
 
-        // 4. Grab src writer and add edge data.
-        let (src_segment_id, src_pos) = resolve_pos(src_id, node_max_page_len);
-        let resize_vid = VID::from(src_id.index() + 1);
-        self.resize_chunks_to_vid(resize_vid); // Create enough segments.
+        // Grab src writer and add edge data.
+        let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
+        self.resize_segments_to_vid(src_id); // Create enough segments.
 
         let segment = self
             .graph()
             .storage()
             .nodes()
             .get_or_create_segment(src_segment_id);
+
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
@@ -112,16 +104,16 @@ where
             drop(src_writer);
         }
 
-        // 5. Grab dst writer and add edge data.
-        let (dst_segment_id, dst_pos) = resolve_pos(dst_id, node_max_page_len);
-        let resize_vid = VID::from(dst_id.index() + 1);
-        self.resize_chunks_to_vid(resize_vid);
+        // Grab dst writer and add edge data.
+        let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
+        self.resize_segments_to_vid(dst_id);
 
         let segment = self
             .graph()
             .storage()
             .nodes()
             .get_or_create_segment(dst_segment_id);
+
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
@@ -157,24 +149,26 @@ where
             drop(dst_writer);
         }
 
-        // 6. Grab edge writer and add temporal props & metadata.
-        let (edge_segment_id, edge_pos) = resolve_pos(eid, edge_max_page_len);
-        let resize_eid = EID::from(eid.index() + 1);
-        self.resize_chunks_to_eid(resize_eid);
+        // Grab edge writer and add temporal props & metadata.
+        let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
+        self.resize_segments_to_eid(eid);
 
         let segment = self
             .graph()
             .storage()
             .edges()
             .get_or_create_segment(edge_segment_id);
+
         let immut_lsn = segment.immut_lsn();
 
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
             let edge_meta = self.graph().edge_meta();
 
+            // Insert prop ids into edge meta.
             for (prop_name, prop_id, prop_value) in &props {
                 let prop_mapper = edge_meta.temporal_prop_mapper();
+
                 match prop_mapper.get_dtype(*prop_id) {
                     None => {
                         prop_mapper.set_id_and_dtype(
@@ -194,7 +188,7 @@ where
                 }
             }
 
-            // 3. Insert layer id into the layer meta of both edge and node.
+            // Insert layer id into the layer meta of both edge and node.
             let node_meta = self.graph().node_meta();
 
             edge_meta
@@ -229,6 +223,97 @@ where
             );
 
             edge_writer.writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
+    fn replay_add_node(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        t: EventTime,
+        node_name: Option<GID>,
+        node_id: VID,
+        node_type_and_id: Option<(String, usize)>,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        // Insert node id into resolver.
+        if let Some(ref name) = node_name {
+            self.graph()
+                .logical_to_physical
+                .set(name.as_ref(), node_id)?;
+        }
+
+        // Resolve segment and check LSN.
+        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
+        self.resize_segments_to_vid(node_id);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        // Replay this entry only if it doesn't exist in immut.
+        if immut_lsn < lsn {
+            let node_meta = self.graph().node_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = node_meta.temporal_prop_mapper();
+                match prop_mapper.get_dtype(*prop_id) {
+                    None => {
+                        prop_mapper.set_id_and_dtype(
+                            prop_name.as_str(),
+                            *prop_id,
+                            prop_value.dtype(),
+                        );
+                    }
+                    Some(old_dtype) => {
+                        let dtype = prop_value.dtype();
+                        let mut unified = false;
+                        let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
+                        if unified {
+                            prop_mapper.set_dtype(*prop_id, new_dtype);
+                        }
+                    }
+                }
+            }
+
+            // Set node type metadata early to prevent issues with borrowing node_writer.
+            if let Some((ref node_type, node_type_id)) = node_type_and_id {
+                node_meta
+                    .node_type_meta()
+                    .set_id(node_type.as_str(), node_type_id);
+            }
+
+            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
+
+            if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
+                node_writer.increment_seg_num_nodes();
+            }
+
+            if let Some(name) = node_name {
+                node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
+            }
+
+            if let Some((_, node_type_id)) = node_type_and_id {
+                node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
+            }
+
+            // Add the node with its timestamp and props.
+            node_writer.add_props(
+                t,
+                pos,
+                STATIC_GRAPH_LAYER_ID,
+                props
+                    .into_iter()
+                    .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
+            );
+
+            node_writer.mut_segment.set_lsn(lsn);
         }
 
         Ok(())

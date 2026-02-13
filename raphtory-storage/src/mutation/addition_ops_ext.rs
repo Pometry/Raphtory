@@ -1,13 +1,13 @@
 use crate::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
     durability_ops::DurabilityOps,
-    MutationError,
+    MutationError, NodeWriterT,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
     entities::properties::{
-        meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
         prop::{Prop, PropType, PropUnwrap},
     },
     storage::dict_mapper::MaybeNew,
@@ -219,6 +219,7 @@ impl InternalAdditionOps for TemporalGraph {
         let vid = self.resolve_node(id)?;
         let (segment_id, local_pos) = self.storage().nodes().resolve_pos(vid.inner());
         let mut writer = self.storage().nodes().writer(segment_id);
+
         let node_type_id = match node_type {
             None => {
                 writer.update_c_props(
@@ -229,12 +230,14 @@ impl InternalAdditionOps for TemporalGraph {
                 MaybeNew::Existing(0)
             }
             Some(node_type) => {
-                let old_type = writer
+                let old_type_id = writer
                     .get_metadata(local_pos, STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
                     .into_u64();
-                match old_type {
+
+                match old_type_id {
                     None => {
                         let node_type_id = self.node_meta().get_or_create_node_type_id(node_type);
+
                         writer.update_c_props(
                             local_pos,
                             STATIC_GRAPH_LAYER_ID,
@@ -243,17 +246,19 @@ impl InternalAdditionOps for TemporalGraph {
                                 Some(node_type_id.inner()).filter(|&id| id != 0),
                             ),
                         );
+
                         node_type_id
                     }
-                    Some(old_type) => MaybeNew::Existing(
+                    Some(old_type_id) => MaybeNew::Existing(
                         self.node_meta()
                             .get_node_type_id(node_type)
-                            .filter(|&new_id| new_id == old_type as usize)
+                            .filter(|&new_id| new_id == old_type_id as usize)
                             .ok_or(MutationError::NodeTypeError)?,
                     ),
                 }
             }
         };
+
         Ok(vid.map(|_| (vid, node_type_id)))
     }
 
@@ -268,7 +273,7 @@ impl InternalAdditionOps for TemporalGraph {
                 .node_meta()
                 .get_or_create_node_type_id(node_type)
                 .inner(),
-            None => 0,
+            None => DEFAULT_NODE_TYPE_ID,
         };
         Ok((vid, node_type_id))
     }
@@ -484,11 +489,11 @@ impl InternalAdditionOps for TemporalGraph {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
         node_writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, props);
-        Ok(())
+        Ok(node_writer)
     }
 
     fn validate_props<PN: AsRef<str>>(

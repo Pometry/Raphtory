@@ -2,7 +2,7 @@ use crate::{
     graph::graph::GraphStorage,
     mutation::{
         addition_ops_ext::{UnlockedSession, WriteS},
-        MutationError,
+        MutationError, NodeWriterT,
     },
 };
 use db4_graph::WriteLockedGraph;
@@ -77,7 +77,7 @@ pub trait InternalAdditionOps {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<NodeWriterT<'_>, Self::Error>;
 
     fn validate_props<PN: AsRef<str>>(
         &self,
@@ -209,7 +209,7 @@ impl InternalAdditionOps for GraphStorage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.mutable()?.internal_add_node(t, v, props)
     }
 
@@ -318,7 +318,7 @@ where
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.base().internal_add_node(t, v, props)
     }
 

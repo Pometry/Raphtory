@@ -1,23 +1,23 @@
 use crate::{
     core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::AsNodeRef},
     db::{
-        api::{mutation::time_from_input_session, view::StaticGraphViewOps},
+        api::{
+            mutation::time_from_input_session,
+            view::{graph::GraphViewOps, node::NodeViewOps, StaticGraphViewOps},
+        },
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{into_graph_err, GraphError},
-    prelude::{GraphViewOps, NodeViewOps},
 };
 use raphtory_api::core::{
-    entities::properties::prop::Prop,
+    entities::properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_core::entities::nodes::node_ref::NodeRef;
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
     durability_ops::DurabilityOps,
     MutationError,
 };
-use std::time::Instant;
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
@@ -57,6 +57,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError>;
 
+    /// Add a node to the graph, returning an error if the node already exists.
     fn create_node<
         V: AsNodeRef,
         T: TryIntoInputTime,
@@ -162,31 +163,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
-        let session = self.write_session().map_err(|err| err.into())?;
-        self.validate_gids(
-            [v.as_node_ref()]
-                .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref()),
-        )
-        .map_err(into_graph_err)?;
-
-        let props = self
-            .validate_props(
-                false,
-                self.node_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
-        let ti = time_from_input_session(&session, t)?;
-        let (node_id, _) = self
-            .resolve_and_update_node_and_type(v.as_node_ref(), node_type)
-            .map_err(into_graph_err)?
-            .inner();
-
-        self.internal_add_node(ti, node_id.inner(), props)
-            .map_err(into_graph_err)?;
-
-        Ok(NodeView::new_internal(self.clone(), node_id.inner()))
+        let error_if_exists = false;
+        add_node_impl(self, t, v, props, node_type, error_if_exists)
     }
 
     fn create_node<
@@ -203,39 +181,8 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         props: PII,
         node_type: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
-        let session = self.write_session().map_err(|err| err.into())?;
-        self.validate_gids(
-            [v.as_node_ref()]
-                .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref()),
-        )
-        .map_err(into_graph_err)?;
-
-        let props = self
-            .validate_props(
-                false,
-                self.node_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
-        let ti = time_from_input_session(&session, t)?;
-        let (node_id, _) = self
-            .resolve_and_update_node_and_type(v.as_node_ref(), node_type)
-            .map_err(into_graph_err)?
-            .inner();
-
-        let is_new = node_id.is_new();
-        let node_id = node_id.inner();
-
-        if !is_new {
-            let node_id = self.node(node_id).unwrap().id();
-            return Err(GraphError::NodeExistsError(node_id));
-        }
-
-        self.internal_add_node(ti, node_id, props)
-            .map_err(into_graph_err)?;
-
-        Ok(NodeView::new_internal(self.clone(), node_id))
+        let error_if_exists = true;
+        add_node_impl(self, t, v, props, node_type, error_if_exists)
     }
 
     fn add_edge<
@@ -274,21 +221,14 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
+
         let ti = time_from_input_session(&session, t)?;
-
-        let src_gid = match src {
-            NodeRef::Internal(_) => None,
-            NodeRef::External(gid_ref) => Some(gid_ref),
-        };
-
-        let dst_gid = match dst {
-            NodeRef::Internal(_) => None,
-            NodeRef::External(gid_ref) => Some(gid_ref),
-        };
+        let src_gid = src.as_gid_ref();
+        let dst_gid = dst.as_gid_ref();
 
         // At this point we start modifying the graph, any error after this point is fatal and should
         // panic!
-        let (edge_id, src_id, dst_id, layer_id) = {
+
             let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
             let layer_id = layer_id.inner();
 
@@ -301,15 +241,13 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             // This is fine as long as we hold onto the edge segment lock through add_edge_op
             // for the entire operation.
 
-            // All names, ids and values have been generated for this operation.
-            // Create a wal entry to mark it as durable.
-            let props_for_wal = props_with_status
-                .iter()
-                .map(|maybe_new| {
-                    let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                    (prop_name.as_ref(), *prop_id, prop.clone())
-                })
-                .collect::<Vec<_>>();
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
 
             let src_id = add_edge_op.src().inner();
             let dst_id = add_edge_op.dst().inner();
@@ -328,31 +266,29 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 props_for_wal,
             )?;
 
-            let props = props_with_status
-                .into_iter()
-                .map(|maybe_new| {
-                    let (_, prop_id, prop) = maybe_new.inner();
-                    (prop_id, prop)
-                })
-                .collect::<Vec<_>>();
+        let props = props_with_status
+            .into_iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.inner();
+                (prop_id, prop)
+            })
+            .collect::<Vec<_>>();
 
             add_edge_op.internal_add_update(ti, layer_id, props);
             // Update the src, dst and edge segments with the lsn of the wal entry.
             add_edge_op.set_lsn(lsn);
 
-            self.core_graph()
-                .transaction_manager()?
-                .end_transaction(transaction_id);
+        transaction_manager.end_transaction(transaction_id);
 
-            // Drop to release all the segment locks.
-            drop(add_edge_op);
+        // Segment locks can be released before flush to allow
+        // other operations to proceed.
+        drop(add_edge_op);
 
-            // Flush the wal entry to disk.
-            // Any error here is fatal
-            self.core_graph().wal()?.flush(lsn)?;
-            Ok::<_, GraphError>((edge_id, src_id, dst_id, layer_id))
+        // Flush the wal entry to disk.
+        // Any error here is fatal.
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
         }
-        .unwrap();
 
         Ok(EdgeView::new(
             self.clone(),
@@ -365,4 +301,111 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .flush()
             .map_err(|err| MutationError::from(err).into())
     }
+}
+
+fn add_node_impl<
+    G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps,
+    V: AsNodeRef,
+    T: TryIntoInputTime,
+    PN: AsRef<str>,
+    P: Into<Prop>,
+    PII: IntoIterator<Item = (PN, P)>,
+>(
+    graph: &G,
+    t: T,
+    v: V,
+    props: PII,
+    node_type: Option<&str>,
+    error_if_exists: bool,
+) -> Result<NodeView<'static, G>, GraphError> {
+    let transaction_manager = graph.core_graph().transaction_manager()?;
+    let wal = graph.core_graph().wal()?;
+    let transaction_id = transaction_manager.begin_transaction();
+    let session = graph.write_session().map_err(|err| err.into())?;
+    let node_ref = v.as_node_ref();
+
+    graph
+        .validate_gids(
+            [node_ref]
+                .iter()
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
+        )
+        .map_err(into_graph_err)?;
+
+    let props_with_status = graph
+        .validate_props_with_status(
+            false,
+            graph.node_meta(),
+            props.into_iter().map(|(k, v)| (k, v.into())),
+        )
+        .map_err(into_graph_err)?;
+
+    let node_gid = node_ref.as_gid_ref();
+    let ti = time_from_input_session(&session, t)?;
+
+    let (node_id, node_type_id) = graph
+        .resolve_and_update_node_and_type(node_ref, node_type)
+        .map_err(into_graph_err)?
+        .inner();
+
+    let is_new = node_id.is_new();
+    let node_id = node_id.inner();
+    let node_type_id = node_type_id.inner();
+
+    if error_if_exists && !is_new {
+        let node_id = graph.node(node_id).unwrap().id();
+        return Err(GraphError::NodeExistsError(node_id));
+    }
+
+    // We don't care about logging the default node type.
+    let node_type_and_id = Some(node_type_id)
+        .filter(|&id| id != DEFAULT_NODE_TYPE_ID)
+        .and_then(|id| node_type.map(|name| (name, id)));
+
+    let props = props_with_status
+        .iter()
+        .map(|maybe_new| {
+            let (_, prop_id, prop) = maybe_new.as_ref().inner();
+            (*prop_id, prop.clone())
+        })
+        .collect::<Vec<_>>();
+
+    let mut writer = graph
+        .internal_add_node(ti, node_id, props)
+        .map_err(into_graph_err)?;
+
+    let props_for_wal = props_with_status
+        .iter()
+        .map(|maybe_new| {
+            let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+            (prop_name.as_ref(), *prop_id, prop.clone())
+        })
+        .collect::<Vec<_>>();
+
+    // Create a wal entry to mark operation as durable.
+    let lsn = wal.log_add_node(
+        transaction_id,
+        ti,
+        node_gid,
+        node_id,
+        node_type_and_id,
+        props_for_wal,
+    )?;
+
+    // Update node segment with the lsn of the wal entry.
+    writer.mut_segment.set_lsn(lsn);
+
+    transaction_manager.end_transaction(transaction_id);
+
+    // Segment lock can be released before flush to allow
+    // other operations to proceed.
+    drop(writer);
+
+    // Flush the wal entry to disk.
+    // Any error here is fatal.
+    if let Err(e) = wal.flush(lsn) {
+        return Err(GraphError::FatalWriteError(e));
+    }
+
+    Ok(NodeView::new_internal(graph.clone(), node_id))
 }

@@ -205,6 +205,11 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, layer_id, props);
     }
 
+    pub fn store_node_type(&mut self, pos: LocalPOS, layer_id: usize, node_type: usize) {
+        let props = [(NODE_TYPE_IDX, Prop::U64(node_type as u64))];
+        self.update_c_props(pos, layer_id, props);
+    }
+
     pub fn update_deletion_time<T: AsTime>(&mut self, t: T, node: LocalPOS, e_id: ELID) {
         self.update_timestamp(t, node, e_id);
     }

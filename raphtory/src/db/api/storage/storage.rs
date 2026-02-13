@@ -518,16 +518,16 @@ impl InternalAdditionOps for Storage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
         let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
         // don't fail early on indexing, actually update the graph even if indexing failed
-        self.graph.internal_add_node(t, v, props)?;
+        let writer = self.graph.internal_add_node(t, v, props)?;
 
         #[cfg(feature = "search")]
         index_res?;
 
-        Ok(())
+        Ok(writer)
     }
 
     fn validate_props<PN: AsRef<str>>(

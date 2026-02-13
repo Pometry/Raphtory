@@ -531,8 +531,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
         let count = self.segments.count();
 
-        if count > segment_id {
-            // Something has allocated the segment, wait for it to be added.
+        if segment_id < count {
+            // Another thread has allocated the segment, wait for it to be added.
             loop {
                 if let Some(segment) = self.segments.get(segment_id) {
                     return segment;
@@ -546,6 +546,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             self.segments.reserve(segment_id + 1 - count);
 
             loop {
+                // Create consecutive segments until the required segment is created.
                 let new_segment_id = self.segments.push_with(|segment_id| {
                     Arc::new(NS::new(
                         segment_id,
@@ -556,7 +557,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                     ))
                 });
 
-                if new_segment_id >= segment_id {
+                // The segment has been created.
+                if segment_id <= new_segment_id {
                     loop {
                         if let Some(segment) = self.segments.get(segment_id) {
                             return segment;

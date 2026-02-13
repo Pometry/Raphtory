@@ -468,6 +468,9 @@ pub enum GraphError {
 
     #[error(transparent)]
     StorageError(#[from] StorageError),
+
+    #[error("Fatal write error: {0}")]
+    FatalWriteError(StorageError),
 }
 
 impl From<MetadataError> for GraphError {
