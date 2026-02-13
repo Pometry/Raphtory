@@ -4,10 +4,7 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
 #[cfg(feature = "proto")]
 use raphtory::serialise::StableDecode;
-use raphtory::test_utils::{
-    build_graph, build_graph_strat, test_graph, EdgeFixture, EdgeUpdatesFixture, GraphFixture,
-    NodeFixture, PropUpdatesFixture,
-};
+use raphtory::test_utils::{build_graph, build_graph_strat, test_graph};
 use raphtory::{
     algorithms::components::weakly_connected_components,
     db::{
