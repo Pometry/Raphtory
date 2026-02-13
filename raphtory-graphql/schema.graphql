@@ -3318,6 +3318,14 @@ input Value @oneOf {
 	Object.
 	"""
 	object: [ObjectEntry!]
+	"""
+	Timezone-aware datetime
+	"""
+	dtime: String
+	"""
+	Naive datetime (no timezone)
+	"""
+	ndtime: String
 }
 
 type VectorSelection {
