@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1770646707237,
+  "lastUpdate": 1771004604664,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -3995,6 +3995,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1366,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e37b551c9d2edefdc79a6412719b8b50dba6be88",
+          "message": "embedding api improvements (#2249)\n\n* embedding api improvements\n\n* disable embeddings by default\n\n* fix compilation error for enable_embeddings\n\n* fix compilation error in main.rs\n\n* sort milvus integration\n\n* lancedb vector storage implementation and rename score to distance\n\n* like this almost compiles but not yet\n\n* force lancedb to work with other version of chrono but still polars-arrow complaining\n\n* this seems to compile with all features but storage\n\n* put pometry-storage back into place\n\n* sort new multi-embedding vector cache\n\n* still some rust tests failing\n\n* remove outdated comment\n\n* all rust tests now passing with the new custom openai server\n\n* some compilation errors caused by teh server future not being Sync\n\n* fixing some python tests\n\n* wip\n\n* trying to avoid the drop of the tempdir but still not working\n\n* fix compilation error\n\n* fix bug caused by a temp dir being dropped too soon\n\n* fix python tests\n\n* fix dependency conflicts\n\n* format\n\n* fix rust test\n\n* change rust version\n\n* started implementing context manager for PyEmbeddingServer\n\n* context manager for embedding server\n\n* all graphql vector tests are passing now\n\n* re-indexing, graphql vectorise, and minor fixes\n\n* big cleanup\n\n* update Cargo.lock\n\n* handle all unwraps in lancedb.rs\n\n* fix cache tests\n\n* fix benchmark compilation error\n\n* fix python graphql vector tests\n\n* fix more graphql tests\n\n* this should fix all the compilation errors on the tests\n\n* make vector cache lazy\n\n* fix rust doc tests\n\n* fix compilation error on a test and expose reindex api\n\n* handle python embedding errors\n\n* try a different way of making the vector cache lazy\n\n* rely only on id and actual vector, not distance, for lancedb index test\n\n* fix mutable graph test\n\n* remove unused comments\n\n* try different ports for mutable_graph tests\n\n* fix test_server_start_with_failing_embedding test\n\n* remove unused imports\n\n* disable all features for lancedb\n\n* tune cargo in rust test action\n\n* try to fix cargo in the python test action as well\n\n* fix python tests\n\n* disable cargo tuning for python tests\n\n* try to avoid the no space left on devide when running the graphql bench\n\n* add df -h in all steps\n\n* try removing target a bit earlier\n\n* replace one-off vectors with random smaller ones\n\n* apply same fix no space left on device for stress test\n\n* chore: apply tidy-public auto-fixes\n\n* chore: apply tidy-public auto-fixes\n\n* remove outdated comments\n\n* change custom embedding server api\n\n* remove outdated comment\n\n* change Embedding to be Float32Array removes some needless iter and copy\n\n* implement vectorise_all_graphs in python\n\n* fix insertion bug cause by missing append call\n\n* change imports to satisfy cargo check\n\n* address some of the comments\n\n* remove one unwrap out of closure in lancedb.rs\n\n* replace collect appropriately\n\n* wrap raphtory access with blocking_compute\n\n* revert back ci changes\n\n* remove unused prints on python tests\n\n* put back CARGO_BUILD_JOBS: 2\n\n* chore: apply tidy-public auto-fixes\n\n* changes to caching\n\n* fixes for tokio\n\n* fixes for stable embedding cache\n\n* remove printlns\n\n* remove useless print and extract vector cache\n\n* fix the python tests\n\n* more python tests\n\n* chore: apply tidy-public auto-fixes\n\n* minor changes before merge\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>\nCo-authored-by: Fabian Murariu <murariu.fabian@gmail.com>\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2026-02-13T17:03:01Z",
+          "tree_id": "516dd5c5e144555b73585b6a181fd27f4bb9324d",
+          "url": "https://github.com/Pometry/Raphtory/commit/e37b551c9d2edefdc79a6412719b8b50dba6be88"
+        },
+        "date": 1771004601333,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 0,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 217,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 157,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1083,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 854,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1312,
             "unit": "req/s"
           }
         ]
