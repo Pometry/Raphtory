@@ -119,7 +119,8 @@ where
 
             let app_config = Some(builder.build());
 
-            GraphServer::new(server_args.work_dir, app_config, None)?
+            GraphServer::new(server_args.work_dir, app_config, None)
+                .await?
                 .run_with_port(server_args.port)
                 .await?;
         }

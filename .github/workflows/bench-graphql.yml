@@ -27,14 +27,16 @@ jobs:
       - name: Install maturin
         run: pip install maturin==1.8.3
       - name: Build raphtory
-        run: make install-python
+        run: |
+          make install-python clean
+        #                     ↑ this is for freeing up space used by cargo before installing raphtory
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
       - uses: grafana/setup-k6-action@v1
         with:
-          k6-version: '1.0.0'
+          k6-version: "1.0.0"
       - name: Run GraphQL benchmarks
         run: cd graphql-bench && make bench-local
       - name: Restore metadata file
@@ -46,10 +48,10 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: GraphQL Benchmark
-          tool: 'customBiggerIsBetter'
+          tool: "customBiggerIsBetter"
           output-file-path: graphql-bench/output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          alert-threshold: '200%'
+          alert-threshold: "200%"
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false
@@ -60,10 +62,10 @@ jobs:
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: GraphQL Benchmark
-          tool: 'customBiggerIsBetter'
+          tool: "customBiggerIsBetter"
           output-file-path: graphql-bench/output.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          alert-threshold: '200%'
+          alert-threshold: "200%"
           comment-on-alert: true
           summary-always: true
           fail-on-alert: false

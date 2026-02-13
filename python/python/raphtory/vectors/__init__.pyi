@@ -26,7 +26,15 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ["VectorisedGraph", "Document", "Embedding", "VectorSelection"]
+__all__ = [
+    "VectorisedGraph",
+    "Document",
+    "Embedding",
+    "VectorSelection",
+    "OpenAIEmbeddings",
+    "VectorCache",
+    "embedding_server",
+]
 
 class VectorisedGraph(object):
     """VectorisedGraph object that contains embedded documents that correspond to graph entities."""
@@ -38,10 +46,10 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked in descending order of similarity score.
+        Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked in ascending order of distance.
 
         Args:
-          query (str | list): The text or the embedding to score against.
+          query (str | list): The text or the embedding to calculate the distance from.
           limit (int): The maximum number of new edges in the results.
           window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
@@ -59,10 +67,10 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Perform a similarity search between each entity's associated document and a specified `query`. Returns a number of entities up to a specified `limit` ranked in descending order of similarity score.
+        Perform a similarity search between each entity's associated document and a specified `query`. Returns a number of entities up to a specified `limit` ranked in ascending order of distance.
 
         Args:
-          query (str | list): The text or the embedding to score against.
+          query (str | list): The text or the embedding to calculate the distance from.
           limit (int): The maximum number of new entities in the result.
           window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
@@ -77,16 +85,19 @@ class VectorisedGraph(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> VectorSelection:
         """
-        Perform a similarity search between each node's associated document and a specified `query`. Returns a number of nodes up to a specified `limit` ranked in descending order of similarity score.
+        Perform a similarity search between each node's associated document and a specified `query`. Returns a number of nodes up to a specified `limit` ranked in ascending order of distance.
 
         Args:
-          query (str | list): The text or the embedding to score against.
+          query (str | list): The text or the embedding to calculate the distance from.
           limit (int): The maximum number of new nodes in the result.
-          window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
+          window (Tuple[int | str, int | str], optional): The window where documents need to belong to in order to be considered.
 
         Returns:
           VectorSelection: The vector selection resulting from the search.
         """
+
+    def optimize_index(self):
+        """Optmize the vector index"""
 
 class Document(object):
     """A document corresponding to a graph entity. Used to generate embeddings."""
@@ -125,12 +136,14 @@ class Embedding(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def to_arrow(self): ...
+
 class VectorSelection(object):
     def add_edges(self, edges: list) -> None:
         """
         Add all the documents associated with the specified `edges` to the current selection.
 
-        Documents added by this call are assumed to have a score of 0.
+        Documents added by this call are assumed to have a distance of 0.
 
         Args:
           edges (list):  List of the edge ids or edges to add.
@@ -143,7 +156,7 @@ class VectorSelection(object):
         """
         Add all the documents associated with the specified `nodes` to the current selection.
 
-        Documents added by this call are assumed to have a score of 0.
+        Documents added by this call are assumed to have a distance of 0.
 
         Args:
           nodes (list): List of the node ids or nodes to add.
@@ -197,12 +210,12 @@ class VectorSelection(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> None:
         """
-        Add the top `limit` adjacent edges with higher score for `query` to the selection
+        Add to the selection the `limit` adjacent edges closest to `query`
 
         This function has the same behaviour as expand_entities_by_similarity but it only considers edges.
 
         Args:
-          query (str | list): The text or the embedding to score against.
+          query (str | list): The text or the embedding to calculate the distance from.
           limit (int): The maximum number of new edges to add.
           window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
@@ -217,20 +230,19 @@ class VectorSelection(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> None:
         """
-        Add the top `limit` adjacent entities with higher score for `query` to the selection
+        Add to the selection the `limit` adjacent entities closest to `query`
 
         The expansion algorithm is a loop with two steps on each iteration:
 
         1. All the entities 1 hop away of some of the entities included on the selection (and
            not already selected) are marked as candidates.
-        2. Those candidates are added to the selection in descending order according to the
-           similarity score obtained against the `query`.
+        2. Those candidates are added to the selection in ascending distance from `query`.
 
         This loops goes on until the number of new entities reaches a total of `limit`
         entities or until no more documents are available
 
         Args:
-          query (str | list): The text or the embedding to score against.
+          query (str | list): The text or the embedding to calculate the distance from.
           limit (int): The number of documents to add.
           window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
@@ -245,12 +257,12 @@ class VectorSelection(object):
         window: Optional[Tuple[int | str, int | str]] = None,
     ) -> None:
         """
-        Add the top `limit` adjacent nodes with higher score for `query` to the selection
+        Add to the selection the `limit` adjacent nodes closest to `query`
 
         This function has the same behaviour as expand_entities_by_similarity but it only considers nodes.
 
         Args:
-          query (str | list): The text or the embedding to score against.
+          query (str | list): The text or the embedding to calculate the distance from.
           limit (int): The maximum number of new nodes to add.
           window (Tuple[int | str, int | str], optional): The window that documents need to belong to in order to be considered.
 
@@ -266,12 +278,12 @@ class VectorSelection(object):
             list[Document]: List of documents in the current selection.
         """
 
-    def get_documents_with_scores(self) -> list[Tuple[Document, float]]:
+    def get_documents_with_distances(self) -> list[Tuple[Document, float]]:
         """
-        Returns the documents present in the current selection alongside their scores.
+        Returns the documents present in the current selection alongside their distances.
 
         Returns:
-            list[Tuple[Document, float]]: List of documents and scores.
+            list[Tuple[Document, float]]: List of documents and distances.
         """
 
     def nodes(self) -> list[Node]:
@@ -281,3 +293,21 @@ class VectorSelection(object):
         Returns:
             list[Node]: List of nodes in the current selection.
         """
+
+class OpenAIEmbeddings(object):
+    def __new__(
+        cls,
+        model="text-embedding-3-small",
+        api_base=None,
+        api_key_env=None,
+        org_id=None,
+        project_id=None,
+        dim=None,
+    ) -> OpenAIEmbeddings:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+class VectorCache(object):
+    def __new__(cls, v_cache, cache=None) -> VectorCache:
+        """Create and return a new object.  See help(type) for accurate signature."""
+
+def embedding_server(function): ...

@@ -1,3 +1,5 @@
+#[cfg(feature = "vectors")]
+use crate::vectors::{embeddings::EmbeddingError, Embedding};
 use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
@@ -254,16 +256,20 @@ pub enum GraphError {
     IOErrorMsg(String),
 
     #[cfg(feature = "vectors")]
-    #[error("Arroy error: {0}")]
-    ArroyError(#[from] arroy::Error),
-
-    #[cfg(feature = "vectors")]
     #[error("Heed error: {0}")]
     HeedError(#[from] heed::Error),
 
     #[cfg(feature = "vectors")]
+    #[error("Heed error: {0}")]
+    LanceDbError(#[from] lancedb::Error),
+
+    #[cfg(feature = "vectors")]
     #[error("The path {0} does not contain a vector DB")]
     VectorDbDoesntExist(String),
+
+    #[cfg(feature = "vectors")]
+    #[error("The schema of the vector DB is invalid")]
+    InvalidVectorDbSchema,
 
     #[cfg(feature = "proto")]
     #[error("zip operation failed")]
@@ -301,8 +307,12 @@ pub enum GraphError {
     #[error("Embedding operation failed")]
     EmbeddingError {
         #[from]
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: EmbeddingError,
     },
+
+    #[cfg(feature = "vectors")]
+    #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
+    UnresolvedModel,
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]

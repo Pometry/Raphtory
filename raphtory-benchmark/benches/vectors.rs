@@ -10,7 +10,7 @@ fn bench_search_entities(c: &mut Criterion) {
 
     let query = gen_embedding_for_bench("0");
     c.bench_function("semantic_search_entities", |b| {
-        b.iter(|| v.entities_by_similarity(&query, 10, None))
+        b.iter(|| v.entities_by_similarity(&query, 10, None).execute())
     });
 }
 

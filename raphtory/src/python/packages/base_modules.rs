@@ -30,7 +30,10 @@ use crate::{
             algorithms::*,
             graph_gen::*,
             graph_loader::*,
-            vectors::{PyVectorSelection, PyVectorisedGraph},
+            vectors::{
+                embedding_server, PyOpenAIEmbeddings, PyVectorCache, PyVectorSelection,
+                PyVectorisedGraph,
+            },
         },
         types::{
             result_iterable::{
@@ -254,10 +257,16 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
 
 pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
-    vectors_module.add_class::<PyVectorisedGraph>()?;
-    vectors_module.add_class::<PyDocument>()?;
-    vectors_module.add_class::<PyEmbedding>()?;
-    vectors_module.add_class::<PyVectorSelection>()?;
+    add_classes!(
+        &vectors_module,
+        PyVectorisedGraph,
+        PyDocument,
+        PyEmbedding,
+        PyVectorSelection,
+        PyOpenAIEmbeddings,
+        PyVectorCache,
+    );
+    add_functions!(&vectors_module, embedding_server);
     Ok(vectors_module)
 }
 

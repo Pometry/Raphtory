@@ -20,7 +20,8 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
     VID,
 };
-use std::{future::Future, thread};
+use std::{future::Future, sync::OnceLock};
+use tokio::runtime::{Builder, Runtime};
 
 pub mod errors;
 pub(crate) mod export;
@@ -411,24 +412,28 @@ impl<'py> IntoPyObject<'py> for NumpyArray {
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub fn execute_async_task<T, F, O>(task: T) -> O
+pub(crate) fn execute_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,
     O: Send + 'static,
 {
-    Python::with_gil(|py| {
-        py.allow_threads(move || {
-            // we call `allow_threads` because the task might need to grab the GIL
-            thread::spawn(move || {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-                    .block_on(task())
-            })
-            .join()
-            .expect("error when waiting for async task to complete")
-        })
+    Python::with_gil(|py| py.allow_threads(move || get_runtime().block_on(task())))
+}
+
+static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+pub fn get_runtime() -> &'static Runtime {
+    RUNTIME.get_or_init(|| {
+        Builder::new_multi_thread()
+            .enable_all()
+            // Optional: limit threads if you want to leave room for Python
+            .worker_threads(4)
+            .build()
+            .expect("Failed to create Tokio runtime")
     })
+}
+
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    get_runtime().block_on(future)
 }
