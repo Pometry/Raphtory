@@ -4467,7 +4467,7 @@ dependencies = [
 
 [[package]]
 name = "pometry-storage"
-version = "0.16.4"
+version = "0.16.5"
 
 [[package]]
 name = "portable-atomic"
@@ -4909,7 +4909,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "ahash",
  "arrow",
@@ -4988,7 +4988,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-api"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "arrow-array",
  "arrow-ipc",
@@ -5021,7 +5021,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-benchmark"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "chrono",
  "criterion",
@@ -5042,7 +5042,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-core"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "bigdecimal",
  "chrono",
@@ -5066,7 +5066,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-cypher"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "arrow",
  "arrow-array",
@@ -5096,7 +5096,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-graphql"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "ahash",
  "arrow-array",
@@ -5147,7 +5147,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-pymodule"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5157,7 +5157,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory-storage"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "arrow-array",
  "arrow-schema",
@@ -5190,7 +5190,7 @@ dependencies = [
 
 [[package]]
 name = "raphtory_netflow"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "pyo3",
  "pyo3-build-config",
@@ -5441,7 +5441,7 @@ dependencies = [
 
 [[package]]
 name = "rust-examples"
-version = "0.16.4"
+version = "0.16.5"
 dependencies = [
  "chrono",
  "itertools 0.13.0",
