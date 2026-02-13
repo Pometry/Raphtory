@@ -3,6 +3,8 @@
 //! This is the base class used to create a temporal graph, add nodes and edges,
 //! create windows, and query the graph with a variety of algorithms.
 //! In Python, this class wraps around the rust graph.
+#[cfg(feature = "search")]
+use crate::python::graph::index::PyIndexSpec;
 use crate::{
     algorithms::components::LargestConnectedComponent,
     db::{
@@ -10,13 +12,13 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     errors::GraphError,
-    io::parquet_loaders::*,
+    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
     prelude::*,
     python::{
+        config::PyConfig,
         graph::{
             edge::PyEdge,
             graph_with_deletions::PyPersistentGraph,
-            index::PyIndexSpec,
             io::arrow_loaders::{
                 convert_py_prop_args, convert_py_schema, is_csv_path,
                 load_edge_metadata_from_arrow_c_stream, load_edge_metadata_from_csv_path,
@@ -30,12 +32,9 @@ use crate::{
         types::iterable::FromIterable,
         utils::PyNodeRef,
     },
-    serialise::{
-        parquet::{ParquetDecoder, ParquetEncoder},
-        InternalStableDecode, StableEncode,
-    },
+    serialise::{StableDecode, StableEncode},
 };
-use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::PyDict, Borrowed};
 use raphtory_api::{
     core::{entities::GID, storage::arc_str::ArcStr},
     python::timeindex::EventTimeComponent,
@@ -51,7 +50,8 @@ use std::{
 /// A temporal graph with event semantics.
 ///
 /// Arguments:
-///     num_shards (int, optional): The number of locks to use in the storage to allow for multithreaded updates.
+///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
+///     config (Config, optional): The configuration options for the graph
 #[derive(Clone)]
 #[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen)]
 pub struct PyGraph {
@@ -96,8 +96,9 @@ impl From<PyGraph> for DynamicGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for MaterializedGraph {
-    fn extract_bound(graph: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for MaterializedGraph {
+    type Error = PyErr;
+    fn extract(graph: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(graph) = graph.extract::<PyRef<PyGraph>>() {
             Ok(graph.graph.clone().into())
         } else if let Ok(graph) = graph.extract::<PyRef<PyPersistentGraph>>() {
@@ -120,9 +121,10 @@ impl<'py> IntoPyObject<'py> for Graph {
     }
 }
 
-impl<'source> FromPyObject<'source> for Graph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let g = ob.downcast::<PyGraph>()?.borrow();
+impl<'py> FromPyObject<'_, 'py> for Graph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let g = ob.cast::<PyGraph>()?.borrow();
 
         Ok(g.graph.clone())
     }
@@ -130,7 +132,7 @@ impl<'source> FromPyObject<'source> for Graph {
 
 impl PyGraph {
     pub fn py_from_db_graph(db_graph: Graph) -> PyResult<Py<PyGraph>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Py::new(
                 py,
                 (PyGraph::from(db_graph.clone()), PyGraphView::from(db_graph)),
@@ -160,38 +162,61 @@ impl PyGraphEncoder {
 #[pymethods]
 impl PyGraph {
     #[new]
-    #[pyo3(signature = (num_shards = None))]
-    pub fn py_new(num_shards: Option<usize>) -> (Self, PyGraphView) {
-        let graph = match num_shards {
-            None => Graph::new(),
-            Some(num_shards) => Graph::new_with_shards(num_shards),
+    #[pyo3(signature = (path = None, config=None))]
+    pub fn py_new(
+        path: Option<PathBuf>,
+        config: Option<PyConfig>,
+    ) -> Result<(Self, PyGraphView), GraphError> {
+        let graph = match path {
+            None => match config {
+                None => Graph::new(),
+                Some(PyConfig(config)) => Graph::new_with_config(config)?,
+            },
+            Some(path) => match config {
+                None => Graph::new_at_path(&path)?,
+                Some(PyConfig(config)) => Graph::new_at_path_with_config(&path, config)?,
+            },
         };
-        (
+        Ok((
             Self {
                 graph: graph.clone(),
             },
             PyGraphView::from(graph),
-        )
+        ))
     }
 
-    fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
-        let state = self.graph.encode_to_vec();
-        (PyGraphEncoder, (state,))
-    }
-
-    /// Persist graph on disk
+    /// Load a disk graph from path
     ///
     /// Arguments:
-    ///     graph_dir (str | PathLike): the folder where the graph will be persisted
+    ///     path (str | PathLike): the path of the graph folder
+    ///     config (Config, optional): specify a new config to override the values saved for the graph
+    ///                                (note that the page sizes cannot be overridden and are ignored)
     ///
     /// Returns:
-    ///     Graph: a view of the persisted graph
-    #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        self.graph.persist_as_disk_graph(graph_dir)
+    ///     Graph: the graph
+    #[pyo3(signature = (path, config = None))]
+    #[staticmethod]
+    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<Graph, GraphError> {
+        match config {
+            None => Graph::load(&path),
+            Some(PyConfig(config)) => Graph::load_with_config(&path, config),
+        }
     }
 
-    /// Persist graph to parquet files.
+    /// Trigger a flush of the underlying storage if disk storage is enabled
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn flush(&self) -> Result<(), GraphError> {
+        self.graph.flush()
+    }
+
+    fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {
+        let state = self.graph.encode_to_bytes()?;
+        Ok((PyGraphEncoder, (state,)))
+    }
+
+    /// Persist graph to parquet files
     ///
     /// Arguments:
     ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
@@ -199,7 +224,7 @@ impl PyGraph {
     /// Returns:
     ///     None:
     pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
-        self.graph.encode_parquet(graph_dir)
+        self.graph.encode(graph_dir)
     }
 
     /// Read graph from parquet files
@@ -212,7 +237,7 @@ impl PyGraph {
     ///
     #[staticmethod]
     pub fn from_parquet(graph_dir: PathBuf) -> Result<Graph, GraphError> {
-        Graph::decode_parquet(graph_dir)
+        Graph::decode(&graph_dir)
     }
 
     /// Adds a new node with the given id and properties to the graph.
@@ -674,6 +699,7 @@ impl PyGraph {
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -681,13 +707,14 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
     )]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
         time: &str,
         id: &str,
+
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -695,6 +722,7 @@ impl PyGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -711,6 +739,7 @@ impl PyGraph {
                 &metadata,
                 shared_metadata.as_ref(),
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -734,6 +763,7 @@ impl PyGraph {
                     &self.graph,
                     path.as_path(),
                     time,
+                    event_id,
                     id,
                     node_type,
                     node_type_col,
@@ -741,6 +771,7 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
+                    true,
                     arced_schema.clone(),
                 )?;
             }
@@ -757,6 +788,7 @@ impl PyGraph {
                     shared_metadata.as_ref(),
                     csv_options.as_ref(),
                     arced_schema,
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -785,6 +817,7 @@ impl PyGraph {
     ///     layer_col (str, optional): The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -792,7 +825,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None)
+        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
     )]
     fn load_edges(
         &self,
@@ -807,6 +840,7 @@ impl PyGraph {
         layer_col: Option<&str>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -824,6 +858,7 @@ impl PyGraph {
                 layer,
                 layer_col,
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -846,14 +881,12 @@ impl PyGraph {
                 load_edges_from_parquet(
                     &self.graph,
                     &path,
-                    time,
-                    src,
-                    dst,
+                    ColumnNames::new(time, event_id, src, dst, layer_col),
+                    true,
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
                     layer,
-                    layer_col,
                     None,
                     arced_schema.clone(),
                 )?;
@@ -872,6 +905,7 @@ impl PyGraph {
                     layer_col,
                     csv_options.as_ref(),
                     arced_schema.clone(),
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -954,6 +988,8 @@ impl PyGraph {
                     id,
                     node_type,
                     node_type_col,
+                    None,
+                    None,
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
@@ -1061,6 +1097,7 @@ impl PyGraph {
                     layer_col,
                     None,
                     arced_schema.clone(),
+                    true,
                 )?;
             }
             if is_csv {
@@ -1090,6 +1127,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
@@ -1101,6 +1139,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -1112,6 +1151,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -1129,6 +1169,7 @@ impl PyGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

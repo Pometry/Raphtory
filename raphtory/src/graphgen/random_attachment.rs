@@ -21,7 +21,7 @@ use crate::{
     },
     prelude::{NodeStateOps, NO_PROPS},
 };
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{prelude::IndexedRandom, rngs::StdRng, SeedableRng};
 use raphtory_api::core::storage::timeindex::AsTime;
 use tracing::error;
 
@@ -58,7 +58,7 @@ pub fn random_attachment(
     if let Some(seed_value) = seed {
         rng = StdRng::from_seed(seed_value);
     } else {
-        rng = StdRng::from_entropy();
+        rng = StdRng::from_os_rng();
     }
     let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let mut ids = graph.nodes().id().iter_values().collect::<Vec<_>>();

@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use rand::{distributions::Uniform, Rng};
+use rand::{distr::Uniform, Rng};
 use raphtory::core::entities::nodes::structure::adjset::AdjSet;
 use sorted_vector_map::SortedVectorSet;
 use std::collections::BTreeSet;
@@ -9,8 +9,8 @@ fn btree_set_u64(c: &mut Criterion) {
     for size in [10, 100, 300, 500, 1000].iter() {
         group.throughput(Throughput::Elements(*size as u64));
 
-        let mut rng = rand::thread_rng();
-        let range = Uniform::new(u64::MIN, u64::MAX);
+        let mut rng = rand::rng();
+        let range = Uniform::new(u64::MIN, u64::MAX).unwrap();
         let init_vals: Vec<u64> = (&mut rng).sample_iter(&range).take(*size).collect();
 
         group.bench_with_input(
@@ -49,8 +49,9 @@ fn bm_tadjset(c: &mut Criterion) {
     for size in [10, 100, 1000, 10_000, 100_000, 1_000_000].iter() {
         group.throughput(Throughput::Elements(*size as u64));
 
-        let mut rng = rand::thread_rng();
-        let range = Uniform::new(0, size * 10);
+        let mut rng = rand::rng();
+        let range = Uniform::new(0, size * 10).unwrap();
+
         let init_srcs: Vec<usize> = (&mut rng)
             .sample_iter(&range)
             .take(*size as usize)
@@ -59,7 +60,7 @@ fn bm_tadjset(c: &mut Criterion) {
             .sample_iter(&range)
             .take(*size as usize)
             .collect();
-        let t_range = Uniform::new(1646838523i64, 1678374523);
+        let t_range = Uniform::new(1646838523i64, 1678374523).unwrap();
         let init_time: Vec<i64> = (&mut rng)
             .sample_iter(&t_range)
             .take(*size as usize)

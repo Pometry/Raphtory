@@ -227,13 +227,14 @@ macro_rules! py_iterable_comp {
             fn clone(&self) -> Self {
                 match self {
                     Self::Vec(v) => Self::Vec(v.clone()),
-                    Self::This(v) => Self::This(Python::with_gil(|py| v.clone_ref(py))),
+                    Self::This(v) => Self::This(Python::attach(|py| v.clone_ref(py))),
                 }
             }
         }
 
-        impl<'source> FromPyObject<'source> for $cmp_internal {
-            fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        impl<'source> FromPyObject<'_, 'source> for $cmp_internal {
+            type Error = PyErr;
+            fn extract(ob: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
                 if let Ok(s) = ob.extract::<Py<$name>>() {
                     Ok($cmp_internal::This(s))
                 } else if let Ok(v) = ob.extract::<Vec<$cmp_item>>() {
@@ -246,7 +247,7 @@ macro_rules! py_iterable_comp {
 
         impl From<$name> for $cmp_internal {
             fn from(value: $name) -> Self {
-                let py_value = Python::with_gil(|py| Py::new(py, value)).unwrap();
+                let py_value = Python::attach(|py| Py::new(py, value)).unwrap();
                 Self::This(py_value)
             }
         }
@@ -265,7 +266,7 @@ macro_rules! py_iterable_comp {
 
         impl PartialEq for $cmp_internal {
             fn eq(&self, other: &Self) -> bool {
-                Python::with_gil(|py| self.iter_py(py).eq(other.iter_py(py)))
+                Python::attach(|py| self.iter_py(py).eq(other.iter_py(py)))
             }
         }
 

@@ -51,7 +51,7 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
     if let Some(seed_value) = seed {
         rng = StdRng::seed_from_u64(seed_value);
     } else {
-        rng = StdRng::from_entropy();
+        rng = StdRng::from_os_rng();
     }
     let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     for i in 0..nodes_to_add {
@@ -63,7 +63,7 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
         let source_id = GID::U64(i as u64);
         for j in (i + 1)..nodes_to_add {
             let dst_id = GID::U64(j as u64);
-            let create_edge = rng.gen_bool(p);
+            let create_edge = rng.random_bool(p);
             if create_edge {
                 latest_time += 1;
                 graph.add_edge(latest_time, &source_id, &dst_id, NO_PROPS, None)?;
@@ -76,11 +76,7 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        db::api::view::{graph::GraphViewOps, node::NodeViewOps},
-        graphgen::erdos_renyi::erdos_renyi,
-        prelude::NodeStateOps,
-    };
+    use crate::{graphgen::erdos_renyi::erdos_renyi, prelude::*};
 
     #[test]
     fn test_erdos_renyi_half_probability() {

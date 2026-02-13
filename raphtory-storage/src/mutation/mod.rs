@@ -6,6 +6,7 @@ use crate::{
         property_addition_ops::InheritPropertyAdditionOps,
     },
 };
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
@@ -18,11 +19,22 @@ use raphtory_core::entities::{
     },
 };
 use std::sync::Arc;
+use storage::{
+    error::StorageError,
+    pages::{edge_page::writer::EdgeWriter, node_page::writer::NodeWriter},
+    segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    Extension, ES, NS,
+};
 use thiserror::Error;
 
 pub mod addition_ops;
+pub mod addition_ops_ext;
 pub mod deletion_ops;
+pub mod durability_ops;
 pub mod property_addition_ops;
+
+pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
+pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
 
 #[derive(Error, Debug)]
 pub enum MutationError {
@@ -50,6 +62,8 @@ pub enum MutationError {
         src: String,
         dst: String,
     },
+    #[error("Storage error: {0}")]
+    StorageError(#[from] StorageError),
 }
 
 pub trait InheritMutationOps: Base {}

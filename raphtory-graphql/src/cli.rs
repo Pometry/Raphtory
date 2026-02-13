@@ -15,7 +15,8 @@ use crate::{
     server::DEFAULT_PORT,
     GraphServer,
 };
-use clap::{command, Parser, Subcommand};
+use clap::{Parser, Subcommand};
+use raphtory::db::api::storage::storage::Config;
 use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 
@@ -83,6 +84,9 @@ struct ServerArgs {
     #[cfg(feature = "search")]
     #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX, help = "Enable index creation")]
     create_index: bool,
+
+    #[command(flatten)]
+    graph_config: Config,
 }
 
 pub(crate) async fn cli_with_args<I, T>(args_iter: I) -> IoResult<()>
@@ -119,9 +123,14 @@ where
 
             let app_config = Some(builder.build());
 
-            GraphServer::new(server_args.work_dir, app_config, None)?
-                .run_with_port(server_args.port)
-                .await?;
+            GraphServer::new(
+                server_args.work_dir,
+                app_config,
+                None,
+                server_args.graph_config,
+            )?
+            .run_with_port(server_args.port)
+            .await?;
         }
     }
     Ok(())

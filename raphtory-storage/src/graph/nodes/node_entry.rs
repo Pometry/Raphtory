@@ -1,37 +1,25 @@
-use crate::graph::{
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    variants::storage_variants3::StorageVariants3,
-};
-use raphtory_api::{
-    core::{
-        entities::{
-            edges::edge_ref::EdgeRef,
-            properties::{prop::Prop, tprop::TPropOps},
-            GidRef, LayerIds, VID,
-        },
-        Direction,
-    },
-    iter::BoxedLIter,
-};
-use raphtory_core::{
-    storage::{node_entry::NodePtr, NodeEntry},
-    utils::iter::GenLockedIter,
-};
-use std::borrow::Cow;
+use std::ops::Range;
 
-#[cfg(feature = "storage")]
-use crate::disk::storage_interface::node::DiskNode;
-use crate::graph::nodes::node_additions::NodeAdditions;
+use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
+use raphtory_api::core::{
+    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
+    Direction,
+};
+use raphtory_core::storage::timeindex::EventTime;
+use storage::{
+    api::nodes::{self, NodeEntryOps},
+    gen_ts::LayerIter,
+    utils::Iter2,
+    NodeEntry, NodeEntryRef,
+};
 
 pub enum NodeStorageEntry<'a> {
-    Mem(NodePtr<'a>),
+    Mem(NodeEntryRef<'a>),
     Unlocked(NodeEntry<'a>),
-    #[cfg(feature = "storage")]
-    Disk(DiskNode<'a>),
 }
 
-impl<'a> From<NodePtr<'a>> for NodeStorageEntry<'a> {
-    fn from(value: NodePtr<'a>) -> Self {
+impl<'a> From<NodeEntryRef<'a>> for NodeStorageEntry<'a> {
+    fn from(value: NodeEntryRef<'a>) -> Self {
         NodeStorageEntry::Mem(value)
     }
 }
@@ -42,21 +30,12 @@ impl<'a> From<NodeEntry<'a>> for NodeStorageEntry<'a> {
     }
 }
 
-#[cfg(feature = "storage")]
-impl<'a> From<DiskNode<'a>> for NodeStorageEntry<'a> {
-    fn from(value: DiskNode<'a>) -> Self {
-        NodeStorageEntry::Disk(value)
-    }
-}
-
 impl<'a> NodeStorageEntry<'a> {
     #[inline]
     pub fn as_ref(&self) -> NodeStorageRef<'_> {
         match self {
-            NodeStorageEntry::Mem(entry) => NodeStorageRef::Mem(*entry),
-            NodeStorageEntry::Unlocked(entry) => NodeStorageRef::Mem(entry.as_ref()),
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => NodeStorageRef::Disk(*node),
+            NodeStorageEntry::Mem(entry) => *entry,
+            NodeStorageEntry::Unlocked(entry) => entry.as_ref(),
         }
     }
 }
@@ -68,42 +47,36 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
 }
 
 impl<'b> NodeStorageEntry<'b> {
-    pub fn into_edges_iter(
+    pub fn into_edges_iter<'a: 'b>(
         self,
-        layers: &LayerIds,
+        layers: &'a LayerIds,
         dir: Direction,
-    ) -> impl Iterator<Item = EdgeRef> + use<'b, '_> {
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'b {
         match self {
-            NodeStorageEntry::Mem(entry) => StorageVariants3::Mem(entry.edges_iter(layers, dir)),
-            NodeStorageEntry::Unlocked(entry) => {
-                StorageVariants3::Unlocked(entry.into_edges(layers, dir))
+            NodeStorageEntry::Mem(entry) => {
+                Iter2::I1(nodes::NodeRefOps::edges_iter(entry, layers, dir))
             }
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => StorageVariants3::Disk(node.edges_iter(layers, dir)),
+            NodeStorageEntry::Unlocked(entry) => Iter2::I2(entry.into_edges(layers, dir)),
         }
     }
 
-    pub fn metadata_ids(self) -> BoxedLIter<'b, usize> {
-        match self {
-            NodeStorageEntry::Mem(entry) => Box::new(entry.node().metadata_ids()),
-            NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.as_ref().node().metadata_ids())
-            })),
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => Box::new(node.node_metadata_ids()),
-        }
-    }
+    // pub fn prop_ids(self) -> BoxedLIter<'b, usize> {
+    //     match self {
+    //         NodeStorageEntry::Mem(entry) => Box::new(entry.node().const_prop_ids()),
+    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
+    //             Box::new(e.as_ref().node().const_prop_ids())
+    //         })),
+    //     }
+    // }
 
-    pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
-        match self {
-            NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
-            NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
-                Box::new(e.as_ref().temporal_prop_ids())
-            })),
-            #[cfg(feature = "storage")]
-            NodeStorageEntry::Disk(node) => Box::new(node.temporal_node_prop_ids()),
-        }
-    }
+    // pub fn temporal_prop_ids(self) -> Box<dyn Iterator<Item = usize> + 'b> {
+    //     match self {
+    //         NodeStorageEntry::Mem(entry) => Box::new(entry.temporal_prop_ids()),
+    //         NodeStorageEntry::Unlocked(entry) => Box::new(GenLockedIter::from(entry, |e| {
+    //             Box::new(e.as_ref().temporal_prop_ids())
+    //         })),
+    //     }
+    // }
 }
 
 impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
@@ -111,15 +84,15 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().degree(layers, dir)
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
+    fn additions(self) -> storage::NodePropAdditions<'a> {
         self.as_ref().additions()
     }
 
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        self.as_ref().tprop(prop_id)
-    }
-
-    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
+    fn edges_iter(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a {
         self.as_ref().edges_iter(layers, dir)
     }
 
@@ -135,19 +108,44 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().id()
     }
 
-    fn name(self) -> Option<Cow<'a, str>> {
-        self.as_ref().name()
-    }
-
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
         self.as_ref().find_edge(dst, layer_ids)
     }
 
-    fn prop(self, prop_id: usize) -> Option<Prop> {
-        self.as_ref().prop(prop_id)
+    fn layer_ids_iter(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = usize> + Send + Sync + 'a {
+        self.as_ref().layer_ids_iter(layer_ids)
     }
 
-    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
-        self.as_ref().tprops()
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
+        self.as_ref().temporal_prop_layer(layer_id, prop_id)
+    }
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        self.as_ref().constant_prop_layer(layer_id, prop_id)
+    }
+
+    fn temp_prop_rows_range(
+        self,
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
+        self.as_ref().temp_prop_rows_range(w)
+    }
+
+    fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
+        self.as_ref().tprop(prop_id)
+    }
+
+    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a> {
+        self.as_ref().node_additions(layer_id)
+    }
+
+    fn node_edge_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodeEdgeAdditions<'a> {
+        self.as_ref().node_edge_additions(layer_id)
     }
 }

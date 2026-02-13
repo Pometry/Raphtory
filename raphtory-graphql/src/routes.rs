@@ -13,8 +13,8 @@ use std::{path::PathBuf, time::Duration};
 use crate::rayon::{blocking_compute, blocking_write};
 
 #[derive(Serialize, Deserialize)]
-pub(super) struct Health {
-    pub(super) healthy: bool,
+pub(crate) struct Health {
+    pub(crate) healthy: bool,
 }
 
 #[derive(Serialize)]

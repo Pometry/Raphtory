@@ -17,11 +17,12 @@ edition.workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
-bigdecimal = { workspace = true }
+bigdecimal = { workspace = true, features = ["string-only"] }
 thiserror = { workspace = true }
 bytemuck = { workspace = true }
 chrono.workspace = true
 dashmap = { workspace = true }
+derive_more = { workspace = true, features = ["from"] }
 rustc-hash = { workspace = true }
 lock_api = { workspace = true }
 parking_lot = { workspace = true }
@@ -34,9 +35,10 @@ twox-hash.workspace = true
 tracing-subscriber = { workspace = true }
 tracing = { workspace = true }
 sorted_vector_map = { workspace = true }
-arrow-array = { workspace = true, optional = true }
-arrow-ipc = { workspace = true, optional = true }
-arrow-schema = { workspace = true, optional = true }
+arrow-array = { workspace = true }
+arrow-ipc = { workspace = true }
+arrow-schema = { workspace = true }
+serde_arrow = { workspace = true }
 itertools = { workspace = true }
 iter-enum = { workspace = true }
 minijinja = { workspace = true, optional = true }
@@ -44,21 +46,16 @@ display-error-chain = { workspace = true, optional = true }
 
 [dev-dependencies]
 proptest.workspace = true
+serde_json.workspace = true
 
 [features]
-default = []
 # Enables generating the pyo3 python bindings
 python = [
-    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain", "dep:arrow-schema"
-]
-
-storage = [
-    "dep:arrow-schema",
+    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
 ]
 
 proto = []
 vectors = []
 template = ["dep:minijinja"]
-arrow = ["dep:arrow-array", "dep:arrow-ipc", "dep:arrow-schema"]
 search = []
 io = ["dep:serde_json"]

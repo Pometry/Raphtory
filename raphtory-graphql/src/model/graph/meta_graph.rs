@@ -1,6 +1,15 @@
-use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
+use crate::{
+    data::Data,
+    model::graph::property::GqlProperty,
+    paths::{ExistingGraphFolder, ValidGraphPaths},
+};
+use async_graphql::Context;
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
+use raphtory::{
+    db::api::storage::storage::{Extension, PersistenceStrategy},
+    prelude::{GraphViewOps, PropertiesOps},
+    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata},
+};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
@@ -39,10 +48,11 @@ impl MetaGraph {
         }
     }
 
-    async fn meta(&self) -> Result<&GraphMetadata, GraphError> {
-        self.meta
+    async fn meta(&self) -> Result<&GraphMetadata> {
+        Ok(self
+            .meta
             .get_or_try_init(|| self.folder.read_metadata_async())
-            .await
+            .await?)
     }
 }
 
@@ -56,26 +66,26 @@ impl MetaGraph {
 
     /// Returns path of graph.
     async fn path(&self) -> String {
-        self.folder.get_original_path_str().to_owned()
+        self.folder.local_path().into()
     }
 
     /// Returns the timestamp for the creation of the graph.
-    async fn created(&self) -> Result<i64, GraphError> {
-        self.folder.created_async().await
+    async fn created(&self) -> Result<i64> {
+        Ok(self.folder.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.folder.last_opened_async().await
+    async fn last_opened(&self) -> Result<i64> {
+        Ok(self.folder.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    async fn last_updated(&self) -> Result<i64, GraphError> {
-        self.folder.last_updated_async().await
+    async fn last_updated(&self) -> Result<i64> {
+        Ok(self.folder.last_updated_async().await?)
     }
 
     /// Returns the number of nodes in the graph.
-    async fn node_count(&self) -> Result<usize, GraphError> {
+    async fn node_count(&self) -> Result<usize> {
         Ok(self.meta().await?.node_count)
     }
 
@@ -83,18 +93,31 @@ impl MetaGraph {
     ///
     /// Returns:
     ///     int:
-    async fn edge_count(&self) -> Result<usize, GraphError> {
+    async fn edge_count(&self) -> Result<usize> {
         Ok(self.meta().await?.edge_count)
     }
 
     /// Returns the metadata of the graph.
-    async fn metadata(&self) -> Result<Vec<GqlProperty>, GraphError> {
-        Ok(self
-            .meta()
-            .await?
-            .metadata
-            .iter()
-            .map(|(key, prop)| GqlProperty::new(key.to_string(), prop.clone()))
-            .collect())
+    async fn metadata(&self, ctx: &Context<'_>) -> Result<Vec<GqlProperty>> {
+        let data: &Data = ctx.data_unchecked();
+        let maybe_cached = if Extension::disk_storage_enabled() {
+            let graph = data.get_graph(self.folder.local_path()).await?;
+            Some(graph)
+        } else {
+            data.get_cached_graph(self.folder.local_path()).await
+        };
+        let res = match maybe_cached {
+            None => decode_graph_metadata(self.folder.graph_folder())?
+                .into_iter()
+                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
+                .collect(),
+            Some(graph) => graph
+                .graph
+                .metadata()
+                .iter()
+                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))
+                .collect(),
+        };
+        Ok(res)
     }
 }

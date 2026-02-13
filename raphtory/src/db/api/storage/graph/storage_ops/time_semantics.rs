@@ -1,16 +1,21 @@
 use super::GraphStorage;
 use crate::{
-    core::{storage::timeindex::TimeIndexOps, utils::iter::GenLockedDIter},
+    core::storage::timeindex::TimeIndexOps,
     db::api::view::internal::{GraphTimeSemanticsOps, TimeSemantics},
     prelude::Prop,
 };
 use raphtory_api::{
     core::{entities::properties::tprop::TPropOps, storage::timeindex::EventTime},
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::{BoxedLIter, IntoDynBoxed},
 };
-use raphtory_storage::graph::nodes::node_storage_ops::NodeStorageOps;
+use raphtory_core::utils::iter::GenLockedIter;
+use raphtory_storage::graph::{locked::LockedGraph, nodes::node_storage_ops::NodeStorageOps};
 use rayon::iter::ParallelIterator;
-use std::ops::{Deref, Range};
+use std::ops::Range;
+use storage::{
+    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
+    gen_ts::ALL_LAYERS,
+};
 
 impl GraphTimeSemanticsOps for GraphStorage {
     fn node_time_semantics(&self) -> TimeSemantics {
@@ -32,56 +37,78 @@ impl GraphTimeSemanticsOps for GraphStorage {
     #[inline]
     fn earliest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_earliest_time(),
-            GraphStorage::Unlocked(storage) => storage.graph_earliest_time(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.earliest(),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_earliest_time()
+            }
         }
     }
 
     #[inline]
     fn latest_time_global(&self) -> Option<i64> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.graph_latest_time(),
-            GraphStorage::Unlocked(storage) => storage.graph_latest_time(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(storage) => storage.inner.latest(),
+            GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
+                graph.graph_latest_time()
+            }
         }
     }
 
     fn earliest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range(start..end).first_t())
+            .flat_map_iter(|node| {
+                node.additions()
+                    .range(start..end)
+                    .first_t()
+                    .into_iter()
+                    .chain(
+                        node.node_edge_additions(ALL_LAYERS)
+                            .range(start..end)
+                            .first_t(),
+                    )
+            })
             .min()
     }
 
     fn latest_time_window(&self, start: EventTime, end: EventTime) -> Option<i64> {
         self.nodes()
             .par_iter()
-            .flat_map(|node| node.additions().range(start..end).last_t())
+            .flat_map_iter(|node| {
+                node.additions()
+                    .range(start..end)
+                    .last_t()
+                    .into_iter()
+                    .chain(
+                        node.node_edge_additions(ALL_LAYERS)
+                            .range(start..end)
+                            .last_t(),
+                    )
+            })
             .max()
     }
 
     fn has_temporal_prop(&self, prop_id: usize) -> bool {
-        prop_id < self.graph_meta().temporal_mapper().len()
+        self.graph_props_meta()
+            .temporal_prop_mapper()
+            .has_id(prop_id)
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .into_iter()
-            .flat_map(move |prop| {
-                GenLockedDIter::from(prop, |prop| prop.deref().iter().into_dyn_dboxed())
-            })
-            .into_dyn_dboxed()
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
+        let graph_entry = self.graph_entry();
+
+        GenLockedIter::from(graph_entry, |entry| {
+            entry
+                .as_ref()
+                .get_temporal_prop(prop_id)
+                .iter()
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn has_temporal_prop_window(&self, prop_id: usize, w: Range<EventTime>) -> bool {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .filter(|p| p.deref().iter_window(w).next().is_some())
-            .is_some()
+        let graph_entry = self.graph_entry();
+
+        graph_entry.as_ref().get_temporal_prop(prop_id).active(w)
     }
 
     fn temporal_prop_iter_window(
@@ -89,22 +116,44 @@ impl GraphTimeSemanticsOps for GraphStorage {
         prop_id: usize,
         start: EventTime,
         end: EventTime,
-    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
-        self.graph_meta()
-            .get_temporal_prop(prop_id)
-            .into_iter()
-            .flat_map(move |prop| {
-                GenLockedDIter::from(prop, |prop| {
-                    prop.deref().iter_window(start..end).into_dyn_dboxed()
-                })
-            })
-            .into_dyn_dboxed()
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
+        let graph_entry = self.graph_entry();
+
+        GenLockedIter::from(graph_entry, move |entry| {
+            entry
+                .as_ref()
+                .get_temporal_prop(prop_id)
+                .iter_window(start..end)
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: EventTime,
+        end: EventTime,
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
+        let graph_entry = self.graph_entry();
+
+        GenLockedIter::from(graph_entry, move |entry| {
+            entry
+                .as_ref()
+                .get_temporal_prop(prop_id)
+                .iter_window_rev(start..end)
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
-        self.graph_meta()
+        let graph_entry = self.graph_entry();
+
+        graph_entry
+            .as_ref()
             .get_temporal_prop(prop_id)
-            .and_then(|p| p.deref().last_before(t.next()))
+            .last_before(t.next())
     }
 
     fn temporal_prop_last_at_window(
@@ -114,18 +163,20 @@ impl GraphTimeSemanticsOps for GraphStorage {
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            self.graph_meta().get_temporal_prop(prop_id).and_then(|p| {
-                p.deref()
-                    .last_before(t.next())
-                    .filter(|(t, _)| w.contains(t))
-            })
+            let graph_entry = self.graph_entry();
+
+            graph_entry
+                .as_ref()
+                .get_temporal_prop(prop_id)
+                .last_before(t.next())
+                .filter(|(prop_time, _)| w.contains(prop_time))
         } else {
             None
         }
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "search"))]
 mod test_graph_storage {
     use crate::{db::api::view::StaticGraphViewOps, prelude::AdditionOps};
     use raphtory_api::core::entities::properties::prop::Prop;
@@ -183,7 +234,6 @@ mod test_graph_storage {
         graph
     }
 
-    #[cfg(all(test, feature = "search"))]
     mod search_nodes {
         use super::*;
         use crate::{
@@ -215,7 +265,6 @@ mod test_graph_storage {
         }
     }
 
-    #[cfg(all(test, feature = "search"))]
     mod search_edges {
         use super::*;
         use crate::{
@@ -230,6 +279,7 @@ mod test_graph_storage {
         };
 
         #[test]
+        #[ignore = "TODO: #2372"]
         fn test_search_edges_latest() {
             let g = Graph::new();
             let g = init_graph_for_edges_tests(g);

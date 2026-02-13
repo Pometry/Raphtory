@@ -1,176 +1,139 @@
 use crate::{
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-    mutation::MutationError,
+    graph::graph::GraphStorage,
+    mutation::{EdgeWriterT, MutationError, NodeWriterT},
 };
-use parking_lot::RwLockWriteGuard;
 use raphtory_api::{
     core::{
         entities::{
-            properties::prop::{validate_prop, Prop},
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
             EID, VID,
         },
         storage::timeindex::EventTime,
     },
     inherit::Base,
 };
-use raphtory_core::{
-    entities::graph::tgraph::TemporalGraph,
-    storage::{raw_edges::EdgeWGuard, EntryMut, NodeSlot},
-};
+use storage::Extension;
 
 pub trait InternalPropertyAdditionOps {
     type Error: From<MutationError>;
+
     fn internal_add_properties(
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error>;
+
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error>;
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error>;
+
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error>;
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error>;
+
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error>;
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error>;
+
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error>;
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error>;
 }
 
-impl InternalPropertyAdditionOps for TemporalGraph {
+impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     type Error = MutationError;
+
+    // FIXME: this can't fail
     fn internal_add_properties(
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        if !props.is_empty() {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                self.graph_meta
-                    .add_prop(t, *prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            self.update_time(t);
-        }
+        let mut writer = self.storage().graph_props().writer();
+        writer.add_properties(t, props.iter().map(|(id, prop)| (*id, prop.clone())));
         Ok(())
     }
 
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        for (id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            self.graph_meta
-                .add_metadata(*id, prop)
-                .map_err(MutationError::from)?;
-        }
+        let mut writer = self.storage().graph_props().writer();
+        writer.check_metadata(props)?;
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())));
         Ok(())
     }
 
+    // FIXME: this can't fail
     fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
-        for (id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            self.graph_meta.update_metadata(*id, prop);
-        }
+        let mut writer = self.storage().graph_props().writer();
+        writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())));
         Ok(())
     }
 
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
-        let mut node = self.storage.get_node_mut(vid);
-        for (prop_id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            node.as_mut()
-                .add_metadata(*prop_id, prop)
-                .map_err(MutationError::from)?;
-        }
-        Ok(node)
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
+        let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
+        let mut writer = self.storage().nodes().writer(segment_id);
+        writer.check_metadata(node_pos, STATIC_GRAPH_LAYER_ID, &props)?;
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
+        Ok(writer)
     }
 
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
-        let mut node = self.storage.get_node_mut(vid);
-        for (prop_id, prop) in props {
-            let prop = self.process_prop_value(prop);
-            let prop = validate_prop(prop).map_err(MutationError::from)?;
-            node.as_mut()
-                .update_metadata(*prop_id, prop)
-                .map_err(MutationError::from)?;
-        }
-        Ok(node)
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
+        let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
+        let mut writer = self.storage().nodes().writer(segment_id);
+        writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
+        Ok(writer)
     }
 
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
-        let mut edge = self.storage.get_edge_mut(eid);
-        let mut edge_mut = edge.as_mut();
-        if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                edge_layer
-                    .add_metadata(*prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            Ok(edge)
-        } else {
-            let layer = self.get_layer_name(layer).to_string();
-            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
-            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
-        }
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let mut writer = self.storage().edge_writer(eid);
+        let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
+            panic!("Edge with EID {eid:?} not found in layer {layer}");
+        });
+        writer.check_metadata(edge_pos, layer, &props)?;
+        writer.update_c_props(edge_pos, src, dst, layer, props);
+        Ok(writer)
     }
 
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
-        let mut edge = self.storage.get_edge_mut(eid);
-        let mut edge_mut = edge.as_mut();
-        if let Some(edge_layer) = edge_mut.get_layer_mut(layer) {
-            for (prop_id, prop) in props {
-                let prop = self.process_prop_value(prop);
-                let prop = validate_prop(prop).map_err(MutationError::from)?;
-                edge_layer
-                    .update_metadata(*prop_id, prop)
-                    .map_err(MutationError::from)?;
-            }
-            Ok(edge)
-        } else {
-            let layer = self.get_layer_name(layer).to_string();
-            let src = self.node(edge.as_ref().src()).as_ref().id().to_string();
-            let dst = self.node(edge.as_ref().dst()).as_ref().id().to_string();
-            Err(MutationError::InvalidEdgeLayer { layer, src, dst })
-        }
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
+        let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
+        let mut writer = self.storage().edge_writer(eid);
+        let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
+            panic!("Edge with EID {eid:?} not found in layer {layer}");
+        });
+        writer.update_c_props(edge_pos, src, dst, layer, props);
+        Ok(writer)
     }
 }
 
@@ -182,7 +145,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
         t: EventTime,
         props: &[(usize, Prop)],
     ) -> Result<(), Self::Error> {
-        self.mutable()?.internal_add_properties(t, props)
+        Ok(self.mutable()?.internal_add_properties(t, props)?)
     }
 
     fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
@@ -196,16 +159,16 @@ impl InternalPropertyAdditionOps for GraphStorage {
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.mutable()?.internal_add_node_metadata(vid, props)
     }
 
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.mutable()?.internal_update_node_metadata(vid, props)
     }
 
@@ -213,8 +176,8 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
             .internal_add_edge_metadata(eid, layer, props)
     }
@@ -223,8 +186,8 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
             .internal_update_edge_metadata(eid, layer, props)
     }
@@ -261,8 +224,8 @@ where
     fn internal_add_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.base().internal_add_node_metadata(vid, props)
     }
 
@@ -270,8 +233,8 @@ where
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         self.base().internal_update_node_metadata(vid, props)
     }
 
@@ -280,8 +243,8 @@ where
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_add_edge_metadata(eid, layer, props)
     }
 
@@ -290,8 +253,8 @@ where
         &self,
         eid: EID,
         layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_update_edge_metadata(eid, layer, props)
     }
 }

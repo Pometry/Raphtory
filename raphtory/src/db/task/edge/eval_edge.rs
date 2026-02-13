@@ -6,6 +6,7 @@ use crate::{
     db::{
         api::{
             properties::Properties,
+            state::Index,
             view::{internal::InternalFilter, *},
         },
         graph::edge::EdgeView,
@@ -26,6 +27,7 @@ pub struct EvalEdgeView<'graph, 'a, G, CS: Clone, S> {
     pub(crate) ss: usize,
     pub(crate) edge: EdgeView<G>,
     pub(crate) storage: &'graph GraphStorage,
+    pub(crate) index: &'graph Index<VID>,
     pub(crate) node_state: Rc<RefCell<EVState<'a, CS>>>,
     pub(crate) local_state_prev: &'graph PrevLocalState<'a, S>,
 }
@@ -37,6 +39,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
         ss: usize,
         edge: EdgeView<G>,
         storage: &'graph GraphStorage,
+        index: &'graph Index<VID>,
         node_state: Rc<RefCell<EVState<'a, CS>>>,
         local_state_prev: &'graph PrevLocalState<'a, S>,
     ) -> Self {
@@ -44,6 +47,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a>
             ss,
             edge,
             storage,
+            index,
             node_state,
             local_state_prev,
         }
@@ -93,9 +97,15 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
             storage,
             local_state_prev,
             node_state,
+            index: self.index,
         };
+        let state_pos = self
+            .index
+            .index(&node.node)
+            .unwrap_or_else(|| panic!("Internal Error, node {:?} needs to be in index", node.node));
         EvalNodeView {
             node: node.node,
+            state_pos,
             eval_graph,
             local_state: None,
         }
@@ -113,10 +123,12 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         let node_state = self.node_state.clone();
         let local_state_prev = self.local_state_prev;
         let storage = self.storage;
+        let index = self.index;
         EvalEdges {
             ss,
             edges,
             storage,
+            index,
             node_state,
             local_state_prev,
         }
@@ -131,6 +143,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S, CS: ComputeState + 'a> Clon
             ss: self.ss,
             edge: self.edge.clone(),
             storage: self.storage,
+            index: self.index,
             node_state: self.node_state.clone(),
             local_state_prev: self.local_state_prev,
         }
@@ -160,6 +173,7 @@ where
             self.ss,
             edge,
             self.storage,
+            self.index,
             self.node_state.clone(),
             self.local_state_prev,
         )

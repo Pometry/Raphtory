@@ -2,8 +2,8 @@ use crate::{errors::GraphError, io::arrow::dataframe::DFChunk, prelude::Prop};
 use arrow::{
     array::{
         Array, ArrayRef, ArrowPrimitiveType, AsArray, BooleanArray, Decimal128Array,
-        FixedSizeListArray, GenericListArray, GenericStringArray, OffsetSizeTrait, PrimitiveArray,
-        StringViewArray, StructArray,
+        FixedSizeListArray, GenericListArray, GenericStringArray, NullArray, OffsetSizeTrait,
+        PrimitiveArray, StringViewArray, StructArray,
     },
     buffer::NullBuffer,
     datatypes::{
@@ -16,11 +16,12 @@ use arrow::{
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
 use raphtory_api::core::{
-    entities::properties::prop::{data_type_as_prop_type, IntoPropList, PropType},
+    entities::properties::prop::{data_type_as_prop_type, IntoPropList, PropArray, PropType},
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
+use std::sync::Arc;
 
 pub struct PropCols {
     prop_ids: Vec<usize>,
@@ -45,6 +46,14 @@ impl PropCols {
     ) -> impl IndexedParallelIterator<Item = impl Iterator<Item = (usize, Prop)> + '_> + '_ {
         (0..self.len()).into_par_iter().map(|i| self.iter_row(i))
     }
+
+    pub fn prop_ids(&self) -> &[usize] {
+        &self.prop_ids
+    }
+
+    pub fn cols(&self) -> Vec<ArrayRef> {
+        self.cols.iter().map(|col| col.as_array()).collect()
+    }
 }
 
 pub fn combine_properties_arrow<E>(
@@ -58,8 +67,8 @@ where
 {
     let dtypes = indices
         .iter()
-        .map(|idx| data_type_as_prop_type(df.chunk[*idx].data_type()).map_err(Into::into))
-        .collect::<Result<Vec<_>, GraphError>>()?;
+        .map(|idx| data_type_as_prop_type(df.chunk[*idx].data_type()))
+        .collect::<Result<Vec<_>, _>>()?;
     let cols = indices
         .iter()
         .map(|idx| lift_property_col(&df.chunk[*idx]))
@@ -232,13 +241,15 @@ fn arr_as_prop(arr: ArrayRef) -> Prop {
                 .map(|elem| Prop::Decimal(BigDecimal::new(elem.into(), *scale as i64)))
                 .into_prop_list()
         }
-        DataType::Null => Prop::List(vec![].into()),
+        DataType::Null => Prop::List(PropArray::default()),
         dt => panic!("Data type not recognized {dt:?}"),
     }
 }
 
-trait PropCol: Send + Sync {
+pub(crate) trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
+
+    fn as_array(&self) -> ArrayRef;
 }
 
 impl PropCol for BooleanArray {
@@ -248,6 +259,9 @@ impl PropCol for BooleanArray {
         } else {
             Some(Prop::Bool(self.value(i)))
         }
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -262,6 +276,10 @@ where
             Some(self.value(i).into())
         }
     }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
+    }
 }
 
 impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
@@ -271,6 +289,9 @@ impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
         } else {
             Some(Prop::str(self.value(i)))
         }
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -282,6 +303,9 @@ impl PropCol for StringViewArray {
             Some(Prop::str(self.value(i)))
         }
     }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
+    }
 }
 
 impl<I: OffsetSizeTrait> PropCol for GenericListArray<I> {
@@ -291,6 +315,9 @@ impl<I: OffsetSizeTrait> PropCol for GenericListArray<I> {
         } else {
             Some(arr_as_prop(self.value(i)))
         }
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -302,13 +329,17 @@ impl PropCol for FixedSizeListArray {
             Some(arr_as_prop(self.value(i)))
         }
     }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
+    }
 }
 
-struct EmptyCol;
-
-impl PropCol for EmptyCol {
+impl PropCol for NullArray {
     fn get(&self, _i: usize) -> Option<Prop> {
         None
+    }
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.clone())
     }
 }
 
@@ -344,6 +375,22 @@ impl PropCol for MapCol {
             None
         }
     }
+
+    fn as_array(&self) -> ArrayRef {
+        let fields = self
+            .values
+            .iter()
+            .map(|(name, col)| {
+                arrow::datatypes::Field::new(name, col.as_array().data_type().clone(), true)
+            })
+            .collect::<Vec<_>>();
+        let columns = self.values.iter().map(|(_, col)| col.as_array()).collect();
+        Arc::new(StructArray::new(
+            fields.into(),
+            columns,
+            self.validity.clone(),
+        ))
+    }
 }
 
 struct MappedPrimitiveCol<T: ArrowPrimitiveType> {
@@ -358,6 +405,10 @@ impl<T: ArrowPrimitiveType> PropCol for MappedPrimitiveCol<T> {
         } else {
             Some((self.map)(self.arr.value(i)))
         }
+    }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.arr.clone())
     }
 }
 
@@ -377,9 +428,25 @@ impl PropCol for DecimalPropCol {
             )))
         }
     }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(self.arr.clone())
+    }
 }
 
-fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
+struct EmptyCol;
+
+impl PropCol for EmptyCol {
+    fn get(&self, _i: usize) -> Option<Prop> {
+        None
+    }
+
+    fn as_array(&self) -> ArrayRef {
+        Arc::new(NullArray::new(0))
+    }
+}
+
+pub(crate) fn lift_property_col(arr: &dyn Array) -> Box<dyn PropCol> {
     match arr.data_type() {
         DataType::Boolean => Box::new(arr.as_boolean().clone()),
         DataType::Int32 => Box::new(arr.as_primitive::<Int32Type>().clone()),

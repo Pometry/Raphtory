@@ -1,17 +1,16 @@
 import json
+import os
 import re
 import tempfile
 import time
 from datetime import datetime
-from typing import TypeVar, Callable
-import os
-import pytest
 from functools import wraps
+from typing import Callable, TypeVar
 
+import pytest
 from dateutil import parser
-
-from raphtory.graphql import GraphServer
 from raphtory import Graph, PersistentGraph
+from raphtory.graphql import GraphServer
 
 B = TypeVar("B")
 
@@ -249,8 +248,11 @@ def assert_has_metadata(entity, props):
 
 
 def expect_unify_error(fn):
-    with pytest.raises(BaseException, match="Cannot unify"):
+    with pytest.raises(BaseException) as e:
+        # check the message
         fn()
+    print(e.value)
+    assert "Failed to unify props" in str(e.value)
 
 
 def assert_in_all(haystack: str, needles):

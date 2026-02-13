@@ -20,7 +20,7 @@ def test_move_graph_fails_if_graph_not_found():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'ben/g5' does not exist" in str(excinfo.value)
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists():
@@ -45,7 +45,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'g6' already exists" in str(excinfo.value)
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespace_as_graph():
@@ -70,7 +70,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'ben/g6' already exists" in str(excinfo.value)
 
 
 def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespace_as_graph():
@@ -96,7 +96,7 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'shivam/g6' already exists" in str(excinfo.value)
 
 
 def test_move_graph_succeeds():
@@ -124,7 +124,7 @@ def test_move_graph_succeeds():
         query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'shivam/g3' does not exist" in str(excinfo.value)
 
         query = """{graph(path: "g4") {
                 nodes {list {name}}
@@ -157,7 +157,7 @@ def test_move_graph_using_client_api_succeeds():
         query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'shivam/g3' does not exist" in str(excinfo.value)
 
         query = """{graph(path: "ben/g4") {
                 nodes {list {name}}
@@ -197,7 +197,7 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
         query = """{graph(path: "shivam/g3") {nodes {list {name}}}}"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'shivam/g3' does not exist" in str(excinfo.value)
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}
@@ -238,7 +238,7 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
         query = """{graph(path: "ben/g3") {nodes {list {name}}}}"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'ben/g3' does not exist" in str(excinfo.value)
 
         query = """{graph(path: "shivam/g4") {
                 nodes {list {name}}

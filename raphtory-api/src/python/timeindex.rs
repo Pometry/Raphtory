@@ -24,9 +24,10 @@ impl<'py> IntoPyObject<'py> for EventTime {
     }
 }
 
-impl<'source> FromPyObject<'source> for EventTime {
-    fn extract_bound(time: &Bound<'source, PyAny>) -> PyResult<Self> {
-        InputTime::extract_bound(time).map(|input_time| input_time.as_time())
+impl<'source> FromPyObject<'_, 'source> for EventTime {
+    type Error = PyErr;
+    fn extract(time: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
+        InputTime::extract(time).map(|input_time| input_time.as_time())
     }
 }
 
@@ -55,13 +56,14 @@ impl EventTimeComponent {
     }
 }
 
-impl<'source> FromPyObject<'source> for EventTimeComponent {
-    fn extract_bound(component: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'source> FromPyObject<'_, 'source> for EventTimeComponent {
+    type Error = PyErr;
+    fn extract(component: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
         extract_time_index_component(component).map_err(|e| match e {
             ParsingError::Matched(err) => err,
             ParsingError::Unmatched => {
                 let message = format!(
-                    "Time component '{component}' must be a str, datetime, float, or an integer."
+                    "Time component '{component:?}' must be a str, datetime, float, or an integer."
                 );
                 PyTypeError::new_err(message)
             }
@@ -73,8 +75,8 @@ enum ParsingError {
     Unmatched,
 }
 
-fn extract_time_index_component<'source>(
-    component: &Bound<'source, PyAny>,
+fn extract_time_index_component(
+    component: Borrowed<'_, '_, PyAny>,
 ) -> Result<EventTimeComponent, ParsingError> {
     if let Ok(string) = component.extract::<String>() {
         let timestamp = string.as_str();
@@ -108,7 +110,7 @@ fn extract_time_index_component<'source>(
             parsed_datetime.and_utc().timestamp_millis(),
         ));
     }
-    if let Ok(py_datetime) = component.downcast::<PyDateTime>() {
+    if let Ok(py_datetime) = component.cast::<PyDateTime>() {
         let time = (py_datetime
             .call_method0("timestamp")
             .map_err(ParsingError::Matched)?
@@ -129,7 +131,7 @@ fn extract_time_index_component<'source>(
             naive_dt.and_utc().timestamp_millis(),
         ));
     }
-    if let Ok(py_date) = component.downcast::<PyDate>() {
+    if let Ok(py_date) = component.cast::<PyDate>() {
         let year: i32 = py_date.get_year();
         let month: u32 = py_date.get_month() as u32;
         let day: u32 = py_date.get_day() as u32;
@@ -154,7 +156,7 @@ fn extract_time_index_component<'source>(
 }
 
 fn parse_email_timestamp(timestamp: &str) -> PyResult<EventTime> {
-    Python::with_gil(|py| {
+    Python::attach(|py| {
         let email_utils = PyModule::import(py, "email.utils")?;
         let datetime = email_utils.call_method1("parsedate_to_datetime", (timestamp,))?;
         let py_seconds = datetime.call_method1("timestamp", ())?;
@@ -504,9 +506,10 @@ impl From<PyOptionalEventTime> for Option<EventTime> {
     }
 }
 
-impl<'source> FromPyObject<'source> for InputTime {
-    fn extract_bound(input: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(py_time) = input.downcast::<PyEventTime>() {
+impl<'source> FromPyObject<'_, 'source> for InputTime {
+    type Error = PyErr;
+    fn extract(input: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
+        if let Ok(py_time) = input.cast::<PyEventTime>() {
             return Ok(py_time.get().try_into_input_time()?);
         } else if let Ok(opt_py_time) = input.extract::<PyOptionalEventTime>() {
             return match opt_py_time.inner {
@@ -515,9 +518,9 @@ impl<'source> FromPyObject<'source> for InputTime {
             };
         }
         // Handle list/tuple case: [timestamp, event_id]
-        if input.downcast::<PyTuple>().is_ok() || input.downcast::<PyList>().is_ok() {
+        if input.cast::<PyTuple>().is_ok() || input.cast::<PyList>().is_ok() {
             let py = input.py();
-            if let Ok(items) = input.extract::<Vec<PyObject>>() {
+            if let Ok(items) = input.extract::<Vec<Py<PyAny>>>() {
                 let len = items.len();
                 if len != 2 {
                     return Err(PyTypeError::new_err(format!(
@@ -525,19 +528,19 @@ impl<'source> FromPyObject<'source> for InputTime {
                         len
                     )));
                 }
-                let first = items[0].bind(py);
-                let second = items[1].bind(py);
+                let first = items[0].bind_borrowed(py);
+                let second = items[1].bind_borrowed(py);
                 let first_entry = extract_time_index_component(first).map_err(|e| match e {
                     ParsingError::Matched(err) => err,
                     ParsingError::Unmatched => {
-                        let message = format!("Time component '{first}' must be a str, datetime, float, or an integer.");
+                        let message = format!("Time component '{first:?}' must be a str, datetime, float, or an integer.");
                         PyTypeError::new_err(message)
                     }
                 })?;
                 let second_entry = extract_time_index_component(second).map_err(|e| match e {
                     ParsingError::Matched(err) => err,
                     ParsingError::Unmatched => {
-                        let message = format!("Time component '{second}' must be a str, datetime, float, or an integer.");
+                        let message = format!("Time component '{second:?}' must be a str, datetime, float, or an integer.");
                         PyTypeError::new_err(message)
                     }
                 })?;
@@ -552,7 +555,7 @@ impl<'source> FromPyObject<'source> for InputTime {
             Ok(component) => Ok(InputTime::Simple(component.t())),
             Err(ParsingError::Matched(err)) => Err(err),
             Err(ParsingError::Unmatched) => {
-                let message = format!("Time '{input}' must be a str, datetime, float, integer, or a tuple/list of two of those types.");
+                let message = format!("Time '{input:?}' must be a str, datetime, float, integer, or a tuple/list of two of those types.");
                 Err(PyTypeError::new_err(message))
             }
         }

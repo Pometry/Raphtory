@@ -132,8 +132,7 @@ mod test_property_semantics {
                         assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                     },
                     views::filter::model::{
-                        node_filter::NodeFilter,
-                        property_filter::ops::{ListAggOps, PropertyFilterOps},
+                        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
                         PropertyFilterFactory, TemporalPropertyFilterFactory,
                     },
                 },
@@ -337,14 +336,14 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
             assert_search_nodes_results(
                 init_graph,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
 
@@ -449,14 +448,14 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
             assert_search_nodes_results(
                 init_graph,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
     }
@@ -726,7 +725,7 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
 
@@ -913,7 +912,7 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
 
@@ -5001,7 +5000,7 @@ mod test_node_property_filter_agg {
             graph::{
                 assertions::{
                     assert_filter_nodes_err, assert_filter_nodes_results,
-                    assert_search_nodes_results, TestVariants::NonDiskOnly,
+                    assert_search_nodes_results, TestVariants::All,
                 },
                 views::filter::{
                     model::{
@@ -5022,44 +5021,41 @@ mod test_node_property_filter_agg {
     use raphtory_storage::mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
-    use std::{sync::Arc, vec};
 
     fn list_u8(xs: &[u8]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U8).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U8))
     }
     fn list_u16(xs: &[u16]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U16).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U16))
     }
     fn list_u32(xs: &[u32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U32))
     }
     fn list_u64(xs: &[u64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U64))
     }
     fn list_i32(xs: &[i32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::I32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::I32))
     }
     fn list_i64(xs: &[i64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::I64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::I64))
     }
     fn list_f32(xs: &[f32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::F32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::F32))
     }
     fn list_f64(xs: &[f64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::F64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::F64))
     }
     fn list_str(xs: &[&str]) -> Prop {
-        Prop::List(Arc::new(
-            xs.iter().map(|s| Prop::Str(ArcStr::from(*s))).collect(),
-        ))
+        Prop::list(xs.iter().map(|s| Prop::Str(ArcStr::from(*s))))
     }
     fn list_bool(xs: &[bool]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::Bool).collect()))
+        Prop::list(xs.iter().copied().map(Prop::Bool))
     }
 
     #[inline]
     fn list(v: Vec<Prop>) -> Prop {
-        Prop::List(Arc::new(v))
+        Prop::List(v.into())
     }
 
     pub fn init_nodes_graph<
@@ -5345,7 +5341,7 @@ mod test_node_property_filter_agg {
             IdentityGraphTransformer,
             filter.clone(),
             &expected,
-            NonDiskOnly,
+            All,
         );
 
         assert_search_nodes_results(
@@ -5353,7 +5349,7 @@ mod test_node_property_filter_agg {
             IdentityGraphTransformer,
             filter,
             &expected,
-            NonDiskOnly,
+            All,
         );
     }
 
@@ -5366,7 +5362,7 @@ mod test_node_property_filter_agg {
             IdentityGraphTransformer,
             filter.clone(),
             &expected,
-            NonDiskOnly,
+            All,
         );
 
         // assert_search_nodes_err(
@@ -5374,7 +5370,7 @@ mod test_node_property_filter_agg {
         //     IdentityGraphTransformer,
         //     filter,
         //     expected,
-        //     NonDiskOnly,
+        //     All,
         // );
     }
 
@@ -9911,21 +9907,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
     }
 
@@ -9939,21 +9935,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
     }
 
@@ -11960,7 +11956,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -11975,7 +11971,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -11995,7 +11991,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12010,7 +12006,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p1").eq("pometry").or(EdgeFilter
@@ -12035,7 +12031,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12050,7 +12046,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::src()
@@ -12070,7 +12066,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12085,7 +12081,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -12105,7 +12101,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12120,7 +12116,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::src()
@@ -12140,7 +12136,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12155,7 +12151,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::dst()
@@ -12211,7 +12207,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = filter.try_as_composite_edge_filter().unwrap();
@@ -12227,7 +12223,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
     }
 

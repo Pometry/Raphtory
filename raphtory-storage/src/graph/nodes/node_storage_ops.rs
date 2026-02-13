@@ -1,25 +1,13 @@
-use crate::graph::nodes::node_additions::NodeAdditions;
 use raphtory_api::core::{
-    entities::{
-        edges::edge_ref::EdgeRef,
-        properties::{prop::Prop, tprop::TPropOps},
-        GidRef, LayerIds, VID,
-    },
+    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
     Direction,
 };
-use raphtory_core::{entities::nodes::node_store::NodeStore, storage::node_entry::NodePtr};
-use std::borrow::Cow;
+use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
+use std::{borrow::Cow, ops::Range};
+use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
 
-pub trait NodeStorageOps<'a>: Sized {
+pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
-
-    fn additions(self) -> NodeAdditions<'a>;
-
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a>;
-
-    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)>;
-
-    fn prop(self, prop_id: usize) -> Option<Prop>;
 
     fn edges_iter(
         self,
@@ -33,55 +21,141 @@ pub trait NodeStorageOps<'a>: Sized {
 
     fn id(self) -> GidRef<'a>;
 
-    fn name(self) -> Option<Cow<'a, str>>;
+    fn name(self) -> Cow<'a, str> {
+        self.id().to_str()
+    }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef>;
+
+    fn layer_ids_iter(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
+
+    fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a>;
+
+    fn node_edge_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodeEdgeAdditions<'a>;
+
+    fn additions(self) -> storage::NodePropAdditions<'a>;
+
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a>;
+
+    fn temporal_prop_iter(
+        self,
+        layer_ids: &'a LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (usize, storage::NodeTProps<'a>)> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
+    }
+
+    fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+
+    fn constant_prop_iter(
+        self,
+        layer_ids: &'a LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = (usize, Prop)> + 'a {
+        self.layer_ids_iter(layer_ids)
+            .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
+    }
+
+    fn temp_prop_rows_range(
+        self,
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)>;
+
+    fn temp_prop_rows(self) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
+        self.temp_prop_rows_range(None)
+    }
 }
 
-impl<'a> NodeStorageOps<'a> for NodePtr<'a> {
+impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
-        self.node.degree(layers, dir)
+        NodeRefOps::degree(self, layers, dir)
     }
 
-    fn additions(self) -> NodeAdditions<'a> {
-        NodeAdditions::Mem(self.node.timestamps())
-    }
-
-    fn tprop(self, prop_id: usize) -> impl TPropOps<'a> {
-        self.t_prop(prop_id)
-    }
-
-    fn tprops(self) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> {
-        self.temporal_prop_ids()
-            .map(move |tid| (tid, self.tprop(tid)))
-    }
-
-    fn prop(self, prop_id: usize) -> Option<Prop> {
-        self.node.metadata(prop_id).cloned()
-    }
-
-    fn edges_iter(self, layers: &LayerIds, dir: Direction) -> impl Iterator<Item = EdgeRef> + 'a {
-        self.node.edge_tuples(layers, dir)
+    fn edges_iter(
+        self,
+        layers: &LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a {
+        NodeRefOps::edges_iter(self, layers, dir)
     }
 
     fn node_type_id(self) -> usize {
-        self.node.node_type
+        NodeRefOps::node_type_id(&self)
     }
 
     fn vid(self) -> VID {
-        self.node.vid
+        NodeRefOps::vid(&self)
     }
 
     fn id(self) -> GidRef<'a> {
-        (&self.node.global_id).into()
-    }
-
-    fn name(self) -> Option<Cow<'a, str>> {
-        self.node.global_id.as_str().map(Cow::from)
+        NodeRefOps::gid(&self)
     }
 
     fn find_edge(self, dst: VID, layer_ids: &LayerIds) -> Option<EdgeRef> {
-        let eid = NodeStore::find_edge_eid(self.node, dst, layer_ids)?;
-        Some(EdgeRef::new_outgoing(eid, self.node.vid, dst))
+        NodeRefOps::find_edge(&self, dst, layer_ids)
+    }
+
+    fn layer_ids_iter(
+        self,
+        layer_ids: &'a LayerIds,
+    ) -> impl Iterator<Item = usize> + Send + Sync + 'a {
+        match layer_ids {
+            LayerIds::None => LayerVariants::None(std::iter::empty()),
+            LayerIds::All => LayerVariants::All(
+                (0..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
+            ),
+            LayerIds::One(id) => {
+                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
+            }
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
+            }
+        }
+    }
+
+    fn node_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_ids: L,
+    ) -> storage::NodePropAdditions<'a> {
+        NodeRefOps::node_additions(self, layer_ids)
+    }
+
+    fn node_edge_additions<L: Into<LayerIter<'a>>>(
+        self,
+        layer_id: L,
+    ) -> storage::NodeEdgeAdditions<'a> {
+        NodeRefOps::edge_additions(self, layer_id)
+    }
+
+    fn additions(self) -> storage::NodePropAdditions<'a> {
+        NodeRefOps::node_additions(self, 0)
+    }
+
+    fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
+        NodeRefOps::temporal_prop_layer(self, 0, prop_id)
+    }
+
+    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
+        NodeRefOps::temporal_prop_layer(self, layer_id, prop_id)
+    }
+
+    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+        NodeRefOps::c_prop(self, layer_id, prop_id)
+    }
+
+    fn temp_prop_rows_range(
+        self,
+        w: Option<Range<EventTime>>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
+        NodeRefOps::temp_prop_rows(self, w)
     }
 }

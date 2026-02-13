@@ -90,18 +90,20 @@ where
     });
 
     let mut runner = TaskRunner::new(ctx);
+    let index = Index::for_graph(g);
 
-    Ok(runner.run(
+    Ok(runner.run_with_index(
+        index,
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<OutState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+        |_, _, _, local: Vec<OutState>, index| {
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |v| {
                 Nodes::new_filtered(
                     g.clone(),
                     g.clone(),
                     Const(true),
-                    Some(Index::from_iter(v.out_components)),
+                    Index::from_iter(v.out_components),
                 )
             })
         },
@@ -175,6 +177,6 @@ where
     Ok(NodeState::new(
         node.graph.clone(),
         distances.into(),
-        Some(Index::new(nodes)),
+        Index::Partial(nodes.into()),
     ))
 }

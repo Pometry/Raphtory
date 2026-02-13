@@ -13,7 +13,6 @@ pub(crate) use crate::{
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
-    py_borrowing_iter,
     python::{
         graph::node_state::node_state::ops::NodeFilterOp,
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
@@ -60,7 +59,7 @@ macro_rules! impl_node_state_ops {
                 other: &Bound<'py, PyAny>,
                 py: Python<'py>,
             ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-                let res = if let Ok(other) = other.downcast::<Self>() {
+                let res = if let Ok(other) = other.cast::<Self>() {
                     let other = Bound::get(other);
                     self.inner == other.inner
                 } else if let Ok(other) = other.extract::<Vec<$value>>() {
@@ -70,7 +69,7 @@ macro_rules! impl_node_state_ops {
                         && other.into_iter().all(|(node, value)| {
                             self.inner.get_by_node(node).map($to_owned) == Some(value)
                         }))
-                } else if let Ok(other) = other.downcast::<PyDict>() {
+                } else if let Ok(other) = other.cast::<PyDict>() {
                     self.inner.len() == other.len()
                         && other.items().iter().all(|item| {
                             if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
@@ -388,11 +387,12 @@ macro_rules! impl_lazy_node_state {
             }
         }
 
-        impl<'py> FromPyObject<'py>
+        impl<'py> FromPyObject<'_, 'py>
             for LazyNodeState<'static, $op, DynamicGraph, DynamicGraph, DynNodeFilter>
         {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-                Ok(ob.downcast::<$name>()?.get().inner().clone())
+            type Error = PyErr;
+            fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+                Ok(ob.cast::<$name>()?.get().inner().clone())
             }
         }
     };
@@ -437,9 +437,10 @@ macro_rules! impl_node_state {
             }
         }
 
-        impl<'py> FromPyObject<'py> for NodeState<'static, $value, DynamicGraph> {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-                Ok(ob.downcast::<$name>()?.get().inner().clone())
+        impl<'py> FromPyObject<'_, 'py> for NodeState<'static, $value, DynamicGraph> {
+            type Error = PyErr;
+            fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+                Ok(ob.cast::<$name>()?.get().inner().clone())
             }
         }
     };
@@ -591,4 +592,10 @@ impl_node_state!(
     NodeStateF64String<(f64, String)>,
     "NodeStateF64String",
     "Tuple[float, str]"
+);
+
+impl_node_state!(
+    NodeStateF64StringI64<(f64, String, i64)>,
+    "NodeStateF64StringI64",
+    "Tuple[float, str, int]"
 );

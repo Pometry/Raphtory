@@ -32,7 +32,7 @@ impl PyDocument {
     /// Returns:
     ///     Optional[Any]:
     #[getter]
-    fn entity(&self, py: Python) -> PyResult<PyObject> {
+    fn entity(&self, py: Python) -> PyResult<Py<PyAny>> {
         match &self.0.entity {
             DocumentEntity::Node(entity) => entity.clone().into_py_any(py),
             DocumentEntity::Edge(entity) => entity.clone().into_py_any(py),

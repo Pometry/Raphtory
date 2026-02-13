@@ -126,7 +126,7 @@ impl EntityIndex {
                     .into_par_iter()
                     .try_for_each(|v_id| {
                         let node = graph.core_node(VID(v_id));
-                        if let Some(prop_value) = node.prop(prop_id) {
+                        if let Some(prop_value) = node.constant_prop_layer(0, prop_id) {
                             let prop_doc = prop_index
                                 .create_node_metadata_document(v_id as u64, &prop_value)?;
                             writer.add_document(prop_doc)?;

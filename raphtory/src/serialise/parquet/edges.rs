@@ -5,10 +5,7 @@ use crate::{
 };
 use arrow::datatypes::{DataType, Field};
 use model::ParquetCEdge;
-use raphtory_api::{
-    core::{entities::EID, storage::timeindex::TimeIndexOps},
-    iter::IntoDynBoxed,
-};
+use raphtory_api::{core::storage::timeindex::TimeIndexOps, iter::IntoDynBoxed};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
@@ -19,18 +16,23 @@ pub(crate) fn encode_edge_tprop(
     g: &GraphStorage,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
-    run_encode(
+    run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.unfiltered_num_edges(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_T_PATH,
-        |id_type| {
+        |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
-                Field::new(SRC_COL, id_type.clone(), false),
-                Field::new(DST_COL, id_type.clone(), false),
+                Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
+                Field::new(SRC_COL_ID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
+                Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
         |edges, g, decoder, writer| {
@@ -38,7 +40,6 @@ pub(crate) fn encode_edge_tprop(
 
             for edge_rows in edges
                 .into_iter()
-                .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
                     EdgeView::new(g, edge_ref).explode()
@@ -63,18 +64,23 @@ pub(crate) fn encode_edge_deletions(
     g: &GraphStorage,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
-    run_encode(
+    run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.unfiltered_num_edges(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_D_PATH,
-        |id_type| {
+        |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
-                Field::new(SRC_COL, id_type.clone(), false),
-                Field::new(DST_COL, id_type.clone(), false),
+                Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
+                Field::new(SRC_COL_ID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
+                Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
         |edges, g, decoder, writer| {
@@ -90,9 +96,8 @@ pub(crate) fn encode_edge_deletions(
 
             for edge_rows in edges
                 .into_iter()
-                .map(EID)
                 .flat_map(|eid| {
-                    (0..g.unfiltered_num_layers()).flat_map(move |layer_id| {
+                    g.unfiltered_layer_ids().flat_map(move |layer_id| {
                         let edge = g_edges.edge(eid);
                         let edge_ref = edge.out_ref();
                         GenLockedIter::from(edge, |edge| {
@@ -100,7 +105,8 @@ pub(crate) fn encode_edge_deletions(
                         })
                         .map(move |deletions| ParquetDelEdge {
                             del: deletions,
-                            layer: &layers[layer_id],
+                            layer: &layers[layer_id - 1],
+                            layer_id,
                             edge: EdgeView::new(g, edge_ref),
                         })
                     })
@@ -124,29 +130,33 @@ pub(crate) fn encode_edge_cprop(
     g: &GraphStorage,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
-    run_encode(
+    run_encode_indexed(
         g,
         g.edge_meta().metadata_mapper(),
-        g.unfiltered_num_edges(),
+        g.edges().segmented_par_iter().unwrap_or_else(|| {
+            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        }),
         path,
         EDGES_C_PATH,
-        |id_type| {
+        |_| {
             vec![
-                Field::new(SRC_COL, id_type.clone(), false),
-                Field::new(DST_COL, id_type.clone(), false),
+                Field::new(SRC_COL_ID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
             ]
         },
         |edges, g, decoder, writer| {
-            let row_group_size = 100_000.min(edges.len());
-            let layers = 0..g.unfiltered_num_layers();
+            let row_group_size = 100_000;
 
             for edge_rows in edges
                 .into_iter()
-                .map(EID)
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    layers.clone().map(move |l_id| edge_ref.at_layer(l_id))
+                    EdgeView::new(g, edge_ref)
+                        .explode_layers()
+                        .into_iter()
+                        .map(|e| e.edge)
                 })
                 .map(|edge| ParquetCEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)

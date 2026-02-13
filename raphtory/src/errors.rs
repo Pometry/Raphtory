@@ -2,13 +2,12 @@ use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
 };
+use arrow::{datatypes::DataType, error::ArrowError};
 use itertools::Itertools;
-use raphtory_api::core::{
-    entities::{
-        properties::prop::{PropError, PropType},
-        GID,
-    },
-    storage::timeindex::TimeError,
+use parquet::errors::ParquetError;
+use raphtory_api::core::entities::{
+    properties::prop::{InvalidPropertyTypeErr, PropError, PropType},
+    GidType, GID, VID,
 };
 use raphtory_core::entities::{
     graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
@@ -18,21 +17,10 @@ use raphtory_storage::mutation::MutationError;
 use std::{
     fmt::Debug,
     io,
+    panic::Location,
     path::{PathBuf, StripPrefixError},
+    sync::Arc,
     time::SystemTimeError,
-};
-use tracing::error;
-
-#[cfg(feature = "storage")]
-use pometry_storage::RAError;
-#[cfg(feature = "arrow")]
-use {
-    arrow::{datatypes::DataType, error::ArrowError},
-    parquet::errors::ParquetError,
-    raphtory_api::core::entities::{
-        properties::prop::{DeserialisationError, InvalidPropertyTypeErr},
-        GidType, VID,
-    },
 };
 
 #[cfg(feature = "python")]
@@ -41,38 +29,39 @@ use raphtory_api::core::utils::time::ParseTimeError;
 #[cfg(feature = "search")]
 use {tantivy, tantivy::query::QueryParserError};
 
+use raphtory_api::core::storage::timeindex::TimeError;
+use storage::error::StorageError;
+#[cfg(feature = "io")]
+use zip::result::ZipError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidPathReason {
-    #[error("Backslash not allowed in path: {0}")]
-    BackslashError(PathBuf),
-    #[error("Double forward slashes are not allowed in path: {0}")]
-    DoubleForwardSlash(PathBuf),
-    #[error("Only relative paths are allowed to be used within the working_dir: {0}")]
-    RootNotAllowed(PathBuf),
-    #[error("References to the current dir are not allowed within the path: {0}")]
-    CurDirNotAllowed(PathBuf),
-    #[error("References to the parent dir are not allowed within the path: {0}")]
-    ParentDirNotAllowed(PathBuf),
-    #[error("A component of the given path was a symlink: {0}")]
-    SymlinkNotAllowed(PathBuf),
-    #[error("The give path does not exist: {0}")]
-    PathDoesNotExist(PathBuf),
-    #[error("Could not parse Path: {0}")]
-    PathNotParsable(PathBuf),
-    #[error("The path to the graph contains a subpath to an existing graph: {0}")]
-    ParentIsGraph(PathBuf),
-    #[error("The path provided does not exists as a namespace: {0}")]
-    NamespaceDoesNotExist(String),
-    #[error("The path provided contains non-UTF8 characters.")]
-    NonUTFCharacters,
-    #[error("Failed to strip prefix")]
-    StripPrefix {
-        #[from]
-        source: StripPrefixError,
-    },
+    #[error("Backslash not allowed in path")]
+    BackslashError,
+    #[error("Double forward slashes are not allowed in path")]
+    DoubleForwardSlash,
+    #[error("Only relative paths are allowed to be used within the working_dir")]
+    RootNotAllowed,
+    #[error("References to the current dir are not allowed within the path")]
+    CurDirNotAllowed,
+    #[error("References to the parent dir are not allowed within the path")]
+    ParentDirNotAllowed,
+    #[error("A component of the given path was a symlink")]
+    SymlinkNotAllowed,
+    #[error("Could not parse Path")]
+    PathNotParsable,
+    #[error("The path to the graph contains a subpath to an existing graph")]
+    ParentIsGraph,
+    #[error("Graph name cannot start with _")]
+    GraphNamePrefix,
+    #[error("The path provided already exists as a namespace")]
+    GraphIsNamespace,
+    #[error("The path provided already exists as a graph")]
+    NamespaceIsGraph,
+    #[error("Failed to strip prefix: {source}")]
+    StripPrefix { source: StripPrefixError },
 }
 
-#[cfg(feature = "arrow")]
 #[derive(thiserror::Error, Debug)]
 pub enum LoadError {
     #[error("Only str columns are supported for layers, got {0:?}")]
@@ -98,17 +87,16 @@ pub enum LoadError {
     MissingNodeError,
     #[error("Missing value for timestamp")]
     MissingTimeError,
+    #[error("Missing value for secondary index")]
+    MissingSecondaryIndexError,
     #[error("Missing value for edge id {0:?} -> {1:?}")]
     MissingEdgeError(VID, VID),
     #[error("Node IDs have the wrong type, expected {existing}, got {new}")]
     NodeIdTypeError { existing: GidType, new: GidType },
-    #[error("Fatal load error, graph may be in a dirty state.")]
-    FatalError,
     #[error("Arrow error: {0:?}")]
     Arrow(#[from] ArrowError),
 }
 
-#[cfg(feature = "arrow")]
 pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
     err.into()
 }
@@ -134,6 +122,9 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error(transparent)]
+    ExternalError(#[from] Arc<dyn std::error::Error + Send + Sync>),
+
+    #[error(transparent)]
     MutationError(#[from] MutationError),
 
     #[error(transparent)]
@@ -142,11 +133,9 @@ pub enum GraphError {
     #[error("You cannot set ‘{0}’ and ‘{1}’ at the same time. Please pick one or the other.")]
     WrongNumOfArgs(String, String),
 
-    #[cfg(feature = "arrow")]
     #[error("Arrow-rs error: {0}")]
     ArrowRs(#[from] ArrowError),
 
-    #[cfg(feature = "arrow")]
     #[error("Arrow-rs parquet error: {0}")]
     ParquetError(#[from] ParquetError),
 
@@ -156,14 +145,17 @@ pub enum GraphError {
         source: InvalidPathReason,
     },
 
-    #[cfg(feature = "arrow")]
     #[error("{source}")]
     LoadError {
         #[from]
         source: LoadError,
     },
+
+    #[error("Path {0} does not exist")]
+    PathDoesNotExist(PathBuf),
+
     #[error("Storage feature not enabled")]
-    DiskGraphNotFound,
+    DiskGraphNotEnabled,
 
     #[error("Missing graph index. You need to create an index first.")]
     IndexNotCreated,
@@ -241,13 +233,14 @@ pub enum GraphError {
         src: String,
         dst: String,
     },
+
     #[error("The loaded graph is of the wrong type. Did you mean Graph / PersistentGraph?")]
     GraphLoadError,
 
-    #[error("IO operation failed")]
+    #[error("{source} at {location}")]
     IOError {
-        #[from]
         source: io::Error,
+        location: &'static Location<'static>,
     },
 
     #[error("IO operation failed: {0}")]
@@ -265,26 +258,29 @@ pub enum GraphError {
     #[error("The path {0} does not contain a vector DB")]
     VectorDbDoesntExist(String),
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     #[error("zip operation failed")]
     ZipError {
-        #[from]
         source: zip::result::ZipError,
+        location: &'static Location<'static>,
     },
 
-    #[cfg(feature = "arrow")]
+    #[error("Not a zip archive")]
+    NotAZip,
+
+    #[error("Not a disk graph")]
+    NotADiskGraph,
+
+    #[error("Graph folder is not initialised for writing")]
+    NoWriteInProgress,
+
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
 
-    #[cfg(feature = "arrow")]
     #[error(
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
     ColumnDoesNotExist(String),
-
-    #[cfg(feature = "storage")]
-    #[error("Raphtory Arrow Error: {0}")]
-    DiskGraphError(#[from] RAError),
 
     #[cfg(feature = "search")]
     #[error("Index operation failed: {source}")]
@@ -348,13 +344,9 @@ pub enum GraphError {
     #[error("Protobuf decode error{0}")]
     EncodeError(#[from] prost::EncodeError),
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
-
-    #[cfg(feature = "arrow")]
-    #[error(transparent)]
-    DeserialisationError(#[from] DeserialisationError),
 
     #[cfg(feature = "proto")]
     #[error("Cache is not initialised")]
@@ -463,8 +455,22 @@ pub enum GraphError {
     #[error("Your window and step must be of the same type: duration (string) or epoch (int)")]
     MismatchedIntervalTypes,
 
-    #[error("Cannot initialize cache for zipped graph. Unzip the graph to initialize the cache.")]
-    ZippedGraphCannotBeCached,
+    #[error("Cannot swap zipped graph data")]
+    ZippedGraphCannotBeSwapped,
+
+    #[error("{source} at {location}")]
+    StripPrefixError {
+        source: StripPrefixError,
+        location: &'static Location<'static>,
+    },
+    #[error("Path {0} is not a valid relative data path")]
+    InvalidRelativePath(String),
+
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
+
+    #[error("Fatal write error: {0}")]
+    FatalWriteError(StorageError),
 }
 
 impl From<MetadataError> for GraphError {
@@ -515,14 +521,54 @@ impl From<GraphError> for io::Error {
     }
 }
 
-#[cfg(feature = "arrow")]
+impl From<io::Error> for GraphError {
+    #[track_caller]
+    fn from(source: io::Error) -> Self {
+        let location = Location::caller();
+        GraphError::IOError { source, location }
+    }
+}
+
+#[cfg(feature = "io")]
+impl From<ZipError> for GraphError {
+    #[track_caller]
+    fn from(source: ZipError) -> Self {
+        let location = Location::caller();
+        GraphError::ZipError { source, location }
+    }
+}
+
+impl From<StripPrefixError> for GraphError {
+    #[track_caller]
+    fn from(source: StripPrefixError) -> Self {
+        let location = Location::caller();
+        GraphError::StripPrefixError { source, location }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::errors::GraphError;
+    use std::io;
+
+    #[test]
+    fn test_location_capture() {
+        fn inner() -> Result<(), GraphError> {
+            Err(io::Error::other(GraphError::IllegalSet("hi".to_string())))?;
+            Ok(())
+        }
+
+        let res = inner().err().unwrap();
+        println!("{}", res);
+    }
+}
+
 impl From<InvalidPropertyTypeErr> for LoadError {
     fn from(value: InvalidPropertyTypeErr) -> Self {
         LoadError::InvalidPropertyType(value.0)
     }
 }
 
-#[cfg(feature = "arrow")]
 impl From<InvalidPropertyTypeErr> for GraphError {
     fn from(value: InvalidPropertyTypeErr) -> Self {
         GraphError::from(LoadError::from(value))

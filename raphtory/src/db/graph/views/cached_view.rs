@@ -22,7 +22,7 @@ use raphtory_api::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{
-        edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+        edges::edge_storage_ops::EdgeStorageOps,
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
     },
 };
@@ -32,6 +32,7 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
+use storage::EdgeEntryRef;
 
 #[derive(Clone)]
 pub struct CachedView<G> {
@@ -194,7 +195,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for CachedView<
         self.graph.internal_layer_filter_edge_list_trusted()
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         self.layered_mask
             .get(layer)
             .is_some_and(|(_, edge_filter, _)| edge_filter.contains(edge.eid().as_u64()))
@@ -216,7 +217,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         let filter_fn =
             |(_, edges, _): &(RoaringTreemap, RoaringTreemap, Option<RoaringTreemap>)| {
                 edges.contains(edge.eid().as_u64())

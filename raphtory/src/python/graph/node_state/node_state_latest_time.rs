@@ -32,7 +32,6 @@ pub(crate) use crate::{
         view::GraphViewOps,
     },
     prelude::*,
-    py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 
@@ -207,7 +206,7 @@ impl LatestDateTimeView {
         other: &Bound<'py, PyAny>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) = other.extract::<Vec<Option<DateTime<Utc>>>>() {
@@ -219,7 +218,7 @@ impl LatestDateTimeView {
                 && other
                     .into_iter()
                     .all(|(node, value)| self.inner.get_by_node(node) == Some(Ok(value)))
-        } else if let Ok(other) = other.downcast::<PyDict>() {
+        } else if let Ok(other) = other.cast::<PyDict>() {
             self.inner.len() == other.len()
                 && other.items().iter().all(|item| {
                     if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
@@ -635,7 +634,7 @@ impl<'py> pyo3::IntoPyObject<'py>
     }
 }
 
-impl<'py> FromPyObject<'py>
+impl<'py> FromPyObject<'_, 'py>
     for LazyNodeState<
         'static,
         LatestDateTime<DynamicGraph>,
@@ -644,7 +643,8 @@ impl<'py> FromPyObject<'py>
         DynNodeFilter,
     >
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<LatestDateTimeView>()?.get().inner().clone())
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<LatestDateTimeView>()?.get().inner().clone())
     }
 }

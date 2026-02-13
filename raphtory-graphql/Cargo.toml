@@ -15,9 +15,9 @@ homepage.workspace = true
 [dependencies]
 raphtory = { workspace = true, features = [
     'vectors',
-    'search',
     "io",
 ] }
+tempfile = { workspace = true }
 raphtory-api = { workspace = true }
 raphtory-storage = { workspace = true }
 base64 = { workspace = true }
@@ -71,6 +71,5 @@ pretty_assertions = { workspace = true }
 arrow-array = { workspace = true }
 
 [features]
-storage = ["raphtory/storage"]
 python = ["dep:pyo3", "raphtory/python"]
 search = ["raphtory/search"]

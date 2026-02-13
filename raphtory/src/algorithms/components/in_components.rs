@@ -38,7 +38,7 @@ struct InState {
 ///
 pub fn in_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
 where
-    G: StaticGraphViewOps,
+    G: StaticGraphViewOps + std::fmt::Debug,
 {
     in_components_filtered(g, threads, Unfiltered).expect("Unfiltered should never fail")
 }
@@ -63,6 +63,7 @@ where
 {
     let filtered = g.filter(filter)?;
     let ctx: Context<_, _> = (&filtered).into();
+    let index = Index::for_graph(g);
 
     let step1 = ATask::new(move |vv: &mut EvalNodeView<_, InState>| {
         let mut in_components = HashSet::new();
@@ -91,17 +92,18 @@ where
 
     let mut runner = TaskRunner::new(ctx);
 
-    Ok(runner.run(
+    Ok(runner.run_with_index(
+        index,
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<InState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
+        |_, _, _, local: Vec<InState>, index| {
+            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |v| {
                 Nodes::new_filtered(
                     g.clone(),
                     g.clone(),
                     Const(true),
-                    Some(Index::from_iter(v.in_components)),
+                    Index::from_iter(v.in_components),
                 )
             })
         },
@@ -175,6 +177,6 @@ where
     Ok(NodeState::new(
         node.graph.clone(),
         distances.into(),
-        Some(Index::new(nodes)),
+        Index::Partial(nodes.into()),
     ))
 }

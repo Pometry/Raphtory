@@ -1,15 +1,18 @@
 pub mod dataframe;
 pub mod df_loaders;
 mod layer_col;
-mod node_col;
-mod prop_handler;
+pub mod node_col;
+pub mod prop_handler;
 
 #[cfg(test)]
 mod test {
     use crate::{
         io::arrow::{
             dataframe::{DFChunk, DFView},
-            df_loaders::*,
+            df_loaders::{
+                edges::{load_edges_from_df_prefetch, ColumnNames},
+                nodes::load_nodes_from_df,
+            },
         },
         prelude::*,
     };
@@ -53,17 +56,18 @@ mod test {
         let graph = Graph::new();
         let layer_name: Option<&str> = None;
         let layer_col: Option<&str> = None;
-        load_edges_from_df(
+        let secondary_index: Option<&str> = None;
+
+        load_edges_from_df_prefetch(
             df,
-            "time",
-            "src",
-            "dst",
+            ColumnNames::new("time", secondary_index, "src", "dst", layer_col),
+            true,
             &["prop1", "prop2"],
             &[],
             None,
             layer_name,
-            layer_col,
             &graph,
+            false,
         )
         .expect("failed to load edges from pretend df");
 
@@ -148,10 +152,12 @@ mod test {
             num_rows: Some(2),
         };
         let graph = Graph::new();
+        let secondary_index: Option<&str> = None;
 
         load_nodes_from_df(
             df,
             "time",
+            secondary_index,
             "id",
             &["name"],
             &[],
@@ -159,6 +165,7 @@ mod test {
             Some("node_type"),
             None,
             &graph,
+            true,
         )
         .expect("failed to load nodes from pretend df");
 

@@ -14,7 +14,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeStorageRef};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Copy, Clone, Debug)]
 pub struct IsDeletedGraph<G> {
@@ -63,7 +63,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for IsDeletedGr
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
         let time_semantics = self.graph.edge_time_semantics();
         time_semantics.edge_is_deleted(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer)))
             && self.graph.internal_filter_edge_layer(edge, layer)

@@ -1,17 +1,23 @@
-use crate::core::storage::{arc_str::ArcStr, locked_vec::ArcReadLockedVec, FxDashMap};
-use dashmap::mapref::entry::Entry;
-use parking_lot::RwLock;
+use crate::core::{
+    entities::properties::meta::STATIC_GRAPH_LAYER,
+    storage::{arc_str::ArcStr, ArcRwLockReadGuard},
+};
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::{Borrow, BorrowMut},
+    collections::hash_map::Entry,
     hash::Hash,
+    ops::{Deref, DerefMut},
     sync::Arc,
 };
 
-#[derive(Serialize, Deserialize, Default, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
 pub struct DictMapper {
-    map: FxDashMap<ArcStr, usize>,
-    reverse_map: Arc<RwLock<Vec<ArcStr>>>, //FIXME: a boxcar vector would be a great fit if it was serializable...
+    map: Arc<RwLock<FxHashMap<ArcStr, usize>>>,
+    reverse_map: Arc<RwLock<Vec<ArcStr>>>,
+    num_private_fields: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -31,6 +37,11 @@ where
 }
 
 impl<Index> MaybeNew<Index> {
+    #[inline]
+    pub fn is_new(&self) -> bool {
+        matches!(self, MaybeNew::New(_))
+    }
+
     #[inline]
     pub fn inner(self) -> Index {
         match self {
@@ -97,33 +108,143 @@ impl<Index> BorrowMut<Index> for MaybeNew<Index> {
     }
 }
 
+pub struct LockedDictMapper<'a> {
+    map: RwLockReadGuard<'a, FxHashMap<ArcStr, usize>>,
+    reverse_map: RwLockReadGuard<'a, Vec<ArcStr>>,
+    num_private_fields: usize,
+}
+
+pub struct WriteLockedDictMapper<'a> {
+    map: RwLockWriteGuard<'a, FxHashMap<ArcStr, usize>>,
+    reverse_map: RwLockWriteGuard<'a, Vec<ArcStr>>,
+}
+
+impl LockedDictMapper<'_> {
+    pub fn get_id(&self, name: &str) -> Option<usize> {
+        self.map.get(name).copied()
+    }
+
+    pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
+        &self.map
+    }
+
+    pub fn iter_ids(&self) -> impl Iterator<Item = (usize, &ArcStr)> + '_ {
+        self.reverse_map
+            .iter()
+            .enumerate()
+            .skip(self.num_private_fields)
+    }
+}
+
+impl WriteLockedDictMapper<'_> {
+    pub fn get_or_create_id<Q, T>(&mut self, name: &Q) -> MaybeNew<usize>
+    where
+        Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
+        T: Into<ArcStr>,
+    {
+        let name = name.to_owned().into();
+        let new_id = match self.map.entry(name.clone()) {
+            Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
+            Entry::Vacant(entry) => {
+                let id = self.reverse_map.len();
+                self.reverse_map.push(name);
+                entry.insert(id);
+                MaybeNew::New(id)
+            }
+        };
+        new_id
+    }
+
+    pub fn set_id(&mut self, name: impl Into<ArcStr>, id: usize) {
+        let arc_name = name.into();
+        let map_entry = self.map.entry(arc_name.clone());
+        let keys = self.reverse_map.deref_mut();
+        if keys.len() <= id {
+            keys.resize(id + 1, Default::default())
+        }
+        keys[id] = arc_name;
+        map_entry.insert_entry(id);
+    }
+
+    pub fn map(&self) -> &FxHashMap<ArcStr, usize> {
+        &self.map
+    }
+}
+
 impl DictMapper {
+    fn read_lock_reverse_map(&self) -> RwLockReadGuard<'_, Vec<ArcStr>> {
+        self.reverse_map.read_recursive()
+    }
+
+    fn write_lock_reverse_map(&self) -> RwLockWriteGuard<'_, Vec<ArcStr>> {
+        self.reverse_map.write()
+    }
+
+    fn read_arc_lock_reverse_map(&self) -> ArcRwLockReadGuard<Vec<ArcStr>> {
+        self.reverse_map.read_arc_recursive()
+    }
+
+    pub fn new_layer_mapper() -> Self {
+        Self::new_with_private_fields([STATIC_GRAPH_LAYER])
+    }
+
+    pub fn new_with_private_fields(fields: impl IntoIterator<Item = impl Into<ArcStr>>) -> Self {
+        let fields: Vec<_> = fields.into_iter().map(|s| s.into()).collect();
+        let num_private_fields = fields.len();
+        DictMapper {
+            map: Arc::new(Default::default()),
+            reverse_map: Arc::new(RwLock::new(fields)),
+            num_private_fields,
+        }
+    }
     pub fn contains(&self, key: &str) -> bool {
-        self.map.contains_key(key)
+        self.map.read_recursive().contains_key(key)
     }
 
     pub fn deep_clone(&self) -> Self {
-        let reverse_map = self.reverse_map.read_recursive().clone();
+        let reverse_map = self.read_lock_reverse_map().clone();
 
         Self {
             map: self.map.clone(),
             reverse_map: Arc::new(RwLock::new(reverse_map)),
+            num_private_fields: self.num_private_fields,
         }
     }
+
+    pub fn read(&self) -> LockedDictMapper<'_> {
+        LockedDictMapper {
+            map: self.map.read_recursive(),
+            reverse_map: self.read_lock_reverse_map(),
+            num_private_fields: self.num_private_fields,
+        }
+    }
+
+    pub fn write(&self) -> WriteLockedDictMapper<'_> {
+        WriteLockedDictMapper {
+            map: self.map.write(),
+            reverse_map: self.write_lock_reverse_map(),
+        }
+    }
+
     pub fn get_or_create_id<Q, T>(&self, name: &Q) -> MaybeNew<usize>
     where
         Q: Hash + Eq + ?Sized + ToOwned<Owned = T> + Borrow<str>,
         T: Into<ArcStr>,
     {
-        if let Some(existing_id) = self.map.get(name.borrow()) {
+        let map = self.map.read_recursive();
+
+        if let Some(existing_id) = map.get(name.borrow()) {
             return MaybeNew::Existing(*existing_id);
         }
+        drop(map);
+
+        let mut map = self.map.write();
 
         let name = name.to_owned().into();
-        let new_id = match self.map.entry(name.clone()) {
+        let new_id = match map.entry(name.clone()) {
             Entry::Occupied(entry) => MaybeNew::Existing(*entry.get()),
             Entry::Vacant(entry) => {
-                let mut reverse = self.reverse_map.write();
+                let mut reverse = self.write_lock_reverse_map();
                 let id = reverse.len();
                 reverse.push(name);
                 entry.insert(id);
@@ -134,57 +255,77 @@ impl DictMapper {
     }
 
     pub fn get_id(&self, name: &str) -> Option<usize> {
-        self.map.get(name).map(|id| *id)
+        self.map.read_recursive().get(name).copied()
     }
 
     /// Explicitly set the id for a key (useful for initialising the map in parallel)
     pub fn set_id(&self, name: impl Into<ArcStr>, id: usize) {
+        let mut map = self.map.write();
         let arc_name = name.into();
-        let map_entry = self.map.entry(arc_name.clone());
-        let mut keys = self.reverse_map.write();
+        let map_entry = map.entry(arc_name.clone());
+        let mut keys = self.write_lock_reverse_map();
         if keys.len() <= id {
             keys.resize(id + 1, Default::default())
         }
         keys[id] = arc_name;
-        map_entry.insert(id);
+        map_entry.insert_entry(id);
     }
 
-    pub fn has_name(&self, id: usize) -> bool {
-        let guard = self.reverse_map.read_recursive();
+    pub fn has_id(&self, id: usize) -> bool {
+        let guard = self.read_lock_reverse_map();
         guard.get(id).is_some()
     }
 
     pub fn get_name(&self, id: usize) -> ArcStr {
-        let guard = self.reverse_map.read_recursive();
+        let guard = self.read_lock_reverse_map();
         guard
             .get(id)
             .cloned()
             .expect("internal ids should always be mapped to a name")
     }
 
-    pub fn get_keys(&self) -> ArcReadLockedVec<ArcStr> {
-        ArcReadLockedVec {
-            guard: self.reverse_map.read_arc_recursive(),
+    /// Public ids
+    pub fn ids(&self) -> impl Iterator<Item = usize> {
+        self.num_private_fields..self.num_all_fields()
+    }
+
+    /// All ids, including private fields
+    pub fn all_ids(&self) -> impl Iterator<Item = usize> {
+        0..self.num_all_fields()
+    }
+
+    /// Public keys
+    pub fn keys(&self) -> PublicKeys<ArcStr> {
+        PublicKeys {
+            guard: self.read_arc_lock_reverse_map(),
+            num_private_fields: self.num_private_fields,
         }
     }
 
-    pub fn get_values(&self) -> Vec<usize> {
-        self.map.iter().map(|entry| *entry.value()).collect()
+    /// All keys including private fields
+    pub fn all_keys(&self) -> AllKeys<ArcStr> {
+        AllKeys {
+            guard: self.read_arc_lock_reverse_map(),
+        }
     }
 
-    pub fn len(&self) -> usize {
-        self.reverse_map.read_recursive().len()
+    pub fn num_all_fields(&self) -> usize {
+        self.read_lock_reverse_map().len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.reverse_map.read_recursive().is_empty()
+    pub fn num_fields(&self) -> usize {
+        self.map.read_recursive().len()
+    }
+
+    pub fn num_private_fields(&self) -> usize {
+        self.num_private_fields
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::core::storage::dict_mapper::DictMapper;
-    use proptest::{arbitrary::any, prop_assert, proptest};
+    use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
     use std::collections::HashMap;
@@ -201,7 +342,7 @@ mod test {
 
     #[test]
     fn check_dict_mapper_concurrent_write() {
-        proptest!(|(write in any::<Vec<String>>())| {
+        proptest!(|(write: Vec<String>)| {
             let n = 100;
             let mapper: DictMapper = DictMapper::default();
 
@@ -210,7 +351,7 @@ mod test {
                 .into_par_iter()
                 .map(|_| {
                     let mut ids: HashMap<String, usize> = Default::default();
-                    let mut rng = rand::thread_rng();
+                    let mut rng = rand::rng();
                     let mut write_s = write.clone();
                     write_s.shuffle(&mut rng);
                     for s in write_s {
@@ -223,8 +364,8 @@ mod test {
 
             // check that all maps are the same and that all strings have been assigned an id
             let res_0 = &res[0];
-            prop_assert!(res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some()))
-        })
+            prop_assert!(res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some()));
+        });
     }
 
     // map 5 strings to 5 ids from 4 threads concurrently 1000 times
@@ -260,3 +401,90 @@ mod test {
         assert_eq!(actual, vec![0, 1, 2, 3, 4]);
     }
 }
+
+#[derive(Debug)]
+pub struct AllKeys<T> {
+    pub(crate) guard: ArcRwLockReadGuard<Vec<T>>,
+}
+
+impl<T> Deref for AllKeys<T> {
+    type Target = [T];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.guard.deref().deref()
+    }
+}
+
+impl<T: Clone> IntoIterator for AllKeys<T> {
+    type Item = T;
+    type IntoIter = LockedIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let guard = self.guard;
+        let len = guard.len();
+        let pos = 0;
+        LockedIter { guard, pos, len }
+    }
+}
+
+pub struct PublicKeys<T> {
+    guard: ArcRwLockReadGuard<Vec<T>>,
+    num_private_fields: usize,
+}
+
+impl<T> PublicKeys<T> {
+    fn items(&self) -> &[T] {
+        &self.guard[self.num_private_fields..]
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+        self.items().iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.items().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items().is_empty()
+    }
+}
+
+impl<T: Clone> IntoIterator for PublicKeys<T> {
+    type Item = T;
+    type IntoIter = LockedIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let guard = self.guard;
+        let len = guard.len();
+        let pos = self.num_private_fields;
+        LockedIter { guard, pos, len }
+    }
+}
+
+pub struct LockedIter<T> {
+    guard: ArcRwLockReadGuard<Vec<T>>,
+    pos: usize,
+    len: usize,
+}
+
+impl<T: Clone> Iterator for LockedIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos < self.len {
+            let next_val = Some(self.guard[self.pos].clone());
+            self.pos += 1;
+            next_val
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len - self.pos;
+        (len, Some(len))
+    }
+}
+
+impl<T: Clone> ExactSizeIterator for LockedIter<T> {}

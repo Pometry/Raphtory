@@ -206,9 +206,8 @@ mod in_component_test {
             api::mutation::AdditionOps,
             graph::views::filter::{
                 model::{
-                    graph_filter::GraphFilter, layered_filter::Layered,
-                    property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
-                    TryAsCompositeFilter, ViewWrapOps,
+                    graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,
+                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
                 },
                 CreateFilter,
             },
@@ -474,7 +473,7 @@ mod components_test {
             out_component, out_component_filtered, out_components, out_components_filtered,
         },
         db::{
-            api::{mutation::AdditionOps, view::history::InternalHistoryOps},
+            api::mutation::AdditionOps,
             graph::views::filter::{
                 model::{
                     graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,

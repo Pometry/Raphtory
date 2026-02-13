@@ -107,7 +107,7 @@ pub fn triangle_count<G: StaticGraphViewOps>(graph: &G, threads: Option<usize>) 
         init_tasks,
         tasks,
         None,
-        |egs, _, _, _| egs.finalize(&count),
+        |egs, _, _, _, _| egs.finalize(&count),
         threads,
         1,
         None,

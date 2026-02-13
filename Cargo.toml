@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "raphtory",
-    "raphtory-cypher",
     "raphtory-benchmark",
     "examples/rust",
     "examples/netflow",
@@ -10,7 +9,7 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
     "raphtory-core",
-    "raphtory-storage",
+    "raphtory-storage", "raphtory-api-macros", "fast_merge",
 ]
 default-members = ["raphtory"]
 resolver = "2"
@@ -49,33 +48,33 @@ incremental = false
 
 
 [workspace.dependencies]
-#[public-storage]
-pometry-storage = { version = ">=0.8.1", path = "pometry-storage" }
-#[private-storage]
-# pometry-storage = { path = "pometry-storage-private", package = "pometry-storage-private" }
-raphtory = { path = "raphtory", version = "0.17.0" }
-raphtory-api = { path = "raphtory-api", version = "0.17.0" }
-raphtory-core = { path = "raphtory-core", version = "0.17.0" }
-raphtory-storage = { path = "raphtory-storage", version = "0.17.0" }
-raphtory-graphql = { path = "raphtory-graphql", version = "0.17.0" }
+db4-graph = { version = "0.17.0", path = "db4-graph", default-features = false }
+raphtory = { version = "0.17.0", path = "raphtory", default-features = false }
+raphtory-api = { version = "0.17.0", path = "raphtory-api", default-features = false }
+raphtory-api-macros = { version = "0.17.0", path = "raphtory-api-macros", default-features = false }
+raphtory-core = { version = "0.17.0", path = "raphtory-core", default-features = false }
+raphtory-graphql = { version = "0.17.0", path = "raphtory-graphql", default-features = false }
+raphtory-storage = { version = "0.17.0", path = "raphtory-storage", default-features = false }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
-bincode = "1.3.3"
+bincode = { version = "2", features = ["serde"] }
 async-graphql-poem = "7.0.16"
 dynamic-graphql = "0.10.1"
+derive_more = "2.0.1"
 reqwest = { version = "0.12.8", default-features = false, features = [
     "rustls-tls",
     "multipart",
     "json",
 ] }
+boxcar = "0.2.14"
 iter-enum = { version = "1.2.0", features = ["rayon"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
 serde_json = "1.0.114"
-pyo3 = { version = "0.25.1", features = ["multiple-pymethods", "chrono"] }
-pyo3-build-config = "0.25.1"
-pyo3-arrow = "0.11.0"
-numpy = "0.25.0"
+pyo3 = { version = "0.27.2", features = ["multiple-pymethods", "chrono"] }
+pyo3-build-config = "0.27.2"
+pyo3-arrow = "0.15.0"
+numpy = "0.27.1"
 itertools = "0.13.0"
-rand = "0.8.5"
+rand = "0.9.2"
 rayon = "1.8.1"
 roaring = "0.10.6"
 sorted_vector_map = "0.2.0"
@@ -97,9 +96,10 @@ flate2 = "1.0.28"
 regex = "1.10.3"
 num-traits = "0.2.18"
 num-integer = "0.1"
-rand_distr = "0.4.3"
+rand_distr = "0.5.1"
 rustc-hash = "2.0.0"
 twox-hash = "2.1.0"
+tinyvec = { version = "1.10", features = ["serde", "alloc"] }
 lock_api = { version = "0.4.11", features = ["arc_lock", "serde"] }
 dashmap = { version = "6.0.1", features = ["serde", "rayon"] }
 glam = "0.29.0"
@@ -114,13 +114,11 @@ num = "0.4.1"
 display-error-chain = "0.2.0"
 bigdecimal = { version = "0.4.7", features = ["serde"] }
 kdam = "0.6.3"
-hashbrown = "0.15.1"
+hashbrown = { version = "0.14.5", features = ["raw"] }
 pretty_assertions = "1.4.0"
-quickcheck = "1.0.3"
-quickcheck_macros = "1.0.0"
 streaming-stats = "0.2.3"
-proptest = "1.4.0"
-proptest-derive = "0.5.1"
+proptest = "1.8.0"
+proptest-derive = "0.6.0"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.15"
 base64 = "0.22.1"
@@ -131,7 +129,7 @@ rust-embed = { version = "8.7.2", features = ["interpolate-folder-path"] }
 opentelemetry = "0.27.1"
 opentelemetry_sdk = { version = "0.27.1", features = ["rt-tokio"] }
 opentelemetry-otlp = { version = "0.27.0" }
-tracing = "0.1.37"
+tracing = { version = "0.1.37", features = ["log"] }
 tracing-opentelemetry = "0.28.0"
 tracing-subscriber = { version = "0.3.20", features = ["std", "env-filter"] }
 indoc = "2.0.5"
@@ -158,20 +156,29 @@ arroy = "0.6.1"
 heed = "0.22.0"
 sqlparser = "0.58.0"
 futures = "0.3"
-arrow = { version = "56.2.0" }
-parquet = { version = "56.2.0" }
-arrow-json = { version = "56.2.0" }
-arrow-buffer = { version = "56.2.0" }
-arrow-schema = { version = "56.2.0" }
-arrow-csv = { version = "56.2.0" }
-arrow-array = { version = "56.2.0", features = ["chrono-tz"] }
-arrow-cast = { version = "56.2.0" }
-arrow-ipc = { version = "56.2.0" }
+arrow = { version = "57.2.0" }
+parquet = { version = "57.2.0" }
+arrow-json = { version = "57.2.0" }
+arrow-buffer = { version = "57.2.0" }
+arrow-schema = { version = "57.2.0" }
+arrow-csv = { version = "57.2.0" }
+arrow-array = { version = "57.2.0", features = ["chrono-tz"] }
+arrow-cast = { version = "57.2.0" }
+arrow-ipc = { version = "57.2.0" }
+serde_arrow = { version = "0.13.6", features = ["arrow-57"] }
 moka = { version = "0.12.7", features = ["future"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
+bitvec = "1.0.1"
+sysinfo = "0.37.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
+pythonize = { version = "0.27.0" }
+test-log = "0.2.19"
+
+[workspace.dependencies.storage]
+package = "db4-storage"
+path = "db4-storage"
 

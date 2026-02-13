@@ -14,6 +14,7 @@ use pyo3::{
     types::PyFunction,
 };
 use raphtory::{
+    db::api::storage::storage::Config,
     python::packages::vectors::TemplateConfig,
     vectors::{
         embeddings::{openai_embedding, EmbeddingFunction},
@@ -148,7 +149,7 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = GraphServer::new(work_dir, app_config, config_path)?;
+        let server = GraphServer::new(work_dir, app_config, config_path, Config::default())?;
         Ok(PyGraphServer::new(server))
     }
 
@@ -265,7 +266,7 @@ impl PyGraphServer {
             let url = format!("http://localhost:{port}");
             // we need to release the GIL, otherwise the server will deadlock when trying to use python function as the embedding function
             // and wait_for_server_online will never return
-            let result = py.allow_threads(|| server.wait_for_server_online(&url, timeout_ms));
+            let result = py.detach(|| server.wait_for_server_online(&url, timeout_ms));
             match result {
                 Ok(_) => return Ok(server),
                 Err(e) => {
@@ -291,6 +292,6 @@ impl PyGraphServer {
     )]
     pub fn run(slf: PyRefMut<Self>, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
         let mut server = Self::start(slf, py, port, timeout_ms)?.server_handler;
-        py.allow_threads(|| wait_server(&mut server))
+        py.detach(|| wait_server(&mut server))
     }
 }

@@ -1,30 +1,34 @@
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
-    core::{
-        storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
-        utils::iter::GenLockedDIter,
-    },
+    core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
         api::{
-            properties::internal::InheritPropertiesOps, storage::storage::Storage,
+            properties::internal::InheritPropertiesOps,
+            storage::storage::{PersistenceStrategy, Storage},
             view::internal::*,
         },
         graph::graph::graph_equal,
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{
     core::entities::properties::tprop::TPropOps,
     inherit::Base,
-    iter::{BoxedLDIter, IntoDynDBoxed},
+    iter::{BoxedLIter, IntoDynBoxed},
     GraphType,
 };
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
-use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter},
-    iter,
-    ops::{Deref, Range},
+    ops::Range,
     sync::Arc,
+};
+use storage::{
+    api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
+    Config, Extension,
 };
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
@@ -35,7 +39,7 @@ use std::{
 /// the edge is not considered active at the start of the window, even if there are simultaneous addition events.
 ///
 ///
-#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct PersistentGraph(pub(crate) Arc<Storage>);
 
 impl Static for PersistentGraph {}
@@ -91,6 +95,108 @@ impl PersistentGraph {
         Self::default()
     }
 
+    /// Create a new graph with config
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::prelude::*;
+    ///
+    /// let g = PersistentGraph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// ```
+    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::new_with_config(config)?)))
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = PersistentGraph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+        path.init()?;
+        let graph = Self(Arc::new(Storage::new_at_path_with_config(
+            path.graph_path()?,
+            config,
+        )?));
+        path.write_metadata(&graph)?;
+        Ok(graph)
+    }
+
+    /// Create a new persistent graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::PersistentGraph;
+    /// let g = PersistentGraph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+        path.init()?;
+        let graph = Self(Arc::new(Storage::new_at_path(path.graph_path()?)?));
+        path.write_metadata(&graph)?;
+        Ok(graph)
+    }
+
+    /// Load a graph from a specific path
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load("/path/to/storage");    ///
+    #[cfg(feature = "io")]
+    pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::load(path.graph_path()?)?)))
+    }
+
+    /// Load a graph from a specific path overriding config
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// * `config` - The new config (note that it is not possible to change page sizes)
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load("/path/to/storage");    ///
+    #[cfg(feature = "io")]
+    pub fn load_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::load_with_config(
+            path.graph_path()?,
+            config,
+        )?)))
+    }
+
     pub fn from_storage(storage: Arc<Storage>) -> Self {
         Self(storage)
     }
@@ -116,6 +222,7 @@ impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for PersistentGraph {
 
 impl Base for PersistentGraph {
     type Base = Storage;
+
     #[inline(always)]
     fn base(&self) -> &Self::Base {
         &self.0
@@ -188,7 +295,7 @@ impl GraphTimeSemanticsOps for PersistentGraph {
         self.0.has_temporal_prop(prop_id)
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         self.0.temporal_prop_iter(prop_id)
     }
 
@@ -199,24 +306,58 @@ impl GraphTimeSemanticsOps for PersistentGraph {
             .is_some()
     }
 
+    /// Iterates over temporal property values within a time window `[start, end)`.
+    ///
+    /// # Returns
+    /// A boxed iterator yielding `(TimeIndexEntry, Prop)` tuples.
     fn temporal_prop_iter_window(
         &self,
         prop_id: usize,
         start: EventTime,
         end: EventTime,
-    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
-        if let Some(prop) = self.graph_meta().get_temporal_prop(prop_id) {
-            let first =
-                persisted_prop_value_at(start.t(), &*prop, &TimeIndex::Empty).map(|v| (start, v));
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
+        let graph_entry = self.core_graph().graph_entry();
+
+        GenLockedIter::from(graph_entry, move |entry| {
+            let tprop = entry.as_ref().get_temporal_prop(prop_id);
+
+            // Get the property value that was active at the start of the window.
+            let first = persisted_prop_value_at(start.t(), tprop, &TimeIndex::Empty)
+                .map(|prop_value| (start, prop_value));
+
+            // Chain the initial prop with the rest of the props that occur
+            // within the window.
             first
                 .into_iter()
-                .chain(GenLockedDIter::from(prop, |prop| {
-                    prop.deref().iter_window(start..end).into_dyn_dboxed()
-                }))
-                .into_dyn_dboxed()
-        } else {
-            iter::empty().into_dyn_dboxed()
-        }
+                .chain(tprop.iter_window(start..end))
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: EventTime,
+        end: EventTime,
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
+        let graph_entry = self.core_graph().graph_entry();
+
+        GenLockedIter::from(graph_entry, move |entry| {
+            let tprop = entry.as_ref().get_temporal_prop(prop_id);
+
+            // Get the property value that was active at the start of the window.
+            let first = persisted_prop_value_at(start.t(), tprop, &TimeIndex::Empty)
+                .map(|prop_value| (start, prop_value));
+
+            // Chain the initial prop with the rest of the props that occur
+            // within the window, in reverse order.
+            tprop
+                .iter_window_rev(start..end)
+                .chain(first)
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
     }
 
     fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {

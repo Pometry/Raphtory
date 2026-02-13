@@ -1,7 +1,7 @@
 use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropType, PropUnwrap},
+    entities::properties::prop::{Prop, PropArray, PropType, PropUnwrap},
     storage::{arc_str::ArcStr, timeindex::EventTime},
 };
 use rustc_hash::FxHashMap;
@@ -12,13 +12,15 @@ use std::{
     sync::Arc,
 };
 
-use crate::db::api::{
-    properties::internal::InternalPropertiesOps,
-    view::{history::History, BoxedLIter},
+use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
+use arrow::array::ArrayRef;
+use raphtory_api::{
+    core::{
+        entities::properties::prop::PropArrayUnwrap, storage::timeindex::AsTime,
+        utils::time::IntoTime,
+    },
+    iter::BoxedLIter,
 };
-use raphtory_api::core::{storage::timeindex::AsTime, utils::time::IntoTime};
-#[cfg(feature = "arrow")]
-use {arrow::array::ArrayRef, raphtory_api::core::entities::properties::prop::PropArrayUnwrap};
 
 #[derive(Clone)]
 pub struct TemporalPropertyView<P: InternalPropertiesOps> {
@@ -89,7 +91,7 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = (EventTime, Prop)> + '_ {
-        self.history().reverse().into_iter().zip(self.values_rev())
+        self.history().into_iter_rev().zip(self.values_rev())
     }
 
     pub fn iter_indexed(&self) -> impl Iterator<Item = (EventTime, Prop)> + use<'_, P> {
@@ -282,7 +284,7 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
         self.latest().into_bool()
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+    fn into_list(self) -> Option<PropArray> {
         self.latest().into_list()
     }
 
@@ -303,7 +305,6 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
     }
 }
 
-#[cfg(feature = "arrow")]
 impl<P: InternalPropertiesOps + Clone> PropArrayUnwrap for TemporalPropertyView<P> {
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()

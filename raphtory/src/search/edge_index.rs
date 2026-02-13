@@ -10,12 +10,12 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::{entities::LayerIds, storage::dict_mapper::MaybeNew};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
 };
-use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
+use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
@@ -209,10 +209,10 @@ impl EdgeIndex {
 
     pub(crate) fn index_edges_fields(&self, graph: &GraphStorage) -> Result<(), GraphError> {
         let mut writer = self.entity_index.index.writer(100_000_000)?;
-        (0..graph.count_edges())
-            .into_par_iter()
-            .try_for_each(|e_id| {
-                let edge = graph.core_edge(EID(e_id));
+        graph
+            .edges()
+            .par_iter(&LayerIds::All)
+            .try_for_each(|edge| {
                 let e_view = EdgeView::new(graph, edge.out_ref());
                 self.index_edge(e_view, &writer)?;
                 Ok::<(), GraphError>(())

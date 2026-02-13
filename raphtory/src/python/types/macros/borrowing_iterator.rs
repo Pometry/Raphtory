@@ -4,13 +4,16 @@ macro_rules! py_borrowing_iter {
         struct Iterator($inner_t);
 
         impl $crate::python::types::wrappers::iterators::PyIter for Iterator {
-            fn iter(&self) -> $crate::db::api::view::BoxedLIter<'_, PyResult<PyObject>> {
+            fn iter(
+                &self,
+            ) -> $crate::db::api::view::BoxedLIter<'_, PyResult<pyo3::Py<pyo3::PyAny>>>
+            {
                 // forces the type inference to return the correct lifetimes,
                 // calling the closure directly does not work
                 fn apply<'a, O: $crate::python::types::wrappers::iterators::IntoPyIter<'a>>(
                     arg: &'a $inner_t,
                     f: impl FnOnce(&'a $inner_t) -> O,
-                ) -> $crate::db::api::view::BoxedLIter<'a, PyResult<pyo3::PyObject>>
+                ) -> $crate::db::api::view::BoxedLIter<'a, PyResult<pyo3::Py<pyo3::PyAny>>>
                 {
                     $crate::python::types::wrappers::iterators::IntoPyIter::into_py_iter(f(arg))
                 }
@@ -28,13 +31,13 @@ macro_rules! py_borrowing_iter_result {
         struct Iterator($inner_t);
 
         impl $crate::python::types::wrappers::iterators::PyIter for Iterator {
-            fn iter(&self) -> $crate::db::api::view::BoxedLIter<'_, PyResult<PyObject>> {
+            fn iter(&self) -> $crate::db::api::view::BoxedLIter<'_, PyResult<Py<PyAny>>> {
                 // forces the type inference to return the correct lifetimes,
                 // calling the closure directly does not work
                 fn apply<'a, O: $crate::python::types::wrappers::iterators::IntoPyIterResult<'a>>(
                     arg: &'a $inner_t,
                     f: impl FnOnce(&'a $inner_t) -> O,
-                ) -> $crate::db::api::view::BoxedLIter<'a, PyResult<pyo3::PyObject>>
+                ) -> $crate::db::api::view::BoxedLIter<'a, PyResult<pyo3::Py<pyo3::PyAny>>>
                 {
                     $crate::python::types::wrappers::iterators::IntoPyIterResult::into_py_iter_result(f(arg))
                 }
@@ -52,13 +55,13 @@ macro_rules! py_borrowing_iter_tuple_result {
         struct Iterator($inner_t);
 
         impl $crate::python::types::wrappers::iterators::PyIter for Iterator {
-            fn iter(&self) -> $crate::db::api::view::BoxedLIter<'_, PyResult<PyObject>> {
+            fn iter(&self) -> $crate::db::api::view::BoxedLIter<'_, PyResult<Py<PyAny>>> {
                 // forces the type inference to return the correct lifetimes,
                 // calling the closure directly does not work
                 fn apply<'a, O: $crate::python::types::wrappers::iterators::IntoPyIterTupleResult<'a>>(
                     arg: &'a $inner_t,
                     f: impl FnOnce(&'a $inner_t) -> O,
-                ) -> $crate::db::api::view::BoxedLIter<'a, PyResult<pyo3::PyObject>>
+                ) -> $crate::db::api::view::BoxedLIter<'a, PyResult<pyo3::Py<pyo3::PyAny>>>
                 {
                     $crate::python::types::wrappers::iterators::IntoPyIterTupleResult::into_py_iter_tuple_result(f(arg))
                 }

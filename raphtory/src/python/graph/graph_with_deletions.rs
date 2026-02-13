@@ -12,19 +12,19 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::GraphError,
-    io::parquet_loaders::*,
-    prelude::{DeletionOps, GraphViewOps, ImportOps, IndexMutationOps},
+    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
+    prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
         graph::{
             edge::PyEdge,
-            index::PyIndexSpec,
             io::arrow_loaders::{
                 convert_py_prop_args, convert_py_schema, is_csv_path,
                 load_edge_deletions_from_arrow_c_stream, load_edge_deletions_from_csv_path,
                 load_edge_metadata_from_arrow_c_stream, load_edge_metadata_from_csv_path,
                 load_edges_from_arrow_c_stream, load_edges_from_csv_path,
-                load_node_metadata_from_arrow_c_stream, load_node_metadata_from_csv_path,
-                load_nodes_from_arrow_c_stream, load_nodes_from_csv_path, CsvReadOptions,
+                load_graph_props_from_arrow_c_stream, load_node_metadata_from_arrow_c_stream,
+                load_node_metadata_from_csv_path, load_nodes_from_arrow_c_stream,
+                load_nodes_from_csv_path, CsvReadOptions,
             },
             node::PyNode,
             views::graph_view::PyGraphView,
@@ -33,7 +33,7 @@ use crate::{
     },
     serialise::StableEncode,
 };
-use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, Borrowed};
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
@@ -48,6 +48,10 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+
+use crate::python::config::PyConfig;
+#[cfg(feature = "search")]
+use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 
 /// A temporal graph that allows edges and nodes to be deleted.
 #[derive(Clone)]
@@ -86,16 +90,18 @@ impl<'py> IntoPyObject<'py> for PersistentGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for PersistentGraph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        let g = ob.downcast::<PyPersistentGraph>()?.get();
+impl<'py> FromPyObject<'_, 'py> for PersistentGraph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let binding = ob.cast::<PyPersistentGraph>()?;
+        let g = binding.get();
         Ok(g.graph.clone())
     }
 }
 
 impl PyPersistentGraph {
     pub fn py_from_db_graph(db_graph: PersistentGraph) -> PyResult<Py<PyPersistentGraph>> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Py::new(
                 py,
                 (
@@ -108,27 +114,75 @@ impl PyPersistentGraph {
 }
 
 /// A temporal graph that allows edges and nodes to be deleted.
+///
+/// Arguments:
+///     path (str | PathLike, optional): the path to persist the graph (only works with disk storage enabled)
+///     config (Config, optional): the configuration options for the graph
 #[pymethods]
 impl PyPersistentGraph {
     #[new]
-    pub fn py_new() -> (Self, PyGraphView) {
-        let graph = PersistentGraph::new();
-        (
+    #[pyo3(signature = (path = None, config=None))]
+    pub fn py_new(
+        path: Option<PathBuf>,
+        config: Option<PyConfig>,
+    ) -> Result<(Self, PyGraphView), GraphError> {
+        let graph = match path {
+            Some(path) => match config {
+                None => PersistentGraph::new_at_path(&path)?,
+                Some(PyConfig(config)) => PersistentGraph::new_at_path_with_config(&path, config)?,
+            },
+            None => match config {
+                None => PersistentGraph::new(),
+                Some(PyConfig(config)) => PersistentGraph::new_with_config(config)?,
+            },
+        };
+        Ok((
             Self {
                 graph: graph.clone(),
             },
             PyGraphView::from(graph),
-        )
+        ))
     }
 
-    #[cfg(feature = "storage")]
-    pub fn to_disk_graph(&self, graph_dir: PathBuf) -> Result<PersistentGraph, GraphError> {
-        self.graph.persist_as_disk_graph(graph_dir)
+    /// Load a disk graph from path
+    ///
+    /// Arguments:
+    ///     path (str | PathLike): the path of the graph folder
+    ///     config (Config, optional): specify a new config to override the values saved for the graph
+    ///                                (note that the page sizes cannot be overridden and are ignored)
+    ///
+    /// Returns:
+    ///     PersistentGraph: the graph
+    #[staticmethod]
+    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<PersistentGraph, GraphError> {
+        match config {
+            None => PersistentGraph::load(&path),
+            Some(PyConfig(config)) => PersistentGraph::load_with_config(&path, config),
+        }
     }
 
-    fn __reduce__(&self) -> (PyGraphEncoder, (Vec<u8>,)) {
-        let state = self.graph.encode_to_vec();
-        (PyGraphEncoder, (state,))
+    /// Trigger a flush of the underlying storage if disk storage is enabled
+    ///
+    /// Returns:
+    ///     None: This function does not return a value, if the operation is successful.
+    pub fn flush(&self) -> Result<(), GraphError> {
+        self.graph.flush()
+    }
+
+    fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {
+        let state = self.graph.encode_to_bytes()?;
+        Ok((PyGraphEncoder, (state,)))
+    }
+
+    /// Persist graph to parquet files
+    ///
+    /// Arguments:
+    ///     graph_dir (str | PathLike): the folder where the graph will be persisted as parquet
+    ///
+    /// Returns:
+    ///     None:
+    pub fn to_parquet(&self, graph_dir: PathBuf) -> Result<(), GraphError> {
+        self.graph.encode_parquet(graph_dir)
     }
 
     /// Adds a new node with the given id and properties to the graph.
@@ -565,7 +619,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     PersistentGraph: the graph with persistent semantics applied
-    pub fn persistent_graph<'py>(&'py self) -> PyResult<Py<PyPersistentGraph>> {
+    pub fn persistent_graph(&self) -> PyResult<Py<PyPersistentGraph>> {
         PyPersistentGraph::py_from_db_graph(self.graph.persistent_graph())
     }
 
@@ -585,6 +639,7 @@ impl PyPersistentGraph {
     ///     shared_metadata (PropInput, optional): A dictionary of metadata properties that will be added to every node. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -592,13 +647,14 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
     )]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
         time: &str,
         id: &str,
+
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -606,6 +662,7 @@ impl PyPersistentGraph {
         shared_metadata: Option<HashMap<String, Prop>>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -622,6 +679,7 @@ impl PyPersistentGraph {
                 &metadata,
                 shared_metadata.as_ref(),
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -645,6 +703,7 @@ impl PyPersistentGraph {
                     &self.graph,
                     path.as_path(),
                     time,
+                    event_id,
                     id,
                     node_type,
                     node_type_col,
@@ -652,6 +711,7 @@ impl PyPersistentGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
+                    true,
                     arced_schema.clone(),
                 )?;
             }
@@ -668,6 +728,7 @@ impl PyPersistentGraph {
                     shared_metadata.as_ref(),
                     csv_options.as_ref(),
                     arced_schema,
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -696,6 +757,7 @@ impl PyPersistentGraph {
     ///     layer_col (str, optional): The edge layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -703,7 +765,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None)
+        signature = (data, time, src, dst, properties = None, metadata = None, shared_metadata = None, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None)
     )]
     fn load_edges(
         &self,
@@ -711,6 +773,7 @@ impl PyPersistentGraph {
         time: &str,
         src: &str,
         dst: &str,
+
         properties: Option<Vec<PyBackedStr>>,
         metadata: Option<Vec<PyBackedStr>>,
         shared_metadata: Option<HashMap<String, Prop>>,
@@ -718,6 +781,7 @@ impl PyPersistentGraph {
         layer_col: Option<&str>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -735,6 +799,7 @@ impl PyPersistentGraph {
                 layer,
                 layer_col,
                 column_schema,
+                event_id,
             )
         } else if let Ok(path) = data.extract::<PathBuf>() {
             // extracting PathBuf handles Strings too
@@ -757,14 +822,12 @@ impl PyPersistentGraph {
                 load_edges_from_parquet(
                     &self.graph,
                     &path,
-                    time,
-                    src,
-                    dst,
+                    ColumnNames::new(time, event_id, src, dst, layer_col),
+                    true,
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
                     layer,
-                    layer_col,
                     None,
                     arced_schema.clone(),
                 )?;
@@ -783,6 +846,7 @@ impl PyPersistentGraph {
                     layer_col,
                     csv_options.as_ref(),
                     arced_schema.clone(),
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -808,23 +872,26 @@ impl PyPersistentGraph {
     ///     layer_col (str, optional): The edge layer col name in the data source. Cannot be used in combination with layer. Defaults to None.
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (data, time, src, dst, layer = None, layer_col = None, schema = None, csv_options = None))]
+    #[pyo3(signature = (data, time, src, dst, layer = None, layer_col = None, schema = None, csv_options = None, event_id = None))]
     fn load_edge_deletions(
         &self,
         data: &Bound<PyAny>,
         time: &str,
         src: &str,
         dst: &str,
+
         layer: Option<&str>,
         layer_col: Option<&str>,
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
+        event_id: Option<&str>,
     ) -> Result<(), GraphError> {
         let column_schema = convert_py_schema(schema)?;
         if data.hasattr("__arrow_c_stream__")? {
@@ -832,6 +899,7 @@ impl PyPersistentGraph {
                 &self.graph,
                 data,
                 time,
+                event_id,
                 src,
                 dst,
                 layer,
@@ -859,11 +927,9 @@ impl PyPersistentGraph {
                 load_edge_deletions_from_parquet(
                     &self.graph,
                     path.as_path(),
-                    time,
-                    src,
-                    dst,
+                    ColumnNames::new(time, event_id, src, dst, layer_col),
                     layer,
-                    layer_col,
+                    true,
                     None,
                     arced_schema.clone(),
                 )?;
@@ -879,6 +945,7 @@ impl PyPersistentGraph {
                     layer_col,
                     csv_options.as_ref(),
                     arced_schema,
+                    event_id,
                 )?;
             }
             if !is_parquet && !is_csv {
@@ -961,6 +1028,8 @@ impl PyPersistentGraph {
                     id,
                     node_type,
                     node_type_col,
+                    None,
+                    None,
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
@@ -1068,6 +1137,7 @@ impl PyPersistentGraph {
                     layer_col,
                     None,
                     arced_schema.clone(),
+                    true,
                 )?;
             }
             if is_csv {
@@ -1093,10 +1163,81 @@ impl PyPersistentGraph {
         }
     }
 
+    /// Load graph properties from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
+    /// or a path to a Parquet file, or a directory containing multiple Parquet files.
+    /// The following are known to support the ArrowStreamExportable protocol: Pandas dataframes, FireDucks(.pandas) dataframes,
+    /// Polars dataframes, Arrow tables, DuckDB (e.g. DuckDBPyRelation obtained from running an SQL query).
+    ///
+    /// Arguments:
+    ///     data (Any): The data source containing graph properties.
+    ///     time (str): The column name for the update timestamps.
+    ///     properties (List[str], optional): List of temporal property column names. Defaults to None.
+    ///     metadata (List[str], optional): List of constant property column names. Defaults to None.
+    ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
+    ///     event_id (str, optional): The column name for the secondary index.
+    ///
+    /// Returns:
+    ///     None: This function does not return a value if the operation is successful.
+    ///
+    /// Raises:
+    ///     GraphError: If the operation fails.
+    #[pyo3(
+        signature = (data, time, properties = None, metadata = None, schema = None, event_id = None)
+    )]
+    fn load_graph_properties(
+        &self,
+        data: &Bound<PyAny>,
+        time: &str,
+        properties: Option<Vec<PyBackedStr>>,
+        metadata: Option<Vec<PyBackedStr>>,
+        schema: Option<Bound<PyAny>>,
+        event_id: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
+        let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
+        let column_schema = convert_py_schema(schema)?;
+        if data.hasattr("__arrow_c_stream__")? {
+            load_graph_props_from_arrow_c_stream(
+                &self.graph,
+                data,
+                time,
+                event_id,
+                Some(&properties),
+                Some(&metadata),
+                column_schema,
+            )
+        } else if let Ok(path) = data.extract::<PathBuf>() {
+            // extracting PathBuf handles Strings too
+            let is_parquet = is_parquet_path(&path)?;
+
+            // wrap in Arc to avoid cloning the entire schema for Parquet and inner loops
+            let arced_schema = column_schema.map(Arc::new);
+
+            if is_parquet {
+                load_graph_props_from_parquet(
+                    &self.graph,
+                    path.as_path(),
+                    time,
+                    event_id,
+                    &properties,
+                    &metadata,
+                    None,
+                    arced_schema,
+                )?;
+            } else {
+                return Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' contains invalid path. Paths must either point to a Parquet file, or a directory containing Parquet files")));
+            }
+            Ok(())
+        } else {
+            Err(GraphError::PythonError(PyValueError::new_err("Argument 'data' invalid. Valid data sources are: a single Parquet file, a directory containing Parquet files, and objects that implement an __arrow_c_stream__ method.")))
+        }
+    }
+
     /// Create graph index
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index(&self) -> Result<(), GraphError> {
         self.graph.create_index()
     }
@@ -1107,6 +1248,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph.create_index_with_spec(py_spec.spec.clone())
     }
@@ -1118,6 +1260,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram(&self) -> Result<(), GraphError> {
         self.graph.create_index_in_ram()
     }
@@ -1135,6 +1278,7 @@ impl PyPersistentGraph {
     ///
     /// Returns:
     ///     None:
+    #[cfg(feature = "search")]
     fn create_index_in_ram_with_spec(&self, py_spec: &PyIndexSpec) -> Result<(), GraphError> {
         self.graph
             .create_index_in_ram_with_spec(py_spec.spec.clone())

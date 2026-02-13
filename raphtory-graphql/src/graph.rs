@@ -1,47 +1,62 @@
-use crate::paths::ExistingGraphFolder;
-use once_cell::sync::OnceCell;
+use crate::paths::{ExistingGraphFolder, ValidGraphPaths};
+#[cfg(feature = "search")]
+use raphtory::prelude::IndexMutationOps;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::view::{
-            internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+        api::{
+            storage::storage::Config,
+            view::{
+                internal::{
+                    InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+                },
+                Base, InheritViewOps, MaterializedGraph,
             },
-            Base, InheritViewOps, MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, IndexMutationOps},
-    serialise::GraphFolder,
-    storage::core_ops::CoreGraphOps,
+    prelude::EdgeViewOps,
+    serialise::{GraphPaths, StableDecode},
     vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
 };
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
+    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
-
-#[cfg(feature = "storage")]
-use {raphtory::prelude::IntoGraph, raphtory_storage::disk::DiskGraphStorage};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use tracing::info;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: OnceCell<GraphFolder>,
+    pub(crate) folder: ExistingGraphFolder,
+    pub(crate) is_dirty: Arc<AtomicBool>,
 }
 
 impl GraphWithVectors {
     pub(crate) fn new(
         graph: MaterializedGraph,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
+        folder: ExistingGraphFolder,
     ) -> Self {
         Self {
             graph,
             vectors,
-            folder: Default::default(),
+            folder,
+            is_dirty: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    pub(crate) fn set_dirty(&self, is_dirty: bool) {
+        self.is_dirty.store(is_dirty, Ordering::SeqCst);
+    }
+
+    pub(crate) fn is_dirty(&self) -> bool {
+        self.is_dirty.load(Ordering::SeqCst)
     }
 
     /// Generates and stores embeddings for a batch of nodes.
@@ -68,53 +83,36 @@ impl GraphWithVectors {
         Ok(())
     }
 
-    pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
-        match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => Ok(()),
-        }
-    }
-
     pub(crate) fn read_from_folder(
         folder: &ExistingGraphFolder,
         cache: Option<VectorCache>,
         create_index: bool,
+        config: Config,
     ) -> Result<Self, GraphError> {
-        let graph_path = &folder.get_graph_path();
-        let graph = if graph_path.is_dir() {
-            get_disk_graph_from_path(folder)?
+        let graph_folder = folder.graph_folder();
+        let graph = if graph_folder.read_metadata()?.is_diskgraph {
+            MaterializedGraph::load_with_config(graph_folder, config)?
         } else {
-            MaterializedGraph::load_cached(folder.clone())?
+            MaterializedGraph::decode_with_config(graph_folder, config)?
         };
         let vectors = cache.and_then(|cache| {
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
+            VectorisedGraph::read_from_path(&folder.vectors_path().ok()?, graph.clone(), cache).ok()
         });
-        println!("Graph loaded = {}", folder.get_original_path_str());
+
+        info!("Graph loaded = {}", folder.local_path());
+
+        #[cfg(feature = "search")]
         if create_index {
             graph.create_index()?;
-            graph.write_updates()?;
         }
+
         Ok(Self {
             graph: graph.clone(),
             vectors,
-            folder: OnceCell::with_value(folder.clone().into()),
+            folder: folder.clone().into(),
+            is_dirty: Arc::new(AtomicBool::new(false)),
         })
     }
-}
-
-#[cfg(feature = "storage")]
-fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
-    let disk_graph = DiskGraphStorage::load_from_dir(&path.get_graph_path())
-        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
-    let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
-    println!("Disk Graph loaded = {}", path.get_original_path().display());
-    Ok(graph)
-}
-
-#[cfg(not(feature = "storage"))]
-fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
-    Err(GraphError::GraphNotFound(path.to_error_path()))
 }
 
 impl Base for GraphWithVectors {
