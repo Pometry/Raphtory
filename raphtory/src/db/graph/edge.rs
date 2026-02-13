@@ -402,12 +402,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         let src_name = None;
         let dst = self.dst().node;
         let dst_name = None;
+        let edge_id = self.edge.pid();
 
-        let e_id = self.edge.pid();
-
-        let mut writer = self
+        let mut writers = self
             .graph
-            .atomic_add_edge(src, dst, Some(e_id), layer_id)
+            .atomic_add_edge(src, dst, Some(edge_id), layer_id)
             .map_err(into_graph_err)?;
 
         let lsn = wal.log_add_edge(
@@ -417,7 +416,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             src,
             dst_name,
             dst,
-            e_id,
+            edge_id,
             layer,
             layer_id,
             props_for_wal,
@@ -432,13 +431,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             })
             .collect::<Vec<_>>();
 
-        writer.internal_add_edge(t, src, dst, MaybeNew::New(e_id.with_layer(layer_id)), props);
-
-        writer.set_lsn(lsn);
+        writers.internal_add_edge(t, src, dst, MaybeNew::New(edge_id.with_layer(layer_id)), props);
+        writers.set_lsn(lsn);
 
         transaction_manager.end_transaction(transaction_id);
 
-        drop(writer);
+        drop(writers);
 
         if let Err(e) = wal.flush(lsn) {
             return Err(GraphError::FatalWriteError(e));

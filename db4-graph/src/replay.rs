@@ -7,7 +7,7 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::STATIC_GRAPH_LAYER_ID,
-            prop::{unify_types, Prop},
+            prop::Prop,
         },
         EID, GID, VID,
     },
@@ -15,11 +15,8 @@ use raphtory_api::core::{
 };
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
-    persist::strategy::PersistenceStrategy,
-    resolver::GIDResolverOps,
-    wal::{GraphReplay, TransactionID, LSN},
-    ES, GS, NS,
+    error::StorageError, persist::strategy::PersistenceStrategy,
+    resolver::GIDResolverOps, wal::{GraphReplay, TransactionID, LSN}, ES, GS, NS
 };
 
 impl<EXT> GraphReplay for WriteLockedGraph<'_, EXT>
@@ -168,24 +165,13 @@ where
             // Insert prop ids into edge meta.
             for (prop_name, prop_id, prop_value) in &props {
                 let prop_mapper = edge_meta.temporal_prop_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
 
-                match prop_mapper.get_dtype(*prop_id) {
-                    None => {
-                        prop_mapper.set_id_and_dtype(
-                            prop_name.as_str(),
-                            *prop_id,
-                            prop_value.dtype(),
-                        );
-                    }
-                    Some(old_dtype) => {
-                        let dtype = prop_value.dtype();
-                        let mut unified = false;
-                        let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
-                        if unified {
-                            prop_mapper.set_dtype(*prop_id, new_dtype);
-                        }
-                    }
-                }
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype()
+                )?;
             }
 
             // Insert layer id into the layer meta of both edge and node.
@@ -263,23 +249,13 @@ where
 
             for (prop_name, prop_id, prop_value) in &props {
                 let prop_mapper = node_meta.temporal_prop_mapper();
-                match prop_mapper.get_dtype(*prop_id) {
-                    None => {
-                        prop_mapper.set_id_and_dtype(
-                            prop_name.as_str(),
-                            *prop_id,
-                            prop_value.dtype(),
-                        );
-                    }
-                    Some(old_dtype) => {
-                        let dtype = prop_value.dtype();
-                        let mut unified = false;
-                        let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
-                        if unified {
-                            prop_mapper.set_dtype(*prop_id, new_dtype);
-                        }
-                    }
-                }
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype()
+                )?;
             }
 
             // Set node type metadata early to prevent issues with borrowing node_writer.
