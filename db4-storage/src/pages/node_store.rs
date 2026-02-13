@@ -300,7 +300,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
     }
 
-    fn reserve_segment_row(&self, segment: &NS) -> Option<u32> {
+    pub fn reserve_segment_row(&self, segment: &NS) -> Option<u32> {
         // TODO: if this becomes a hotspot, we can switch to a fetch_add followed by a fetch_min
         // this means when we read the counter we need to clamp it to max_page_len so the iterators don't break
         increment_and_clamp(segment.nodes_counter(), 1, self.max_segment_len())
