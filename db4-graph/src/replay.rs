@@ -214,6 +214,60 @@ where
         Ok(())
     }
 
+    fn replay_add_edge_metadata(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        _t: EventTime,
+        _src_id: VID,
+        _dst_id: VID,
+        eid: EID,
+        layer_id: usize,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
+        self.resize_segments_to_eid(eid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .edges()
+            .get_or_create_segment(edge_segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let edge_meta = self.graph().edge_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = edge_meta.temporal_prop_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
+            }
+
+            let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
+
+            let (src, dst) = edge_writer.get_edge(layer_id, edge_pos).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Edge {eid:?} not found in layer {layer_id} during replay_add_edge_metadata"
+                ))
+            })?;
+
+            let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
+
+            edge_writer.check_metadata(edge_pos, layer_id, &props_vec)?;
+            edge_writer.update_c_props(edge_pos, src, dst, layer_id, props_vec);
+            edge_writer.writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
     fn replay_add_node(
         &mut self,
         lsn: LSN,

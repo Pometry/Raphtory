@@ -262,6 +262,7 @@ impl MemEdgeSegment {
         if let Some(layer) = self.layers.get(layer_id) {
             layer.check_metadata(edge_pos, props)?;
         }
+
         Ok(())
     }
 

@@ -295,7 +295,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         &self,
         layer: Option<&str>,
     ) -> Result<usize, GraphError> {
-        let layer_id = self.resolve_layer(layer, false)?;
+        let create = false;
+        let layer_id = self.resolve_layer(layer, create)?;
+
         if self
             .graph
             .core_edge(self.edge.pid())
@@ -337,9 +339,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
-        self.graph
+        let writer = self.graph
             .internal_add_edge_metadata(self.edge.pid(), input_layer_id, properties)
             .map_err(into_graph_err)?;
+
+
         Ok(())
     }
 

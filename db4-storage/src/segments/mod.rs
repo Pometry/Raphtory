@@ -264,6 +264,7 @@ impl<T: HasRow> SegmentContainer<T> {
                 prop_entry.check_metadata(*prop_id, prop_val)?;
             }
         }
+
         Ok(())
     }
 
