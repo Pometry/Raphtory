@@ -24,7 +24,7 @@ use raphtory_storage::{
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-        addition_ops_ext::{UnlockedSession, WriteS},
+        addition_ops_ext::{AtomicAddEdge, UnlockedSession},
         deletion_ops::InternalDeletionOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, NodeWriterT,
@@ -40,8 +40,8 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-use crate::prelude::Graph;
-use raphtory_storage::mutation::durability_ops::DurabilityOps;
+use crate::{errors::into_graph_err, prelude::Graph};
+use raphtory_storage::mutation::{addition_ops_ext::AtomicAddNode, durability_ops::DurabilityOps};
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -341,7 +341,7 @@ pub struct StorageWriteSession<'a> {
 }
 
 pub struct AtomicAddEdgeSession<'a> {
-    session: WriteS<'a, Extension>,
+    session: AtomicAddEdge<'a, Extension>,
     storage: &'a Storage,
 }
 
@@ -563,6 +563,10 @@ impl InternalAdditionOps for Storage {
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error> {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
+    }
+
+    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
+        self.graph.atomic_add_node(node).map_err(into_graph_err)
     }
 }
 

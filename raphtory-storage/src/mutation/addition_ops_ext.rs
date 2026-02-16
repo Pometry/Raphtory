@@ -1,5 +1,5 @@
 use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
     durability_ops::DurabilityOps,
     MutationError, NodeWriterT,
 };
@@ -25,7 +25,8 @@ use storage::{
     error::StorageError,
     pages::{
         node_page::writer::{node_info_as_props, NodeWriters},
-        session::WriteSession,
+        resolve_pos,
+        session::EdgeWriteSession,
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
@@ -35,14 +36,14 @@ use storage::{
     Extension, GIDResolver, LocalPOS, Wal, ES, GS, NS,
 };
 
-pub struct WriteS<'a, EXT>
+pub struct AtomicAddEdge<'a, EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
+    static_session: EdgeWriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
     src: MaybeNew<VID>,
     dst: MaybeNew<VID>,
     eid: MaybeNew<EID>,
@@ -53,7 +54,7 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<'a, EXT> EdgeWriteLock for WriteS<'a, EXT>
+impl<'a, EXT> EdgeWriteLock for AtomicAddEdge<'a, EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
@@ -166,10 +167,61 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct AtomicAddNode<'a> {
+    writer: NodeWriterT<'a>,
+    vid: MaybeNew<VID>,
+}
+
+impl<'a> AtomicAddNode<'a> {
+    fn local_pos(&self) -> LocalPOS {
+        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.mut_segment.max_page_len());
+        pos
+    }
+}
+
+impl<'a> NodeWriteLock for AtomicAddNode<'a> {
+    fn internal_add_update(
+        &mut self,
+        t: EventTime,
+        layer: usize,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        let pos = self.local_pos();
+        self.writer.add_props(t, pos, layer, props)
+    }
+
+    fn can_set_type(&self) -> bool {
+        self.vid.is_new() || self.get_type() == DEFAULT_NODE_TYPE_ID
+    }
+
+    fn get_type(&self) -> usize {
+        self.writer
+            .get_metadata(self.local_pos(), STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
+            .into_u64()
+            .map(|u| u as usize)
+            .unwrap_or(DEFAULT_NODE_TYPE_ID)
+    }
+
+    fn set_type(&mut self, node_type: usize) {
+        let pos = self.local_pos();
+        self.writer
+            .store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type)
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.writer.mut_segment.set_lsn(lsn)
+    }
+
+    fn node(&self) -> MaybeNew<VID> {
+        self.vid
+    }
+}
+
 impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
     type WS<'a> = UnlockedSession<'a>;
-    type AtomicAddEdge<'a> = WriteS<'a, Extension>;
+    type AtomicAddEdge<'a> = AtomicAddEdge<'a, Extension>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
         let locked_g = self.write_locked_graph();
@@ -559,11 +611,40 @@ impl InternalAdditionOps for TemporalGraph {
             }
         };
 
-        Ok(WriteS {
-            static_session: WriteSession::new(node_writers, edge_writer, self.storage()),
+        Ok(AtomicAddEdge {
+            static_session: EdgeWriteSession::new(node_writers, edge_writer, self.storage()),
             src: src_id,
             dst: dst_id,
             eid: edge_id,
+        })
+    }
+
+    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
+        let node_vid = match node {
+            NodeRef::Internal(vid) => vid,
+            NodeRef::External(gid) => match self.logical_to_physical.get_or_init(gid)? {
+                MaybeInit::VID(vid) => vid,
+                MaybeInit::Init(init) => {
+                    let (pos, mut writer) = self.storage().nodes().reserve_and_lock_segment(
+                        self.event_counter.fetch_add(1, Ordering::Relaxed),
+                        1,
+                    );
+                    writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, gid.to_owned());
+                    let vid =
+                        pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                    init.init(vid)?;
+                    return Ok(AtomicAddNode {
+                        writer,
+                        vid: MaybeNew::New(vid),
+                    });
+                }
+            },
+        };
+        let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
+        let writer = self.storage().node_writer(segment_id);
+        Ok(AtomicAddNode {
+            writer,
+            vid: MaybeNew::Existing(node_vid),
         })
     }
 

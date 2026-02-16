@@ -1,7 +1,7 @@
 use crate::{
     graph::graph::GraphStorage,
     mutation::{
-        addition_ops_ext::{UnlockedSession, WriteS},
+        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         MutationError, NodeWriterT,
     },
 };
@@ -10,7 +10,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{
-                meta::Meta,
+                meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
                 prop::{Prop, PropType},
             },
             GidRef, EID, VID,
@@ -72,6 +72,9 @@ pub trait InternalAdditionOps {
         layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error>;
 
+    /// Get or create writer for a node
+    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error>;
+
     fn internal_add_node(
         &self,
         t: EventTime,
@@ -113,6 +116,23 @@ pub trait EdgeWriteLock: Send + Sync {
     fn dst(&self) -> MaybeNew<VID>;
 
     fn eid(&self) -> MaybeNew<EID>;
+}
+
+pub trait NodeWriteLock: Send + Sync {
+    fn internal_add_update(
+        &mut self,
+        t: EventTime,
+        layer: usize,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    );
+    fn can_set_type(&self) -> bool;
+    fn get_type(&self) -> usize;
+
+    fn set_type(&mut self, node_type: usize);
+
+    fn set_lsn(&mut self, lsn: LSN);
+
+    fn node(&self) -> MaybeNew<VID>;
 }
 
 pub trait SessionAdditionOps: Send + Sync {
@@ -166,7 +186,7 @@ impl InternalAdditionOps for GraphStorage {
     type Error = MutationError;
     type WS<'b> = UnlockedSession<'b>;
 
-    type AtomicAddEdge<'a> = WriteS<'a, Extension>;
+    type AtomicAddEdge<'a> = AtomicAddEdge<'a, Extension>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
         self.mutable()?.write_lock()
@@ -250,6 +270,10 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?
             .resolve_node_and_type(id, node_type)
             .map_err(MutationError::from)
+    }
+
+    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
+        self.mutable()?.atomic_add_node(node)
     }
 }
 
@@ -357,5 +381,9 @@ where
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error> {
         self.base().resolve_node_and_type(id, node_type)
+    }
+
+    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
+        self.base().atomic_add_node(node)
     }
 }
