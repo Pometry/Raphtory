@@ -35,7 +35,7 @@ jobs:
           RUST_BACKTRACE: 1
         run: |
           cd graphql-bench
-          cargo run --profile=build-fast -- server &
+          cargo run -p raphtory-graphql --profile=build-fast -- server &
           make stress-test
       - name: Upload k6 report
         if: always()
