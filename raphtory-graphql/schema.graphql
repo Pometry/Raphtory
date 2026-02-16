@@ -3319,13 +3319,17 @@ input Value @oneOf {
 	"""
 	object: [ObjectEntry!]
 	"""
-	Timezone-aware datetime
+	Timezone-aware datetime.
 	"""
 	dtime: String
 	"""
-	Naive datetime (no timezone)
+	Naive datetime (no timezone).
 	"""
 	ndtime: String
+	"""
+	Big Decimal numbers.
+	"""
+	decimal: String
 }
 
 type VectorSelection {

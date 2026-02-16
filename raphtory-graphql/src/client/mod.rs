@@ -54,7 +54,7 @@ pub(crate) fn inner_collection(value: &Prop) -> String {
         }
         Prop::DTime(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
         Prop::NDTime(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
-        Prop::Decimal(value) => format!("{{ decimal: {} }}", value),
+        Prop::Decimal(value) => format!("{{ decimal: \"{}\" }}", value),
     }
 }
 

@@ -6,6 +6,7 @@ use crate::{
     rayon::blocking_compute,
 };
 use async_graphql::{Error, Name, Value as GqlValue};
+use bigdecimal::BigDecimal;
 use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
 };
@@ -33,6 +34,7 @@ use std::{
     convert::TryFrom,
     fmt,
     fmt::{Display, Formatter},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -70,10 +72,12 @@ pub enum Value {
     List(Vec<Value>),
     /// Object.
     Object(Vec<ObjectEntry>),
-    /// Timezone-aware datetime
+    /// Timezone-aware datetime.
     DTime(String),
-    /// Naive datetime (no timezone)
+    /// Naive datetime (no timezone).
     NDTime(String),
+    /// BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
+    Decimal(String),
 }
 
 impl Display for Value {
@@ -102,6 +106,7 @@ impl Display for Value {
             }
             Value::DTime(v) => write!(f, "DTime({})", v),
             Value::NDTime(v) => write!(f, "NDTime({})", v),
+            Value::Decimal(v) => write!(f, "Decimal({})", v),
         }
     }
 }
@@ -149,6 +154,14 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
             t.dt()
                 .map(|dt| Prop::NDTime(dt.naive_utc()))
                 .map_err(GraphError::from)
+        }
+        Value::Decimal(s) => {
+            let bd = BigDecimal::from_str(&s).map_err(|e| GraphError::InvalidProperty {
+                reason: format!("Invalid Decimal: {e}"),
+            })?;
+            Prop::try_from_bd(bd).map_err(|e| GraphError::InvalidProperty {
+                reason: format!("Decimal too large: {e}"),
+            })
         }
     }
 }
