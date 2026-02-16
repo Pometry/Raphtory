@@ -10,30 +10,18 @@ use crate::{
     },
 };
 use minijinja::context;
-use pyo3::{pyclass, pymethods, Python};
+use pyo3::{pyclass, pymethods};
+use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID},
     storage::timeindex::EventTime,
 };
-use std::{collections::HashMap, future::Future, sync::Arc};
-use tokio::runtime::Runtime;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
 #[pyclass(name = "RemoteGraph", module = "raphtory.graphql")]
 pub struct PyRemoteGraph {
     pub(crate) graph: Arc<GraphQLRemoteGraph>,
-    pub(crate) runtime: Arc<Runtime>,
-}
-
-impl PyRemoteGraph {
-    fn execute_async_task<T, F, O>(&self, task: T) -> O
-    where
-        T: FnOnce() -> F + Send + 'static,
-        F: Future<Output = O> + 'static,
-        O: Send + 'static,
-    {
-        Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
-    }
 }
 
 #[pymethods]
@@ -51,7 +39,7 @@ impl PyRemoteGraph {
             self.graph.client.clone(),
             id.to_string(),
         );
-        PyRemoteNode::new(node, self.runtime.clone())
+        PyRemoteNode::new(node)
     }
 
     /// Gets a remote edge with the specified source and destination nodes
@@ -70,7 +58,7 @@ impl PyRemoteGraph {
             src.to_string(),
             dst.to_string(),
         );
-        PyRemoteEdge::new(edge, self.runtime.clone())
+        PyRemoteEdge::new(edge)
     }
 
     /// Batch add node updates to the remote graph
@@ -142,7 +130,7 @@ impl PyRemoteGraph {
             let graph = Arc::clone(&self.graph);
             move || async move { graph.client.query(&query, HashMap::new()).await }
         };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -219,7 +207,7 @@ impl PyRemoteGraph {
             let graph = Arc::clone(&self.graph);
             move || async move { graph.client.query(&query, HashMap::new()).await }
         };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -248,11 +236,11 @@ impl PyRemoteGraph {
 
         let task =
             move || async move { graph.add_node(timestamp, id, properties, node_type).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         let node =
             GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
-        Ok(PyRemoteNode::new(node, self.runtime.clone()))
+        Ok(PyRemoteNode::new(node))
     }
 
     /// Create a new node with the given id and properties to the remote graph and fail if the node already exists.
@@ -282,11 +270,11 @@ impl PyRemoteGraph {
                 .create_node(timestamp, id, properties, node_type)
                 .await
         };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         let node =
             GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
-        Ok(PyRemoteNode::new(node, self.runtime.clone()))
+        Ok(PyRemoteNode::new(node))
     }
 
     /// Adds properties to the remote graph.
@@ -304,7 +292,7 @@ impl PyRemoteGraph {
     ) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
         let task = move || async move { graph.add_property(timestamp, properties).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -319,7 +307,7 @@ impl PyRemoteGraph {
     pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
         let task = move || async move { graph.add_metadata(properties).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -334,7 +322,7 @@ impl PyRemoteGraph {
     pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
         let task = move || async move { graph.update_metadata(properties).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -366,14 +354,15 @@ impl PyRemoteGraph {
 
         let task =
             move || async move { graph.add_edge(timestamp, src, dst, properties, layer).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
+
         let edge = GraphQLRemoteEdge::new(
             self.graph.path.clone(),
             self.graph.client.clone(),
             src_str,
             dst_str,
         );
-        Ok(PyRemoteEdge::new(edge, self.runtime.clone()))
+        Ok(PyRemoteEdge::new(edge))
     }
 
     /// Deletes an edge in the remote graph, given the timestamp, src and dst nodes and layer (optional)
@@ -400,7 +389,7 @@ impl PyRemoteGraph {
         let layer = layer.map(|s| s.to_string());
 
         let task = move || async move { graph.delete_edge(timestamp, src, dst, layer).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         let edge = GraphQLRemoteEdge::new(
             self.graph.path.clone(),
@@ -408,6 +397,6 @@ impl PyRemoteGraph {
             src_str,
             dst_str,
         );
-        Ok(PyRemoteEdge::new(edge, self.runtime.clone()))
+        Ok(PyRemoteEdge::new(edge))
     }
 }

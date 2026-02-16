@@ -1,8 +1,8 @@
 use crate::client::{remote_edge::GraphQLRemoteEdge, ClientError};
 use pyo3::{pyclass, pymethods};
+use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
-use std::{collections::HashMap, future::Future, sync::Arc};
-use tokio::runtime::Runtime;
+use std::{collections::HashMap, sync::Arc};
 
 /// A remote edge reference
 ///
@@ -13,24 +13,13 @@ use tokio::runtime::Runtime;
 #[pyclass(name = "RemoteEdge", module = "raphtory.graphql")]
 pub struct PyRemoteEdge {
     pub(crate) edge: Arc<GraphQLRemoteEdge>,
-    pub(crate) runtime: Arc<Runtime>,
 }
 
 impl PyRemoteEdge {
-    pub(crate) fn new(edge: GraphQLRemoteEdge, runtime: Arc<Runtime>) -> Self {
+    pub(crate) fn new(edge: GraphQLRemoteEdge) -> Self {
         PyRemoteEdge {
             edge: Arc::new(edge),
-            runtime,
         }
-    }
-
-    fn execute_async_task<T, F, O>(&self, task: T) -> O
-    where
-        T: FnOnce() -> F + Send + 'static,
-        F: Future<Output = O> + 'static,
-        O: Send + 'static,
-    {
-        pyo3::Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
     }
 }
 
@@ -59,7 +48,7 @@ impl PyRemoteEdge {
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.add_updates(t, properties, layer_str).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -81,7 +70,7 @@ impl PyRemoteEdge {
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.delete(t, layer_str).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -106,7 +95,7 @@ impl PyRemoteEdge {
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.add_metadata(properties, layer_str).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -131,7 +120,7 @@ impl PyRemoteEdge {
         let layer_str = layer.map(|s| s.to_string());
 
         let task = move || async move { edge.update_metadata(properties, layer_str).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }

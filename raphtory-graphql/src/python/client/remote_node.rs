@@ -1,14 +1,13 @@
 use crate::client::{remote_node::GraphQLRemoteNode, ClientError};
 use pyo3::{pyclass, pymethods};
+use raphtory::python::utils::execute_async_task;
 use raphtory_api::core::{entities::properties::prop::Prop, storage::timeindex::EventTime};
-use std::{collections::HashMap, future::Future, sync::Arc};
-use tokio::runtime::Runtime;
+use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
 #[pyclass(name = "RemoteNode", module = "raphtory.graphql")]
 pub struct PyRemoteNode {
     pub(crate) node: Arc<GraphQLRemoteNode>,
-    pub(crate) runtime: Arc<Runtime>,
 }
 
 impl PyRemoteNode {
@@ -21,20 +20,10 @@ impl PyRemoteNode {
     ///
     /// Returns:
     ///   None:
-    pub(crate) fn new(node: GraphQLRemoteNode, runtime: Arc<Runtime>) -> Self {
+    pub(crate) fn new(node: GraphQLRemoteNode) -> Self {
         Self {
             node: Arc::new(node),
-            runtime,
         }
-    }
-
-    fn execute_async_task<T, F, O>(&self, task: T) -> O
-    where
-        T: FnOnce() -> F + Send + 'static,
-        F: Future<Output = O> + 'static,
-        O: Send + 'static,
-    {
-        pyo3::Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
     }
 }
 
@@ -53,7 +42,7 @@ impl PyRemoteNode {
         let new_type = new_type.to_string();
 
         let task = move || async move { node.set_node_type(new_type).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
         Ok(())
     }
 
@@ -75,7 +64,7 @@ impl PyRemoteNode {
         let node = Arc::clone(&self.node);
 
         let task = move || async move { node.add_updates(t, properties).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
 
         Ok(())
     }
@@ -93,7 +82,7 @@ impl PyRemoteNode {
         let node = Arc::clone(&self.node);
 
         let task = move || async move { node.add_metadata(properties).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
         Ok(())
     }
 
@@ -110,7 +99,7 @@ impl PyRemoteNode {
         let node = Arc::clone(&self.node);
 
         let task = move || async move { node.update_metadata(properties).await };
-        self.execute_async_task(task)?;
+        execute_async_task(task)?;
         Ok(())
     }
 }

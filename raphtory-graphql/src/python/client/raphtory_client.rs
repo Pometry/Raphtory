@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use pyo3::{exceptions::PyException, prelude::*, types::PyDict};
-use raphtory::db::api::view::MaterializedGraph;
+use raphtory::{db::api::view::MaterializedGraph, python::utils::execute_async_task};
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, future::Future, sync::Arc};
 use tokio::runtime::Runtime;
@@ -24,7 +24,6 @@ use tracing::debug;
 #[pyclass(name = "RaphtoryClient", module = "raphtory.graphql")]
 pub struct PyRaphtoryClient {
     pub(crate) client: RaphtoryGraphQLClient,
-    runtime: Arc<Runtime>,
 }
 
 impl PyRaphtoryClient {
@@ -37,7 +36,7 @@ impl PyRaphtoryClient {
     {
         let client = self.client.clone();
         let fut = f(client);
-        let result = self.execute_async_task(|| fut);
+        let result = execute_async_task(|| fut);
         result.map_err(PyErr::from)
     }
 
@@ -48,15 +47,6 @@ impl PyRaphtoryClient {
     ) -> PyResult<HashMap<String, JsonValue>> {
         self.run_async(move |client| async move { client.query(&query, variables).await })
     }
-
-    pub fn execute_async_task<T, F, O>(&self, task: T) -> O
-    where
-        T: FnOnce() -> F + Send + 'static,
-        F: Future<Output = O> + 'static,
-        O: Send + 'static,
-    {
-        Python::attach(|py| py.detach(|| self.runtime.block_on(task())))
-    }
 }
 
 #[pymethods]
@@ -65,13 +55,7 @@ impl PyRaphtoryClient {
     #[pyo3(signature = (url, token=None))]
     pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
         let client = RaphtoryGraphQLClient::connect(url, token).map_err(PyErr::from)?;
-        let runtime = Arc::new(
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .map_err(|e| PyException::new_err(e.to_string()))?,
-        );
-        Ok(Self { client, runtime })
+        Ok(Self { client })
     }
 
     /// Check if the server is online.
@@ -221,7 +205,6 @@ impl PyRaphtoryClient {
     fn remote_graph(&self, path: String) -> PyRemoteGraph {
         PyRemoteGraph {
             graph: Arc::new(GraphQLRemoteGraph::new(path, self.client.clone())),
-            runtime: self.runtime.clone(),
         }
     }
 

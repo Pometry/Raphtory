@@ -1,4 +1,4 @@
-use crate::{client, client::ClientError, url_encode::url_decode_graph};
+use crate::{client::ClientError, url_encode::url_decode_graph};
 use raphtory::{db::api::view::MaterializedGraph, prelude::Config, serialise::GraphFolder};
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
