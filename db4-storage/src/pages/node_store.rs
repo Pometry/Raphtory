@@ -87,6 +87,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
             .flat_map(move |segment| segment.iter_entries())
     }
 
+    pub fn segment_counts(&self) -> SegmentCounts<VID> {
+        SegmentCounts::new(
+            self.storage.max_segment_len(),
+            self.locked_segments.iter().map(|seg| seg.num_nodes()),
+        )
+    }
+
     pub fn par_iter(
         &self,
     ) -> impl rayon::iter::ParallelIterator<
