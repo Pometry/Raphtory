@@ -43,7 +43,7 @@ pub trait DeletionOps:
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
         let mut add_edge_op = self
-            .atomic_add_edge(src, dst, None, layer_id)
+            .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
 
         add_edge_op.internal_delete_edge(ti, layer_id);

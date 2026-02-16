@@ -37,7 +37,7 @@ pub trait InternalAdditionOps {
     /// map layer name to id and allocate a new layer if needed
     fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
 
-    /// map external node id to internal id, allocating a new empty node if needed
+    /// Map external node id to internal id, reserving space for a new empty node if needed.
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
 
     /// Resolve a node and corresponding type, outer MaybeNew tracks whether the type
@@ -69,7 +69,6 @@ pub trait InternalAdditionOps {
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-        layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error>;
 
     /// Get or create writer for a node
@@ -219,9 +218,8 @@ impl InternalAdditionOps for GraphStorage {
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-        layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        self.mutable()?.atomic_add_edge(src, dst, e_id, layer_id)
+        self.mutable()?.atomic_add_edge(src, dst, e_id)
     }
 
     fn internal_add_node(
@@ -331,9 +329,8 @@ where
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-        layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        self.base().atomic_add_edge(src, dst, e_id, layer_id)
+        self.base().atomic_add_edge(src, dst, e_id)
     }
 
     #[inline]

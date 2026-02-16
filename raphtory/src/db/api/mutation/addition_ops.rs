@@ -240,7 +240,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         // Hold all locks for src node, dst node and edge until add_edge_op goes out of scope.
         let mut add_edge_op = self
-            .atomic_add_edge(src, dst, None, layer_id)
+            .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
 
         // NOTE: We log edge id after it is inserted into the edge segment.

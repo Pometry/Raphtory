@@ -504,9 +504,8 @@ impl InternalAdditionOps for Storage {
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-        layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        let session = self.graph.atomic_add_edge(src, dst, e_id, layer_id)?;
+        let session = self.graph.atomic_add_edge(src, dst, e_id)?;
         Ok(AtomicAddEdgeSession {
             session,
             storage: self,

@@ -350,7 +350,6 @@ impl InternalAdditionOps for TemporalGraph {
         src: NodeRef,
         dst: NodeRef,
         e_id: Option<EID>,
-        _layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
         let nodes = self.storage().nodes();
         let src_init = match src {

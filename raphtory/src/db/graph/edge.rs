@@ -391,12 +391,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         let mut writer = self
             .graph
-            .atomic_add_edge(
-                NodeRef::Internal(src),
-                NodeRef::Internal(dst),
-                Some(e_id),
-                layer_id,
-            )
+            .atomic_add_edge(NodeRef::Internal(src), NodeRef::Internal(dst), Some(e_id))
             .map_err(into_graph_err)?;
 
         writer.internal_add_update(t, layer_id, props);
