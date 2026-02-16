@@ -360,7 +360,7 @@ fn import_edge_internal<
 
         for ee in ee.explode() {
             graph.add_edge(
-                ee.time().expect("exploded edge"),
+                ee.time().expect("exploded edge").t(),
                 &src_id,
                 &dst_id,
                 ee.properties().temporal().collect_properties(),
@@ -370,15 +370,7 @@ fn import_edge_internal<
 
         for (t, _) in edge.deletions_hist() {
             let ti = time_from_input_session(&session, t.t())?;
-            let src_node = graph.resolve_node(src_id).map_err(into_graph_err)?.inner();
-            let dst_node = graph.resolve_node(dst_id).map_err(into_graph_err)?.inner();
-            let layer = graph
-                .resolve_layer(Some(&layer_name))
-                .map_err(into_graph_err)?
-                .inner();
-            graph
-                .internal_delete_edge(ti, src_node, dst_node, layer)
-                .map_err(into_graph_err)?;
+            graph.delete_edge(ti.t(), src_id, dst_id, Some(&layer_name))?;
         }
 
         graph
