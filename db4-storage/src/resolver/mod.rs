@@ -55,7 +55,10 @@ pub trait GIDResolverOps {
 
     fn set(&self, gid: GidRef, vid: VID) -> Result<(), StorageError>;
 
-    fn get_or_init(&self, gid: GidRef) -> Result<MaybeInit<Self::Init<'_>>, StorageError>;
+    fn get_or_init<'a>(
+        &'a self,
+        gid: GidRef<'a>,
+    ) -> Result<MaybeInit<Self::Init<'a>>, StorageError>;
 
     fn validate_gids<'a>(
         &self,

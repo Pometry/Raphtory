@@ -43,12 +43,12 @@ impl MaybeVID {
     }
 }
 
-enum InitGuard<'a> {
+enum InitGuard {
     Init {
         init_id: usize,
         guard: ArcMutexGuard<RawMutex, VID>,
     },
-    Read(Ref<'a, usize, Arc<Mutex<VID>>>),
+    Read(Arc<Mutex<VID>>),
 }
 
 #[derive(Error, Debug)]
@@ -123,7 +123,7 @@ impl MappingResolver {
         }
     }
 
-    fn push_uninit<K: Eq + Hash>(&self, entry: VacantEntry<K, MaybeVID>) -> InitGuard<'static> {
+    fn push_uninit<K: Eq + Hash>(&self, entry: VacantEntry<K, MaybeVID>) -> InitGuard {
         let lock = Arc::new(Mutex::new(VID::default()));
         let guard = lock.lock_arc();
         let init_id = self.init_counter.fetch_add(1, Ordering::Relaxed);
@@ -132,10 +132,11 @@ impl MappingResolver {
         InitGuard::Init { init_id, guard }
     }
 
-    fn get_uninit(&self, init_id: &usize) -> Ref<'_, usize, Arc<Mutex<VID>>> {
+    fn get_uninit(&self, init_id: &usize) -> Arc<Mutex<VID>> {
         self.uninitialised
             .get(init_id)
             .expect("initialisation guard should exist")
+            .clone()
     }
 
     fn get_value_from_map<Q, K>(&self, map: &FxDashMap<K, MaybeVID>, key: &Q) -> Option<VID>
