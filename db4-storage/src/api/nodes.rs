@@ -110,7 +110,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;
 
-    fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
+    fn locked(&self) -> Self::ArcLockedSegment;
 
     fn flush(&self) -> Result<(), StorageError>;
 

@@ -226,9 +226,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
         let locked_segments = self
-            .segments
-            .iter()
-            .map(|(_, segment)| segment.locked())
+            .segments_iter()
+            .map(|segment| segment.locked())
             .collect::<Box<_>>();
         ReadLockedNodeStorage {
             storage: self.clone(),
@@ -350,8 +349,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
         let (page_id, pos) = self.resolve_pos(node);
         let node_page = self
-            .segments
-            .get(page_id)
+            .get_segment(page_id)
             .expect("Internal error: page not found");
         node_page.entry(pos)
     }
