@@ -375,6 +375,7 @@ fn add_node_impl<
     let node_id = writer.node().inner();
 
     if error_if_exists && !is_new {
+        drop(writer);
         let node_id = graph.node(node_id).unwrap().id();
         return Err(GraphError::NodeExistsError(node_id));
     }
