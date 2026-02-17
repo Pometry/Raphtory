@@ -129,7 +129,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
     }
 }
 
-impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -151,9 +151,21 @@ impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
         &self.stats
     }
 
-    pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
-        &self.segments
+    pub fn segments_iter(&self) -> impl Iterator<Item = &NS> {
+        let count = self.segments.count();
+        (0..count).map(|id| {
+            self.get_segment(id)
+                .expect("segment should exist given count")
+        })
     }
+
+    pub fn segments_count(&self) -> usize {
+        self.segments.count()
+    }
+
+    // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
+    //     &self.segments
+    // }
 
     fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
         let len = self.segments.count();
@@ -531,6 +543,28 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         self.get_or_create_segment(new_len - 1);
     }
 
+    pub fn get_segment(&self, segment_id: usize) -> Option<&NS> {
+        self.segments
+            .get(segment_id)
+            .map(|seg| seg.deref())
+            .or_else(|| {
+                let count = self.segments.count();
+                if segment_id < count {
+                    // Another thread has allocated the segment, wait for it to be added.
+                    loop {
+                        if let Some(segment) = self.segments.get(segment_id) {
+                            return Some(segment.deref());
+                        } else {
+                            // Wait for the segment to be created.
+                            std::thread::yield_now();
+                        }
+                    }
+                } else {
+                    None
+                }
+            })
+    }
+
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<NS> {
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
@@ -582,7 +616,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub(crate) fn segment_counts(&self) -> SegmentCounts<VID> {
         SegmentCounts::new(
             self.max_segment_len(),
-            self.segments().iter().map(|(_, seg)| seg.num_nodes()),
+            self.segments_iter().map(|seg| seg.num_nodes()),
         )
     }
 
