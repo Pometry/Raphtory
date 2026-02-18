@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771004604664,
+  "lastUpdate": 1771434183429,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4049,6 +4049,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1312,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92e9cbd84263a19e6e201145034b8b95323586c2",
+          "message": "fix auto release action (#2498)",
+          "timestamp": "2026-02-18T17:21:47+01:00",
+          "tree_id": "2ae2b15f81025e80219519953c29cf159b5d7041",
+          "url": "https://github.com/Pometry/Raphtory/commit/92e9cbd84263a19e6e201145034b8b95323586c2"
+        },
+        "date": 1771434179064,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 24,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 201,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 112,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1055,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 857,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1354,
             "unit": "req/s"
           }
         ]
