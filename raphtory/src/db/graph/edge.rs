@@ -394,12 +394,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             })
             .collect::<Vec<_>>();
 
-        let lsn = wal.log_add_edge_metadata(
-            transaction_id,
-            eid,
-            input_layer_id,
-            props_for_wal,
-        )?;
+        let lsn = wal.log_add_edge_metadata(transaction_id, eid, input_layer_id, props_for_wal)?;
 
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);

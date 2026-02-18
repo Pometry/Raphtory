@@ -1,7 +1,6 @@
 use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::edge::segment::MemEdgeSegment,
-    wal::LSN,
+    segments::edge::segment::MemEdgeSegment, wal::LSN,
 };
 use raphtory_api::core::entities::{
     VID,
