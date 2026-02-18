@@ -96,7 +96,6 @@ minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true }
 lancedb = {workspace = true, optional = true }
-arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
 axum = "0.8.4" # TODO put this in the proper place and make optional
 
 # python binding optional dependencies
@@ -154,7 +153,6 @@ vectors = [
     "dep:heed",
     "dep:moka",
     "dep:lancedb",
-    "dep:arrow-array",
     "dep:tokio", # also used for the io feature
     "dep:tempfile", # also used for the storage feature
 ]

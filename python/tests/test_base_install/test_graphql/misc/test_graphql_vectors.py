@@ -65,11 +65,13 @@ def test_new_graph():
             client.new_graph("abb", "EVENT")
             rg = client.remote_graph("abb")
             setup_graph(rg)
-            client.query("""
+            client.query(
+                """
                 {
                     vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
-                """)
+                """
+            )
             assert_correct_documents(client)
 
 
@@ -86,11 +88,13 @@ def test_upload_graph():
             g_path = temp_dir.name + "/abb"
             g.save_to_zip(g_path)
             client.upload_graph(path="abb", file_path=g_path, overwrite=True)
-            client.query("""
+            client.query(
+                """
                 {
                 vectoriseGraph(path: "abb", model: { openAI: { model: "whatever", apiBase: "http://localhost:7340" } }, nodes: { custom: "{{ name }}" }, edges: { enabled: false })
                 }
-                """)
+                """
+            )
             assert_correct_documents(client)
 
 
