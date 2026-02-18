@@ -405,11 +405,13 @@ pub(crate) mod data_tests {
         let g4_path = work_dir.join("shivam/investigations/g4"); // Disk graph dir
         let g5_path = work_dir.join("shivam/investigations/g5"); // Empty dir
         let g6_path = work_dir.join("shivam/investigations/g6"); // File that is not a graph
+        let g7_path = work_dir.join(".graph"); // Invalid graph path format
 
         create_graph_folder(&g0_path);
         create_graph_folder(&g1_path);
         create_graph_folder(&g2_path);
         create_graph_folder(&g3_path);
+        create_graph_folder(&g7_path);
 
         fs::create_dir_all(&g4_path.join("graph")).unwrap();
         File::create(g4_path.join(".raph")).unwrap();
@@ -439,6 +441,7 @@ pub(crate) mod data_tests {
         assert!(paths.contains(&g2_path));
         assert!(paths.contains(&g3_path));
         assert!(paths.contains(&g4_path));
+        assert!(!paths.contains(&g7_path)); // Invalid graph path format is ignored
         assert!(!paths.contains(&g5_path)); // Empty dir is ignored
 
         assert!(data
@@ -446,5 +449,6 @@ pub(crate) mod data_tests {
             .await
             .is_ok());
         assert!(data.get_graph("some/random/path").await.is_err());
+        assert!(data.get_graph(".graph").await.is_err());
     }
 }

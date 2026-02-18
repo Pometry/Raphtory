@@ -1849,4 +1849,60 @@ mod graphql_test {
             }),
         );
     }
+
+    #[tokio::test]
+    async fn test_new_graph_rejects_invalid_path_components() {
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let req = Request::new(
+            r#"
+            mutation {
+              newGraph(path: "valid_graph-1", graphType: EVENT)
+            }
+            "#,
+        );
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(res.data.into_json().unwrap(), json!({"newGraph": true}));
+
+        let req = Request::new(
+            r#"
+            mutation {
+              newGraph(path: ".graph", graphType: EVENT)
+            }
+            "#,
+        );
+        let res = schema.execute(req).await;
+        assert!(!res.errors.is_empty());
+
+        let req = Request::new(
+            r#"
+            {
+              namespace(path: "") {
+                graphs {
+                  list {
+                    path
+                  }
+                }
+              }
+            }
+            "#,
+        );
+        let res = schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "namespace": {
+                    "graphs": {
+                        "list": [
+                            { "path": "valid_graph-1" }
+                        ]
+                    }
+                }
+            }),
+        );
+    }
 }
