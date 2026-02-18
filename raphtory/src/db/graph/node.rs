@@ -446,6 +446,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let vid = self.node;
         self.graph
             .internal_add_node(t, vid, props)
-            .map_err(into_graph_err)
+            .map_err(into_graph_err)?;
+        Ok(())
     }
 }

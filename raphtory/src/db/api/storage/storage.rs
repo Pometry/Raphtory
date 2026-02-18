@@ -35,14 +35,12 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{
-    persist::config::ConfigOps,
-    wal::{GraphWalOps, WalOps, LSN},
-};
+use storage::wal::{GraphWalOps, WalOps, LSN};
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
+use crate::prelude::Graph;
 use raphtory_storage::mutation::durability_ops::DurabilityOps;
 #[cfg(feature = "search")]
 use {
@@ -118,6 +116,16 @@ impl Storage {
         })
     }
 
+    pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
+        let ext = Extension::new(config, None)?;
+        let temporal_graph = TemporalGraph::new(ext)?;
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
     pub(crate) fn new_at_path_with_config(
         path: impl AsRef<Path>,
         config: Config,
@@ -132,13 +140,12 @@ impl Storage {
         })
     }
 
-    pub(crate) fn load_from(path: impl AsRef<Path>) -> Result<Self, GraphError> {
-        let ext = Extension::load(path.as_ref())?;
-        let temporal_graph = TemporalGraph::load_from_path(path, ext)?;
+    fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
+        let temporal_graph = TemporalGraph::load(path, ext)?;
         let wal = temporal_graph.wal()?;
 
         // Replay any pending writes from the WAL.
-        if wal.has_entries() {
+        if wal.has_entries()? {
             let mut write_locked_graph = temporal_graph.write_lock()?;
             wal.replay_to_graph(&mut write_locked_graph)?;
         }
@@ -148,6 +155,18 @@ impl Storage {
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         })
+    }
+
+    pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load(path)?;
+        Self::load_with_extension(path, ext)
+    }
+
+    pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load_with_config(path, config)?;
+        Self::load_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
@@ -511,16 +530,16 @@ impl InternalAdditionOps for Storage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
-    ) -> Result<(), Self::Error> {
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
         let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
         // don't fail early on indexing, actually update the graph even if indexing failed
-        self.graph.internal_add_node(t, v, props)?;
+        let writer = self.graph.internal_add_node(t, v, props)?;
 
         #[cfg(feature = "search")]
         index_res?;
 
-        Ok(())
+        Ok(writer)
     }
 
     fn validate_props<PN: AsRef<str>>(

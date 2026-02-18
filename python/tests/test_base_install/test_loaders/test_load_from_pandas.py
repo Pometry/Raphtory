@@ -7,7 +7,7 @@ import pandas as pd
 import pandas.core.frame
 import pyarrow as pa
 import pytest
-from raphtory import Graph, PersistentGraph
+from raphtory import Graph, PersistentGraph, PropType
 from raphtory import algorithms
 from raphtory import graph_loader
 import tempfile
@@ -1046,6 +1046,28 @@ def test_load_node_from_pandas_with_node_types():
     g = Graph()
     g.load_edges(edges_df, "time", "src", "dst")
     edges_assertions(g)
+
+
+def test_load_nodes_from_pandas_with_schema():
+    df = pd.DataFrame(
+        {"id": ["s1"], "time": [1], "config": [{"threshold": 0.75, "max_retries": 3}]}
+    )
+
+    for i in range(0, 100):
+        g = Graph()
+        g.load_nodes(
+            data=df,
+            id="id",
+            time="time",
+            properties=["config"],
+            schema={
+                "config": PropType.map(
+                    {"threshold": PropType.f32(), "max_retries": PropType.i32()}
+                )
+            },
+        )
+        assert g.node("s1").properties["config"]["threshold"] == 0.75
+        assert g.node("s1").properties["config"]["max_retries"] == 3
 
 
 def test_load_edge_deletions_from_pandas():

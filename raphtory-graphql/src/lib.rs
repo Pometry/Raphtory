@@ -4,6 +4,7 @@ use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 mod auth;
+pub mod client;
 pub mod data;
 mod embeddings;
 mod graph;
@@ -14,6 +15,7 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
+pub mod cli;
 pub mod config;
 #[cfg(feature = "python")]
 pub mod python;

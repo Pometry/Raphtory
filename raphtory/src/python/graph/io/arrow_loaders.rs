@@ -5,8 +5,9 @@ use crate::{
         arrow::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
-                edges::{load_edges_from_df, ColumnNames},
-                load_edge_deletions_from_df, load_edges_props_from_df, load_graph_props_from_df,
+                edges::{load_edges_from_df_prefetch, ColumnNames},
+                load_edge_deletions_from_df, load_edge_deletions_from_df_prefetch,
+                load_edges_props_from_df_prefetch, load_graph_props_from_df,
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
@@ -130,7 +131,7 @@ pub(crate) fn load_edges_from_arrow_c_stream<
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     data.py().detach(|| {
-        load_edges_from_df(
+        load_edges_from_df_prefetch(
             df_view,
             ColumnNames::new(time, event_id, src, dst, layer_col),
             true,
@@ -202,7 +203,7 @@ pub(crate) fn load_edge_metadata_from_arrow_c_stream<
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     data.py().detach(|| {
-        load_edges_props_from_df(
+        load_edges_props_from_df_prefetch(
             df_view,
             src,
             dst,
@@ -238,7 +239,7 @@ pub(crate) fn load_edge_deletions_from_arrow_c_stream<
     let df_view = process_arrow_c_stream_df(data, &cols_to_check, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
     data.py().detach(|| {
-        load_edge_deletions_from_df(
+        load_edge_deletions_from_df_prefetch(
             df_view,
             ColumnNames::new(time, event_id, src, dst, layer_col),
             true,
@@ -532,7 +533,7 @@ pub(crate) fn load_edges_from_csv_path<
 
     let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_from_df(
+    load_edges_from_df_prefetch(
         df_view,
         ColumnNames::new(time, event_id, src, dst, layer_col),
         true,
@@ -607,7 +608,7 @@ pub(crate) fn load_edge_metadata_from_csv_path<
 
     let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edges_props_from_df(
+    load_edges_props_from_df_prefetch(
         df_view,
         src,
         dst,
@@ -644,7 +645,7 @@ pub(crate) fn load_edge_deletions_from_csv_path<
 
     let df_view = process_csv_paths_df(&csv_paths, &cols_to_check, csv_options, schema)?;
     df_view.check_cols_exist(&cols_to_check)?;
-    load_edge_deletions_from_df(
+    load_edge_deletions_from_df_prefetch(
         df_view,
         ColumnNames::new(time, event_id, src, dst, layer_col),
         true,

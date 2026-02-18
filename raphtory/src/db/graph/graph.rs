@@ -133,6 +133,25 @@ impl Graph {
         }
     }
 
+    /// Create a new graph with config
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::prelude::*;
+    ///
+    /// let g = Graph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// ```
+    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
+        Ok(Self {
+            inner: Arc::new(Storage::new_with_config(config)?),
+        })
+    }
+
     /// Create a new graph at a specific path
     ///
     /// # Arguments
@@ -192,13 +211,33 @@ impl Graph {
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load_from_path("/path/to/storage");
-    ///
+    /// let g = Graph::load("/path/to/storage");
     #[cfg(feature = "io")]
-    pub fn load_from_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+    pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
         // TODO: add support for loading indexes and vectors
         Ok(Self {
-            inner: Arc::new(Storage::load_from(path.graph_path()?)?),
+            inner: Arc::new(Storage::load(path.graph_path()?)?),
+        })
+    }
+
+    /// Load a graph from a specific path, overriding config
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// * `config` - The new config (note that it is not possible to change the page sizes)
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load("/path/to/storage");
+    #[cfg(feature = "io")]
+    pub fn load_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        // TODO: add support for loading indexes and vectors
+        Ok(Self {
+            inner: Arc::new(Storage::load_with_config(path.graph_path()?, config)?),
         })
     }
 

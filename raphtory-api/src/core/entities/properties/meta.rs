@@ -27,6 +27,9 @@ pub const NODE_TYPE_IDX: usize = 1;
 pub const STATIC_GRAPH_LAYER: &str = "_static_graph";
 pub const STATIC_GRAPH_LAYER_ID: usize = 0;
 
+/// The type ID for nodes that don't have a specified type.
+pub const DEFAULT_NODE_TYPE_ID: usize = 0;
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Meta {
     temporal_prop_mapper: PropMapper,
@@ -158,7 +161,7 @@ impl Meta {
 
     #[inline]
     pub fn get_default_node_type_id(&self) -> usize {
-        0usize
+        DEFAULT_NODE_TYPE_ID
     }
 
     #[inline]
@@ -186,7 +189,7 @@ impl Meta {
     }
 
     pub fn get_node_type_name_by_id(&self, id: usize) -> Option<ArcStr> {
-        if id == 0 {
+        if id == DEFAULT_NODE_TYPE_ID {
             None
         } else {
             Some(self.node_type_mapper.get_name(id))
