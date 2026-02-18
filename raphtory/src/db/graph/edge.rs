@@ -443,10 +443,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             MaybeNew::New(edge_id.with_layer(layer_id)),
             props,
         );
+
         writers.set_lsn(lsn);
-
         transaction_manager.end_transaction(transaction_id);
-
         drop(writers);
 
         if let Err(e) = wal.flush(lsn) {
