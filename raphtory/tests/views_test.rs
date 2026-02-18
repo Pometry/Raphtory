@@ -119,7 +119,7 @@ fn graph_has_node_check_fail() {
     let graph = Graph::new();
 
     for (t, v) in &vs {
-        graph.add_node(*t, *v, NO_PROPS, None).unwrap();
+        graph.add_node(*t, *v, NO_PROPS, None, None).unwrap();
     }
 
     // FIXME: Issue #46: arrow_test(&graph, test)
@@ -145,7 +145,7 @@ fn windowed_graph_has_node() {
         let g = Graph::new();
 
         for (t, v) in &vs {
-            g.add_node(*t, *v, NO_PROPS, None)
+            g.add_node(*t, *v, NO_PROPS, None, None)
                 .map_err(|err| error!("{:?}", err))
                 .ok();
         }
@@ -343,6 +343,7 @@ fn windowed_graph_nodes() {
             1,
             [("type", "wallet".into_prop()), ("cost", 99.5.into_prop())],
             None,
+            None,
         )
         .unwrap();
 
@@ -352,6 +353,7 @@ fn windowed_graph_nodes() {
             2,
             [("type", "wallet".into_prop()), ("cost", 10.0.into_prop())],
             None,
+            None,
         )
         .unwrap();
 
@@ -360,6 +362,7 @@ fn windowed_graph_nodes() {
             6,
             3,
             [("type", "wallet".into_prop()), ("cost", 76.2.into_prop())],
+            None,
             None,
         )
         .unwrap();
@@ -442,10 +445,10 @@ fn test_view_resetting() {
 #[test]
 fn test_entity_history() {
     let graph = Graph::new();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(1, 0, NO_PROPS, None).unwrap();
-    graph.add_node(2, 0, NO_PROPS, None).unwrap();
-    graph.add_node(3, 0, NO_PROPS, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(3, 0, NO_PROPS, None, None).unwrap();
     graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     graph.add_edge(1, 1, 2, NO_PROPS, None).unwrap();
     graph.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
@@ -689,7 +692,9 @@ mod test_filters_window_graph {
 
             // Add nodes to the graph
             for (id, name, props, layer) in &nodes {
-                graph.add_node(*id, name, props.clone(), *layer).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), *layer, None)
+                    .unwrap();
             }
 
             // Metadata property assignments
@@ -755,7 +760,9 @@ mod test_filters_window_graph {
 
             // Add nodes to the graph
             for (id, name, props, layer) in &nodes {
-                graph.add_node(*id, name, props.clone(), *layer).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), *layer, None)
+                    .unwrap();
             }
 
             graph
@@ -2904,9 +2911,9 @@ mod test_filters_window_graph {
                     .unwrap();
             }
 
-            graph.add_node(1, "N1", NO_PROPS, None).unwrap();
-            graph.add_node(2, "N2", NO_PROPS, None).unwrap();
-            graph.add_node(3, "N3", NO_PROPS, None).unwrap();
+            graph.add_node(1, "N1", NO_PROPS, None, None).unwrap();
+            graph.add_node(2, "N2", NO_PROPS, None, None).unwrap();
+            graph.add_node(3, "N3", NO_PROPS, None, None).unwrap();
 
             graph
         }

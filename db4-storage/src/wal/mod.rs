@@ -102,6 +102,7 @@ pub trait GraphWalOps {
         node_id: VID,
         node_type_and_id: Option<(&str, usize)>,
         props: Vec<(&str, usize, Prop)>,
+        layer_id: usize,
     ) -> Result<LSN, StorageError>;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including

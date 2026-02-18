@@ -34,7 +34,8 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::VID, storage::timeindex::EventTime};
+use raphtory_storage::graph::graph::GraphStorage;
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;

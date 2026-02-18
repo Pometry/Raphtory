@@ -15,8 +15,8 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        properties::{prop::Prop, tprop::TPropOps},
-        LayerIds, ELID,
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
+        LayerId, LayerIds, ELID,
     },
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
 };
@@ -351,8 +351,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows().map(|(t, _, row)| (t, row))
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+        node.temp_prop_rows()
+            .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
@@ -360,7 +361,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         let start = w.start;
         let first_row = if node
             .additions()
@@ -386,10 +387,13 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         } else {
             None
         };
-        first_row.into_iter().map(move |row| (start, row)).chain(
-            node.temp_prop_rows_range(Some(w))
-                .map(|(t, _, row)| (t, row)),
-        )
+        first_row
+            .into_iter()
+            .map(move |row| (start, LayerId(STATIC_GRAPH_LAYER_ID), row))
+            .chain(
+                node.temp_prop_rows_range(Some(w))
+                    .map(|(t, l, row)| (t, LayerId(l), row)),
+            )
     }
 
     fn node_valid<'graph, G: GraphViewOps<'graph>>(

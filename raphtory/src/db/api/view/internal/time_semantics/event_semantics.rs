@@ -10,7 +10,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{prop::Prop, tprop::TPropOps},
-        LayerIds, ELID,
+        LayerId, LayerIds, ELID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
 };
@@ -148,8 +148,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows().map(|(t, _, row)| (t, row))
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+        node.temp_prop_rows()
+            .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
@@ -157,9 +158,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         node.temp_prop_rows_range(Some(w))
-            .map(|(t, _, row)| (t, row))
+            .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
     fn node_valid<'graph, G: GraphView + 'graph>(

@@ -153,10 +153,13 @@ pub(crate) fn encode_edge_cprop(
                 .into_iter()
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    EdgeView::new(g, edge_ref)
+                    let edges_in_layers = EdgeView::new(g, edge_ref)
                         .explode_layers()
                         .into_iter()
                         .map(|e| e.edge)
+                        .collect_vec();
+
+                    edges_in_layers.into_iter()
                 })
                 .map(|edge| ParquetCEdge(EdgeView::new(g, edge)))
                 .chunks(row_group_size)

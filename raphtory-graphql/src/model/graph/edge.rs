@@ -16,12 +16,16 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, Filter, IntoDynamic, StaticGraphViewOps},
-        graph::{edge::EdgeView, views::filter::model::edge_filter::CompositeEdgeFilter},
+        graph::{
+            edge::EdgeView, edges::Edges, views::filter::model::edge_filter::CompositeEdgeFilter,
+        },
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
-use raphtory_api::core::utils::time::IntoTime;
+use raphtory_api::{core::utils::time::IntoTime, iter::IntoDynBoxed};
+use raphtory_storage::layer_ops::InternalLayerOps;
+use std::sync::Arc;
 
 /// Raphtory graph edge.
 #[derive(ResolvedObject, Clone)]
@@ -344,7 +348,14 @@ impl GqlEdge {
     ///
     /// Each new edge object contains only updates from the respective layers.
     async fn explode_layers(&self) -> GqlEdges {
-        GqlEdges::new(self.ee.explode_layers())
+        let e = self.ee
+            .explode_layers()
+            .into_iter()
+            .map(|e| {
+                let x = e.into_dynamic();
+                x
+            });
+        GqlEdges::new(e)
     }
 
     /// Returns a History object with time entries for when an edge is added or change to an edge is made.

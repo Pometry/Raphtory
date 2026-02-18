@@ -359,7 +359,7 @@ impl<M> PropertyFilter<M> {
         t: EventTime,
         layer: usize,
     ) -> bool {
-        let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t).at_layer(layer));
+        let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t, layer));
         match self.prop_ref {
             PropertyRef::Metadata(_) => {
                 let props = edge.metadata();

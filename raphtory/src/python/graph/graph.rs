@@ -248,6 +248,7 @@ impl PyGraph {
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
+    ///    layer (str, optional): The optional string which will be used as a node layer.
     ///
     /// Returns:
     ///     MutableNode: The added node.
@@ -255,7 +256,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (timestamp, id, properties = None, node_type = None, event_id = None)
+        signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None)
     )]
     pub fn add_node(
         &self,
@@ -264,6 +265,7 @@ impl PyGraph {
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Graph>, GraphError> {
         let props = properties
             .into_iter()
@@ -275,10 +277,11 @@ impl PyGraph {
             })
             .collect::<Result<Vec<_>, _>>()?;
         match event_id {
-            None => self.graph.add_node(timestamp, id, props, node_type),
-            Some(event_id) => self
-                .graph
-                .add_node((timestamp, event_id), id, props, node_type),
+            None => self.graph.add_node(timestamp, id, props, node_type, layer),
+            Some(event_id) => {
+                self.graph
+                    .add_node((timestamp, event_id), id, props, node_type, layer)
+            }
         }
     }
 
@@ -290,13 +293,13 @@ impl PyGraph {
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
-    ///
+    ///    layer (str, optional): The optional string which will be used as a layer.
     /// Returns:
     ///     MutableNode: The created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
         timestamp: EventTimeComponent,
@@ -304,17 +307,22 @@ impl PyGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Graph>, GraphError> {
         match event_id {
-            None => {
-                self.graph
-                    .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
-            }
+            None => self.graph.create_node(
+                timestamp,
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+                layer,
+            ),
             Some(event_id) => self.graph.create_node(
                 (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
+                layer,
             ),
         }
     }
@@ -714,7 +722,6 @@ impl PyGraph {
         data: &Bound<PyAny>,
         time: &str,
         id: &str,
-
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,

@@ -7,7 +7,7 @@ use crate::db::api::view::internal::{
 };
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds, ELID},
+    entities::{properties::prop::Prop, LayerId, LayerIds, ELID},
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
@@ -185,7 +185,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_updates(node, view))
     }
 
@@ -195,7 +195,7 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w))
     }
 

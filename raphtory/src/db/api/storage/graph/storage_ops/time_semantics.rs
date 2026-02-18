@@ -200,7 +200,7 @@ mod test_graph_storage {
         ];
 
         for (id, name, props) in nodes {
-            graph.add_node(id, name, props, None).unwrap();
+            graph.add_node(id, name, props, None, None).unwrap();
         }
 
         graph

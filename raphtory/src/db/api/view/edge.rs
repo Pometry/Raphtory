@@ -68,27 +68,7 @@ fn exploded<'graph, G: GraphView + 'graph>(
         iter_builder: move |edge, graph| {
             time_semantics
                 .edge_exploded(edge.as_ref(), graph, graph.layer_ids())
-                .map(move |(t, l)| edge_ref.at(t).at_layer(l))
-                .into_dyn_boxed()
-        },
-        marker: Default::default(),
-    }
-    .build()
-    .into_dyn_boxed()
-}
-
-fn exploded_layers<'graph, G: GraphView + 'graph>(
-    view: G,
-    edge_ref: EdgeRef,
-) -> BoxedLIter<'graph, EdgeRef> {
-    let time_semantics = view.edge_time_semantics();
-    ExplodedIterBuilder {
-        graph: view,
-        edge_builder: |view| view.core_edge(edge_ref.pid()),
-        iter_builder: move |edge, graph| {
-            time_semantics
-                .edge_layers(edge.as_ref(), graph, graph.layer_ids())
-                .map(move |l| edge_ref.at_layer(l))
+                .map(move |(t, l)| edge_ref.at(t, l))
                 .into_dyn_boxed()
         },
         marker: Default::default(),
@@ -194,10 +174,6 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     /// Returns:
     ///     Edges:
     fn explode(&self) -> Self::Exploded;
-
-    /// Returns:
-    ///     Edges:
-    fn explode_layers(&self) -> Self::Exploded;
 
     /// Gets the first time an edge was seen
     ///
@@ -401,22 +377,6 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                                 exploded(LayeredGraph::new(view, LayerIds::One(layer)), e)
                             }
                         }
-                    }
-                }
-            } else {
-                iter::empty().into_dyn_boxed()
-            }
-        })
-    }
-
-    fn explode_layers(&self) -> Self::Exploded {
-        self.map_exploded(|g, e| {
-            if edge_valid_layer(g, e) {
-                match e.layer() {
-                    Some(_) => Box::new(iter::once(e)),
-                    None => {
-                        let g = g.clone();
-                        exploded_layers(g, e)
                     }
                 }
             } else {

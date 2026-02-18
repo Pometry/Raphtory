@@ -37,9 +37,12 @@ pub trait LayerOps<'graph> {
 
     /// Returns the number of layers
     fn num_layers(&self) -> usize;
+
+    /// Returns exploded layer view of entity
+    fn explode_layers(&self) -> impl Iterator<Item = Self::LayeredViewType> + 'graph;
 }
 
-impl<'graph, V: InternalFilter<'graph> + 'graph> LayerOps<'graph> for V {
+impl<'graph, V: InternalFilter<'graph> + 'graph + Clone> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
@@ -96,6 +99,17 @@ impl<'graph, V: InternalFilter<'graph> + 'graph> LayerOps<'graph> for V {
 
     fn num_layers(&self) -> usize {
         self.base_graph().unique_layers().count()
+    }
+
+    fn explode_layers(&self) -> impl Iterator<Item = Self::LayeredViewType> + 'graph {
+        let all_layer_ids = self.base_graph().layer_ids();
+        let s = self.clone();
+        all_layer_ids
+            .clone()
+            .into_iter(self.base_graph().num_layers())
+            .map(move |id| {
+                s.apply_filter(LayeredGraph::new(s.base_graph().clone(), LayerIds::One(id)))
+            })
     }
 }
 

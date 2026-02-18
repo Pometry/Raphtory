@@ -41,6 +41,7 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 use crate::prelude::Graph;
+use raphtory_api::core::entities::LayerId;
 use raphtory_storage::mutation::durability_ops::DurabilityOps;
 #[cfg(feature = "search")]
 use {
@@ -530,11 +531,12 @@ impl InternalAdditionOps for Storage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
         let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
         // don't fail early on indexing, actually update the graph even if indexing failed
-        let writer = self.graph.internal_add_node(t, v, props)?;
+        let writer = self.graph.internal_add_node(t, v, props, layer_id)?;
 
         #[cfg(feature = "search")]
         index_res?;

@@ -468,16 +468,16 @@ mod graph_index_test {
 
     fn init_nodes_graph(graph: Graph) -> Graph {
         graph
-            .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
+            .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"), None)
             .unwrap();
         graph
-            .add_node(2, 1, [("p6", 6)], Some("fire_nation"))
+            .add_node(2, 1, [("p6", 6)], Some("fire_nation"), None)
             .unwrap();
         graph
-            .add_node(2, 2, [("p4", 5)], Some("fire_nation"))
+            .add_node(2, 2, [("p4", 5)], Some("fire_nation"), None)
             .unwrap();
         graph
-            .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
+            .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"), None)
             .unwrap();
         graph
     }

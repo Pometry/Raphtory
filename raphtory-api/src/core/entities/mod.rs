@@ -1,5 +1,5 @@
 use super::input::input_node::parse_u64_strict;
-use crate::iter::IntoDynBoxed;
+use crate::iter::{BoxedIter, IntoDynBoxed};
 use bytemuck::{Pod, Zeroable};
 use edges::edge_ref::EdgeRef;
 use num_traits::ToPrimitive;
@@ -516,16 +516,6 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<'_, LayerIds> {
-        match e.layer() {
-            None => Cow::Borrowed(self),
-            Some(l) => self
-                .find(l)
-                .map(|id| Cow::Owned(LayerIds::One(id)))
-                .unwrap_or(Cow::Owned(LayerIds::None)),
-        }
-    }
-
     pub fn contains(&self, layer_id: &usize) -> bool {
         self.find(*layer_id).is_some()
     }
@@ -543,6 +533,15 @@ impl LayerIds {
             LayerIds::None => iter::empty().into_dyn_boxed(),
             LayerIds::All => (0..num_layers).into_dyn_boxed(),
             LayerIds::One(id) => iter::once(*id).into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
+        }
+    }
+
+    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> {
+        match self {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).into_dyn_boxed(),
+            LayerIds::One(id) => iter::once(id).into_dyn_boxed(),
             LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
         }
     }

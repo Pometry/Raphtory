@@ -84,6 +84,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     owner.clone(),
                     NO_PROPS,
                     None,
+                    None,
                 )
                 .expect("Failed to add node")
                 .add_metadata([("type", "owner")])
@@ -93,6 +94,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     DateTime::from_timestamp(ts, 0).unwrap(),
                     company.clone(),
                     NO_PROPS,
+                    None,
                     None,
                 )
                 .expect("Failed to add node")
@@ -113,6 +115,7 @@ pub fn company_house_graph(path: Option<String>) -> Graph {
                     DateTime::from_timestamp(ts, 0).unwrap(),
                     address.clone(),
                     NO_PROPS,
+                    None,
                     None,
                 )
                 .expect("Failed to add node")

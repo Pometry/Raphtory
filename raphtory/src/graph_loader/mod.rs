@@ -53,7 +53,7 @@
 //!         lotr.time,
 //!         lotr.src_id.clone(),
 //!         [("type", Prop::str("Character"))],
-//!         None,
+//!         None, None
 //!     )
 //!     .expect("Failed to add node");
 //!
@@ -61,7 +61,7 @@
 //!         lotr.time,
 //!         lotr.dst_id.clone(),
 //!         [("type", Prop::str("Character"))],
-//!         None
+//!         None, None
 //!     )
 //!     .expect("Failed to add node");
 //!
@@ -227,9 +227,9 @@ mod graph_loader_test {
                     let src_id = src.id();
                     let dst_id = dst.id();
 
-                    g.add_node(t, src_id, [("name", Prop::str("Character"))], None)
+                    g.add_node(t, src_id, [("name", Prop::str("Character"))], None, None)
                         .unwrap();
-                    g.add_node(t, dst_id, [("name", Prop::str("Character"))], None)
+                    g.add_node(t, dst_id, [("name", Prop::str("Character"))], None, None)
                         .unwrap();
                     g.add_edge(
                         t,

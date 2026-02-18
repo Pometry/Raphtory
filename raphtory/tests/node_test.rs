@@ -1,4 +1,12 @@
-use raphtory::{prelude::*, test_storage, test_utils::test_graph};
+use raphtory::{
+    db::{
+        api::view::Filter,
+        graph::views::filter::model::{NodeViewFilterOps, ViewWrapOps},
+    },
+    prelude::*,
+    test_storage,
+    test_utils::test_graph,
+};
 use raphtory_api::core::storage::arc_str::ArcStr;
 use raphtory_core::storage::timeindex::AsTime;
 use std::collections::HashMap;
@@ -6,9 +14,9 @@ use std::collections::HashMap;
 #[test]
 fn test_earliest_time() {
     let graph = Graph::new();
-    graph.add_node(0, 1, NO_PROPS, None).unwrap();
-    graph.add_node(1, 1, NO_PROPS, None).unwrap();
-    graph.add_node(2, 1, NO_PROPS, None).unwrap();
+    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 1, NO_PROPS, None, None).unwrap();
 
     // FIXME: Node add without properties not showing up (Issue #46)
     test_graph(&graph, |graph| {
@@ -38,8 +46,8 @@ fn test_earliest_time() {
 fn test_properties() {
     let graph = Graph::new();
     let props = [("test", "test")];
-    graph.add_node(0, 1, NO_PROPS, None).unwrap();
-    graph.add_node(2, 1, props, None).unwrap();
+    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 1, props, None, None).unwrap();
 
     // FIXME: Node add without properties not showing up (Issue #46)
     test_graph(&graph, |graph| {
@@ -57,8 +65,8 @@ fn test_properties() {
 fn test_property_additions() {
     let graph = Graph::new();
     let props = [("test", "test")];
-    let v1 = graph.add_node(0, 1, NO_PROPS, None).unwrap();
-    v1.add_updates(2, props).unwrap();
+    let v1 = graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    v1.add_updates(2, props, None).unwrap();
     let v1_w = v1.window(0, 1);
     assert_eq!(
         v1.properties().as_map(),
@@ -73,7 +81,7 @@ fn test_property_additions() {
 #[test]
 fn test_metadata_additions() {
     let g = Graph::new();
-    let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
+    let v1 = g.add_node(0, 1, NO_PROPS, None, None).unwrap();
     v1.add_metadata([("test", "test")]).unwrap();
     assert_eq!(v1.metadata().get("test"), Some("test".into()))
 }
@@ -81,7 +89,7 @@ fn test_metadata_additions() {
 #[test]
 fn test_metadata_updates() {
     let g = Graph::new();
-    let v1 = g.add_node(0, 1, NO_PROPS, None).unwrap();
+    let v1 = g.add_node(0, 1, NO_PROPS, None, None).unwrap();
     v1.add_metadata([("test", "test")]).unwrap();
     v1.update_metadata([("test", "test2")]).unwrap();
     assert_eq!(v1.metadata().get("test"), Some("test2".into()))
@@ -92,7 +100,7 @@ fn test_metadata_updates() {
 fn test_string_deduplication() {
     let g = Graph::new();
     let v1 = g
-        .add_node(0, 1, [("test1", "test"), ("test2", "test")], None)
+        .add_node(0, 1, [("test1", "test"), ("test2", "test")], None, None)
         .unwrap();
     let s1 = v1.properties().get("test1").unwrap_str();
     let s2 = v1.properties().get("test2").unwrap_str();
@@ -105,9 +113,9 @@ fn test_edge_history_and_timestamps() {
     let graph = Graph::new();
 
     // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None).unwrap();
+    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
 
     // Add edges at different times
     graph.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
@@ -139,9 +147,9 @@ fn test_edge_timestamps_with_windows() {
     let graph = Graph::new();
 
     // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None).unwrap();
+    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
 
     // Add edges at different times
     graph.add_edge(5, 1, 2, NO_PROPS, None).unwrap();
@@ -181,9 +189,9 @@ fn test_edge_timestamps_with_layers() {
     let graph = Graph::new();
 
     // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None).unwrap();
+    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
 
     // Add edges on different layers
     graph.add_edge(10, 1, 2, NO_PROPS, Some("layer1")).unwrap();
@@ -222,10 +230,10 @@ fn test_edge_timestamps_overlapping_windows_and_layers() {
     let graph = Graph::new();
 
     // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None).unwrap();
-    graph.add_node(0, 4, NO_PROPS, None).unwrap();
+    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 4, NO_PROPS, None, None).unwrap();
 
     // Add edges with overlapping time ranges across multiple layers
     graph.add_edge(5, 1, 2, NO_PROPS, Some("layer1")).unwrap();
@@ -278,7 +286,7 @@ fn test_edge_timestamps_no_edges() {
     let graph = Graph::new();
 
     // Add a node but no edges
-    graph.add_node(10, 1, NO_PROPS, None).unwrap();
+    graph.add_node(10, 1, NO_PROPS, None, None).unwrap();
 
     test_graph(&graph, |graph| {
         let node1 = graph.node(1).unwrap();
@@ -289,4 +297,30 @@ fn test_edge_timestamps_no_edges() {
         assert_eq!(node1.earliest_edge_time(), None);
         assert_eq!(node1.latest_edge_time(), None);
     });
+}
+
+#[test]
+fn test_node_layers() {
+    let graph = Graph::new();
+    graph
+        .add_node(0, 1, NO_PROPS, None, Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_node(0, 2, NO_PROPS, None, Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_node(0, 3, NO_PROPS, None, Some("air_nomads"))
+        .unwrap();
+
+    let filter_expr = NodeFilter.layer("fire_nation").is_active();
+    // let filter_expr = EdgeFilter.layer("fire_nation");
+    let ids = graph
+        .filter(filter_expr)
+        .unwrap()
+        .nodes()
+        .iter()
+        .map(|n| n.name())
+        .collect::<Vec<_>>();
+
+    println!("{:?}", ids);
 }

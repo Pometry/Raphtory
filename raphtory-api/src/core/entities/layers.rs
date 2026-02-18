@@ -6,6 +6,9 @@ use iter_enum::{
 use rayon::prelude::*;
 use std::{iter::Copied, sync::Arc};
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub struct LayerId(pub usize);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Layer {
     All,

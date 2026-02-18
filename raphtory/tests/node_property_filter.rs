@@ -25,11 +25,11 @@ use raphtory::{
 // TODO: Enable this once fixed
 fn test_node_filter_on_nodes() {
     let g = Graph::new();
-    g.add_node(0, "Jimi", [("band", "JH Experience")], None)
+    g.add_node(0, "Jimi", [("band", "JH Experience")], None, None)
         .unwrap();
-    g.add_node(1, "John", [("band", "Dead & Company")], None)
+    g.add_node(1, "John", [("band", "Dead & Company")], None, None)
         .unwrap();
-    g.add_node(2, "David", [("band", "Pink Floyd")], None)
+    g.add_node(2, "David", [("band", "Pink Floyd")], None, None)
         .unwrap();
 
     let filter_expr = NodeFilter::name()
@@ -69,10 +69,10 @@ fn test_node_filter_on_nodes() {
 #[test]
 fn test_node_property_filter_on_nodes() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", 1i64)], None).unwrap();
-    g.add_node(0, 2, [("test", 2i64)], None).unwrap();
-    g.add_node(1, 3, [("test", 3i64)], None).unwrap();
-    g.add_node(1, 4, [("test", 4i64)], None).unwrap();
+    g.add_node(0, 1, [("test", 1i64)], None, None).unwrap();
+    g.add_node(0, 2, [("test", 2i64)], None, None).unwrap();
+    g.add_node(1, 3, [("test", 3i64)], None, None).unwrap();
+    g.add_node(1, 4, [("test", 4i64)], None, None).unwrap();
 
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
@@ -163,9 +163,9 @@ fn test_node_property_filter_on_nodes() {
 #[test]
 fn test_node_property_filter_path() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", 1i64)], None).unwrap();
-    g.add_node(1, 2, [("test", 2i64)], None).unwrap();
-    g.add_node(1, 3, [("test", 3i64)], None).unwrap();
+    g.add_node(0, 1, [("test", 1i64)], None, None).unwrap();
+    g.add_node(1, 2, [("test", 2i64)], None, None).unwrap();
+    g.add_node(1, 3, [("test", 3i64)], None, None).unwrap();
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 1, NO_PROPS, None).unwrap();
@@ -211,9 +211,9 @@ fn test_node_property_filter_path() {
 #[test]
 fn test_node_property_filter_on_graph() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", 1i64)], None).unwrap();
-    g.add_node(1, 2, [("test", 2i64)], None).unwrap();
-    g.add_node(1, 3, [("test", 3i64)], None).unwrap();
+    g.add_node(0, 1, [("test", 1i64)], None, None).unwrap();
+    g.add_node(1, 2, [("test", 2i64)], None, None).unwrap();
+    g.add_node(1, 3, [("test", 3i64)], None, None).unwrap();
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 1, NO_PROPS, None).unwrap();
@@ -432,16 +432,16 @@ fn test_filter_is_none() {
 fn test_filter_is_none_simple_graph() {
     let graph = Graph::new();
     graph
-        .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
+        .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"), None)
         .unwrap();
     graph
-        .add_node(2, 1, [("p6", 6)], Some("fire_nation"))
+        .add_node(2, 1, [("p6", 6)], Some("fire_nation"), None)
         .unwrap();
     graph
-        .add_node(2, 2, [("p4", 5)], Some("fire_nation"))
+        .add_node(2, 2, [("p4", 5)], Some("fire_nation"), None)
         .unwrap();
     graph
-        .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
+        .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"), None)
         .unwrap();
 
     assert_eq!(graph.count_nodes(), 3);

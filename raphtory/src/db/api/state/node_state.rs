@@ -533,7 +533,7 @@ mod test {
     #[test]
     fn float_state() {
         let g = Graph::new();
-        g.add_node(0, 0, NO_PROPS, None).unwrap();
+        g.add_node(0, 0, NO_PROPS, None, None).unwrap();
         let float_state = NodeState::new_from_values(g.clone(), [0.0f64]);
         let int_state = NodeState::new_from_values(g.clone(), [1i64]);
         let min_float = float_state.min_item().unwrap().1;

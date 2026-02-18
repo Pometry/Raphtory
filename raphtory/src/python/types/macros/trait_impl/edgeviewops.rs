@@ -51,15 +51,15 @@ macro_rules! impl_edgeviewops {
                 self.$field.explode()
             }
 
-            /// Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
-            ///
-            /// Returns:
-            ///     Edges:
-            fn explode_layers(
-                &self,
-            ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
-                self.$field.explode_layers()
-            }
+            // /// Explode layers returns an edge object for each layer within the original edge. These new edge object contains only updates from respective layers.
+            // ///
+            // /// Returns:
+            // ///     Edges:
+            // fn explode_layers(
+            //     &self,
+            // ) -> <$base_type as $crate::db::api::view::EdgeViewOps<'static>>::Exploded {
+            //     self.$field.explode_layers()
+            // }
         }
     };
 }

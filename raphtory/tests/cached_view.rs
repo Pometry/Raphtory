@@ -30,8 +30,8 @@ fn empty_window() {
 fn test_materialize_no_edges() {
     let graph = Graph::new();
 
-    graph.add_node(1, 1, NO_PROPS, None).unwrap();
-    graph.add_node(2, 2, NO_PROPS, None).unwrap();
+    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 2, NO_PROPS, None, None).unwrap();
 
     test_storage!(&graph, |graph| {
         let sg = graph.cache_view();
@@ -195,7 +195,7 @@ mod test_filters_cached_view {
 
             for (ts, name, value, kind) in node_data {
                 graph
-                    .add_node(ts, name, [("p1", Prop::U64(value))], Some(kind))
+                    .add_node(ts, name, [("p1", Prop::U64(value))], Some(kind), None)
                     .unwrap();
             }
 

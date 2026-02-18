@@ -36,6 +36,7 @@ impl GraphWalOps for NoWal {
         _node_id: VID,
         _node_type_and_id: Option<(&str, usize)>,
         _props: Vec<(&str, usize, Prop)>,
+        _layer_id: usize,
     ) -> Result<LSN, StorageError> {
         Ok(0)
     }

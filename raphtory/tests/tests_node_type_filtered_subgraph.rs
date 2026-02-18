@@ -39,7 +39,9 @@ fn test_type_filtered_subgraph() {
     ];
 
     for (id, name, props, layer) in &nodes {
-        graph.add_node(*id, name, props.clone(), *layer).unwrap();
+        graph
+            .add_node(*id, name, props.clone(), *layer, None)
+            .unwrap();
     }
 
     let filtered_graph = graph
@@ -226,7 +228,9 @@ mod test_filters_node_type_filtered_subgraph {
 
             // Add nodes to the graph
             for (id, name, props, layer) in &nodes {
-                graph.add_node(*id, name, props.clone(), *layer).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), *layer, None)
+                    .unwrap();
             }
 
             graph
@@ -470,7 +474,9 @@ mod test_filters_node_type_filtered_subgraph {
             ];
 
             for (id, name, props, layer) in &nodes {
-                graph.add_node(*id, name, props.clone(), *layer).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), *layer, None)
+                    .unwrap();
             }
 
             graph

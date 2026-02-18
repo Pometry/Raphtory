@@ -31,7 +31,7 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
-        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        g1.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -42,8 +42,8 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
-        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        g1.add_node(2, "Bob", [("age", Prop::U32(47))], None)
+        g1.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
+        g1.add_node(2, "Bob", [("age", Prop::U32(47))], None, None)
             .unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -89,9 +89,9 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
-        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        g1.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
         let n1 = g1
-            .add_node(2, "Bob", [("age", Prop::U32(47))], None)
+            .add_node(2, "Bob", [("age", Prop::U32(47))], None, None)
             .unwrap();
 
         n1.update_metadata([("name", Prop::Str("Bob".into()))])
@@ -107,8 +107,8 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
-        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
+        g1.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
+        g1.add_node(2, "Bob", NO_PROPS, None, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
@@ -136,8 +136,8 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
-        g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
-        g1.add_node(2, "Bob", NO_PROPS, None).unwrap();
+        g1.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
+        g1.add_node(2, "Bob", NO_PROPS, None, None).unwrap();
         g1.add_edge(3, "Alice", "Bob", [("kind", "friends")], None)
             .unwrap();
 
@@ -190,7 +190,7 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
-        g1.add_node(1, "Alice", props.clone(), None).unwrap();
+        g1.add_node(1, "Alice", props.clone(), None, None).unwrap();
         g1.encode(&temp_file).unwrap();
         let g2 = Graph::decode(&temp_file).unwrap();
         assert_graph_equal(&g1, &g2);
@@ -271,7 +271,7 @@ mod serialise_test {
         let tempdir = TempDir::new().unwrap();
         let temp_file = tempdir.path().join("graph");
         let g1 = Graph::new();
-        let n = g1.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        let n = g1.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
         n.update_metadata(props.clone())
             .expect("Failed to update metadata");
         g1.encode(&temp_file).unwrap();
@@ -361,7 +361,7 @@ mod serialise_test {
         g.add_metadata(props.clone())
             .expect("Failed to add metadata");
 
-        let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        let n = g.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
         n.update_metadata(props.clone())
             .expect("Failed to update metadata");
 
@@ -372,7 +372,7 @@ mod serialise_test {
         assert_metadata_correct(&folder, &g);
 
         g.add_edge(2, "Alice", "Bob", props.clone(), None).unwrap();
-        g.add_node(1, "Charlie", props.clone(), None).unwrap();
+        g.add_node(1, "Charlie", props.clone(), None, None).unwrap();
 
         g.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
             .unwrap();
@@ -404,7 +404,7 @@ mod serialise_test {
         g.add_metadata(props.clone())
             .expect("Failed to add metadata");
 
-        let n = g.add_node(1, "Alice", NO_PROPS, None).unwrap();
+        let n = g.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
         n.update_metadata(props.clone())
             .expect("Failed to update metadata");
 
@@ -415,7 +415,7 @@ mod serialise_test {
         assert_metadata_correct(&folder, &g);
 
         g.add_edge(2, "Alice", "Bob", props.clone(), None).unwrap();
-        g.add_node(1, "Charlie", props.clone(), None).unwrap();
+        g.add_node(1, "Charlie", props.clone(), None, None).unwrap();
 
         g.add_edge(7, "Alice", "Bob", NO_PROPS, Some("one"))
             .unwrap();

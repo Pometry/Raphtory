@@ -102,8 +102,8 @@ mod bipartite_graph_tests {
             (11, "B", "4"),
         ];
         for (t, src, dst) in &vs {
-            g.add_node(*t, *src, NO_PROPS, Some("Left")).unwrap();
-            g.add_node(*t, *dst, NO_PROPS, Some("Right")).unwrap();
+            g.add_node(*t, *src, NO_PROPS, Some("Left"), None).unwrap();
+            g.add_node(*t, *dst, NO_PROPS, Some("Right"), None).unwrap();
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
         let new_graph = temporal_bipartite_projection(&g, 1, "Right".to_string());
@@ -142,8 +142,8 @@ mod bipartite_graph_tests {
             (11, "B", "4"),
         ];
         for (t, src, dst) in &vs {
-            g.add_node(*t, *src, NO_PROPS, Some("Left")).unwrap();
-            g.add_node(*t, *dst, NO_PROPS, Some("Right")).unwrap();
+            g.add_node(*t, *src, NO_PROPS, Some("Left"), None).unwrap();
+            g.add_node(*t, *dst, NO_PROPS, Some("Right"), None).unwrap();
             g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
         }
         let new_graph = temporal_bipartite_projection(&g, 3, "Right".to_string());

@@ -34,7 +34,7 @@
 //!              time,
 //!              src_id,
 //!              [("name", Prop::str("Character"))],
-//!              None,
+//!              None, None
 //!          )
 //!          .map_err(|err| error!("{:?}", err))
 //!          .ok();
@@ -42,7 +42,7 @@
 //!              time,
 //!              dst_id,
 //!              [("name", Prop::str("Character"))],
-//!              None,
+//!              None, None
 //!          )
 //!          .map_err(|err| error!("{:?}", err))
 //!          .ok();
@@ -523,10 +523,10 @@ mod csv_loader_test {
                 let dst_id = lotr.dst_id.id();
                 let time = lotr.time;
 
-                g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
+                g.add_node(time, src_id, [("name", Prop::str("Character"))], None, None)
                     .map_err(|err| error!("{:?}", err))
                     .ok();
-                g.add_node(time, dst_id, [("name", Prop::str("Character"))], None)
+                g.add_node(time, dst_id, [("name", Prop::str("Character"))], None, None)
                     .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_edge(
@@ -551,10 +551,10 @@ mod csv_loader_test {
                 let dst_id = lotr.get(1).map(|s| s.id()).unwrap();
                 let time = lotr.get(2).map(|s| s.parse::<i64>().unwrap()).unwrap();
 
-                g.add_node(time, src_id, [("name", Prop::str("Character"))], None)
+                g.add_node(time, src_id, [("name", Prop::str("Character"))], None, None)
                     .map_err(|err| error!("{:?}", err))
                     .ok();
-                g.add_node(time, dst_id, [("name", Prop::str("Character"))], None)
+                g.add_node(time, dst_id, [("name", Prop::str("Character"))], None, None)
                     .map_err(|err| error!("{:?}", err))
                     .ok();
                 g.add_edge(

@@ -1,6 +1,6 @@
 use crate::db::api::view::internal::GraphView;
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds, ELID},
+    entities::{properties::prop::Prop, LayerId, LayerIds, ELID},
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
@@ -103,14 +103,14 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     /// Check if the node is part of the graph based on the history
     fn node_valid<'graph, G: GraphView + 'graph>(

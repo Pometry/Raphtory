@@ -13,7 +13,7 @@ use raphtory_api::{
                 meta::Meta,
                 prop::{Prop, PropType},
             },
-            GidRef, EID, VID,
+            GidRef, LayerId, EID, VID,
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
@@ -77,6 +77,7 @@ pub trait InternalAdditionOps {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error>;
 
     fn validate_props<PN: AsRef<str>>(
@@ -220,8 +221,9 @@ impl InternalAdditionOps for GraphStorage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
-        self.mutable()?.internal_add_node(t, v, props)
+        self.mutable()?.internal_add_node(t, v, props, layer_id)
     }
 
     fn validate_props<PN: AsRef<str>>(
@@ -329,8 +331,9 @@ where
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
-        self.base().internal_add_node(t, v, props)
+        self.base().internal_add_node(t, v, props, layer_id)
     }
 
     #[inline]

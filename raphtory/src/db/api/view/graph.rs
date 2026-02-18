@@ -387,8 +387,8 @@ fn materialize_impl(
                         .write_session()?
                         .set_node(gid.as_ref(), new_id)?;
 
-                    for (t, row) in node.rows() {
-                        writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, row);
+                    for (t, l, row) in node.rows() {
+                        writer.add_props(t, node_pos, l.0, row); // TODO: Fix me
                     }
 
                     writer.update_c_props(
@@ -457,7 +457,7 @@ fn materialize_impl(
                             src,
                             dst,
                             layer,
-                            edge.metadata_ids().filter_map(move |prop_id| {
+                            edge.clone().metadata_ids().filter_map(move |prop_id| {
                                 edge.get_metadata(prop_id).map(|prop| (prop_id, prop))
                             }),
                         );

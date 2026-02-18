@@ -10,7 +10,11 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{
-    entities::properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
+    entities::{
+        properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
+        LayerId,
+    },
+    storage::dict_mapper::MaybeNew,
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_storage::mutation::{
@@ -55,6 +59,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError>;
 
     /// Add a node to the graph, returning an error if the node already exists.
@@ -71,6 +76,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<
@@ -86,9 +92,10 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_node(time, v, props, node_type)
+        self.add_node(time, v, props, node_type, layer)
     }
 
     // TODO: Node.name which gets ._id property else numba as string
@@ -162,9 +169,10 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
         let error_if_exists = false;
-        add_node_impl(self, t, v, props, node_type, error_if_exists)
+        add_node_impl(self, t, v, props, node_type, error_if_exists, layer)
     }
 
     fn create_node<
@@ -180,9 +188,10 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
         let error_if_exists = true;
-        add_node_impl(self, t, v, props, node_type, error_if_exists)
+        add_node_impl(self, t, v, props, node_type, error_if_exists, layer)
     }
 
     fn add_edge<
@@ -305,7 +314,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
+            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id),
         ))
     }
 
@@ -330,6 +339,7 @@ fn add_node_impl<
     props: PII,
     node_type: Option<&str>,
     error_if_exists: bool,
+    layer: Option<&str>,
 ) -> Result<NodeView<'static, G>, GraphError> {
     let transaction_manager = graph.core_graph().transaction_manager()?;
     let wal = graph.core_graph().wal()?;
@@ -355,6 +365,8 @@ fn add_node_impl<
 
     let node_gid = node_ref.as_gid_ref().left();
     let ti = time_from_input_session(&session, t)?;
+
+    let layer_id: usize = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
     let (node_id, node_type_id) = graph
         .resolve_and_update_node_and_type(node_ref, node_type)
@@ -384,7 +396,7 @@ fn add_node_impl<
         .collect::<Vec<_>>();
 
     let mut writer = graph
-        .internal_add_node(ti, node_id, props)
+        .internal_add_node(ti, node_id, props, LayerId(layer_id))
         .map_err(into_graph_err)?;
 
     let props_for_wal = props_with_status
@@ -403,6 +415,7 @@ fn add_node_impl<
         node_id,
         node_type_and_id,
         props_for_wal,
+        layer_id,
     )?;
 
     // Update node segment with the lsn of the wal entry.
