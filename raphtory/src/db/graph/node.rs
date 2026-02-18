@@ -39,7 +39,7 @@ use raphtory_api::core::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    mutation::addition_ops::{InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
 };
 use std::{
     fmt,
@@ -405,9 +405,16 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        self.graph
-            .resolve_and_update_node_and_type(NodeRef::Internal(self.node), Some(new_type))
+        let new_type = self
+            .graph
+            .node_meta()
+            .get_or_create_node_type_id(new_type)
+            .inner();
+        let mut writer = self
+            .graph
+            .atomic_add_node(NodeRef::Internal(self.node))
             .map_err(into_graph_err)?;
+        writer.set_type(new_type);
         Ok(())
     }
 
@@ -454,8 +461,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             .map_err(into_graph_err)?
             .inner();
         self.graph
-            .internal_add_node(t, vid, props, LayerId(layer_id))
-            .map_err(into_graph_err)?;
+            .atomic_add_node(NodeRef::Internal(vid))
+            .map_err(into_graph_err)?
+            .internal_add_update(t, layer_id, props);
         Ok(())
     }
 }

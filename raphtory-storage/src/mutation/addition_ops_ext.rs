@@ -1,16 +1,13 @@
 use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
     durability_ops::DurabilityOps,
     MutationError, NodeWriterT,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
-    entities::{
-        properties::{
-            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-            prop::{Prop, PropType, PropUnwrap},
-        },
-        LayerId,
+    entities::properties::{
+        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+        prop::{Prop, PropType, PropUnwrap},
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -22,25 +19,35 @@ use raphtory_core::{
     },
     storage::timeindex::EventTime,
 };
+use std::sync::atomic::Ordering;
+use raphtory_api::core::entities::LayerId;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    pages::{node_page::writer::node_info_as_props, session::WriteSession},
+    error::StorageError,
+    pages::{
+        node_page::writer::{node_info_as_props, NodeWriters},
+        resolve_pos,
+        session::EdgeWriteSession,
+    },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
-    resolver::GIDResolverOps,
+    resolver::{mapping_resolver::Init, GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    Extension, Wal, ES, GS, NS,
+    Extension, GIDResolver, LocalPOS, Wal, ES, GS, NS,
 };
 
-pub struct WriteS<'a, EXT>
+pub struct AtomicAddEdge<'a, EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    static_session: WriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
+    static_session: EdgeWriteSession<'a, NS<EXT>, ES<EXT>, GS<EXT>, EXT>,
+    src: MaybeNew<VID>,
+    dst: MaybeNew<VID>,
+    eid: MaybeNew<EID>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -48,64 +55,51 @@ pub struct UnlockedSession<'a> {
     graph: &'a TemporalGraph<Extension>,
 }
 
-impl<'a, EXT> EdgeWriteLock for WriteS<'a, EXT>
+impl<'a, EXT> EdgeWriteLock for AtomicAddEdge<'a, EXT>
 where
     EXT: PersistenceStrategy<NS = NS<EXT>, ES = ES<EXT>, GS = GS<EXT>>,
     NS<EXT>: NodeSegmentOps<Extension = EXT>,
     ES<EXT>: EdgeSegmentOps<Extension = EXT>,
     GS<EXT>: GraphPropSegmentOps<Extension = EXT>,
 {
-    fn internal_add_static_edge(
-        &mut self,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-    ) -> MaybeNew<EID> {
-        self.static_session.add_static_edge(src, dst)
-    }
-
-    fn internal_add_edge(
+    fn internal_add_update(
         &mut self,
         t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
-        eid: MaybeNew<ELID>,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) -> MaybeNew<ELID> {
-        self.static_session
-            .add_edge_into_layer(t, src, dst, eid, props);
-
-        eid
-    }
-
-    fn internal_delete_edge(
-        &mut self,
-        t: EventTime,
-        src: impl Into<VID>,
-        dst: impl Into<VID>,
         layer: usize,
-    ) -> MaybeNew<ELID> {
-        let src = src.into();
-        let dst = dst.into();
-        let eid = self
-            .static_session
-            .add_static_edge(src, dst)
-            .map(|eid| eid.with_layer_deletion(layer));
-
-        self.static_session.delete_edge_from_layer(t, src, dst, eid);
-
-        eid
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        self.static_session.add_edge_into_layer(
+            t,
+            self.src.inner(),
+            self.dst.inner(),
+            self.eid.map(|eid| eid.with_layer(layer)),
+            props,
+        );
     }
 
-    fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        self.static_session.store_src_node_info(vid, node_id);
-    }
-
-    fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        self.static_session.store_dst_node_info(vid, node_id);
+    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+        self.static_session.delete_edge_from_layer(
+            t,
+            self.src.inner(),
+            self.dst.inner(),
+            self.eid.map(|eid| eid.with_layer_deletion(layer)),
+        );
     }
 
     fn set_lsn(&mut self, lsn: LSN) {
         self.static_session.set_lsn(lsn);
+    }
+
+    fn src(&self) -> MaybeNew<VID> {
+        self.src
+    }
+
+    fn dst(&self) -> MaybeNew<VID> {
+        self.dst
+    }
+
+    fn eid(&self) -> MaybeNew<EID> {
+        self.eid
     }
 }
 
@@ -174,10 +168,61 @@ impl<'a> SessionAdditionOps for UnlockedSession<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct AtomicAddNode<'a> {
+    writer: NodeWriterT<'a>,
+    vid: MaybeNew<VID>,
+}
+
+impl<'a> AtomicAddNode<'a> {
+    fn local_pos(&self) -> LocalPOS {
+        let (_, pos) = resolve_pos(self.vid.inner(), self.writer.mut_segment.max_page_len());
+        pos
+    }
+}
+
+impl<'a> NodeWriteLock for AtomicAddNode<'a> {
+    fn internal_add_update(
+        &mut self,
+        t: EventTime,
+        layer: usize,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        let pos = self.local_pos();
+        self.writer.add_props(t, pos, layer, props)
+    }
+
+    fn can_set_type(&self) -> bool {
+        self.vid.is_new() || self.get_type() == DEFAULT_NODE_TYPE_ID
+    }
+
+    fn get_type(&self) -> usize {
+        self.writer
+            .get_metadata(self.local_pos(), STATIC_GRAPH_LAYER_ID, NODE_TYPE_IDX)
+            .into_u64()
+            .map(|u| u as usize)
+            .unwrap_or(DEFAULT_NODE_TYPE_ID)
+    }
+
+    fn set_type(&mut self, node_type: usize) {
+        let pos = self.local_pos();
+        self.writer
+            .store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type)
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.writer.mut_segment.set_lsn(lsn)
+    }
+
+    fn node(&self) -> MaybeNew<VID> {
+        self.vid
+    }
+}
+
 impl InternalAdditionOps for TemporalGraph {
     type Error = MutationError;
     type WS<'a> = UnlockedSession<'a>;
-    type AtomicAddEdge<'a> = WriteS<'a, Extension>;
+    type AtomicAddEdge<'a> = AtomicAddEdge<'a, Extension>;
 
     fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
         let locked_g = self.write_locked_graph();
@@ -204,14 +249,18 @@ impl InternalAdditionOps for TemporalGraph {
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
         match id {
             NodeRef::External(id) => {
-                let id = self.logical_to_physical.get_or_init(id, || {
-                    let (seg, pos) = self.storage().nodes().reserve_free_pos(
-                        self.event_counter
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
-                    );
-                    pos.as_vid(seg, self.extension().config().max_node_page_len())
-                })?;
-
+                let id = match self.logical_to_physical.get_or_init(id)? {
+                    MaybeInit::VID(vid) => MaybeNew::Existing(vid),
+                    MaybeInit::Init(init) => {
+                        let (seg, pos) = self
+                            .storage()
+                            .nodes()
+                            .reserve_free_pos(self.event_counter.fetch_add(1, Ordering::Relaxed));
+                        let vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
+                        init.init(vid)?;
+                        MaybeNew::New(vid)
+                    }
+                };
                 Ok(id)
             }
             NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
@@ -232,7 +281,7 @@ impl InternalAdditionOps for TemporalGraph {
                 writer.update_c_props(
                     local_pos,
                     STATIC_GRAPH_LAYER_ID,
-                    node_info_as_props(id.as_gid_ref().left(), None),
+                    node_info_as_props(id.as_gid_ref(), None),
                 );
                 MaybeNew::Existing(0)
             }
@@ -249,7 +298,7 @@ impl InternalAdditionOps for TemporalGraph {
                             local_pos,
                             STATIC_GRAPH_LAYER_ID,
                             node_info_as_props(
-                                id.as_gid_ref().left(),
+                                id.as_gid_ref(),
                                 Some(node_type_id.inner()).filter(|&id| id != 0),
                             ),
                         );
@@ -299,13 +348,303 @@ impl InternalAdditionOps for TemporalGraph {
 
     fn atomic_add_edge(
         &self,
-        src: VID,
-        dst: VID,
+        src: NodeRef,
+        dst: NodeRef,
         e_id: Option<EID>,
-        _layer_id: usize,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
-        Ok(WriteS {
-            static_session: self.storage().write_session(src, dst, e_id),
+        let nodes = self.storage().nodes();
+        let src_init = match src {
+            NodeRef::Internal(vid) => MaybeInit::VID(vid),
+            NodeRef::External(gid) => self.logical_to_physical.get_or_init(gid)?,
+        };
+
+        let dst_init = if src == dst {
+            None
+        } else {
+            match dst {
+                NodeRef::Internal(vid) => Some(MaybeInit::VID(vid)),
+                NodeRef::External(gid) => Some(self.logical_to_physical.get_or_init(gid)?),
+            }
+        }
+        .filter(|dst_init| dst_init != &src_init);
+
+        let (mut node_writers, src_id, dst_id) = match (src_init, dst_init) {
+            (src_init, None) => {
+                // self-loop
+                match src_init {
+                    MaybeInit::VID(vid) => {
+                        let (src_chunk, _) = nodes.resolve_pos(vid);
+                        let writer = nodes.writer(src_chunk);
+                        (
+                            NodeWriters {
+                                src: writer,
+                                dst: None,
+                            },
+                            MaybeNew::Existing(vid),
+                            MaybeNew::Existing(vid),
+                        )
+                    }
+                    MaybeInit::Init(init) => {
+                        let (pos, writer) = nodes.reserve_and_lock_segment(
+                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            1,
+                        );
+                        let vid =
+                            pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                        init.init(vid)?;
+                        (
+                            NodeWriters {
+                                src: writer,
+                                dst: None,
+                            },
+                            MaybeNew::New(vid),
+                            MaybeNew::New(vid),
+                        )
+                    }
+                }
+            }
+            (MaybeInit::Init(src_init), Some(MaybeInit::Init(dst_init))) => {
+                // both new, put them in the same segment
+                let (pos, writer) = nodes.reserve_and_lock_segment(
+                    self.event_counter.fetch_add(1, Ordering::Relaxed),
+                    2,
+                );
+                let src_id =
+                    pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                let dst_id = LocalPOS(pos.0 + 1)
+                    .as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                src_init.init(src_id)?;
+                dst_init.init(dst_id)?;
+                (
+                    NodeWriters {
+                        src: writer,
+                        dst: None,
+                    },
+                    MaybeNew::New(src_id),
+                    MaybeNew::New(dst_id),
+                )
+            }
+            (MaybeInit::Init(src_init), Some(MaybeInit::VID(dst_id))) => {
+                let (dst_chunk, _) = nodes.resolve_pos(dst_id);
+                let dst_writer = nodes.writer(dst_chunk);
+                match nodes.reserve_segment_row(dst_writer.page) {
+                    None => {
+                        // existing segment is full, need to get a new one
+                        let (src_pos, src_writer) = nodes.reserve_and_lock_segment(
+                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            1,
+                        );
+                        let src_id = src_pos.as_vid(
+                            src_writer.page.segment_id(),
+                            src_writer.mut_segment.max_page_len(),
+                        );
+                        src_init.init(src_id)?;
+                        (
+                            NodeWriters {
+                                src: src_writer,
+                                dst: Some(dst_writer),
+                            },
+                            MaybeNew::New(src_id),
+                            MaybeNew::Existing(dst_id),
+                        )
+                    }
+                    Some(src_pos) => {
+                        let src_id = LocalPOS(src_pos).as_vid(
+                            dst_writer.page.segment_id(),
+                            dst_writer.mut_segment.max_page_len(),
+                        );
+                        src_init.init(src_id)?;
+                        (
+                            NodeWriters {
+                                src: dst_writer,
+                                dst: None,
+                            },
+                            MaybeNew::New(src_id),
+                            MaybeNew::Existing(dst_id),
+                        )
+                    }
+                }
+            }
+            (MaybeInit::VID(src_id), Some(MaybeInit::Init(dst_init))) => {
+                let (src_chunk, _) = nodes.resolve_pos(src_id);
+                let src_writer = nodes.writer(src_chunk);
+                match nodes.reserve_segment_row(src_writer.page) {
+                    None => {
+                        let (dst_pos, dst_writer) = nodes.reserve_and_lock_segment(
+                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            1,
+                        );
+                        let dst_id = dst_pos.as_vid(
+                            dst_writer.page.segment_id(),
+                            dst_writer.mut_segment.max_page_len(),
+                        );
+                        dst_init.init(dst_id)?;
+                        (
+                            NodeWriters {
+                                src: src_writer,
+                                dst: Some(dst_writer),
+                            },
+                            MaybeNew::Existing(src_id),
+                            MaybeNew::New(dst_id),
+                        )
+                    }
+                    Some(dst_pos) => {
+                        let dst_id = LocalPOS(dst_pos).as_vid(
+                            src_writer.page.segment_id(),
+                            src_writer.mut_segment.max_page_len(),
+                        );
+                        dst_init.init(dst_id)?;
+                        (
+                            NodeWriters {
+                                src: src_writer,
+                                dst: None,
+                            },
+                            MaybeNew::Existing(src_id),
+                            MaybeNew::New(dst_id),
+                        )
+                    }
+                }
+            }
+            (MaybeInit::VID(src_id), Some(MaybeInit::VID(dst_id))) => {
+                let (src_chunk, _) = nodes.resolve_pos(src_id);
+                let (dst_chunk, _) = nodes.resolve_pos(dst_id);
+                if src_chunk == dst_chunk {
+                    let writer = nodes.writer(src_chunk);
+                    (
+                        NodeWriters {
+                            src: writer,
+                            dst: None,
+                        },
+                        MaybeNew::Existing(src_id),
+                        MaybeNew::Existing(dst_id),
+                    )
+                } else {
+                    let node_writers = if src_chunk < dst_chunk {
+                        loop {
+                            if let Some(src_writer) = nodes.try_writer(src_chunk) {
+                                if let Some(dst_writer) = nodes.try_writer(dst_chunk) {
+                                    break NodeWriters {
+                                        src: src_writer,
+                                        dst: Some(dst_writer),
+                                    };
+                                }
+                            }
+                        }
+                    } else {
+                        loop {
+                            if let Some(dst_writer) = nodes.try_writer(dst_chunk) {
+                                if let Some(src_writer) = nodes.try_writer(src_chunk) {
+                                    break NodeWriters {
+                                        src: src_writer,
+                                        dst: Some(dst_writer),
+                                    };
+                                }
+                            }
+                        }
+                    };
+                    (
+                        node_writers,
+                        MaybeNew::Existing(src_id),
+                        MaybeNew::Existing(dst_id),
+                    )
+                }
+            }
+        };
+
+        let (_, src_pos) = nodes.resolve_pos(src_id.inner());
+        let (_, dst_pos) = nodes.resolve_pos(dst_id.inner());
+
+        if src_id.is_new() {
+            if let Some(gid) = src.as_gid_ref() {
+                node_writers.get_mut_src().store_node_id(
+                    src_pos,
+                    STATIC_GRAPH_LAYER_ID,
+                    gid.to_owned(),
+                );
+            }
+        }
+
+        if dst_id.is_new() {
+            if let Some(gid) = dst.as_gid_ref() {
+                node_writers.get_mut_dst().store_node_id(
+                    dst_pos,
+                    STATIC_GRAPH_LAYER_ID,
+                    gid.to_owned(),
+                );
+            }
+        }
+
+        let existing_eid =
+            node_writers
+                .src
+                .get_out_edge(src_pos, dst_id.inner(), STATIC_GRAPH_LAYER_ID);
+
+        let (edge_id, edge_writer) = match e_id.or(existing_eid) {
+            Some(edge_id) => (
+                MaybeNew::Existing(edge_id),
+                self.storage().edge_writer(edge_id),
+            ),
+            None => {
+                let mut edge_writer = self.storage().get_free_writer();
+                let edge_pos = None;
+                let already_counted = false;
+                let edge_pos = edge_writer.add_static_edge(
+                    edge_pos,
+                    src_id.inner(),
+                    dst_id.inner(),
+                    already_counted,
+                );
+                let edge_id =
+                    edge_pos.as_eid(edge_writer.segment_id(), edge_writer.writer.max_page_len());
+
+                node_writers.get_mut_src().add_static_outbound_edge(
+                    src_pos,
+                    dst_id.inner(),
+                    edge_id,
+                );
+                node_writers.get_mut_dst().add_static_inbound_edge(
+                    dst_pos,
+                    src_id.inner(),
+                    edge_id,
+                );
+                (MaybeNew::New(edge_id), edge_writer)
+            }
+        };
+
+        Ok(AtomicAddEdge {
+            static_session: EdgeWriteSession::new(node_writers, edge_writer, self.storage()),
+            src: src_id,
+            dst: dst_id,
+            eid: edge_id,
+        })
+    }
+
+    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
+        let node_vid = match node {
+            NodeRef::Internal(vid) => vid,
+            NodeRef::External(gid) => match self.logical_to_physical.get_or_init(gid)? {
+                MaybeInit::VID(vid) => vid,
+                MaybeInit::Init(init) => {
+                    let (pos, mut writer) = self.storage().nodes().reserve_and_lock_segment(
+                        self.event_counter.fetch_add(1, Ordering::Relaxed),
+                        1,
+                    );
+                    writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, gid.to_owned());
+                    let vid =
+                        pos.as_vid(writer.page.segment_id(), writer.mut_segment.max_page_len());
+                    init.init(vid)?;
+                    return Ok(AtomicAddNode {
+                        writer,
+                        vid: MaybeNew::New(vid),
+                    });
+                }
+            },
+        };
+        let (segment_id, _) = self.storage().nodes().resolve_pos(node_vid);
+        let writer = self.storage().node_writer(segment_id);
+        Ok(AtomicAddNode {
+            writer,
+            vid: MaybeNew::Existing(node_vid),
         })
     }
 

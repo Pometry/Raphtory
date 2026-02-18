@@ -62,7 +62,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
     ) -> Option<<<NS as NodeSegmentOps>::ArcLockedSegment as LockedNSSegment>::EntryRef<'_>> {
         let (segment_id, pos) = self.storage.resolve_pos(node);
         let locked_segment = &self.locked_segments.get(segment_id)?;
-        Some(locked_segment.entry_ref(pos))
+        if pos.0 < locked_segment.num_nodes() {
+            Some(locked_segment.entry_ref(pos))
+        } else {
+            None
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -81,6 +85,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
         self.locked_segments
             .iter()
             .flat_map(move |segment| segment.iter_entries())
+    }
+
+    pub fn segment_counts(&self) -> SegmentCounts<VID> {
+        SegmentCounts::new(
+            self.storage.max_segment_len(),
+            self.locked_segments.iter().map(|seg| seg.num_nodes()),
+        )
     }
 
     pub fn par_iter(
@@ -118,7 +129,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
     }
 }
 
-impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -140,9 +151,21 @@ impl<NS: Send + Sync, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
         &self.stats
     }
 
-    pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
-        &self.segments
+    pub fn segments_iter(&self) -> impl Iterator<Item = &NS> {
+        let count = self.segments.count();
+        (0..count).map(|id| {
+            self.get_segment(id)
+                .expect("segment should exist given count")
+        })
     }
+
+    pub fn segments_count(&self) -> usize {
+        self.segments.count()
+    }
+
+    // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
+    //     &self.segments
+    // }
 
     fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
         let len = self.segments.count();
@@ -203,9 +226,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
     pub fn locked(self: &Arc<Self>) -> ReadLockedNodeStorage<NS, EXT> {
         let locked_segments = self
-            .segments
-            .iter()
-            .map(|(_, segment)| segment.locked())
+            .segments_iter()
+            .map(|segment| segment.locked())
             .collect::<Box<_>>();
         ReadLockedNodeStorage {
             storage: self.clone(),
@@ -238,8 +260,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
         let slot_idx = row % N;
         let maybe_free_page = {
-            let lock_slot = self.free_segments[slot_idx].read_recursive();
-            let page_id = *lock_slot;
+            let page_id = *self.free_segments[slot_idx].read_recursive();
             let page = self.segments.get(page_id);
 
             page.and_then(|page| {
@@ -264,10 +285,47 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
     }
 
-    fn reserve_segment_row(&self, segment: &Arc<NS>) -> Option<u32> {
+    pub fn reserve_and_lock_segment(
+        &self,
+        row: usize,
+        required_space: u32,
+    ) -> (
+        LocalPOS,
+        NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
+    ) {
+        let mut slot_idx = row % N;
+        let mut page_id = *self.free_segments[slot_idx].read_recursive();
+        loop {
+            match self.try_writer(page_id) {
+                None => {
+                    slot_idx = (slot_idx + 1) % N;
+                    page_id = *self.free_segments[slot_idx].read_recursive();
+                }
+                Some(writer) => {
+                    match self.reserve_segment_rows(writer.page, required_space) {
+                        None => {
+                            // segment is full, we need to create a new one
+                            let mut slot = self.free_segments[slot_idx].write();
+                            if *slot == page_id {
+                                // page_id is unchanged, no other thread created a new segment before we got the lock
+                                page_id = self.push_new_segment();
+                            }
+                        }
+                        Some(local_pos) => return (LocalPOS(local_pos), writer),
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn reserve_segment_row(&self, segment: &NS) -> Option<u32> {
         // TODO: if this becomes a hotspot, we can switch to a fetch_add followed by a fetch_min
         // this means when we read the counter we need to clamp it to max_page_len so the iterators don't break
-        increment_and_clamp(segment.nodes_counter(), self.max_segment_len())
+        increment_and_clamp(segment.nodes_counter(), 1, self.max_segment_len())
+    }
+
+    fn reserve_segment_rows(&self, segment: &NS, rows: u32) -> Option<u32> {
+        increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
 
     fn push_new_segment(&self) -> usize {
@@ -291,8 +349,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
         let (page_id, pos) = self.resolve_pos(node);
         let node_page = self
-            .segments
-            .get(page_id)
+            .get_segment(page_id)
             .expect("Internal error: page not found");
         node_page.entry(pos)
     }
@@ -300,7 +357,11 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub fn try_node(&self, node: VID) -> Option<NS::Entry<'_>> {
         let (page_id, pos) = self.resolve_pos(node);
         let node_page = self.segments.get(page_id)?;
-        Some(node_page.entry(pos))
+        if pos.0 < node_page.num_nodes() {
+            Some(node_page.entry(pos))
+        } else {
+            None
+        }
     }
 
     #[inline(always)]
@@ -317,7 +378,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         &'a self,
         segment_id: usize,
     ) -> Option<NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>> {
-        let segment = &self.segments[segment_id];
+        let segment = self.get_or_create_segment(segment_id);
         let head = segment.try_head_mut()?;
         Some(NodeWriter::new(segment, &self.stats, head))
     }
@@ -480,6 +541,28 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         self.get_or_create_segment(new_len - 1);
     }
 
+    pub fn get_segment(&self, segment_id: usize) -> Option<&NS> {
+        self.segments
+            .get(segment_id)
+            .map(|seg| seg.deref())
+            .or_else(|| {
+                let count = self.segments.count();
+                if segment_id < count {
+                    // Another thread has allocated the segment, wait for it to be added.
+                    loop {
+                        if let Some(segment) = self.segments.get(segment_id) {
+                            return Some(segment.deref());
+                        } else {
+                            // Wait for the segment to be created.
+                            std::thread::yield_now();
+                        }
+                    }
+                } else {
+                    None
+                }
+            })
+    }
+
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<NS> {
         if let Some(segment) = self.segments.get(segment_id) {
             return segment;
@@ -531,7 +614,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub(crate) fn segment_counts(&self) -> SegmentCounts<VID> {
         SegmentCounts::new(
             self.max_segment_len(),
-            self.segments().iter().map(|(_, seg)| seg.num_nodes()),
+            self.segments_iter().map(|seg| seg.num_nodes()),
         )
     }
 
@@ -540,14 +623,19 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 }
 
-pub fn increment_and_clamp(counter: &AtomicU32, max_segment_len: u32) -> Option<u32> {
+pub fn increment_and_clamp(
+    counter: &AtomicU32,
+    increment: u32,
+    max_segment_len: u32,
+) -> Option<u32> {
     counter
         .fetch_update(
             std::sync::atomic::Ordering::Relaxed,
             std::sync::atomic::Ordering::Relaxed,
             |current| {
-                if current < max_segment_len {
-                    Some(current + 1)
+                let updated = current + increment;
+                if updated <= max_segment_len {
+                    Some(updated)
                 } else {
                     None
                 }
