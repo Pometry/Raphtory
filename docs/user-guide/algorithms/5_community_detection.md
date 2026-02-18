@@ -73,7 +73,7 @@ Here we use the [Louvain][raphtory.algorithms.louvain] algorithm to identify dis
 clustering = algorithms.louvain(G)
 
 # Extract unique cluster values
-unique_clusters = {cluster for node, cluster["community_id"] in clustering.items()}
+unique_clusters = {cluster["community_id"] for node, cluster in clustering.items()}
 print("Number of unique clusters:", len(unique_clusters))
 ```
 ///
