@@ -3327,7 +3327,7 @@ input Value @oneOf {
 	"""
 	ndtime: String
 	"""
-	Big Decimal numbers.
+	BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
 	"""
 	decimal: String
 }
