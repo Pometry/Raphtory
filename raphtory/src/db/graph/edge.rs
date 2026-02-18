@@ -332,6 +332,29 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
+        let is_update = false;
+        self.add_metadata_impl(properties, layer, is_update)
+    }
+
+    pub fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        props: impl IntoIterator<Item = (PN, P)>,
+        layer: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let is_update = true;
+        self.add_metadata_impl(props, layer, is_update)
+    }
+
+    /// Adds metadata properties to the edge.
+    ///
+    /// When `is_update` is true, existing properties are updated, otherwise
+    /// an error is returned if the property already exists.
+    fn add_metadata_impl<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        properties: impl IntoIterator<Item = (PN, P)>,
+        layer: Option<&str>,
+        is_update: bool,
+    ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
         let transaction_manager = self.graph.core_graph().transaction_manager()?;
         let wal = self.graph.core_graph().wal()?;
@@ -353,70 +376,18 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         let eid = self.edge.pid();
 
-        let mut writer = self
-            .graph
-            .internal_add_edge_metadata(eid, input_layer_id, props)
-            .map_err(into_graph_err)?;
+        let mut writer = if is_update {
+            self.graph
+                .internal_update_edge_metadata(eid, input_layer_id, props)
+                .map_err(into_graph_err)?
+        } else {
+            self.graph
+                .internal_add_edge_metadata(eid, input_layer_id, props)
+                .map_err(into_graph_err)?
+        };
 
-        let props_for_wal = props_with_status.
-            iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
-        let lsn = wal.log_add_edge_metadata(
-            transaction_id,
-            eid,
-            input_layer_id,
-            props_for_wal,
-        )?;
-
-        writer.set_lsn(lsn);
-        transaction_manager.end_transaction(transaction_id);
-        drop(writer);
-
-        if let Err(e) = wal.flush(lsn) {
-            return Err(GraphError::FatalWriteError(e));
-        }
-
-        Ok(())
-    }
-
-    pub fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
-        &self,
-        props: impl IntoIterator<Item = (PN, P)>,
-        layer: Option<&str>,
-    ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
-        let transaction_manager = self.graph.core_graph().transaction_manager()?;
-        let wal = self.graph.core_graph().wal()?;
-        let transaction_id = transaction_manager.begin_transaction();
-
-        let props_with_status = self.graph.core_graph().validate_props_with_status(
-            true,
-            self.graph.edge_meta(),
-            props.into_iter().map(|(n, p)| (n, p.into())),
-        )?;
-
-        let props = props_with_status
+        let props_for_wal = props_with_status
             .iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.as_ref().inner();
-                (*prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
-        let eid = self.edge.pid();
-
-        let mut writer = self
-            .graph
-            .internal_update_edge_metadata(eid, input_layer_id, props)
-            .map_err(into_graph_err)?;
-
-        let props_for_wal = props_with_status.
-            iter()
             .map(|maybe_new| {
                 let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
                 (prop_name.as_ref(), *prop_id, prop.clone())
