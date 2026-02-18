@@ -136,7 +136,7 @@ pub fn check_edges_support<
         let edges = graph.edges();
 
         if !expected_edges.is_empty() {
-            assert!(nodes.segments().count() > 0, "{stage}");
+            assert!(nodes.segments_count() > 0, "{stage}");
         }
 
         // Group edges by layer_id first

@@ -277,7 +277,7 @@ impl GraphStorage {
 
     pub fn node_segment_counts(&self) -> SegmentCounts<VID> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.storage().node_segment_counts(),
+            GraphStorage::Mem(storage) => storage.nodes.segment_counts(),
             GraphStorage::Unlocked(storage) => storage.storage().node_segment_counts(),
         }
     }
@@ -288,7 +288,7 @@ impl GraphStorage {
 
     pub fn edge_segment_counts(&self) -> SegmentCounts<EID> {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.storage().edge_segment_counts(),
+            GraphStorage::Mem(storage) => storage.edges.segment_counts(),
             GraphStorage::Unlocked(storage) => storage.storage().edge_segment_counts(),
         }
     }

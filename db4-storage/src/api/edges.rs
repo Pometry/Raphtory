@@ -126,6 +126,8 @@ pub trait LockedESegment: Send + Sync + std::fmt::Debug {
         &'a self,
         layer_ids: &'b LayerIds,
     ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Sync + 'a;
+
+    fn num_edges(&self) -> u32;
 }
 
 pub trait EdgeEntryOps<'a>: Send + Sync {

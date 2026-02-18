@@ -110,7 +110,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn entry(&self, pos: impl Into<LocalPOS>) -> Self::Entry<'_>;
 
-    fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment;
+    fn locked(&self) -> Self::ArcLockedSegment;
 
     fn flush(&self) -> Result<(), StorageError>;
 
@@ -129,7 +129,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn nodes_counter(&self) -> &AtomicU32;
 
     fn increment_num_nodes(&self, max_page_len: u32) {
-        increment_and_clamp(self.nodes_counter(), max_page_len);
+        increment_and_clamp(self.nodes_counter(), 1, max_page_len);
     }
 
     fn num_nodes(&self) -> u32 {

@@ -101,20 +101,36 @@ fn test_hits() {
     test_storage!(&graph, |graph| {
         let results = hits(graph, 20, None);
 
-        assert_eq!(
-            results,
-            HashMap::from([
-                ("1".to_string(), (0.0431365, 0.096625775)),
-                ("2".to_string(), (0.14359662, 0.18366566)),
-                ("3".to_string(), (0.030866561, 0.36886504)),
-                ("4".to_string(), (0.1865414, 0.12442485)),
-                ("5".to_string(), (0.26667944, 0.05943252)),
-                ("6".to_string(), (0.14359662, 0.10755368)),
-                ("7".to_string(), (0.15471625, 0.0)),
-                ("8".to_string(), (0.030866561, 0.05943252))
-            ])
-        );
-    });
+        let expected = HashMap::from([
+            ("1".to_string(), (0.0431365, 0.096625775)),
+            ("2".to_string(), (0.14359662, 0.18366566)),
+            ("3".to_string(), (0.030866561, 0.36886504)),
+            ("4".to_string(), (0.1865414, 0.12442485)),
+            ("5".to_string(), (0.26667944, 0.05943252)),
+            ("6".to_string(), (0.14359662, 0.10755368)),
+            ("7".to_string(), (0.15471625, 0.0)),
+            ("8".to_string(), (0.030866561, 0.05943252)),
+        ]);
+
+        assert_eq!(results.len(), 8);
+        for (node, value) in results.iter() {
+            let expected_value = expected.get(&node.name()).unwrap();
+            assert!(
+                (value.0 - expected_value.0).abs() < 1e-6,
+                "mismatched hub score for node {}, expected {}, actual {}",
+                node.name(),
+                expected_value.0,
+                value.0
+            );
+            assert!(
+                (value.1 - expected_value.1).abs() < 1e-6,
+                "mismatched authority score for node {}, expected {}, actual {}",
+                node.name(),
+                expected_value.1,
+                value.1
+            );
+        }
+    })
 }
 
 #[test]

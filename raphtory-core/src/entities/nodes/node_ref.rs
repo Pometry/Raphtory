@@ -21,10 +21,10 @@ pub trait AsNodeRef: Send + Sync {
         }
     }
 
-    fn as_gid_ref(&self) -> Either<GidRef<'_>, VID> {
+    fn as_gid_ref(&self) -> Option<GidRef<'_>> {
         match self.as_node_ref() {
-            NodeRef::Internal(vid) => Either::Right(vid),
-            NodeRef::External(u) => Either::Left(u),
+            NodeRef::Internal(_) => None,
+            NodeRef::External(u) => Some(u),
         }
     }
 }

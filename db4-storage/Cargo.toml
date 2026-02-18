@@ -33,6 +33,9 @@ iter-enum = { workspace = true, features = ["rayon"] }
 chrono = { workspace = true, optional = true }
 clap.workspace = true
 tracing.workspace = true
+dashmap.workspace = true
+lock_api.workspace = true
+once_cell.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

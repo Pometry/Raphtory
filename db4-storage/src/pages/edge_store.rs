@@ -124,6 +124,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedEd
             )
         })
     }
+
+    pub fn segment_counts(&self) -> SegmentCounts<EID> {
+        SegmentCounts::new(
+            self.storage.max_page_len(),
+            self.locked_pages.iter().map(|seg| seg.num_edges()),
+        )
+    }
 }
 
 impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageInner<ES, EXT> {

@@ -365,7 +365,7 @@ impl MemNodeSegment {
 
 #[derive(Debug)]
 pub struct NodeSegmentView<EXT> {
-    inner: Arc<parking_lot::RwLock<MemNodeSegment>>,
+    inner: Arc<RwLock<MemNodeSegment>>,
     segment_id: usize,
     est_size: AtomicUsize,
     max_num_node: AtomicU32,
@@ -516,7 +516,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         MemNodeEntry::new(pos, self.head())
     }
 
-    fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
+    fn locked(&self) -> Self::ArcLockedSegment {
         ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 

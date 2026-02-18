@@ -29,36 +29,31 @@ pub trait DeletionOps:
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
         let session = self.write_session().map_err(|err| err.into())?;
+        let src = src.as_node_ref();
+        let dst = dst.as_node_ref();
+
         self.validate_gids(
-            [src.as_node_ref(), dst.as_node_ref()]
+            [src, dst]
                 .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
         )
         .map_err(into_graph_err)?;
 
         let ti = time_from_input_session(&session, t)?;
-        let src_id = self
-            .resolve_node(src.as_node_ref())
-            .map_err(into_graph_err)?
-            .inner();
-        let dst_id = self
-            .resolve_node(dst.as_node_ref())
-            .map_err(into_graph_err)?
-            .inner();
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
         let mut add_edge_op = self
-            .atomic_add_edge(src_id, dst_id, None, layer_id)
+            .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
 
-        let edge_id = add_edge_op.internal_delete_edge(ti, src_id, dst_id, layer_id);
-
-        add_edge_op.store_src_node_info(src_id, src.as_node_ref().as_gid_ref().left());
-        add_edge_op.store_dst_node_info(dst_id, dst.as_node_ref().as_gid_ref().left());
+        add_edge_op.internal_delete_edge(ti, layer_id);
+        let src_id = add_edge_op.src().inner();
+        let dst_id = add_edge_op.dst().inner();
+        let edge_id = add_edge_op.eid().inner();
 
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
+            EdgeRef::new_outgoing(edge_id, src_id, dst_id).at_layer(layer_id),
         ))
     }
 

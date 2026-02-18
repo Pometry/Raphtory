@@ -414,7 +414,7 @@ impl<
     {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .iter_refs()
+            .iter_vids(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
@@ -424,21 +424,21 @@ impl<
     {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .par_iter_refs()
+            .par_iter_refs(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .iter_refs()
+            .iter_vids(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
     fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .par_iter_refs()
+            .par_iter_refs(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
