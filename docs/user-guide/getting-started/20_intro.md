@@ -79,7 +79,7 @@ for rank, (node, score) in enumerate(top_5.items(),1):
 ///
 
 ```{.python continuation hide}
-assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == "PETOULETTE's ranking is 0.0599"
+assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE')["pagerank_score"], 5)}") == "PETOULETTE's ranking is 0.0599"
 ```
 
 !!! Output

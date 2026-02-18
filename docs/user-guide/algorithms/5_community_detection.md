@@ -102,7 +102,7 @@ To do this assign a type to nodes of each cluster and start the Raphtory server.
 # Check value of cluster for each node and add to corresponding cluster list
 labels = {0:'Cobra Kai',1:'Miyagi-Do',2:'Polarslaget',3:'Redentores'}
 for node, cluster in clustering.items():
-    G.node(node).set_node_type(labels[cluster])
+    G.node(node).set_node_type(labels[cluster["community_id"]])
 
 # Start a Raphtory server and send the karate graph
 server = graphql.GraphServer(".idea/my-test/graphs")
