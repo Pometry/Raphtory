@@ -177,4 +177,7 @@ strsim = { version = "0.11.1" }
 uuid = { version = "1.16.0", features = ["v4"] }
 strum = "0.27.2"
 strum_macros = "0.27.2"
-
+datafusion-physical-expr-common = "50.3.0"
+datafusion-physical-expr = "50.3.0"
+datafusion-physical-plan = "50.3.0"
+datafusion-expr-common = "50.3.0"

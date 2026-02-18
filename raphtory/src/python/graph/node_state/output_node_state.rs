@@ -5,8 +5,8 @@ use crate::{
     db::{
         api::{
             state::{
-                convert_prop_map, ops::Const, GenericNodeState, MergePriority, NodeStateOutput,
-                OutputTypedNodeState, TransformedPropMap, TypedNodeState,
+                convert_prop_map, ops::Const, GenericNodeState, MergePriority, NodeGroups,
+                NodeStateOutput, OutputTypedNodeState, TransformedPropMap, TypedNodeState,
             },
             view::DynamicGraph,
         },
@@ -159,6 +159,39 @@ impl PyOutputNodeState {
 
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
+    }
+
+    fn sort_by(
+        &self,
+        sort_params: IndexMap<String, Option<String>>,
+    ) -> OutputTypedNodeState<'static, DynamicGraph> {
+        self.inner
+            .state
+            .sort_by(sort_params)
+            .unwrap()
+            .to_output_nodestate()
+    }
+
+    fn top_k(
+        &self,
+        sort_params: IndexMap<String, Option<String>>,
+        k: usize,
+    ) -> OutputTypedNodeState<'static, DynamicGraph> {
+        self.inner
+            .state
+            .top_k(sort_params, k)
+            .unwrap()
+            .to_output_nodestate()
+    }
+
+    fn groups(
+        &self,
+        cols: Vec<String>,
+    ) -> Vec<(
+        TransformedPropMap<'static, DynamicGraph>,
+        Nodes<'static, DynamicGraph>,
+    )> {
+        self.inner.get_groups(cols).unwrap()
     }
 
     //fn sorted_by_id(&self) -> OutputTypedNodeState<'static, DynamicGraph> {

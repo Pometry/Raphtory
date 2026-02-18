@@ -50,6 +50,10 @@ roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
 uuid = { workspace = true }
+datafusion-physical-expr-common = { workspace = true }
+datafusion-physical-expr = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+datafusion-expr-common = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }

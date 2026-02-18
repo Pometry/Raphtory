@@ -2,7 +2,7 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::{node_state_ops::NodeStateOps, ops::Const, Index},
+            state::{node_state_ops::NodeStateOps, ops::Const, Index, NodeGroups},
             view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -13,11 +13,13 @@ use crate::{
 
 use arrow::{
     array::AsArray,
-    compute::{cast_with_options, CastOptions},
+    compute::{cast_with_options, interleave_record_batch, CastOptions},
     datatypes::UInt64Type,
+    row::{OwnedRow, Row, RowConverter, SortField},
 };
-use arrow_array::{Array, ArrayRef, RecordBatch, StringArray};
-use arrow_schema::{DataType, Field, FieldRef, Schema, SchemaBuilder};
+use arrow_array::{Array, ArrayRef, RecordBatch, StringArray, UInt32Array};
+use arrow_schema::{ArrowError, DataType, Field, FieldRef, Schema, SchemaBuilder, SortOptions};
+use dashmap::DashMap;
 use indexmap::{IndexMap, IndexSet};
 use parquet::{
     arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter},
@@ -28,7 +30,17 @@ use parquet::{
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
-use raphtory_api::core::entities::properties::prop::{Prop, PropType, PropUntagged, PropUnwrap};
+use datafusion_expr_common::groups_accumulator::{EmitTo, GroupsAccumulator};
+use datafusion_physical_expr::expressions::col;
+use datafusion_physical_expr_common::sort_expr::PhysicalSortExpr;
+use datafusion_physical_plan::aggregates::{
+    group_values::{new_group_values, GroupValues},
+    order::GroupOrdering,
+};
+use raphtory_api::{
+    core::entities::properties::prop::{Prop, PropType, PropUntagged, PropUnwrap},
+    inherit::Base,
+};
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -38,11 +50,11 @@ use serde_arrow::{
 };
 
 use std::{
-    cmp::PartialEq,
-    collections::HashMap,
+    cmp::{Ordering, PartialEq},
+    collections::{BinaryHeap, HashMap},
     fmt::{Debug, Formatter},
     fs::File,
-    hash::BuildHasher,
+    hash::{BuildHasher, Hash},
     marker::PhantomData,
     path::Path,
     sync::Arc,
@@ -139,6 +151,40 @@ where
     {
         value
     }
+}
+
+/// A heap entry: stores the row bytes (for comparison) and the original index.
+struct HeapRow {
+    row: Vec<u8>,
+    index: usize,
+}
+
+impl PartialEq for HeapRow {
+    fn eq(&self, other: &Self) -> bool {
+        self.row == other.row
+    }
+}
+impl Eq for HeapRow {}
+
+// BinaryHeap is a max-heap. We want to keep the *smallest* k rows,
+// so the max of the heap is the eviction candidate.
+impl PartialOrd for HeapRow {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for HeapRow {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.row.cmp(&other.row)
+    }
+}
+
+/// State for grouped partial aggregation
+struct GroupedState {
+    /// Manages group keys and assigns group indices
+    group_values: Box<dyn GroupValues>,
+    /// One GroupsAccumulator per aggregate function
+    accumulators: Vec<Box<dyn GroupsAccumulator>>,
 }
 
 #[derive(Clone, Debug)]
@@ -784,6 +830,75 @@ impl<
     pub fn convert(&self, value: V) -> T {
         (self.converter)(&self.state, value)
     }
+
+    pub fn get_groups(&self, cols: Vec<String>) -> Result<Vec<(T, Nodes<'graph, G>)>, GraphError> {
+        let num_rows = self.state.values().num_rows();
+        if num_rows == 0 {
+            return Ok(vec![].into());
+        }
+
+        let mut group_values = new_group_values(self.state.values().schema(), &GroupOrdering::None)
+            .map_err(|e| ArrowError::ParseError(e.to_string()))?;
+        let group_arrays: Vec<ArrayRef> = cols
+            .iter()
+            .map(|name| {
+                let idx = self.state.values().schema().index_of(name)?;
+                Ok(self.state.values().column(idx).clone())
+            })
+            .collect::<Result<_, GraphError>>()?;
+
+        // Intern groups: assigns group_idx to each row
+        let mut group_indices = vec![0usize; num_rows];
+        group_values
+            .intern(&group_arrays, &mut group_indices)
+            .map_err(|e| ArrowError::ComputeError(e.to_string()))?;
+
+        // Emit group values as arrays
+        let group_arrays = group_values
+            .emit(EmitTo::All)
+            .map_err(|e| ArrowError::ComputeError(e.to_string()))?;
+        // Build schema from the group columns
+        let fields: Vec<Field> = cols
+            .iter()
+            .map(|name| {
+                let idx = self.state.values().schema().index_of(name)?;
+                Ok(self.state.values().schema().field(idx).clone())
+            })
+            .collect::<Result<_, GraphError>>()?;
+        let schema = Arc::new(Schema::new(fields));
+        let group_batch =
+            RecordBatch::try_new(schema, group_arrays).map_err(|e| GraphError::from(e))?;
+        let group_batch_des: RecordBatchIterator<'_, V> = RecordBatchIterator::new(&group_batch);
+
+        let groups: DashMap<usize, IndexSet<VID, ahash::RandomState>, ahash::RandomState> =
+            DashMap::default();
+        group_indices
+            .into_par_iter()
+            .enumerate()
+            .for_each(|(node_idx, group_value_idx)| {
+                let vid = self.state.keys.as_ref().map_or(VID(node_idx), |idx| {
+                    idx.index.get_index(node_idx).unwrap().clone()
+                });
+                groups.entry(group_value_idx).or_default().insert(vid);
+            });
+
+        let result = groups
+            .into_par_iter()
+            .map(|(group_value_idx, nodes)| {
+                (
+                    self.convert(group_batch_des.get(group_value_idx).unwrap()),
+                    Nodes::new_filtered(
+                        self.graph().clone(),
+                        self.graph().clone(),
+                        Const(true),
+                        Some(Index::new(nodes)),
+                    ),
+                )
+            })
+            .collect();
+
+        return Ok(result);
+    }
 }
 
 impl<
@@ -1107,9 +1222,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         let values = Self::convert_recordbatch(to_record_batch(&fields, &values).unwrap()).unwrap();
         Self::new(graph, values, index, node_cols)
     }
-}
 
-impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     /// create a new empty NodeState
     pub fn new_empty(graph: G) -> Self {
         Self::new(
@@ -1190,5 +1303,215 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             let values = to_record_batch(&fields, &values).unwrap();
             Self::new(graph.clone(), values, Some(Index::new(index)), node_cols)
         }
+    }
+
+    fn get_sort_exprs(
+        sort_params: IndexMap<String, Option<String>>,
+        schema: &Schema,
+    ) -> Vec<PhysicalSortExpr> {
+        let sort_exprs: Result<Vec<PhysicalSortExpr>, ArrowError> = sort_params
+            .into_iter()
+            .map(|(name, sort_opt)| {
+                let options = match sort_opt.as_deref().map(|s| s.to_lowercase()).as_deref() {
+                    Some("desc") => SortOptions {
+                        descending: true,
+                        nulls_first: false,
+                    },
+                    Some("asc") => SortOptions {
+                        descending: false,
+                        nulls_first: true,
+                    },
+                    _ => SortOptions::default(),
+                };
+                Ok(PhysicalSortExpr {
+                    expr: col(&name, schema)?,
+                    options,
+                })
+            })
+            .collect();
+        sort_exprs.unwrap()
+    }
+
+    // NOTE(wyatt): maybe just steal this
+    /// Synchronous sort implementation using arrow-row
+    pub fn sort_by(
+        &self,
+        sort_params: IndexMap<String, Option<String>>,
+    ) -> Result<GenericNodeState<'graph, G>, GraphError> {
+        if self.values.num_rows() == 0 {
+            return Ok(GenericNodeState::new_empty(self.base_graph.clone())); //Ok(self.values.clone());
+        }
+
+        let sort_exprs: Vec<PhysicalSortExpr> =
+            Self::get_sort_exprs(sort_params, &self.values().schema());
+
+        // Build SortField configuration for arrow-row
+        let sort_fields: Vec<SortField> = sort_exprs
+            .iter()
+            .map(|expr| {
+                // Evaluate expression to get the column
+                let col = expr
+                    .expr
+                    .evaluate(self.values())
+                    .map_err(|e| {
+                        ArrowError::ParseError(format!("Failed to evaluate sort expr: {}", e))
+                    })?
+                    .into_array(self.values.num_rows())
+                    .map_err(|e| {
+                        ArrowError::CastError(format!("Failed to convert to array: {}", e))
+                    })?;
+
+                Ok(SortField::new_with_options(
+                    col.data_type().clone(),
+                    arrow::compute::SortOptions {
+                        descending: expr.options.descending,
+                        nulls_first: expr.options.nulls_first,
+                    },
+                ))
+            })
+            .collect::<Result<Vec<_>, ArrowError>>()?;
+
+        // Create row converter
+        let converter = RowConverter::new(sort_fields).map_err(|e| {
+            ArrowError::SchemaError(format!("Failed to create RowConverter: {}", e))
+        })?;
+
+        // Evaluate sort key columns
+        let sort_columns: Vec<_> = sort_exprs
+            .iter()
+            .map(|expr| {
+                expr.expr
+                    .evaluate(self.values())
+                    .map_err(|e| ArrowError::SchemaError(format!("Failed to evaluate: {}", e)))?
+                    .into_array(self.values.num_rows())
+                    .map_err(|e| ArrowError::SchemaError(format!("Failed to convert: {}", e)))
+            })
+            .collect::<Result<Vec<_>, ArrowError>>()?;
+
+        // Convert to rows
+        let rows = converter.convert_columns(&sort_columns).map_err(|e| {
+            ArrowError::CastError(format!("Failed to convert to rows: {}", e).into())
+        })?;
+
+        // Create indices and sort by row comparison and use this to reorder keys
+        let mut indices: Vec<u32> = (0..self.values.num_rows() as u32).collect();
+        let new_keys: Option<Index<VID>> = match &self.keys {
+            Some(keys) => Some(
+                indices
+                    .iter()
+                    .filter_map(|&i| keys.index.get_index(i as usize).copied())
+                    .collect(),
+            ),
+            None => Some(indices.iter().map(|&i| VID(i as usize)).collect()),
+        };
+        indices.par_sort_by(|&a, &b| rows.row(a as usize).cmp(&rows.row(b as usize)));
+
+        // Apply sorted indices to all columns
+        let indices_array = UInt32Array::from(indices);
+        let sorted_columns: Vec<_> = self
+            .values
+            .columns()
+            .iter()
+            .map(|col| {
+                take(col, &indices_array, None).map_err(|e| ArrowError::ComputeError(e.to_string()))
+            })
+            .collect::<Result<Vec<_>, ArrowError>>()?;
+
+        Ok(GenericNodeState::new(
+            self.base_graph.clone(),
+            RecordBatch::try_new(self.values.schema(), sorted_columns)?,
+            new_keys,
+            Some(self.node_cols.clone()),
+        ))
+        //.map_err(|e| PipelineError::Arrow(e))?, None, None)
+    }
+
+    /// Given a single `RecordBatch`, return the top `k` rows according to `sort_exprs`.
+    ///
+    /// The returned batch has at most `k` rows, sorted from lowest to highest
+    /// in the order defined by `sort_exprs` (which may individually be ASC or DESC).
+    pub fn top_k(
+        &self,
+        sort_params: IndexMap<String, Option<String>>,
+        k: usize,
+    ) -> Result<GenericNodeState<'graph, G>, GraphError> {
+        if self.values().num_rows() == 0 || k == 0 {
+            return Ok(GenericNodeState::new_empty(self.base_graph.clone()));
+        }
+
+        let sort_exprs: Vec<PhysicalSortExpr> =
+            Self::get_sort_exprs(sort_params, &self.values().schema());
+
+        // Build a RowConverter that encodes the sort key (handles asc/desc/nulls).
+        let sort_fields: Vec<SortField> = sort_exprs
+            .iter()
+            .map(|e| {
+                Ok(SortField::new_with_options(
+                    e.expr
+                        .data_type(self.values().schema().as_ref())
+                        .map_err(|e| ArrowError::ParseError(e.to_string()))?,
+                    e.options,
+                ))
+            })
+            .collect::<Result<_, ArrowError>>()?;
+
+        let mut converter = RowConverter::new(sort_fields)?;
+
+        // Evaluate sort key columns.
+        let sort_columns: Vec<ArrayRef> = sort_exprs
+            .iter()
+            .map(|e| {
+                e.expr
+                    .evaluate(self.values())?
+                    .into_array(self.values().num_rows())
+                    .map_err(|e| ArrowError::ComputeError(e.to_string()))
+            })
+            .collect::<Result<_, ArrowError>>()?;
+
+        let rows = converter.convert_columns(&sort_columns)?;
+
+        // Use a max-heap of size k to find the smallest k rows.
+        let mut heap = BinaryHeap::<HeapRow>::with_capacity(k + 1);
+
+        for i in 0..self.values().num_rows() {
+            let row = rows.row(i);
+            if heap.len() < k {
+                heap.push(HeapRow {
+                    row: row.as_ref().to_vec(),
+                    index: i,
+                });
+            } else if let Some(max) = heap.peek() {
+                if row.as_ref() < max.row.as_slice() {
+                    heap.pop();
+                    heap.push(HeapRow {
+                        row: row.as_ref().to_vec(),
+                        index: i,
+                    });
+                }
+            }
+        }
+
+        // Sort results from smallest to largest.
+        let mut sorted: Vec<HeapRow> = heap.into_sorted_vec();
+
+        // Build the output via interleave.
+        let batches = [self.values()];
+        let indices: Vec<(usize, usize)> = sorted.iter().map(|r| (0, r.index)).collect();
+        let new_keys: Option<Index<VID>> = match &self.keys {
+            Some(keys) => Some(
+                indices
+                    .iter()
+                    .filter_map(|(_, i)| keys.index.get_index(*i as usize).copied())
+                    .collect(),
+            ),
+            None => Some(indices.iter().map(|(_, i)| VID(*i as usize)).collect()),
+        };
+
+        Ok(GenericNodeState::new(
+            self.base_graph.clone(),
+            interleave_record_batch(&batches, &indices)?,
+            new_keys,
+            Some(self.node_cols.clone()),
+        ))
     }
 }

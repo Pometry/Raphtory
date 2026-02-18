@@ -26,17 +26,17 @@ results = rp.algorithms.pagerank(lotr_graph)
 
 # Getting the results for an individual character (Gandalf)
 gandalf_rank = results.get("Gandalf")
-print(f"Gandalf's ranking is {round(gandalf_rank, 5)}\n")
+print(f"Gandalf's ranking is {round(gandalf_rank["pagerank_score"], 5)}\n")
 
 # Getting the top 5 most important characters and printing out their scores
-top_5 = results.top_k(5)
+top_5 = results.top_k({"pagerank_score": "desc"}, 5)
 for rank, (node, score) in enumerate(top_5.items(), 1):
     print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
 ```
 ///
 
 ```{.python continuation hide}
-assert str(f"Gandalf's ranking is {round(gandalf_rank, 5)}") == "Gandalf's ranking is 0.01581"
+assert str(f"Gandalf's ranking is {round(gandalf_rank["pagerank_score"], 5)}") == "Gandalf's ranking is 0.01581"
 ```
 
 !!! Output
@@ -85,7 +85,7 @@ print(f"{results}\n")
 components = results.groups()
 
 # Get the size of each component
-component_sizes = {key: len(value) for key, value in components}
+component_sizes = {key["component_id"]: len(value) for key, value in components}
 # Get the key for the largest component
 largest_component = max(component_sizes, key=component_sizes.get)
 # Print the size of the largest component

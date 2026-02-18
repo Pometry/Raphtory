@@ -24,7 +24,7 @@ time = []
 
 for windowed_graph in lotr_graph.rolling(window=2000):
     result = rp.algorithms.pagerank(windowed_graph)
-    importance.append(result.get("Gandalf"))
+    importance.append(result.get("Gandalf")["pagerank_score"])
     time.append(windowed_graph.earliest_time.t)
 
 plt.plot(time, importance, marker="o")
