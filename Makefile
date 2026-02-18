@@ -257,3 +257,11 @@ docker-run-raphtory-arm64:
 		$(if $(OTLP_AGENT_HOST),--otlp-agent-host=$(OTLP_AGENT_HOST)) \
 		$(if $(OTLP_AGENT_PORT),--otlp-agent-port=$(OTLP_AGENT_PORT)) \
 		$(if $(OTLP_TRACING_SERVICE_NAME),--otlp-tracing-service-name=$(OTLP_TRACING_SERVICE_NAME))
+
+################
+# Claude Skill #
+################
+
+claude-skill: build-python-public
+	cat llms/generate-raphtory-skill.md | claude --permission-mode dontAsk --allowedTools 'Bash,Read,Write,Glob,Grep'
+	python llms/build_skill_md.py
