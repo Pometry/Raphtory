@@ -691,10 +691,9 @@ class GraphView(object):
 
     def vectorise(
         self,
-        embedding: Callable[[list], list],
+        model,
         nodes: bool | str = True,
         edges: bool | str = True,
-        cache: Optional[str] = None,
         verbose: bool = False,
     ) -> VectorisedGraph:
         """

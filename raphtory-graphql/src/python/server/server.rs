@@ -3,24 +3,21 @@ use crate::{
         app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
         otlp_config::TracingLevel,
     },
-    python::server::{
-        running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
-    },
+    python::server::{running_server::PyRunningGraphServer, wait_server, BridgeCommand},
     GraphServer,
 };
 use pyo3::{
     exceptions::{PyAttributeError, PyException, PyValueError},
     prelude::*,
-    types::PyFunction,
 };
 use raphtory::{
-    python::packages::vectors::TemplateConfig,
-    vectors::{
-        embeddings::{openai_embedding, EmbeddingFunction},
-        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    python::{
+        packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
+        utils::block_on,
     },
+    vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
-use std::{path::PathBuf, sync::Arc, thread};
+use std::{path::PathBuf, thread};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -38,7 +35,7 @@ use std::{path::PathBuf, sync::Arc, thread};
 ///     auth_enabled_for_reads:
 ///     create_index:
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
-pub struct PyGraphServer(pub Option<GraphServer>);
+pub struct PyGraphServer(GraphServer);
 
 impl<'py> IntoPyObject<'py> for GraphServer {
     type Target = PyGraphServer;
@@ -46,38 +43,23 @@ impl<'py> IntoPyObject<'py> for GraphServer {
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
 
     fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-        PyGraphServer::new(self).into_pyobject(py)
+        PyGraphServer(self).into_pyobject(py)
     }
 }
 
-fn template_from_python(nodes: TemplateConfig, edges: TemplateConfig) -> Option<DocumentTemplate> {
+fn template_from_python(
+    nodes: TemplateConfig,
+    edges: TemplateConfig,
+) -> PyResult<DocumentTemplate> {
     if nodes.is_disabled() && edges.is_disabled() {
-        None
+        Err(PyAttributeError::new_err(
+            "at least one of nodes and edges has to be set to True or some string",
+        ))
     } else {
-        Some(DocumentTemplate {
+        Ok(DocumentTemplate {
             node_template: nodes.get_template_or(DEFAULT_NODE_TEMPLATE),
             edge_template: edges.get_template_or(DEFAULT_EDGE_TEMPLATE),
         })
-    }
-}
-
-impl PyGraphServer {
-    pub fn new(server: GraphServer) -> Self {
-        Self(Some(server))
-    }
-
-    fn set_generic_embeddings<F: EmbeddingFunction + Clone + 'static>(
-        slf: PyRefMut<Self>,
-        cache: String,
-        embedding: F,
-        nodes: TemplateConfig,
-        edges: TemplateConfig,
-    ) -> PyResult<GraphServer> {
-        let global_template = template_from_python(nodes, edges);
-        let server = take_server_ownership(slf)?;
-        let cache = PathBuf::from(cache);
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        Ok(rt.block_on(server.set_embeddings(embedding, &cache, global_template))?)
     }
 }
 
@@ -148,72 +130,72 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = GraphServer::new(work_dir, app_config, config_path)?;
-        Ok(PyGraphServer::new(server))
+        let server = block_on(GraphServer::new(work_dir, app_config, config_path))?;
+        Ok(PyGraphServer(server))
     }
 
+    // TODO: remove this, should be config
     /// Turn off index for all graphs
-    ///
-    /// Returns:
-    ///     GraphServer: The server with indexing disabled
-    fn turn_off_index(slf: PyRefMut<Self>) -> PyResult<GraphServer> {
-        let server = take_server_ownership(slf)?;
-        Ok(server.turn_off_index())
+    fn turn_off_index(mut slf: PyRefMut<Self>) {
+        slf.0.turn_off_index()
     }
 
-    /// Setup the server to vectorise graphs with a default template.
+    /// Vectorise the graph name in the server working directory.
     ///
     /// Arguments:
-    ///     cache  (str): the directory to use as cache for the embeddings.
-    ///     embedding (Callable, optional): the embedding function to translate documents to embeddings.
-    ///     nodes  (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///
-    /// Returns:
-    ///     GraphServer: A new server object with embeddings setup.
-    #[pyo3(
-        signature = (cache, embedding = None, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
-    )]
-    fn set_embeddings(
-        slf: PyRefMut<Self>,
-        cache: String,
-        embedding: Option<Py<PyFunction>>,
-        nodes: TemplateConfig,
-        edges: TemplateConfig,
-    ) -> PyResult<GraphServer> {
-        match embedding {
-            Some(embedding) => {
-                let embedding: Arc<dyn EmbeddingFunction> = Arc::new(embedding);
-                Self::set_generic_embeddings(slf, cache, embedding, nodes, edges)
-            }
-            None => Self::set_generic_embeddings(slf, cache, openai_embedding, nodes, edges),
-        }
-    }
-
-    /// Vectorise a subset of the graphs of the server.
-    ///
-    /// Arguments:
-    ///     graph_names (list[str]): the names of the graphs to vectorise. All by default.
+    ///     name (list[str]): the name of the graph to vectorise.
+    ///     embeddings (OpenAIEmbeddings): the embeddings to use
     ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
-    ///
-    /// Returns:
-    ///     GraphServer: A new server object containing the vectorised graphs.
     #[pyo3(
-        signature = (graph_names, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
+        signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
-    fn with_vectorised_graphs(
-        slf: PyRefMut<Self>,
-        graph_names: Vec<String>,
-        // TODO: support more models by just providing a string, For example,  "openai", here and in the VectorisedGraph API
+    fn vectorise_graph(
+        &self,
+        py: Python,
+        name: &str,
+        embeddings: PyOpenAIEmbeddings,
         nodes: TemplateConfig,
         edges: TemplateConfig,
-    ) -> PyResult<GraphServer> {
-        let template = template_from_python(nodes, edges).ok_or(PyAttributeError::new_err(
-            "node_template and/or edge_template has to be set",
-        ))?;
-        let server = take_server_ownership(slf)?;
-        Ok(server.with_vectorised_graphs(graph_names, template))
+    ) -> PyResult<()> {
+        let template = template_from_python(nodes, edges)?;
+        // allow threads just in case the embedding server is using the same python runtime
+        py.allow_threads(|| {
+            block_on(async move {
+                self.0
+                    .vectorise_graph(name, &template, embeddings.into())
+                    .await?;
+                Ok(())
+            })
+        })
+    }
+
+    /// Vectorise all graphs in the server working directory.
+    ///
+    /// Arguments:
+    ///     embeddings (OpenAIEmbeddings): the embeddings to use
+    ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    #[pyo3(
+        signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
+    )]
+    fn vectorise_all_graphs(
+        &self,
+        py: Python,
+        embeddings: PyOpenAIEmbeddings,
+        nodes: TemplateConfig,
+        edges: TemplateConfig,
+    ) -> PyResult<()> {
+        let template = template_from_python(nodes, edges)?;
+        // allow threads just in case the embedding server is using the same python runtime
+        py.allow_threads(|| {
+            block_on(async move {
+                self.0
+                    .vectorise_all_graphs(&template, embeddings.into())
+                    .await?;
+                Ok(())
+            })
+        })
     }
 
     /// Start the server and return a handle to it.
@@ -229,20 +211,13 @@ impl PyGraphServer {
     #[pyo3(
         signature = (port = 1736, timeout_ms = 5000)
     )]
-    pub fn start(
-        slf: PyRefMut<Self>,
-        py: Python,
-        port: u16,
-        timeout_ms: u64,
-    ) -> PyResult<PyRunningGraphServer> {
+    pub fn start(&self, py: Python, port: u16, timeout_ms: u64) -> PyResult<PyRunningGraphServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
         let cloned_sender = sender.clone();
-
-        let server = take_server_ownership(slf)?;
+        let server = self.0.clone();
 
         let join_handle = thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async move {
+            block_on(async move {
                 let handler = server.start_with_port(port);
                 let running_server = handler.await?;
                 let tokio_sender = running_server._get_sender().clone();
@@ -263,9 +238,7 @@ impl PyGraphServer {
         let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
         if let Some(_server_handler) = &server.server_handler {
             let url = format!("http://localhost:{port}");
-            // we need to release the GIL, otherwise the server will deadlock when trying to use python function as the embedding function
-            // and wait_for_server_online will never return
-            let result = py.allow_threads(|| server.wait_for_server_online(&url, timeout_ms));
+            let result = server.wait_for_server_online(&url, timeout_ms);
             match result {
                 Ok(_) => return Ok(server),
                 Err(e) => {
@@ -289,8 +262,8 @@ impl PyGraphServer {
     #[pyo3(
         signature = (port = 1736, timeout_ms = 180000)
     )]
-    pub fn run(slf: PyRefMut<Self>, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
-        let mut server = Self::start(slf, py, port, timeout_ms)?.server_handler;
+    pub fn run(&self, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
+        let mut server = self.start(py, port, timeout_ms)?.server_handler;
         py.allow_threads(|| wait_server(&mut server))
     }
 }

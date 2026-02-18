@@ -70,7 +70,9 @@ mod deadlock_tests {
 
     async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None).unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None)
+            .await
+            .unwrap();
         let _running = server.start_with_port(port).await.unwrap();
         tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
         let lock = Arc::new(Mutex::new(()));
