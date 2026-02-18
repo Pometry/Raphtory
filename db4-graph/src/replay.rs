@@ -237,7 +237,7 @@ where
             let edge_meta = self.graph().edge_meta();
 
             for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = edge_meta.temporal_prop_mapper();
+                let prop_mapper = edge_meta.metadata_mapper();
                 let mut write_locked_mapper = prop_mapper.write_locked();
 
                 write_locked_mapper.set_or_unify_id_and_dtype(
@@ -257,7 +257,7 @@ where
 
             let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
 
-            edge_writer.check_metadata(edge_pos, layer_id, &props_vec)?;
+            // No need to check metadata since the operation was logged after validation.
             edge_writer.update_c_props(edge_pos, src, dst, layer_id, props_vec);
             edge_writer.set_lsn(lsn);
         }
