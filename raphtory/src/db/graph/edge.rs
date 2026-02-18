@@ -333,16 +333,53 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
-        let properties = self.graph.core_graph().validate_props(
+        let transaction_manager = self.graph.core_graph().transaction_manager()?;
+        let wal = self.graph.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
+
+        let props_with_status = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.edge_meta(),
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let eid = self.edge.pid();
+
         let writer = self
             .graph
-            .internal_add_edge_metadata(self.edge.pid(), input_layer_id, properties)
+            .internal_add_edge_metadata(eid, input_layer_id, props)
             .map_err(into_graph_err)?;
+
+        let props_for_wal = props_with_status.
+            iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let lsn = wal.log_add_edge_metadata(
+            transaction_id,
+            eid,
+            input_layer_id,
+            props_for_wal,
+        )?;
+
+        // writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
 
         Ok(())
     }
@@ -353,16 +390,54 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
+        let transaction_manager = self.graph.core_graph().transaction_manager()?;
+        let wal = self.graph.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
 
-        let properties = self.graph.core_graph().validate_props(
+        let props_with_status = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.edge_meta(),
             props.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
-        self.graph
-            .internal_update_edge_metadata(self.edge.pid(), input_layer_id, properties)
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let eid = self.edge.pid();
+
+        let writer = self
+            .graph
+            .internal_update_edge_metadata(eid, input_layer_id, props)
             .map_err(into_graph_err)?;
+
+        let props_for_wal = props_with_status.
+            iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let lsn = wal.log_add_edge_metadata(
+            transaction_id,
+            eid,
+            input_layer_id,
+            props_for_wal,
+        )?;
+
+        // writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 
