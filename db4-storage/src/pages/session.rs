@@ -226,12 +226,7 @@ impl<
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
-        self.node_writers.src.mut_segment.set_lsn(lsn);
-
-        if let Some(dst) = &mut self.node_writers.dst {
-            dst.mut_segment.set_lsn(lsn);
-        }
-
-        self.edge_writer.writer.set_lsn(lsn);
+        self.node_writers.set_lsn(lsn);
+        self.edge_writer.set_lsn(lsn);
     }
 }

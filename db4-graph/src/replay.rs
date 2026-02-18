@@ -95,7 +95,7 @@ where
                 src_writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
             }
 
-            src_writer.mut_segment.set_lsn(lsn);
+            src_writer.set_lsn(lsn);
 
             // Release the writer for mutable access to dst_writer.
             drop(src_writer);
@@ -141,7 +141,7 @@ where
                 dst_writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
             }
 
-            dst_writer.mut_segment.set_lsn(lsn);
+            dst_writer.set_lsn(lsn);
 
             drop(dst_writer);
         }
@@ -208,7 +208,7 @@ where
                 layer_id,
             );
 
-            edge_writer.writer.set_lsn(lsn);
+            edge_writer.set_lsn(lsn);
         }
 
         Ok(())
@@ -259,7 +259,7 @@ where
 
             edge_writer.check_metadata(edge_pos, layer_id, &props_vec)?;
             edge_writer.update_c_props(edge_pos, src, dst, layer_id, props_vec);
-            edge_writer.writer.set_lsn(lsn);
+            edge_writer.set_lsn(lsn);
         }
 
         Ok(())
@@ -340,7 +340,7 @@ where
                     .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
             );
 
-            node_writer.mut_segment.set_lsn(lsn);
+            node_writer.set_lsn(lsn);
         }
 
         Ok(())

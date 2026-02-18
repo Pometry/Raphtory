@@ -353,7 +353,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         let eid = self.edge.pid();
 
-        let writer = self
+        let mut writer = self
             .graph
             .internal_add_edge_metadata(eid, input_layer_id, props)
             .map_err(into_graph_err)?;
@@ -373,7 +373,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             props_for_wal,
         )?;
 
-        // writer.set_lsn(lsn);
+        writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
         drop(writer);
 
@@ -410,7 +410,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         let eid = self.edge.pid();
 
-        let writer = self
+        let mut writer = self
             .graph
             .internal_update_edge_metadata(eid, input_layer_id, props)
             .map_err(into_graph_err)?;
@@ -430,7 +430,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             props_for_wal,
         )?;
 
-        // writer.set_lsn(lsn);
+        writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
         drop(writer);
 

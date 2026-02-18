@@ -1,6 +1,7 @@
 use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::segment::MemEdgeSegment,
+    wal::LSN,
 };
 use raphtory_api::core::entities::{
     VID,
@@ -164,6 +165,10 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 
     pub fn get_edge(&self, layer_id: usize, edge_pos: LocalPOS) -> Option<(VID, VID)> {
         self.page.get_edge(edge_pos, layer_id, self.writer.deref())
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.writer.set_lsn(lsn);
     }
 
     pub fn check_metadata(

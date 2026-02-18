@@ -406,7 +406,7 @@ fn add_node_impl<
     )?;
 
     // Update node segment with the lsn of the wal entry.
-    writer.mut_segment.set_lsn(lsn);
+    writer.set_lsn(lsn);
 
     transaction_manager.end_transaction(transaction_id);
 
