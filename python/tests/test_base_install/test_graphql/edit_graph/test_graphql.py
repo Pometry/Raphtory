@@ -840,7 +840,8 @@ def test_graph_persistence_across_restarts():
         }
 
 
-def test_reproduce_float_changes_on_roundtrip():
+# tests for https://github.com/Pometry/Raphtory/issues/2487
+def test_float_is_stable_on_roundtrip():
     tmp_work_dir = tempfile.mkdtemp()
     float_examples = [
         -1.5186248156922167e66,
@@ -873,12 +874,7 @@ def test_reproduce_float_changes_on_roundtrip():
             """
             resp = client.query(query)
             retrieved_float = resp["graph"]["node"]["at"]["properties"]["get"]["value"]
-            if retrieved_float != num:
-                print("Value of float changed after roundtrip from GraphQL server")
-                print(f"Old value: {num}")
-                print(f"New value: {retrieved_float}\n")
-            else:
-                print("Success: Float did not change value")
+            assert retrieved_float == num
 
 
 # def test_disk_graph_name():
