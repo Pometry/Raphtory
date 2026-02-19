@@ -1,10 +1,9 @@
+use crate::pages::SegmentCounts;
 use rayon::prelude::*;
 use std::{
-    ops::{Index, IndexMut},
+    ops::{Deref, Index, IndexMut},
     sync::Arc,
 };
-
-use crate::pages::SegmentCounts;
 
 /// Index resolver for sharded storage with fixed-size chunks
 ///
@@ -147,7 +146,7 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
     /// - Chunk 0: yields 0..10
     /// - Chunk 1: yields 10..11
     /// - Chunk 2: yields 20..25
-    pub fn iter(&self) -> StateIndexIter<'_, I> {
+    pub fn iter(&self) -> StateIndexIter<&Self> {
         StateIndexIter {
             index: self,
             current_chunk: 0,
@@ -183,20 +182,12 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
         })
     }
 
-    pub fn arc_into_iter(self: Arc<Self>) -> impl Iterator<Item = (usize, I)> {
-        let max_page_len = self.max_page_len as usize;
-        let num_chunks = self.num_chunks();
-        (0..num_chunks).flat_map(move |chunk_idx| {
-            let chunk_start = self.offsets[chunk_idx];
-            let chunk_end = self.offsets[chunk_idx + 1];
-            let chunk_size = chunk_end - chunk_start;
-            let global_base = chunk_idx * max_page_len;
-            (0..chunk_size).map(move |local_offset| {
-                let flat_idx = chunk_start + local_offset;
-                let global_idx = I::from(global_base + local_offset);
-                (flat_idx, global_idx)
-            })
-        })
+    pub fn arc_into_iter(self: Arc<Self>) -> StateIndexIter<Arc<Self>> {
+        StateIndexIter {
+            index: self,
+            current_chunk: 0,
+            current_local: 0,
+        }
     }
 }
 
@@ -231,15 +222,17 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
 }
 
 /// Iterator over global indices in a StateIndex
-#[derive(Debug)]
-pub struct StateIndexIter<'a, I> {
-    index: &'a StateIndex<I>,
+#[derive(Debug, Clone)]
+pub struct StateIndexIter<I> {
+    index: I,
     current_chunk: usize,
     current_local: usize,
 }
 
-impl<'a, I: From<usize> + Into<usize>> Iterator for StateIndexIter<'a, I> {
-    type Item = I;
+impl<V: From<usize> + Into<usize>, I: Deref<Target = StateIndex<V>>> Iterator
+    for StateIndexIter<I>
+{
+    type Item = V;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -255,13 +248,34 @@ impl<'a, I: From<usize> + Into<usize>> Iterator for StateIndexIter<'a, I> {
                 let global_idx =
                     self.current_chunk * self.index.max_page_len as usize + self.current_local;
                 self.current_local += 1;
-                return Some(I::from(global_idx));
+                return Some(V::from(global_idx));
             }
 
             // Move to next chunk
             self.current_chunk += 1;
             self.current_local = 0;
         }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        // fast skip
+        if self.current_chunk >= self.index.num_chunks() {
+            return None;
+        }
+        let current = self.index.offsets[self.current_chunk] + self.current_local;
+        let target = current.saturating_add(n);
+        if &target >= self.index.offsets.last()? {
+            return None;
+        }
+        // find the first offset > target, then substract 1 to get the last chunk starting at <= target
+        let skip_chunks = self.index.offsets[self.current_chunk..]
+            .partition_point(|&offset| offset <= target)
+            .saturating_sub(1);
+        self.current_chunk += skip_chunks;
+        self.current_local = target - self.index.offsets[self.current_chunk];
+        let global_idx = self.current_chunk * self.index.max_page_len as usize + self.current_local;
+        self.current_local += 1;
+        Some(V::from(global_idx))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -276,16 +290,9 @@ impl<'a, I: From<usize> + Into<usize>> Iterator for StateIndexIter<'a, I> {
     }
 }
 
-impl<'a, I: From<usize> + Into<usize>> ExactSizeIterator for StateIndexIter<'a, I> {
-    fn len(&self) -> usize {
-        let total = self.index.len();
-        let consumed = if self.current_chunk < self.index.num_chunks() {
-            self.index.offsets[self.current_chunk] + self.current_local
-        } else {
-            total
-        };
-        total.saturating_sub(consumed)
-    }
+impl<V: From<usize> + Into<usize>, I: Deref<Target = StateIndex<V>>> ExactSizeIterator
+    for StateIndexIter<I>
+{
 }
 
 /// Address resolver for sharded storage with fixed-size chunks
@@ -431,7 +438,7 @@ impl<A: Default, I: From<usize> + Into<usize>> State<A, I> {
 #[derive(Debug)]
 pub struct StateIter<'a, A, I> {
     state: &'a State<A, I>,
-    inner: StateIndexIter<'a, I>,
+    inner: StateIndexIter<&'a StateIndex<I>>,
 }
 
 impl<'a, A: Default, I: From<usize> + Into<usize>> Iterator for StateIter<'a, A, I> {
@@ -822,5 +829,19 @@ mod tests {
         ];
 
         assert_eq!(values, expected);
+    }
+
+    #[test]
+    fn test_iter_skip() {
+        let index: StateIndex<usize> = StateIndex::new(vec![10, 1, 5], 10);
+
+        let expected = (0..10).chain(10..11).chain(20..25);
+        // check all skips
+        for (i, v) in expected.enumerate() {
+            assert_eq!(index.iter().nth(i), Some(v));
+        }
+
+        assert_eq!(index.iter().nth(100), None);
+        assert_eq!(index.iter().nth(16), None);
     }
 }
