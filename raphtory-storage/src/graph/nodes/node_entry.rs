@@ -47,6 +47,10 @@ impl<'a, 'b: 'a> From<&'a NodeStorageEntry<'b>> for NodeStorageRef<'a> {
 }
 
 impl<'b> NodeStorageEntry<'b> {
+    pub fn is_locked(&self) -> bool {
+        matches!(self, NodeStorageEntry::Mem(_))
+    }
+
     pub fn into_edges_iter<'a: 'b>(
         self,
         layers: &'a LayerIds,

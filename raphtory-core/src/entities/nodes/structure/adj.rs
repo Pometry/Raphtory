@@ -19,6 +19,7 @@ pub enum Adj {
 }
 
 impl Adj {
+    #[inline(always)]
     pub fn get_edge(&self, v: VID, dir: Direction) -> Option<EID> {
         match self {
             Adj::Solo => None,

@@ -24,7 +24,7 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
     >(
         self,
         cmp_fn: F,
-    ) -> FastMerge<<Self::Item as IntoIterator>::IntoIter, F> {
+    ) -> impl Iterator<Item = <Self::Item as IntoIterator>::Item> {
         FastMerge::new(self.map(|i| i.into_iter()), cmp_fn)
     }
 
@@ -34,7 +34,7 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
     /// If all base iterators are sorted (ascending), the result is sorted.
     ///
     /// Iterator element type is `Self::Item`.
-    fn fast_merge(self) -> FastMerge<<Self::Item as IntoIterator>::IntoIter, MergeByLt>
+    fn fast_merge(self) -> impl Iterator<Item = <Self::Item as IntoIterator>::Item>
     where
         <Self::Item as IntoIterator>::Item: Ord,
     {
@@ -57,7 +57,7 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
     >(
         self,
         first: F,
-    ) -> FastMerge<Rev<<Self::Item as IntoIterator>::IntoIter>, MergeByRev<F>>
+    ) -> impl Iterator<Item = <Self::Item as IntoIterator>::Item>
     where
         <Self::Item as IntoIterator>::IntoIter: DoubleEndedIterator,
     {
@@ -70,7 +70,7 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
     /// If all base iterators are sorted ascending, the result is sorted descending.
     ///
     /// Iterator element type is `Self::Item`.
-    fn fast_merge_rev(self) -> FastMerge<Rev<<Self::Item as IntoIterator>::IntoIter>, MergeByGe>
+    fn fast_merge_rev(self) -> impl Iterator<Item = <Self::Item as IntoIterator>::Item>
     where
         <Self::Item as IntoIterator>::Item: Ord,
         <Self::Item as IntoIterator>::IntoIter: DoubleEndedIterator,
