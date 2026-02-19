@@ -24,7 +24,7 @@ mod graphql_test {
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use arrow_array::types::UInt8Type;
-    use async_graphql::UploadValue;
+    use async_graphql::{dynamic::Schema, UploadValue};
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
         db::{
@@ -1850,59 +1850,92 @@ mod graphql_test {
         );
     }
 
-    #[tokio::test]
-    async fn test_new_graph_rejects_invalid_path_components() {
-        let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
-        let schema = App::create_schema().data(data).finish().unwrap();
-
-        let req = Request::new(
-            r#"
-            mutation {
-              newGraph(path: "valid_graph-1", graphType: EVENT)
-            }
-            "#,
-        );
+    async fn test_new_graph(schema: &Schema, path: &str, should_work: bool) {
+        let req = Request::new(format!(
+            r#"mutation {{ newGraph(path: "{path}", graphType: EVENT) }}"#,
+        ));
         let res = schema.execute(req).await;
-        assert_eq!(res.errors, vec![]);
-        assert_eq!(res.data.into_json().unwrap(), json!({"newGraph": true}));
 
-        let req = Request::new(
-            r#"
-            mutation {
-              newGraph(path: ".graph", graphType: EVENT)
-            }
-            "#,
-        );
-        let res = schema.execute(req).await;
-        assert!(!res.errors.is_empty());
+        if should_work {
+            assert_eq!(res.errors, vec![], "expected no errors for path: {path}");
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({"newGraph": true}),
+                "expected newGraph to return true for path: {path}",
+            );
+        } else {
+            assert!(!res.errors.is_empty(), "expected errors for path: {path}",);
+        }
+    }
 
-        let req = Request::new(
+    async fn assert_namespace_graphs(
+        schema: &Schema,
+        namespace_path: &str,
+        expected_graphs: Vec<&str>,
+        expected_children: Vec<&str>,
+    ) {
+        let req = Request::new(format!(
             r#"
-            {
-              namespace(path: "") {
-                graphs {
-                  list {
+            {{
+              namespace(path: "{namespace_path}") {{
+                graphs {{
+                  list {{
                     path
-                  }
-                }
-              }
-            }
+                  }}
+                }}
+                children {{
+                  list {{
+                    path
+                  }}
+                }}
+              }}
+            }}
             "#,
-        );
+        ));
         let res = schema.execute(req).await;
-        assert_eq!(res.errors, vec![]);
+        let into_paths = |v: Vec<&str>| v.iter().map(|p| json!({ "path": *p })).collect::<Vec<_>>();
         assert_eq!(
             res.data.into_json().unwrap(),
             json!({
                 "namespace": {
-                    "graphs": {
-                        "list": [
-                            { "path": "valid_graph-1" }
-                        ]
-                    }
+                    "graphs": { "list": into_paths(expected_graphs) },
+                    "children": { "list": into_paths(expected_children) },
                 }
             }),
         );
+    }
+
+    #[tokio::test]
+    async fn test_new_graph_rejects_hidden_path_components() {
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        // Valid paths
+        let should_work = true;
+        test_new_graph(&schema, "valid_graph-1", should_work).await;
+        test_new_graph(&schema, "some.graph", should_work).await;
+        test_new_graph(&schema, "some-namespace/graph", should_work).await;
+
+        // Hidden paths should be rejected
+        let should_work = false;
+        test_new_graph(&schema, ".graph", should_work).await;
+        test_new_graph(&schema, "some-namespace/.some-hidden/graph", should_work).await;
+        test_new_graph(&schema, "..hidden", should_work).await;
+
+        assert_namespace_graphs(
+            &schema,
+            "",
+            vec!["some.graph", "valid_graph-1"],
+            vec!["some-namespace"],
+        )
+        .await;
+        assert_namespace_graphs(
+            &schema,
+            "some-namespace",
+            vec!["some-namespace/graph"],
+            vec![],
+        )
+        .await;
     }
 }

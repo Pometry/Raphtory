@@ -121,8 +121,8 @@ pub(crate) fn valid_path(
                 let component = component
                     .to_str()
                     .ok_or_else(|| InvalidPathReason::PathNotParsable(user_facing_path.clone()))?;
-                if !is_valid_graph_component(component) {
-                    return Err(InvalidPathReason::PathNotParsable(user_facing_path));
+                if component.starts_with(".") {
+                    return Err(InvalidPathReason::HiddenPathNotAllowed(user_facing_path));
                 }
                 // check if some intermediate path is already a graph
                 if full_path.join(".raph").exists() {
@@ -141,13 +141,6 @@ pub(crate) fn valid_path(
         }
     }
     Ok(full_path)
-}
-
-fn is_valid_graph_component(component: &str) -> bool {
-    !component.is_empty()
-        && component
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
 }
 
 impl ValidGraphFolder {

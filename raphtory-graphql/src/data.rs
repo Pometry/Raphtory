@@ -401,11 +401,11 @@ pub(crate) mod data_tests {
         let g0_path = work_dir.join("g0");
         let g1_path = work_dir.join("g1");
         let g2_path = work_dir.join("shivam/investigations/2024-12-22/g2");
-        let g3_path = work_dir.join("shivam/investigations/g3"); // Graph
+        let g3_path = work_dir.join("shivam/investigations/g3.with.dots"); // Graph
         let g4_path = work_dir.join("shivam/investigations/g4"); // Disk graph dir
         let g5_path = work_dir.join("shivam/investigations/g5"); // Empty dir
         let g6_path = work_dir.join("shivam/investigations/g6"); // File that is not a graph
-        let g7_path = work_dir.join(".graph"); // Invalid graph path format
+        let g7_path = work_dir.join(".graph"); // Invalid hidden path
 
         create_graph_folder(&g0_path);
         create_graph_folder(&g1_path);
@@ -441,8 +441,8 @@ pub(crate) mod data_tests {
         assert!(paths.contains(&g2_path));
         assert!(paths.contains(&g3_path));
         assert!(paths.contains(&g4_path));
-        assert!(!paths.contains(&g7_path)); // Invalid graph path format is ignored
         assert!(!paths.contains(&g5_path)); // Empty dir is ignored
+        assert!(!paths.contains(&g7_path)); // Hidden path is ignored
 
         assert!(data
             .get_graph("shivam/investigations/2024-12-22/g2")
