@@ -40,6 +40,7 @@ __all__ = [
     "average_degree",
     "directed_graph_density",
     "degree_centrality",
+    "alternating_mask",
     "max_degree",
     "min_degree",
     "max_out_degree",
@@ -214,6 +215,17 @@ def degree_centrality(graph: GraphView):
 
     Returns:
         PyOutputNodeState: NodeState mapping nodes to their associated degree centrality.
+    """
+
+def alternating_mask(graph: GraphView):
+    """
+    Alternating mask algorithm. It is a mock algorithm suitable only for testing purposes.
+
+    Arguments:
+        graph (GraphView): The graph view on which the operation is to be performed.
+
+    Returns:
+        PyOutputNodeState: NodeState mapping nodes to their associated alternating masks.
     """
 
 def max_degree(graph: GraphView) -> int:

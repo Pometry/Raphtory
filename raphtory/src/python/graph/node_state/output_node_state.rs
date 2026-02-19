@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
@@ -30,6 +28,7 @@ use pyo3::{
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
 };
 use raphtory_api::core::entities::properties::prop::PropUntagged;
+use std::collections::HashMap;
 
 #[pyclass(
     name = "OutputNodeState",
@@ -37,7 +36,7 @@ use raphtory_api::core::entities::properties::prop::PropUntagged;
     frozen
 )]
 pub struct PyOutputNodeState {
-    inner: OutputTypedNodeState<'static, DynamicGraph>,
+    pub inner: OutputTypedNodeState<'static, DynamicGraph>,
 }
 
 impl PyOutputNodeState {
