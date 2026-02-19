@@ -36,8 +36,12 @@ use raphtory_api::core::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
+    mutation::{
+        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        durability_ops::DurabilityOps,
+    },
 };
+use storage::wal::{GraphWalOps, WalOps};
 use std::{
     fmt,
     hash::{Hash, Hasher},
@@ -433,20 +437,55 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         time: T,
         props: PII,
     ) -> Result<(), GraphError> {
+        let transaction_manager = self.graph.core_graph().transaction_manager().map_err(into_graph_err)?;
+        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let transaction_id = transaction_manager.begin_transaction();
         let session = self.graph.write_session().map_err(|err| err.into())?;
+
         let t = time_from_input_session(&session, time)?;
-        let props = self
+        let props_with_status = self
             .graph
-            .validate_props(
+            .validate_props_with_status(
                 false,
                 self.graph.node_meta(),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
         let vid = self.node;
-        self.graph
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let mut writer = self
+            .graph
             .internal_add_node(t, vid, props)
             .map_err(into_graph_err)?;
+
+        let lsn = wal
+            .log_add_node(transaction_id, t, None, vid, None, props_for_wal)
+            .map_err(into_graph_err)?;
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 }
