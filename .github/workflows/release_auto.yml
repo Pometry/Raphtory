@@ -1,9 +1,5 @@
 name: 🚀🦀🐍🐳🐙 Publish all packages to crates.io, PyPi, Docker Hub & Github
 
-env:
-  PYTHON_VERSION: 3.14.2
-  DEBIAN_VERSION: trixie
-
 on:
   workflow_dispatch:
     inputs:
@@ -15,6 +11,14 @@ on:
         description: If selected will not publish to crates.io/Pypi/Docker Hub but will release to github
         type: boolean
         default: false
+      python_version:
+        description: Python version for python docker image
+        type: string
+        default: 3.14.2
+      debian_version:
+        description: Debian variant for python docker image
+        type: string
+        default: trixie
 
 jobs:
   read-raphtory-version:
@@ -66,8 +70,8 @@ jobs:
       base: ${{ inputs.base }}
       dry_run: ${{ inputs.dry_run == true }}
       tag: |
-        ${{ needs.read-raphtory-version.outputs.version }}-python${{ env.PYTHON_VERSION }}-${{ env.DEBIAN_VERSION }}
+        ${{ needs.read-raphtory-version.outputs.version }}-python${{ inputs.python_version }}-${{ inputs.debian_version }}
         ${{ needs.read-raphtory-version.outputs.version }}-python
         latest-python
-      python: ${{ env.PYTHON_VERSION }}-slim-${{ env.DEBIAN_VERSION }}
+      python: ${{ inputs.python_version }}-slim-${{ inputs.debian_version }}
     secrets: inherit
