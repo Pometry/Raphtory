@@ -101,14 +101,17 @@ pub trait NodeFilterOps: InternalNodeFilterBuilder {
         self.wrap(filter.into())
     }
 
-    fn is_in(&self, values: impl IntoIterator<Item = String>) -> Self::Wrapped<Self::FilterType> {
+    fn is_in(
+        &self,
+        values: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self::Wrapped<Self::FilterType> {
         let filter = Filter::is_in(self.field_name(), values);
         self.wrap(filter.into())
     }
 
     fn is_not_in(
         &self,
-        values: impl IntoIterator<Item = String>,
+        values: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self::Wrapped<Self::FilterType> {
         let filter = Filter::is_not_in(self.field_name(), values);
         self.wrap(filter.into())
