@@ -222,7 +222,7 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
 }
 
 /// Iterator over global indices in a StateIndex
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StateIndexIter<I> {
     index: I,
     current_chunk: usize,
