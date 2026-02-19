@@ -41,13 +41,13 @@ use raphtory_storage::{
         durability_ops::DurabilityOps,
     },
 };
-use storage::wal::{GraphWalOps, WalOps};
 use std::{
     fmt,
     hash::{Hash, Hasher},
     marker::PhantomData,
     sync::Arc,
 };
+use storage::wal::{GraphWalOps, WalOps};
 
 /// View of a Node in a Graph
 #[derive(Copy, Clone)]
@@ -415,7 +415,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         properties: impl IntoIterator<Item = (PN, P)>,
         is_update: bool,
     ) -> Result<(), GraphError> {
-        let transaction_manager = self.graph.core_graph().transaction_manager().map_err(into_graph_err)?;
+        let transaction_manager = self
+            .graph
+            .core_graph()
+            .transaction_manager()
+            .map_err(into_graph_err)?;
         let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
         let transaction_id = transaction_manager.begin_transaction();
 
@@ -485,7 +489,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         time: T,
         props: PII,
     ) -> Result<(), GraphError> {
-        let transaction_manager = self.graph.core_graph().transaction_manager().map_err(into_graph_err)?;
+        let transaction_manager = self
+            .graph
+            .core_graph()
+            .transaction_manager()
+            .map_err(into_graph_err)?;
         let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
         let transaction_id = transaction_manager.begin_transaction();
         let session = self.graph.write_session().map_err(|err| err.into())?;
