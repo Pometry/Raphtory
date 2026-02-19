@@ -10,7 +10,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input_session, CollectProperties},
+            mutation::time_from_input_session,
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
@@ -394,35 +394,61 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         &self,
         props: impl IntoIterator<Item = (PN, P)>,
     ) -> Result<(), GraphError> {
-        let properties = self.graph.core_graph().validate_props(
+        let is_update = false;
+        self.add_metadata_impl(props, is_update)
+    }
+
+    pub fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        props: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<(), GraphError> {
+        let is_update = true;
+        self.add_metadata_impl(props, is_update)
+    }
+
+    /// Adds metadata properties to the node.
+    ///
+    /// When `is_update` is true, existing properties are updated, otherwise
+    /// an error is returned if the property already exists.
+    fn add_metadata_impl<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        properties: impl IntoIterator<Item = (PN, P)>,
+        is_update: bool,
+    ) -> Result<(), GraphError> {
+        let props_with_status = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.node_meta(),
-            props.into_iter().map(|(n, p)| (n, p.into())),
+            properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
-        self.graph
-            .internal_add_node_metadata(self.node, properties)
-            .map_err(into_graph_err)?;
+
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let vid = self.node;
+
+        let mut writer = if is_update {
+            self.graph
+                .internal_update_node_metadata(vid, props)
+                .map_err(into_graph_err)?
+        } else {
+            self.graph
+                .internal_add_node_metadata(vid, props)
+                .map_err(into_graph_err)?
+        };
+
+        drop(writer);
+
         Ok(())
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
         self.graph
             .resolve_and_update_node_and_type(NodeRef::Internal(self.node), Some(new_type))
-            .map_err(into_graph_err)?;
-        Ok(())
-    }
-
-    pub fn update_metadata<C: CollectProperties>(&self, props: C) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .write_session()
-                .and_then(|s| s.resolve_node_property(name, dtype, true))
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
-        self.graph
-            .internal_update_node_metadata(self.node, properties)
             .map_err(into_graph_err)?;
         Ok(())
     }
