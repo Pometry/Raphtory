@@ -2,6 +2,7 @@ use std::{borrow::Borrow, ops::Range};
 
 use either::Either;
 use itertools::Itertools;
+use raphtory_api::core::entities::LayerId;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{entities::LayerIds, storage::timeindex::EventTime};
@@ -22,7 +23,7 @@ where
 
     fn into_t_props(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a;
 
@@ -34,16 +35,16 @@ where
     ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a {
         match layers.borrow() {
             LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::One(layer_id) => Iter4::J(self.into_t_props(*layer_id, prop_id)),
+            LayerIds::One(layer_id) => Iter4::J(self.into_t_props(LayerId(*layer_id), prop_id)),
             LayerIds::All => Iter4::K(
                 (0..self.num_layers())
-                    .flat_map(move |layer_id| self.into_t_props(layer_id, prop_id)),
+                    .flat_map(move |layer_id| self.into_t_props(LayerId(layer_id), prop_id)),
             ),
             LayerIds::Multiple(layers) => Iter4::L(
                 layers
                     .clone()
                     .into_iter()
-                    .flat_map(move |layer_id| self.into_t_props(layer_id, prop_id)),
+                    .flat_map(move |layer_id| self.into_t_props(LayerId(layer_id), prop_id)),
             ),
         }
     }
@@ -58,7 +59,7 @@ where
 #[derive(Clone, Copy)]
 pub struct GenericTProps<'a, Ref: WithTProps<'a>> {
     reference: Ref,
-    layer_id: Either<&'a LayerIds, usize>,
+    layer_id: Either<&'a LayerIds, LayerId>,
     prop_id: usize,
 }
 
@@ -71,7 +72,7 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
         }
     }
 
-    pub fn new_with_layer(reference: Ref, layer_id: usize, prop_id: usize) -> Self {
+    pub fn new_with_layer(reference: Ref, layer_id: LayerId, prop_id: usize) -> Self {
         Self {
             reference,
             layer_id: Either::Right(layer_id),

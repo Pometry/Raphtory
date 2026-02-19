@@ -9,6 +9,7 @@ use parking_lot::RwLockWriteGuard;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::ops::DerefMut;
+use raphtory_api::core::entities::LayerId;
 
 #[derive(Debug)]
 pub struct LockedNodePage<'a, NS> {
@@ -65,7 +66,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
         }
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         self.lock.get_or_create_layer(layer_id);
         self.layer_counter.get(layer_id);
     }
@@ -109,7 +110,7 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> 
         self.writers.into_par_iter()
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         for writer in &mut self.writers {
             writer.ensure_layer(layer_id);
         }

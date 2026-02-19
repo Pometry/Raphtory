@@ -5,9 +5,16 @@ use iter_enum::{
 };
 use rayon::prelude::*;
 use std::{iter::Copied, sync::Arc};
+use std::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct LayerId(pub usize);
+
+impl Display for LayerId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "LayerId({})", self.0)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Layer {

@@ -17,7 +17,7 @@ use raphtory_core::{
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use std::{ops::Deref, sync::Arc};
-
+use raphtory_api::core::entities::LayerId;
 use crate::segments::additions::MemAdditions;
 
 pub struct MemNodeEntry<'a, MNS> {
@@ -136,13 +136,13 @@ impl<'a> WithTProps<'a> for MemNodeRef<'a> {
 
     fn into_t_props(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + 'a {
         let node_pos = self.pos;
         self.ns
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .and_then(|layer| layer.t_prop(node_pos, prop_id))
             .into_iter()
     }
@@ -161,33 +161,33 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.to_vid(self.pos)
     }
 
-    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+    fn out_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + 'a {
         self.ns.out_edges(self.pos, layer_id)
     }
 
-    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+    fn inb_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + 'a {
         self.ns.inb_edges(self.pos, layer_id)
     }
 
-    fn out_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+    fn out_edges_sorted(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + 'a {
         self.ns.out_edges(self.pos, layer_id)
     }
 
-    fn inb_edges_sorted(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + 'a {
+    fn inb_edges_sorted(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + 'a {
         self.ns.inb_edges(self.pos, layer_id)
     }
 
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         self.ns
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .and_then(|layer| layer.c_prop(self.pos, prop_id))
     }
 
-    fn c_prop_str(self, layer_id: usize, prop_id: usize) -> Option<&'a str> {
+    fn c_prop_str(self, layer_id: LayerId, prop_id: usize) -> Option<&'a str> {
         self.ns
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .and_then(|layer| layer.c_prop_str(self.pos, prop_id))
     }
 
@@ -201,8 +201,8 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         match layers {
-            LayerIds::One(layer_id) => self.ns.degree(self.pos, *layer_id, dir),
-            LayerIds::All => self.ns.degree(self.pos, 0, dir),
+            LayerIds::One(layer_id) => self.ns.degree(self.pos, LayerId(*layer_id), dir),
+            LayerIds::All => self.ns.degree(self.pos, LayerId(0), dir),
             LayerIds::None => 0,
             layers => self.edges_iter(layers, dir).count(),
         }
@@ -210,11 +210,11 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn find_edge(&self, dst: VID, layers: &LayerIds) -> Option<EdgeRef> {
         let eid = match layers {
-            LayerIds::One(layer_id) => self.ns.get_out_edge(self.pos, dst, *layer_id),
-            LayerIds::All => self.ns.get_out_edge(self.pos, dst, 0),
+            LayerIds::One(layer_id) => self.ns.get_out_edge(self.pos, dst, LayerId(*layer_id)),
+            LayerIds::All => self.ns.get_out_edge(self.pos, dst, LayerId(0)),
             LayerIds::Multiple(layers) => layers
                 .iter()
-                .find_map(|layer_id| self.ns.get_out_edge(self.pos, dst, layer_id)),
+                .find_map(|layer_id| self.ns.get_out_edge(self.pos, dst, LayerId(layer_id))),
             LayerIds::None => None,
         };
 
@@ -222,7 +222,7 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         eid.map(|eid| EdgeRef::new_outgoing(eid, src_id, dst))
     }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> Self::TProps {
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
         NodeTProps::new_with_layer(self, layer_id, prop_id)
     }
 

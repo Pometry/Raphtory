@@ -4,6 +4,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
 use std::{borrow::Cow, ops::Range};
+use raphtory_api::core::entities::LayerId;
 use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
@@ -41,7 +42,7 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn additions(self) -> storage::NodePropAdditions<'a>;
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a>;
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a>;
 
     fn temporal_prop_iter(
         self,
@@ -49,12 +50,12 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         prop_id: usize,
     ) -> impl Iterator<Item = (usize, storage::NodeTProps<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
-            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
+            .map(move |id| (id, self.temporal_prop_layer(LayerId(id), prop_id)))
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
     fn constant_prop_iter(
         self,
@@ -62,7 +63,7 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         prop_id: usize,
     ) -> impl Iterator<Item = (usize, Prop)> + 'a {
         self.layer_ids_iter(layer_ids)
-            .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
+            .filter_map(move |id| Some((id, self.constant_prop_layer(LayerId(id), prop_id)?)))
     }
 
     fn temp_prop_rows_range(
@@ -141,14 +142,14 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
-        NodeRefOps::temporal_prop_layer(self, 0, prop_id)
+        NodeRefOps::temporal_prop_layer(self, LayerId(0), prop_id)
     }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {
         NodeRefOps::temporal_prop_layer(self, layer_id, prop_id)
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         NodeRefOps::c_prop(self, layer_id, prop_id)
     }
 

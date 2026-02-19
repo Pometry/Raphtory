@@ -13,10 +13,7 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{
-    EID, VID,
-    properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
-};
+use raphtory_api::core::entities::{EID, VID, properties::meta::{Meta, STATIC_GRAPH_LAYER_ID}, LayerId};
 use raphtory_core::{
     entities::{ELID, LayerIds},
     storage::timeindex::{AsTime, EventTime},
@@ -120,7 +117,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedEd
         .map(|(row_group_id, iter)| {
             (
                 row_group_id,
-                iter.filter(|eid| self.edge_ref(*eid).edge(0).is_some()),
+                iter.filter(|eid| self.edge_ref(*eid).edge(LayerId(0)).is_some()),
             )
         })
     }
@@ -176,15 +173,15 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
-            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID);
+            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID.0);
             let mut head = segment.head_mut();
 
             for layer in layer_mapper.ids() {
-                head.get_or_create_layer(layer);
+                head.get_or_create_layer(LayerId(layer));
             }
 
             if prop_mapper.num_fields() > 0 {
-                head.get_or_create_layer(0)
+                head.get_or_create_layer(LayerId(0))
                     .properties_mut()
                     .set_has_properties()
             }
@@ -316,7 +313,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
         for (_, page) in pages.iter() {
             for layer_id in 0..page.num_layers() {
-                let count = page.layer_count(layer_id) as usize;
+                let count = page.layer_count(LayerId(layer_id)) as usize;
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }
@@ -471,10 +468,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
     }
 
     pub fn num_edges(&self) -> usize {
-        self.layer_counter.get(0)
+        self.layer_counter.get(LayerId(0))
     }
 
-    pub fn num_edges_layer(&self, layer_id: usize) -> usize {
+    pub fn num_edges_layer(&self, layer_id: LayerId) -> usize {
         self.layer_counter.get(layer_id)
     }
 
@@ -594,7 +591,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))
     }
 
-    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+    pub fn par_iter(&self, layer: LayerId) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
         self.par_iter_segments().flat_map(move |page| {
             (0..page.num_edges())
                 .into_par_iter()
@@ -605,7 +602,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         })
     }
 
-    pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
+    pub fn iter(&self, layer: LayerId) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
         (0..self.segments.count())
             .filter_map(move |page_id| self.segments.get(page_id))
             .flat_map(move |page| {

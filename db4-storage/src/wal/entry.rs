@@ -1,4 +1,4 @@
-use raphtory_api::core::entities::{GidRef, properties::prop::Prop};
+use raphtory_api::core::entities::{GidRef, properties::prop::Prop, LayerId};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::EventTime,
@@ -22,7 +22,7 @@ impl GraphWalOps for NoWal {
         _dst_id: VID,
         _eid: EID,
         _layer_name: Option<&str>,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
         Ok(0)
@@ -36,7 +36,7 @@ impl GraphWalOps for NoWal {
         _node_id: VID,
         _node_type_and_id: Option<(&str, usize)>,
         _props: Vec<(&str, usize, Prop)>,
-        _layer_id: usize,
+        _layer_id: LayerId,
     ) -> Result<LSN, StorageError> {
         Ok(0)
     }

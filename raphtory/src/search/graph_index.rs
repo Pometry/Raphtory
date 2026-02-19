@@ -29,6 +29,7 @@ use zip::{
     write::{FileOptions, SimpleFileOptions},
     ZipArchive, ZipWriter,
 };
+use raphtory_api::core::entities::LayerId;
 
 #[derive(Clone)]
 pub struct Index {
@@ -122,7 +123,7 @@ impl MutableGraphIndex {
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.index
@@ -133,7 +134,7 @@ impl MutableGraphIndex {
     pub(crate) fn add_edge_metadata(
         &self,
         edge_id: EID,
-        layer: usize,
+        layer: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.index
@@ -144,7 +145,7 @@ impl MutableGraphIndex {
     pub(crate) fn update_edge_metadata(
         &self,
         edge_id: EID,
-        layer: usize,
+        layer: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.index

@@ -35,7 +35,7 @@ pub trait InternalAdditionOps {
     fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error>;
 
     /// map layer name to id and allocate a new layer if needed
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error>;
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error>;
 
     /// Map external node id to internal id, reserving space for a new empty node if needed.
     fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error>;
@@ -103,11 +103,11 @@ pub trait EdgeWriteLock: Send + Sync {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     );
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize);
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId);
 
     fn set_lsn(&mut self, lsn: LSN);
 
@@ -122,7 +122,7 @@ pub trait NodeWriteLock: Send + Sync {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     );
     fn can_set_type(&self) -> bool;
@@ -192,7 +192,7 @@ impl InternalAdditionOps for GraphStorage {
         self.mutable()?.write_lock()
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         self.mutable()?.resolve_layer(layer)
     }
 
@@ -302,7 +302,7 @@ where
     }
 
     #[inline]
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         self.base().resolve_layer(layer)
     }
 

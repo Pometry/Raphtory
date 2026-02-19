@@ -42,6 +42,7 @@ use raphtory_storage::graph::{
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use raphtory_api::core::entities::LayerId;
 
 pub mod builders;
 mod evaluate;
@@ -357,7 +358,7 @@ impl<M> PropertyFilter<M> {
         prop_id: usize,
         e: EID,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> bool {
         let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t, layer));
         match self.prop_ref {

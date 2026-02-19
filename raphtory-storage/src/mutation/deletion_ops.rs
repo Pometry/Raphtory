@@ -7,6 +7,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
+use raphtory_api::core::entities::LayerId;
 use storage::Extension;
 
 pub trait InternalDeletionOps {
@@ -16,13 +17,13 @@ pub trait InternalDeletionOps {
         t: EventTime,
         src: VID,
         dst: VID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<MaybeNew<EID>, Self::Error>;
     fn internal_delete_existing_edge(
         &self,
         t: EventTime,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<(), Self::Error>;
 }
 
@@ -34,7 +35,7 @@ impl InternalDeletionOps for TemporalGraph<Extension> {
         t: EventTime,
         src: VID,
         dst: VID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<MaybeNew<EID>, Self::Error> {
         let mut session = self.storage().write_session(src, dst, None);
         session.set_lsn(0);
@@ -47,11 +48,11 @@ impl InternalDeletionOps for TemporalGraph<Extension> {
         &self,
         t: EventTime,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<(), Self::Error> {
         let mut writer = self.storage().edge_writer(eid);
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
-        let (src, dst) = writer.get_edge(0, edge_pos).unwrap_or_else(|| {
+        let (src, dst) = writer.get_edge(LayerId(0), edge_pos).unwrap_or_else(|| {
             panic!("Internal Error: Edge {eid:?} not found in storage");
         });
         writer.delete_edge(t, edge_pos, src, dst, layer);
@@ -67,7 +68,7 @@ impl InternalDeletionOps for GraphStorage {
         t: EventTime,
         src: VID,
         dst: VID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<MaybeNew<EID>, Self::Error> {
         self.mutable()?.internal_delete_edge(t, src, dst, layer)
     }
@@ -76,7 +77,7 @@ impl InternalDeletionOps for GraphStorage {
         &self,
         t: EventTime,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<(), Self::Error> {
         self.mutable()?.internal_delete_existing_edge(t, eid, layer)
     }
@@ -96,7 +97,7 @@ where
         t: EventTime,
         src: VID,
         dst: VID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<MaybeNew<EID>, Self::Error> {
         self.base().internal_delete_edge(t, src, dst, layer)
     }
@@ -106,7 +107,7 @@ where
         &self,
         t: EventTime,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<(), Self::Error> {
         self.base().internal_delete_existing_edge(t, eid, layer)
     }

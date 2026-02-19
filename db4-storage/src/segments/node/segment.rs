@@ -31,6 +31,7 @@ use std::{
         atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
+use raphtory_api::core::entities::LayerId;
 
 #[derive(Debug)]
 pub struct MemNodeSegment {
@@ -102,7 +103,8 @@ impl MemNodeSegment {
             .collect::<Vec<_>>()
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<AdjEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<AdjEntry> {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -124,7 +126,7 @@ impl MemNodeSegment {
         self.layers.get(layer_id)
     }
 
-    pub fn degree(&self, n: LocalPOS, layer_id: usize, dir: Direction) -> usize {
+    pub fn degree(&self, n: LocalPOS, layer_id: LayerId, dir: Direction) -> usize {
         self.get_adj(n, layer_id).map_or(0, |adj| adj.degree(dir))
     }
 
@@ -158,36 +160,38 @@ impl MemNodeSegment {
     }
 
     #[inline(always)]
-    fn get_adj(&self, n: LocalPOS, layer_id: usize) -> Option<&Adj> {
+    fn get_adj(&self, n: LocalPOS, layer_id: LayerId) -> Option<&Adj> {
+        let layer_id = layer_id.0;
         self.layers
             .get(layer_id)?
             .get(n)
             .map(|AdjEntry { adj, .. }| adj)
     }
 
-    pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
+    pub fn has_node(&self, n: LocalPOS, layer_id: LayerId) -> bool {
+        let layer_id = layer_id.0;
         self.layers
             .get(layer_id)
             .is_some_and(|layer| layer.has_item(n))
     }
 
-    pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: LayerId) -> Option<EID> {
         self.get_adj(n, layer_id)
             .and_then(|adj| adj.get_edge(dst, Direction::OUT))
     }
 
-    pub fn get_inb_edge(&self, n: LocalPOS, src: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_inb_edge(&self, n: LocalPOS, src: VID, layer_id: LayerId) -> Option<EID> {
         self.get_adj(n, layer_id)
             .and_then(|adj| adj.get_edge(src, Direction::IN))
     }
 
-    pub fn out_edges(&self, n: LocalPOS, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + '_ {
+    pub fn out_edges(&self, n: LocalPOS, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.get_adj(n, layer_id)
             .into_iter()
             .flat_map(|adj| adj.out_iter())
     }
 
-    pub fn inb_edges(&self, n: LocalPOS, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + '_ {
+    pub fn inb_edges(&self, n: LocalPOS, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.get_adj(n, layer_id)
             .into_iter()
             .flat_map(|adj| adj.inb_iter())
@@ -223,7 +227,7 @@ impl MemNodeSegment {
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
         }
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size = (layer_est_size - est_size)
             + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
         (new_entry, added_size)
@@ -253,14 +257,14 @@ impl MemNodeSegment {
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
         }
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size = (layer_est_size - est_size)
             + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
         (new_entry, added_size)
     }
 
     fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
-        let mut prop_mut_entry = self.layers[e_id.layer()]
+        let mut prop_mut_entry = self.layers[e_id.layer().0]
             .properties_mut()
             .get_mut_entry(row);
         let ts = EventTime::new(t.t(), t.i());
@@ -277,7 +281,7 @@ impl MemNodeSegment {
             (est_size, row)
         };
         self.update_timestamp_inner(t, row, e_id);
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         layer_est_size - est_size
     }
 
@@ -285,7 +289,7 @@ impl MemNodeSegment {
         &mut self,
         t: T,
         node_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
@@ -303,10 +307,10 @@ impl MemNodeSegment {
     pub fn check_metadata(
         &self,
         node_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), StorageError> {
-        if let Some(layer) = self.layers.get(layer_id) {
+        if let Some(layer) = self.layers.get(layer_id.0) {
             layer.check_metadata(node_pos, props)?;
         }
         Ok(())
@@ -315,7 +319,7 @@ impl MemNodeSegment {
     pub fn update_metadata(
         &mut self,
         node_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> (bool, usize) {
         let segment_container = self.get_or_create_layer(layer_id);
@@ -335,10 +339,10 @@ impl MemNodeSegment {
     pub fn get_metadata(
         &self,
         node_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
     ) -> Option<Prop> {
-        let segment_container = &self.layers[layer_id];
+        let segment_container = &self.layers[layer_id.0];
         segment_container.c_prop(node_pos, prop_id)
     }
 
@@ -487,7 +491,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     fn set_dirty(&self, _dirty: bool) {}
 
-    fn has_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
+    fn has_node(&self, _pos: LocalPOS, _layer_id: LayerId) -> bool {
         false
     }
 
@@ -495,7 +499,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         &self,
         pos: LocalPOS,
         dst: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
         locked_head.get_out_edge(pos, dst.into(), layer_id)
@@ -505,7 +509,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         &self,
         pos: LocalPOS,
         src: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
         locked_head.get_inb_edge(pos, src.into(), layer_id)
@@ -576,6 +580,7 @@ mod test {
     use raphtory_core::entities::{EID, ELID, VID};
     use std::sync::Arc;
     use tempfile::tempdir;
+    use raphtory_api::core::entities::LayerId;
 
     #[test]
     fn est_size_changes() {

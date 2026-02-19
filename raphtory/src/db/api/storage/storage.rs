@@ -41,6 +41,7 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 use crate::{errors::into_graph_err, prelude::Graph};
+use raphtory_api::core::entities::LayerId;
 use raphtory_storage::mutation::{addition_ops_ext::AtomicAddNode, durability_ops::DurabilityOps};
 #[cfg(feature = "search")]
 use {
@@ -60,7 +61,6 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
-use raphtory_api::core::entities::LayerId;
 
 #[derive(Debug, Default)]
 pub struct Storage {
@@ -350,13 +350,13 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.session.internal_add_update(t, layer, props)
     }
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.session.internal_delete_edge(t, layer)
     }
 
@@ -454,9 +454,8 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.write_lock()?)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         let id = self.graph.resolve_layer(layer)?;
-
         Ok(id)
     }
 
@@ -631,7 +630,7 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
@@ -650,7 +649,7 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
@@ -676,7 +675,7 @@ impl InternalDeletionOps for Storage {
         t: EventTime,
         src: VID,
         dst: VID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<MaybeNew<EID>, GraphError> {
         Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
     }
@@ -685,7 +684,7 @@ impl InternalDeletionOps for Storage {
         &self,
         t: EventTime,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<(), GraphError> {
         self.graph.internal_delete_existing_edge(t, eid, layer)?;
 

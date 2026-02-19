@@ -14,6 +14,7 @@ use crate::{
 use raphtory_api::inherit::Base;
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 use std::fmt::{Debug, Formatter};
+use raphtory_api::core::entities::LayerId;
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -82,7 +83,7 @@ impl<G: GraphView> InternalEdgeLayerFilterOps for LayeredGraph<G> {
         matches!(self.layers, LayerIds::All) && self.graph.internal_layer_filter_edge_list_trusted()
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer) // actual layer filter handled upstream for optimisation
     }
 }

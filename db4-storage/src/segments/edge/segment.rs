@@ -12,10 +12,7 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::entities::{
-    VID,
-    properties::{meta::Meta, prop::Prop},
-};
+use raphtory_api::core::entities::{VID, properties::{meta::Meta, prop::Prop}, LayerId};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::LayerIds,
@@ -98,7 +95,8 @@ impl MemEdgeSegment {
         layers
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<EdgeEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<EdgeEntry> {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -110,8 +108,8 @@ impl MemEdgeSegment {
         &mut self.layers[layer_id]
     }
 
-    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<EdgeEntry>> {
-        self.layers.get(layer_id)
+    pub fn get_layer(&self, layer_id: LayerId) -> Option<&SegmentContainer<EdgeEntry>> {
+        self.layers.get(layer_id.0)
     }
 
     pub fn est_size(&self) -> usize {
@@ -144,9 +142,9 @@ impl MemEdgeSegment {
         self.layers[0].max_page_len()
     }
 
-    pub fn get_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> Option<(VID, VID)> {
+    pub fn get_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<(VID, VID)> {
         self.layers
-            .get(layer_id)?
+            .get(layer_id.0)?
             .get(edge_pos)
             .map(|entry| (entry.src, entry.dst))
     }
@@ -157,23 +155,23 @@ impl MemEdgeSegment {
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
+        let est_size = self.layers[layer_id.0].est_size();
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
 
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
+        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
             .properties_mut()
             .get_mut_entry(local_row);
 
         let ts = EventTime::new(t.t(), t.i());
         prop_entry.append_t_props(ts, props);
 
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
@@ -183,18 +181,18 @@ impl MemEdgeSegment {
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
+        layer_id: LayerId,
     ) {
         let t = EventTime::new(t.t(), t.i());
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
+        let est_size = self.layers[layer_id.0].est_size();
 
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
-        let props = self.layers[layer_id].properties_mut();
+        let props = self.layers[layer_id.0].properties_mut();
         props.get_mut_entry(local_row).deletion_timestamp(t, None);
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
@@ -203,21 +201,22 @@ impl MemEdgeSegment {
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
     ) {
         let src = src.into();
         let dst = dst.into();
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
+        let est_size = self.layers[layer_id.0].est_size();
 
         self.reserve_local_row(edge_pos, src, dst, layer_id);
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
-    fn ensure_layer(&mut self, layer_id: usize) {
+    fn ensure_layer(&mut self, layer_id: LayerId) {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             // Get details from first layer to create consistent new layers.
             if let Some(first_layer) = self.layers.first() {
@@ -242,12 +241,12 @@ impl MemEdgeSegment {
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> usize {
         let src = src.into();
         let dst = dst.into();
 
-        let row = self.layers[layer_id].reserve_local_row(edge_pos).inner();
+        let row = self.layers[layer_id.0].reserve_local_row(edge_pos).inner();
         row.src = src;
         row.dst = dst;
         row.row
@@ -256,10 +255,10 @@ impl MemEdgeSegment {
     pub fn check_metadata(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), StorageError> {
-        if let Some(layer) = self.layers.get(layer_id) {
+        if let Some(layer) = self.layers.get(layer_id.0) {
             layer.check_metadata(edge_pos, props)?;
         }
         Ok(())
@@ -270,25 +269,25 @@ impl MemEdgeSegment {
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
+        let est_size = self.layers[layer_id.0].est_size();
         let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
+        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
             .properties_mut()
             .get_mut_entry(local_row);
         prop_entry.append_const_props(props);
 
-        let layer_est_size = self.layers[layer_id].est_size() + 8;
+        let layer_est_size = self.layers[layer_id.0].est_size() + 8;
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
-    pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
+    pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool {
         self.layers
-            .get(layer_id)
+            .get(layer_id.0)
             .filter(|layer| layer.has_item(edge_pos))
             .is_some()
     }
@@ -478,7 +477,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn contains_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool {
         locked_head.contains_edge(edge_pos, layer_id)
@@ -487,7 +486,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn get_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)> {
         locked_head.get_edge(edge_pos, layer_id)
@@ -500,11 +499,11 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn layer_entry<'a>(
         &'a self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
         locked_head.and_then(|locked_head| {
-            let layer = locked_head.as_ref().get(layer_id)?;
+            let layer = locked_head.as_ref().get(layer_id.0)?;
             layer
                 .has_item(edge_pos)
                 .then(|| MemEdgeEntry::new(edge_pos, locked_head))
@@ -529,7 +528,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.head().layers.len()
     }
 
-    fn layer_count(&self, layer_id: usize) -> u32 {
+    fn layer_count(&self, layer_id: LayerId) -> u32 {
         self.head()
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
@@ -570,7 +569,7 @@ mod test {
             LocalPOS(0),
             VID(1),
             VID(2),
-            0,
+            LayerId(0),
             vec![(0, Prop::from("test1"))],
         );
 
@@ -579,7 +578,7 @@ mod test {
             LocalPOS(1),
             VID(3),
             VID(4),
-            0,
+            LayerId(0),
             vec![(0, Prop::from("test2"))],
         );
 
@@ -588,19 +587,19 @@ mod test {
             LocalPOS(2),
             VID(5),
             VID(6),
-            0,
+            LayerId(0),
             vec![(0, Prop::from("test3"))],
         );
 
         // Verify edges exist
-        assert!(segment.contains_edge(LocalPOS(0), 0));
-        assert!(segment.contains_edge(LocalPOS(1), 0));
-        assert!(segment.contains_edge(LocalPOS(2), 0));
+        assert!(segment.contains_edge(LocalPOS(0), LayerId(0)));
+        assert!(segment.contains_edge(LocalPOS(1), LayerId(0)));
+        assert!(segment.contains_edge(LocalPOS(2), LayerId(0)));
 
         // Verify edge data
-        assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
-        assert_eq!(segment.get_edge(LocalPOS(1), 0), Some((VID(3), VID(4))));
-        assert_eq!(segment.get_edge(LocalPOS(2), 0), Some((VID(5), VID(6))));
+        assert_eq!(segment.get_edge(LocalPOS(0), LayerId(0)), Some((VID(1), VID(2))));
+        assert_eq!(segment.get_edge(LocalPOS(1), LayerId(0)), Some((VID(3), VID(4))));
+        assert_eq!(segment.get_edge(LocalPOS(2), LayerId(0)), Some((VID(5), VID(6))));
 
         // Verify time length increased
         assert_eq!(segment.t_len(), 3);

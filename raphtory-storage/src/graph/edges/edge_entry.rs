@@ -2,6 +2,7 @@ use crate::graph::edges::edge_storage_ops::EdgeStorageOps;
 use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
 use raphtory_core::entities::{LayerIds, EID, VID};
 use std::ops::Range;
+use raphtory_api::core::entities::LayerId;
 use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
 
 #[derive(Debug)]
@@ -41,21 +42,21 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().eid()
     }
 
-    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = LayerId> + 'a {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, storage::EdgeAdditions<'a>)> + 'a {
         self.as_ref().additions_iter(layer_ids)
     }
 
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, storage::EdgeDeletions<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, storage::EdgeDeletions<'a>)> + 'a {
         self.as_ref().deletions_iter(layer_ids)
     }
 
@@ -64,7 +65,7 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<
         Item = (
-            usize,
+            LayerId,
             storage::EdgeAdditions<'a>,
             storage::EdgeDeletions<'a>,
         ),
@@ -72,15 +73,15 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self.as_ref().updates_iter(layer_ids)
     }
 
-    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
+    fn additions(self, layer_id: LayerId) -> storage::EdgeAdditions<'a> {
         self.as_ref().additions(layer_id)
     }
 
-    fn deletions(self, layer_id: usize) -> storage::EdgeDeletions<'a> {
+    fn deletions(self, layer_id: LayerId) -> storage::EdgeDeletions<'a> {
         self.as_ref().deletions(layer_id)
     }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> impl TPropOps<'a> + 'a {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }
 
@@ -88,11 +89,11 @@ impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
         self.as_ref().temporal_prop_iter(layer_ids, prop_id)
     }
 
-    fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn metadata_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         self.as_ref().metadata_layer(layer_id, prop_id)
     }
 }

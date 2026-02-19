@@ -29,7 +29,7 @@ use std::{
 };
 
 use rayon::prelude::*;
-
+use raphtory_api::core::entities::LayerId;
 use crate::{
     LocalPOS,
     error::StorageError,
@@ -90,13 +90,13 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn set_dirty(&self, dirty: bool);
 
-    fn has_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
+    fn has_node(&self, pos: LocalPOS, layer_id: LayerId) -> bool;
 
     fn get_out_edge(
         &self,
         pos: LocalPOS,
         dst: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
@@ -104,7 +104,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         &self,
         pos: LocalPOS,
         src: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
@@ -194,18 +194,18 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type EdgeAdditions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
-    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
+    fn out_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
-    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
+    fn inb_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
     fn out_edges_sorted(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
     fn inb_edges_sorted(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
     fn vid(&self) -> VID;
@@ -213,7 +213,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     #[box_on_debug_lifetime]
     fn edges_dir(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
     where
@@ -252,12 +252,12 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         Self: Sized,
     {
         match layers_ids {
-            LayerIds::One(layer_id) => Iter4::I(self.edges_dir(*layer_id, dir)),
-            LayerIds::All => Iter4::J(self.edges_dir(0, dir)),
+            LayerIds::One(layer_id) => Iter4::I(self.edges_dir(LayerId(*layer_id), dir)),
+            LayerIds::All => Iter4::J(self.edges_dir(LayerId(0), dir)),
             LayerIds::Multiple(layers) => Iter4::K(
                 layers
                     .into_iter()
-                    .map(|layer_id| self.edges_dir(layer_id, dir))
+                    .map(|layer_id| self.edges_dir(LayerId(layer_id), dir))
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup_by(|l, r| l.pid() == r.pid()),
             ),
@@ -284,7 +284,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
                 .temporal_prop_mapper()
                 .ids()
                 .map(move |prop_id| {
-                    self.temporal_prop_layer(layer_id, prop_id)
+                    self.temporal_prop_layer(LayerId(layer_id), prop_id)
                         .iter_inner(w.clone())
                         .map(move |(t, prop)| (t, (prop_id, prop)))
                 })
@@ -324,28 +324,28 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         })
     }
 
-    fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn out_nbrs(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
         self.out_edges(layer_id).map(|(v, _)| v)
     }
 
-    fn inb_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn inb_nbrs(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
         self.inb_edges(layer_id).map(|(v, _)| v)
     }
 
-    fn out_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn out_nbrs_sorted(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
         self.out_edges_sorted(layer_id).map(|(v, _)| v)
     }
 
-    fn inb_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn inb_nbrs_sorted(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
@@ -356,11 +356,11 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Additions;
 
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
-    fn c_prop_str(self, layer_id: usize, prop_id: usize) -> Option<&'a str>;
+    fn c_prop_str(self, layer_id: LayerId, prop_id: usize) -> Option<&'a str>;
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> Self::TProps;
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
@@ -371,17 +371,17 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     fn gid(&self) -> GidRef<'a> {
-        self.c_prop_str(0, NODE_ID_IDX)
+        self.c_prop_str(LayerId(0), NODE_ID_IDX)
             .map(GidRef::Str)
             .or_else(|| {
-                self.c_prop(0, NODE_ID_IDX)
+                self.c_prop(LayerId(0), NODE_ID_IDX)
                     .and_then(|prop| prop.into_u64().map(GidRef::U64))
             })
             .unwrap_or_else(|| panic!("GID should be present, for node {:?}", self.vid()))
     }
 
     fn node_type_id(&self) -> usize {
-        self.c_prop(0, NODE_TYPE_IDX)
+        self.c_prop(LayerId(0), NODE_TYPE_IDX)
             .and_then(|prop| prop.into_u64())
             .map_or(0, |id| id as usize)
     }

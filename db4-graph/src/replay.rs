@@ -13,6 +13,7 @@ use raphtory_api::core::{
     },
     storage::timeindex::EventTime,
 };
+use raphtory_api::core::entities::LayerId;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
@@ -40,7 +41,7 @@ where
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
@@ -193,10 +194,10 @@ where
 
             edge_meta
                 .layer_meta()
-                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
             node_meta
                 .layer_meta()
-                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
 
             let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
 

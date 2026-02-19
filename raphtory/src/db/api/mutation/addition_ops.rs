@@ -10,12 +10,14 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{
-    entities::properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
+    entities::{
+        properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
+        LayerId,
+    },
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_api::core::entities::LayerId;
 use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps},
+    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
     durability_ops::DurabilityOps,
     MutationError,
 };
@@ -394,9 +396,9 @@ fn add_node_impl<
         })
         .collect::<Vec<_>>();
 
-    let layer_id: usize = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
+    let layer_id = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
-    writer.internal_add_update(ti, LayerId(layer_id), props);
+    writer.internal_add_update(ti, layer_id, props);
 
     let props_for_wal = props_with_status
         .iter()

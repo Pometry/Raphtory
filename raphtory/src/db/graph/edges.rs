@@ -209,7 +209,7 @@ where
                             filtered_graph.filter_exploded_edge(e_ref.pid().with_layer(l), t)
                         }
                         None => {
-                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
+                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l.0));
                             lg.filter_edge(edges_locked.edge(e_ref.pid()))
                         }
                     },
@@ -385,7 +385,7 @@ where
                             filtered_graph.filter_exploded_edge(e_ref.pid().with_layer(l), t)
                         }
                         None => {
-                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
+                            let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l.0));
                             lg.filter_edge(edges_locked.edge(e_ref.pid()))
                         }
                     },

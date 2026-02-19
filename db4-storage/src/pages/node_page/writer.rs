@@ -2,13 +2,10 @@ use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::node::segment::MemNodeSegment,
 };
-use raphtory_api::core::entities::{
-    EID, GID, VID,
-    properties::{
-        meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::Prop,
-    },
-};
+use raphtory_api::core::entities::{EID, GID, VID, properties::{
+    meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+    prop::Prop,
+}, LayerId};
 use raphtory_core::{
     entities::{ELID, GidRef},
     storage::timeindex::AsTime,
@@ -131,7 +128,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         &mut self,
         t: T,
         pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.l_counter.update_time(t.t());
@@ -145,7 +142,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn check_metadata(
         &self,
         pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), StorageError> {
         self.mut_segment.check_metadata(pos, layer_id, props)
@@ -154,7 +151,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn update_c_props(
         &mut self,
         pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
@@ -164,7 +161,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
     }
 
-    pub fn get_metadata(&self, pos: LocalPOS, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    pub fn get_metadata(&self, pos: LocalPOS, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         self.mut_segment.get_metadata(pos, layer_id, prop_id)
     }
 
@@ -175,12 +172,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 
     #[inline(always)]
-    pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: LayerId) -> Option<EID> {
         self.page
             .get_out_edge(pos, dst, layer_id, self.mut_segment.deref())
     }
 
-    pub fn get_inb_edge(&self, pos: LocalPOS, src: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_inb_edge(&self, pos: LocalPOS, src: VID, layer_id: LayerId) -> Option<EID> {
         self.page
             .get_inb_edge(pos, src, layer_id, self.mut_segment.deref())
     }
@@ -188,7 +185,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn store_node_id_and_node_type(
         &mut self,
         pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         gid: GidRef<'_>,
         node_type: usize,
     ) {
@@ -196,7 +193,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, layer_id, node_info_as_props(Some(gid), node_type));
     }
 
-    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: usize, gid: GID) {
+    pub fn store_node_id(&mut self, pos: LocalPOS, layer_id: LayerId, gid: GID) {
         let gid = match gid {
             GID::U64(id) => Prop::U64(id),
             GID::Str(s) => Prop::str(s),
@@ -205,7 +202,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.update_c_props(pos, layer_id, props);
     }
 
-    pub fn store_node_type(&mut self, pos: LocalPOS, layer_id: usize, node_type: usize) {
+    pub fn store_node_type(&mut self, pos: LocalPOS, layer_id: LayerId, node_type: usize) {
         let props = [(NODE_TYPE_IDX, Prop::U64(node_type as u64))];
         self.update_c_props(pos, layer_id, props);
     }
@@ -219,7 +216,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             .increment_num_nodes(self.mut_segment.max_page_len());
     }
 
-    pub fn has_node(&self, node: LocalPOS, layer_id: usize) -> bool {
+    pub fn has_node(&self, node: LocalPOS, layer_id: LayerId) -> bool {
         self.mut_segment.has_node(node, layer_id) || self.page.has_node(node, layer_id)
     }
 }

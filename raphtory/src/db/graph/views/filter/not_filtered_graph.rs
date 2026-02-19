@@ -17,6 +17,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
+use raphtory_api::core::entities::LayerId;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
@@ -76,7 +77,7 @@ impl<'graph, G: GraphViewOps<'graph>, T: GraphView> InternalEdgeLayerFilterOps
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer) && {
             !self.filter.internal_edge_layer_filtered()
                 || !self.filter.internal_filter_edge_layer(edge, layer)

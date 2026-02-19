@@ -14,6 +14,7 @@ use tantivy::{
     },
     Document, Index, TantivyDocument,
 };
+use raphtory_api::core::entities::{LayerId, LayerIds};
 
 #[derive(Clone)]
 pub struct PropertyIndex {
@@ -253,7 +254,7 @@ impl PropertyIndex {
         field_entity_id: Field,
         entity_id: u64,
         time: Option<EventTime>,
-        layer_id: Option<usize>,
+        layer_id: Option<LayerId>,
         prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let field_property = Field::from_field_id(0);
@@ -269,7 +270,7 @@ impl PropertyIndex {
         }
 
         if let (Some(layer_id), Some(field_layer_id)) = (layer_id, self.layer_field) {
-            document.add_u64(field_layer_id, layer_id as u64);
+            document.add_u64(field_layer_id, layer_id.0 as u64);
         }
 
         Self::add_property_value_to_doc(&mut document, field_property, prop_value);
@@ -299,7 +300,7 @@ impl PropertyIndex {
     pub(crate) fn create_edge_metadata_document(
         &self,
         edge_id: u64,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let field_edge_id = self.entity_id_field;
@@ -310,7 +311,7 @@ impl PropertyIndex {
         &self,
         time: EventTime,
         edge_id: u64,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_value: &Prop,
     ) -> tantivy::Result<TantivyDocument> {
         let field_edge_id = self.entity_id_field;

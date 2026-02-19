@@ -80,6 +80,7 @@ use std::{
     iter,
     ops::Range,
 };
+use raphtory_api::core::entities::LayerId;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Copy, Clone)]
@@ -417,7 +418,7 @@ impl<G: GraphView> InternalEdgeLayerFilterOps for WindowedGraph<G> {
             || (!self.window_is_bounding() && self.graph.internal_layer_filter_edge_list_trusted())
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer)
     }
 

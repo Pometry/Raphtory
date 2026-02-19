@@ -32,6 +32,7 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
+use raphtory_api::core::entities::LayerId;
 use storage::EdgeEntryRef;
 
 #[derive(Clone)]
@@ -82,7 +83,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                 .collect(),
         );
         for l_name in graph.unique_layers() {
-            let l_id = graph.get_layer_id(&l_name).unwrap();
+            let l_id = graph.get_layer_id(&l_name).unwrap().0;
             let layer_g = graph.layers(l_name).unwrap();
 
             let nodes = layer_g
@@ -173,7 +174,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedVi
         _layer_ids: &LayerIds,
     ) -> bool {
         self.layered_mask
-            .get(eid.layer())
+            .get(eid.layer().0)
             .is_some_and(|(_, _, exploded_filter)| {
                 exploded_filter
                     .as_ref()
@@ -195,9 +196,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for CachedView<
         self.graph.internal_layer_filter_edge_list_trusted()
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.layered_mask
-            .get(layer)
+            .get(layer.0)
             .is_some_and(|(_, edge_filter, _)| edge_filter.contains(edge.eid().as_u64()))
     }
 

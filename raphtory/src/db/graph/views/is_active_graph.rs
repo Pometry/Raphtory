@@ -14,6 +14,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_api::core::entities::LayerId;
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Copy, Clone, Debug)]
@@ -63,9 +64,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for IsActiveGra
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         let time_semantics = self.graph.edge_time_semantics();
-        time_semantics.edge_is_active(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer)))
+        time_semantics.edge_is_active(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer.0)))
             && self.graph.internal_filter_edge_layer(edge, layer)
     }
 }

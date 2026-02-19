@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
 };
-
+use raphtory_api::core::entities::LayerId;
 use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
@@ -27,8 +27,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn t_len(&self) -> usize;
     fn num_layers(&self) -> usize;
-    // Persistent layer count, not used for up to date counts
-    fn layer_count(&self, layer_id: usize) -> u32;
+    // Persistent layer count, not used for up-to-date counts
+    fn layer_count(&self, layer_id: LayerId) -> u32;
 
     fn load(
         page_id: usize,
@@ -75,14 +75,14 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn contains_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
 
     fn get_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
@@ -91,7 +91,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn layer_entry<'a>(
         &'a self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>>;
 
@@ -146,20 +146,20 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     type Deletions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
-    fn edge(self, layer_id: usize) -> Option<(VID, VID)>;
+    fn edge(self, layer_id: LayerId) -> Option<(VID, VID)>;
 
-    fn has_layer_inner(self, layer_id: usize) -> bool {
+    fn has_layer_inner(self, layer_id: LayerId) -> bool {
         self.edge(layer_id).is_some()
     }
 
     fn internal_num_layers(self) -> usize;
 
-    fn layer_additions(self, layer_id: usize) -> Self::Additions;
-    fn layer_deletions(self, layer_id: usize) -> Self::Deletions;
+    fn layer_additions(self, layer_id: LayerId) -> Self::Additions;
+    fn layer_deletions(self, layer_id: LayerId) -> Self::Deletions;
 
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
-    fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
+    fn layer_t_prop(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
 
     fn src(&self) -> Option<VID>;
 

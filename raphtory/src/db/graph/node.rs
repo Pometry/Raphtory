@@ -455,7 +455,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             )
             .map_err(into_graph_err)?;
         let vid = self.node;
-        let layer_id: usize = self
+        let layer_id: LayerId = self
             .graph
             .resolve_layer(layer)
             .map_err(into_graph_err)?

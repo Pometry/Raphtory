@@ -1,5 +1,5 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
-use raphtory_api::core::entities::{LayerIds, EID};
+use raphtory_api::core::entities::{LayerId, LayerIds, EID};
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 use storage::{utils::Iter2, EdgeEntryRef, Extension, ReadLockedEdges};
@@ -84,13 +84,13 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => match layers {
                 LayerIds::None => 0,
                 LayerIds::All => storage.storage().num_edges(),
-                LayerIds::One(layer_id) => storage.storage().num_edges_layer(*layer_id),
+                LayerIds::One(layer_id) => storage.storage().num_edges_layer(LayerId(*layer_id)),
                 _ => self.par_iter(layers).count(),
             },
             EdgesStorageRef::Unlocked(edges) => match layers {
                 LayerIds::None => 0,
-                LayerIds::One(layer_id) => edges.storage().num_edges_layer(*layer_id),
-                LayerIds::All => edges.storage().num_edges_layer(0),
+                LayerIds::One(layer_id) => edges.storage().num_edges_layer(LayerId(*layer_id)),
+                LayerIds::All => edges.storage().num_edges_layer(LayerId(0)),
                 _ => self.par_iter(layers).count(),
             },
         }

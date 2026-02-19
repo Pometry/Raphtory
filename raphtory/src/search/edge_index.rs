@@ -29,6 +29,7 @@ use tantivy::{
     },
     Document, IndexWriter, TantivyDocument, Term,
 };
+use raphtory_api::core::entities::LayerId;
 
 #[derive(Clone)]
 pub struct EdgeIndex {
@@ -239,7 +240,7 @@ impl EdgeIndex {
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
         t: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let eid_u64 = edge_id.inner().as_u64();
@@ -279,7 +280,7 @@ impl EdgeIndex {
     pub(crate) fn add_edge_metadata(
         &self,
         edge_id: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.entity_index.metadata_indexes.read_recursive();
@@ -298,7 +299,7 @@ impl EdgeIndex {
     pub(crate) fn update_edge_metadata(
         &self,
         edge_id: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.entity_index.metadata_indexes.read_recursive();

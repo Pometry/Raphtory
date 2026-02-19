@@ -1,5 +1,5 @@
 use crate::error::StorageError;
-use raphtory_api::core::entities::{GidRef, properties::prop::Prop};
+use raphtory_api::core::entities::{GidRef, properties::prop::Prop, LayerId};
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
@@ -90,7 +90,7 @@ pub trait GraphWalOps {
         dst_id: VID,
         eid: EID,
         layer_name: Option<&str>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
@@ -102,7 +102,7 @@ pub trait GraphWalOps {
         node_id: VID,
         node_type_and_id: Option<(&str, usize)>,
         props: Vec<(&str, usize, Prop)>,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> Result<LSN, StorageError>;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
@@ -130,7 +130,7 @@ pub trait GraphReplay {
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 

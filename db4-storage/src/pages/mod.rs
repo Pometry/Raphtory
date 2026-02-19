@@ -36,6 +36,7 @@ use std::{
     },
 };
 use tinyvec::TinyVec;
+use raphtory_api::core::entities::LayerId;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -287,7 +288,7 @@ impl<
         session.set_lsn(lsn);
         let elid = session
             .add_static_edge(src, dst)
-            .map(|eid| eid.with_layer(0));
+            .map(|eid| eid.with_layer(LayerId(0)));
         session.add_edge_into_layer(t, src, dst, elid, props);
         Ok(elid)
     }
@@ -346,7 +347,7 @@ impl<
     pub fn update_node_const_props<PN: AsRef<str>>(
         &self,
         node: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(PN, Prop)>,
     ) -> Result<(), StorageError> {
         let node = node.into();
@@ -361,7 +362,7 @@ impl<
         &self,
         t: impl TryIntoInputTime,
         node: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(PN, Prop)>,
     ) -> Result<(), StorageError> {
         let node = node.into();
@@ -611,6 +612,7 @@ mod test {
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
     use rayon::iter::ParallelIterator;
     use tempfile;
+    use raphtory_api::core::entities::LayerId;
 
     #[test]
     fn test_iterleave() {
@@ -650,7 +652,7 @@ mod test {
     }
 
     fn check_edges_with_layers(
-        edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, layer_id
+        edges: Vec<(impl Into<VID>, impl Into<VID>, Option<LayerId>)>, // src, dst, layer_id
         chunk_size: u32,
         par_load: bool,
     ) {
@@ -724,7 +726,7 @@ mod test {
 
     #[test]
     fn test_storage_with_layers_1() {
-        let edges = vec![(VID(4), VID(0), Some(1)), (VID(0), VID(0), Some(6))];
+        let edges = vec![(VID(4), VID(0), Some(LayerId(1))), (VID(0), VID(0), Some(LayerId(6)))];
         check_edges_with_layers(edges, 4, false);
     }
 
@@ -794,15 +796,15 @@ mod test {
             Some(graph_dir.path()),
             Extension::new(config, Some(graph_dir.path())).unwrap(),
         );
-        g.add_node_props::<String>(1, 0, 0, vec![])
+        g.add_node_props::<String>(1, 0, LayerId(0), vec![])
             .expect("Failed to add node props");
-        g.add_node_props::<String>(2, 0, 0, vec![])
+        g.add_node_props::<String>(2, 0, LayerId(0), vec![])
             .expect("Failed to add node props");
-        g.add_node_props::<String>(3, 0, 0, vec![])
+        g.add_node_props::<String>(3, 0, LayerId(0), vec![])
             .expect("Failed to add node props");
-        g.add_node_props::<String>(4, 0, 0, vec![])
+        g.add_node_props::<String>(4, 0, LayerId(0), vec![])
             .expect("Failed to add node props");
-        g.add_node_props::<String>(8, 0, 0, vec![])
+        g.add_node_props::<String>(8, 0, LayerId(0), vec![])
             .expect("Failed to add node props");
 
         let node = g.nodes().node(0);

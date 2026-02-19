@@ -10,7 +10,7 @@ use std::{
     hint::black_box,
     path::Path,
 };
-
+use raphtory_api::core::entities::LayerId;
 use crate::{
     api::{
         edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps},
@@ -30,7 +30,7 @@ pub fn make_graph_from_edges<
     GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 >(
-    edges: &[(VID, VID, Option<usize>)], // src, dst, optional layer_id
+    edges: &[(VID, VID, Option<LayerId>)], // src, dst, optional layer_id
     graph_dir: &Path,
     par_load: bool,
     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
@@ -39,7 +39,7 @@ pub fn make_graph_from_edges<
 
     for (_, _, layer) in edges {
         if let Some(layer) = layer {
-            for layer in 0..=*layer {
+            for layer in 0..=layer.0 {
                 let name = layer.to_string();
                 graph
                     .edge_meta()
@@ -58,7 +58,7 @@ pub fn make_graph_from_edges<
                 let lsn = 0;
                 let timestamp = 0;
 
-                let layer_id = layer_id.unwrap_or(0);
+                let layer_id = layer_id.unwrap_or(LayerId(0));
                 let mut session = graph.write_session(*src, *dst, None);
                 session.set_lsn(lsn);
                 let eid = session.add_static_edge(*src, *dst);
@@ -75,7 +75,7 @@ pub fn make_graph_from_edges<
                 let lsn = 0;
                 let timestamp = 0;
 
-                let layer_id = layer_id.unwrap_or(0);
+                let layer_id = layer_id.unwrap_or(LayerId(0));
 
                 let mut session = graph.write_session(*src, *dst, None);
                 session.set_lsn(lsn);
@@ -97,7 +97,7 @@ pub fn check_edges_support<
     GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
 >(
-    edges: Vec<(impl Into<VID>, impl Into<VID>, Option<usize>)>, // src, dst, optional layer_id
+    edges: Vec<(impl Into<VID>, impl Into<VID>, Option<LayerId>)>, // src, dst, optional layer_id
     par_load: bool,
     check_load: bool,
     make_graph: impl FnOnce(&Path) -> GraphStore<NS, ES, GS, EXT>,
@@ -129,7 +129,7 @@ pub fn check_edges_support<
         EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
     >(
         stage: &str,
-        expected_edges: &[(VID, VID, Option<usize>)], // (src, dst, layer_id)
+        expected_edges: &[(VID, VID, Option<LayerId>)], // (src, dst, layer_id)
         graph: &GraphStore<NS, ES, GS, EXT>,
     ) {
         let nodes = graph.nodes();
@@ -140,10 +140,10 @@ pub fn check_edges_support<
         }
 
         // Group edges by layer_id first
-        let mut edges_by_layer: HashMap<usize, Vec<(VID, VID)>> = HashMap::new();
+        let mut edges_by_layer = HashMap::<LayerId, Vec<(VID, VID)>>::new();
         for (src, dst, layer_id) in expected_edges {
             edges_by_layer
-                .entry(layer_id.unwrap_or(0)) // Default layer_id to 0
+                .entry(layer_id.unwrap_or(LayerId(0))) // Default layer_id to 0
                 .or_default()
                 .push((*src, *dst));
         }
@@ -243,7 +243,7 @@ pub fn check_graph_with_nodes_support<
 
     let graph_dir = tempfile::tempdir().unwrap();
     let graph = make_graph(graph_dir.path());
-    let layer_id = 0;
+    let layer_id = LayerId(0);
 
     for (node, t, t_props) in temp_props {
         let err = graph.add_node_props(*t, *node, layer_id, t_props.clone());
@@ -272,9 +272,9 @@ pub fn check_graph_with_nodes_support<
             let ne = graph.nodes().node(node);
             let node_entry = ne.as_ref();
             let actual: Vec<_> = node_entry
-                .edge_additions(layer_id)
+                .edge_additions(layer_id.0)
                 .iter_t()
-                .merge(node_entry.node_additions(layer_id).iter_t())
+                .merge(node_entry.node_additions(layer_id.0).iter_t())
                 .collect();
             assert_eq!(
                 actual, ts_expected,
@@ -385,7 +385,7 @@ pub fn check_graph_with_props_support<
 
     // Add const props
     for ((src, dst), const_props) in const_props {
-        let layer_id = 0;
+        let layer_id = LayerId(0);
         let eid = graph
             .nodes()
             .get_edge(*src, *dst, layer_id)
@@ -455,11 +455,11 @@ pub fn check_graph_with_props_support<
 
             let edge = graph
                 .nodes()
-                .get_edge(src, dst, 0)
+                .get_edge(src, dst, LayerId(0))
                 .unwrap_or_else(|| panic!("Failed to get edge ({src:?}, {dst:?}) from graph"));
             let edge = graph.edges().edge(edge);
             let e = edge.as_ref();
-            let layer_id = 0;
+            let layer_id = LayerId(0);
             let actual_props = e
                 .layer_t_prop(layer_id, prop_id)
                 .iter_t()

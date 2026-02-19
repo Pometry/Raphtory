@@ -8,6 +8,7 @@ use parking_lot::RwLockReadGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_core::entities::properties::tprop::TPropCell;
 use std::ops::Deref;
+use raphtory_api::core::entities::LayerId;
 
 /// A borrowed view enabling read operations on an in-memory graph segment.
 pub struct MemGraphPropEntry<'a> {
@@ -58,7 +59,7 @@ impl<'a> WithTProps<'a> for MemGraphPropRef<'a> {
 
     fn into_t_props(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a {
         // TODO: Support multiple layers for graph props.

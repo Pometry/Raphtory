@@ -24,6 +24,7 @@ use raphtory_storage::{
     },
 };
 use std::fmt::{Debug, Formatter};
+use raphtory_api::core::entities::LayerId;
 
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {
@@ -115,7 +116,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for NodeSubgrap
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer)
     }
 

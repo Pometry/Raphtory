@@ -348,13 +348,10 @@ impl GqlEdge {
     ///
     /// Each new edge object contains only updates from the respective layers.
     async fn explode_layers(&self) -> GqlEdges {
-        let e = self.ee
-            .explode_layers()
-            .into_iter()
-            .map(|e| {
-                let x = e.into_dynamic();
-                x
-            });
+        let e = self.ee.explode_layers().into_iter().map(|e| {
+            let x = e.into_dynamic();
+            x
+        });
         GqlEdges::new(e)
     }
 

@@ -5,9 +5,12 @@ use crate::mutation::{
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
-    entities::properties::{
-        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::{Prop, PropType, PropUnwrap},
+    entities::{
+        properties::{
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+            prop::{Prop, PropType, PropUnwrap},
+        },
+        LayerId,
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -20,7 +23,6 @@ use raphtory_core::{
     storage::timeindex::EventTime,
 };
 use std::sync::atomic::Ordering;
-use raphtory_api::core::entities::LayerId;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
@@ -65,7 +67,7 @@ where
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.static_session.add_edge_into_layer(
@@ -77,7 +79,7 @@ where
         );
     }
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.static_session.delete_edge_from_layer(
             t,
             self.src.inner(),
@@ -185,7 +187,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let pos = self.local_pos();
@@ -229,17 +231,17 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(locked_g)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
         // TODO: we replicate the layer id in the node meta as well, perhaps layer meta should be common
         if id.is_new() {
             self.node_meta().layer_meta().set_id(
-                self.edge_meta().layer_meta().get_name(id.inner()),
-                id.inner(),
+                self.edge_meta().layer_meta().get_name(id.inner().0),
+                id.inner().0,
             );
         }
         if let MaybeNew::New(id) = id {
-            if id > MAX_LAYER {
+            if id.0 > MAX_LAYER {
                 Err(TooManyLayers)?;
             }
         }
@@ -657,7 +659,7 @@ impl InternalAdditionOps for TemporalGraph {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
-        node_writer.add_props(t, node_pos, layer_id.0, props);
+        node_writer.add_props(t, node_pos, layer_id, props);
         Ok(node_writer)
     }
 

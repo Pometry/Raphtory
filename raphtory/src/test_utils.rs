@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::storage::storage::Storage,
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{edge::EdgeView, node::NodeView, views::layer_graph::LayeredGraph},
     },
     prelude::*,
 };
@@ -37,7 +37,6 @@ use std::{
     ops::{Deref, Range, RangeInclusive},
     sync::Arc,
 };
-use crate::db::graph::views::layer_graph::LayeredGraph;
 
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)

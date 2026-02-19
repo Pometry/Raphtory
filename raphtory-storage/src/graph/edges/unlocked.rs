@@ -1,6 +1,7 @@
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::entities::{LayerIds, EID};
 use rayon::prelude::*;
+use raphtory_api::core::entities::LayerId;
 use storage::{pages::edge_store::EdgeStorageInner, utils::Iter4, Extension, Layer};
 
 use crate::graph::edges::edge_entry::EdgeStorageEntry;
@@ -17,7 +18,7 @@ impl<'a> UnlockedEdges<'a> {
         EdgeStorageEntry::Unlocked(self.0.edges().edge(e_id))
     }
 
-    pub fn iter_layer(self, layer_id: usize) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
+    pub fn iter_layer(self, layer_id: LayerId) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {
         self.0
             .edges()
             .iter(layer_id)
@@ -31,10 +32,10 @@ impl<'a> UnlockedEdges<'a> {
     ) -> impl Iterator<Item = EdgeStorageEntry<'a>> + Send + Sync + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::All => Iter4::J(self.iter_layer(0)),
-            LayerIds::One(layer_id) => Iter4::K(self.iter_layer(*layer_id)),
+            LayerIds::All => Iter4::J(self.iter_layer(LayerId(0))),
+            LayerIds::One(layer_id) => Iter4::K(self.iter_layer(LayerId(*layer_id))),
             LayerIds::Multiple(multiple) => Iter4::L(
-                self.iter_layer(0)
+                self.iter_layer(LayerId(0))
                     .filter(|edge| edge.as_ref().has_layers(multiple)),
             ),
         }
@@ -42,7 +43,7 @@ impl<'a> UnlockedEdges<'a> {
 
     pub fn par_iter_layer(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> + 'a {
         self.0
             .edges()
@@ -56,10 +57,10 @@ impl<'a> UnlockedEdges<'a> {
     ) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(rayon::iter::empty()),
-            LayerIds::All => Iter4::J(self.par_iter_layer(0)),
-            LayerIds::One(layer_id) => Iter4::K(self.par_iter_layer(*layer_id)),
+            LayerIds::All => Iter4::J(self.par_iter_layer(LayerId(0))),
+            LayerIds::One(layer_id) => Iter4::K(self.par_iter_layer(LayerId(*layer_id))),
             LayerIds::Multiple(multiple) => Iter4::L(
-                self.par_iter_layer(0)
+                self.par_iter_layer(LayerId(0))
                     .filter(|edge| edge.as_ref().has_layers(multiple)),
             ),
         }
