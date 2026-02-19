@@ -5,10 +5,7 @@
 use crate::WriteLockedGraph;
 use raphtory_api::core::{
     entities::{
-        properties::{
-            meta::STATIC_GRAPH_LAYER_ID,
-            prop::{unify_types, Prop},
-        },
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
         EID, GID, VID,
     },
     storage::timeindex::EventTime,
@@ -98,7 +95,7 @@ where
                 src_writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
             }
 
-            src_writer.mut_segment.set_lsn(lsn);
+            src_writer.set_lsn(lsn);
 
             // Release the writer for mutable access to dst_writer.
             drop(src_writer);
@@ -144,7 +141,7 @@ where
                 dst_writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
             }
 
-            dst_writer.mut_segment.set_lsn(lsn);
+            dst_writer.set_lsn(lsn);
 
             drop(dst_writer);
         }
@@ -168,24 +165,13 @@ where
             // Insert prop ids into edge meta.
             for (prop_name, prop_id, prop_value) in &props {
                 let prop_mapper = edge_meta.temporal_prop_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
 
-                match prop_mapper.get_dtype(*prop_id) {
-                    None => {
-                        prop_mapper.set_id_and_dtype(
-                            prop_name.as_str(),
-                            *prop_id,
-                            prop_value.dtype(),
-                        );
-                    }
-                    Some(old_dtype) => {
-                        let dtype = prop_value.dtype();
-                        let mut unified = false;
-                        let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
-                        if unified {
-                            prop_mapper.set_dtype(*prop_id, new_dtype);
-                        }
-                    }
-                }
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
             }
 
             // Insert layer id into the layer meta of both edge and node.
@@ -222,7 +208,102 @@ where
                 layer_id,
             );
 
-            edge_writer.writer.set_lsn(lsn);
+            edge_writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
+    fn replay_add_edge_metadata(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        eid: EID,
+        layer_id: usize,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
+        self.resize_segments_to_eid(eid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .edges()
+            .get_or_create_segment(edge_segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let edge_meta = self.graph().edge_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = edge_meta.metadata_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
+            }
+
+            let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
+
+            let (src, dst) = edge_writer.get_edge(layer_id, edge_pos).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Edge {eid:?} not found in layer {layer_id} during replay_add_edge_metadata"
+                ))
+            })?;
+
+            let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
+
+            // No need to check metadata since the operation was logged after validation.
+            edge_writer.update_c_props(edge_pos, src, dst, layer_id, props_vec);
+            edge_writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
+    fn replay_add_node_metadata(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        vid: VID,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
+        self.resize_segments_to_vid(vid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let node_meta = self.graph().node_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = node_meta.metadata_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
+            }
+
+            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
+
+            let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
+
+            // No need to check metadata since the operation was logged after validation.
+            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props_vec);
+            node_writer.set_lsn(lsn);
         }
 
         Ok(())
@@ -263,23 +344,13 @@ where
 
             for (prop_name, prop_id, prop_value) in &props {
                 let prop_mapper = node_meta.temporal_prop_mapper();
-                match prop_mapper.get_dtype(*prop_id) {
-                    None => {
-                        prop_mapper.set_id_and_dtype(
-                            prop_name.as_str(),
-                            *prop_id,
-                            prop_value.dtype(),
-                        );
-                    }
-                    Some(old_dtype) => {
-                        let dtype = prop_value.dtype();
-                        let mut unified = false;
-                        let new_dtype = unify_types(&old_dtype, &dtype, &mut unified)?;
-                        if unified {
-                            prop_mapper.set_dtype(*prop_id, new_dtype);
-                        }
-                    }
-                }
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
             }
 
             // Set node type metadata early to prevent issues with borrowing node_writer.
@@ -313,7 +384,7 @@ where
                     .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
             );
 
-            node_writer.mut_segment.set_lsn(lsn);
+            node_writer.set_lsn(lsn);
         }
 
         Ok(())

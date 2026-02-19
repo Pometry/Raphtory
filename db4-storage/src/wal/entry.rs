@@ -28,6 +28,16 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn log_add_edge_metadata(
+        &self,
+        _transaction_id: TransactionID,
+        _eid: EID,
+        _layer_id: usize,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
     fn log_add_node(
         &self,
         _transaction_id: TransactionID,
@@ -35,6 +45,15 @@ impl GraphWalOps for NoWal {
         _node_name: Option<GidRef<'_>>,
         _node_id: VID,
         _node_type_and_id: Option<(&str, usize)>,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
+    fn log_add_node_metadata(
+        &self,
+        _transaction_id: TransactionID,
+        _vid: VID,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
         Ok(0)

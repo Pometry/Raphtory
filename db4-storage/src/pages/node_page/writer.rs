@@ -1,6 +1,6 @@
 use crate::{
     LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::node::segment::MemNodeSegment,
+    segments::node::segment::MemNodeSegment, wal::LSN,
 };
 use raphtory_api::core::entities::{
     EID, GID, VID,
@@ -222,6 +222,10 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn has_node(&self, node: LocalPOS, layer_id: usize) -> bool {
         self.mut_segment.has_node(node, layer_id) || self.page.has_node(node, layer_id)
     }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.mut_segment.set_lsn(lsn);
+    }
 }
 
 pub fn node_info_as_props(
@@ -259,5 +263,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment>, NS: NodeSegmentOps> NodeWriters<
 
     pub fn get_mut_dst(&mut self) -> &mut NodeWriter<'a, MP, NS> {
         self.dst.as_mut().unwrap_or(&mut self.src)
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.src.set_lsn(lsn);
+        if let Some(dst) = &mut self.dst {
+            dst.set_lsn(lsn);
+        }
     }
 }
