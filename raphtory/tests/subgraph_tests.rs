@@ -95,7 +95,12 @@ fn test_cc() {
     let groups = cc.groups();
     let group_sets = groups
         .iter()
-        .map(|(_, g)| g.id().into_iter_values().collect::<BTreeSet<_>>())
+        .map(|(_, g)| {
+            g.iter()
+                .map(|node| node.id())
+                .sorted()
+                .collect::<BTreeSet<_>>()
+        })
         .collect::<HashSet<_>>();
     assert_eq!(
         group_sets,

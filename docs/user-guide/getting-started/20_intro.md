@@ -72,14 +72,14 @@ Continuing from the previous example, you can use the PageRank algorithm to find
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
 results = algorithms.pagerank(g)
-top_5 = results.top_k(5)
+top_5 = results.top_k({"pagerank_score":"desc"}, 5)
 for rank, (node, score) in enumerate(top_5.items(),1):
-    print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
+    print(f"Rank {rank}: {node.name} with a score of {score['pagerank_score']:.5f}")
 ```
 ///
 
 ```{.python continuation hide}
-assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == "PETOULETTE's ranking is 0.0599"
+assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE')['pagerank_score'], 5)}") == "PETOULETTE's ranking is 0.0599"
 ```
 
 !!! Output

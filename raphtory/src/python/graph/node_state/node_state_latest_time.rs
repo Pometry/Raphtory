@@ -1,7 +1,11 @@
 use crate::{
     db::{
         api::{
-            state::{ops, ops::DynNodeFilter, LazyNodeState, NodeGroups, NodeOp, NodeState},
+            state::{
+                ops::{self, ArrowMap, DynNodeFilter, IntoArrowNodeOp, Map},
+                DateTimeStruct, EventIdStruct, LazyNodeState, NodeGroups, NodeOp, NodeState,
+                TimeStampStruct,
+            },
             view::DynamicGraph,
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -25,14 +29,13 @@ use raphtory_core::entities::nodes::node_ref::{AsNodeRef, NodeRef};
 use rayon::prelude::*;
 use std::{cmp::Ordering, collections::HashMap};
 
-use crate::db::graph::nodes::IntoDynNodes;
+use crate::db::{api::state::OutputTypedNodeState, graph::nodes::IntoDynNodes};
 pub(crate) use crate::{
     db::api::{
         state::{ops::IntoDynNodeOp, NodeStateGroupBy, NodeStateOps, OrderedNodeStateOps},
         view::GraphViewOps,
     },
     prelude::*,
-    py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 
@@ -71,7 +74,7 @@ impl LatestTimeView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
+        LatestDateTime<DynamicGraph>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
@@ -96,7 +99,13 @@ impl LatestTimeView {
         self.inner.event_id()
     }
 }
-type LatestTimestamp<G> = ops::Map<ops::LatestTime<G>, Option<i64>>;
+
+type LatestTimestamp<G> = ArrowMap<Map<ops::LatestTime<G>, Option<i64>>, TimeStampStruct>;
+type LatestEventId<G> = ArrowMap<Map<ops::LatestTime<G>, Option<usize>>, EventIdStruct>;
+type LatestDateTime<G> =
+    ArrowMap<Map<ops::LatestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>, DateTimeStruct>;
+type LatestDateTimeOutput = <LatestDateTime<DynamicGraph> as NodeOp>::Output;
+
 impl_lazy_node_state_ord!(
     LatestTimestampView<LatestTimestamp<DynamicGraph>>,
     "NodeStateOptionI64",
@@ -110,14 +119,7 @@ impl_lazy_node_state_ord!(
 ); // usize gets converted to int in python
 impl_node_state_group_by_ops!(LatestEventIdView, Option<usize>);
 
-type LatestEventId<G> = ops::Map<ops::LatestTime<G>, Option<usize>>;
-
-type LatestDateTime<G> = ops::Map<ops::LatestTime<G>, Result<Option<DateTime<Utc>>, TimeError>>;
-
-/// Type: Result<Option<DateTime\<Utc>>, TimeError>
-type LatestDateTimeOutput = <LatestDateTime<DynamicGraph> as NodeOp>::Output;
-
-/// A lazy view over EarliestDateTime values for each node.
+/// A lazy view over LatestDateTime values for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
 pub struct LatestDateTimeView {
     inner: LazyNodeState<
@@ -434,7 +436,21 @@ impl LatestDateTimeView {
             return Err(PyErr::from(err));
         }
         // make the Result be on the outside, not inside the NodeState
-        let op = self.inner.op.clone().map(|r| r.unwrap());
+        let op: ArrowMap<
+            Map<
+                ArrowMap<
+                    Map<ops::LatestTime<DynamicGraph>, Result<Option<DateTime<Utc>>, TimeError>>,
+                    DateTimeStruct,
+                >,
+                Option<DateTime<Utc>>,
+            >,
+            DateTimeStruct,
+        > = self
+            .inner
+            .op
+            .clone()
+            .map(|r| r.unwrap())
+            .into_arrow_node_op();
         let lazy_node_state = LazyNodeState::new(op, self.inner.nodes());
         Ok(if reverse {
             lazy_node_state.sort_by_values_by(|a, b| a.cmp(b).reverse())
@@ -587,7 +603,7 @@ impl LatestDateTimeView {
             return Err(PyErr::from(err));
         }
         Ok(self.inner.group_by(|result| match result {
-            Ok(Some(dt)) => Some(*dt),
+            Ok(Some(dt)) => Some(dt),
             _ => None, // can't be an error because we already checked for those
         }))
     }

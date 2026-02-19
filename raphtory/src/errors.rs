@@ -23,7 +23,6 @@ use std::{
     path::{PathBuf, StripPrefixError},
     time::SystemTimeError,
 };
-use tracing::error;
 
 #[cfg(feature = "storage")]
 use pometry_storage::RAError;

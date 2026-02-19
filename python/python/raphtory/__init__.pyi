@@ -3209,7 +3209,7 @@ class PathFromNode(object):
         """
 
     @property
-    def earliest_time(self) -> OptionEventTimeIterable:
+    def earliest_time(self):
         """
         The earliest time of each node.
 
@@ -3331,7 +3331,7 @@ class PathFromNode(object):
         """
 
     @property
-    def id(self) -> GIDIterable:
+    def id(self):
         """
         The node IDs.
 
@@ -3374,7 +3374,7 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self) -> OptionEventTimeIterable:
+    def latest_time(self):
         """
         The latest time of each node.
 
@@ -3416,7 +3416,7 @@ class PathFromNode(object):
         """
 
     @property
-    def name(self) -> StringIterable:
+    def name(self):
         """
         The node names.
 
@@ -3434,7 +3434,7 @@ class PathFromNode(object):
         """
 
     @property
-    def node_type(self) -> OptionArcStringIterable:
+    def node_type(self):
         """
         The node types.
 
@@ -3687,7 +3687,7 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def degree(self) -> NestedUsizeIterable:
+    def degree(self):
         """
         Returns the node degrees.
 
@@ -3696,7 +3696,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def earliest_time(self) -> NestedOptionEventTimeIterable:
+    def earliest_time(self):
         """
         The node earliest times.
 
@@ -3704,7 +3704,7 @@ class PathFromGraph(object):
             NestedOptionEventTimeIterable:
         """
 
-    def edge_history_count(self) -> NestedUsizeIterable:
+    def edge_history_count(self):
         """
         Returns the number of edge updates for each node.
 
@@ -3818,7 +3818,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Returns a history object for each node with time entries for when a node is added or change to a node is made.
 
@@ -3827,7 +3827,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def id(self) -> NestedGIDIterable:
+    def id(self):
         """
         The node ids
 
@@ -3835,7 +3835,7 @@ class PathFromGraph(object):
             NestedGIDIterable:
         """
 
-    def in_degree(self) -> NestedUsizeIterable:
+    def in_degree(self):
         """
         Returns the node in-degrees.
 
@@ -3870,7 +3870,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def latest_time(self) -> NestedOptionEventTimeIterable:
+    def latest_time(self):
         """
         The node latest times.
 
@@ -3903,7 +3903,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def metadata(self) -> MetadataListList:
+    def metadata(self):
         """
         Returns the node metadata.
 
@@ -3912,7 +3912,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def name(self) -> NestedStringIterable:
+    def name(self):
         """
         The node names.
 
@@ -3930,7 +3930,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def node_type(self) -> NestedOptionArcStringIterable:
+    def node_type(self):
         """
         The node types.
 
@@ -3938,7 +3938,7 @@ class PathFromGraph(object):
             NestedOptionArcStringIterable:
         """
 
-    def out_degree(self) -> NestedUsizeIterable:
+    def out_degree(self):
         """
         Returns the node out-degrees.
 
@@ -3965,7 +3965,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def properties(self) -> PyNestedPropsIterable:
+    def properties(self):
         """
         Returns the node properties.
 
@@ -4731,7 +4731,7 @@ class Edges(object):
         """
 
     @property
-    def deletions(self) -> HistoryIterable:
+    def deletions(self):
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -4749,7 +4749,7 @@ class Edges(object):
         """
 
     @property
-    def earliest_time(self) -> OptionEventTimeIterable:
+    def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
@@ -4859,7 +4859,7 @@ class Edges(object):
         """
 
     @property
-    def history(self) -> HistoryIterable:
+    def history(self):
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -4868,7 +4868,7 @@ class Edges(object):
         """
 
     @property
-    def id(self) -> GIDGIDIterable:
+    def id(self):
         """
         Returns all ids of the edges.
 
@@ -4876,7 +4876,7 @@ class Edges(object):
             GIDGIDIterable:
         """
 
-    def is_active(self) -> BoolIterable:
+    def is_active(self):
         """
         Check if the edges are active (there is at least one update during this time).
 
@@ -4884,7 +4884,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_deleted(self) -> BoolIterable:
+    def is_deleted(self):
         """
         Check if the edges are deleted.
 
@@ -4892,7 +4892,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_self_loop(self) -> BoolIterable:
+    def is_self_loop(self):
         """
         Check if the edges are on the same node.
 
@@ -4900,7 +4900,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_valid(self) -> BoolIterable:
+    def is_valid(self):
         """
         Check if the edges are valid (i.e. not deleted).
 
@@ -4917,7 +4917,7 @@ class Edges(object):
         """
 
     @property
-    def latest_time(self) -> OptionEventTimeIterable:
+    def latest_time(self):
         """
         Returns the latest times of the edges.
 
@@ -4938,7 +4938,7 @@ class Edges(object):
         """
 
     @property
-    def layer_name(self) -> ArcStringIterable:
+    def layer_name(self):
         """
         Get the layer name that all edges belong to - assuming they only belong to one layer
 
@@ -4947,7 +4947,7 @@ class Edges(object):
         """
 
     @property
-    def layer_names(self) -> ArcStringVecIterable:
+    def layer_names(self):
         """
         Get the layer names that all edges belong to - assuming they only belong to one layer.
 
@@ -5098,7 +5098,7 @@ class Edges(object):
         """
 
     @property
-    def time(self) -> EventTimeIterable:
+    def time(self):
         """
         Returns the times of exploded edges
 
@@ -5229,7 +5229,7 @@ class NestedEdges(object):
         """
 
     @property
-    def deletions(self) -> NestedHistoryIterable:
+    def deletions(self):
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -5247,7 +5247,7 @@ class NestedEdges(object):
         """
 
     @property
-    def earliest_time(self) -> NestedOptionEventTimeIterable:
+    def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
@@ -5357,7 +5357,7 @@ class NestedEdges(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -5366,7 +5366,7 @@ class NestedEdges(object):
         """
 
     @property
-    def id(self) -> NestedGIDGIDIterable:
+    def id(self):
         """
         Returns all ids of the edges.
 
@@ -5374,7 +5374,7 @@ class NestedEdges(object):
             NestedGIDGIDIterable:
         """
 
-    def is_active(self) -> NestedBoolIterable:
+    def is_active(self):
         """
         Check if the edges are active (there is at least one update during this time).
 
@@ -5382,7 +5382,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_deleted(self) -> NestedBoolIterable:
+    def is_deleted(self):
         """
         Check if edges are deleted.
 
@@ -5390,7 +5390,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_self_loop(self) -> NestedBoolIterable:
+    def is_self_loop(self):
         """
         Check if the edges are on the same node.
 
@@ -5398,7 +5398,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_valid(self) -> NestedBoolIterable:
+    def is_valid(self):
         """
         Check if edges are valid (i.e., not deleted).
 
@@ -5415,7 +5415,7 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_time(self) -> NestedOptionEventTimeIterable:
+    def latest_time(self):
         """
         Returns the latest time of the edges.
 
@@ -5436,7 +5436,7 @@ class NestedEdges(object):
         """
 
     @property
-    def layer_name(self) -> NestedArcStringIterable:
+    def layer_name(self):
         """
         Returns the name of the layer the edges belong to - assuming they only belong to one layer.
 
@@ -5445,7 +5445,7 @@ class NestedEdges(object):
         """
 
     @property
-    def layer_names(self) -> NestedArcStringVecIterable:
+    def layer_names(self):
         """
         Returns the names of the layers the edges belong to.
 
@@ -5466,7 +5466,7 @@ class NestedEdges(object):
         """
 
     @property
-    def metadata(self) -> MetadataListList:
+    def metadata(self):
         """
         Get a view of the metadata only.
 
@@ -5484,7 +5484,7 @@ class NestedEdges(object):
         """
 
     @property
-    def properties(self) -> PyNestedPropsIterable:
+    def properties(self):
         """
         Returns all properties of the edges
 
@@ -5596,7 +5596,7 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self) -> NestedEventTimeIterable:
+    def time(self):
         """
         Returns the times of exploded edges.
 

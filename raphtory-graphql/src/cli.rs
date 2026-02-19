@@ -15,7 +15,7 @@ use crate::{
     server::DEFAULT_PORT,
     GraphServer,
 };
-use clap::{command, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 

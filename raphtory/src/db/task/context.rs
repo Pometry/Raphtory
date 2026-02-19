@@ -20,7 +20,7 @@ where
     G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    ss: usize,
+    pub ss: usize,
     g: G,
     merge_fns: Vec<MergeFn<CS>>,
     resetable_states: Vec<u32>,

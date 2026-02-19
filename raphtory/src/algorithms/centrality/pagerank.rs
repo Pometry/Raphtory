@@ -2,7 +2,7 @@ use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::{
-            state::NodeState,
+            state::{GenericNodeState, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         task::{
@@ -14,10 +14,13 @@ use crate::{
     prelude::GraphViewOps,
 };
 use num_traits::abs;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default)]
-struct PageRankState {
-    score: f64,
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct PageRankState {
+    #[serde(rename = "pagerank_score")]
+    pub score: f64,
+    #[serde(skip)]
     out_degree: usize,
 }
 
@@ -28,7 +31,6 @@ impl PageRankState {
             out_degree: 0,
         }
     }
-
     fn reset(&mut self) {
         self.score = 0f64;
     }
@@ -57,7 +59,7 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     tol: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
-) -> NodeState<'static, f64, G> {
+) -> TypedNodeState<'static, PageRankState, G> {
     let n = g.count_nodes();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
@@ -161,7 +163,9 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_nodes); num_nodes]),
-        |_, _, _, local| NodeState::new_from_eval_mapped(g.clone(), local, |v| v.score),
+        |_, _, _, local| {
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+        },
         threads,
         iter_count,
         None,
