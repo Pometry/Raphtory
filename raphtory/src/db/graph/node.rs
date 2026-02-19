@@ -415,6 +415,10 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         properties: impl IntoIterator<Item = (PN, P)>,
         is_update: bool,
     ) -> Result<(), GraphError> {
+        let transaction_manager = self.graph.core_graph().transaction_manager().map_err(into_graph_err)?;
+        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let transaction_id = transaction_manager.begin_transaction();
+
         let props_with_status = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.node_meta(),
@@ -441,7 +445,25 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .map_err(into_graph_err)?
         };
 
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let lsn = wal
+            .log_add_node_metadata(transaction_id, vid, props_for_wal)
+            .map_err(into_graph_err)?;
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
         drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
 
         Ok(())
     }

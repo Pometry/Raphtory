@@ -265,6 +265,50 @@ where
         Ok(())
     }
 
+    fn replay_add_node_metadata(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        vid: VID,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
+        self.resize_segments_to_vid(vid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let node_meta = self.graph().node_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = node_meta.metadata_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
+            }
+
+            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
+
+            let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
+
+            // No need to check metadata since the operation was logged after validation.
+            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props_vec);
+            node_writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
     fn replay_add_node(
         &mut self,
         lsn: LSN,

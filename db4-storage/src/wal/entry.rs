@@ -50,6 +50,15 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn log_add_node_metadata(
+        &self,
+        _transaction_id: TransactionID,
+        _vid: VID,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
     fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
         Ok(0)
     }
