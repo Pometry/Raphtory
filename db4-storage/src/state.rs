@@ -264,6 +264,27 @@ impl<'a, I: From<usize> + Into<usize>> Iterator for StateIndexIter<'a, I> {
         }
     }
 
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        // fast skip
+        if self.current_chunk >= self.index.num_chunks() {
+            return None;
+        }
+        let current = self.index.offsets[self.current_chunk] + self.current_local;
+        let target = current.saturating_add(n);
+        if &target >= self.index.offsets.last()? {
+            return None;
+        }
+        // find the first offset > target, then substract 1 to get the last chunk starting at <= target
+        let skip_chunks = self.index.offsets[self.current_chunk..]
+            .partition_point(|&offset| offset <= target)
+            .saturating_sub(1);
+        self.current_chunk += skip_chunks;
+        self.current_local = target - self.index.offsets[self.current_chunk];
+        let global_idx = self.current_chunk * self.index.max_page_len as usize + self.current_local;
+        self.current_local += 1;
+        Some(I::from(global_idx))
+    }
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let total = self.index.len();
         let consumed = if self.current_chunk < self.index.num_chunks() {
@@ -822,5 +843,19 @@ mod tests {
         ];
 
         assert_eq!(values, expected);
+    }
+
+    #[test]
+    fn test_iter_skip() {
+        let index: StateIndex<usize> = StateIndex::new(vec![10, 1, 5], 10);
+        // check all skips
+        for (i, v) in index.iter().enumerate() {
+            assert_eq!(index.iter().nth(i), Some(v));
+        }
+
+        assert_eq!(index.iter().nth(0), Some(0));
+        assert_eq!(index.iter().nth(100), None);
+        assert_eq!(index.iter().nth(16), None);
+        assert_eq!(index.iter().nth(15), Some(24));
     }
 }
