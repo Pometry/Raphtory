@@ -28,8 +28,6 @@ use std::{
     },
 };
 
-use rayon::prelude::*;
-use raphtory_api::core::entities::LayerId;
 use crate::{
     LocalPOS,
     error::StorageError,
@@ -39,6 +37,8 @@ use crate::{
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
+use raphtory_api::core::entities::LayerId;
+use rayon::prelude::*;
 
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;

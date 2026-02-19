@@ -4,10 +4,9 @@ use iter_enum::{
     ParallelIterator,
 };
 use raphtory_api::core::{
-    entities::ELID,
+    entities::{LayerId, ELID},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use raphtory_api::core::entities::LayerId;
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::node_ref::NodeStorageRef,

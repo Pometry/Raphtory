@@ -5,8 +5,10 @@ use crate::{
         InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
     },
 };
-use raphtory_api::core::{entities::ELID, storage::timeindex::EventTime};
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::core::{
+    entities::{LayerId, ELID},
+    storage::timeindex::EventTime,
+};
 use storage::EdgeEntryRef;
 
 impl InternalEdgeFilterOps for GraphStorage {

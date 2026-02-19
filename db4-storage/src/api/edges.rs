@@ -1,5 +1,9 @@
+use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
-use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{meta::Meta, prop::Prop, tprop::TPropOps},
+};
 use raphtory_core::{
     entities::{EID, LayerIds, VID},
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -10,8 +14,6 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
 };
-use raphtory_api::core::entities::LayerId;
-use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     type Extension;

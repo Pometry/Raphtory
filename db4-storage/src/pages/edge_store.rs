@@ -13,7 +13,10 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{EID, VID, properties::meta::{Meta, STATIC_GRAPH_LAYER_ID}, LayerId};
+use raphtory_api::core::entities::{
+    EID, LayerId, VID,
+    properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
+};
 use raphtory_core::{
     entities::{ELID, LayerIds},
     storage::timeindex::{AsTime, EventTime},

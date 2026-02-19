@@ -6,10 +6,10 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::ops::DerefMut;
-use raphtory_api::core::entities::LayerId;
 
 #[derive(Debug)]
 pub struct LockedNodePage<'a, NS> {

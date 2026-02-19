@@ -4,10 +4,9 @@ use std::{
 };
 
 use raphtory_api::core::{
-    entities::{self, properties::meta::Meta, GidType},
+    entities::{self, properties::meta::Meta, GidType, LayerId},
     input::input_node::InputNode,
 };
-use raphtory_api::core::entities::LayerId;
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::EventTime,
@@ -253,9 +252,15 @@ where
                 let mut new_layers = ids
                     .iter()
                     .map(|id| {
-                        self.edge_meta().get_layer_id(id).map(|l| l.0).ok_or_else(|| {
-                            InvalidLayer::new(id.clone(), Self::get_valid_layers(self.edge_meta()))
-                        })
+                        self.edge_meta()
+                            .get_layer_id(id)
+                            .map(|l| l.0)
+                            .ok_or_else(|| {
+                                InvalidLayer::new(
+                                    id.clone(),
+                                    Self::get_valid_layers(self.edge_meta()),
+                                )
+                            })
                     })
                     .collect::<Result<Vec<_>, InvalidLayer>>()?;
                 let num_layers = self.num_layers();
@@ -319,7 +324,7 @@ where
         WriteLockedGraph::new(self)
     }
 
-    pub fn update_time(&self, earliest: EventTime) {
+    pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
 }

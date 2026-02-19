@@ -1,5 +1,5 @@
 use crate::error::StorageError;
-use raphtory_api::core::entities::{GidRef, properties::prop::Prop, LayerId};
+use raphtory_api::core::entities::{GidRef, LayerId, properties::prop::Prop};
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,

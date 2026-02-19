@@ -1,7 +1,7 @@
+use raphtory_api::core::entities::LayerId;
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::entities::{LayerIds, EID};
 use rayon::prelude::*;
-use raphtory_api::core::entities::LayerId;
 use storage::{pages::edge_store::EdgeStorageInner, utils::Iter4, Extension, Layer};
 
 use crate::graph::edges::edge_entry::EdgeStorageEntry;

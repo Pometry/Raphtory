@@ -7,10 +7,10 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
-    serialise::{GraphFolder, GraphPaths, InnerGraphFolder, INDEX_PATH},
+    serialise::{GraphFolder, GraphPaths, InnerGraphFolder},
 };
 use parking_lot::RwLock;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::{entities::LayerId, storage::dict_mapper::MaybeNew};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
@@ -23,13 +23,8 @@ use std::{
     sync::Arc,
 };
 use tempfile::TempDir;
-use uuid::Uuid;
 use walkdir::WalkDir;
-use zip::{
-    write::{FileOptions, SimpleFileOptions},
-    ZipArchive, ZipWriter,
-};
-use raphtory_api::core::entities::LayerId;
+use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 #[derive(Clone)]
 pub struct Index {

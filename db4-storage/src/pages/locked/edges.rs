@@ -8,9 +8,9 @@ use crate::{
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
-use raphtory_api::core::entities::LayerId;
 
 #[derive(Debug)]
 pub struct LockedEdgePage<'a, ES> {

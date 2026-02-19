@@ -7,7 +7,7 @@ use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
     entities::{
         properties::{
-            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
             prop::{Prop, PropType, PropUnwrap},
         },
         LayerId,
@@ -18,14 +18,13 @@ use raphtory_core::{
     entities::{
         graph::tgraph::TooManyLayers,
         nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, ELID, MAX_LAYER, VID,
+        GidRef, EID, MAX_LAYER, VID,
     },
     storage::timeindex::EventTime,
 };
 use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
     pages::{
         node_page::writer::{node_info_as_props, NodeWriters},
         resolve_pos,
@@ -33,10 +32,10 @@ use storage::{
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
-    resolver::{mapping_resolver::Init, GIDResolverOps, Initialiser, MaybeInit},
+    resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    Extension, GIDResolver, LocalPOS, Wal, ES, GS, NS,
+    Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct AtomicAddEdge<'a, EXT>

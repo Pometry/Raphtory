@@ -11,10 +11,9 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::inherit::Base;
+use raphtory_api::{core::entities::LayerId, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 use std::fmt::{Debug, Formatter};
-use raphtory_api::core::entities::LayerId;
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {

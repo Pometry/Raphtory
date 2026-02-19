@@ -222,7 +222,7 @@ impl<
         O: NodeOp<Output = Result<T, E>>,
     {
         if self.nodes.is_filtered() {
-            let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
+            let (_, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
                 .par_iter()
                 .filter_map(|(node, value)| value.ok().map(|value| (node.node, value)))
                 .unzip();

@@ -64,7 +64,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::prop::{Prop, PropType},
-            ELID,
+            LayerId, ELID,
         },
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
@@ -80,7 +80,6 @@ use std::{
     iter,
     ops::Range,
 };
-use raphtory_api::core::entities::LayerId;
 
 /// A struct that represents a windowed view of a `Graph`.
 #[derive(Copy, Clone)]

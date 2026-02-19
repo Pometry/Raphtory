@@ -13,7 +13,10 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::EventTime},
+    core::{
+        entities::{LayerId, ELID},
+        storage::timeindex::EventTime,
+    },
     inherit::Base,
 };
 use raphtory_storage::{
@@ -24,7 +27,6 @@ use raphtory_storage::{
     },
 };
 use std::fmt::{Debug, Formatter};
-use raphtory_api::core::entities::LayerId;
 
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {

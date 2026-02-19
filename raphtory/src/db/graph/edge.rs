@@ -32,8 +32,8 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
+    entities::{properties::prop::PropType, LayerId},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef};
@@ -52,7 +52,6 @@ use std::{
     iter,
     sync::Arc,
 };
-use raphtory_api::core::entities::LayerId;
 
 /// A view of an edge in the graph.
 #[derive(Copy, Clone)]

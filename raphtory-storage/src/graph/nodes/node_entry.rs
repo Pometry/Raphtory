@@ -2,10 +2,9 @@ use std::ops::Range;
 
 use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
+    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerId, LayerIds, VID},
     Direction,
 };
-use raphtory_api::core::entities::LayerId;
 use raphtory_core::storage::timeindex::EventTime;
 use storage::{
     api::nodes::{self, NodeEntryOps},

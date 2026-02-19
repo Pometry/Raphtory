@@ -105,7 +105,7 @@ pub(crate) fn encode_edge_deletions(
                         })
                         .map(move |deletions| ParquetDelEdge {
                             del: deletions,
-                            layer: &layers[layer_id - 1],
+                            layer: &layers[layer_id.0 - 1],
                             layer_id,
                             edge: EdgeView::new(g, edge_ref),
                         })

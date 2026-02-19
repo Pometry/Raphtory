@@ -5,10 +5,9 @@ use crate::{
     segments::graph_prop::segment::MemGraphPropSegment,
 };
 use parking_lot::RwLockReadGuard;
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::entities::properties::tprop::TPropCell;
 use std::ops::Deref;
-use raphtory_api::core::entities::LayerId;
 
 /// A borrowed view enabling read operations on an in-memory graph segment.
 pub struct MemGraphPropEntry<'a> {

@@ -1,6 +1,8 @@
-use crate::core::entities::LayerId;
 use crate::core::{
-    entities::properties::prop::{check_for_unification, unify_types, PropError, PropType},
+    entities::{
+        properties::prop::{check_for_unification, unify_types, PropError, PropType},
+        LayerId,
+    },
     storage::{
         arc_str::ArcStr,
         dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper},

@@ -2,8 +2,10 @@ use std::{borrow::Borrow, ops::Range};
 
 use either::Either;
 use itertools::Itertools;
-use raphtory_api::core::entities::LayerId;
-use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{prop::Prop, tprop::TPropOps},
+};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{entities::LayerIds, storage::timeindex::EventTime};
 

@@ -1,8 +1,5 @@
 use crate::resolver::{GIDResolverOps, Initialiser, MaybeInit, StorageError};
-use dashmap::{
-    VacantEntry,
-    mapref::{entry::Entry, one::Ref},
-};
+use dashmap::{VacantEntry, mapref::entry::Entry};
 use lock_api::ArcMutexGuard;
 use once_cell::sync::OnceCell;
 use parking_lot::{Mutex, RawMutex};

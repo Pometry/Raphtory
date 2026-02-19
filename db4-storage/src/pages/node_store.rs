@@ -13,7 +13,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{GidType, properties::meta::Meta, LayerId};
+use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::AsTime,
@@ -25,7 +25,6 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, atomic::AtomicU32},
 };
-use crate::gen_ts::LayerIter;
 
 // graph // (nodes|edges) // graph segments // layers // chunks
 pub const N: usize = 32;
@@ -306,7 +305,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                     match self.reserve_segment_rows(writer.page, required_space) {
                         None => {
                             // segment is full, we need to create a new one
-                            let mut slot = self.free_segments[slot_idx].write();
+                            let slot = self.free_segments[slot_idx].write();
                             if *slot == page_id {
                                 // page_id is unchanged, no other thread created a new segment before we got the lock
                                 page_id = self.push_new_segment();

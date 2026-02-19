@@ -7,7 +7,10 @@ use crate::{
     },
 };
 use parking_lot::RwLock;
-use raphtory_api::core::entities::{properties::{meta::Meta, prop::PropType, tprop::TPropOps}, LayerId, LayerIds, EID, VID};
+use raphtory_api::core::entities::{
+    properties::{meta::Meta, prop::PropType, tprop::TPropOps},
+    LayerId, LayerIds, EID, VID,
+};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{

@@ -1,4 +1,3 @@
-use raphtory_api::core::entities::LayerId;
 use crate::{
     EdgeAdditions, EdgeDeletions, EdgeTProps, LocalPOS,
     api::edges::{EdgeEntryOps, EdgeRefOps},
@@ -6,7 +5,7 @@ use crate::{
     generic_t_props::WithTProps,
     segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::{
     entities::{
         EID, Multiple, VID,

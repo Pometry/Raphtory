@@ -23,6 +23,7 @@ use raphtory_api::core::{
 };
 use rayon::prelude::*;
 
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::{
     entities::{EID, ELID, VID},
     storage::timeindex::EventTime,
@@ -36,7 +37,6 @@ use std::{
     },
 };
 use tinyvec::TinyVec;
-use raphtory_api::core::entities::LayerId;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -608,11 +608,10 @@ mod test {
     };
     use chrono::DateTime;
     use proptest::prelude::*;
-    use raphtory_api::core::entities::properties::prop::Prop;
+    use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
     use raphtory_core::{entities::VID, storage::timeindex::TimeIndexOps};
     use rayon::iter::ParallelIterator;
     use tempfile;
-    use raphtory_api::core::entities::LayerId;
 
     #[test]
     fn test_iterleave() {
@@ -726,7 +725,10 @@ mod test {
 
     #[test]
     fn test_storage_with_layers_1() {
-        let edges = vec![(VID(4), VID(0), Some(LayerId(1))), (VID(0), VID(0), Some(LayerId(6)))];
+        let edges = vec![
+            (VID(4), VID(0), Some(LayerId(1))),
+            (VID(0), VID(0), Some(LayerId(6))),
+        ];
         check_edges_with_layers(edges, 4, false);
     }
 

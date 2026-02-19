@@ -1,9 +1,11 @@
 use crate::core::entities::LayerIds;
 use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::EventTime},
+    core::{
+        entities::{LayerId, ELID},
+        storage::timeindex::EventTime,
+    },
     inherit::Base,
 };
-use raphtory_api::core::entities::LayerId;
 use storage::EdgeEntryRef;
 
 pub trait InternalEdgeLayerFilterOps {

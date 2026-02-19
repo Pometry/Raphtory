@@ -12,12 +12,11 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{LayerIds, ELID},
+        entities::{LayerId, LayerIds, ELID},
         storage::timeindex::EventTime,
     },
     inherit::Base,
 };
-use raphtory_api::core::entities::LayerId;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},

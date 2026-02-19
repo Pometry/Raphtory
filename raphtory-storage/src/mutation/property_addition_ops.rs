@@ -6,13 +6,12 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
-            EID, VID,
+            LayerId, EID, VID,
         },
         storage::timeindex::EventTime,
     },
     inherit::Base,
 };
-use raphtory_api::core::entities::LayerId;
 use storage::Extension;
 
 pub trait InternalPropertyAdditionOps {

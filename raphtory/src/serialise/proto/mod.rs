@@ -20,7 +20,7 @@ use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{prop::Prop, tprop::TPropOps},
-        VID,
+        LayerId, VID,
     },
     storage::timeindex::TimeIndexOps,
 };
@@ -31,7 +31,7 @@ use raphtory_storage::{
         nodes::node_storage_ops::NodeStorageOps,
     },
 };
-use std::{iter, ops::Deref};
+use std::iter;
 
 pub mod ext;
 
@@ -124,7 +124,7 @@ impl ProtoEncoder for GraphStorage {
                 node.vid(),
                 n_const_meta
                     .ids()
-                    .flat_map(|i| node.constant_prop_layer(0, i).map(|v| (i, v))),
+                    .flat_map(|i| node.constant_prop_layer(LayerId(0), i).map(|v| (i, v))),
             );
         }
 
@@ -196,13 +196,13 @@ impl ProtoEncoder for MaterializedGraph {
 }
 
 impl ProtoDecoder for GraphStorage {
-    fn decode_from_proto(graph: &proto_generated::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(_graph: &proto_generated::Graph) -> Result<Self, GraphError> {
         todo!("implement this")
     }
 }
 
 impl ProtoDecoder for Graph {
-    fn decode_from_proto(graph: &proto_generated::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(_graph: &proto_generated::Graph) -> Result<Self, GraphError> {
         todo!("implement this")
     }
 }
@@ -220,7 +220,7 @@ impl ProtoDecoder for PersistentGraph {
 }
 
 impl ProtoDecoder for MaterializedGraph {
-    fn decode_from_proto(graph: &proto_generated::Graph) -> Result<Self, GraphError> {
+    fn decode_from_proto(_graph: &proto_generated::Graph) -> Result<Self, GraphError> {
         todo!("implement this")
     }
 }

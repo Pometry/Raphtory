@@ -17,7 +17,6 @@ use raphtory_api::core::{
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
-use raphtory_core::entities::ELID;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::graph::GraphStorage,
@@ -40,7 +39,7 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-use crate::{errors::into_graph_err, prelude::Graph};
+use crate::errors::into_graph_err;
 use raphtory_api::core::entities::LayerId;
 use raphtory_storage::mutation::{addition_ops_ext::AtomicAddNode, durability_ops::DurabilityOps};
 #[cfg(feature = "search")]
@@ -50,10 +49,8 @@ use {
         search::graph_index::{GraphIndex, MutableGraphIndex},
         serialise::{GraphFolder, GraphPaths},
     },
-    either::Either,
     parking_lot::RwLock,
-    raphtory_core::entities::nodes::node_ref::AsNodeRef,
-    raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
+    raphtory_storage::core_ops::CoreGraphOps,
     std::{
         io::{Seek, Write},
         ops::{Deref, DerefMut},

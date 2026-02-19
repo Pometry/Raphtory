@@ -2,12 +2,11 @@ use crate::{graph::graph::GraphStorage, mutation::MutationError};
 use db4_graph::TemporalGraph;
 use raphtory_api::{
     core::{
-        entities::{EID, VID},
+        entities::{LayerId, EID, VID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
 };
-use raphtory_api::core::entities::LayerId;
 use storage::Extension;
 
 pub trait InternalDeletionOps {

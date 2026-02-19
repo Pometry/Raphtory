@@ -4,8 +4,11 @@ use iter_enum::{
     ParallelExtend, ParallelIterator,
 };
 use rayon::prelude::*;
-use std::{iter::Copied, sync::Arc};
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    iter::Copied,
+    sync::Arc,
+};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct LayerId(pub usize);

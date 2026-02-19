@@ -33,7 +33,7 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{sort_comparable_props, Prop, PropType},
         },
-        EID,
+        LayerId, EID,
     },
     storage::timeindex::EventTime,
 };
@@ -42,7 +42,6 @@ use raphtory_storage::graph::{
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
-use raphtory_api::core::entities::LayerId;
 
 pub mod builders;
 mod evaluate;

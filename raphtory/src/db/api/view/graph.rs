@@ -30,7 +30,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::meta::{Meta, PropMapper, STATIC_GRAPH_LAYER_ID},
-            EID,
+            LayerId, EID,
         },
         storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
@@ -53,7 +53,6 @@ use std::{
     path::Path,
     sync::{atomic::Ordering, Arc},
 };
-use raphtory_api::core::entities::LayerId;
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[cfg(feature = "search")]

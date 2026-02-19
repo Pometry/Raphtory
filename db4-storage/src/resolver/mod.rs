@@ -1,8 +1,5 @@
 use crate::error::StorageError;
-use raphtory_api::core::{
-    entities::{GidRef, GidType, VID},
-    storage::dict_mapper::MaybeNew,
-};
+use raphtory_api::core::entities::{GidRef, GidType, VID};
 use std::path::Path;
 
 pub mod mapping_resolver;

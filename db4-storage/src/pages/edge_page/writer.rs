@@ -2,7 +2,10 @@ use crate::{
     LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
     segments::edge::segment::MemEdgeSegment,
 };
-use raphtory_api::core::entities::{VID, properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop}, LayerId};
+use raphtory_api::core::entities::{
+    LayerId, VID,
+    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+};
 use raphtory_core::storage::timeindex::{AsTime, EventTime};
 use std::ops::DerefMut;
 

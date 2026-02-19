@@ -14,7 +14,7 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::ELID,
+        entities::{LayerId, ELID},
         storage::timeindex::{AsTime, EventTime},
     },
     inherit::Base,
@@ -32,7 +32,6 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
-use raphtory_api::core::entities::LayerId;
 use storage::EdgeEntryRef;
 
 #[derive(Clone)]

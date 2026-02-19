@@ -9,11 +9,10 @@ use raphtory_api::core::{
             meta::STATIC_GRAPH_LAYER_ID,
             prop::{unify_types, Prop},
         },
-        EID, GID, VID,
+        LayerId, EID, GID, VID,
     },
     storage::timeindex::EventTime,
 };
-use raphtory_api::core::entities::LayerId;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,

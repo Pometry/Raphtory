@@ -12,7 +12,10 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::entities::{VID, properties::{meta::Meta, prop::Prop}, LayerId};
+use raphtory_api::core::entities::{
+    LayerId, VID,
+    properties::{meta::Meta, prop::Prop},
+};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
     entities::LayerIds,
@@ -597,9 +600,18 @@ mod test {
         assert!(segment.contains_edge(LocalPOS(2), LayerId(0)));
 
         // Verify edge data
-        assert_eq!(segment.get_edge(LocalPOS(0), LayerId(0)), Some((VID(1), VID(2))));
-        assert_eq!(segment.get_edge(LocalPOS(1), LayerId(0)), Some((VID(3), VID(4))));
-        assert_eq!(segment.get_edge(LocalPOS(2), LayerId(0)), Some((VID(5), VID(6))));
+        assert_eq!(
+            segment.get_edge(LocalPOS(0), LayerId(0)),
+            Some((VID(1), VID(2)))
+        );
+        assert_eq!(
+            segment.get_edge(LocalPOS(1), LayerId(0)),
+            Some((VID(3), VID(4)))
+        );
+        assert_eq!(
+            segment.get_edge(LocalPOS(2), LayerId(0)),
+            Some((VID(5), VID(6)))
+        );
 
         // Verify time length increased
         assert_eq!(segment.t_len(), 3);

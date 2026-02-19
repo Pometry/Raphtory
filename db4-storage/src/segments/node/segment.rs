@@ -15,7 +15,7 @@ use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
     Direction,
     entities::{
-        EID, VID,
+        EID, LayerId, VID,
         properties::{meta::Meta, prop::Prop},
     },
 };
@@ -31,7 +31,6 @@ use std::{
         atomic::{AtomicU32, AtomicUsize, Ordering},
     },
 };
-use raphtory_api::core::entities::LayerId;
 
 #[derive(Debug)]
 pub struct MemNodeSegment {
@@ -185,13 +184,21 @@ impl MemNodeSegment {
             .and_then(|adj| adj.get_edge(src, Direction::IN))
     }
 
-    pub fn out_edges(&self, n: LocalPOS, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + '_ {
+    pub fn out_edges(
+        &self,
+        n: LocalPOS,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.get_adj(n, layer_id)
             .into_iter()
             .flat_map(|adj| adj.out_iter())
     }
 
-    pub fn inb_edges(&self, n: LocalPOS, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + '_ {
+    pub fn inb_edges(
+        &self,
+        n: LocalPOS,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.get_adj(n, layer_id)
             .into_iter()
             .flat_map(|adj| adj.inb_iter())
@@ -573,14 +580,16 @@ mod test {
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
     };
-    use raphtory_api::core::entities::properties::{
-        meta::{Meta, STATIC_GRAPH_LAYER_ID},
-        prop::{Prop, PropType},
+    use raphtory_api::core::entities::{
+        LayerId,
+        properties::{
+            meta::{Meta, STATIC_GRAPH_LAYER_ID},
+            prop::{Prop, PropType},
+        },
     };
     use raphtory_core::entities::{EID, ELID, VID};
     use std::sync::Arc;
     use tempfile::tempdir;
-    use raphtory_api::core::entities::LayerId;
 
     #[test]
     fn est_size_changes() {

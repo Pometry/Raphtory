@@ -10,10 +10,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{
-    entities::{
-        properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
-        LayerId,
-    },
+    entities::properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_storage::mutation::{

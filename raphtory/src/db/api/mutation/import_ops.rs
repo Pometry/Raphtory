@@ -17,15 +17,12 @@ use crate::{
     },
 };
 use raphtory_api::core::{
-    entities::{properties::meta::STATIC_GRAPH_LAYER_ID, GID},
+    entities::GID,
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    mutation::{
-        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
-        property_addition_ops::InternalPropertyAdditionOps,
-    },
+use raphtory_storage::mutation::{
+    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+    property_addition_ops::InternalPropertyAdditionOps,
 };
 use std::{borrow::Borrow, fmt::Debug};
 

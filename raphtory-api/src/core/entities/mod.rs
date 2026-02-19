@@ -1,7 +1,6 @@
 use super::input::input_node::parse_u64_strict;
-use crate::iter::{BoxedIter, IntoDynBoxed};
+use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
-use edges::edge_ref::EdgeRef;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{

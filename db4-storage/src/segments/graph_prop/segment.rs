@@ -3,13 +3,15 @@ use crate::{
     segments::{HasRow, SegmentContainer},
     wal::LSN,
 };
-use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{meta::Meta, prop::Prop},
+};
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
     storage::timeindex::{AsTime, EventTime},
 };
 use std::sync::Arc;
-use raphtory_api::core::entities::LayerId;
 
 /// In-memory segment that contains graph temporal properties and graph metadata.
 #[derive(Debug)]

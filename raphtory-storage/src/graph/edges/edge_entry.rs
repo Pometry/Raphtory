@@ -1,8 +1,10 @@
 use crate::graph::edges::edge_storage_ops::EdgeStorageOps;
-use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
+use raphtory_api::core::entities::{
+    properties::{prop::Prop, tprop::TPropOps},
+    LayerId,
+};
 use raphtory_core::entities::{LayerIds, EID, VID};
 use std::ops::Range;
-use raphtory_api::core::entities::LayerId;
 use storage::{api::edges::EdgeEntryOps, EdgeEntry, EdgeEntryRef};
 
 #[derive(Debug)]

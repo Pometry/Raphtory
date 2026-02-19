@@ -1,9 +1,8 @@
+use super::props::{make_props, prop_type};
 use proptest::{collection, prelude::*};
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::entities::VID;
 use std::{collections::HashMap, ops::Range};
-use raphtory_api::core::entities::LayerId;
-use super::props::{make_props, prop_type};
 
 pub type AddEdge = (
     VID,

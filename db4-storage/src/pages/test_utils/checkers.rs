@@ -1,16 +1,3 @@
-use itertools::Itertools;
-use raphtory_api::core::entities::properties::{prop::Prop, tprop::TPropOps};
-use raphtory_core::{
-    entities::{ELID, VID},
-    storage::timeindex::TimeIndexOps,
-};
-use rayon::prelude::*;
-use std::{
-    collections::{HashMap, HashSet},
-    hint::black_box,
-    path::Path,
-};
-use raphtory_api::core::entities::LayerId;
 use crate::{
     api::{
         edges::{EdgeEntryOps, EdgeRefOps, EdgeSegmentOps},
@@ -20,6 +7,21 @@ use crate::{
     error::StorageError,
     pages::GraphStore,
     persist::strategy::PersistenceStrategy,
+};
+use itertools::Itertools;
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{prop::Prop, tprop::TPropOps},
+};
+use raphtory_core::{
+    entities::{ELID, VID},
+    storage::timeindex::TimeIndexOps,
+};
+use rayon::prelude::*;
+use std::{
+    collections::{HashMap, HashSet},
+    hint::black_box,
+    path::Path,
 };
 
 use super::fixtures::{AddEdge, Fixture, NodeFixture};

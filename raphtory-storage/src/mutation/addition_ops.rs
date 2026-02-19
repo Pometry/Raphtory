@@ -10,7 +10,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{
-                meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+                meta::Meta,
                 prop::{Prop, PropType},
             },
             GidRef, LayerId, EID, VID,

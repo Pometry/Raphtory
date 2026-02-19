@@ -11,7 +11,7 @@ use raphtory_api::{
                 meta::{Meta, STATIC_GRAPH_LAYER_ID},
                 prop::Prop,
             },
-            GidType, LayerIds, EID, GID, VID,
+            GidType, LayerId, LayerIds, EID, GID, VID,
         },
         storage::arc_str::ArcStr,
     },
@@ -20,7 +20,6 @@ use raphtory_api::{
 };
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{iter, sync::Arc};
-use raphtory_api::core::entities::LayerId;
 use storage::resolver::GIDResolverOps;
 
 /// Check if two Graph views point at the same underlying storage

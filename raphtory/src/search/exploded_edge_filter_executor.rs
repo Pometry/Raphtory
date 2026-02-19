@@ -27,7 +27,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::EID,
+    entities::{LayerId, EID},
     storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
@@ -341,8 +341,8 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         let edges = exploded_edge_ids
             .into_iter()
             .filter_map(|(tie, eid, layer_id)| {
-                if filtered_graph.filter_exploded_edge(eid.with_layer(layer_id), tie) {
-                    let e_ref = graph.core_edge(eid).out_ref().at(tie).at_layer(layer_id);
+                if filtered_graph.filter_exploded_edge(eid.with_layer(LayerId(layer_id)), tie) {
+                    let e_ref = graph.core_edge(eid).out_ref().at(tie, LayerId(layer_id));
                     Some(EdgeView::new(graph.clone(), e_ref))
                 } else {
                     None

@@ -3,13 +3,12 @@ use raphtory_api::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
         properties::{prop::Prop, tprop::TPropOps},
-        LayerIds, LayerVariants, EID, VID,
+        LayerId, LayerIds, LayerVariants, EID, VID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_core::storage::timeindex::{TimeIndex, TimeIndexWindow};
 use std::ops::Range;
-use raphtory_api::core::entities::LayerId;
 use storage::api::edges::EdgeRefOps;
 
 #[derive(Clone)]
@@ -216,14 +215,20 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => LayerVariants::All(
-                (1..self.internal_num_layers()).map(LayerId).filter(move |&l| self.has_layer_inner(l)),
+                (1..self.internal_num_layers())
+                    .map(LayerId)
+                    .filter(move |&l| self.has_layer_inner(l)),
             ),
-            LayerIds::One(id) => {
-                LayerVariants::One(self.has_layer_inner(LayerId(*id)).then_some(LayerId(*id)).into_iter())
-            }
-            LayerIds::Multiple(ids) => {
-                LayerVariants::Multiple(ids.iter().map(LayerId).filter(move |&id| self.has_layer_inner(id)))
-            }
+            LayerIds::One(id) => LayerVariants::One(
+                self.has_layer_inner(LayerId(*id))
+                    .then_some(LayerId(*id))
+                    .into_iter(),
+            ),
+            LayerIds::Multiple(ids) => LayerVariants::Multiple(
+                ids.iter()
+                    .map(LayerId)
+                    .filter(move |&id| self.has_layer_inner(id)),
+            ),
         }
     }
 

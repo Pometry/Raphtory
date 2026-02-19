@@ -3,7 +3,10 @@ use crate::{
     prelude::*,
     search::{fields, get_reader, new_index, TOKENIZER},
 };
-use raphtory_api::core::{entities::properties::prop::PropType, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::{properties::prop::PropType, LayerId},
+    storage::timeindex::EventTime,
+};
 use std::{fs, path::PathBuf, sync::Arc};
 use tantivy::{
     collector::TopDocs,
@@ -14,7 +17,6 @@ use tantivy::{
     },
     Document, Index, TantivyDocument,
 };
-use raphtory_api::core::entities::{LayerId, LayerIds};
 
 #[derive(Clone)]
 pub struct PropertyIndex {

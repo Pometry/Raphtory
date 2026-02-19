@@ -29,10 +29,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
-        LayerId, ELID,
-    },
+    entities::{properties::prop::PropType, LayerId, ELID},
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };

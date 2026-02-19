@@ -1,9 +1,8 @@
 use crate::core::{
-    entities::{EID, VID},
+    entities::{LayerId, EID, VID},
     storage::timeindex::{AsTime, EventTime},
 };
 use std::cmp::Ordering;
-use crate::core::entities::LayerId;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct EdgeRef {

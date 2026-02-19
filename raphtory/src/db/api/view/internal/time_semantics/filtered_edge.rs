@@ -6,14 +6,13 @@ use either::Either;
 use raphtory_api::core::{
     entities::{
         properties::{prop::Prop, tprop::TPropOps},
-        LayerIds, ELID,
+        LayerId, LayerIds, ELID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorage};
 use rayon::iter::ParallelIterator;
 use std::{iter, marker::PhantomData, ops::Range};
-use raphtory_api::core::entities::LayerId;
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 #[derive(Clone)]
@@ -312,9 +311,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (LayerId, FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>)> {
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
-            .map(move |layer_id| {
-                (layer_id, self.filtered_additions(layer_id, view.clone()))
-            })
+            .map(move |layer_id| (layer_id, self.filtered_additions(layer_id, view.clone())))
     }
 
     fn filtered_deletions_iter<G: GraphViewOps<'a>>(
@@ -323,9 +320,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (LayerId, FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>)> {
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
-            .map(move |layer_id| {
-                (layer_id, self.filtered_deletions(layer_id, view.clone()))
-            })
+            .map(move |layer_id| (layer_id, self.filtered_deletions(layer_id, view.clone())))
     }
 
     fn filtered_updates_iter<G: GraphViewOps<'a>>(

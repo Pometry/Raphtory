@@ -13,8 +13,10 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::{core::entities::LayerIds, inherit::Base};
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::{
+    core::entities::{LayerId, LayerIds},
+    inherit::Base,
+};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Copy, Clone, Debug)]

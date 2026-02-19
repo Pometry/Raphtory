@@ -10,7 +10,10 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::{entities::LayerIds, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::{LayerId, LayerIds},
+    storage::dict_mapper::MaybeNew,
+};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
@@ -29,7 +32,6 @@ use tantivy::{
     },
     Document, IndexWriter, TantivyDocument, Term,
 };
-use raphtory_api::core::entities::LayerId;
 
 #[derive(Clone)]
 pub struct EdgeIndex {
