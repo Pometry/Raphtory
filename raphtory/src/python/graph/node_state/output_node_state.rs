@@ -55,11 +55,14 @@ impl PyOutputNodeState {
         self.inner.len()
     }
 
+    /// Iterate over nodes
+    ///
+    /// Returns:
+    ///     Nodes: The nodes
     fn nodes(&self) -> Nodes<'static, DynamicGraph> {
         self.inner.nodes()
     }
 
-    // TODO?
     fn __eq__<'py>(
         &self,
         other: &Bound<'py, PyAny>,
@@ -128,8 +131,10 @@ impl PyOutputNodeState {
     ///
     /// Arguments:
     ///     node (NodeInput): the node
+    ///     default (Optional[Dict]): the default value (dict of field name to value). Defaults to None.")]
     ///
     /// Returns:
+    ///     Optional[Dict]: the value for the node or the default value")]
     #[pyo3(signature = (node, default=None::<TransformedPropMap<'static, DynamicGraph>>))]
     fn get(
         &self,
@@ -149,6 +154,10 @@ impl PyOutputNodeState {
         )
     }
 
+    /// Iterate over items
+    ///
+    /// Returns:
+    ///     Iterator[Tuple[Node, Dict]]: Iterator over items
     fn items(&self) -> PyBorrowingIterator {
         py_borrowing_iter!(
             self.inner.clone(),
@@ -157,10 +166,21 @@ impl PyOutputNodeState {
         )
     }
 
+    /// Iterate over values
+    ///
+    /// Returns:
+    ///     Iterator[Dict]: Iterator over values (dict of field name to value)
     fn values(&self) -> PyBorrowingIterator {
         self.__iter__()
     }
 
+    /// Get value for node
+    ///
+    /// Arguments:
+    ///     sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+    ///
+    /// Returns:
+    ///     OutputNodeState: Sorted NodeState
     fn sort_by(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -172,6 +192,13 @@ impl PyOutputNodeState {
             .to_output_nodestate()
     }
 
+    /// Get value for node
+    ///
+    /// Arguments:
+    ///     sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+    ///
+    /// Returns:
+    ///     OutputNodeState: Sorted NodeState
     fn top_k(
         &self,
         sort_params: IndexMap<String, Option<String>>,
@@ -184,6 +211,13 @@ impl PyOutputNodeState {
             .to_output_nodestate()
     }
 
+    /// Group by value
+    ///
+    /// Arguments:
+    ///     cols (List[Str]): columns by which to group nodes
+    ///
+    /// Returns:
+    ///     List[Tuple[Dict, Nodes]]: The grouped nodes
     fn groups(
         &self,
         cols: Vec<String>,
@@ -201,8 +235,8 @@ impl PyOutputNodeState {
     /// Convert TypedNodeState to Parquet
     ///
     /// Arguments:
-    ///     file_path (str): filepath to which TypedNodeState is written
-    ///     id_column (str): column containing IDs of nodes
+    ///     file_path (Str): filepath to which TypedNodeState is written
+    ///     id_column (Str): column containing IDs of nodes
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn to_parquet(&self, file_path: String, id_column: String) {
         self.inner.state.to_parquet(file_path, Some(id_column));
@@ -211,8 +245,8 @@ impl PyOutputNodeState {
     /// Get TypedNodeState from Parquet
     ///
     /// Arguments:
-    ///     file_path (str): filepath from which to read TypedNodeState
-    ///     id_column (str): column to which node IDs will be written
+    ///     file_path (Str): filepath from which to read TypedNodeState
+    ///     id_column (Str): column to which node IDs will be written
     ///
     /// Returns:
     ///     TypedNodeState
@@ -230,9 +264,9 @@ impl PyOutputNodeState {
     ///
     /// Arguments:
     ///     other (TypedNodeState): TypedNodeState to merge with
-    ///     index_merge_priority (str): "left" or "right" to take left or right index, "union" to union index sets
-    ///     default_column_merge_priority (str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default
-    ///     column_merge_priority_map (dict): map of column names (str) to merge priority ("left", "right", or "exclude")
+    ///     index_merge_priority (Str): "left" or "right" to take left or right index, "union" to union index sets
+    ///     default_column_merge_priority (Str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default
+    ///     column_merge_priority_map (Dict): map of column names (Str) to merge priority ("left", "right", or "exclude")
     ///
     /// Returns:
     ///     TypedNodeState
@@ -297,12 +331,7 @@ impl PyOutputNodeState {
     }
 }
 
-impl<
-        'py,
-        // V: for<'py2> IntoPyObject<'py2> + NodeStateValue + 'static,
-        // G: StaticGraphViewOps + IntoDynamicOrMutable,
-    > IntoPyObject<'py> for OutputTypedNodeState<'static, DynamicGraph>
-{
+impl<'py> IntoPyObject<'py> for OutputTypedNodeState<'static, DynamicGraph> {
     type Target = PyOutputNodeState;
     type Output = Bound<'py, Self::Target>;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
