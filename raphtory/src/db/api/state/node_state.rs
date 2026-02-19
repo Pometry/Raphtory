@@ -107,7 +107,7 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
 
     pub fn into_iter(self) -> impl Iterator<Item = K> {
         match self {
-            Index::Full(index) => Either::Left(index.arc_into_iter().map(|(_, k)| k)),
+            Index::Full(index) => Either::Left(index.arc_into_iter()),
             Index::Partial(index) => {
                 Either::Right((0..index.len()).map(move |i| *index.get_index(i).unwrap()))
             }
