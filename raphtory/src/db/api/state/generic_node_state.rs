@@ -2,7 +2,7 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::{node_state_ops::NodeStateOps, ops::Const, Index, NodeGroups},
+            state::{node_state_ops::NodeStateOps, ops::Const, Index},
             view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
         },
         graph::{node::NodeView, nodes::Nodes},
@@ -15,7 +15,7 @@ use arrow::{
     array::AsArray,
     compute::{cast_with_options, interleave_record_batch, CastOptions},
     datatypes::UInt64Type,
-    row::{OwnedRow, Row, RowConverter, SortField},
+    row::{RowConverter, SortField},
 };
 use arrow_array::{Array, ArrayRef, RecordBatch, StringArray, UInt32Array};
 use arrow_schema::{ArrowError, DataType, Field, FieldRef, Schema, SchemaBuilder, SortOptions};
@@ -24,23 +24,16 @@ use indexmap::{IndexMap, IndexSet};
 use parquet::{
     arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ArrowWriter},
     basic::Compression,
-    errors::ParquetError,
     file::properties::WriterProperties,
 };
 
 use arrow_array::{builder::UInt64Builder, UInt64Array};
 use arrow_select::{concat::concat, take::take};
-use datafusion_expr_common::groups_accumulator::{EmitTo, GroupsAccumulator};
+use datafusion_expr_common::groups_accumulator::EmitTo;
 use datafusion_physical_expr::expressions::col;
 use datafusion_physical_expr_common::sort_expr::PhysicalSortExpr;
-use datafusion_physical_plan::aggregates::{
-    group_values::{new_group_values, GroupValues},
-    order::GroupOrdering,
-};
-use raphtory_api::{
-    core::entities::properties::prop::{Prop, PropType, PropUntagged, PropUnwrap},
-    inherit::Base,
-};
+use datafusion_physical_plan::aggregates::{group_values::new_group_values, order::GroupOrdering};
+use raphtory_api::core::entities::properties::prop::{Prop, PropType, PropUntagged, PropUnwrap};
 use rayon::{iter::Either, prelude::*};
 use serde::{de::DeserializeOwned, Serialize};
 use serde_arrow::{
@@ -54,7 +47,7 @@ use std::{
     collections::{BinaryHeap, HashMap},
     fmt::{Debug, Formatter},
     fs::File,
-    hash::{BuildHasher, Hash},
+    hash::BuildHasher,
     marker::PhantomData,
     path::Path,
     sync::Arc,
@@ -177,14 +170,6 @@ impl Ord for HeapRow {
     fn cmp(&self, other: &Self) -> Ordering {
         self.row.cmp(&other.row)
     }
-}
-
-/// State for grouped partial aggregation
-struct GroupedState {
-    /// Manages group keys and assigns group indices
-    group_values: Box<dyn GroupValues>,
-    /// One GroupsAccumulator per aggregate function
-    accumulators: Vec<Box<dyn GroupsAccumulator>>,
 }
 
 #[derive(Clone, Debug)]
@@ -412,35 +397,41 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     ) -> Result<GenericNodeState<'graph, G>, GraphError> {
         let num_nodes = self.base_graph.unfiltered_num_nodes();
         let file = File::open(file_path)?;
-        let builder = ParquetRecordBatchReaderBuilder::try_new(file)?;
+        let builder = ParquetRecordBatchReaderBuilder::try_new(file)
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
         let schema = builder.schema().clone();
 
         // if id column is specified, but doesn't exist, throw error
         // we're checking here so we can potentially terminate early
         if let Some(ref col_name) = id_column {
             if schema.column_with_name(col_name).is_none() {
-                return Err(GraphError::ColumnDoesNotExist(col_name.clone()));
+                return Err(GraphError::IOErrorMsg(
+                    format!("Column {} does not exist.", col_name.clone()).to_string(),
+                ));
             }
         }
 
-        let reader = builder.build()?;
-        let batches: Vec<RecordBatch> = reader.collect::<Result<Vec<_>, _>>()?;
+        let reader = builder
+            .build()
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
+        let batches: Vec<RecordBatch> = reader
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
         if batches.is_empty() {
-            return Err(GraphError::ParquetError(ParquetError::ArrowError(
-                "Parquet file is empty.".to_string(),
-            )));
+            return Err(GraphError::IOErrorMsg("Parquet file is empty.".to_string()));
         }
-        let mut batch = arrow::compute::concat_batches(&schema, &batches)?;
+        let mut batch = arrow::compute::concat_batches(&schema, &batches)
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         if batch.num_rows() > num_nodes {
-            return Err(GraphError::ParquetError(ParquetError::ArrowError(
+            return Err(GraphError::IOErrorMsg(
                 format!(
                     "Number of rows ({}) exceeds order of graph ({}).",
                     batch.num_rows(),
                     num_nodes,
                 )
                 .to_string(),
-            )));
+            ));
         }
 
         let mut index = self.keys.clone();
@@ -455,21 +446,21 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             {
                 let max_node_id = arr.iter().max().unwrap_or(Some(0)).unwrap() as usize;
                 if max_node_id >= num_nodes {
-                    return Err(GraphError::ParquetError(ParquetError::ArrowError(
+                    return Err(GraphError::IOErrorMsg(
                         format!(
                             "Max Node ID ({}) exceeds order of graph ({}).",
                             max_node_id, num_nodes,
                         )
                         .to_string(),
-                    )));
+                    ));
                 }
                 index = Some(Index::from_iter(
                     arr.iter().map(|v| VID(v.unwrap_or(0) as usize)),
                 ));
             } else {
-                return Err(GraphError::ParquetError(ParquetError::ArrowError(
+                return Err(GraphError::IOErrorMsg(
                     format!("Column {} is not unsigned integer type.", col_name).to_string(),
-                )));
+                ));
             }
             batch.remove_column(schema.column_with_name(col_name).unwrap().0);
         } else if batch.num_rows() < num_nodes {
@@ -838,11 +829,17 @@ impl<
         }
 
         let mut group_values = new_group_values(self.state.values().schema(), &GroupOrdering::None)
-            .map_err(|e| ArrowError::ParseError(e.to_string()))?;
+            .map_err(|e| ArrowError::ParseError(e.to_string()))
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
         let group_arrays: Vec<ArrayRef> = cols
             .iter()
             .map(|name| {
-                let idx = self.state.values().schema().index_of(name)?;
+                let idx = self
+                    .state
+                    .values()
+                    .schema()
+                    .index_of(name)
+                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
                 Ok(self.state.values().column(idx).clone())
             })
             .collect::<Result<_, GraphError>>()?;
@@ -851,23 +848,30 @@ impl<
         let mut group_indices = vec![0usize; num_rows];
         group_values
             .intern(&group_arrays, &mut group_indices)
-            .map_err(|e| ArrowError::ComputeError(e.to_string()))?;
+            .map_err(|e| ArrowError::ComputeError(e.to_string()))
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         // Emit group values as arrays
         let group_arrays = group_values
             .emit(EmitTo::All)
-            .map_err(|e| ArrowError::ComputeError(e.to_string()))?;
+            .map_err(|e| ArrowError::ComputeError(e.to_string()))
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
         // Build schema from the group columns
         let fields: Vec<Field> = cols
             .iter()
             .map(|name| {
-                let idx = self.state.values().schema().index_of(name)?;
+                let idx = self
+                    .state
+                    .values()
+                    .schema()
+                    .index_of(name)
+                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
                 Ok(self.state.values().schema().field(idx).clone())
             })
             .collect::<Result<_, GraphError>>()?;
         let schema = Arc::new(Schema::new(fields));
-        let group_batch =
-            RecordBatch::try_new(schema, group_arrays).map_err(|e| GraphError::from(e))?;
+        let group_batch = RecordBatch::try_new(schema, group_arrays)
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
         let group_batch_des: RecordBatchIterator<'_, V> = RecordBatchIterator::new(&group_batch);
 
         let groups: DashMap<usize, IndexSet<VID, ahash::RandomState>, ahash::RandomState> =
@@ -1354,11 +1358,11 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                     .expr
                     .evaluate(self.values())
                     .map_err(|e| {
-                        ArrowError::ParseError(format!("Failed to evaluate sort expr: {}", e))
+                        GraphError::IOErrorMsg(format!("Failed to evaluate sort expr: {}", e))
                     })?
                     .into_array(self.values.num_rows())
                     .map_err(|e| {
-                        ArrowError::CastError(format!("Failed to convert to array: {}", e))
+                        GraphError::IOErrorMsg(format!("Failed to convert to array: {}", e))
                     })?;
 
                 Ok(SortField::new_with_options(
@@ -1369,12 +1373,12 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                     },
                 ))
             })
-            .collect::<Result<Vec<_>, ArrowError>>()?;
+            .collect::<Result<Vec<_>, GraphError>>()
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         // Create row converter
-        let converter = RowConverter::new(sort_fields).map_err(|e| {
-            ArrowError::SchemaError(format!("Failed to create RowConverter: {}", e))
-        })?;
+        let converter = RowConverter::new(sort_fields)
+            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to create RowConverter: {}", e)))?;
 
         // Evaluate sort key columns
         let sort_columns: Vec<_> = sort_exprs
@@ -1382,15 +1386,16 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             .map(|expr| {
                 expr.expr
                     .evaluate(self.values())
-                    .map_err(|e| ArrowError::SchemaError(format!("Failed to evaluate: {}", e)))?
+                    .map_err(|e| GraphError::IOErrorMsg(format!("Failed to evaluate: {}", e)))?
                     .into_array(self.values.num_rows())
-                    .map_err(|e| ArrowError::SchemaError(format!("Failed to convert: {}", e)))
+                    .map_err(|e| GraphError::IOErrorMsg(format!("Failed to convert: {}", e)))
             })
-            .collect::<Result<Vec<_>, ArrowError>>()?;
+            .collect::<Result<Vec<_>, GraphError>>()
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         // Convert to rows
         let rows = converter.convert_columns(&sort_columns).map_err(|e| {
-            ArrowError::CastError(format!("Failed to convert to rows: {}", e).into())
+            GraphError::IOErrorMsg(format!("Failed to convert to rows: {}", e).into())
         })?;
 
         // Create indices and sort by row comparison and use this to reorder keys
@@ -1413,13 +1418,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             .columns()
             .iter()
             .map(|col| {
-                take(col, &indices_array, None).map_err(|e| ArrowError::ComputeError(e.to_string()))
+                take(col, &indices_array, None).map_err(|e| GraphError::IOErrorMsg(e.to_string()))
             })
-            .collect::<Result<Vec<_>, ArrowError>>()?;
+            .collect::<Result<Vec<_>, GraphError>>()
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         Ok(GenericNodeState::new(
             self.base_graph.clone(),
-            RecordBatch::try_new(self.values.schema(), sorted_columns)?,
+            RecordBatch::try_new(self.values.schema(), sorted_columns)
+                .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?,
             new_keys,
             Some(self.node_cols.clone()),
         ))
@@ -1449,26 +1456,32 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                 Ok(SortField::new_with_options(
                     e.expr
                         .data_type(self.values().schema().as_ref())
-                        .map_err(|e| ArrowError::ParseError(e.to_string()))?,
+                        .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?,
                     e.options,
                 ))
             })
-            .collect::<Result<_, ArrowError>>()?;
+            .collect::<Result<_, GraphError>>()
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
-        let mut converter = RowConverter::new(sort_fields)?;
+        let converter =
+            RowConverter::new(sort_fields).map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         // Evaluate sort key columns.
         let sort_columns: Vec<ArrayRef> = sort_exprs
             .iter()
             .map(|e| {
                 e.expr
-                    .evaluate(self.values())?
+                    .evaluate(self.values())
+                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?
                     .into_array(self.values().num_rows())
-                    .map_err(|e| ArrowError::ComputeError(e.to_string()))
+                    .map_err(|e| GraphError::IOErrorMsg(e.to_string()))
             })
-            .collect::<Result<_, ArrowError>>()?;
+            .collect::<Result<_, GraphError>>()
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
-        let rows = converter.convert_columns(&sort_columns)?;
+        let rows = converter
+            .convert_columns(&sort_columns)
+            .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?;
 
         // Use a max-heap of size k to find the smallest k rows.
         let mut heap = BinaryHeap::<HeapRow>::with_capacity(k + 1);
@@ -1492,7 +1505,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         }
 
         // Sort results from smallest to largest.
-        let mut sorted: Vec<HeapRow> = heap.into_sorted_vec();
+        let sorted: Vec<HeapRow> = heap.into_sorted_vec();
 
         // Build the output via interleave.
         let batches = [self.values()];
@@ -1509,7 +1522,8 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
 
         Ok(GenericNodeState::new(
             self.base_graph.clone(),
-            interleave_record_batch(&batches, &indices)?,
+            interleave_record_batch(&batches, &indices)
+                .map_err(|e| GraphError::IOErrorMsg(e.to_string()))?,
             new_keys,
             Some(self.node_cols.clone()),
         ))

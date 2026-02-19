@@ -16,10 +16,10 @@ edition.workspace = true
 [dependencies]
 raphtory = { workspace = true }
 pometry-storage = { workspace = true, optional = true }
-arrow.workspace = true
-arrow-buffer.workspace = true
-arrow-schema.workspace = true
-arrow-array.workspace = true
+arrow = { workspace = true }
+arrow-buffer = { workspace = true }
+arrow-schema = { workspace = true }
+arrow-array = { workspace = true }
 
 pest.workspace = true
 pest_derive.workspace = true
