@@ -812,9 +812,9 @@ mod test {
         let node = g.nodes().node(0);
 
         let edge_ts = node.as_ref().edge_additions(0);
-        assert!(edge_ts.iter_t().collect::<Vec<_>>().is_empty());
+        assert!(edge_ts.clone().iter_t().collect::<Vec<_>>().is_empty());
         let node_ts = node.as_ref().node_additions(0);
-        assert_eq!(node_ts.iter_t().collect::<Vec<_>>(), vec![1, 2, 3, 4, 8]);
+        assert_eq!(node_ts.clone().iter_t().collect::<Vec<_>>(), vec![1, 2, 3, 4, 8]);
 
         let edge_ts = edge_ts.range_t(1..8);
         assert!(edge_ts.iter_t().collect::<Vec<_>>().is_empty());
