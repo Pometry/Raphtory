@@ -214,13 +214,12 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         )
         .map_err(into_graph_err)?;
 
-        let props_with_status = self
-            .validate_props_with_status(
-                false,
-                self.edge_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
+        let props_with_status = self.validate_props_with_status(
+            false,
+            self.edge_meta(),
+            props.into_iter().map(|(k, v)| (k, v.into())),
+        )
+        .map_err(into_graph_err)?;
 
         let ti = time_from_input_session(&session, t)?;
         let src_gid = src.as_gid_ref().left();
@@ -345,13 +344,12 @@ fn add_node_impl<
         )
         .map_err(into_graph_err)?;
 
-    let props_with_status = graph
-        .validate_props_with_status(
-            false,
-            graph.node_meta(),
-            props.into_iter().map(|(k, v)| (k, v.into())),
-        )
-        .map_err(into_graph_err)?;
+    let props_with_status = graph.validate_props_with_status(
+        false,
+        graph.node_meta(),
+        props.into_iter().map(|(k, v)| (k, v.into())),
+    )
+    .map_err(into_graph_err)?;
 
     let node_gid = node_ref.as_gid_ref().left();
     let ti = time_from_input_session(&session, t)?;

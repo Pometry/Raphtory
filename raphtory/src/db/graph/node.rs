@@ -37,7 +37,7 @@ use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
     mutation::{
-        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        addition_ops::{InternalAdditionOps},
         durability_ops::DurabilityOps,
     },
 };
@@ -500,15 +500,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let transaction_id = transaction_manager.begin_transaction();
         let session = self.graph.write_session().map_err(|err| err.into())?;
 
-        let t = time_from_input_session(&session, time)?;
-        let props_with_status = self
-            .graph
-            .validate_props_with_status(
-                false,
-                self.graph.node_meta(),
-                props.into_iter().map(|(k, v)| (k, v.into())),
-            )
-            .map_err(into_graph_err)?;
+        let props_with_status = self.graph.validate_props_with_status(
+            false,
+            self.graph.node_meta(),
+            props.into_iter().map(|(k, v)| (k, v.into())),
+        )
+        .map_err(into_graph_err)?;
 
         let props_for_wal = props_with_status
             .iter()
@@ -518,7 +515,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             })
             .collect::<Vec<_>>();
 
-        let vid = self.node;
         let props = props_with_status
             .iter()
             .map(|maybe_new| {
@@ -526,6 +522,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 (*prop_id, prop.clone())
             })
             .collect::<Vec<_>>();
+
+        let t = time_from_input_session(&session, time)?;
+        let vid = self.node;
 
         let mut writer = self
             .graph
