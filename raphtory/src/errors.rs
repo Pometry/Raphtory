@@ -61,6 +61,8 @@ pub enum InvalidPathReason {
     PathDoesNotExist(PathBuf),
     #[error("Could not parse Path: {0}")]
     PathNotParsable(PathBuf),
+    #[error("A component of the given path was hidden: {0}")]
+    HiddenPathNotAllowed(PathBuf),
     #[error("The path to the graph contains a subpath to an existing graph: {0}")]
     ParentIsGraph(PathBuf),
     #[error("The path provided does not exists as a namespace: {0}")]

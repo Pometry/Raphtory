@@ -118,6 +118,12 @@ pub(crate) fn valid_path(
                 return Err(InvalidPathReason::ParentDirNotAllowed(user_facing_path))
             }
             Component::Normal(component) => {
+                let component = component
+                    .to_str()
+                    .ok_or_else(|| InvalidPathReason::PathNotParsable(user_facing_path.clone()))?;
+                if component.starts_with(".") {
+                    return Err(InvalidPathReason::HiddenPathNotAllowed(user_facing_path));
+                }
                 // check if some intermediate path is already a graph
                 if full_path.join(".raph").exists() {
                     return Err(InvalidPathReason::ParentIsGraph(user_facing_path));
