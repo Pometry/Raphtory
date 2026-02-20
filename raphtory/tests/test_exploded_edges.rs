@@ -4,9 +4,15 @@ use raphtory::{prelude::*, test_storage};
 #[test]
 fn test_add_node_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
-    graph.add_node((0, 3), 0, [("prop", "1")], None).unwrap();
-    graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-    graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
+    graph
+        .add_node((0, 3), 0, [("prop", "1")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 2), 0, [("prop", "2")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "3")], None, None)
+        .unwrap();
 
     let props = graph
         .node("0")
@@ -30,9 +36,15 @@ fn test_add_node_properties_ordered_by_event_id() {
 #[test]
 fn test_add_node_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
-    graph.add_node((0, 1), 0, [("prop", "1")], None).unwrap();
-    graph.add_node((0, 1), 0, [("prop", "2")], None).unwrap();
-    graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "1")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "2")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "3")], None, None)
+        .unwrap();
 
     let props = graph
         .node(0)
@@ -50,9 +62,15 @@ fn test_add_node_properties_overwritten_for_same_event_id() {
     assert_eq!(props, vec!["3".to_string()]);
 
     let graph: Graph = Graph::new();
-    graph.add_node((0, 1), 0, [("prop", "1")], None).unwrap();
-    graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-    graph.add_node((0, 2), 0, [("prop", "3")], None).unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "1")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 2), 0, [("prop", "2")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 2), 0, [("prop", "3")], None, None)
+        .unwrap();
 
     let props = graph
         .node(0)
@@ -73,9 +91,15 @@ fn test_add_node_properties_overwritten_for_same_event_id() {
 #[test]
 fn test_create_node_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
-    graph.create_node((0, 3), 0, [("prop", "1")], None).unwrap();
-    graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-    graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
+    graph
+        .create_node((0, 3), 0, [("prop", "1")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 2), 0, [("prop", "2")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "3")], None, None)
+        .unwrap();
 
     let props = graph
         .node("0")
@@ -99,9 +123,15 @@ fn test_create_node_properties_ordered_by_event_id() {
 #[test]
 fn test_create_node_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
-    graph.create_node((0, 1), 0, [("prop", "1")], None).unwrap();
-    graph.add_node((0, 1), 0, [("prop", "2")], None).unwrap();
-    graph.add_node((0, 1), 0, [("prop", "3")], None).unwrap();
+    graph
+        .create_node((0, 1), 0, [("prop", "1")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "2")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 1), 0, [("prop", "3")], None, None)
+        .unwrap();
 
     let props = graph
         .node(0)
@@ -119,9 +149,15 @@ fn test_create_node_properties_overwritten_for_same_event_id() {
     assert_eq!(props, vec!["3".to_string()]);
 
     let graph: Graph = Graph::new();
-    graph.create_node((0, 1), 0, [("prop", "1")], None).unwrap();
-    graph.add_node((0, 2), 0, [("prop", "2")], None).unwrap();
-    graph.add_node((0, 2), 0, [("prop", "3")], None).unwrap();
+    graph
+        .create_node((0, 1), 0, [("prop", "1")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 2), 0, [("prop", "2")], None, None)
+        .unwrap();
+    graph
+        .add_node((0, 2), 0, [("prop", "3")], None, None)
+        .unwrap();
 
     let props = graph
         .node(0)
@@ -272,22 +308,22 @@ fn test_add_properties_properties_overwritten_for_same_event_id() {
 #[test]
 fn test_node_add_updates_properties_ordered_by_event_id() {
     let graph: Graph = Graph::new();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
 
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 3), [("prop", "1")])
+        .add_updates((0, 3), [("prop", "1")], None)
         .unwrap();
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 2), [("prop", "2")])
+        .add_updates((0, 2), [("prop", "2")], None)
         .unwrap();
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 1), [("prop", "3")])
+        .add_updates((0, 1), [("prop", "3")], None)
         .unwrap();
 
     let props = graph
@@ -312,24 +348,24 @@ fn test_node_add_updates_properties_ordered_by_event_id() {
 #[test]
 fn test_node_add_updates_properties_overwritten_for_same_event_id() {
     let graph: Graph = Graph::new();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
 
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 1), [("prop", "1")])
+        .add_updates((0, 1), [("prop", "1")], None)
         .unwrap();
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 1), [("prop", "2")])
+        .add_updates((0, 1), [("prop", "2")], None)
         .unwrap();
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 1), [("prop", "3")])
+        .add_updates((0, 1), [("prop", "3")], None)
         .unwrap();
 
     let props = graph
@@ -348,28 +384,28 @@ fn test_node_add_updates_properties_overwritten_for_same_event_id() {
     assert_eq!(props, vec!["3".to_string()]);
 
     let graph: Graph = Graph::new();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
 
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
 
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 1), [("prop", "1")])
+        .add_updates((0, 1), [("prop", "1")], None)
         .unwrap();
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 2), [("prop", "2")])
+        .add_updates((0, 2), [("prop", "2")], None)
         .unwrap();
     graph
         .node(0)
         .unwrap()
-        .add_updates((0, 2), [("prop", "3")])
+        .add_updates((0, 2), [("prop", "3")], None)
         .unwrap();
 
     let props = graph

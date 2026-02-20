@@ -713,16 +713,16 @@ mod components_test {
         let graph = Graph::new();
 
         graph
-            .add_node(1, 1, vec![("p1", Prop::U64(1))], None)
+            .add_node(1, 1, vec![("p1", Prop::U64(1))], None, None)
             .unwrap();
         graph
-            .add_node(1, 2, vec![("p1", Prop::U64(2))], None)
+            .add_node(1, 2, vec![("p1", Prop::U64(2))], None, None)
             .unwrap();
         graph
-            .add_node(1, 3, vec![("p1", Prop::U64(3))], None)
+            .add_node(1, 3, vec![("p1", Prop::U64(3))], None, None)
             .unwrap();
         graph
-            .add_node(1, 4, vec![("p1", Prop::U64(4))], None)
+            .add_node(1, 4, vec![("p1", Prop::U64(4))], None, None)
             .unwrap();
 
         graph.add_edge(1, 1, 2, NO_PROPS, Some("A")).unwrap();

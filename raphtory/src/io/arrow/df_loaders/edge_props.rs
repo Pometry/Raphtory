@@ -19,7 +19,10 @@ use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
 use kdam::BarExt;
-use raphtory_api::{atomic_extra::atomic_usize_from_mut_slice, core::entities::EID};
+use raphtory_api::{
+    atomic_extra::atomic_usize_from_mut_slice,
+    core::entities::{LayerId, EID},
+};
 use raphtory_core::entities::VID;
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
@@ -221,7 +224,7 @@ fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>
             let writer = locked_page.writer();
             // find the original EID in the static graph if it exists
             // otherwise create a new one
-            if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
+            if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, LayerId(0)) {
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
             } else {
                 return Err(LoadError::MissingEdgeError(*src, *dst));
@@ -247,7 +250,7 @@ fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
             c_props.extend(metadata_cols.iter_row(row));
             c_props.extend_from_slice(shared_metadata);
 
-            writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
+            writer.update_c_props(eid_pos, *src, *dst, LayerId(*layer), c_props.drain(..));
         }
     }
 }

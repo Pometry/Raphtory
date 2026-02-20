@@ -537,6 +537,8 @@ fn decode_graph_storage(
             &t_prop_columns,
             &[],
             None,
+            None,
+            None,
             batch_size,
             false,
             None,

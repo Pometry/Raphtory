@@ -321,8 +321,8 @@ fn materialize_broken_time() {
 #[test]
 fn test_materialize_window_start_before_node_add() {
     let g = PersistentGraph::new();
-    g.add_node(-1, 0, [("test", "test")], None).unwrap();
-    g.add_node(5, 0, [("test", "blob")], None).unwrap();
+    g.add_node(-1, 0, [("test", "test")], None, None).unwrap();
+    g.add_node(5, 0, [("test", "blob")], None, None).unwrap();
     g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
     let gw = g.window(-5, 8);
     let gmw = gw.materialize().unwrap();
@@ -386,7 +386,7 @@ fn test_materialize_window() {
 #[test]
 fn test_materialize_window_node_props() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", "test")], None).unwrap();
+    g.add_node(0, 1, [("test", "test")], None, None).unwrap();
 
     test_storage!(&g, |g| {
         let g = g.persistent_graph();
@@ -674,10 +674,10 @@ fn test_edge_latest_time() {
 fn test_node_property_semantics() {
     let g = PersistentGraph::new();
     let _v = g
-        .add_node(1, 1, [("test_prop", "test value")], None)
+        .add_node(1, 1, [("test_prop", "test value")], None, None)
         .unwrap();
     let v = g
-        .add_node(11, 1, [("test_prop", "test value 2")], None)
+        .add_node(11, 1, [("test_prop", "test value 2")], None, None)
         .unwrap();
     let v_from_graph = g.at(10).node(1).unwrap();
     assert_eq!(v.properties().get("test_prop").unwrap_str(), "test value 2");
@@ -771,7 +771,7 @@ fn test_exploded_latest_time_deleted() {
 #[test]
 fn test_empty_window_has_no_nodes() {
     let g = PersistentGraph::new();
-    g.add_node(1, 1, NO_PROPS, None).unwrap();
+    g.add_node(1, 1, NO_PROPS, None, None).unwrap();
     assert_eq!(g.window(2, 2).count_nodes(), 0);
     assert_eq!(g.window(1, 1).count_nodes(), 0);
     assert_eq!(g.window(0, 0).count_nodes(), 0);
@@ -1113,11 +1113,11 @@ fn test_deletion_at_start() {
 fn multiple_node_updates_at_same_time() {
     let g = PersistentGraph::new();
 
-    g.add_node(1, 1, [("prop1", 1)], None).unwrap();
-    g.add_node(2, 1, [("prop1", 2)], None).unwrap();
-    g.add_node(2, 1, [("prop1", 3)], None).unwrap();
-    g.add_node(8, 1, [("prop1", 4)], None).unwrap();
-    g.add_node(9, 1, [("prop1", 5)], None).unwrap();
+    g.add_node(1, 1, [("prop1", 1)], None, None).unwrap();
+    g.add_node(2, 1, [("prop1", 2)], None, None).unwrap();
+    g.add_node(2, 1, [("prop1", 3)], None, None).unwrap();
+    g.add_node(8, 1, [("prop1", 4)], None, None).unwrap();
+    g.add_node(9, 1, [("prop1", 5)], None, None).unwrap();
 
     assert_eq!(
         g.window(2, 10)
@@ -1136,7 +1136,7 @@ fn multiple_node_updates_at_same_time() {
 #[test]
 fn filtering_all_layers_keeps_explicitly_added_nodes() {
     let g = PersistentGraph::new();
-    g.add_node(0, 0, [("prop1", false)], None).unwrap();
+    g.add_node(0, 0, [("prop1", false)], None, None).unwrap();
     let view = g.valid_layers(Layer::None).window(0, 1);
     assert_eq!(view.count_nodes(), 1);
     assert_eq!(view.count_edges(), 0);

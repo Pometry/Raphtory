@@ -5,7 +5,10 @@ use crate::{
         InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
     },
 };
-use raphtory_api::core::{entities::ELID, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::{LayerId, ELID},
+    storage::timeindex::EventTime,
+};
 use storage::EdgeEntryRef;
 
 impl InternalEdgeFilterOps for GraphStorage {
@@ -66,7 +69,7 @@ impl InternalEdgeLayerFilterOps for GraphStorage {
     }
 
     #[inline]
-    fn internal_filter_edge_layer(&self, _edge: EdgeEntryRef, _layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, _edge: EdgeEntryRef, _layer: LayerId) -> bool {
         true
     }
 

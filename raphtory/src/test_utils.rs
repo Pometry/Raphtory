@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::storage::storage::Storage,
-        graph::{edge::EdgeView, node::NodeView},
+        graph::{edge::EdgeView, node::NodeView, views::layer_graph::LayeredGraph},
     },
     prelude::*,
 };
@@ -34,7 +34,7 @@ use std::{
     collections::{hash_map, HashMap},
     fmt::{Debug, Formatter},
     mem,
-    ops::{Deref, Range, RangeInclusive},
+    ops::{Deref, RangeInclusive},
     sync::Arc,
 };
 
@@ -1068,7 +1068,7 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
 
     for (node, updates) in graph_fix.nodes() {
         for (t, props) in updates.props.t_props.iter() {
-            g.add_node(*t, node, props.clone(), None).unwrap();
+            g.add_node(*t, node, props.clone(), None, None).unwrap();
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
@@ -1138,7 +1138,7 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
 
     for (node, updates) in graph_fix.nodes() {
         for (t, props) in updates.props.t_props.iter() {
-            g.add_node((*t, counter), node, props.clone(), None)
+            g.add_node((*t, counter), node, props.clone(), None, None)
                 .unwrap();
             counter += 1;
         }
@@ -1163,7 +1163,7 @@ pub fn add_node_props<'a>(
         ]
         .into_iter()
         .flatten();
-        graph.add_node(0, *node, props, None).unwrap();
+        graph.add_node(0, *node, props, None, None).unwrap();
     }
 }
 
@@ -1178,7 +1178,9 @@ pub(crate) fn add_node_props_with_event_id<'a>(
         ]
         .into_iter()
         .flatten();
-        graph.add_node((0, event_id), node, props, None).unwrap();
+        graph
+            .add_node((0, event_id), node, props, None, None)
+            .unwrap();
     }
 }
 

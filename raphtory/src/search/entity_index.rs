@@ -9,7 +9,7 @@ use crate::{
 use parking_lot::RwLock;
 use raphtory_api::core::entities::{
     properties::{meta::Meta, prop::PropType, tprop::TPropOps},
-    LayerIds, EID, VID,
+    LayerId, LayerIds, EID, VID,
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
@@ -126,7 +126,7 @@ impl EntityIndex {
                     .into_par_iter()
                     .try_for_each(|v_id| {
                         let node = graph.core_node(VID(v_id));
-                        if let Some(prop_value) = node.constant_prop_layer(0, prop_id) {
+                        if let Some(prop_value) = node.constant_prop_layer(LayerId(0), prop_id) {
                             let prop_doc = prop_index
                                 .create_node_metadata_document(v_id as u64, &prop_value)?;
                             writer.add_document(prop_doc)?;

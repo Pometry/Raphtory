@@ -13,7 +13,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{GidType, properties::meta::Meta};
+use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::AsTime,
@@ -139,12 +139,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 
     pub fn num_nodes(&self) -> usize {
-        self.stats.get(0)
+        self.stats.get(LayerId(0))
     }
 
     // FIXME: this should be called by the high level APIs on layer filter
     pub fn layer_num_nodes(&self, layer_id: usize) -> usize {
-        self.stats.get(layer_id)
+        self.stats.get(LayerId(layer_id))
     }
 
     pub fn stats(&self) -> &Arc<GraphStats> {
@@ -215,7 +215,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             let segment = empty.get_or_create_segment(0);
             let mut head = segment.head_mut();
             if prop_mapper.num_fields() > 0 {
-                head.get_or_create_layer(0)
+                head.get_or_create_layer(LayerId(0))
                     .properties_mut()
                     .set_has_properties()
             }
@@ -305,7 +305,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                     match self.reserve_segment_rows(writer.page, required_space) {
                         None => {
                             // segment is full, we need to create a new one
-                            let mut slot = self.free_segments[slot_idx].write();
+                            let slot = self.free_segments[slot_idx].write();
                             if *slot == page_id {
                                 // page_id is unchanged, no other thread created a new segment before we got the lock
                                 page_id = self.push_new_segment();
@@ -528,7 +528,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         })
     }
 
-    pub fn get_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_edge(&self, src: VID, dst: VID, layer_id: LayerId) -> Option<EID> {
         let (src_chunk, src_pos) = self.resolve_pos(src);
         if src_chunk >= self.segments.count() {
             return None;

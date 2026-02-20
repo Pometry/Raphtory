@@ -75,7 +75,7 @@ pub fn ba_preferential_attachment(
     while ids.len() < edges_per_step {
         max_id = next_id(view, Some(max_id));
         graph
-            .add_node(latest_time, &max_id, NO_PROPS, None)
+            .add_node(latest_time, &max_id, NO_PROPS, None, None)
             .map_err(|err| error!("{:?}", err))
             .ok();
         degrees.push(0);
@@ -146,7 +146,7 @@ mod preferential_attachment_tests {
         let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_node(i, i as u64, NO_PROPS, None)
+                .add_node(i, i as u64, NO_PROPS, None, None)
                 .map_err(|err| error!("{:?}", err))
                 .ok();
         }

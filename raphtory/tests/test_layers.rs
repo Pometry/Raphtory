@@ -236,7 +236,9 @@ pub mod test_filters_layer_graph {
             ];
 
             for (id, name, props, label) in &nodes {
-                graph.add_node(*id, name, props.clone(), *label).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), *label, None)
+                    .unwrap();
             }
 
             graph

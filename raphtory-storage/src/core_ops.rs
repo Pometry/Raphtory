@@ -11,7 +11,7 @@ use raphtory_api::{
                 meta::{Meta, STATIC_GRAPH_LAYER_ID},
                 prop::Prop,
             },
-            GidType, LayerIds, EID, GID, VID,
+            GidType, LayerId, LayerIds, EID, GID, VID,
         },
         storage::arc_str::ArcStr,
     },
@@ -132,17 +132,17 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        self.edge_meta().layer_meta().get_name(layer_id).clone()
+    fn get_layer_name(&self, layer_id: LayerId) -> ArcStr {
+        self.edge_meta().layer_meta().get_name(layer_id.0).clone()
     }
 
     #[inline]
-    fn get_layer_id(&self, name: &str) -> Option<usize> {
-        self.edge_meta().get_layer_id(name)
+    fn get_layer_id(&self, name: &str) -> Option<LayerId> {
+        self.edge_meta().get_layer_id(name).map(|id| id)
     }
 
     #[inline]
-    fn get_default_layer_id(&self) -> Option<usize> {
+    fn get_default_layer_id(&self) -> Option<LayerId> {
         self.edge_meta().get_default_layer_id()
     }
 

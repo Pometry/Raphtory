@@ -1,7 +1,6 @@
 use super::input::input_node::parse_u64_strict;
 use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
-use edges::edge_ref::EdgeRef;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -78,11 +77,11 @@ impl EID {
         self.0 as u64
     }
 
-    pub fn with_layer(self, layer: usize) -> ELID {
+    pub fn with_layer(self, layer: LayerId) -> ELID {
         ELID::new(self, layer)
     }
 
-    pub fn with_layer_deletion(self, layer: usize) -> ELID {
+    pub fn with_layer_deletion(self, layer: LayerId) -> ELID {
         ELID::new_deletion(self, layer)
     }
 }
@@ -131,22 +130,22 @@ const LAYER_FLAG: usize = 1usize.reverse_bits();
 pub const MAX_LAYER: usize = usize::MAX & !LAYER_FLAG;
 
 impl ELID {
-    pub fn new(edge: EID, layer: usize) -> Self {
+    pub fn new(edge: EID, layer: LayerId) -> Self {
         ELID {
             edge,
-            layer_and_deletion: layer,
+            layer_and_deletion: layer.0,
         }
     }
 
-    pub fn new_deletion(edge: EID, layer: usize) -> Self {
+    pub fn new_deletion(edge: EID, layer: LayerId) -> Self {
         ELID {
             edge,
-            layer_and_deletion: layer | LAYER_FLAG,
+            layer_and_deletion: layer.0 | LAYER_FLAG,
         }
     }
 
-    pub fn layer(&self) -> usize {
-        self.layer_and_deletion & !LAYER_FLAG
+    pub fn layer(&self) -> LayerId {
+        LayerId(self.layer_and_deletion & !LAYER_FLAG)
     }
 
     pub fn is_deletion(&self) -> bool {
@@ -521,16 +520,6 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<'_, LayerIds> {
-        match e.layer() {
-            None => Cow::Borrowed(self),
-            Some(l) => self
-                .find(l)
-                .map(|id| Cow::Owned(LayerIds::One(id)))
-                .unwrap_or(Cow::Owned(LayerIds::None)),
-        }
-    }
-
     pub fn contains(&self, layer_id: &usize) -> bool {
         self.find(*layer_id).is_some()
     }
@@ -548,6 +537,15 @@ impl LayerIds {
             LayerIds::None => iter::empty().into_dyn_boxed(),
             LayerIds::All => (0..num_layers).into_dyn_boxed(),
             LayerIds::One(id) => iter::once(*id).into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
+        }
+    }
+
+    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> {
+        match self {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).into_dyn_boxed(),
+            LayerIds::One(id) => iter::once(id).into_dyn_boxed(),
             LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
         }
     }
@@ -581,18 +579,18 @@ impl From<usize> for LayerIds {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::entities::{EID, MAX_LAYER};
+    use crate::core::entities::{LayerId, EID, MAX_LAYER};
     use proptest::{prop_assert, prop_assert_eq, proptest};
 
     #[test]
     fn test_elid_layer() {
         proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
-            let elid = EID(eid).with_layer(layer);
-            prop_assert_eq!(elid.layer(), layer);
+            let elid = EID(eid).with_layer(LayerId(layer));
+            prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(!elid.is_deletion());
 
             let elid_deleted = elid.into_deletion();
-            prop_assert_eq!(elid_deleted.layer(), layer);
+            prop_assert_eq!(elid_deleted.layer(), LayerId(layer));
             prop_assert_eq!(elid_deleted.edge, EID(eid));
             prop_assert!(elid_deleted.is_deletion())
         })
@@ -601,8 +599,8 @@ mod tests {
     #[test]
     fn test_elid_deletion() {
         proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
-            let elid = EID(eid).with_layer_deletion(layer);
-            prop_assert_eq!(elid.layer(), layer);
+            let elid = EID(eid).with_layer_deletion(LayerId(layer));
+            prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(elid.is_deletion());
             prop_assert_eq!(elid, elid.into_deletion());
             prop_assert_eq!(elid.edge.0, eid);

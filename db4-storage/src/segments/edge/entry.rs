@@ -5,7 +5,7 @@ use crate::{
     generic_t_props::WithTProps,
     segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
 };
-use raphtory_api::core::entities::properties::prop::Prop;
+use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::{
     entities::{
         EID, Multiple, VID,
@@ -133,13 +133,13 @@ impl<'a> WithTProps<'a> for MemEdgeRef<'a> {
 
     fn into_t_props(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + 'a {
         let edge_pos = self.pos;
         self.es
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .into_iter()
             .flat_map(move |layer| layer.t_prop(edge_pos, prop_id).into_iter())
     }
@@ -150,27 +150,27 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type Deletions = EdgeDeletions<'a>;
     type TProps = EdgeTProps<'a>;
 
-    fn edge(self, layer_id: usize) -> Option<(VID, VID)> {
+    fn edge(self, layer_id: LayerId) -> Option<(VID, VID)> {
         self.es
             .as_ref()
-            .get(layer_id)?
+            .get(layer_id.0)?
             .get(self.pos)
             .map(|entry| (entry.src, entry.dst))
     }
 
-    fn layer_additions(self, layer_id: usize) -> Self::Additions {
-        EdgeAdditions::new_with_layer(AdditionCellsRef::new(self), layer_id)
+    fn layer_additions(self, layer_id: LayerId) -> Self::Additions {
+        EdgeAdditions::new_with_layer(AdditionCellsRef::new(self), layer_id.0)
     }
 
-    fn layer_deletions(self, layer_id: usize) -> Self::Deletions {
-        EdgeDeletions::new_with_layer(DeletionCellsRef::new(self), layer_id)
+    fn layer_deletions(self, layer_id: LayerId) -> Self::Deletions {
+        EdgeDeletions::new_with_layer(DeletionCellsRef::new(self), layer_id.0)
     }
 
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
-        self.es.as_ref().get(layer_id)?.c_prop(self.pos, prop_id)
+    fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
+        self.es.as_ref().get(layer_id.0)?.c_prop(self.pos, prop_id)
     }
 
-    fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps {
+    fn layer_t_prop(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
         EdgeTProps::new_with_layer(self, layer_id, prop_id)
     }
 

@@ -29,10 +29,7 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
-        ELID,
-    },
+    entities::{properties::prop::PropType, LayerId, ELID},
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
@@ -289,7 +286,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
 }
 
 impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
-    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, Vec<(usize, Prop)>)>
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, LayerId, Vec<(usize, Prop)>)>
     where
         'graph: 'a,
     {
@@ -442,6 +439,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         &self,
         time: T,
         props: PII,
+        layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let session = self.graph.write_session().map_err(|err| err.into())?;
         let t = time_from_input_session(&session, time)?;
@@ -454,10 +452,15 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             )
             .map_err(into_graph_err)?;
         let vid = self.node;
+        let layer_id: LayerId = self
+            .graph
+            .resolve_layer(layer)
+            .map_err(into_graph_err)?
+            .inner();
         self.graph
             .atomic_add_node(NodeRef::Internal(vid))
             .map_err(into_graph_err)?
-            .internal_add_update(t, STATIC_GRAPH_LAYER_ID, props);
+            .internal_add_update(t, layer_id, props);
         Ok(())
     }
 }

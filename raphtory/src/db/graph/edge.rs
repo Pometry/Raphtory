@@ -32,8 +32,8 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
+    entities::{properties::prop::PropType, LayerId},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef};
@@ -65,7 +65,7 @@ pub struct EdgeView<G> {
 pub(crate) fn edge_valid_layer<G: GraphView>(graph: &G, e: EdgeRef) -> bool {
     match e.layer() {
         None => true,
-        Some(layer) => graph.layer_ids().contains(&layer),
+        Some(layer) => graph.layer_ids().contains(&layer.0),
     }
 }
 
@@ -109,7 +109,7 @@ impl<G: GraphView> EdgeView<G> {
         Self { graph, edge }
     }
 
-    pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, usize)> {
+    pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, LayerId)> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -132,8 +132,8 @@ impl<G: GraphView> EdgeView<G> {
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
-                        if self.graph.layer_ids().contains(&layer) {
-                            let layer_ids = LayerIds::One(layer);
+                        if self.graph.layer_ids().contains(&layer.0) {
+                            let layer_ids = LayerIds::One(layer.0);
                             GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
                                 time_semantics
                                     .edge_deletion_history(edge.as_ref(), g, layer_ids)
@@ -246,7 +246,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
 }
 
 impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
-    fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<LayerId, GraphError> {
         let layer_id = match layer {
             Some(name) => match self.edge.layer() {
                 Some(l_id) => self
@@ -292,12 +292,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
     fn resolve_and_check_layer_for_metadata(
         &self,
         layer: Option<&str>,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<LayerId, GraphError> {
         let layer_id = self.resolve_layer(layer, false)?;
         if self
             .graph
             .core_edge(self.edge.pid())
-            .has_layer(&LayerIds::One(layer_id))
+            .has_layer(&LayerIds::One(layer_id.0))
         {
             Ok(layer_id)
         } else {
@@ -440,7 +440,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalMetadataOps for EdgeView<G> {
                 ),
                 Some(layer) => time_semantics.edge_metadata(
                     self.graph.core_edge(self.edge.pid()).as_ref(),
-                    LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                    LayeredGraph::new(&self.graph, LayerIds::One(layer.0)),
                     id,
                 ),
             }
@@ -477,7 +477,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
                         .temporal_edge_prop_hist_rev(
                             edge.as_ref(),
                             &self.graph,
-                            &LayerIds::One(layer),
+                            &LayerIds::One(layer.0),
                             id,
                         )
                         .next(),
@@ -513,7 +513,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
-                        let layer_ids = LayerIds::One(layer);
+                        let layer_ids = LayerIds::One(layer.0);
                         GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
                             time_semantics
                                 .temporal_edge_prop_hist(edge.as_ref(), graph, layer_ids, id)
@@ -557,7 +557,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
-                        let layer_ids = LayerIds::One(layer);
+                        let layer_ids = LayerIds::One(layer.0);
                         GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
                             time_semantics
                                 .temporal_edge_prop_hist_rev(edge.as_ref(), graph, layer_ids, id)
@@ -594,7 +594,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
                     }
                     Some(layer) => time_semantics.temporal_edge_prop_last_at(
                         edge.as_ref(),
-                        LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                        LayeredGraph::new(&self.graph, LayerIds::One(layer.0)),
                         id,
                         t,
                     ),

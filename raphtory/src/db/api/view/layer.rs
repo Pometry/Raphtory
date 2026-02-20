@@ -37,17 +37,20 @@ pub trait LayerOps<'graph> {
 
     /// Returns the number of layers
     fn num_layers(&self) -> usize;
+
+    /// Returns exploded layer view of entity
+    fn explode_layers_iter(&self) -> impl Iterator<Item = Self::LayeredViewType> + 'graph;
 }
 
-impl<'graph, V: InternalFilter<'graph> + 'graph> LayerOps<'graph> for V {
+impl<'graph, V: InternalFilter<'graph> + 'graph + Clone> LayerOps<'graph> for V {
     type LayeredViewType = V::Filtered<LayeredGraph<V::Graph>>;
 
     fn default_layer(&self) -> Self::LayeredViewType {
         let layers = match self.base_graph().get_default_layer_id() {
             None => LayerIds::None,
             Some(layer) => {
-                if self.base_graph().layer_ids().contains(&layer) {
-                    LayerIds::One(layer)
+                if self.base_graph().layer_ids().contains(&layer.0) {
+                    LayerIds::One(layer.0)
                 } else {
                     LayerIds::None
                 }
@@ -97,6 +100,17 @@ impl<'graph, V: InternalFilter<'graph> + 'graph> LayerOps<'graph> for V {
     fn num_layers(&self) -> usize {
         self.base_graph().unique_layers().count()
     }
+
+    fn explode_layers_iter(&self) -> impl Iterator<Item = Self::LayeredViewType> + 'graph {
+        let all_layer_ids = self.base_graph().layer_ids();
+        let s = self.clone();
+        all_layer_ids
+            .clone()
+            .into_iter(self.base_graph().num_layers())
+            .map(move |id| {
+                s.apply_filter(LayeredGraph::new(s.base_graph().clone(), LayerIds::One(id)))
+            })
+    }
 }
 
 pub fn diff<'a>(left: &LayerIds, graph: impl GraphViewOps<'a>, other: &LayerIds) -> LayerIds {
@@ -122,8 +136,8 @@ pub fn diff<'a>(left: &LayerIds, graph: impl GraphViewOps<'a>, other: &LayerIds)
         (LayerIds::All, other) => {
             let all_layer_ids: Vec<usize> = graph
                 .unique_layers()
-                .map(|name| graph.get_layer_id(name.as_ref()).unwrap())
-                .filter(|id| !other.contains(id))
+                .map(|name| graph.get_layer_id(name.as_ref()).unwrap().0)
+                .filter(|id| !other.contains(&id))
                 .collect();
             match all_layer_ids.len() {
                 0 => LayerIds::None,

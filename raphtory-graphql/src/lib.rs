@@ -69,7 +69,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_copy_graph() {
         let graph = Graph::new();
-        graph.add_node(1, "test", NO_PROPS, None).unwrap();
+        graph.add_node(1, "test", NO_PROPS, None, None).unwrap();
         let tmp_dir = tempdir().unwrap();
         let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         let namespace = tmp_dir.path().join("test");
@@ -122,7 +122,7 @@ mod graphql_test {
         ];
 
         for (id, name, props) in nodes {
-            graph.add_node(id, name, props, None).unwrap();
+            graph.add_node(id, name, props, None, None).unwrap();
         }
 
         let metadata = vec![
@@ -242,7 +242,7 @@ mod graphql_test {
     async fn basic_query() {
         let graph = PersistentGraph::new();
         graph
-            .add_node(0, 11, NO_PROPS, None)
+            .add_node(0, 11, NO_PROPS, None, None)
             .expect("Could not add node!");
         graph.add_metadata([("name", "lotr")]).unwrap();
 
@@ -297,6 +297,7 @@ mod graphql_test {
                     ("cost", Prop::F32(99.5)),
                 ],
                 Some("a"),
+                None,
             )
             .unwrap();
         graph
@@ -308,6 +309,7 @@ mod graphql_test {
                     ("cost", Prop::F32(10.0)),
                 ],
                 Some("a"),
+                None,
             )
             .unwrap();
         graph
@@ -319,6 +321,7 @@ mod graphql_test {
                     ("cost", Prop::F32(76.0)),
                 ],
                 Some("a"),
+                None,
             )
             .unwrap();
         graph
@@ -451,7 +454,7 @@ mod graphql_test {
     async fn query_nodefilter() {
         let graph = Graph::new();
         graph
-            .add_node(0, 1, [("pgraph", Prop::I32(0))], None)
+            .add_node(0, 1, [("pgraph", Prop::I32(0))], None, None)
             .unwrap();
         let graph: MaterializedGraph = graph.into();
 
@@ -516,9 +519,9 @@ mod graphql_test {
         g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
         g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
         g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
-        g.add_node(11, 3, [("name", "phone")], None).unwrap();
-        g.add_node(12, 3, [("name", "fax")], None).unwrap();
-        g.add_node(13, 3, [("name", "fax")], None).unwrap();
+        g.add_node(11, 3, [("name", "phone")], None, None).unwrap();
+        g.add_node(12, 3, [("name", "fax")], None, None).unwrap();
+        g.add_node(13, 3, [("name", "fax")], None, None).unwrap();
 
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
@@ -668,9 +671,9 @@ mod graphql_test {
         g.add_edge(9, 1, 2, [("state", true)], None).unwrap();
         g.add_edge(10, 1, 2, [("state", false)], None).unwrap();
         g.add_edge(6, 1, 2, NO_PROPS, None).unwrap();
-        g.add_node(11, 3, [("name", "phone")], None).unwrap();
-        g.add_node(12, 3, [("name", "fax")], None).unwrap();
-        g.add_node(13, 3, [("name", "fax")], None).unwrap();
+        g.add_node(11, 3, [("name", "phone")], None, None).unwrap();
+        g.add_node(12, 3, [("name", "fax")], None, None).unwrap();
+        g.add_node(13, 3, [("name", "fax")], None, None).unwrap();
 
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
@@ -991,7 +994,7 @@ mod graphql_test {
     async fn query_properties() {
         let graph = Graph::new();
         graph
-            .add_node(0, 1, [("pgraph", Prop::I32(0))], None)
+            .add_node(0, 1, [("pgraph", Prop::I32(0))], None, None)
             .unwrap();
 
         let graph = graph.into();
@@ -1039,7 +1042,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_graph_injection() {
         let g = PersistentGraph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
         let tmp_dir = tempfile::TempDir::new().unwrap();
         let zip_path = tmp_dir.path().join("graph.zip");
         g.encode(GraphFolder::new_as_zip(&zip_path)).unwrap();
@@ -1093,7 +1096,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_graph_send_receive_base64() {
         let g = PersistentGraph::new();
-        g.add_node(0, 1, NO_PROPS, None).unwrap();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
 
         let graph_str = url_encode_graph(g.clone()).unwrap();
 
@@ -1159,12 +1162,12 @@ mod graphql_test {
     async fn test_type_filter() {
         let graph = Graph::new();
         graph.add_metadata([("name", "graph")]).unwrap();
-        graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
-        graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
-        graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
-        graph.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
-        graph.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
-        graph.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, Some("b"), None).unwrap();
+        graph.add_node(1, 3, NO_PROPS, Some("b"), None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, Some("a"), None).unwrap();
+        graph.add_node(1, 5, NO_PROPS, Some("c"), None).unwrap();
+        graph.add_node(1, 6, NO_PROPS, Some("e"), None).unwrap();
         graph.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
         graph.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
         graph.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
@@ -1279,12 +1282,12 @@ mod graphql_test {
     async fn test_paging() {
         let graph1 = Graph::new();
         graph1.add_metadata([("name", "graph1")]).unwrap();
-        graph1.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
-        graph1.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
-        graph1.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
-        graph1.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
-        graph1.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
-        graph1.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph1.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
+        graph1.add_node(1, 2, NO_PROPS, Some("b"), None).unwrap();
+        graph1.add_node(1, 3, NO_PROPS, Some("b"), None).unwrap();
+        graph1.add_node(1, 4, NO_PROPS, Some("a"), None).unwrap();
+        graph1.add_node(1, 5, NO_PROPS, Some("c"), None).unwrap();
+        graph1.add_node(1, 6, NO_PROPS, Some("e"), None).unwrap();
         graph1.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
         graph1.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
         graph1.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
@@ -1294,19 +1297,19 @@ mod graphql_test {
         graph1.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
         let graph2 = Graph::new();
         graph2.add_metadata([("name", "graph2")]).unwrap();
-        graph2.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph2.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
         let graph3 = Graph::new();
         graph3.add_metadata([("name", "graph3")]).unwrap();
-        graph3.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph3.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
         let graph4 = Graph::new();
         graph4.add_metadata([("name", "graph4")]).unwrap();
-        graph4.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph4.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
         let graph5 = Graph::new();
         graph5.add_metadata([("name", "graph5")]).unwrap();
-        graph5.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph5.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
         let graph6 = Graph::new();
         graph6.add_metadata([("name", "graph6")]).unwrap();
-        graph6.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
+        graph6.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
 
         let graphs = HashMap::from([
             ("graph1".to_string(), graph1.into()),
@@ -1520,12 +1523,12 @@ mod graphql_test {
     async fn test_query_namespace() {
         let graph = Graph::new();
         graph.add_metadata([("name", "graph")]).unwrap();
-        graph.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
-        graph.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
-        graph.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
-        graph.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
-        graph.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
-        graph.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
+        graph.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, Some("b"), None).unwrap();
+        graph.add_node(1, 3, NO_PROPS, Some("b"), None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, Some("a"), None).unwrap();
+        graph.add_node(1, 5, NO_PROPS, Some("c"), None).unwrap();
+        graph.add_node(1, 6, NO_PROPS, Some("e"), None).unwrap();
         graph.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
         graph.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
         graph.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();

@@ -11,7 +11,9 @@ use crate::{
     mutation::MutationError,
 };
 use db4_graph::TemporalGraph;
-use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
+use raphtory_api::core::entities::{
+    properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
+};
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
@@ -243,8 +245,8 @@ impl GraphStorage {
         }
     }
 
-    pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = usize> {
-        1..=self.unfiltered_num_layers()
+    pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = LayerId> {
+        (1..=self.unfiltered_num_layers()).map(move |layer_id| LayerId(layer_id))
     }
 
     pub fn node_meta(&self) -> &Meta {

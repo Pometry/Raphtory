@@ -33,7 +33,7 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{sort_comparable_props, Prop, PropType},
         },
-        EID,
+        LayerId, EID,
     },
     storage::timeindex::EventTime,
 };
@@ -357,7 +357,7 @@ impl<M> PropertyFilter<M> {
         prop_id: usize,
         e: EID,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> bool {
         let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t).at_layer(layer));
         match self.prop_ref {

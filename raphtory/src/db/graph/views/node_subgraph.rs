@@ -13,7 +13,10 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::EventTime},
+    core::{
+        entities::{LayerId, ELID},
+        storage::timeindex::EventTime,
+    },
     inherit::Base,
 };
 use raphtory_storage::{
@@ -115,7 +118,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for NodeSubgrap
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer)
     }
 

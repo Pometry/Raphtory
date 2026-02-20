@@ -4,7 +4,7 @@ use std::{
 };
 
 use raphtory_api::core::{
-    entities::{self, properties::meta::Meta, GidType},
+    entities::{self, properties::meta::Meta, GidType, LayerId},
     input::input_node::InputNode,
 };
 use raphtory_core::{
@@ -203,7 +203,7 @@ where
 
     #[inline]
     pub fn internal_num_edges(&self) -> usize {
-        self.storage.edges().num_edges_layer(0)
+        self.storage.edges().num_edges_layer(LayerId(0))
     }
 
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedLayer<EXT> {
@@ -242,7 +242,7 @@ where
             entities::Layer::All => Ok(LayerIds::All),
             entities::Layer::Default => Ok(LayerIds::One(1)),
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
-                Some(id) => Ok(LayerIds::One(id)),
+                Some(id) => Ok(LayerIds::One(id.0)),
                 None => Err(InvalidLayer::new(
                     id,
                     Self::get_valid_layers(self.edge_meta()),
@@ -252,9 +252,15 @@ where
                 let mut new_layers = ids
                     .iter()
                     .map(|id| {
-                        self.edge_meta().get_layer_id(id).ok_or_else(|| {
-                            InvalidLayer::new(id.clone(), Self::get_valid_layers(self.edge_meta()))
-                        })
+                        self.edge_meta()
+                            .get_layer_id(id)
+                            .map(|l| l.0)
+                            .ok_or_else(|| {
+                                InvalidLayer::new(
+                                    id.clone(),
+                                    Self::get_valid_layers(self.edge_meta()),
+                                )
+                            })
                     })
                     .collect::<Result<Vec<_>, InvalidLayer>>()?;
                 let num_layers = self.num_layers();
@@ -289,13 +295,13 @@ where
             entities::Layer::All => LayerIds::All,
             entities::Layer::Default => LayerIds::One(0),
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
-                Some(id) => LayerIds::One(id),
+                Some(id) => LayerIds::One(id.0),
                 None => LayerIds::None,
             },
             entities::Layer::Multiple(ids) => {
                 let mut new_layers = ids
                     .iter()
-                    .flat_map(|id| self.edge_meta().get_layer_id(id))
+                    .flat_map(|id| self.edge_meta().get_layer_id(id).map(|id| id.0))
                     .collect::<Vec<_>>();
                 let num_layers = self.num_layers();
                 let num_new_layers = new_layers.len();
@@ -318,7 +324,7 @@ where
         WriteLockedGraph::new(self)
     }
 
-    pub fn update_time(&self, earliest: EventTime) {
+    pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
 }

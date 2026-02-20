@@ -4,7 +4,7 @@ use iter_enum::{
     ParallelIterator,
 };
 use raphtory_api::core::{
-    entities::ELID,
+    entities::{LayerId, ELID},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::{
@@ -47,7 +47,7 @@ pub trait FilterOps {
 
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool;
 
-    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool;
+    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool;
 
     fn filter_exploded_edge(&self, eid: ELID, t: EventTime) -> bool;
 
@@ -66,7 +66,7 @@ pub trait InnerFilterOps {
     fn filter_edge_inner(&self, edge: EdgeEntryRef) -> bool;
 
     /// handles edge and edge layer filter (not exploded edge filter or windows)
-    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: usize) -> bool;
+    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: LayerId) -> bool;
 
     fn filter_exploded_edge_inner(&self, eid: ELID, t: EventTime) -> bool;
 }
@@ -93,8 +93,8 @@ impl<G: GraphView> InnerFilterOps for G {
             && self.filter_edge_from_nodes(edge)
     }
 
-    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: usize) -> bool {
-        self.layer_ids().contains(&layer)
+    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
+        self.layer_ids().contains(&layer.0)
             && self.internal_filter_edge_layer(edge, layer)
             && (self.edge_layer_filter_includes_edge_filter()
                 || self.internal_filter_edge(edge, self.layer_ids()))
@@ -103,7 +103,7 @@ impl<G: GraphView> InnerFilterOps for G {
     }
 
     fn filter_exploded_edge_inner(&self, eid: ELID, t: EventTime) -> bool {
-        self.layer_ids().contains(&eid.layer())
+        self.layer_ids().contains(&eid.layer().0)
             && self.internal_filter_exploded_edge(eid, t, self.layer_ids())
             && (self.exploded_filter_independent() || {
                 let edge = self.core_edge(eid.edge);
@@ -184,7 +184,7 @@ impl<G: GraphView> FilterOps for G {
         }
     }
 
-    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.internal_filter_edge_layer(edge, layer)
             && (self.edge_layer_filter_includes_edge_filter()
                 || self.internal_filter_edge(edge, self.layer_ids()))

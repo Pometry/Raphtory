@@ -5,6 +5,7 @@ use crate::{
         graph::{
             edge::EdgeView,
             edges::{Edges, NestedEdges},
+            views::layer_graph::LayeredGraph,
         },
     },
     errors::GraphError,

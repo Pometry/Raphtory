@@ -175,7 +175,9 @@ mod test_property_semantics {
             ];
 
             for (id, label, props) in nodes.iter() {
-                graph.add_node(*id, label, props.clone(), None).unwrap();
+                graph
+                    .add_node(*id, label, props.clone(), None, None)
+                    .unwrap();
             }
 
             let metadata = [
@@ -219,7 +221,9 @@ mod test_property_semantics {
             ];
 
             for (id, label, props) in nodes.iter() {
-                graph.add_node(*id, label, props.clone(), None).unwrap();
+                graph
+                    .add_node(*id, label, props.clone(), None, None)
+                    .unwrap();
             }
 
             graph
@@ -382,7 +386,9 @@ mod test_property_semantics {
                 let nodes = [(2, "N1", vec![("q1", Prop::U64(0u64))]), (2, "N2", vec![])];
 
                 for (id, label, props) in nodes.iter() {
-                    graph.add_node(*id, label, props.clone(), None).unwrap();
+                    graph
+                        .add_node(*id, label, props.clone(), None, None)
+                        .unwrap();
                 }
 
                 let metadata = [
@@ -435,7 +441,9 @@ mod test_property_semantics {
                 ];
 
                 for (id, label, props) in nodes.iter() {
-                    graph.add_node(*id, label, props.clone(), None).unwrap();
+                    graph
+                        .add_node(*id, label, props.clone(), None, None)
+                        .unwrap();
                 }
 
                 graph
@@ -1127,7 +1135,7 @@ fn init_nodes_graph<
     ];
 
     for (time, id, props, node_type) in nodes {
-        graph.add_node(time, id, props, node_type).unwrap();
+        graph.add_node(time, id, props, node_type, None).unwrap();
     }
 
     let metadata = [
@@ -1275,7 +1283,7 @@ fn init_nodes_graph_with_num_ids<
     ];
 
     for (time, id, props, node_type) in nodes {
-        graph.add_node(time, id, props, node_type).unwrap();
+        graph.add_node(time, id, props, node_type, None).unwrap();
     }
 
     graph
@@ -1303,7 +1311,7 @@ fn init_nodes_graph_with_str_ids<
     ];
 
     for (time, id, node_type) in nodes {
-        graph.add_node(time, id, NO_PROPS, node_type).unwrap();
+        graph.add_node(time, id, NO_PROPS, node_type, None).unwrap();
     }
 
     graph
@@ -5264,7 +5272,7 @@ mod test_node_property_filter_agg {
         ];
 
         for (t, id, props) in nodes {
-            graph.add_node(t, id, props, None).unwrap();
+            graph.add_node(t, id, props, None, None).unwrap();
         }
 
         let metadata: [(&str, Vec<(&str, Prop)>); 8] = [

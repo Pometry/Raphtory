@@ -17,7 +17,6 @@ use raphtory_api::core::{
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
-use raphtory_core::entities::ELID;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::graph::GraphStorage,
@@ -40,7 +39,8 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-use crate::{errors::into_graph_err, prelude::Graph};
+use crate::errors::into_graph_err;
+use raphtory_api::core::entities::LayerId;
 use raphtory_storage::mutation::{addition_ops_ext::AtomicAddNode, durability_ops::DurabilityOps};
 #[cfg(feature = "search")]
 use {
@@ -49,10 +49,8 @@ use {
         search::graph_index::{GraphIndex, MutableGraphIndex},
         serialise::{GraphFolder, GraphPaths},
     },
-    either::Either,
     parking_lot::RwLock,
-    raphtory_core::entities::nodes::node_ref::AsNodeRef,
-    raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
+    raphtory_storage::core_ops::CoreGraphOps,
     std::{
         io::{Seek, Write},
         ops::{Deref, DerefMut},
@@ -349,13 +347,13 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.session.internal_add_update(t, layer, props)
     }
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.session.internal_delete_edge(t, layer)
     }
 
@@ -453,9 +451,8 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.write_lock()?)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         let id = self.graph.resolve_layer(layer)?;
-
         Ok(id)
     }
 
@@ -517,11 +514,12 @@ impl InternalAdditionOps for Storage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
         let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
         // don't fail early on indexing, actually update the graph even if indexing failed
-        let writer = self.graph.internal_add_node(t, v, props)?;
+        let writer = self.graph.internal_add_node(t, v, props, layer_id)?;
 
         #[cfg(feature = "search")]
         index_res?;
@@ -629,7 +627,7 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_add_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
@@ -648,7 +646,7 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
@@ -674,7 +672,7 @@ impl InternalDeletionOps for Storage {
         t: EventTime,
         src: VID,
         dst: VID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<MaybeNew<EID>, GraphError> {
         Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
     }
@@ -683,7 +681,7 @@ impl InternalDeletionOps for Storage {
         &self,
         t: EventTime,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
     ) -> Result<(), GraphError> {
         self.graph.internal_delete_existing_edge(t, eid, layer)?;
 

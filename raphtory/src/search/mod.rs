@@ -214,6 +214,7 @@ mod test_index {
                     "Alice",
                     vec![("p1", Prop::U64(1000u64))],
                     Some("fire_nation"),
+                    None,
                 )
                 .unwrap();
             graph
@@ -313,6 +314,7 @@ mod test_index {
                     "Tommy",
                     vec![("p1", Prop::U64(5u64))],
                     Some("water_tribe"),
+                    None,
                 )
                 .unwrap();
             let filter2 = NodeFilter::name().eq("Tommy");
@@ -333,6 +335,7 @@ mod test_index {
                     "Tommy",
                     vec![("p1", Prop::U64(5u64))],
                     Some("water_tribe"),
+                    None,
                 )
                 .unwrap();
             let filter2 = NodeFilter::name().eq("Tommy");
@@ -380,7 +383,7 @@ mod test_index {
             let folder = GraphFolder::new_as_zip(&zip_path);
             graph.encode(&folder).unwrap();
             graph
-                .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
+                .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"), None)
                 .unwrap();
             let result = graph.encode(folder);
             match result {
@@ -432,7 +435,7 @@ mod test_index {
 
             // This converts immutable index to mutable index
             graph
-                .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"))
+                .add_node(1, "Ozai", [("prop", 1)], Some("fire_nation"), None)
                 .unwrap();
 
             // This tests that we are able to persist the mutable index
@@ -621,7 +624,7 @@ mod test_index {
             ];
 
             for (time, name, props, group, metadata) in nodes {
-                let node = graph.add_node(time, name, props, group).unwrap();
+                let node = graph.add_node(time, name, props, group, None).unwrap();
                 node.add_metadata(metadata).unwrap();
             }
 
@@ -982,7 +985,7 @@ mod test_index {
             assert_eq!(search_nodes(&graph, filter.clone()), vec!["pometry"]);
 
             let node = graph
-                .add_node(1, "shivam", [("p1", 100u64)], Some("fire_nation"))
+                .add_node(1, "shivam", [("p1", 100u64)], Some("fire_nation"), None)
                 .unwrap();
             assert_eq!(index_spec, graph.get_index_spec().unwrap());
 

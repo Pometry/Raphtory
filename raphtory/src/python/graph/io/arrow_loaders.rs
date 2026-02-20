@@ -6,8 +6,8 @@ use crate::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edges::{load_edges_from_df_prefetch, ColumnNames},
-                load_edge_deletions_from_df, load_edge_deletions_from_df_prefetch,
-                load_edges_props_from_df_prefetch, load_graph_props_from_df,
+                load_edge_deletions_from_df_prefetch, load_edges_props_from_df_prefetch,
+                load_graph_props_from_df,
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
@@ -73,6 +73,8 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
     schema: Option<HashMap<String, PropType>>,
     event_id: Option<&str>,
 ) -> Result<(), GraphError> {
@@ -81,6 +83,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
         .chain(properties.iter().copied())
         .chain(metadata.iter().copied())
         .chain(node_type_col)
+        .chain(layer_col)
         .chain(event_id)
         .collect::<Vec<_>>();
 
@@ -99,6 +102,8 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
             node_type_col,
             graph,
             true,
+            layer,
+            layer_col,
         )
     })
 }
@@ -473,6 +478,8 @@ pub(crate) fn load_nodes_from_csv_path<
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
     csv_options: Option<&CsvReadOptions>,
     schema: Option<Arc<HashMap<String, PropType>>>,
     event_id: Option<&str>,
@@ -482,6 +489,7 @@ pub(crate) fn load_nodes_from_csv_path<
         .chain(properties.iter().copied())
         .chain(metadata.iter().copied())
         .chain(node_type_col)
+        .chain(layer_col)
         .chain(event_id)
         .collect::<Vec<_>>();
 
@@ -501,6 +509,8 @@ pub(crate) fn load_nodes_from_csv_path<
         node_type_col,
         graph,
         true,
+        layer,
+        layer_col,
     )
 }
 

@@ -615,6 +615,8 @@ mod io_tests {
             None,
             &g,
             true,
+            None,
+            None,
         )
         .unwrap();
 
@@ -646,6 +648,7 @@ mod io_tests {
                     ("int_prop", int_prop.into_prop()),
                 ],
                 Some(node_type),
+                None,
             )
             .unwrap();
         }

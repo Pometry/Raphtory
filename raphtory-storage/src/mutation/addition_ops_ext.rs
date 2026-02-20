@@ -5,9 +5,12 @@ use crate::mutation::{
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
-    entities::properties::{
-        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::{Prop, PropType, PropUnwrap},
+    entities::{
+        properties::{
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+            prop::{Prop, PropType, PropUnwrap},
+        },
+        LayerId,
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -15,14 +18,13 @@ use raphtory_core::{
     entities::{
         graph::tgraph::TooManyLayers,
         nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, ELID, MAX_LAYER, VID,
+        GidRef, EID, MAX_LAYER, VID,
     },
     storage::timeindex::EventTime,
 };
 use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
-    error::StorageError,
     pages::{
         node_page::writer::{node_info_as_props, NodeWriters},
         resolve_pos,
@@ -30,10 +32,10 @@ use storage::{
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
-    resolver::{mapping_resolver::Init, GIDResolverOps, Initialiser, MaybeInit},
+    resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    Extension, GIDResolver, LocalPOS, Wal, ES, GS, NS,
+    Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct AtomicAddEdge<'a, EXT>
@@ -64,7 +66,7 @@ where
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.static_session.add_edge_into_layer(
@@ -76,7 +78,7 @@ where
         );
     }
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.static_session.delete_edge_from_layer(
             t,
             self.src.inner(),
@@ -184,7 +186,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let pos = self.local_pos();
@@ -228,17 +230,17 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(locked_g)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
         // TODO: we replicate the layer id in the node meta as well, perhaps layer meta should be common
         if id.is_new() {
             self.node_meta().layer_meta().set_id(
-                self.edge_meta().layer_meta().get_name(id.inner()),
-                id.inner(),
+                self.edge_meta().layer_meta().get_name(id.inner().0),
+                id.inner().0,
             );
         }
         if let MaybeNew::New(id) = id {
-            if id > MAX_LAYER {
+            if id.0 > MAX_LAYER {
                 Err(TooManyLayers)?;
             }
         }
@@ -652,10 +654,11 @@ impl InternalAdditionOps for TemporalGraph {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
-        node_writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, props);
+        node_writer.add_props(t, node_pos, layer_id, props);
         Ok(node_writer)
     }
 

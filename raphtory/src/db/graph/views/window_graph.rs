@@ -64,7 +64,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::prop::{Prop, PropType},
-            ELID,
+            LayerId, ELID,
         },
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
@@ -417,7 +417,7 @@ impl<G: GraphView> InternalEdgeLayerFilterOps for WindowedGraph<G> {
             || (!self.window_is_bounding() && self.graph.internal_layer_filter_edge_list_trusted())
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer)
     }
 

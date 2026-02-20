@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
+    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerId, LayerIds, VID},
     Direction,
 };
 use raphtory_core::storage::timeindex::EventTime;
@@ -119,11 +119,11 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         self.as_ref().constant_prop_layer(layer_id, prop_id)
     }
 

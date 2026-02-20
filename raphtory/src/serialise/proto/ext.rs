@@ -17,7 +17,7 @@ use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, NaiveTime, Timelike};
 use raphtory_api::core::{
     entities::{
         properties::prop::{Prop, PropType},
-        GidRef, EID, VID,
+        GidRef, LayerId, EID, VID,
     },
     storage::{
         arc_str::ArcStr,
@@ -410,7 +410,7 @@ impl GraphUpdate {
     fn update_edge_tprops(
         eid: EID,
         time: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Self {
         let properties = collect_proto_props(properties);
@@ -418,7 +418,7 @@ impl GraphUpdate {
             eid: eid.0 as u64,
             time: time.t(),
             secondary: time.i() as u64,
-            layer_id: layer_id as u64,
+            layer_id: layer_id.0 as u64,
             properties,
         };
         Self::new(Update::UpdateEdgeTprops(inner))
@@ -426,24 +426,24 @@ impl GraphUpdate {
 
     fn update_edge_cprops(
         eid: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) -> Self {
         let properties = collect_proto_props(properties);
         let inner = UpdateEdgeCProps {
             eid: eid.0 as u64,
-            layer_id: layer_id as u64,
+            layer_id: layer_id.0 as u64,
             properties,
         };
         Self::new(Update::UpdateEdgeCprops(inner))
     }
 
-    fn del_edge(eid: EID, layer_id: usize, time: EventTime) -> Self {
+    fn del_edge(eid: EID, layer_id: LayerId, time: EventTime) -> Self {
         let inner = DelEdge {
             eid: eid.as_u64(),
             time: time.t(),
             secondary: time.i() as u64,
-            layer_id: layer_id as u64,
+            layer_id: layer_id.0 as u64,
         };
         Self::new(Update::DelEdge(inner))
     }
@@ -575,7 +575,7 @@ impl proto_generated::Graph {
         &mut self,
         eid: EID,
         time: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) {
         self.updates.push(GraphUpdate::update_edge_tprops(
@@ -586,14 +586,14 @@ impl proto_generated::Graph {
     pub fn update_edge_cprops(
         &mut self,
         eid: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         properties: impl Iterator<Item = (usize, impl Borrow<Prop>)>,
     ) {
         self.updates
             .push(GraphUpdate::update_edge_cprops(eid, layer_id, properties));
     }
 
-    pub fn del_edge(&mut self, eid: EID, layer_id: usize, time: EventTime) {
+    pub fn del_edge(&mut self, eid: EID, layer_id: LayerId, time: EventTime) {
         self.updates
             .push(GraphUpdate::del_edge(eid, layer_id, time))
     }

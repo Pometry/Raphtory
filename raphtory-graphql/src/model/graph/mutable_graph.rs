@@ -93,6 +93,8 @@ pub struct NodeAddition {
     metadata: Option<Vec<GqlPropertyInput>>,
     /// Updates.
     updates: Option<Vec<TemporalPropertyInput>>,
+    /// Layer.
+    layer: Option<String>,
 }
 
 #[derive(InputObject, Clone)]
@@ -154,13 +156,18 @@ impl GqlMutableGraph {
         name: String,
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
+        layer: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-            let node = self_clone
-                .graph
-                .add_node(time, &name, prop_iter, node_type.as_str())?;
+            let node = self_clone.graph.add_node(
+                time,
+                &name,
+                prop_iter,
+                node_type.as_str(),
+                layer.as_str(),
+            )?;
 
             Ok::<_, GraphError>(node)
         })
@@ -179,13 +186,18 @@ impl GqlMutableGraph {
         name: String,
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
+        layer: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-            let node = self_clone
-                .graph
-                .create_node(time, &name, prop_iter, node_type.as_str())?;
+            let node = self_clone.graph.create_node(
+                time,
+                &name,
+                prop_iter,
+                node_type.as_str(),
+                layer.as_str(),
+            )?;
 
             Ok::<_, GraphError>(node)
         })
@@ -207,12 +219,14 @@ impl GqlMutableGraph {
                 .map(|node| {
                     let node = node.clone();
                     let name = node.name.as_str();
+                    let node_type = node.node_type.as_str();
+                    let layer = node.layer.as_str();
 
                     for prop in node.updates.unwrap_or(vec![]) {
                         let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
                         self_clone
                             .graph
-                            .add_node(prop.time, name, prop_iter, None)?;
+                            .add_node(prop.time, name, prop_iter, node_type, layer)?;
                     }
                     if let Some(node_type) = node.node_type.as_str() {
                         self_clone.get_node_view(name)?.set_node_type(node_type)?;
@@ -487,12 +501,15 @@ impl GqlMutableNode {
         &self,
         time: i64,
         properties: Option<Vec<GqlPropertyInput>>,
+        layer: Option<String>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
-            self_clone
-                .node
-                .add_updates(time, as_properties(properties.unwrap_or(vec![]))?)?;
+            self_clone.node.add_updates(
+                time,
+                as_properties(properties.unwrap_or(vec![]))?,
+                layer.as_str(),
+            )?;
             Ok::<_, GraphError>(())
         })
         .await?;
@@ -733,6 +750,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
             NodeAddition {
                 name: "node2".to_string(),
@@ -742,6 +760,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
         ];
 
@@ -793,6 +812,7 @@ mod tests {
                         }]),
                     },
                 ]),
+                layer: None,
             },
             NodeAddition {
                 name: "complex_node_2".to_string(),
@@ -802,6 +822,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
             NodeAddition {
                 name: "complex_node_3".to_string(),
@@ -814,6 +835,7 @@ mod tests {
                         value: Value::F64(55000.0),
                     }]),
                 }]),
+                layer: None,
             },
         ];
 
@@ -851,6 +873,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
             NodeAddition {
                 name: "node2".to_string(),
@@ -860,6 +883,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
         ];
 

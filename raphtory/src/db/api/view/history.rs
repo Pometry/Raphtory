@@ -539,7 +539,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                         })
                         .into_dyn_boxed(),
                         Some(layer) => {
-                            let layer_ids = LayerIds::One(layer);
+                            let layer_ids = LayerIds::One(layer.0);
                             GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
                                 time_semantics
                                     .edge_history(edge.as_ref(), g, layer_ids)
@@ -574,7 +574,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                         })
                         .into_dyn_boxed(),
                         Some(layer) => {
-                            let layer_ids = LayerIds::One(layer);
+                            let layer_ids = LayerIds::One(layer.0);
                             GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
                                 time_semantics
                                     .edge_history_rev(edge.as_ref(), g, layer_ids)
@@ -611,7 +611,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                         .edge_exploded_count(g.core_edge(e.pid()).as_ref(), g),
                     Some(layer) => g.edge_time_semantics().edge_exploded_count(
                         g.core_edge(e.pid()).as_ref(),
-                        LayeredGraph::new(g, LayerIds::One(layer)),
+                        LayeredGraph::new(g, LayerIds::One(layer.0)),
                     ),
                 },
             }
@@ -1141,8 +1141,8 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
-                        if self.graph.layer_ids().contains(&layer) {
-                            let layer_ids = LayerIds::One(layer);
+                        if self.graph.layer_ids().contains(&layer.0) {
+                            let layer_ids = LayerIds::One(layer.0);
                             GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
                                 time_semantics
                                     .edge_deletion_history(edge.as_ref(), g, layer_ids)
@@ -1184,8 +1184,8 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
                     })
                     .into_dyn_boxed(),
                     Some(layer) => {
-                        if self.graph.layer_ids().contains(&layer) {
-                            let layer_ids = LayerIds::One(layer);
+                        if self.graph.layer_ids().contains(&layer.0) {
+                            let layer_ids = LayerIds::One(layer.0);
                             GenLockedIter::from((edge, layer_ids), move |(edge, layer_ids)| {
                                 time_semantics
                                     .edge_deletion_history_rev(edge.as_ref(), g, layer_ids)

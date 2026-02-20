@@ -12,7 +12,7 @@ use crate::{
     },
     errors::{into_graph_err, GraphError},
     prelude::{
-        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertiesOps,
+        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, PropertiesOps,
         PropertyAdditionOps,
     },
 };
@@ -303,7 +303,7 @@ fn import_node_internal<
     let session = graph.write_session().map_err(|err| err.into())?;
     let keys = node.graph.node_meta().temporal_prop_mapper().all_keys();
 
-    for (t, row) in node.rows() {
+    for (t, l, row) in node.rows() {
         let t = time_from_input_session(&session, t)?;
 
         let props = graph
@@ -318,7 +318,7 @@ fn import_node_internal<
             .map_err(into_graph_err)?;
 
         graph
-            .internal_add_node(t, node_internal, props)
+            .internal_add_node(t, node_internal, props, l)
             .map_err(into_graph_err)?;
     }
 

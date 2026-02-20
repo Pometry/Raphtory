@@ -53,7 +53,7 @@ pub trait DeletionOps:
 
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(edge_id, src_id, dst_id).at_layer(layer_id),
+            EdgeRef::new_outgoing(edge_id, src_id, dst_id),
         ))
     }
 

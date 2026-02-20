@@ -1,5 +1,8 @@
 use crate::core::{
-    entities::properties::prop::{check_for_unification, unify_types, PropError, PropType},
+    entities::{
+        properties::prop::{check_for_unification, unify_types, PropError, PropType},
+        LayerId,
+    },
     storage::{
         arc_str::ArcStr,
         dict_mapper::{DictMapper, LockedDictMapper, MaybeNew, PublicKeys, WriteLockedDictMapper},
@@ -25,7 +28,7 @@ pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 pub const NODE_TYPE_IDX: usize = 1;
 
 pub const STATIC_GRAPH_LAYER: &str = "_static_graph";
-pub const STATIC_GRAPH_LAYER_ID: usize = 0;
+pub const STATIC_GRAPH_LAYER_ID: LayerId = LayerId(0);
 
 /// The type ID for nodes that don't have a specified type.
 pub const DEFAULT_NODE_TYPE_ID: usize = 0;
@@ -154,9 +157,10 @@ impl Meta {
     }
 
     #[inline]
-    pub fn get_or_create_layer_id(&self, name: Option<&str>) -> MaybeNew<usize> {
+    pub fn get_or_create_layer_id(&self, name: Option<&str>) -> MaybeNew<LayerId> {
         self.layer_mapper
             .get_or_create_id(name.unwrap_or("_default"))
+            .map(|l| LayerId(l))
     }
 
     #[inline]
@@ -170,13 +174,13 @@ impl Meta {
     }
 
     #[inline]
-    pub fn get_layer_id(&self, name: &str) -> Option<usize> {
-        self.layer_mapper.get_id(name)
+    pub fn get_layer_id(&self, name: &str) -> Option<LayerId> {
+        self.layer_mapper.get_id(name).map(|l| LayerId(l))
     }
 
     #[inline]
-    pub fn get_default_layer_id(&self) -> Option<usize> {
-        self.layer_mapper.get_id("_default")
+    pub fn get_default_layer_id(&self) -> Option<LayerId> {
+        self.layer_mapper.get_id("_default").map(|id| LayerId(id))
     }
 
     #[inline]
@@ -184,8 +188,8 @@ impl Meta {
         self.node_type_mapper.get_id(node_type)
     }
 
-    pub fn get_layer_name_by_id(&self, id: usize) -> ArcStr {
-        self.layer_mapper.get_name(id)
+    pub fn get_layer_name_by_id(&self, id: LayerId) -> ArcStr {
+        self.layer_mapper.get_name(id.0)
     }
 
     pub fn get_node_type_name_by_id(&self, id: usize) -> Option<ArcStr> {

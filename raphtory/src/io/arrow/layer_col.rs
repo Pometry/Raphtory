@@ -97,7 +97,7 @@ impl<'a> LayerCol<'a> {
     ) -> Result<Cow<'b, [usize]>, GraphError> {
         match (self, layer_id_col) {
             (LayerCol::Name { name, len }, _) => {
-                let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner();
+                let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
                 Ok(Cow::Owned(vec![layer; len]))
             }
             (col, None) => {
@@ -112,7 +112,7 @@ impl<'a> LayerCol<'a> {
                         continue;
                     }
 
-                    let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner();
+                    let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
                     last_layer = Some(layer);
                     res[row] = layer;
                     last_name = name;

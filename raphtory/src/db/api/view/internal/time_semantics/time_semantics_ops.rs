@@ -1,6 +1,6 @@
 use crate::db::api::view::internal::GraphView;
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, LayerIds, ELID},
+    entities::{properties::prop::Prop, LayerId, LayerIds, ELID},
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
@@ -103,14 +103,14 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     /// Check if the node is part of the graph based on the history
     fn node_valid<'graph, G: GraphView + 'graph>(
@@ -182,14 +182,14 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
     ) -> Option<(EventTime, ELID)>;
 
-    fn include_edge<G: GraphView>(&self, edge: EdgeEntryRef, view: G, layer_id: usize) -> bool;
+    fn include_edge<G: GraphView>(&self, edge: EdgeEntryRef, view: G, layer_id: LayerId) -> bool;
 
     /// check if edge `e` should be included in window `w`
     fn include_edge_window<G: GraphView>(
         &self,
         edge: EdgeEntryRef,
         view: G,
-        layer_id: usize,
+        layer_id: LayerId,
         w: Range<EventTime>,
     ) -> bool;
 
@@ -215,7 +215,7 @@ pub trait EdgeTimeSemanticsOps {
         edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// returns the update history of an edge in reverse
     ///
@@ -227,7 +227,7 @@ pub trait EdgeTimeSemanticsOps {
         edge: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// returns the update history of an edge in a window
     ///
@@ -240,7 +240,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// returns the update history of an edge in a window in reverse
     ///
@@ -253,7 +253,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// The number of exploded edge events for the `edge`
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(
@@ -276,7 +276,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// Explode edge iterator for edge `e` for every layer
     fn edge_layers<'graph, G: GraphView + 'graph>(
@@ -284,7 +284,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'graph;
 
     /// Exploded edge iterator for edge`e` over window `w`
     fn edge_window_exploded<'graph, G: GraphView + 'graph>(
@@ -293,7 +293,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// Exploded edge iterator for edge `e` over window `w` for every layer
     fn edge_window_layers<'graph, G: GraphView + 'graph>(
@@ -302,7 +302,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'graph;
 
     /// Get the time of the earliest activity of an edge
     fn edge_earliest_time<'graph, G: GraphView + 'graph>(
@@ -324,7 +324,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> Option<EventTime>;
 
     fn edge_exploded_earliest_time_window<'graph, G: GraphView + 'graph>(
@@ -332,7 +332,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         w: Range<EventTime>,
     ) -> Option<EventTime>;
 
@@ -356,7 +356,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> Option<EventTime>;
 
     fn edge_exploded_latest_time_window<'graph, G: GraphView + 'graph>(
@@ -364,7 +364,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         w: Range<EventTime>,
     ) -> Option<EventTime>;
 
@@ -374,7 +374,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// Get the edge deletions in reverse order for use with materialize
     fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
@@ -382,7 +382,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         layer_ids: &'graph LayerIds,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// Get the edge deletions for use with materialize restricted to window `w`
     fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
@@ -391,7 +391,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// Get the edge deletions in reverse order for use with materialize restricted to window `w`
     fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
@@ -400,7 +400,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, usize)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph;
 
     /// Check if  edge `e` is currently valid in any layer included in the view
     fn edge_is_valid<'graph, G: GraphView + 'graph>(
@@ -449,7 +449,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> bool;
 
     fn edge_is_active_exploded_window<'graph, G: GraphView + 'graph>(
@@ -457,7 +457,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         w: Range<EventTime>,
     ) -> bool;
 
@@ -466,7 +466,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> bool;
 
     fn edge_is_valid_exploded_window<'graph, G: GraphView + 'graph>(
@@ -474,7 +474,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         w: Range<EventTime>,
     ) -> bool;
 
@@ -483,7 +483,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> Option<EventTime>;
 
     fn edge_exploded_deletion_window<'graph, G: GraphView + 'graph>(
@@ -491,7 +491,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         w: Range<EventTime>,
     ) -> Option<EventTime>;
 
@@ -500,7 +500,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> bool {
         self.edge_exploded_deletion(e, view, t, layer).is_some()
     }
@@ -510,7 +510,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         w: Range<EventTime>,
     ) -> bool {
         self.edge_exploded_deletion_window(e, view, t, layer, w)
@@ -524,7 +524,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         prop_id: usize,
         t: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> Option<Prop>;
 
     fn temporal_edge_prop_exploded_last_at<'graph, G: GraphView + 'graph>(
@@ -532,7 +532,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         edge_time: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
         at: EventTime,
     ) -> Option<Prop>;
@@ -542,7 +542,7 @@ pub trait EdgeTimeSemanticsOps {
         e: EdgeEntryRef<'graph>,
         view: G,
         edge_time: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
         at: EventTime,
         w: Range<EventTime>,
@@ -575,7 +575,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Prop)> + Send + Sync + 'graph;
 
     /// Return property history for an edge in reverse-temporal order
     ///
@@ -586,7 +586,7 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         layer_ids: &'graph LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Prop)> + Send + Sync + 'graph;
 
     /// Returns an Iterator of tuples containing the values of the temporal property with the given name
     /// for the given edge reference within the specified time window.
@@ -606,7 +606,7 @@ pub trait EdgeTimeSemanticsOps {
         layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Prop)> + Send + Sync + 'graph;
 
     /// Return temporal property history for a window of an edge in reverse-temporal order
     ///
@@ -618,7 +618,7 @@ pub trait EdgeTimeSemanticsOps {
         layer_ids: &'graph LayerIds,
         prop_id: usize,
         w: Range<EventTime>,
-    ) -> impl Iterator<Item = (EventTime, usize, Prop)> + Send + Sync + 'graph;
+    ) -> impl Iterator<Item = (EventTime, LayerId, Prop)> + Send + Sync + 'graph;
 
     /// Get edge metadata
     ///
