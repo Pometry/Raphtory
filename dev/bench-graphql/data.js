@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771434183429,
+  "lastUpdate": 1771619095383,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4103,6 +4103,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1354,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9567900addc3ccd1b09876430e7cab2197d7c379",
+          "message": "forbid weird characters on graph names or namespaces (#2496)\n\n* forbid weird characters on graph names or namespaces\n\n* only disable hidden paths and improve tests",
+          "timestamp": "2026-02-20T19:44:33Z",
+          "tree_id": "8b290be1d4812f672a10813b2eec4cab8755718a",
+          "url": "https://github.com/Pometry/Raphtory/commit/9567900addc3ccd1b09876430e7cab2197d7c379"
+        },
+        "date": 1771619091882,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1294,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 214,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 146,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1107,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 899,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1282,
             "unit": "req/s"
           }
         ]
