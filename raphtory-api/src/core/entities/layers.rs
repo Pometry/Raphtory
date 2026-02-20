@@ -13,6 +13,30 @@ use std::{
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct LayerId(pub usize);
 
+impl PartialEq<usize> for LayerId {
+    fn eq(&self, other: &usize) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<LayerId> for usize {
+    fn eq(&self, other: &LayerId) -> bool {
+        *self == other.0
+    }
+}
+
+impl PartialEq<u64> for LayerId {
+    fn eq(&self, other: &u64) -> bool {
+        self.0 as u64 == *other
+    }
+}
+
+impl PartialEq<LayerId> for u64 {
+    fn eq(&self, other: &LayerId) -> bool {
+        *self == other.0 as u64
+    }
+}
+
 impl Display for LayerId {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "LayerId({})", self.0)

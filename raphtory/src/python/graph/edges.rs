@@ -272,21 +272,20 @@ impl PyEdges {
         let edge_meta = self.edges.base_graph.edge_meta();
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, edge_meta);
 
-        let edge_items: Vec<EdgeView<LayeredGraph<DynamicGraph>>> = if explode {
-            self.edges
-                .explode_layers()
-                .flat_map(|layered_edges| layered_edges.explode().into_iter())
-                .collect()
-        } else {
-            self.edges
-                .explode_layers()
-                .flat_map(|layered_edges| layered_edges.into_iter())
-                .collect()
-        };
+        let mut edges = self.edges.explode_layers();
+        if explode {
+            edges = self.edges.explode_layers().explode();
+        }
 
-        explode = explode || edge_items.iter().any(|e| e.edge.time().is_some());
+        explode = explode
+            || edges
+                .iter()
+                .next()
+                .filter(|e| e.edge.time().is_some())
+                .is_some();
 
-        let edge_tuples: Vec<_> = edge_items
+        let edge_tuples: Vec<_> = edges
+            .collect()
             .into_par_iter()
             .flat_map(|item| {
                 let mut properties_map: HashMap<String, Prop> = HashMap::new();

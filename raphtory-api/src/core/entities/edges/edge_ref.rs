@@ -10,7 +10,8 @@ pub struct EdgeRef {
     src_pid: VID,
     dst_pid: VID,
     e_type: Dir,
-    time_and_layer: Option<(EventTime, LayerId)>,
+    time: Option<EventTime>,
+    layer_id: Option<LayerId>,
 }
 
 // This is used for merging iterators of EdgeRefs and only makes sense if the local node for both
@@ -35,7 +36,8 @@ impl EdgeRef {
             src_pid,
             dst_pid,
             e_type: Dir::Out,
-            time_and_layer: None,
+            time: None,
+            layer_id: None,
         }
     }
 
@@ -46,7 +48,8 @@ impl EdgeRef {
             src_pid,
             dst_pid,
             e_type: Dir::Into,
-            time_and_layer: None,
+            time: None,
+            layer_id: None,
         }
     }
 
@@ -57,28 +60,24 @@ impl EdgeRef {
             src_pid,
             dst_pid,
             e_type: dir,
-            time_and_layer: None,
+            time: None,
+            layer_id: None,
         }
     }
 
     #[inline(always)]
-    pub fn time(&self) -> Option<EventTime> {
-        self.time_and_layer.map(|(t, _)| t)
-    }
-
-    #[inline(always)]
-    pub fn time_and_layer(&self) -> Option<(EventTime, LayerId)> {
-        self.time_and_layer
-    }
-
-    #[inline(always)]
     pub fn layer(&self) -> Option<LayerId> {
-        self.time_and_layer.map(|(_, l)| l)
+        self.layer_id
+    }
+
+    #[inline(always)]
+    pub fn time(&self) -> Option<EventTime> {
+        self.time
     }
 
     #[inline(always)]
     pub fn time_t(&self) -> Option<i64> {
-        self.time().map(|t| t.t())
+        self.time.map(|t| t.t())
     }
 
     #[inline]
@@ -118,15 +117,23 @@ impl EdgeRef {
     }
 
     #[inline]
-    pub fn at(&self, time: EventTime, layer_id: LayerId) -> Self {
+    pub fn at(&self, time: EventTime) -> Self {
         let mut e_ref = *self;
-        e_ref.time_and_layer = Some((time, layer_id));
+        e_ref.time = Some(time);
+        e_ref
+    }
+
+    #[inline]
+    pub fn at_layer(&self, layer: LayerId) -> Self {
+        let mut e_ref = *self;
+        e_ref.layer_id = Some(layer);
         e_ref
     }
 
     #[inline]
     pub fn unexplode(mut self) -> Self {
-        self.time_and_layer = None;
+        self.layer_id = None;
+        self.time = None;
         self
     }
 }

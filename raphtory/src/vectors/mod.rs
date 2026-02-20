@@ -74,7 +74,7 @@ mod vector_tests {
     async fn test_embedding_cache() {
         let template = custom_template();
         let g = Graph::new();
-        g.add_node(0, "test", NO_PROPS, None).unwrap();
+        g.add_node(0, "test", NO_PROPS, None, None).unwrap();
 
         let path = PathBuf::from("/tmp/raphtory/very/deep/path/embedding-cache-test");
         let _ = remove_dir_all(&path);
@@ -124,6 +124,7 @@ mod vector_tests {
             "Frodo",
             [("age".to_string(), Prop::str("30"))],
             Some("hobbit"),
+            None,
         )
         .unwrap();
 
@@ -160,6 +161,7 @@ mod vector_tests {
                 ("age".to_string(), Prop::str("120")),
             ],
             None,
+            None,
         )
         .unwrap();
         g.add_node(
@@ -169,6 +171,7 @@ mod vector_tests {
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
             None,
         )
         .unwrap();
@@ -181,6 +184,7 @@ mod vector_tests {
                 ("type".to_string(), Prop::str("human")),
                 ("age".to_string(), Prop::str("40")),
             ],
+            None,
             None,
         )
         .unwrap();

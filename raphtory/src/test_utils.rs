@@ -93,7 +93,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             out
         };
     let get_edge_t_prop_counts =
-        |edge: &EdgeView<LayeredGraph<&Graph>>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
+        |edge: &EdgeView<&Graph>| -> HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> {
             let out: HashMap<ArcStr, Vec<(i64, HashMap<Prop, usize>)>> = edge
                 .properties()
                 .temporal()

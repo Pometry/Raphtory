@@ -4043,6 +4043,7 @@ class MutableNode(Node):
         t: TimeInput,
         properties: Optional[PropInput] = None,
         event_id: Optional[int] = None,
+        layer=None,
     ) -> None:
         """
         Add updates to a node in the graph at a specified time.

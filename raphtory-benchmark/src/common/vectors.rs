@@ -29,7 +29,7 @@ async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> 
 pub fn create_graph_for_vector_bench(size: usize) -> Graph {
     let graph = Graph::new();
     for id in 0..size {
-        graph.add_node(0, id as u64, NO_PROPS, None).unwrap();
+        graph.add_node(0, id as u64, NO_PROPS, None, None).unwrap();
     }
     graph
 }

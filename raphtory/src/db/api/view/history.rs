@@ -1124,11 +1124,14 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
             let edge = g.core_edge(e.pid());
-            match e.time_and_layer() {
-                Some((t, layer)) => time_semantics
-                    .edge_exploded_deletion(edge.as_ref(), g, t, layer)
-                    .into_iter()
-                    .into_dyn_boxed(),
+            match e.time() {
+                Some(t) => {
+                    let layer = e.layer().expect("exploded edge should have layer");
+                    time_semantics
+                        .edge_exploded_deletion(edge.as_ref(), g, t, layer)
+                        .into_iter()
+                        .into_dyn_boxed()
+                }
                 None => match e.layer() {
                     None => GenLockedIter::from(edge, move |edge| {
                         time_semantics
@@ -1164,11 +1167,14 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
             let edge = g.core_edge(e.pid());
-            match e.time_and_layer() {
-                Some((t, layer)) => time_semantics
-                    .edge_exploded_deletion(edge.as_ref(), g, t, layer)
-                    .into_iter()
-                    .into_dyn_boxed(),
+            match e.time() {
+                Some(t) => {
+                    let layer = e.layer().expect("exploded edge should have layer");
+                    time_semantics
+                        .edge_exploded_deletion(edge.as_ref(), g, t, layer)
+                        .into_iter()
+                        .into_dyn_boxed()
+                }
                 None => match e.layer() {
                     None => GenLockedIter::from(edge, move |edge| {
                         time_semantics

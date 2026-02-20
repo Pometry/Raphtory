@@ -165,8 +165,9 @@ mod test {
             1,
             [("t", Prop::str("wallet")), ("cost", Prop::F64(99.5))],
             Some("a"),
+            None,
         )?;
-        g.add_node(1, 2, [("t", Prop::str("person"))], None)?;
+        g.add_node(1, 2, [("t", Prop::str("person"))], None, None)?;
         g.add_node(
             6,
             3,
@@ -182,6 +183,7 @@ mod test {
                 ("cost_b", Prop::F64(76.0)),
             ],
             Some("b"),
+            None,
         )?;
         g.add_node(
             7,
@@ -191,6 +193,7 @@ mod test {
                 ("bool_prop", Prop::Bool(true)),
             ],
             Some("b"),
+            None,
         )?;
 
         let node = g.node(1).unwrap();

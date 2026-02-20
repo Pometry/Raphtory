@@ -848,7 +848,7 @@ mod tests {
         graph
             .node(1)
             .unwrap()
-            .add_updates(5, [("test node prop", 5i32)])
+            .add_updates(5, [("test node prop", 5i32)], None)
             .unwrap();
 
         let temp_folder = tempfile::TempDir::new().unwrap();

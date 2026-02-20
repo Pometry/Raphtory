@@ -1,11 +1,4 @@
-use crate::{
-    db::{
-        api::view::DynamicGraph,
-        graph::{edge::EdgeView, views::layer_graph::LayeredGraph},
-    },
-    prelude::*,
-    python::graph::views::graph_view::PyGraphView,
-};
+use crate::{prelude::*, python::graph::views::graph_view::PyGraphView};
 use pyo3::{
     prelude::*,
     types::{PyDict, PyTuple},
@@ -104,18 +97,10 @@ impl PyGraphView {
                 vis_graph.call_method("add_node", (v.id(),), Some(&kwargs_node))?;
             }
         }
-        let edges: Vec<EdgeView<LayeredGraph<DynamicGraph>>> = if explode_edges {
-            self.graph
-                .edges()
-                .explode_layers()
-                .flat_map(|layered_edges| layered_edges.explode().into_iter())
-                .collect()
+        let edges = if explode_edges {
+            self.graph.edges().explode()
         } else {
-            self.graph
-                .edges()
-                .explode_layers()
-                .flat_map(|layered_edges| layered_edges.into_iter())
-                .collect()
+            self.graph.edges().explode_layers()
         };
         for edge in edges {
             let kwargs = PyDict::new(py);
@@ -236,18 +221,10 @@ impl PyGraphView {
         networkx.call_method1("add_nodes_from", (node_tuples,))?;
 
         let mut edge_tuples = Vec::new();
-        let edges: Vec<EdgeView<LayeredGraph<DynamicGraph>>> = if explode_edges.unwrap_or(false) {
-            self.graph
-                .edges()
-                .explode_layers()
-                .flat_map(|layered_edges| layered_edges.explode().into_iter())
-                .collect()
+        let edges = if explode_edges.unwrap_or(false) {
+            self.graph.edges().explode()
         } else {
-            self.graph
-                .edges()
-                .explode_layers()
-                .flat_map(|layered_edges| layered_edges.into_iter())
-                .collect()
+            self.graph.edges().explode_layers()
         };
 
         for e in edges.iter() {

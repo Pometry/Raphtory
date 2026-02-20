@@ -342,7 +342,11 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
             .into_iter()
             .filter_map(|(tie, eid, layer_id)| {
                 if filtered_graph.filter_exploded_edge(eid.with_layer(LayerId(layer_id)), tie) {
-                    let e_ref = graph.core_edge(eid).out_ref().at(tie, LayerId(layer_id));
+                    let e_ref = graph
+                        .core_edge(eid)
+                        .out_ref()
+                        .at(tie)
+                        .at_layer(LayerId(layer_id));
                     Some(EdgeView::new(graph.clone(), e_ref))
                 } else {
                     None

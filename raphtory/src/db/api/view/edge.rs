@@ -68,7 +68,27 @@ fn exploded<'graph, G: GraphView + 'graph>(
         iter_builder: move |edge, graph| {
             time_semantics
                 .edge_exploded(edge.as_ref(), graph, graph.layer_ids())
-                .map(move |(t, l)| edge_ref.at(t, l))
+                .map(move |(t, l)| edge_ref.at(t).at_layer(l))
+                .into_dyn_boxed()
+        },
+        marker: Default::default(),
+    }
+    .build()
+    .into_dyn_boxed()
+}
+
+fn exploded_layers<'graph, G: GraphView + 'graph>(
+    view: G,
+    edge_ref: EdgeRef,
+) -> BoxedLIter<'graph, EdgeRef> {
+    let time_semantics = view.edge_time_semantics();
+    ExplodedIterBuilder {
+        graph: view,
+        edge_builder: |view| view.core_edge(edge_ref.pid()),
+        iter_builder: move |edge, graph| {
+            time_semantics
+                .edge_layers(edge.as_ref(), graph, graph.layer_ids())
+                .map(move |l| edge_ref.at_layer(l))
                 .into_dyn_boxed()
         },
         marker: Default::default(),
@@ -175,6 +195,10 @@ pub trait EdgeViewOps<'graph>: TimeOps<'graph> + LayerOps<'graph> + Clone {
     ///     Edges:
     fn explode(&self) -> Self::Exploded;
 
+    /// Returns:
+    ///     Edges:
+    fn explode_layers(&self) -> Self::Exploded;
+
     /// Gets the first time an edge was seen
     ///
     /// Returns:
@@ -240,10 +264,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
                 let edge = g.core_edge(e.pid());
-                match e.time_and_layer() {
-                    Some((t, layer)) => {
-                        time_semantics.edge_is_valid_exploded(edge.as_ref(), g, t, layer)
-                    }
+                match e.time() {
                     None => match e.layer() {
                         None => time_semantics.edge_is_valid(edge.as_ref(), g),
                         Some(layer) => time_semantics.edge_is_valid(
@@ -251,6 +272,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                             LayeredGraph::new(g, LayerIds::One(layer.0)),
                         ),
                     },
+                    Some(t) => {
+                        let layer = e.layer().expect("exploded edge should have layer");
+                        time_semantics.edge_is_valid_exploded(edge.as_ref(), g, t, layer)
+                    }
                 }
             } else {
                 false
@@ -265,10 +290,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
                 let edge = g.core_edge(e.pid());
-                match e.time_and_layer() {
-                    Some((t, layer)) => {
-                        time_semantics.edge_is_deleted_exploded(edge.as_ref(), g, t, layer)
-                    }
+                match e.time() {
                     None => match e.layer() {
                         None => time_semantics.edge_is_deleted(edge.as_ref(), g),
                         Some(layer) => time_semantics.edge_is_deleted(
@@ -276,6 +298,10 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                             LayeredGraph::new(g, LayerIds::One(layer.0)),
                         ),
                     },
+                    Some(t) => {
+                        let layer = e.layer().expect("exploded edge should have layer");
+                        time_semantics.edge_is_deleted_exploded(edge.as_ref(), g, t, layer)
+                    }
                 }
             } else {
                 false
@@ -336,10 +362,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
             if edge_valid_layer(g, e) {
                 let edge = g.core_edge(e.pid());
                 let time_semantics = g.edge_time_semantics();
-                match e.time_and_layer() {
-                    Some((t, layer)) => {
-                        time_semantics.edge_is_active_exploded(edge.as_ref(), g, t, layer)
-                    }
+                match e.time() {
                     None => match e.layer() {
                         None => time_semantics.edge_is_active(edge.as_ref(), g),
                         Some(layer_id) => time_semantics.edge_is_active(
@@ -347,6 +370,12 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                             LayeredGraph::new(g, LayerIds::One(layer_id.0)),
                         ),
                     },
+                    Some(t) => time_semantics.edge_is_active_exploded(
+                        edge.as_ref(),
+                        g,
+                        t,
+                        e.layer().expect("exploded edge should have layer"),
+                    ),
                 }
             } else {
                 false
@@ -380,18 +409,28 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         })
     }
 
+    fn explode_layers(&self) -> Self::Exploded {
+        self.map_exploded(|g, e| {
+            if edge_valid_layer(g, e) {
+                match e.layer() {
+                    Some(_) => Box::new(iter::once(e)),
+                    None => {
+                        let g = g.clone();
+                        exploded_layers(g, e)
+                    }
+                }
+            } else {
+                iter::empty().into_dyn_boxed()
+            }
+        })
+    }
+
     /// Gets the first time an edge was seen
     fn earliest_time(&self) -> Self::ValueType<Option<EventTime>> {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
-                match e.time_and_layer() {
-                    Some((t, layer)) => time_semantics.edge_exploded_earliest_time(
-                        g.core_edge(e.pid()).as_ref(),
-                        g,
-                        t,
-                        layer,
-                    ),
+                match e.time() {
                     None => match e.layer() {
                         None => time_semantics.edge_earliest_time(g.core_edge(e.pid()).as_ref(), g),
                         Some(layer) => time_semantics.edge_earliest_time(
@@ -399,6 +438,13 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                             LayeredGraph::new(g, LayerIds::One(layer.0)),
                         ),
                     },
+
+                    Some(t) => time_semantics.edge_exploded_earliest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        g,
+                        t,
+                        e.layer().expect("exploded edge should have layer"),
+                    ),
                 }
             } else {
                 None
@@ -411,20 +457,21 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
-                match e.time_and_layer() {
-                    Some((t, layer)) => time_semantics.edge_exploded_latest_time(
-                        g.core_edge(e.pid()).as_ref(),
-                        g,
-                        t,
-                        layer,
-                    ),
+                match e.time() {
                     None => match e.layer() {
                         None => time_semantics.edge_latest_time(g.core_edge(e.pid()).as_ref(), g),
+
                         Some(layer) => time_semantics.edge_latest_time(
                             g.core_edge(e.pid()).as_ref(),
                             LayeredGraph::new(g, LayerIds::One(layer.0)),
                         ),
                     },
+                    Some(t) => time_semantics.edge_exploded_latest_time(
+                        g.core_edge(e.pid()).as_ref(),
+                        g,
+                        t,
+                        e.layer().expect("exploded edge should have layer"),
+                    ),
                 }
             } else {
                 None

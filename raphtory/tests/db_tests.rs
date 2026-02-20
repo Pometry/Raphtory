@@ -29,7 +29,7 @@ use raphtory::{
     },
 };
 use raphtory_api::core::{
-    entities::{GID, VID},
+    entities::{LayerId, GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
         timeindex::{AsTime, EventTime},
@@ -1119,7 +1119,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![(0.into(), vec![Prop::Bool(true)])]);
@@ -1134,7 +1134,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         assert_eq!(
@@ -1164,7 +1164,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -1184,7 +1184,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, l, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -1820,7 +1820,7 @@ fn node_history_rows() {
 
     let actual = node
         .rows()
-        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
         .collect::<Vec<_>>();
 
     let expected = vec![
@@ -1836,7 +1836,7 @@ fn node_history_rows() {
 
     let actual = node
         .rows()
-        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
         .collect::<Vec<_>>();
 
     let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
@@ -2503,7 +2503,14 @@ fn test_layer_explode() {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2), (1, 2, 3)]);
+        assert_eq!(
+            layer_exploded,
+            vec![
+                (1u64, 2u64, LayerId(1)),
+                (1u64, 2u64, LayerId(2)),
+                (1u64, 2u64, LayerId(3)),
+            ]
+        );
     });
 }
 

@@ -313,7 +313,6 @@ fn test_node_layers() {
         .unwrap();
 
     let filter_expr = NodeFilter.layer("fire_nation").is_active();
-    // let filter_expr = EdgeFilter.layer("fire_nation");
     let ids = graph
         .filter(filter_expr)
         .unwrap()
