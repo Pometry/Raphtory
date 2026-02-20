@@ -473,6 +473,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+        // FIXME: Add wal logging here.
         self.graph
             .resolve_and_update_node_and_type(NodeRef::Internal(self.node), Some(new_type))
             .map_err(into_graph_err)?;
