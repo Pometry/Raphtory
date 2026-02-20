@@ -315,7 +315,7 @@ where
     }
 
     pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {
-        (&self.base_graph)
+        (&&self.base_graph)
             .node(node)
             .filter(|node| {
                 self.nodes.contains(&node.node)

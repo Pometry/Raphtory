@@ -11,6 +11,7 @@ members = [
     "raphtory-core",
     "raphtory-storage", "raphtory-api-macros", "fast_merge",
     "clam-core",
+    "clam-core/snb"
 ]
 default-members = ["raphtory"]
 exclude = ["optd"]
