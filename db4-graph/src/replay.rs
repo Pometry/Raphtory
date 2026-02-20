@@ -343,6 +343,36 @@ where
         Ok(())
     }
 
+    fn replay_add_graph_props(
+        &mut self,
+        _lsn: LSN,
+        _transaction_id: TransactionID,
+        t: EventTime,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        let graph_props_meta = self.graph().graph_props_meta();
+        for (prop_name, prop_id, prop_value) in &props {
+            let prop_mapper = graph_props_meta.temporal_prop_mapper();
+            let mut write_locked_mapper = prop_mapper.write_locked();
+
+            write_locked_mapper.set_or_unify_id_and_dtype(
+                prop_name.as_ref(),
+                *prop_id,
+                prop_value.dtype(),
+            )?;
+        }
+
+        let props_vec: Vec<_> = props
+            .iter()
+            .map(|(_, id, p)| (*id, p.clone()))
+            .collect();
+        if let Some(writer) = self.graph_props.writer() {
+            writer.add_properties(t, props_vec);
+        }
+
+        Ok(())
+    }
+
     fn replay_add_node(
         &mut self,
         lsn: LSN,

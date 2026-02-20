@@ -69,6 +69,15 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn log_add_graph_props(
+        &self,
+        _transaction_id: TransactionID,
+        _t: EventTime,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
     fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
         Ok(0)
     }
