@@ -362,10 +362,7 @@ where
             )?;
         }
 
-        let props_vec: Vec<_> = props
-            .iter()
-            .map(|(_, id, p)| (*id, p.clone()))
-            .collect();
+        let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
         if let Some(writer) = self.graph_props.writer() {
             writer.add_properties(t, props_vec);
         }

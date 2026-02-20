@@ -26,8 +26,9 @@ use raphtory_storage::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{UnlockedSession, WriteS},
         deletion_ops::InternalDeletionOps,
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
-        EdgeWriterT, NodeWriterT,
+        EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
 };
 use std::{
@@ -40,8 +41,6 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-use crate::prelude::Graph;
-use raphtory_storage::mutation::durability_ops::DurabilityOps;
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -585,22 +584,22 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_properties(t, props)?;
-
-        Ok(())
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_properties(t, props)?)
     }
 
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_add_metadata(props)?;
-
-        Ok(())
+    fn internal_add_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_metadata(props)?)
     }
 
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_update_metadata(props)?;
-
-        Ok(())
+    fn internal_update_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_update_metadata(props)?)
     }
 
     fn internal_add_node_metadata(

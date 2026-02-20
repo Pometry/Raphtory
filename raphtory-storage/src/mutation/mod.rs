@@ -21,9 +21,12 @@ use raphtory_core::entities::{
 use std::sync::Arc;
 use storage::{
     error::StorageError,
-    pages::{edge_page::writer::EdgeWriter, node_page::writer::NodeWriter},
+    pages::{
+        edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
+        node_page::writer::NodeWriter,
+    },
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    Extension, ES, NS,
+    Extension, ES, GS, NS,
 };
 use thiserror::Error;
 
@@ -35,6 +38,7 @@ pub mod property_addition_ops;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
+pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 
 #[derive(Error, Debug)]
 pub enum MutationError {

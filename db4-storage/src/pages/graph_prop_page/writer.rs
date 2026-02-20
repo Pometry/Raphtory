@@ -49,7 +49,6 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
     pub fn set_lsn(&mut self, lsn: LSN) {
         self.mem_segment.set_lsn(lsn);
     }
-
 }
 
 impl<GS: GraphPropSegmentOps> Drop for GraphPropWriter<'_, GS> {
