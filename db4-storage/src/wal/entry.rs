@@ -59,6 +59,16 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn log_set_node_type(
+        &self,
+        _transaction_id: TransactionID,
+        _vid: VID,
+        _node_type: &str,
+        _node_type_id: usize,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
     fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
         Ok(0)
     }

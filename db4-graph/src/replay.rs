@@ -298,11 +298,45 @@ where
             }
 
             let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
-
             let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
 
             // No need to check metadata since the operation was logged after validation.
             node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props_vec);
+            node_writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
+    fn replay_set_node_type(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        vid: VID,
+        node_type: String,
+        node_type_id: usize,
+    ) -> Result<(), StorageError> {
+        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(vid);
+        self.resize_segments_to_vid(vid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let node_meta = self.graph().node_meta();
+
+            node_meta
+                .node_type_meta()
+                .set_id(node_type.as_str(), node_type_id);
+
+            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
+
+            node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
             node_writer.set_lsn(lsn);
         }
 

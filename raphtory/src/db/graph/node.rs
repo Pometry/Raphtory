@@ -476,6 +476,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         self.graph
             .resolve_and_update_node_and_type(NodeRef::Internal(self.node), Some(new_type))
             .map_err(into_graph_err)?;
+
         Ok(())
     }
 

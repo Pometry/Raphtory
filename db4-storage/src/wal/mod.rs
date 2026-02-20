@@ -119,6 +119,14 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
+    fn log_set_node_type(
+        &self,
+        transaction_id: TransactionID,
+        vid: VID,
+        node_type: &str,
+        node_type_id: usize,
+    ) -> Result<LSN, StorageError>;
+
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
     /// `lsn` has been persisted to disk.
     fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
@@ -174,5 +182,14 @@ pub trait GraphReplay {
         transaction_id: TransactionID,
         vid: VID,
         props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError>;
+
+    fn replay_set_node_type(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        vid: VID,
+        node_type: String,
+        node_type_id: usize,
     ) -> Result<(), StorageError>;
 }
