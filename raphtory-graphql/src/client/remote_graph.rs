@@ -55,7 +55,7 @@ impl GraphQLRemoteGraph {
         id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
-    ) -> Result<(), ClientError> {
+    ) -> Result<GraphQLRemoteNode, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -75,7 +75,10 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        self.client
+            .query(&query, HashMap::new())
+            .await
+            .map(|_| GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string()))
     }
 
     /// Create a new node (fails if the node already exists). Uses the createNode mutation.
@@ -85,7 +88,7 @@ impl GraphQLRemoteGraph {
         id: G,
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<String>,
-    ) -> Result<(), ClientError> {
+    ) -> Result<GraphQLRemoteNode, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -105,7 +108,10 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        self.client
+            .query(&query, HashMap::new())
+            .await
+            .map(|_| GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string()))
     }
 
     pub async fn add_edge<G: Into<GID> + ToString, T: IntoTime>(
@@ -115,7 +121,7 @@ impl GraphQLRemoteGraph {
         dst: G,
         properties: Option<HashMap<String, Prop>>,
         layer: Option<String>,
-    ) -> Result<(), ClientError> {
+    ) -> Result<GraphQLRemoteEdge, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -136,7 +142,14 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| {
+            GraphQLRemoteEdge::new(
+                self.path.clone(),
+                self.client.clone(),
+                src.to_string(),
+                dst.to_string(),
+            )
+        })
     }
 
     pub async fn add_property(
@@ -208,7 +221,7 @@ impl GraphQLRemoteGraph {
         src: G,
         dst: G,
         layer: Option<String>,
-    ) -> Result<(), ClientError> {
+    ) -> Result<GraphQLRemoteEdge, ClientError> {
         let template = r#"
         {
             updateGraph(path: "{{ path }}") {
@@ -228,6 +241,13 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        self.client.query(&query, HashMap::new()).await.map(|_| {
+            GraphQLRemoteEdge::new(
+                self.path.clone(),
+                self.client.clone(),
+                src.to_string(),
+                dst.to_string(),
+            )
+        })
     }
 }
