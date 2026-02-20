@@ -36,10 +36,7 @@ use raphtory_api::core::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
-    mutation::{
-        addition_ops::{InternalAdditionOps},
-        durability_ops::DurabilityOps,
-    },
+    mutation::{addition_ops::InternalAdditionOps, durability_ops::DurabilityOps},
 };
 use std::{
     fmt,
@@ -429,6 +426,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
         let props = props_with_status
             .iter()
             .map(|maybe_new| {
@@ -448,14 +453,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .internal_add_node_metadata(vid, props)
                 .map_err(into_graph_err)?
         };
-
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
 
         let lsn = wal
             .log_add_node_metadata(transaction_id, vid, props_for_wal)
@@ -500,12 +497,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         let transaction_id = transaction_manager.begin_transaction();
         let session = self.graph.write_session().map_err(|err| err.into())?;
 
-        let props_with_status = self.graph.validate_props_with_status(
-            false,
-            self.graph.node_meta(),
-            props.into_iter().map(|(k, v)| (k, v.into())),
-        )
-        .map_err(into_graph_err)?;
+        let props_with_status = self
+            .graph
+            .validate_props_with_status(
+                false,
+                self.graph.node_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
 
         let props_for_wal = props_with_status
             .iter()

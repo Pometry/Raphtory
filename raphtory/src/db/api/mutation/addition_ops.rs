@@ -214,12 +214,21 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         )
         .map_err(into_graph_err)?;
 
-        let props_with_status = self.validate_props_with_status(
-            false,
-            self.edge_meta(),
-            props.into_iter().map(|(k, v)| (k, v.into())),
-        )
-        .map_err(into_graph_err)?;
+        let props_with_status = self
+            .validate_props_with_status(
+                false,
+                self.edge_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
 
         let ti = time_from_input_session(&session, t)?;
         let src_gid = src.as_gid_ref().left();
@@ -244,14 +253,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         // This is fine as long as we hold onto the edge segment lock through add_edge_op
         // for the entire operation.
         let edge_id = writers.internal_add_static_edge(src_id, dst_id);
-
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
 
         // All names, ids and values have been generated for this operation.
         // Create a wal entry to mark it as durable.
@@ -344,12 +345,13 @@ fn add_node_impl<
         )
         .map_err(into_graph_err)?;
 
-    let props_with_status = graph.validate_props_with_status(
-        false,
-        graph.node_meta(),
-        props.into_iter().map(|(k, v)| (k, v.into())),
-    )
-    .map_err(into_graph_err)?;
+    let props_with_status = graph
+        .validate_props_with_status(
+            false,
+            graph.node_meta(),
+            props.into_iter().map(|(k, v)| (k, v.into())),
+        )
+        .map_err(into_graph_err)?;
 
     let node_gid = node_ref.as_gid_ref().left();
     let ti = time_from_input_session(&session, t)?;

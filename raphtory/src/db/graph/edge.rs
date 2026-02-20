@@ -366,6 +366,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
         let props = props_with_status
             .iter()
             .map(|maybe_new| {
@@ -385,14 +393,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
                 .internal_add_edge_metadata(eid, input_layer_id, props)
                 .map_err(into_graph_err)?
         };
-
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
 
         let lsn = wal.log_add_edge_metadata(transaction_id, eid, input_layer_id, props_for_wal)?;
 
@@ -426,12 +426,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         let t = time_from_input_session(&session, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
 
-        let props_with_status = self.graph.validate_props_with_status(
-            false,
-            self.graph.edge_meta(),
-            props.into_iter().map(|(k, v)| (k, v.into())),
-        )
-        .map_err(into_graph_err)?;
+        let props_with_status = self
+            .graph
+            .validate_props_with_status(
+                false,
+                self.graph.edge_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
 
         let props_for_wal = props_with_status
             .iter()
