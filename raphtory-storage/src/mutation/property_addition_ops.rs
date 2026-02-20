@@ -12,6 +12,7 @@ use raphtory_api::{
     },
     inherit::Base,
 };
+use db4_graph::TemporalGraph;
 use storage::Extension;
 
 pub trait InternalPropertyAdditionOps {
@@ -54,7 +55,7 @@ pub trait InternalPropertyAdditionOps {
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
 }
 
-impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
+impl InternalPropertyAdditionOps for TemporalGraph<Extension> {
     type Error = MutationError;
 
     // FIXME: this can't fail
