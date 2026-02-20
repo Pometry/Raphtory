@@ -61,7 +61,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
                     .first_t()
                     .into_iter()
                     .chain(
-                        node.node_edge_additions(ALL_LAYERS)
+                        node.node_edge_additions(ALL_LAYERS.clone())
                             .range(start..end)
                             .first_t(),
                     )
@@ -78,7 +78,7 @@ impl GraphTimeSemanticsOps for GraphStorage {
                     .last_t()
                     .into_iter()
                     .chain(
-                        node.node_edge_additions(ALL_LAYERS)
+                        node.node_edge_additions(ALL_LAYERS.clone())
                             .range(start..end)
                             .last_t(),
                     )

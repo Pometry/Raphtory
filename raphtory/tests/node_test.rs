@@ -321,5 +321,5 @@ fn test_node_layers() {
         .map(|n| n.name())
         .collect::<Vec<_>>();
 
-    println!("{:?}", ids);
+    assert_eq!(ids, vec!["1", "2"]);
 }

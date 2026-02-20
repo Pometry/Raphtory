@@ -2,25 +2,28 @@ use std::ops::Range;
 
 use itertools::Itertools;
 use raphtory_core::{
-    entities::{ELID, LayerIds},
+    entities::{ELID, LayerIds, layers::Multiple},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 
-use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter2};
+use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter3};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum LayerIter<'a> {
     One(usize),
     LRef(&'a LayerIds),
+    Multiple(Multiple),
 }
 
 pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::All);
+pub static NONE_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::None);
 
 impl<'a> LayerIter<'a> {
     pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> + Send + Sync + 'a {
         match self {
-            LayerIter::One(id) => Iter2::I1(std::iter::once(id)),
-            LayerIter::LRef(layers) => Iter2::I2(layers.iter(num_layers)),
+            LayerIter::One(id) => Iter3::I(std::iter::once(id)),
+            LayerIter::LRef(layers) => Iter3::J(layers.iter(num_layers)),
+            LayerIter::Multiple(ids) => Iter3::K(ids.into_iter()),
         }
     }
 }
@@ -37,7 +40,7 @@ impl<'a> From<&'a LayerIds> for LayerIter<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(EventTime, EventTime)>,
     layer_id: LayerIter<'a>,
@@ -348,23 +351,29 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.time_cells().any(|t_cell| t_cell.active(w.clone()))
+        self.clone()
+            .time_cells()
+            .any(|t_cell| t_cell.active(w.clone()))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         GenericTimeOps {
             range: Some((w.start, w.end)),
             item_ref: self.item_ref,
-            layer_id: self.layer_id,
+            layer_id: self.layer_id.clone(),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
-        Iterator::min(self.time_cells().filter_map(|t_cell| t_cell.first()))
+        Iterator::min(
+            self.clone()
+                .time_cells()
+                .filter_map(|t_cell| t_cell.first()),
+        )
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        Iterator::max(self.time_cells().filter_map(|t_cell| t_cell.last()))
+        Iterator::max(self.clone().time_cells().filter_map(|t_cell| t_cell.last()))
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
@@ -376,6 +385,6 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     }
 
     fn len(&self) -> usize {
-        self.time_cells().map(|t_cell| t_cell.len()).sum()
+        self.clone().time_cells().map(|t_cell| t_cell.len()).sum()
     }
 }

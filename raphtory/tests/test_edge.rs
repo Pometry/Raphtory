@@ -1,13 +1,18 @@
 use itertools::Itertools;
-use raphtory::{prelude::*, test_storage, test_utils::test_graph};
+use raphtory::{
+    db::{
+        api::view::Filter,
+        graph::views::filter::model::{EdgeViewFilterOps, ViewWrapOps},
+    },
+    prelude::*,
+    test_storage,
+    test_utils::test_graph,
+};
 use raphtory_api::core::{
     entities::LayerId,
     storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use std::collections::HashMap;
-use raphtory::db::graph::views::filter::model::ViewWrapOps;
-use raphtory::db::api::view::Filter;
-use raphtory::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[test]
 fn test_properties() {
@@ -152,13 +157,13 @@ fn test_edge_layers() {
     let graph = Graph::new();
 
     graph
-        .add_edge(0, 1, 2,NO_PROPS, Some("fire_nation"))
+        .add_edge(0, 1, 2, NO_PROPS, Some("fire_nation"))
         .unwrap();
     graph
-        .add_edge(0, 2, 3,[("a", "test")], Some("fire_nation"))
+        .add_edge(0, 2, 3, [("a", "test")], Some("fire_nation"))
         .unwrap();
     graph
-        .add_edge(0, 3,  4,[("b", 4)], Some("air_nomads"))
+        .add_edge(0, 3, 4, [("b", 4)], Some("air_nomads"))
         .unwrap();
 
     let filter_expr = EdgeFilter.layer("fire_nation").is_active();

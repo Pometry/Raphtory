@@ -13,7 +13,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 use std::ops::Range;
-use storage::gen_ts::ALL_LAYERS;
+use storage::gen_ts::{LayerIter, ALL_LAYERS, NONE_LAYERS};
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
@@ -37,14 +37,14 @@ pub struct NodePropHistory<'a, G> {
 impl<'a, G: Clone> NodeHistory<'a, G> {
     pub fn edge_history(&self) -> NodeEdgeHistory<'a, G> {
         NodeEdgeHistory {
-            additions: self.edge_history,
+            additions: self.edge_history.clone(),
             view: self.view.clone(),
         }
     }
 
     pub fn prop_history(&self) -> NodePropHistory<'a, G> {
         NodePropHistory {
-            additions: self.additions,
+            additions: self.additions.clone(),
             view: self.view.clone(),
         }
     }
@@ -66,11 +66,11 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
 
 impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
     pub fn history(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
-        handle_update_iter(self.additions.edge_events(), self.view.clone())
+        handle_update_iter(self.additions.clone().edge_events(), self.view.clone())
     }
 
     pub fn history_rev(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
-        handle_update_iter(self.additions.edge_events_rev(), self.view.clone())
+        handle_update_iter(self.additions.clone().edge_events_rev(), self.view.clone())
     }
 }
 
@@ -191,9 +191,14 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     ///
     /// Note that this is an internal API that does not apply the window filtering!
     fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
-        // FIXME: new storage supports multiple layers, we can be specific about the layers here once NodeStorageOps is updated
-        let additions = self.node_additions(ALL_LAYERS);
-        let edge_history = self.node_edge_additions(ALL_LAYERS);
+        let layer_iter = match view.layer_ids() {
+            LayerIds::All => ALL_LAYERS.clone(),
+            LayerIds::None => NONE_LAYERS.clone(),
+            LayerIds::One(id) => LayerIter::One(*id),
+            LayerIds::Multiple(layers) => LayerIter::Multiple(layers.clone()),
+        };
+        let additions = self.node_additions(layer_iter.clone());
+        let edge_history = self.node_edge_additions(layer_iter);
         NodeHistory {
             edge_history,
             additions,
