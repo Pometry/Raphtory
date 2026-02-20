@@ -10,7 +10,7 @@ use crate::{
             extract_secondary_index_col, process_shared_properties,
             resolve_nodes_and_type_with_cache, GidKey,
         },
-        layer_col::{lift_node_type_col, LayerCol},
+        layer_col::{lift_layer_col, lift_node_type_col, LayerCol},
         node_col::NodeCol,
         prop_handler::*,
     },
@@ -23,7 +23,7 @@ use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
     core::{
-        entities::properties::meta::STATIC_GRAPH_LAYER_ID,
+        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId},
         storage::{timeindex::EventTime, FxDashMap},
     },
 };
@@ -47,6 +47,8 @@ pub fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
     resolve_nodes: bool,
+    layer_id: Option<&str>,
+    layer_id_col: Option<&str>,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
@@ -63,6 +65,9 @@ pub fn load_nodes_from_df<
     let node_type_index =
         node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
     let node_type_index = node_type_index.transpose()?;
+    let layer_index = layer_id_col
+        .map(|name| df_view.get_index(name))
+        .transpose()?;
 
     let node_id_index = df_view.get_index(node_id)?;
     let time_index = df_view.get_index(time)?;
@@ -97,6 +102,8 @@ pub fn load_nodes_from_df<
                     .map_err(into_graph_err)
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
+        let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
+        let layer_col_resolved = layer_col.resolve_layer(None, graph)?;
 
         let time_col = df.time_col(time_index)?;
         let node_col = df.node_col(node_id_index)?;
@@ -141,7 +148,7 @@ pub fn load_nodes_from_df<
                     if let Some(mut_node) = shard.resolve_pos(*vid) {
                         let mut writer = shard.writer();
                         let t = EventTime(time, secondary_index);
-                        let layer_id = STATIC_GRAPH_LAYER_ID;
+                        let layer_id = LayerId(layer_col_resolved[row]);
 
                         update_time(t);
 
@@ -151,7 +158,7 @@ pub fn load_nodes_from_df<
                             .chain(shared_metadata.iter().cloned());
 
                         writer.add_props(t, mut_node, layer_id, t_props);
-                        writer.update_c_props(mut_node, layer_id, c_props);
+                        writer.update_c_props(mut_node, STATIC_GRAPH_LAYER_ID, c_props);
                     };
                 }
 

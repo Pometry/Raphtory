@@ -91,6 +91,8 @@ pub fn load_nodes_from_parquet<
             node_type_col,
             graph,
             resolve_nodes,
+            None,
+            None,
         )?;
     }
 

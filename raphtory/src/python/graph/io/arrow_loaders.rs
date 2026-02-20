@@ -99,6 +99,8 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
             node_type_col,
             graph,
             true,
+            None,
+            None,
         )
     })
 }
@@ -501,6 +503,8 @@ pub(crate) fn load_nodes_from_csv_path<
         node_type_col,
         graph,
         true,
+        None,
+        None,
     )
 }
 
