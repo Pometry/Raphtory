@@ -1237,6 +1237,8 @@ class Graph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1256,6 +1258,8 @@ class Graph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index. Defaults to None.
+            layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+            layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1919,6 +1923,8 @@ class PersistentGraph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1938,6 +1944,8 @@ class PersistentGraph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index.
+            layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+            layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.

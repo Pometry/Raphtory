@@ -653,6 +653,8 @@ impl PyPersistentGraph {
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
     ///     event_id (str, optional): The column name for the secondary index.
+    ///     layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+    ///     layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -660,7 +662,7 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None)
     )]
     fn load_nodes(
         &self,
@@ -675,6 +677,8 @@ impl PyPersistentGraph {
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
         event_id: Option<&str>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -690,6 +694,8 @@ impl PyPersistentGraph {
                 &properties,
                 &metadata,
                 shared_metadata.as_ref(),
+                layer,
+                layer_col,
                 column_schema,
                 event_id,
             )
@@ -722,6 +728,8 @@ impl PyPersistentGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
                     None,
                     true,
                     arced_schema.clone(),
@@ -738,6 +746,8 @@ impl PyPersistentGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
                     csv_options.as_ref(),
                     arced_schema,
                     event_id,
