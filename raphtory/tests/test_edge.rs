@@ -5,6 +5,9 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::AsTime},
 };
 use std::collections::HashMap;
+use raphtory::db::graph::views::filter::model::ViewWrapOps;
+use raphtory::db::api::view::Filter;
+use raphtory::db::graph::views::filter::model::EdgeViewFilterOps;
 
 #[test]
 fn test_properties() {
@@ -142,4 +145,41 @@ fn test_layers_earliest_time() {
     let g = Graph::new();
     let e = g.add_edge(1, 1, 2, NO_PROPS, Some("test")).unwrap();
     assert_eq!(e.earliest_time().map(|t| t.t()), Some(1));
+}
+
+#[test]
+fn test_edge_layers() {
+    let graph = Graph::new();
+
+    graph
+        .add_edge(0, 1, 2,NO_PROPS, Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_edge(0, 2, 3,[("a", "test")], Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_edge(0, 3,  4,[("b", 4)], Some("air_nomads"))
+        .unwrap();
+
+    let filter_expr = EdgeFilter.layer("fire_nation").is_active();
+    let ids = graph
+        .filter(filter_expr)
+        .unwrap()
+        .edges()
+        .iter()
+        .map(|n| n.src().name() + "->" + &n.dst().name())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, ["1->2", "2->3"]);
+
+    let filter_expr = EdgeFilter.layer("air_nomads").is_active();
+    let ids = graph
+        .filter(filter_expr)
+        .unwrap()
+        .edges()
+        .iter()
+        .map(|n| n.src().name() + "->" + &n.dst().name())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, ["3->4"]);
 }

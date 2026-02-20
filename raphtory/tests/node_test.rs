@@ -303,13 +303,13 @@ fn test_edge_timestamps_no_edges() {
 fn test_node_layers() {
     let graph = Graph::new();
     graph
-        .add_node(0, 1, NO_PROPS, None, Some("fire_nation"))
+        .add_node(0, 1, [("a", "test")], None, Some("fire_nation"))
         .unwrap();
     graph
         .add_node(0, 2, NO_PROPS, None, Some("fire_nation"))
         .unwrap();
     graph
-        .add_node(0, 3, NO_PROPS, None, Some("air_nomads"))
+        .add_node(0, 3, [("b", 3)], None, Some("air_nomads"))
         .unwrap();
 
     let filter_expr = NodeFilter.layer("fire_nation").is_active();
