@@ -127,7 +127,7 @@ impl<
 fn add_metadata_impl<G, PN, P, PII>(
     graph: &G,
     props: PII,
-    update: bool,
+    is_update: bool,
 ) -> Result<(), GraphError>
 where
     G: InternalPropertyAdditionOps<Error: Into<GraphError>>
@@ -143,7 +143,7 @@ where
 
     let props_with_status = graph
         .validate_props_with_status(
-            update,
+            true,
             graph.graph_props_meta(),
             props.into_iter().map(|(k, v)| (k, v.into())),
         )
@@ -157,7 +157,7 @@ where
         })
         .collect::<Vec<_>>();
 
-    let mut writer = if update {
+    let mut writer = if is_update {
         graph.internal_update_metadata(&props).map_err(into_graph_err)?
     } else {
         graph.internal_add_metadata(&props).map_err(into_graph_err)?
