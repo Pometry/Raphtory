@@ -75,10 +75,24 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
-            .query(&query, HashMap::new())
-            .await
-            .map(|_| GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string()))
+        let res = self.client.query(&query, HashMap::new()).await?;
+        if res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("addNode"))
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("success"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x == true)
+        {
+            Ok(GraphQLRemoteNode::new(
+                self.path.clone(),
+                self.client.clone(),
+                id.to_string(),
+            ))
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
     }
 
     /// Create a new node (fails if the node already exists). Uses the createNode mutation.
@@ -108,10 +122,22 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client
+        let res = self.client
             .query(&query, HashMap::new())
-            .await
-            .map(|_| GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string()))
+            .await?;
+        if res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("createNode"))
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("success"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x == true)
+        {
+            Ok(GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string()))
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
     }
 
     pub async fn add_edge<G: Into<GID> + ToString, T: IntoTime>(
@@ -142,14 +168,25 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| {
-            GraphQLRemoteEdge::new(
+        let res = self.client.query(&query, HashMap::new()).await?;
+        if res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("addEdge"))
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("success"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x == true)
+        {
+            Ok(GraphQLRemoteEdge::new(
                 self.path.clone(),
                 self.client.clone(),
                 src.to_string(),
                 dst.to_string(),
-            )
-        })
+            ))
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
     }
 
     pub async fn add_property(
@@ -172,7 +209,18 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let res = self.client.query(&query, HashMap::new()).await?;
+        if res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("addProperties"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x == true)
+        {
+            Ok(())
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
     }
 
     pub async fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
@@ -190,7 +238,18 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let res = self.client.query(&query, HashMap::new()).await?;
+        if res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("addMetadata"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x == true)
+        {
+            Ok(())
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
     }
 
     pub async fn update_metadata(
@@ -211,7 +270,18 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| ())
+        let res = self.client.query(&query, HashMap::new()).await?;
+        if res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("updateMetadata"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x == true)
+        {
+            Ok(())
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
     }
 
     /// Deletes an edge at the given time, src, dst and optional layer.
@@ -241,13 +311,24 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        self.client.query(&query, HashMap::new()).await.map(|_| {
-            GraphQLRemoteEdge::new(
+        let res = self.client.query(&query, HashMap::new()).await?;
+        if res
+            .get("updateGraph")
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("deleteEdge"))
+            .and_then(|x| x.as_object())
+            .and_then(|x| x.get("success"))
+            .and_then(|x| x.as_bool())
+            .is_some_and(|x| x == true)
+        {
+            Ok(GraphQLRemoteEdge::new(
                 self.path.clone(),
                 self.client.clone(),
                 src.to_string(),
                 dst.to_string(),
-            )
-        })
+            ))
+        } else {
+            Err(ClientError::UnsuccessfulResponse)
+        }
     }
 }

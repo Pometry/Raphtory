@@ -24,4 +24,7 @@ pub enum ClientError {
 
     #[error("An error when parsing Jinja query templates: {0}")]
     JinjaError(String),
+
+    #[error("The request did not succeed.")]
+    UnsuccessfulResponse,
 }
