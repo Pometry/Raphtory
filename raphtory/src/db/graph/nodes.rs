@@ -156,8 +156,10 @@ where
         }
     }
 
-    pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
-        let g = self.base_graph.core_graph().lock();
+    pub(crate) fn par_iter_refs(
+        &self,
+        g: GraphStorage,
+    ) -> impl ParallelIterator<Item = VID> + 'graph {
         let view = self.base_graph.clone();
         let node_select = self.predicate.clone();
         self.node_list().nodes_par_iter(&g).filter(move |&vid| {
@@ -175,13 +177,20 @@ where
         )
     }
 
+    fn locked_storage(&self) -> GraphStorage {
+        self.base_graph.core_graph().lock()
+    }
+
     #[inline]
     pub(crate) fn iter_refs(&self) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let g = self.base_graph.core_graph().lock();
         self.iter_vids(g)
     }
 
-    fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
+    pub(crate) fn iter_vids(
+        &self,
+        g: GraphStorage,
+    ) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
 
@@ -226,12 +235,14 @@ where
     pub fn par_iter(
         &self,
     ) -> impl ParallelIterator<Item = NodeView<'_, &GH>> + use<'_, 'graph, G, GH, F> {
-        self.par_iter_refs()
+        let g = self.base_graph.core_graph().lock();
+        self.par_iter_refs(g)
             .map(|v| NodeView::new_internal(&self.graph, v))
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<'graph, GH>> + 'graph {
-        self.par_iter_refs()
+        let g = self.locked_storage();
+        self.par_iter_refs(g)
             .map(move |n| NodeView::new_internal(self.graph.clone(), n))
     }
 
@@ -241,14 +252,16 @@ where
         match &self.nodes {
             Index::Full(_) => {
                 if self.is_list_filtered() {
-                    self.par_iter_refs().count()
+                    let g = self.locked_storage();
+                    self.par_iter_refs(g).count()
                 } else {
                     self.graph.node_list().len()
                 }
             }
             Index::Partial(nodes) => {
                 if self.is_filtered() {
-                    self.par_iter_refs().count()
+                    let g = self.locked_storage();
+                    self.par_iter_refs(g).count()
                 } else {
                     nodes.len()
                 }
