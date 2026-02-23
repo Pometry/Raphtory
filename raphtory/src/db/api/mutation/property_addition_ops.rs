@@ -1,4 +1,3 @@
-use super::CollectProperties;
 use crate::{
     db::api::mutation::{time_from_input_session, TryIntoInputTime},
     errors::{into_graph_err, GraphError},
@@ -7,7 +6,7 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     mutation::{
-        addition_ops::{InternalAdditionOps, SessionAdditionOps},
+        addition_ops::{InternalAdditionOps},
         durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
@@ -28,9 +27,17 @@ pub trait PropertyAdditionOps:
         props: PII,
     ) -> Result<(), GraphError>;
 
-    fn add_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
+    fn add_metadata<
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(&self, props: PII) -> Result<(), GraphError>;
 
-    fn update_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError>;
+    fn update_metadata<
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(&self, props: PII) -> Result<(), GraphError>;
 }
 
 impl<
@@ -98,29 +105,56 @@ impl<
         Ok(())
     }
 
-    fn add_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
-        let session = self.write_session().map_err(|err| err.into())?;
-        let properties: Vec<_> = props.collect_properties(|name, dtype| {
-            Ok(session
-                .resolve_graph_property(name, dtype, true)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
-        self.internal_add_metadata(&properties)
-            .map_err(into_graph_err)?;
-        Ok(())
+    fn add_metadata<
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(&self, props: PII) -> Result<(), GraphError> {
+        let is_update = false;
+        add_metadata_impl(self, props, is_update)
     }
 
-    fn update_metadata<PI: CollectProperties>(&self, props: PI) -> Result<(), GraphError> {
-        let session = self.write_session().map_err(|err| err.into())?;
-        let properties: Vec<_> = props.collect_properties(|name, dtype| {
-            Ok(session
-                .resolve_graph_property(name, dtype, true)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
-        self.internal_update_metadata(&properties)
-            .map_err(into_graph_err)?;
-        Ok(())
+    fn update_metadata<
+        PN: AsRef<str>,
+        P: Into<Prop>,
+        PII: IntoIterator<Item = (PN, P)>,
+    >(&self, props: PII) -> Result<(), GraphError> {
+        let is_update = true;
+        add_metadata_impl(self, props, is_update)
     }
+}
+
+fn add_metadata_impl<G, PN, P, PII>(
+    graph: &G,
+    props: PII,
+    update: bool,
+) -> Result<(), GraphError>
+where
+    G: InternalPropertyAdditionOps<Error: Into<GraphError>>
+        + InternalAdditionOps<Error: Into<GraphError>>
+        + CoreGraphOps,
+    PN: AsRef<str>,
+    P: Into<Prop>,
+    PII: IntoIterator<Item = (PN, P)>,
+{
+    let props_with_status = graph.validate_props_with_status(
+        update,
+        graph.graph_props_meta(),
+        props.into_iter().map(|(k, v)| (k, v.into())),
+    ).map_err(into_graph_err)?;
+
+    let props = props_with_status
+        .iter()
+        .map(|maybe_new| {
+            let (_, prop_id, prop) = maybe_new.as_ref().inner();
+            (*prop_id, prop.clone())
+        })
+        .collect::<Vec<_>>();
+
+    if update {
+        graph.internal_update_metadata(&props).map_err(into_graph_err)?;
+    } else {
+        graph.internal_add_metadata(&props).map_err(into_graph_err)?;
+    }
+    Ok(())
 }
