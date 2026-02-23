@@ -163,10 +163,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         self.segments.count()
     }
 
-    // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
-    //     &self.segments
-    // }
-
     fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
         let len = self.segments.count();
         (0..len)
@@ -285,6 +281,34 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
     }
 
+    /// Reserves space in a segment and returns a locked writer for that segment.
+    ///
+    /// This method implements a lock-free reservation strategy with lazy segment allocation:
+    ///
+    /// **What it does:**
+    /// 1. Uses the `row` parameter to determine a starting slot in the `free_segments` array (via modulo N)
+    /// 2. Attempts to acquire a write lock on the segment at that slot
+    /// 3. If successful, tries to atomically reserve `required_space` rows in that segment
+    /// 4. If the segment is full or locked, tries the next slot (round-robin fashion)
+    /// 5. When a segment becomes full, creates a new segment and updates the slot atomically
+    /// 6. Returns both the reserved position and a locked writer for immediate use
+    ///
+    /// **Why it works this way:**
+    /// - **Lock-free fast path**: Uses `try_writer` to avoid blocking on contended segments
+    /// - **Load distribution**: The `row % N` ensures different threads naturally distribute across slots
+    /// - **Atomic reservation**: `reserve_segment_rows` uses atomic compare-and-swap to reserve space
+    ///   without holding locks during the reservation attempt
+    /// - **Double-check locking**: When creating a new segment, re-checks if another thread already
+    ///   created one (via `if *slot == page_id`) to avoid unnecessary allocations
+    /// - **Keeps writer locked**: Returns the writer still locked so the caller can immediately write
+    ///   to the reserved space without risk of concurrent modification
+    /// - **Circular probing**: If a slot is contended or full, moves to the next slot rather than
+    ///   blocking, maximizing throughput in multi-threaded scenarios
+    ///
+    /// This design prioritizes:
+    /// - High concurrency: Multiple threads can reserve space simultaneously in different segments
+    /// - Low latency: Avoids blocking whenever possible by trying different segments
+    /// - Memory efficiency: Only creates new segments when actually needed
     pub fn reserve_and_lock_segment(
         &self,
         row: usize,
@@ -309,6 +333,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                             if *slot == page_id {
                                 // page_id is unchanged, no other thread created a new segment before we got the lock
                                 page_id = self.push_new_segment();
+                                *slot = page_id;
                             }
                         }
                         Some(local_pos) => return (LocalPOS(local_pos), writer),
@@ -318,10 +343,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
     }
 
+    /// Reserves a single row in the given segment and returns the position if successful.
     pub fn reserve_segment_row(&self, segment: &NS) -> Option<u32> {
-        // TODO: if this becomes a hotspot, we can switch to a fetch_add followed by a fetch_min
-        // this means when we read the counter we need to clamp it to max_page_len so the iterators don't break
-        increment_and_clamp(segment.nodes_counter(), 1, self.max_segment_len())
+        self.reserve_segment_rows(segment, 1)
     }
 
     fn reserve_segment_rows(&self, segment: &NS, rows: u32) -> Option<u32> {
@@ -388,7 +412,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             .metadata_mapper()
             .d_types()
             .first()
-            .and_then(|dtype| GidType::from_prop_type(dtype))
+            .and_then(GidType::from_prop_type)
     }
 
     pub fn load(
@@ -549,18 +573,22 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                 let count = self.segments.count();
                 if segment_id < count {
                     // Another thread has allocated the segment, wait for it to be added.
-                    loop {
-                        if let Some(segment) = self.segments.get(segment_id) {
-                            return Some(segment.deref());
-                        } else {
-                            // Wait for the segment to be created.
-                            std::thread::yield_now();
-                        }
-                    }
+                    Some(self.wait_for_segment(segment_id).deref())
                 } else {
                     None
                 }
             })
+    }
+
+    fn wait_for_segment(&self, segment_id: usize) -> &Arc<NS> {
+        loop {
+            if let Some(segment) = self.segments.get(segment_id) {
+                return segment;
+            } else {
+                // Wait for the segment to be created.
+                std::thread::yield_now();
+            }
+        }
     }
 
     pub fn get_or_create_segment(&self, segment_id: usize) -> &Arc<NS> {
@@ -572,14 +600,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
         if segment_id < count {
             // Another thread has allocated the segment, wait for it to be added.
-            loop {
-                if let Some(segment) = self.segments.get(segment_id) {
-                    return segment;
-                } else {
-                    // Wait for the segment to be created.
-                    std::thread::yield_now();
-                }
-            }
+            self.wait_for_segment(segment_id)
         } else {
             // we need to create the segment.
             self.segments.reserve(segment_id + 1 - count);
@@ -598,14 +619,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
                 // The segment has been created.
                 if segment_id <= new_segment_id {
-                    loop {
-                        if let Some(segment) = self.segments.get(segment_id) {
-                            return segment;
-                        } else {
-                            // Wait for the segment to be created.
-                            std::thread::yield_now();
-                        }
-                    }
+                    return self.wait_for_segment(new_segment_id);
                 }
             }
         }
@@ -623,6 +637,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 }
 
+/// Atomically increments a counter and returns the previous value, but only if the result stays within bounds.
+///
+/// 1. Atomically reads the current counter value
+/// 2. Computes `current + increment`
+/// 3. If the result is ≤ `max_segment_len`, updates the counter and returns the *previous* value
+/// 4. If the result would exceed the limit, leaves the counter unchanged and returns `None`
+///
 pub fn increment_and_clamp(
     counter: &AtomicU32,
     increment: u32,
