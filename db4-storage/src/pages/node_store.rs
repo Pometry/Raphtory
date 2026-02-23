@@ -619,7 +619,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
                 // The segment has been created.
                 if segment_id <= new_segment_id {
-                    return self.wait_for_segment(new_segment_id);
+                    return self.wait_for_segment(segment_id);
                 }
             }
         }
