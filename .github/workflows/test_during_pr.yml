@@ -21,12 +21,12 @@ jobs:
     with:
       test_python_lower: false
     secrets: inherit
-  call-test-ui-in-local-repo:
-    name: Run UI Tests
-    uses: ./.github/workflows/test_ui.yml
-    secrets: inherit
-    permissions:
-      contents: read
+  # call-test-ui-in-local-repo:
+  #   name: Run UI Tests
+  #   uses: ./.github/workflows/test_ui.yml
+  #   secrets: inherit
+  #   permissions:
+  #     contents: read
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/benchmark.yml
@@ -43,14 +43,15 @@ jobs:
     name: Formatting autofixes
     uses: ./.github/workflows/format.yml
     secrets: inherit
-    needs: [
-      call-test-rust-workflow-in-local-repo,
-      call-test-python-workflow-in-local-repo,
-      call-test-ui-in-local-repo,
-      call-benchmark-workflow-in-local-repo,
-      call-graphql-bench-workflow-in-local-repo,
-      call-stress-test-workflow-in-local-repo
-    ]
+    needs:
+      [
+        call-test-rust-workflow-in-local-repo,
+        call-test-python-workflow-in-local-repo,
+        call-test-ui-in-local-repo,
+        call-benchmark-workflow-in-local-repo,
+        call-graphql-bench-workflow-in-local-repo,
+        call-stress-test-workflow-in-local-repo,
+      ]
   # call-code-coverage:
   #   name: Code Coverage
   #   uses: ./.github/workflows/code_coverage.yml

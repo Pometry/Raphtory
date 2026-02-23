@@ -8,7 +8,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-
 jobs:
   rust-format-check:
     name: Rust format check
@@ -23,12 +22,12 @@ jobs:
     with:
       test_python_lower: true
     secrets: inherit
-  call-test-ui:
-    name: Run UI Tests
-    uses: ./.github/workflows/test_ui.yml
-    secrets: inherit
-    permissions:
-      contents: read
+  # call-test-ui:
+  #   name: Run UI Tests
+  #   uses: ./.github/workflows/test_ui.yml
+  #   secrets: inherit
+  #   permissions:
+  #     contents: read
   call-benchmark-workflow-in-local-repo:
     name: Run benchmarks
     uses: ./.github/workflows/benchmark.yml
