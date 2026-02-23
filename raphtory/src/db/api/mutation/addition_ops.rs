@@ -17,7 +17,6 @@ use raphtory_api::core::{
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
 use raphtory_storage::{
-    core_ops::CoreGraphOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
         durability_ops::DurabilityOps,
@@ -228,14 +227,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             )
             .map_err(into_graph_err)?;
 
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
         let ti = time_from_input_session(&session, t)?;
         let src_gid = src.as_gid_ref();
         let dst_gid = dst.as_gid_ref();
@@ -246,6 +237,10 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
 
+        let src_id = writer.src().inner();
+        let dst_id = writer.dst().inner();
+        let edge_id = writer.eid().inner();
+
         let props_for_wal = props_with_status
             .iter()
             .map(|maybe_new| {
@@ -253,10 +248,6 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
                 (prop_name.as_ref(), *prop_id, prop.clone())
             })
             .collect::<Vec<_>>();
-
-        let src_id = writer.src().inner();
-        let dst_id = writer.dst().inner();
-        let edge_id = writer.eid().inner();
 
         // NOTE: We log edge id after it is inserted into the edge segment.
         // This is fine as long as we hold onto the edge segment lock through writer
@@ -351,8 +342,8 @@ fn add_node_impl<
 
     let node_gid = node_ref.as_gid_ref();
     let ti = time_from_input_session(&session, t)?;
-
     let mut writer = graph.atomic_add_node(node_ref).map_err(into_graph_err)?;
+
     let node_type_id = match node_type {
         None => DEFAULT_NODE_TYPE_ID,
         Some(node_type) => {
@@ -368,7 +359,7 @@ fn add_node_impl<
                 graph
                     .node_meta()
                     .get_node_type_id(node_type)
-                    .filter(|&node_type| writer.get_type() == node_type)
+                    .filter(|&node_type_id| writer.get_type() == node_type_id)
                     .ok_or(MutationError::NodeTypeError)?
             }
         }
@@ -418,7 +409,6 @@ fn add_node_impl<
 
     // Update node segment with the lsn of the wal entry.
     writer.set_lsn(lsn);
-
     transaction_manager.end_transaction(transaction_id);
 
     // Segment lock can be released before flush to allow

@@ -52,30 +52,6 @@ impl<
         }
     }
 
-    pub fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.graph.nodes().resolve_pos(vid.into()).1;
-
-            self.node_writers().get_mut_src().update_c_props(
-                pos,
-                STATIC_GRAPH_LAYER_ID,
-                [(NODE_ID_IDX, id.into())],
-            );
-        }
-    }
-
-    pub fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.graph.nodes().resolve_pos(vid.into()).1;
-
-            self.node_writers().get_mut_dst().update_c_props(
-                pos,
-                STATIC_GRAPH_LAYER_ID,
-                [(NODE_ID_IDX, id.into())],
-            );
-        }
-    }
-
     pub fn add_edge_into_layer<T: AsTime>(
         &mut self,
         t: T,

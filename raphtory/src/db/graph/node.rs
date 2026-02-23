@@ -40,7 +40,7 @@ use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
     mutation::{addition_ops::{InternalAdditionOps, NodeWriteLock},
-    durability_ops::DurabilityOps},
+    durability_ops::DurabilityOps, MutationError},
 };
 use std::{
     fmt,
@@ -430,14 +430,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
         let props = props_with_status
             .iter()
             .map(|maybe_new| {
@@ -458,6 +450,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 .map_err(into_graph_err)?
         };
 
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
         let lsn = wal
             .log_add_node_metadata(transaction_id, vid, props_for_wal)
             .map_err(into_graph_err)?;
@@ -474,18 +474,52 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        let new_type = self
+        let transaction_manager = self
+            .graph
+            .core_graph()
+            .transaction_manager()
+            .map_err(into_graph_err)?;
+        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let vid = self.node;
+
+        let mut writer = self
+            .graph
+            .atomic_add_node(NodeRef::Internal(vid))
+            .map_err(into_graph_err)?;
+
+        if !writer.can_set_type() {
+            // Ignore if the new type is the same as the existing type, else return an error.
+            self.graph
+                .node_meta()
+                .get_node_type_id(new_type)
+                .filter(|&new_type_id| writer.get_type() == new_type_id)
+                .ok_or(MutationError::NodeTypeError)?;
+        }
+
+        let new_type_id = self
             .graph
             .node_meta()
             .get_or_create_node_type_id(new_type)
             .inner();
 
-        let mut writer = self
-            .graph
-            .atomic_add_node(NodeRef::Internal(self.node))
-            .map_err(into_graph_err)?;
+        writer.set_type(new_type_id);
 
-        writer.set_type(new_type);
+        let lsn = wal.log_set_node_type(
+            transaction_id,
+            vid,
+            new_type,
+            new_type_id,
+        )
+        .map_err(into_graph_err)?;
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
 
         Ok(())
     }

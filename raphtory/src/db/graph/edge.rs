@@ -33,7 +33,7 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
 use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef};
@@ -366,14 +366,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
         let props = props_with_status
             .iter()
             .map(|maybe_new| {
@@ -393,6 +385,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
                 .internal_add_edge_metadata(eid, input_layer_id, props)
                 .map_err(into_graph_err)?
         };
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
 
         let lsn = wal.log_add_edge_metadata(transaction_id, eid, input_layer_id, props_for_wal)?;
 
