@@ -122,9 +122,7 @@ impl GraphQLRemoteGraph {
         };
 
         let query = build_query(template, ctx)?;
-        let res = self.client
-            .query(&query, HashMap::new())
-            .await?;
+        let res = self.client.query(&query, HashMap::new()).await?;
         if res
             .get("updateGraph")
             .and_then(|x| x.as_object())
@@ -134,7 +132,11 @@ impl GraphQLRemoteGraph {
             .and_then(|x| x.as_bool())
             .is_some_and(|x| x == true)
         {
-            Ok(GraphQLRemoteNode::new(self.path.clone(), self.client.clone(), id.to_string()))
+            Ok(GraphQLRemoteNode::new(
+                self.path.clone(),
+                self.client.clone(),
+                id.to_string(),
+            ))
         } else {
             Err(ClientError::UnsuccessfulResponse)
         }
