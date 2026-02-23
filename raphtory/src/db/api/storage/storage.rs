@@ -4,7 +4,7 @@ use crate::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
         Base, InheritViewOps,
     },
-    errors::GraphError,
+    errors::{into_graph_err, GraphError},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -24,7 +24,7 @@ use raphtory_storage::{
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-        addition_ops_ext::{AtomicAddEdge, UnlockedSession},
+        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         deletion_ops::InternalDeletionOps,
         durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
@@ -37,8 +37,6 @@ use std::{
     sync::Arc,
 };
 use storage::wal::{GraphWalOps, WalOps, LSN};
-use crate::{errors::into_graph_err};
-use raphtory_storage::mutation::addition_ops_ext::AtomicAddNode;
 
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};

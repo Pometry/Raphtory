@@ -22,8 +22,7 @@ use std::sync::Arc;
 use storage::{
     error::StorageError,
     pages::{
-        edge_page::writer::EdgeWriter,
-        graph_prop_page::writer::GraphPropWriter,
+        edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
         node_page::writer::NodeWriter,
     },
     resolver::mapping_resolver::InvalidNodeId,

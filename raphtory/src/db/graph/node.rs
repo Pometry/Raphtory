@@ -39,8 +39,11 @@ use raphtory_api::core::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
-    mutation::{addition_ops::{InternalAdditionOps, NodeWriteLock},
-    durability_ops::DurabilityOps, MutationError},
+    mutation::{
+        addition_ops::{InternalAdditionOps, NodeWriteLock},
+        durability_ops::DurabilityOps,
+        MutationError,
+    },
 };
 use std::{
     fmt,
@@ -505,13 +508,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
         writer.set_type(new_type_id);
 
-        let lsn = wal.log_set_node_type(
-            transaction_id,
-            vid,
-            new_type,
-            new_type_id,
-        )
-        .map_err(into_graph_err)?;
+        let lsn = wal
+            .log_set_node_type(transaction_id, vid, new_type, new_type_id)
+            .map_err(into_graph_err)?;
 
         writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);

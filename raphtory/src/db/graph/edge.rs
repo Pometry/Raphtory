@@ -443,7 +443,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         let mut writer = self
             .graph
-            .atomic_add_edge(NodeRef::Internal(src), NodeRef::Internal(dst), Some(edge_id))
+            .atomic_add_edge(
+                NodeRef::Internal(src),
+                NodeRef::Internal(dst),
+                Some(edge_id),
+            )
             .map_err(into_graph_err)?;
 
         let props_for_wal = props_with_status
@@ -454,7 +458,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             })
             .collect::<Vec<_>>();
 
-       let lsn = wal
+        let lsn = wal
             .log_add_edge(
                 transaction_id,
                 t,
