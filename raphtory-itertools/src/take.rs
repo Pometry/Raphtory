@@ -140,12 +140,3 @@ where
 impl<I> ExactSizeIterator for ReTake<I> where I: ExactSizeIterator {}
 
 impl<I> FusedIterator for ReTake<I> where I: FusedIterator {}
-
-trait SpecTake: Iterator {
-    fn spec_fold<B, F>(self, init: B, f: F) -> B
-    where
-        Self: Sized,
-        F: FnMut(B, Self::Item) -> B;
-
-    fn spec_for_each<F: FnMut(Self::Item)>(self, f: F);
-}
