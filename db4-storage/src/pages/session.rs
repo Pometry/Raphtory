@@ -144,6 +144,7 @@ impl<
                 self.node_writers
                     .get_mut_src()
                     .add_outbound_edge(Some(t), src_pos, dst, edge_id);
+
                 self.node_writers
                     .get_mut_dst()
                     .add_inbound_edge(Some(t), dst_pos, src, edge_id);
@@ -152,6 +153,7 @@ impl<
             self.node_writers
                 .get_mut_src()
                 .update_deletion_time(t, src_pos, e_id);
+
             self.node_writers
                 .get_mut_dst()
                 .update_deletion_time(t, dst_pos, e_id);

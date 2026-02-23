@@ -102,6 +102,19 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
+    fn log_delete_edge(
+        &self,
+        transaction_id: TransactionID,
+        t: EventTime,
+        src_name: Option<GidRef<'_>>,
+        src_id: VID,
+        dst_name: Option<GidRef<'_>>,
+        dst_id: VID,
+        eid: EID,
+        layer_name: Option<&str>,
+        layer_id: usize,
+    ) -> Result<LSN, StorageError>;
+
     fn log_add_node(
         &self,
         transaction_id: TransactionID,
@@ -176,6 +189,20 @@ pub trait GraphReplay {
         eid: EID,
         layer_id: usize,
         props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError>;
+
+    fn replay_delete_edge(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        t: EventTime,
+        src_name: Option<GID>,
+        src_id: VID,
+        dst_name: Option<GID>,
+        dst_id: VID,
+        eid: EID,
+        layer_name: Option<String>,
+        layer_id: usize,
     ) -> Result<(), StorageError>;
 
     fn replay_add_node(

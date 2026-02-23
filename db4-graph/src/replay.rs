@@ -289,6 +289,106 @@ where
         Ok(())
     }
 
+    fn replay_delete_edge(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        t: EventTime,
+        _src_name: Option<GID>,
+        src_id: VID,
+        _dst_name: Option<GID>,
+        dst_id: VID,
+        eid: EID,
+        layer_name: Option<String>,
+        layer_id: usize,
+    ) -> Result<(), StorageError> {
+        let edge_meta = self.graph().edge_meta();
+        let node_meta = self.graph().node_meta();
+
+        edge_meta
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+        node_meta
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+
+        // Edge segment: delete the edge at (t, layer_id).
+        let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
+        self.resize_segments_to_eid(eid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .edges()
+            .get_or_create_segment(edge_segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Edge segment {edge_segment_id} not found during replay_delete_edge"
+                ))
+            })?;
+
+            let mut edge_writer = edge_writer.writer();
+            edge_writer.delete_edge(t, edge_pos, src_id, dst_id, layer_id);
+            edge_writer.set_lsn(lsn);
+        }
+
+        // Src node segment: record deletion time.
+        let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
+        self.resize_segments_to_vid(src_id);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(src_segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let src_writer = self.nodes.get_mut(src_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {src_segment_id} not found during replay_delete_edge"
+                ))
+            })?;
+
+            let mut src_writer = src_writer.writer();
+
+            src_writer.update_deletion_time(t, src_pos, eid.with_layer(layer_id));
+            src_writer.set_lsn(lsn);
+        }
+
+        // Dst node segment: record deletion time.
+        let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
+        self.resize_segments_to_vid(dst_id);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(dst_segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let dst_writer = self.nodes.get_mut(dst_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {dst_segment_id} not found during replay_delete_edge"
+                ))
+            })?;
+
+            let mut dst_writer = dst_writer.writer();
+
+            dst_writer.update_deletion_time(t, dst_pos, eid.with_layer(layer_id));
+            dst_writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
     fn replay_add_node(
         &mut self,
         lsn: LSN,

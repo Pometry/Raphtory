@@ -72,9 +72,11 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         let existing_edge = self
             .page
             .contains_edge(edge_pos, layer_id, self.writer.deref());
+
         if !existing_edge {
             self.increment_layer_num_edges(layer_id);
         }
+
         self.graph_stats.update_time(t.t());
         self.writer
             .delete_edge_internal(t, edge_pos, src, dst, layer_id);

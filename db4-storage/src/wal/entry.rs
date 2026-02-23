@@ -38,6 +38,21 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn log_delete_edge(
+        &self,
+        _transaction_id: TransactionID,
+        _t: EventTime,
+        _src_name: Option<GidRef<'_>>,
+        _src_id: VID,
+        _dst_name: Option<GidRef<'_>>,
+        _dst_id: VID,
+        _eid: EID,
+        _layer_name: Option<&str>,
+        _layer_id: usize,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
     fn log_add_node(
         &self,
         _transaction_id: TransactionID,
