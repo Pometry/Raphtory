@@ -6,8 +6,7 @@ use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     mutation::{
-        addition_ops::{InternalAdditionOps},
-        durability_ops::DurabilityOps,
+        addition_ops::InternalAdditionOps, durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };
@@ -27,17 +26,15 @@ pub trait PropertyAdditionOps:
         props: PII,
     ) -> Result<(), GraphError>;
 
-    fn add_metadata<
-        PN: AsRef<str>,
-        P: Into<Prop>,
-        PII: IntoIterator<Item = (PN, P)>,
-    >(&self, props: PII) -> Result<(), GraphError>;
+    fn add_metadata<PN: AsRef<str>, P: Into<Prop>, PII: IntoIterator<Item = (PN, P)>>(
+        &self,
+        props: PII,
+    ) -> Result<(), GraphError>;
 
-    fn update_metadata<
-        PN: AsRef<str>,
-        P: Into<Prop>,
-        PII: IntoIterator<Item = (PN, P)>,
-    >(&self, props: PII) -> Result<(), GraphError>;
+    fn update_metadata<PN: AsRef<str>, P: Into<Prop>, PII: IntoIterator<Item = (PN, P)>>(
+        &self,
+        props: PII,
+    ) -> Result<(), GraphError>;
 }
 
 impl<
@@ -105,20 +102,18 @@ impl<
         Ok(())
     }
 
-    fn add_metadata<
-        PN: AsRef<str>,
-        P: Into<Prop>,
-        PII: IntoIterator<Item = (PN, P)>,
-    >(&self, props: PII) -> Result<(), GraphError> {
+    fn add_metadata<PN: AsRef<str>, P: Into<Prop>, PII: IntoIterator<Item = (PN, P)>>(
+        &self,
+        props: PII,
+    ) -> Result<(), GraphError> {
         let is_update = false;
         add_metadata_impl(self, props, is_update)
     }
 
-    fn update_metadata<
-        PN: AsRef<str>,
-        P: Into<Prop>,
-        PII: IntoIterator<Item = (PN, P)>,
-    >(&self, props: PII) -> Result<(), GraphError> {
+    fn update_metadata<PN: AsRef<str>, P: Into<Prop>, PII: IntoIterator<Item = (PN, P)>>(
+        &self,
+        props: PII,
+    ) -> Result<(), GraphError> {
         let is_update = true;
         add_metadata_impl(self, props, is_update)
     }
@@ -158,9 +153,13 @@ where
         .collect::<Vec<_>>();
 
     let mut writer = if is_update {
-        graph.internal_update_metadata(&props).map_err(into_graph_err)?
+        graph
+            .internal_update_metadata(&props)
+            .map_err(into_graph_err)?
     } else {
-        graph.internal_add_metadata(&props).map_err(into_graph_err)?
+        graph
+            .internal_add_metadata(&props)
+            .map_err(into_graph_err)?
     };
 
     let props_for_wal = props_with_status

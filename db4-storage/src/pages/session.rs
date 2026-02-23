@@ -9,14 +9,11 @@ use crate::{
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{
-        meta::{NODE_ID_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::Prop,
-    },
+    entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::{EID, ELID, GidRef, VID},
+    entities::{EID, ELID, VID},
     storage::timeindex::AsTime,
 };
 

@@ -51,4 +51,3 @@ pub fn time_from_input_session<
         }
     })
 }
-

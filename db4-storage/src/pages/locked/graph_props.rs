@@ -1,6 +1,5 @@
 use crate::{
-    api::graph_props::GraphPropSegmentOps,
-    segments::graph_prop::segment::MemGraphPropSegment,
+    api::graph_props::GraphPropSegmentOps, segments::graph_prop::segment::MemGraphPropSegment,
     wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
