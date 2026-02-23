@@ -289,6 +289,93 @@ where
         Ok(())
     }
 
+    fn replay_add_node(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        t: EventTime,
+        node_name: Option<GID>,
+        node_id: VID,
+        node_type_and_id: Option<(String, usize)>,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        // Insert node id into resolver.
+        if let Some(ref name) = node_name {
+            self.graph()
+                .logical_to_physical
+                .set(name.as_ref(), node_id)?;
+        }
+
+        // Resolve segment and check LSN.
+        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
+        self.resize_segments_to_vid(node_id);
+
+        let segment = self
+            .graph()
+            .storage()
+            .nodes()
+            .get_or_create_segment(segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        // Replay this entry only if it doesn't exist in immut.
+        if immut_lsn < lsn {
+            let node_meta = self.graph().node_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = node_meta.temporal_prop_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
+            }
+
+            // Set node type metadata early to prevent issues with borrowing node_writer.
+            if let Some((ref node_type, node_type_id)) = node_type_and_id {
+                node_meta
+                    .node_type_meta()
+                    .set_id(node_type.as_str(), node_type_id);
+            }
+
+            let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {segment_id} not found during replay_add_node"
+                ))
+            })?;
+
+            let mut node_writer = node_writer.writer();
+
+            if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
+                node_writer.increment_seg_num_nodes();
+            }
+
+            if let Some(name) = node_name {
+                node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
+            }
+
+            if let Some((_, node_type_id)) = node_type_and_id {
+                node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
+            }
+
+            // Add the node with its timestamp and props.
+            node_writer.add_props(
+                t,
+                pos,
+                STATIC_GRAPH_LAYER_ID,
+                props
+                    .into_iter()
+                    .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
+            );
+
+            node_writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
+
     fn replay_add_node_metadata(
         &mut self,
         lsn: LSN,
@@ -380,68 +467,19 @@ where
 
     fn replay_add_graph_props(
         &mut self,
-        _lsn: LSN,
-        _transaction_id: TransactionID,
-        t: EventTime,
-        props: Vec<(String, usize, Prop)>,
-    ) -> Result<(), StorageError> {
-        let graph_props_meta = self.graph().graph_props_meta();
-
-        for (prop_name, prop_id, prop_value) in &props {
-            let prop_mapper = graph_props_meta.temporal_prop_mapper();
-            let mut write_locked_mapper = prop_mapper.write_locked();
-
-            write_locked_mapper.set_or_unify_id_and_dtype(
-                prop_name.as_ref(),
-                *prop_id,
-                prop_value.dtype(),
-            )?;
-        }
-
-        let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
-
-        if let Some(writer) = self.graph_props.writer() {
-            writer.add_properties(t, props);
-        }
-
-        Ok(())
-    }
-
-    fn replay_add_node(
-        &mut self,
         lsn: LSN,
         _transaction_id: TransactionID,
         t: EventTime,
-        node_name: Option<GID>,
-        node_id: VID,
-        node_type_and_id: Option<(String, usize)>,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
-        // Insert node id into resolver.
-        if let Some(ref name) = node_name {
-            self.graph()
-                .logical_to_physical
-                .set(name.as_ref(), node_id)?;
-        }
-
-        // Resolve segment and check LSN.
-        let (segment_id, pos) = self.graph().storage().nodes().resolve_pos(node_id);
-        self.resize_segments_to_vid(node_id);
-
-        let segment = self
-            .graph()
-            .storage()
-            .nodes()
-            .get_or_create_segment(segment_id);
-
+        let segment = self.graph().storage().graph_props().segment();
         let immut_lsn = segment.immut_lsn();
 
-        // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
-            let node_meta = self.graph().node_meta();
+            let graph_props_meta = self.graph().graph_props_meta();
 
             for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = node_meta.temporal_prop_mapper();
+                let prop_mapper = graph_props_meta.temporal_prop_mapper();
                 let mut write_locked_mapper = prop_mapper.write_locked();
 
                 write_locked_mapper.set_or_unify_id_and_dtype(
@@ -451,44 +489,11 @@ where
                 )?;
             }
 
-            // Set node type metadata early to prevent issues with borrowing node_writer.
-            if let Some((ref node_type, node_type_id)) = node_type_and_id {
-                node_meta
-                    .node_type_meta()
-                    .set_id(node_type.as_str(), node_type_id);
-            }
+            let writer = self.graph_props.writer();
+            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
 
-            let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
-                StorageError::GenericFailure(format!(
-                    "Node segment {segment_id} not found during replay_add_node"
-                ))
-            })?;
-
-            let mut node_writer = node_writer.writer();
-
-            if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
-                node_writer.increment_seg_num_nodes();
-            }
-
-            if let Some(name) = node_name {
-                node_writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, name);
-            }
-
-            if let Some((_, node_type_id)) = node_type_and_id {
-                node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
-            }
-
-            // Add the node with its timestamp and props.
-            node_writer.add_props(
-                t,
-                pos,
-                STATIC_GRAPH_LAYER_ID,
-                props
-                    .into_iter()
-                    .map(|(_, prop_id, prop_value)| (prop_id, prop_value)),
-            );
-
-            node_writer.set_lsn(lsn);
+            writer.add_properties(t, props);
+            writer.set_lsn(lsn);
         }
 
         Ok(())

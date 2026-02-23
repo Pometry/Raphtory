@@ -1,5 +1,7 @@
 use crate::{
-    api::graph_props::GraphPropSegmentOps, segments::graph_prop::segment::MemGraphPropSegment,
+    api::graph_props::GraphPropSegmentOps,
+    segments::graph_prop::segment::MemGraphPropSegment,
+    wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::properties::prop::Prop;
@@ -42,6 +44,10 @@ impl<'a, GS: GraphPropSegmentOps> LockedGraphPropPage<'a, GS> {
 
         self.page.increment_est_size(add);
         self.page.set_dirty(true);
+    }
+
+    pub fn set_lsn(&mut self, lsn: LSN) {
+        self.lock.set_lsn(lsn);
     }
 }
 

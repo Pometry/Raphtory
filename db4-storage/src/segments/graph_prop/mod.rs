@@ -6,6 +6,7 @@ use crate::{
     error::StorageError,
     persist::strategy::PersistenceStrategy,
     segments::graph_prop::{entry::MemGraphPropEntry, segment::MemGraphPropSegment},
+    wal::LSN,
 };
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::meta::Meta;
@@ -81,6 +82,10 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
 
     fn set_dirty(&self, dirty: bool) {
         self.is_dirty.store(dirty, Ordering::Release);
+    }
+
+    fn immut_lsn(&self) -> LSN {
+        self.head.read().lsn()
     }
 
     fn notify_write(
