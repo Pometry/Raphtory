@@ -33,7 +33,10 @@ pub const N: usize = 32;
 pub struct NodeStorageInner<NS, EXT> {
     segments: boxcar::Vec<Arc<NS>>,
     stats: Arc<GraphStats>,
+
+    /// Contains ids of segments that can accomodate new nodes.
     free_segments: Box<[RwLock<usize>; N]>,
+
     nodes_path: Option<PathBuf>,
     node_meta: Arc<Meta>,
     edge_meta: Arc<Meta>,
@@ -281,59 +284,47 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
     }
 
-    /// Reserves space in a segment and returns a locked writer for that segment.
-    ///
-    /// This method implements a lock-free reservation strategy with lazy segment allocation:
-    ///
-    /// **What it does:**
-    /// 1. Uses the `row` parameter to determine a starting slot in the `free_segments` array (via modulo N)
-    /// 2. Attempts to acquire a write lock on the segment at that slot
-    /// 3. If successful, tries to atomically reserve `required_space` rows in that segment
-    /// 4. If the segment is full or locked, tries the next slot (round-robin fashion)
-    /// 5. When a segment becomes full, creates a new segment and updates the slot atomically
-    /// 6. Returns both the reserved position and a locked writer for immediate use
-    ///
-    /// **Why it works this way:**
-    /// - **Lock-free fast path**: Uses `try_writer` to avoid blocking on contended segments
-    /// - **Load distribution**: The `row % N` ensures different threads naturally distribute across slots
-    /// - **Atomic reservation**: `reserve_segment_rows` uses atomic compare-and-swap to reserve space
-    ///   without holding locks during the reservation attempt
-    /// - **Double-check locking**: When creating a new segment, re-checks if another thread already
-    ///   created one (via `if *slot == page_id`) to avoid unnecessary allocations
-    /// - **Keeps writer locked**: Returns the writer still locked so the caller can immediately write
-    ///   to the reserved space without risk of concurrent modification
-    /// - **Circular probing**: If a slot is contended or full, moves to the next slot rather than
-    ///   blocking, maximizing throughput in multi-threaded scenarios
-    ///
-    /// This design prioritizes:
-    /// - High concurrency: Multiple threads can reserve space simultaneously in different segments
-    /// - Low latency: Avoids blocking whenever possible by trying different segments
-    /// - Memory efficiency: Only creates new segments when actually needed
+    /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
+    /// Returns the reserved position and a locked writer for that segment.
     pub fn reserve_and_lock_segment(
         &self,
         row: usize,
-        required_space: u32,
+        num_rows: u32,
     ) -> (
         LocalPOS,
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
     ) {
         let mut slot_idx = row % N;
-        let mut page_id = *self.free_segments[slot_idx].read_recursive();
+        let mut segment_id = *self.free_segments[slot_idx].read_recursive();
+
+        // Iterate through `free_segments` until we can acquire a write lock on a free segment.
+        // With the write lock, try reserving `num_rows` in that segment.
+        // If unsuccessful, find another free segment and try again, creating a new one if needed.
         loop {
-            match self.try_writer(page_id) {
+            match self.try_writer(segment_id) {
                 None => {
+                    // The current segment is being written to, round-robin to the next slot.
                     slot_idx = (slot_idx + 1) % N;
-                    page_id = *self.free_segments[slot_idx].read_recursive();
+                    let slot = self.free_segments[slot_idx].read_recursive();
+                    segment_id = *slot;
                 }
                 Some(writer) => {
-                    match self.reserve_segment_rows(writer.page, required_space) {
+                    match self.reserve_segment_rows(writer.page, num_rows) {
                         None => {
-                            // segment is full, we need to create a new one
+                            // The current segment is full, drop its lock and try to find
+                            // another free segment.
+                            drop(writer);
+
                             let mut slot = self.free_segments[slot_idx].write();
-                            if *slot == page_id {
-                                // page_id is unchanged, no other thread created a new segment before we got the lock
-                                page_id = self.push_new_segment();
-                                *slot = page_id;
+
+                            // Check our slot to see if some other thread has pushed a new free segment.
+                            if *slot == segment_id {
+                                // The segment is still the same, so we need to create a new one.
+                                segment_id = self.push_new_segment();
+                                *slot = segment_id;
+                            } else {
+                                // There is another free segment in the slot, retry using it.
+                                segment_id = *slot;
                             }
                         }
                         Some(local_pos) => return (LocalPOS(local_pos), writer),
