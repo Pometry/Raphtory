@@ -53,6 +53,7 @@ impl<
         let wal = self.core_graph().wal()?;
         let transaction_id = transaction_manager.begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;
+        let t = time_from_input_session(&session, t)?;
 
         let props_with_status = self
             .validate_props_with_status(
@@ -60,6 +61,18 @@ impl<
                 self.graph_props_meta(),
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
+            .map_err(into_graph_err)?;
+
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let mut writer = self
+            .internal_add_properties(t, &props)
             .map_err(into_graph_err)?;
 
         let props_for_wal = props_with_status
@@ -70,18 +83,6 @@ impl<
             })
             .collect::<Vec<_>>();
 
-        let props = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.as_ref().inner();
-                (*prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
-
-        let t = time_from_input_session(&session, t)?;
-        let mut writer = self
-            .internal_add_properties(t, &props)
-            .map_err(into_graph_err)?;
         let lsn = wal
             .log_add_graph_props(transaction_id, t, props_for_wal)
             .map_err(into_graph_err)?;
