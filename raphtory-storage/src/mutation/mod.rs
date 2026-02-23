@@ -12,7 +12,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_core::entities::{
-    graph::{logical_to_physical::InvalidNodeId, tgraph::TooManyLayers},
+    graph::tgraph::TooManyLayers,
     properties::{
         props::{MetadataError, TPropError},
         tprop::IllegalPropType,
@@ -22,9 +22,11 @@ use std::sync::Arc;
 use storage::{
     error::StorageError,
     pages::{
-        edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
+        edge_page::writer::EdgeWriter,
+        graph_prop_page::writer::GraphPropWriter,
         node_page::writer::NodeWriter,
     },
+    resolver::mapping_resolver::InvalidNodeId,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     Extension, ES, GS, NS,
 };

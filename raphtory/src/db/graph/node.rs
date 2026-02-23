@@ -29,14 +29,21 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::PropType, ELID},
+    entities::{
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
+        ELID,
+    },
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
+<<<<<<< HEAD
     mutation::{addition_ops::InternalAdditionOps, durability_ops::DurabilityOps},
+=======
+    mutation::addition_ops::{InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+>>>>>>> 8f54d886f40e1a4592707848026fa0cd9ba1b5ea
 };
 use std::{
     fmt,
@@ -470,10 +477,25 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
+<<<<<<< HEAD
         // FIXME: Add wal logging here.
         self.graph
             .resolve_and_update_node_and_type(NodeRef::Internal(self.node), Some(new_type))
             .map_err(into_graph_err)?;
+=======
+        let new_type = self
+            .graph
+            .node_meta()
+            .get_or_create_node_type_id(new_type)
+            .inner();
+        let mut writer = self
+            .graph
+            .atomic_add_node(NodeRef::Internal(self.node))
+            .map_err(into_graph_err)?;
+        writer.set_type(new_type);
+        Ok(())
+    }
+>>>>>>> 8f54d886f40e1a4592707848026fa0cd9ba1b5ea
 
         Ok(())
     }
@@ -524,6 +546,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
 
         let t = time_from_input_session(&session, time)?;
         let vid = self.node;
+<<<<<<< HEAD
 
         let mut writer = self
             .graph
@@ -542,6 +565,12 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             return Err(GraphError::FatalWriteError(e));
         }
 
+=======
+        self.graph
+            .atomic_add_node(NodeRef::Internal(vid))
+            .map_err(into_graph_err)?
+            .internal_add_update(t, STATIC_GRAPH_LAYER_ID, props);
+>>>>>>> 8f54d886f40e1a4592707848026fa0cd9ba1b5ea
         Ok(())
     }
 }

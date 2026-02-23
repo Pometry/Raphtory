@@ -319,6 +319,7 @@ pub struct EdgeSegmentView<EXT> {
 #[derive(Debug)]
 pub struct ArcLockedSegmentView {
     inner: ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>,
+    num_edges: u32,
 }
 
 impl ArcLockedSegmentView {
@@ -387,6 +388,10 @@ impl LockedESegment for ArcLockedSegmentView {
                     .filter(|pos| pos.has_layers(multiple)),
             ),
         }
+    }
+
+    fn num_edges(&self) -> u32 {
+        self.num_edges
     }
 }
 
@@ -510,6 +515,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn locked(self: &Arc<Self>) -> Self::ArcLockedSegment {
         ArcLockedSegmentView {
             inner: self.head_arc(),
+            num_edges: self.num_edges(),
         }
     }
 

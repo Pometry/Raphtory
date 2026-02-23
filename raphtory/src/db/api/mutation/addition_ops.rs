@@ -10,13 +10,19 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{
-    entities::properties::{meta::DEFAULT_NODE_TYPE_ID, prop::Prop},
+    entities::properties::{
+        meta::{DEFAULT_NODE_TYPE_ID, STATIC_GRAPH_LAYER_ID},
+        prop::Prop,
+    },
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps},
-    durability_ops::DurabilityOps,
-    MutationError,
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
+        durability_ops::DurabilityOps,
+        MutationError,
+    },
 };
 use storage::wal::{GraphWalOps, WalOps};
 
@@ -210,7 +216,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         self.validate_gids(
             [src, dst]
                 .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
         )
         .map_err(into_graph_err)?;
 
@@ -231,31 +237,30 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             .collect::<Vec<_>>();
 
         let ti = time_from_input_session(&session, t)?;
-        let src_gid = src.as_gid_ref().left();
-        let dst_gid = dst.as_gid_ref().left();
+        let src_gid = src.as_gid_ref();
+        let dst_gid = dst.as_gid_ref();
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
-        // FIXME: We are logging node -> node id mappings AFTER they are inserted into the
-        // resolver. Make sure resolver mapping CANNOT get to disk before Wal.
-        let src_id = self.resolve_node(src).map_err(into_graph_err)?;
-        let dst_id = self.resolve_node(dst).map_err(into_graph_err)?;
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
-
-        let src_id = src_id.inner();
-        let dst_id = dst_id.inner();
-        let layer_id = layer_id.inner();
-
-        // Hold all locks for src node, dst node and edge until add_edge_op goes out of scope.
-        let mut writers = self
-            .atomic_add_edge(src_id, dst_id, None, layer_id)
+        // Hold all locks for src node, dst node and edge until writer goes out of scope.
+        let mut writer = self
+            .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
 
-        // NOTE: We log edge id after it is inserted into the edge segment.
-        // This is fine as long as we hold onto the edge segment lock through add_edge_op
-        // for the entire operation.
-        let edge_id = writers.internal_add_static_edge(src_id, dst_id);
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
 
-        // All names, ids and values have been generated for this operation.
-        // Create a wal entry to mark it as durable.
+        let src_id = writer.src().inner();
+        let dst_id = writer.dst().inner();
+        let edge_id = writer.eid().inner();
+
+        // NOTE: We log edge id after it is inserted into the edge segment.
+        // This is fine as long as we hold onto the edge segment lock through writer
+        // for the entire operation.
         let lsn = wal.log_add_edge(
             transaction_id,
             ti,
@@ -263,7 +268,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             src_id,
             dst_gid,
             dst_id,
-            edge_id.inner(),
+            edge_id,
             layer,
             layer_id,
             props_for_wal,
@@ -277,16 +282,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             })
             .collect::<Vec<_>>();
 
-        let edge_id = writers.internal_add_edge(
-            ti,
-            src_id,
-            dst_id,
-            edge_id.map(|eid| eid.with_layer(layer_id)),
-            props,
-        );
-
-        writers.store_src_node_info(src_id, src_gid);
-        writers.store_dst_node_info(dst_id, dst_gid);
+        writer.internal_add_update(ti, layer_id, props);
 
         // Update the src, dst and edge segments with the lsn of the wal entry.
         writers.set_lsn(lsn);
@@ -305,7 +301,7 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
 
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(edge_id.inner().edge, src_id, dst_id).at_layer(layer_id),
+            EdgeRef::new_outgoing(edge_id, src_id, dst_id).at_layer(layer_id),
         ))
     }
 
@@ -341,7 +337,7 @@ fn add_node_impl<
         .validate_gids(
             [node_ref]
                 .iter()
-                .filter_map(|node_ref| node_ref.as_gid_ref().left()),
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
         )
         .map_err(into_graph_err)?;
 
@@ -353,19 +349,36 @@ fn add_node_impl<
         )
         .map_err(into_graph_err)?;
 
-    let node_gid = node_ref.as_gid_ref().left();
+    let node_gid = node_ref.as_gid_ref();
     let ti = time_from_input_session(&session, t)?;
 
-    let (node_id, node_type_id) = graph
-        .resolve_and_update_node_and_type(node_ref, node_type)
-        .map_err(into_graph_err)?
-        .inner();
+    let mut writer = graph.atomic_add_node(node_ref).map_err(into_graph_err)?;
+    let node_type_id = match node_type {
+        None => DEFAULT_NODE_TYPE_ID,
+        Some(node_type) => {
+            if writer.can_set_type() {
+                let node_type_id = graph
+                    .node_meta()
+                    .get_or_create_node_type_id(node_type)
+                    .inner();
+                writer.set_type(node_type_id);
+                node_type_id
+            } else {
+                // this can only happen for an existing node so no modification of the graph occurred
+                graph
+                    .node_meta()
+                    .get_node_type_id(node_type)
+                    .filter(|&node_type| writer.get_type() == node_type)
+                    .ok_or(MutationError::NodeTypeError)?
+            }
+        }
+    };
 
-    let is_new = node_id.is_new();
-    let node_id = node_id.inner();
-    let node_type_id = node_type_id.inner();
+    let is_new = writer.node().is_new();
+    let node_id = writer.node().inner();
 
     if error_if_exists && !is_new {
+        drop(writer);
         let node_id = graph.node(node_id).unwrap().id();
         return Err(GraphError::NodeExistsError(node_id));
     }
@@ -383,9 +396,7 @@ fn add_node_impl<
         })
         .collect::<Vec<_>>();
 
-    let mut writer = graph
-        .internal_add_node(ti, node_id, props)
-        .map_err(into_graph_err)?;
+    writer.internal_add_update(ti, STATIC_GRAPH_LAYER_ID, props);
 
     let props_for_wal = props_with_status
         .iter()

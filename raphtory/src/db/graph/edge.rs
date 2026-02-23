@@ -36,7 +36,7 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
-use raphtory_core::entities::graph::tgraph::InvalidLayer;
+use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef};
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
@@ -435,6 +435,17 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             )
             .map_err(into_graph_err)?;
 
+        let src = self.src().node;
+        let src_name = None;
+        let dst = self.dst().node;
+        let dst_name = None;
+        let edge_id = self.edge.pid();
+
+        let mut writer = self
+            .graph
+            .atomic_add_edge(NodeRef::Internal(src), NodeRef::Internal(dst), Some(edge_id))
+            .map_err(into_graph_err)?;
+
         let props_for_wal = props_with_status
             .iter()
             .map(|maybe_new| {
@@ -443,18 +454,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             })
             .collect::<Vec<_>>();
 
-        let src = self.src().node;
-        let src_name = None;
-        let dst = self.dst().node;
-        let dst_name = None;
-        let edge_id = self.edge.pid();
-
-        let mut writers = self
-            .graph
-            .atomic_add_edge(src, dst, Some(edge_id), layer_id)
-            .map_err(into_graph_err)?;
-
-        let lsn = wal
+       let lsn = wal
             .log_add_edge(
                 transaction_id,
                 t,
@@ -469,25 +469,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             )
             .map_err(into_graph_err)?;
 
-        let props = props_with_status
-            .into_iter()
-            .map(|maybe_new| {
-                let (_, prop_id, prop) = maybe_new.inner();
-                (prop_id, prop)
-            })
-            .collect::<Vec<_>>();
+        writer.internal_add_update(t, layer_id, props);
 
-        writers.internal_add_edge(
-            t,
-            src,
-            dst,
-            MaybeNew::New(edge_id.with_layer(layer_id)),
-            props,
-        );
-
-        writers.set_lsn(lsn);
+        writer.set_lsn(lsn);
         transaction_manager.end_transaction(transaction_id);
-        drop(writers);
+        drop(writer);
 
         if let Err(e) = wal.flush(lsn) {
             return Err(GraphError::FatalWriteError(e));

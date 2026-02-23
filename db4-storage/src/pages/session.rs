@@ -20,7 +20,7 @@ use raphtory_core::{
     storage::timeindex::AsTime,
 };
 
-pub struct WriteSession<
+pub struct EdgeWriteSession<
     'a,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
@@ -38,7 +38,7 @@ impl<
     ES: EdgeSegmentOps<Extension = EXT>,
     GS: GraphPropSegmentOps<Extension = EXT>,
     EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-> WriteSession<'a, NS, ES, GS, EXT>
+> EdgeWriteSession<'a, NS, ES, GS, EXT>
 {
     pub fn new(
         node_writers: NodeWriters<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS>,
