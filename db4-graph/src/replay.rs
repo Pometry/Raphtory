@@ -67,7 +67,13 @@ where
 
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
-            let mut src_writer = self.nodes.get_mut(src_segment_id).unwrap().writer();
+            let src_writer = self.nodes.get_mut(src_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {src_segment_id} not found during replay_add_edge"
+                ))
+            })?;
+
+            let mut src_writer = src_writer.writer();
 
             // Increment the node counter for this segment if this is a new node.
             if !src_writer.has_node(src_pos, STATIC_GRAPH_LAYER_ID) {
@@ -115,7 +121,13 @@ where
 
         // Replay this entry only if it doesn't exist in immut.
         if immut_lsn < lsn {
-            let mut dst_writer = self.nodes.get_mut(dst_segment_id).unwrap().writer();
+            let dst_writer = self.nodes.get_mut(dst_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {dst_segment_id} not found during replay_add_edge"
+                ))
+            })?;
+
+            let mut dst_writer = dst_writer.writer();
 
             // Increment the node counter for this segment if this is a new node.
             if !dst_writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
@@ -184,7 +196,13 @@ where
                 .layer_meta()
                 .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
 
-            let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
+            let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Edge segment {edge_segment_id} not found during replay_add_edge"
+                ))
+            })?;
+
+            let mut edge_writer = edge_writer.writer();
 
             let is_new_edge_static = edge_writer
                 .get_edge(STATIC_GRAPH_LAYER_ID, edge_pos)
@@ -247,7 +265,13 @@ where
                 )?;
             }
 
-            let mut edge_writer = self.edges.get_mut(edge_segment_id).unwrap().writer();
+            let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Edge segment {edge_segment_id} not found during replay_add_edge_metadata"
+                ))
+            })?;
+
+            let mut edge_writer = edge_writer.writer();
 
             let (src, dst) = edge_writer.get_edge(layer_id, edge_pos).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
@@ -255,10 +279,10 @@ where
                 ))
             })?;
 
-            let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
+            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
 
             // No need to check metadata since the operation was logged after validation.
-            edge_writer.update_c_props(edge_pos, src, dst, layer_id, props_vec);
+            edge_writer.update_c_props(edge_pos, src, dst, layer_id, props);
             edge_writer.set_lsn(lsn);
         }
 
@@ -297,11 +321,17 @@ where
                 )?;
             }
 
-            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
-            let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
+            let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {segment_id} not found during replay_add_node_metadata"
+                ))
+            })?;
+
+            let mut node_writer = node_writer.writer();
+            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
 
             // No need to check metadata since the operation was logged after validation.
-            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props_vec);
+            node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
             node_writer.set_lsn(lsn);
         }
 
@@ -334,7 +364,12 @@ where
                 .node_type_meta()
                 .set_id(node_type.as_str(), node_type_id);
 
-            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
+            let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {segment_id} not found during replay_set_node_type"
+                ))
+            })?;
+            let mut node_writer = node_writer.writer();
 
             node_writer.store_node_type(pos, STATIC_GRAPH_LAYER_ID, node_type_id);
             node_writer.set_lsn(lsn);
@@ -351,6 +386,7 @@ where
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let graph_props_meta = self.graph().graph_props_meta();
+
         for (prop_name, prop_id, prop_value) in &props {
             let prop_mapper = graph_props_meta.temporal_prop_mapper();
             let mut write_locked_mapper = prop_mapper.write_locked();
@@ -362,9 +398,10 @@ where
             )?;
         }
 
-        let props_vec: Vec<_> = props.iter().map(|(_, id, p)| (*id, p.clone())).collect();
+        let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
+
         if let Some(writer) = self.graph_props.writer() {
-            writer.add_properties(t, props_vec);
+            writer.add_properties(t, props);
         }
 
         Ok(())
@@ -421,7 +458,13 @@ where
                     .set_id(node_type.as_str(), node_type_id);
             }
 
-            let mut node_writer = self.nodes.get_mut(segment_id).unwrap().writer();
+            let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Node segment {segment_id} not found during replay_add_node"
+                ))
+            })?;
+
+            let mut node_writer = node_writer.writer();
 
             if !node_writer.has_node(pos, STATIC_GRAPH_LAYER_ID) {
                 node_writer.increment_seg_num_nodes();
