@@ -1071,6 +1071,7 @@ dependencies = [
  "crc32fast",
  "criterion",
  "dashmap",
+ "db4-storage",
  "env_logger 0.10.2",
  "fastrand",
  "flate2",
@@ -1085,6 +1086,7 @@ dependencies = [
  "pyo3",
  "raphtory",
  "raphtory-api",
+ "raphtory-itertools",
  "raphtory-storage",
  "rayon",
  "regex",
@@ -4782,6 +4784,10 @@ dependencies = [
  "walkdir",
  "zip",
 ]
+
+[[package]]
+name = "raphtory-itertools"
+version = "0.17.0"
 
 [[package]]
 name = "raphtory-pymodule"
