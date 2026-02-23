@@ -285,13 +285,13 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         writer.internal_add_update(ti, layer_id, props);
 
         // Update the src, dst and edge segments with the lsn of the wal entry.
-        writers.set_lsn(lsn);
+        writer.set_lsn(lsn);
 
         transaction_manager.end_transaction(transaction_id);
 
         // Segment locks can be released before flush to allow
         // other operations to proceed.
-        drop(writers);
+        drop(writer);
 
         // Flush the wal entry to disk.
         // Any error here is fatal.

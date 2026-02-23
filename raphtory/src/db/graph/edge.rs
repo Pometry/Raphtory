@@ -469,6 +469,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             )
             .map_err(into_graph_err)?;
 
+        let props = props_with_status
+            .into_iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.inner();
+                (prop_id, prop)
+            })
+            .collect::<Vec<_>>();
+
         writer.internal_add_update(t, layer_id, props);
 
         writer.set_lsn(lsn);

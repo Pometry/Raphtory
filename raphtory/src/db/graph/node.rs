@@ -39,11 +39,8 @@ use raphtory_api::core::{
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::graph::GraphStorage,
-<<<<<<< HEAD
-    mutation::{addition_ops::InternalAdditionOps, durability_ops::DurabilityOps},
-=======
-    mutation::addition_ops::{InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
->>>>>>> 8f54d886f40e1a4592707848026fa0cd9ba1b5ea
+    mutation::{addition_ops::{InternalAdditionOps, NodeWriteLock},
+    durability_ops::DurabilityOps},
 };
 use std::{
     fmt,
@@ -477,25 +474,18 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-<<<<<<< HEAD
-        // FIXME: Add wal logging here.
-        self.graph
-            .resolve_and_update_node_and_type(NodeRef::Internal(self.node), Some(new_type))
-            .map_err(into_graph_err)?;
-=======
         let new_type = self
             .graph
             .node_meta()
             .get_or_create_node_type_id(new_type)
             .inner();
+
         let mut writer = self
             .graph
             .atomic_add_node(NodeRef::Internal(self.node))
             .map_err(into_graph_err)?;
+
         writer.set_type(new_type);
-        Ok(())
-    }
->>>>>>> 8f54d886f40e1a4592707848026fa0cd9ba1b5ea
 
         Ok(())
     }
@@ -528,13 +518,13 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             )
             .map_err(into_graph_err)?;
 
-        let props_for_wal = props_with_status
-            .iter()
-            .map(|maybe_new| {
-                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
-                (prop_name.as_ref(), *prop_id, prop.clone())
-            })
-            .collect::<Vec<_>>();
+        let t = time_from_input_session(&session, time)?;
+        let vid = self.node;
+
+        let mut writer = self
+            .graph
+            .atomic_add_node(NodeRef::Internal(vid))
+            .map_err(into_graph_err)?;
 
         let props = props_with_status
             .iter()
@@ -544,14 +534,15 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             })
             .collect::<Vec<_>>();
 
-        let t = time_from_input_session(&session, time)?;
-        let vid = self.node;
-<<<<<<< HEAD
+        writer.internal_add_update(t, STATIC_GRAPH_LAYER_ID, props);
 
-        let mut writer = self
-            .graph
-            .internal_add_node(t, vid, props)
-            .map_err(into_graph_err)?;
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
 
         let lsn = wal
             .log_add_node(transaction_id, t, None, vid, None, props_for_wal)
@@ -565,12 +556,6 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             return Err(GraphError::FatalWriteError(e));
         }
 
-=======
-        self.graph
-            .atomic_add_node(NodeRef::Internal(vid))
-            .map_err(into_graph_err)?
-            .internal_add_update(t, STATIC_GRAPH_LAYER_ID, props);
->>>>>>> 8f54d886f40e1a4592707848026fa0cd9ba1b5ea
         Ok(())
     }
 }
