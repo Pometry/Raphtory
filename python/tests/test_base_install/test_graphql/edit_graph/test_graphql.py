@@ -822,6 +822,44 @@ def test_graph_persistence_across_restarts():
             }
         }
 
+
+# tests for https://github.com/Pometry/Raphtory/issues/2487
+def test_float_is_stable_on_roundtrip():
+    tmp_work_dir = tempfile.mkdtemp()
+    float_examples = [
+        -1.5186248156922167e66,
+        -1.7177476606208664e199,
+        -1.048551606005279e71,
+    ]
+    prop_key = "p"
+
+    with GraphServer(tmp_work_dir).start(port=1738):
+        client = RaphtoryClient("http://localhost:1738")
+        client.new_graph(path="g", graph_type="EVENT")
+        remote_graph = client.remote_graph(path="g")
+
+        for i, num in enumerate(float_examples):
+            remote_graph.add_node(timestamp=i, id=i, properties={prop_key: num})
+            query = f"""
+                query {{
+                  graph(path: "g") {{
+                    node(name: "{i}") {{
+                      at(time: {i}) {{
+                        properties {{
+                          get(key: "p") {{
+                            value
+                          }}
+                        }}
+                      }}
+                    }}
+                  }}
+                }}
+            """
+            resp = client.query(query)
+            retrieved_float = resp["graph"]["node"]["at"]["properties"]["get"]["value"]
+            assert retrieved_float == num
+
+
 # def test_disk_graph_name():
 #     import pandas as pd
 #     from raphtory import DiskGraphStorage

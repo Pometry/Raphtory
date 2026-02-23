@@ -4500,6 +4500,7 @@ dependencies = [
  "async-graphql-poem",
  "base64 0.22.1",
  "base64-compat",
+ "bigdecimal",
  "chrono",
  "clap",
  "config",

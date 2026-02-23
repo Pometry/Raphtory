@@ -9193,6 +9193,33 @@ Object.
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.dtime">dtime</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Timezone-aware datetime.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.ndtime">ndtime</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Naive datetime (no timezone).
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="value.decimal">decimal</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
+
+</td>
+</tr>
 </tbody>
 </table>
 
