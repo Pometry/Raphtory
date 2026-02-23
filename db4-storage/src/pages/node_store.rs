@@ -335,10 +335,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 
     /// Reserves a single row in the given segment and returns the position if successful.
+    /// Returns `None` if the segment is full.
     pub fn reserve_segment_row(&self, segment: &NS) -> Option<u32> {
         self.reserve_segment_rows(segment, 1)
     }
 
+    /// Reserves `rows` in the given segment and returns the position if successful.
+    /// Returns `None` if the segment is full.
     fn reserve_segment_rows(&self, segment: &NS, rows: u32) -> Option<u32> {
         increment_and_clamp(segment.nodes_counter(), rows, self.max_segment_len())
     }
@@ -628,17 +631,13 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 }
 
-/// Atomically increments a counter and returns the previous value, but only if the result stays within bounds.
-///
-/// 1. Atomically reads the current counter value
-/// 2. Computes `current + increment`
-/// 3. If the result is ≤ `max_segment_len`, updates the counter and returns the *previous* value
-/// 4. If the result would exceed the limit, leaves the counter unchanged and returns `None`
-///
+/// Atomically increments `counter` and returns the previous value, but only if the result stays
+/// within bounds.
+/// If the result exceeds `limit`, leaves the counter unchanged and returns `None`.
 pub fn increment_and_clamp(
     counter: &AtomicU32,
     increment: u32,
-    max_segment_len: u32,
+    limit: u32,
 ) -> Option<u32> {
     counter
         .fetch_update(
@@ -646,7 +645,7 @@ pub fn increment_and_clamp(
             std::sync::atomic::Ordering::Relaxed,
             |current| {
                 let updated = current + increment;
-                if updated <= max_segment_len {
+                if updated <= limit {
                     Some(updated)
                 } else {
                     None
