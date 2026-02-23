@@ -1,4 +1,8 @@
-use crate::{error::StorageError, segments::graph_prop::segment::MemGraphPropSegment};
+use crate::{
+    error::StorageError,
+    segments::graph_prop::segment::MemGraphPropSegment,
+    wal::LSN,
+};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
 use std::{fmt::Debug, path::Path, sync::Arc};
