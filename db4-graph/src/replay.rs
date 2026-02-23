@@ -498,4 +498,37 @@ where
 
         Ok(())
     }
+
+    fn replay_add_graph_metadata(
+        &mut self,
+        lsn: LSN,
+        _transaction_id: TransactionID,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError> {
+        let segment = self.graph().storage().graph_props().segment();
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let graph_props_meta = self.graph().graph_props_meta();
+
+            for (prop_name, prop_id, prop_value) in &props {
+                let prop_mapper = graph_props_meta.metadata_mapper();
+                let mut write_locked_mapper = prop_mapper.write_locked();
+
+                write_locked_mapper.set_or_unify_id_and_dtype(
+                    prop_name.as_ref(),
+                    *prop_id,
+                    prop_value.dtype(),
+                )?;
+            }
+
+            let writer = self.graph_props.writer();
+            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
+
+            writer.update_metadata(props);
+            writer.set_lsn(lsn);
+        }
+
+        Ok(())
+    }
 }

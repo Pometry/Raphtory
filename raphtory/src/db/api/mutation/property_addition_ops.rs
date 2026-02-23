@@ -137,11 +137,17 @@ where
     P: Into<Prop>,
     PII: IntoIterator<Item = (PN, P)>,
 {
-    let props_with_status = graph.validate_props_with_status(
-        update,
-        graph.graph_props_meta(),
-        props.into_iter().map(|(k, v)| (k, v.into())),
-    ).map_err(into_graph_err)?;
+    let transaction_manager = graph.core_graph().transaction_manager()?;
+    let wal = graph.core_graph().wal()?;
+    let transaction_id = transaction_manager.begin_transaction();
+
+    let props_with_status = graph
+        .validate_props_with_status(
+            update,
+            graph.graph_props_meta(),
+            props.into_iter().map(|(k, v)| (k, v.into())),
+        )
+        .map_err(into_graph_err)?;
 
     let props = props_with_status
         .iter()
@@ -151,10 +157,31 @@ where
         })
         .collect::<Vec<_>>();
 
-    if update {
-        graph.internal_update_metadata(&props).map_err(into_graph_err)?;
+    let mut writer = if update {
+        graph.internal_update_metadata(&props).map_err(into_graph_err)?
     } else {
-        graph.internal_add_metadata(&props).map_err(into_graph_err)?;
+        graph.internal_add_metadata(&props).map_err(into_graph_err)?
+    };
+
+    let props_for_wal = props_with_status
+        .iter()
+        .map(|maybe_new| {
+            let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+            (prop_name.as_ref(), *prop_id, prop.clone())
+        })
+        .collect::<Vec<_>>();
+
+    let lsn = wal
+        .log_add_graph_metadata(transaction_id, props_for_wal)
+        .map_err(into_graph_err)?;
+
+    writer.set_lsn(lsn);
+    transaction_manager.end_transaction(transaction_id);
+    drop(writer);
+
+    if let Err(e) = wal.flush(lsn) {
+        return Err(GraphError::FatalWriteError(e));
     }
+
     Ok(())
 }
