@@ -299,7 +299,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
         // Iterate through `free_segments` until we can acquire a write lock on a free segment.
         // With the write lock, try reserving `num_rows` in that segment.
-        // If unsuccessful, find another free segment and try again, creating a new one if needed.
+        // If the candidate segment is full, create or retrieve a new free segment from the slot
+        // and try again.
         loop {
             match self.try_writer(segment_id) {
                 None => {
