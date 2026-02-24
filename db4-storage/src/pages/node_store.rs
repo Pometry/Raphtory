@@ -311,8 +311,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
                 Some(writer) => {
                     match self.reserve_segment_rows(writer.page, num_rows) {
                         None => {
-                            // The current segment is full, drop its lock and try to find
-                            // another free segment.
+                            // The current segment is full, drop its lock and
+                            // check if a new free segment has been added to the slot or create a new one.
                             drop(writer);
 
                             let mut slot = self.free_segments[slot_idx].write();

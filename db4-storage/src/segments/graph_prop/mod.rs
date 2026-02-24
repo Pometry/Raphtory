@@ -85,7 +85,7 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
     }
 
     fn immut_lsn(&self) -> LSN {
-        self.head.read().lsn()
+        0
     }
 
     fn notify_write(

@@ -2,7 +2,8 @@
 //! Allows for fast replay by making use of one-time lock acquisition for
 //! all the segments in the graph.
 
-use crate::WriteLockedGraph;
+use crate::{TemporalGraph, WriteLockedGraph};
+use raphtory_api::core::entities::properties::meta::Meta;
 use raphtory_api::core::{
     entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
@@ -175,16 +176,7 @@ where
             let edge_meta = self.graph().edge_meta();
 
             // Insert prop ids into edge meta.
-            for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = edge_meta.temporal_prop_mapper();
-                let mut write_locked_mapper = prop_mapper.write_locked();
-
-                write_locked_mapper.set_or_unify_id_and_dtype(
-                    prop_name.as_ref(),
-                    *prop_id,
-                    prop_value.dtype(),
-                )?;
-            }
+            unify_types(edge_meta, &props, true)?;
 
             // Insert layer id into the layer meta of both edge and node.
             let node_meta = self.graph().node_meta();
@@ -254,16 +246,7 @@ where
         if immut_lsn < lsn {
             let edge_meta = self.graph().edge_meta();
 
-            for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = edge_meta.metadata_mapper();
-                let mut write_locked_mapper = prop_mapper.write_locked();
-
-                write_locked_mapper.set_or_unify_id_and_dtype(
-                    prop_name.as_ref(),
-                    *prop_id,
-                    prop_value.dtype(),
-                )?;
-            }
+            unify_types(edge_meta, &props, false);
 
             let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
@@ -279,7 +262,7 @@ where
                 ))
             })?;
 
-            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
+            let props = props.into_iter().map(|(_, id, p)| (id, p));
 
             // No need to check metadata since the operation was logged after validation.
             edge_writer.update_c_props(edge_pos, src, dst, layer_id, props);
@@ -422,16 +405,7 @@ where
         if immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
-            for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = node_meta.temporal_prop_mapper();
-                let mut write_locked_mapper = prop_mapper.write_locked();
-
-                write_locked_mapper.set_or_unify_id_and_dtype(
-                    prop_name.as_ref(),
-                    *prop_id,
-                    prop_value.dtype(),
-                )?;
-            }
+            unify_types(node_meta, &props, true)?;
 
             // Set node type metadata early to prevent issues with borrowing node_writer.
             if let Some((ref node_type, node_type_id)) = node_type_and_id {
@@ -497,16 +471,7 @@ where
         if immut_lsn < lsn {
             let node_meta = self.graph().node_meta();
 
-            for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = node_meta.metadata_mapper();
-                let mut write_locked_mapper = prop_mapper.write_locked();
-
-                write_locked_mapper.set_or_unify_id_and_dtype(
-                    prop_name.as_ref(),
-                    *prop_id,
-                    prop_value.dtype(),
-                )?;
-            }
+            unify_types(&node_meta, &props, false)?;
 
             let node_writer = self.nodes.get_mut(segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
@@ -515,7 +480,7 @@ where
             })?;
 
             let mut node_writer = node_writer.writer();
-            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
+            let props = props.into_iter().map(|(_, id, p)| (id, p));
 
             // No need to check metadata since the operation was logged after validation.
             node_writer.update_c_props(pos, STATIC_GRAPH_LAYER_ID, props);
@@ -578,19 +543,10 @@ where
         if immut_lsn < lsn {
             let graph_props_meta = self.graph().graph_props_meta();
 
-            for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = graph_props_meta.temporal_prop_mapper();
-                let mut write_locked_mapper = prop_mapper.write_locked();
-
-                write_locked_mapper.set_or_unify_id_and_dtype(
-                    prop_name.as_ref(),
-                    *prop_id,
-                    prop_value.dtype(),
-                )?;
-            }
+            unify_types(graph_props_meta, &props, true)?;
 
             let writer = self.graph_props.writer();
-            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
+            let props = props.into_iter().map(|(_, id, p)| (id, p));
 
             writer.add_properties(t, props);
             writer.set_lsn(lsn);
@@ -611,19 +567,10 @@ where
         if immut_lsn < lsn {
             let graph_props_meta = self.graph().graph_props_meta();
 
-            for (prop_name, prop_id, prop_value) in &props {
-                let prop_mapper = graph_props_meta.metadata_mapper();
-                let mut write_locked_mapper = prop_mapper.write_locked();
-
-                write_locked_mapper.set_or_unify_id_and_dtype(
-                    prop_name.as_ref(),
-                    *prop_id,
-                    prop_value.dtype(),
-                )?;
-            }
+            unify_types(graph_props_meta, &props, false)?;
 
             let writer = self.graph_props.writer();
-            let props = props.iter().map(|(_, id, p)| (*id, p.clone()));
+            let props = props.into_iter().map(|(_, id, p)| (id, p));
 
             writer.update_metadata(props);
             writer.set_lsn(lsn);
@@ -631,4 +578,17 @@ where
 
         Ok(())
     }
+}
+
+fn unify_types(meta: &Meta, props: &[(String, usize, Prop)], temporal: bool) -> Result<(), StorageError> {
+    let prop_mapper = if !temporal { meta.metadata_mapper()} else {meta.temporal_prop_mapper()};
+    let mut write_locked_mapper = prop_mapper.write_locked();
+    for (prop_name, prop_id, prop_value) in props {
+        write_locked_mapper.set_or_unify_id_and_dtype(
+            prop_name.as_ref(),
+            *prop_id,
+            prop_value.dtype(),
+        )?;
+    }
+    Ok(())
 }
