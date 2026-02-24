@@ -211,7 +211,7 @@ impl Graph {
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load("/path/to/storage");    ///
+    /// let g = Graph::load("/path/to/storage");
     #[cfg(feature = "io")]
     pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
         // TODO: add support for loading indexes and vectors
@@ -229,7 +229,7 @@ impl Graph {
     /// # Example
     /// ```no_run
     /// use raphtory::prelude::Graph;
-    /// let g = Graph::load("/path/to/storage");    ///
+    /// let g = Graph::load("/path/to/storage");
     #[cfg(feature = "io")]
     pub fn load_with_config(
         path: &(impl GraphPaths + ?Sized),

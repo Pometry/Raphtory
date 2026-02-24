@@ -81,8 +81,8 @@ fn build_filtered_nodes_graph(
             )
             .unwrap();
         }
-        g.resolve_node(src.as_node_ref()).unwrap();
-        g.resolve_node(dst.as_node_ref()).unwrap();
+        g.atomic_add_node(src.as_node_ref()).unwrap();
+        g.atomic_add_node(dst.as_node_ref()).unwrap();
     }
     if !edges.is_empty() {
         g.resolve_layer(None).unwrap();

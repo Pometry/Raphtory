@@ -28,7 +28,7 @@ use raphtory_core::{
     entities::{EID, ELID, VID},
     storage::timeindex::EventTime,
 };
-use session::WriteSession;
+use session::EdgeWriteSession;
 use std::{
     path::{Path, PathBuf},
     sync::{
@@ -381,7 +381,7 @@ impl<
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> WriteSession<'_, NS, ES, GS, EXT> {
+    ) -> EdgeWriteSession<'_, NS, ES, GS, EXT> {
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
@@ -418,7 +418,7 @@ impl<
             None => self.get_free_writer(),
         };
 
-        WriteSession::new(node_writers, edge_writer, self)
+        EdgeWriteSession::new(node_writers, edge_writer, self)
     }
 
     pub fn write_session(
@@ -426,7 +426,7 @@ impl<
         src: VID,
         dst: VID,
         e_id: Option<EID>,
-    ) -> WriteSession<'_, NS, ES, GS, EXT> {
+    ) -> EdgeWriteSession<'_, NS, ES, GS, EXT> {
         let (src_chunk, _) = self.nodes.resolve_pos(src);
         let (dst_chunk, _) = self.nodes.resolve_pos(dst);
 
@@ -463,7 +463,7 @@ impl<
             None => self.get_free_writer(),
         };
 
-        WriteSession::new(node_writers, edge_writer, self)
+        EdgeWriteSession::new(node_writers, edge_writer, self)
     }
 
     pub fn node_writer(

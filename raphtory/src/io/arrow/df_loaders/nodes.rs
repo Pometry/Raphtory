@@ -249,7 +249,7 @@ pub fn load_node_props_from_df<
             .map(VID)
             .unwrap_or(VID(0));
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-        write_locked_graph.resize_chunks_to_vid(max_vid);
+        write_locked_graph.resize_segments_to_vid(max_vid);
 
         write_locked_graph.nodes.iter_mut().try_for_each(|shard| {
             let mut c_props = vec![];

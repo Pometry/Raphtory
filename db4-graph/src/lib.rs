@@ -187,7 +187,7 @@ where
         // VIDs in the resolver may not be initialised yet, need to double-check the node actually exists!
         let nodes = self.storage().nodes();
         let (page_id, pos) = nodes.resolve_pos(vid);
-        let node_page = nodes.segments().get(page_id)?;
+        let node_page = nodes.get_segment(page_id)?;
 
         if pos.0 < node_page.num_nodes() {
             Some(vid)
@@ -357,16 +357,16 @@ where
         self.graph
     }
 
-    pub fn resize_chunks_to_vid(&mut self, vid: VID) {
-        let (chunks_needed, _) = self.graph.storage.nodes().resolve_pos(vid);
-        self.graph.storage().nodes().grow(chunks_needed + 1);
+    pub fn resize_segments_to_vid(&mut self, vid: VID) {
+        let (segment_id, _) = self.graph.storage.nodes().resolve_pos(vid);
+        self.graph.storage().nodes().grow(segment_id + 1);
         std::mem::take(&mut self.nodes);
         self.nodes = self.graph.storage.nodes().write_locked();
     }
 
-    pub fn resize_chunks_to_eid(&mut self, eid: EID) {
-        let (chunks_needed, _) = self.graph.storage.edges().resolve_pos(eid);
-        self.graph.storage().edges().grow(chunks_needed + 1);
+    pub fn resize_segments_to_eid(&mut self, eid: EID) {
+        let (segment_id, _) = self.graph.storage.edges().resolve_pos(eid);
+        self.graph.storage().edges().grow(segment_id + 1);
         std::mem::take(&mut self.edges);
         self.edges = self.graph.storage.edges().write_locked();
     }

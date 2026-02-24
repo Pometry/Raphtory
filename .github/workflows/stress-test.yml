@@ -21,10 +21,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - name: Install maturin
-        run: pip install maturin==1.8.3
-      - name: Build raphtory
-        run: make install-python
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -33,9 +31,12 @@ jobs:
         with:
           k6-version: '1.0.0'
       - name: Run stress test
+        env:
+          RUST_BACKTRACE: 1
         run: |
+          cargo build --package raphtory-graphql --bin raphtory-graphql --profile=build-fast
+          ./target/build-fast/raphtory-graphql server --work-dir graphs &
           cd graphql-bench
-          raphtory server &
           make stress-test
       - name: Upload k6 report
         if: always()
