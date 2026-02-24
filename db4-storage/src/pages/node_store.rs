@@ -634,11 +634,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 /// Atomically increments `counter` and returns the previous value, but only if the result stays
 /// within bounds.
 /// If the result exceeds `limit`, leaves the counter unchanged and returns `None`.
-pub fn increment_and_clamp(
-    counter: &AtomicU32,
-    increment: u32,
-    limit: u32,
-) -> Option<u32> {
+pub fn increment_and_clamp(counter: &AtomicU32, increment: u32, limit: u32) -> Option<u32> {
     counter
         .fetch_update(
             std::sync::atomic::Ordering::Relaxed,
