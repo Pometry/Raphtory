@@ -2,11 +2,13 @@
 //! Allows for fast replay by making use of one-time lock acquisition for
 //! all the segments in the graph.
 
-use crate::{TemporalGraph, WriteLockedGraph};
-use raphtory_api::core::entities::properties::meta::Meta;
+use crate::WriteLockedGraph;
 use raphtory_api::core::{
     entities::{
-        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+        properties::{
+            meta::{Meta, STATIC_GRAPH_LAYER_ID},
+            prop::Prop,
+        },
         EID, GID, VID,
     },
     storage::timeindex::EventTime,
@@ -580,8 +582,16 @@ where
     }
 }
 
-fn unify_types(meta: &Meta, props: &[(String, usize, Prop)], temporal: bool) -> Result<(), StorageError> {
-    let prop_mapper = if !temporal { meta.metadata_mapper()} else {meta.temporal_prop_mapper()};
+fn unify_types(
+    meta: &Meta,
+    props: &[(String, usize, Prop)],
+    temporal: bool,
+) -> Result<(), StorageError> {
+    let prop_mapper = if !temporal {
+        meta.metadata_mapper()
+    } else {
+        meta.temporal_prop_mapper()
+    };
     let mut write_locked_mapper = prop_mapper.write_locked();
     for (prop_name, prop_id, prop_value) in props {
         write_locked_mapper.set_or_unify_id_and_dtype(
