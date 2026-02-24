@@ -248,7 +248,7 @@ where
         if immut_lsn < lsn {
             let edge_meta = self.graph().edge_meta();
 
-            unify_types(edge_meta, &props, false);
+            unify_types(edge_meta, &props, false)?;
 
             let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
