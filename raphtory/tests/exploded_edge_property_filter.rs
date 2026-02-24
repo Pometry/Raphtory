@@ -81,8 +81,8 @@ fn build_filtered_nodes_graph(
             )
             .unwrap();
         }
-        g.resolve_node(src.as_node_ref()).unwrap();
-        g.resolve_node(dst.as_node_ref()).unwrap();
+        g.atomic_add_node(src.as_node_ref()).unwrap();
+        g.atomic_add_node(dst.as_node_ref()).unwrap();
     }
     if !edges.is_empty() {
         g.resolve_layer(None).unwrap();
@@ -346,6 +346,15 @@ fn test_filter_eq() {
             assert_graph_equal(&filtered, &expected_filtered_g);
         });
     })
+}
+
+#[test]
+fn test_filter_eq_one_edge() {
+    let g = Graph::new();
+    g.add_edge(0, 0, 0, [("int_prop", Prop::I64(0))], None)
+        .unwrap();
+    let filter = ExplodedEdgeFilter.property("int_prop").eq(0i64);
+    assert_graph_equal(&g.filter(filter.clone()).unwrap(), &g);
 }
 
 #[test]

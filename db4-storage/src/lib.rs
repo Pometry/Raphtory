@@ -1,9 +1,3 @@
-use std::{
-    path::{Path, PathBuf},
-    thread,
-    time::Duration,
-};
-
 use crate::{
     gen_ts::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
@@ -32,6 +26,11 @@ use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
 use segments::{
     edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
+};
+use std::{
+    path::{Path, PathBuf},
+    thread,
+    time::Duration,
 };
 
 pub mod api;
@@ -82,10 +81,9 @@ pub type GraphTProps<'a> = GenericTProps<'a, MemGraphPropRef<'a>>;
 pub mod error {
     use std::{path::PathBuf, sync::Arc};
 
+    use crate::resolver::mapping_resolver::InvalidNodeId;
     use raphtory_api::core::{entities::properties::prop::PropError, utils::time::ParseTimeError};
-    use raphtory_core::entities::{
-        graph::logical_to_physical::InvalidNodeId, properties::props::MetadataError,
-    };
+    use raphtory_core::entities::properties::props::MetadataError;
 
     #[derive(thiserror::Error, Debug)]
     pub enum StorageError {

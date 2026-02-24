@@ -10,7 +10,7 @@ use raphtory_api::core::entities::{
     GidType, GID, VID,
 };
 use raphtory_core::entities::{
-    graph::{logical_to_physical::InvalidNodeId, tgraph::InvalidLayer},
+    graph::tgraph::InvalidLayer,
     properties::props::{MetadataError, TPropError},
 };
 use raphtory_storage::mutation::MutationError;
@@ -30,7 +30,7 @@ use raphtory_api::core::utils::time::ParseTimeError;
 use {tantivy, tantivy::query::QueryParserError};
 
 use raphtory_api::core::storage::timeindex::TimeError;
-use storage::error::StorageError;
+use storage::{error::StorageError, resolver::mapping_resolver::InvalidNodeId};
 #[cfg(feature = "io")]
 use zip::result::ZipError;
 
@@ -468,6 +468,9 @@ pub enum GraphError {
 
     #[error(transparent)]
     StorageError(#[from] StorageError),
+
+    #[error("Fatal write error: {0}")]
+    FatalWriteError(StorageError),
 }
 
 impl From<MetadataError> for GraphError {

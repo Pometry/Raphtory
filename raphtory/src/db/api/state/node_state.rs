@@ -204,7 +204,7 @@ impl<K: Eq + Hash + Copy> ExactSizeIterator for PartialIndexIntoIter<K> {}
 
 #[derive(Clone, Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator)]
 pub enum IndexIntoIter<K> {
-    Full(StateIndexIter<Arc<StateIndex<K>>>),
+    Full(StateIndexIter<Arc<StateIndex<K>>, K>),
     Partial(PartialIndexIntoIter<K>),
 }
 

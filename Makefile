@@ -84,7 +84,7 @@ build-python:
 	cd python && maturin develop -r --extras=dev
 
 debug-python:
-	cd python && maturin develop --profile=debug --extras=dev
+	cd python && maturin develop --profile=dev --extras=dev
 
 # Testing
 python-test:

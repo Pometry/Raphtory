@@ -25,6 +25,17 @@ impl Layer {
             Layer::Multiple(layers) => layers.iter().any(|l| l == name),
         }
     }
+
+    fn from_iter<I: IntoIterator<Item: SingleLayer, IntoIter: ExactSizeIterator>>(
+        names: I,
+    ) -> Self {
+        let mut names = names.into_iter();
+        match names.len() {
+            0 => Layer::None,
+            1 => Layer::One(names.next().unwrap().name()),
+            _ => Layer::Multiple(names.map(|s| s.name()).collect::<Vec<_>>().into()),
+        }
+    }
 }
 
 pub trait SingleLayer {
@@ -77,33 +88,31 @@ impl<T: SingleLayer> SingleLayer for Option<T> {
 
 impl<T: SingleLayer> From<Vec<T>> for Layer {
     fn from(names: Vec<T>) -> Self {
-        match names.len() {
-            0 => Layer::None,
-            1 => Layer::One(names.into_iter().next().unwrap().name()),
-            _ => Layer::Multiple(
-                names
-                    .into_iter()
-                    .map(|s| s.name())
-                    .collect::<Vec<_>>()
-                    .into(),
-            ),
-        }
+        Self::from_iter(names)
     }
 }
 
 impl<T: SingleLayer, const N: usize> From<[T; N]> for Layer {
     fn from(names: [T; N]) -> Self {
-        match N {
-            0 => Layer::None,
-            1 => Layer::One(names.into_iter().next().unwrap().name()),
-            _ => Layer::Multiple(
-                names
-                    .into_iter()
-                    .map(|s| s.name())
-                    .collect::<Vec<_>>()
-                    .into(),
-            ),
-        }
+        Self::from_iter(names)
+    }
+}
+
+impl<'a, T: 'a> From<&'a [T]> for Layer
+where
+    &'a T: SingleLayer,
+{
+    fn from(names: &'a [T]) -> Self {
+        Self::from_iter(names)
+    }
+}
+
+impl<'a, T: 'a> From<&'a Vec<T>> for Layer
+where
+    &'a T: SingleLayer,
+{
+    fn from(names: &'a Vec<T>) -> Self {
+        Self::from_iter(names)
     }
 }
 

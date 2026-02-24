@@ -1,6 +1,8 @@
 use crate::pages::SegmentCounts;
 use rayon::prelude::*;
 use std::{
+    borrow::Borrow,
+    marker::PhantomData,
     ops::{Deref, Index, IndexMut},
     sync::Arc,
 };
@@ -146,11 +148,12 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
     /// - Chunk 0: yields 0..10
     /// - Chunk 1: yields 10..11
     /// - Chunk 2: yields 20..25
-    pub fn iter(&self) -> StateIndexIter<&Self> {
+    pub fn iter(&self) -> StateIndexIter<&Self, I> {
         StateIndexIter {
             index: self,
             current_chunk: 0,
             current_local: 0,
+            _marker: PhantomData,
         }
     }
 
@@ -182,11 +185,12 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
         })
     }
 
-    pub fn arc_into_iter(self: Arc<Self>) -> StateIndexIter<Arc<Self>> {
+    pub fn arc_into_iter(self: Arc<Self>) -> StateIndexIter<Arc<Self>, I> {
         StateIndexIter {
             index: self,
             current_chunk: 0,
             current_local: 0,
+            _marker: PhantomData,
         }
     }
 }
@@ -223,30 +227,30 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
 
 /// Iterator over global indices in a StateIndex
 #[derive(Debug, Clone)]
-pub struct StateIndexIter<I> {
+pub struct StateIndexIter<I, V> {
     index: I,
     current_chunk: usize,
     current_local: usize,
+    _marker: PhantomData<V>,
 }
 
-impl<V: From<usize> + Into<usize>, I: Deref<Target = StateIndex<V>>> Iterator
-    for StateIndexIter<I>
-{
+impl<V: From<usize> + Into<usize>, I: Borrow<StateIndex<V>>> Iterator for StateIndexIter<I, V> {
     type Item = V;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let index = self.index.borrow();
         loop {
-            if self.current_chunk >= self.index.num_chunks() {
+            if self.current_chunk >= index.num_chunks() {
                 return None;
             }
 
-            let chunk_start = self.index.offsets[self.current_chunk];
-            let chunk_end = self.index.offsets[self.current_chunk + 1];
+            let chunk_start = index.offsets[self.current_chunk];
+            let chunk_end = index.offsets[self.current_chunk + 1];
             let chunk_size = chunk_end - chunk_start;
 
             if self.current_local < chunk_size {
                 let global_idx =
-                    self.current_chunk * self.index.max_page_len as usize + self.current_local;
+                    self.current_chunk * index.max_page_len as usize + self.current_local;
                 self.current_local += 1;
                 return Some(V::from(global_idx));
             }
@@ -258,30 +262,32 @@ impl<V: From<usize> + Into<usize>, I: Deref<Target = StateIndex<V>>> Iterator
     }
 
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let index = self.index.borrow();
         // fast skip
-        if self.current_chunk >= self.index.num_chunks() {
+        if self.current_chunk >= index.num_chunks() {
             return None;
         }
-        let current = self.index.offsets[self.current_chunk] + self.current_local;
+        let current = index.offsets[self.current_chunk] + self.current_local;
         let target = current.saturating_add(n);
-        if &target >= self.index.offsets.last()? {
+        if &target >= index.offsets.last()? {
             return None;
         }
         // find the first offset > target, then substract 1 to get the last chunk starting at <= target
-        let skip_chunks = self.index.offsets[self.current_chunk..]
+        let skip_chunks = index.offsets[self.current_chunk..]
             .partition_point(|&offset| offset <= target)
             .saturating_sub(1);
         self.current_chunk += skip_chunks;
-        self.current_local = target - self.index.offsets[self.current_chunk];
-        let global_idx = self.current_chunk * self.index.max_page_len as usize + self.current_local;
+        self.current_local = target - index.offsets[self.current_chunk];
+        let global_idx = self.current_chunk * index.max_page_len as usize + self.current_local;
         self.current_local += 1;
         Some(V::from(global_idx))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let total = self.index.len();
-        let consumed = if self.current_chunk < self.index.num_chunks() {
-            self.index.offsets[self.current_chunk] + self.current_local
+        let index = self.index.borrow();
+        let total = index.len();
+        let consumed = if self.current_chunk < index.num_chunks() {
+            index.offsets[self.current_chunk] + self.current_local
         } else {
             total
         };
@@ -290,9 +296,23 @@ impl<V: From<usize> + Into<usize>, I: Deref<Target = StateIndex<V>>> Iterator
     }
 }
 
-impl<V: From<usize> + Into<usize>, I: Deref<Target = StateIndex<V>>> ExactSizeIterator
-    for StateIndexIter<I>
+impl<V: From<usize> + Into<usize>, I: Borrow<StateIndex<V>>> ExactSizeIterator
+    for StateIndexIter<I, V>
 {
+}
+
+impl<V: From<usize> + Into<usize>> IntoIterator for StateIndex<V> {
+    type Item = V;
+    type IntoIter = StateIndexIter<Self, V>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        StateIndexIter {
+            index: self,
+            current_chunk: 0,
+            current_local: 0,
+            _marker: PhantomData,
+        }
+    }
 }
 
 /// Address resolver for sharded storage with fixed-size chunks
@@ -438,7 +458,7 @@ impl<A: Default, I: From<usize> + Into<usize>> State<A, I> {
 #[derive(Debug)]
 pub struct StateIter<'a, A, I> {
     state: &'a State<A, I>,
-    inner: StateIndexIter<&'a StateIndex<I>>,
+    inner: StateIndexIter<&'a StateIndex<I>, I>,
 }
 
 impl<'a, A: Default, I: From<usize> + Into<usize>> Iterator for StateIter<'a, A, I> {

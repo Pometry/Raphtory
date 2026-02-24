@@ -9,9 +9,13 @@ members = [
     "raphtory-graphql",
     "raphtory-api",
     "raphtory-core",
-    "raphtory-storage", "raphtory-api-macros", "fast_merge",
+    "raphtory-storage",
+    "raphtory-api-macros",
+    "raphtory-itertools",
+    "fast_merge",
     "clam-core",
-]
+    "clam-core/snb"
+    , "raphtory-itertools"]
 default-members = ["raphtory"]
 exclude = ["optd"]
 resolver = "2"
@@ -51,12 +55,14 @@ incremental = false
 
 [workspace.dependencies]
 db4-graph = { version = "0.17.0", path = "db4-graph", default-features = false }
+db4-storage = { version = "0.17.0", path = "db4-storage" }
 raphtory = { version = "0.17.0", path = "raphtory", default-features = false }
 raphtory-api = { version = "0.17.0", path = "raphtory-api", default-features = false }
 raphtory-api-macros = { version = "0.17.0", path = "raphtory-api-macros", default-features = false }
 raphtory-core = { version = "0.17.0", path = "raphtory-core", default-features = false }
 raphtory-graphql = { version = "0.17.0", path = "raphtory-graphql", default-features = false }
 raphtory-storage = { version = "0.17.0", path = "raphtory-storage", default-features = false }
+raphtory-itertools = { version = "0.17.0", path = "raphtory-itertools" }
 clam-core = { path = "clam-core" }
 async-graphql = { version = "7.0.16", features = ["dynamic-schema"] }
 bincode = { version = "2", features = ["serde"] }
@@ -72,7 +78,7 @@ reqwest = { version = "0.12.8", default-features = false, features = [
 boxcar = "0.2.14"
 iter-enum = { version = "1.2.0", features = ["rayon"] }
 serde = { version = "1.0.197", features = ["derive", "rc"] }
-serde_json = "1.0.114"
+serde_json = { version = "1.0.114", features = ["float_roundtrip"] }
 pyo3 = { version = "0.27.2", features = ["multiple-pymethods", "chrono"] }
 pyo3-build-config = "0.27.2"
 pyo3-arrow = "0.15.0"
