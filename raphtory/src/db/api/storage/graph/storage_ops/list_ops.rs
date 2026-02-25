@@ -1,5 +1,6 @@
 use super::GraphStorage;
 use crate::db::api::view::internal::{EdgeList, ListOps, NodeList};
+use raphtory_api::core::entities::LayerIds;
 
 impl ListOps for GraphStorage {
     #[inline]
@@ -12,7 +13,7 @@ impl ListOps for GraphStorage {
     #[inline]
     fn edge_list(&self) -> EdgeList {
         EdgeList::All {
-            len: self.unfiltered_num_edges(),
+            len: self.unfiltered_num_edges(&LayerIds::All),
         }
     }
 }

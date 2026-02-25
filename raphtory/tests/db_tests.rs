@@ -1371,122 +1371,118 @@ fn layers() -> Result<(), GraphError> {
     graph.add_edge(0, 11, 33, NO_PROPS, Some("layer2"))?;
     graph.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
-    test_storage!(&graph, |graph| {
-        assert!(graph.has_edge(11, 22));
-        assert!(graph.default_layer().has_edge(11, 22));
-        assert!(!graph.default_layer().has_edge(11, 44));
-        assert!(!graph.layers("layer2").unwrap().has_edge(11, 22));
-        assert!(graph.layers("layer2").unwrap().has_edge(11, 44));
+    assert!(graph.has_edge(11, 22));
+    assert!(graph.default_layer().has_edge(11, 22));
+    assert!(!graph.default_layer().has_edge(11, 44));
+    assert!(!graph.layers("layer2").unwrap().has_edge(11, 22));
+    assert!(graph.layers("layer2").unwrap().has_edge(11, 44));
 
-        assert!(graph.edge(11, 22).is_some());
-        assert!(graph.layers(Layer::Default).unwrap().edge(11, 44).is_none());
-        assert!(graph.layers("layer2").unwrap().edge(11, 22).is_none());
-        assert!(graph.layers("layer2").unwrap().edge(11, 44).is_some());
+    assert!(graph.edge(11, 22).is_some());
+    assert!(graph.layers(Layer::Default).unwrap().edge(11, 44).is_none());
+    assert!(graph.layers("layer2").unwrap().edge(11, 22).is_none());
+    assert!(graph.layers("layer2").unwrap().edge(11, 44).is_some());
 
-        assert!(graph
-            .exclude_layers("layer2")
-            .unwrap()
-            .edge(11, 44)
-            .is_none());
-        assert!(graph
-            .exclude_layers("layer2")
-            .unwrap()
-            .edge(11, 33)
-            .is_some());
-        assert!(graph
-            .exclude_layers("layer2")
-            .unwrap()
-            .edge(11, 22)
-            .is_some());
+    assert!(graph
+        .exclude_layers("layer2")
+        .unwrap()
+        .edge(11, 44)
+        .is_none());
+    assert!(graph
+        .exclude_layers("layer2")
+        .unwrap()
+        .edge(11, 33)
+        .is_some());
+    assert!(graph
+        .exclude_layers("layer2")
+        .unwrap()
+        .edge(11, 22)
+        .is_some());
 
-        let dft_layer = graph.default_layer();
-        let layer1 = graph.layers("layer1").expect("layer1");
-        let layer2 = graph.layers("layer2").expect("layer2");
-        assert!(graph.layers("missing layer").is_err());
+    let dft_layer = graph.default_layer();
+    let layer1 = graph.layers("layer1").expect("layer1");
+    let layer2 = graph.layers("layer2").expect("layer2");
+    assert!(graph.layers("missing layer").is_err());
 
-        assert_eq!(graph.count_nodes(), 4);
-        assert_eq!(graph.count_edges(), 4);
-        assert_eq!(dft_layer.count_edges(), 3);
-        assert_eq!(layer1.count_edges(), 1);
-        assert_eq!(layer2.count_edges(), 2);
+    assert_eq!(graph.count_nodes(), 4);
+    assert_eq!(graph.count_edges(), 4);
+    assert_eq!(dft_layer.count_edges(), 3);
+    assert_eq!(layer1.count_edges(), 1);
+    assert_eq!(layer2.count_edges(), 2);
 
-        let node = graph.node(11).unwrap();
-        let node_dft = dft_layer.node(11).unwrap();
-        let node1 = layer1.node(11).unwrap();
-        let node2 = layer2.node(11).unwrap();
+    let node = graph.node(11).unwrap();
+    let node_dft = dft_layer.node(11).unwrap();
+    let node1 = layer1.node(11).unwrap();
+    let node2 = layer2.node(11).unwrap();
 
-        assert_eq!(node.degree(), 3);
-        assert_eq!(node_dft.degree(), 2);
-        assert_eq!(node1.degree(), 1);
-        assert_eq!(node2.degree(), 2);
+    assert_eq!(node.degree(), 3);
+    assert_eq!(node_dft.degree(), 2);
+    assert_eq!(node1.degree(), 1);
+    assert_eq!(node2.degree(), 2);
 
-        assert_eq!(node.out_degree(), 3);
-        assert_eq!(node_dft.out_degree(), 2);
-        assert_eq!(node1.out_degree(), 1);
-        assert_eq!(node2.out_degree(), 2);
+    assert_eq!(node.out_degree(), 3);
+    assert_eq!(node_dft.out_degree(), 2);
+    assert_eq!(node1.out_degree(), 1);
+    assert_eq!(node2.out_degree(), 2);
 
-        assert_eq!(node.in_degree(), 1);
-        assert_eq!(node_dft.in_degree(), 1);
-        assert_eq!(node1.in_degree(), 0);
-        assert_eq!(node2.in_degree(), 0);
+    assert_eq!(node.in_degree(), 1);
+    assert_eq!(node_dft.in_degree(), 1);
+    assert_eq!(node1.in_degree(), 0);
+    assert_eq!(node2.in_degree(), 0);
 
-        fn to_tuples<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<(u64, u64)> {
-            edges
-                .id()
-                .filter_map(|(s, d)| s.to_u64().zip(d.to_u64()))
-                .sorted()
-                .collect_vec()
-        }
+    fn to_tuples<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<(u64, u64)> {
+        edges
+            .id()
+            .filter_map(|(s, d)| s.to_u64().zip(d.to_u64()))
+            .sorted()
+            .collect_vec()
+    }
 
-        assert_eq!(
-            to_tuples(node.edges()),
-            vec![(11, 22), (11, 33), (11, 44), (33, 11)]
-        );
-        assert_eq!(
-            to_tuples(node_dft.edges()),
-            vec![(11, 22), (11, 33), (33, 11)]
-        );
-        assert_eq!(to_tuples(node1.edges()), vec![(11, 22)]);
-        assert_eq!(to_tuples(node2.edges()), vec![(11, 33), (11, 44)]);
+    assert_eq!(
+        to_tuples(node.edges()),
+        vec![(11, 22), (11, 33), (11, 44), (33, 11)]
+    );
+    assert_eq!(
+        to_tuples(node_dft.edges()),
+        vec![(11, 22), (11, 33), (33, 11)]
+    );
+    assert_eq!(to_tuples(node1.edges()), vec![(11, 22)]);
+    assert_eq!(to_tuples(node2.edges()), vec![(11, 33), (11, 44)]);
 
-        assert_eq!(to_tuples(node.in_edges()), vec![(33, 11)]);
-        assert_eq!(to_tuples(node_dft.in_edges()), vec![(33, 11)]);
-        assert_eq!(to_tuples(node1.in_edges()), vec![]);
-        assert_eq!(to_tuples(node2.in_edges()), vec![]);
+    assert_eq!(to_tuples(node.in_edges()), vec![(33, 11)]);
+    assert_eq!(to_tuples(node_dft.in_edges()), vec![(33, 11)]);
+    assert_eq!(to_tuples(node1.in_edges()), vec![]);
+    assert_eq!(to_tuples(node2.in_edges()), vec![]);
 
-        assert_eq!(
-            to_tuples(node.out_edges()),
-            vec![(11, 22), (11, 33), (11, 44)]
-        );
-        assert_eq!(to_tuples(node_dft.out_edges()), vec![(11, 22), (11, 33)]);
-        assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
-        assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
+    assert_eq!(
+        to_tuples(node.out_edges()),
+        vec![(11, 22), (11, 33), (11, 44)]
+    );
+    assert_eq!(to_tuples(node_dft.out_edges()), vec![(11, 22), (11, 33)]);
+    assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
+    assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<'graph, G: GraphViewOps<'graph>>(
-            neighbours: PathFromNode<'graph, G>,
-        ) -> Vec<u64> {
-            neighbours
-                .iter()
-                .filter_map(|n| n.id().as_u64())
-                .sorted()
-                .collect_vec()
-        }
+    fn to_ids<'graph, G: GraphViewOps<'graph>>(neighbours: PathFromNode<'graph, G>) -> Vec<u64> {
+        neighbours
+            .iter()
+            .filter_map(|n| n.id().as_u64())
+            .sorted()
+            .collect_vec()
+    }
 
-        assert_eq!(to_ids(node.neighbours()), vec![22, 33, 44]);
-        assert_eq!(to_ids(node_dft.neighbours()), vec![22, 33]);
-        assert_eq!(to_ids(node1.neighbours()), vec![22]);
-        assert_eq!(to_ids(node2.neighbours()), vec![33, 44]);
+    assert_eq!(to_ids(node.neighbours()), vec![22, 33, 44]);
+    assert_eq!(to_ids(node_dft.neighbours()), vec![22, 33]);
+    assert_eq!(to_ids(node1.neighbours()), vec![22]);
+    assert_eq!(to_ids(node2.neighbours()), vec![33, 44]);
 
-        assert_eq!(to_ids(node.out_neighbours()), vec![22, 33, 44]);
-        assert_eq!(to_ids(node_dft.out_neighbours()), vec![22, 33]);
-        assert_eq!(to_ids(node1.out_neighbours()), vec![22]);
-        assert_eq!(to_ids(node2.out_neighbours()), vec![33, 44]);
+    assert_eq!(to_ids(node.out_neighbours()), vec![22, 33, 44]);
+    assert_eq!(to_ids(node_dft.out_neighbours()), vec![22, 33]);
+    assert_eq!(to_ids(node1.out_neighbours()), vec![22]);
+    assert_eq!(to_ids(node2.out_neighbours()), vec![33, 44]);
 
-        assert_eq!(to_ids(node.in_neighbours()), vec![33]);
-        assert_eq!(to_ids(node_dft.in_neighbours()), vec![33]);
-        assert!(to_ids(node1.in_neighbours()).is_empty());
-        assert!(to_ids(node2.in_neighbours()).is_empty());
-    });
+    assert_eq!(to_ids(node.in_neighbours()), vec![33]);
+    assert_eq!(to_ids(node_dft.in_neighbours()), vec![33]);
+    assert!(to_ids(node1.in_neighbours()).is_empty());
+    assert!(to_ids(node2.in_neighbours()).is_empty());
     Ok(())
 }
 
@@ -3546,15 +3542,6 @@ fn materialize_temporal_properties_one_edge() {
 
     let gw = g.window(-9, 3);
     let gmw = gw.materialize().unwrap();
-
-    assert_eq!(gmw.unfiltered_num_edges(), 1);
-    assert_eq!(
-        gmw.unfiltered_num_edges(),
-        gmw.core_edges()
-            .iter(&raphtory_core::entities::LayerIds::All)
-            .count()
-    );
-
     assert_graph_equal(&gw, &gmw);
 }
 

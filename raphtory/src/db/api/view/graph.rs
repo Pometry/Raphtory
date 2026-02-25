@@ -734,7 +734,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .filter(|e| self.filter_edge(e.as_ref()))
                 .count()
         } else {
-            self.unfiltered_num_edges()
+            self.unfiltered_num_edges(self.layer_ids())
         }
     }
 

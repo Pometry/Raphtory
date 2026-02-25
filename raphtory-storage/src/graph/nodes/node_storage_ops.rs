@@ -32,6 +32,10 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
 
+    fn has_layers(self, layer_ids: &'a LayerIds) -> bool {
+        self.layer_ids_iter(layer_ids).next().is_some()
+    }
+
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a>;
 
     fn node_edge_additions<L: Into<LayerIter<'a>>>(
