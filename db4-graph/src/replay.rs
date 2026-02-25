@@ -97,27 +97,27 @@ where
                 src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name);
             }
 
-            let is_new_edge_static = src_writer
+            let is_new_edge_in_static = src_writer
                 .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
                 .is_none();
-            let is_new_edge_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
+
+            let is_new_edge_in_layer = src_writer
+                .get_out_edge(src_pos, dst_id, layer_id)
+                .is_none();
 
             // Add the edge to the static graph if it doesn't already exist.
-            if is_new_edge_static {
+            if is_new_edge_in_static {
                 src_writer.add_static_outbound_edge(src_pos, dst_id, eid);
             }
 
             // Add the edge to the layer if it doesn't already exist, else just record the timestamp.
-            if is_new_edge_layer {
+            if is_new_edge_in_layer {
                 src_writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
             } else {
                 src_writer.update_timestamp(t, src_pos, eid.with_layer(layer_id));
             }
 
             src_writer.set_lsn(lsn);
-
-            // Release the writer for mutable access to dst_writer.
-            drop(src_writer);
         }
 
         // Grab dst writer and add edge data.
@@ -151,24 +151,25 @@ where
                 dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name);
             }
 
-            let is_new_edge_static = dst_writer
+            let is_new_edge_in_static = dst_writer
                 .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
                 .is_none();
-            let is_new_edge_layer = dst_writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
 
-            if is_new_edge_static {
+            let is_new_edge_in_layer = dst_writer
+                .get_inb_edge(dst_pos, src_id, layer_id)
+                .is_none();
+
+            if is_new_edge_in_static {
                 dst_writer.add_static_inbound_edge(dst_pos, src_id, eid);
             }
 
-            if is_new_edge_layer {
+            if is_new_edge_in_layer {
                 dst_writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
             } else {
                 dst_writer.update_timestamp(t, dst_pos, eid.with_layer(layer_id));
             }
 
             dst_writer.set_lsn(lsn);
-
-            drop(dst_writer);
         }
 
         // Grab edge writer and add temporal props.
@@ -198,12 +199,12 @@ where
 
             let mut edge_writer = edge_writer.writer();
 
-            let is_new_edge_static = edge_writer
+            let is_new_edge_in_static = edge_writer
                 .get_edge(STATIC_GRAPH_LAYER_ID, edge_pos)
                 .is_none();
 
             // Add edge into the static graph if it doesn't already exist.
-            if is_new_edge_static {
+            if is_new_edge_in_static {
                 let already_counted = false;
                 edge_writer.add_static_edge(Some(edge_pos), src_id, dst_id, already_counted);
             }
@@ -340,6 +341,19 @@ where
                 src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name);
             }
 
+            let is_new_edge_in_static = src_writer.get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID).is_none();
+            let is_new_edge_in_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
+
+            // Add the edge to the static graph if it doesn't already exist.
+            if is_new_edge_in_static {
+                src_writer.add_static_outbound_edge(src_pos, dst_id, eid);
+            }
+
+            // Add the edge to the layer if it doesn't already exist.
+            if is_new_edge_in_layer {
+                src_writer.add_outbound_edge(Some(t), src_pos, dst_id, eid.with_layer(layer_id));
+            }
+
             src_writer.update_deletion_time(t, src_pos, eid.with_layer(layer_id));
             src_writer.set_lsn(lsn);
         }
@@ -365,7 +379,36 @@ where
 
             let mut dst_writer = dst_writer.writer();
 
+            // Increment the node counter for this segment if this is a new node.
+            if !dst_writer.has_node(dst_pos, STATIC_GRAPH_LAYER_ID) {
+                dst_writer.increment_seg_num_nodes();
+            }
+
+            if let Some(dst_name) = dst_name {
+                dst_writer.store_node_id(dst_pos, STATIC_GRAPH_LAYER_ID, dst_name);
+            }
+
+            let is_new_edge_in_static = dst_writer
+                .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
+                .is_none();
+
+            let is_new_edge_in_layer = dst_writer
+                .get_inb_edge(dst_pos, src_id, layer_id)
+                .is_none();
+
+            // Add the edge to the static graph if it doesn't already exist.
+            if is_new_edge_in_static {
+                dst_writer.add_static_inbound_edge(dst_pos, src_id, eid);
+            }
+
+            // Add the edge to the layer if it doesn't already exist.
+            if is_new_edge_in_layer {
+                dst_writer.add_inbound_edge(Some(t), dst_pos, src_id, eid.with_layer(layer_id));
+            }
+
+            // Always update the deletion time on the edge.
             dst_writer.update_deletion_time(t, dst_pos, eid.with_layer(layer_id));
+
             dst_writer.set_lsn(lsn);
         }
 
@@ -389,7 +432,20 @@ where
             })?;
 
             let mut edge_writer = edge_writer.writer();
+
+            let is_new_edge_in_static = edge_writer
+                .get_edge(STATIC_GRAPH_LAYER_ID, edge_pos)
+                .is_none();
+
+            // Add the edge to the static graph if it doesn't already exist.
+            if is_new_edge_in_static {
+                let already_counted = false;
+                edge_writer.add_static_edge(Some(edge_pos), src_id, dst_id, already_counted);
+            }
+
+            // Delete the edge from the layer at the specified timestamp.
             edge_writer.delete_edge(t, edge_pos, src_id, dst_id, layer_id);
+
             edge_writer.set_lsn(lsn);
         }
 
