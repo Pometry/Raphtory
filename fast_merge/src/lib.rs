@@ -1,6 +1,6 @@
 use crate::{
     merge::FastMerge,
-    merge_impl::{MergeByGe, MergeByLt, MergeByRev, MergePredicate},
+    merge_impl::{MergeByGe, MergeByLt, MergeByRev},
 };
 use std::iter::Rev;
 
@@ -84,7 +84,6 @@ impl<I: Iterator<Item: IntoIterator>> FastMergeExt for I {}
 #[cfg(test)]
 mod tests {
     use crate::FastMergeExt;
-    use itertools::Itertools;
     use proptest::{arbitrary::any, prelude::*, proptest};
 
     #[test]
