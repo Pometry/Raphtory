@@ -543,6 +543,10 @@ impl LayerIds {
         matches!(self, LayerIds::One(_))
     }
 
+    pub fn is_all(&self) -> bool {
+        matches!(self, LayerIds::All)
+    }
+
     pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> + use<'_> {
         match self {
             LayerIds::None => iter::empty().into_dyn_boxed(),

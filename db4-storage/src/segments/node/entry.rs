@@ -196,7 +196,7 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     }
 
     fn edge_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::EdgeAdditions {
-        NodeEdgeAdditions::new_additions_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
+        NodeEdgeAdditions::new_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
     }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {

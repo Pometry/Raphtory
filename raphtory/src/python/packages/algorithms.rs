@@ -72,8 +72,8 @@ use crate::{
 };
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::{storage::timeindex::EventTime, Direction};
-use raphtory_storage::core_ops::CoreGraphOps;
+use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
+use raphtory_storage::{core_ops::CoreGraphOps, layer_ops::InternalLayerOps};
 use std::collections::HashSet;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
@@ -796,7 +796,7 @@ pub fn k_core(
     threads: Option<usize>,
 ) -> Nodes<'static, DynamicGraph> {
     let v_set = k_core_set(&graph.graph, k, iter_count, threads);
-    let index = if v_set.len() == graph.graph.unfiltered_num_nodes() {
+    let index = if v_set.len() == graph.graph.unfiltered_num_nodes(&LayerIds::All) {
         Index::for_graph(graph.graph.clone())
     } else {
         Index::from_iter(v_set)

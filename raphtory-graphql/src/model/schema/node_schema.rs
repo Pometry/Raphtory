@@ -10,6 +10,7 @@ use raphtory::{
     },
     prelude::*,
 };
+use raphtory_api::core::entities::LayerIds;
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 
@@ -62,7 +63,7 @@ impl NodeSchema {
             .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
-        if self.graph.unfiltered_num_nodes() > 1000 {
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
             // large graph, do not collect detailed schema as it is expensive
             keys.into_iter()
                 .zip(property_types)
@@ -109,7 +110,7 @@ impl NodeSchema {
             .map(|(_, k, dtype)| (k.to_string(), dtype.to_string()))
             .unzip();
 
-        if self.graph.unfiltered_num_nodes() > 1000 {
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
             // large graph, do not collect detailed schema as it is expensive
             keys.into_iter()
                 .zip(property_types)

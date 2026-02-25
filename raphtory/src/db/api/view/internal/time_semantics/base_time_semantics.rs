@@ -90,8 +90,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_history(node, view))
+        for_all_iter!(self, semantics => semantics.node_history(node, view, layer_ids))
     }
 
     #[inline]
@@ -99,8 +100,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_history_rev(node, view))
+        for_all_iter!(self, semantics => semantics.node_history_rev(node, view, layer_ids))
     }
 
     #[inline]
@@ -108,9 +110,10 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_history_window(node, view, w))
+        for_all_iter!(self, semantics => semantics.node_history_window(node, view, layer_ids, w))
     }
 
     #[inline]
@@ -118,9 +121,10 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_history_window_rev(node, view, w))
+        for_all_iter!(self, semantics => semantics.node_history_window_rev(node, view, layer_ids, w))
     }
 
     #[inline]
@@ -137,8 +141,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_edge_history(node, view))
+        for_all_iter!(self, semantics => semantics.node_edge_history(node, view, layer_ids))
     }
 
     #[inline]
@@ -146,9 +151,10 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_edge_history_window(node, view, w))
+        for_all_iter!(self, semantics => semantics.node_edge_history_window(node, view, layer_ids, w))
     }
 
     #[inline]
@@ -156,8 +162,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_edge_history_rev(node, view))
+        for_all_iter!(self, semantics => semantics.node_edge_history_rev(node, view, layer_ids))
     }
 
     #[inline]
@@ -165,9 +172,10 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_edge_history_rev_window(node, view, w))
+        for_all_iter!(self, semantics => semantics.node_edge_history_rev_window(node, view, layer_ids, w))
     }
 
     #[inline]

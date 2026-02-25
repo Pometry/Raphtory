@@ -486,7 +486,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistor
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_history(node.as_ref(), &self.graph)
+                .node_history(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -497,7 +497,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistor
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_history_rev(node.as_ref(), &self.graph)
+                .node_history_rev(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()

@@ -30,7 +30,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> Option<EventTime> {
-        node.history(view).first()
+        node.history(&view, view.layer_ids()).first()
     }
 
     fn node_latest_time<'graph, G: GraphView + 'graph>(
@@ -38,7 +38,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> Option<EventTime> {
-        node.history(view).last()
+        node.history(&view, view.layer_ids()).last()
     }
 
     fn node_earliest_time_window<'graph, G: GraphView + 'graph>(
@@ -47,7 +47,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<EventTime>,
     ) -> Option<EventTime> {
-        node.history(view).range(w).first()
+        node.history(&view, view.layer_ids()).range(w).first()
     }
 
     fn node_latest_time_window<'graph, G: GraphView + 'graph>(
@@ -56,41 +56,45 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<EventTime>,
     ) -> Option<EventTime> {
-        node.history(view).range(w).last()
+        node.history(&view, view.layer_ids()).range(w).last()
     }
 
     fn node_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        node.history(view).iter()
+        node.history(view, layer_ids).iter()
     }
 
     fn node_history_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        node.history(view).iter_rev()
+        node.history(view, layer_ids).iter_rev()
     }
 
     fn node_history_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        node.history(view).range(w).iter()
+        node.history(view, layer_ids).range(w).iter()
     }
 
     fn node_history_window_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        node.history(view).range(w).iter_rev()
+        node.history(view, layer_ids).range(w).iter_rev()
     }
 
     fn node_edge_history_count<'graph, G: GraphView + 'graph>(
@@ -98,7 +102,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> usize {
-        node.history(view).edge_history().len()
+        node.history(&view, view.layer_ids()).edge_history().len()
     }
 
     fn node_edge_history_count_window<'graph, G: GraphView + 'graph>(
@@ -107,41 +111,48 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<EventTime>,
     ) -> usize {
-        node.history(view).range(w).edge_history().len()
+        node.history(&view, view.layer_ids())
+            .range(w)
+            .edge_history()
+            .len()
     }
 
     fn node_edge_history<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view).history()
+        node.edge_history(view, layer_ids).history()
     }
 
     fn node_edge_history_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view).range(w).history()
+        node.edge_history(view, layer_ids).range(w).history()
     }
 
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view).history_rev()
+        node.edge_history(view, layer_ids).history_rev()
     }
 
     fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        node.edge_history(view).range(w).history_rev()
+        node.edge_history(view, layer_ids).range(w).history_rev()
     }
 
     fn node_updates<'graph, G: GraphView + 'graph>(
@@ -167,7 +178,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> bool {
-        !node.history(view).is_empty()
+        !node.history(&view, view.layer_ids()).is_empty()
     }
 
     fn node_valid_window<'graph, G: GraphView + 'graph>(
@@ -176,7 +187,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
         view: G,
         w: Range<EventTime>,
     ) -> bool {
-        node.history(view).active(w)
+        node.history(&view, view.layer_ids()).active(w)
     }
 
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(

@@ -157,7 +157,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_edge_history(node.as_ref(), &self.graph)
+                .node_edge_history(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
     }
@@ -167,7 +167,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_edge_history_rev(node.as_ref(), &self.graph)
+                .node_edge_history_rev(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
     }
