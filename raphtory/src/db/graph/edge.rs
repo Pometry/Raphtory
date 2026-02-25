@@ -36,7 +36,7 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
-use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef};
+use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::{AsNodeRef, NodeRef}};
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
@@ -162,10 +162,46 @@ impl<
     > EdgeView<G>
 {
     pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+        let transaction_manager = self.graph.core_graph().transaction_manager()?;
+        let wal = self.graph.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let src = self.src();
+        let dst = self.dst();
+        let edge_id = self.edge.pid();
+
+        let layer_id = self.resolve_layer(layer, true)?;
         let t = time_from_input(&self.graph, t)?;
-        let layer = self.resolve_layer(layer, true)?;
-        self.graph
-            .internal_delete_existing_edge(t, self.edge.pid(), layer)?;
+
+        let mut writer = self
+            .graph
+            .atomic_add_edge(src.as_node_ref(), dst.as_node_ref(), None)
+            .map_err(into_graph_err)?;
+
+        let src_name = None;
+        let dst_name = None;
+
+        let lsn = wal.log_delete_edge(
+            transaction_id,
+            t,
+            src_name,
+            src.node,
+            dst_name,
+            dst.node,
+            edge_id,
+            layer,
+            layer_id
+        )?;
+
+        writer.internal_delete_edge(t, layer_id);
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 }
