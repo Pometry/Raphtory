@@ -97,8 +97,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// (assuming the storage feature is enabled). Sets a new config.
     ///
     /// # Arguments
-    ///     path: The path for the new graph.
-    ///     config: The new config.
+    ///     * path: The path for the new graph.
+    ///     * config: The new config.
     #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
@@ -682,10 +682,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     /// Get the `EventTime` of the earliest activity in the graph.
     #[inline]
     fn earliest_time(&self) -> Option<EventTime> {
-        match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global().map(EventTime::start), // TODO: change earliest_time_global() to return EventTime
-            _ => self
-                .properties()
+        if self.layer_ids().is_all() && !self.filtered() {
+            self.earliest_time_global().map(EventTime::start)
+        } else {
+            self.properties()
                 .temporal()
                 .values()
                 .flat_map(|prop| prop.history().earliest_time())
@@ -698,24 +698,24 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         .flatten()
                         .min(),
                 )
-                .min(),
+                .min()
         }
     }
 
     /// Get the `EventTime` of the latest activity in the graph.
     #[inline]
     fn latest_time(&self) -> Option<EventTime> {
-        match self.filter_state() {
-            FilterState::Neither => self.latest_time_global().map(EventTime::end), // TODO: change latest_time_global to return EventTime
-            _ => self
-                .properties()
+        if self.layer_ids().is_all() && !self.filtered() {
+            self.latest_time_global().map(EventTime::end)
+        } else {
+            self.properties()
                 .temporal()
                 .values()
                 .flat_map(|prop| prop.history().latest_time())
                 .max()
                 .into_iter()
                 .chain(self.nodes().latest_time().par_iter_values().flatten().max())
-                .max(),
+                .max()
         }
     }
 
