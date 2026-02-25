@@ -55,7 +55,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     ) where
         Self: Sized;
 
-    /// Indicate whether the strategy persists to disk or not.
+    /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
 }
 
