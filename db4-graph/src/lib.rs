@@ -5,6 +5,7 @@ use raphtory_api::core::{
         GidType,
     },
     input::input_node::InputNode,
+    storage::timeindex::TimeIndexOps,
 };
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
@@ -208,9 +209,34 @@ where
     #[inline]
     pub fn internal_num_nodes(&self, layer_ids: &LayerIds) -> usize {
         match layer_ids {
-            LayerIds::None => 0,
+            LayerIds::None => self
+                .storage
+                .nodes()
+                .segments_par_iter()
+                .map(|segment| {
+                    let locked = segment.locked();
+                    locked
+                        .iter_entries()
+                        .filter(|entry| !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty())
+                        .count()
+                })
+                .sum(),
             LayerIds::All => self.storage.nodes().num_nodes(),
-            LayerIds::One(id) => self.storage.nodes().layer_num_nodes(*id),
+            LayerIds::One(id) => self
+                .storage
+                .nodes()
+                .segments_par_iter()
+                .map(|segment| {
+                    let locked = segment.locked();
+                    locked
+                        .iter_entries()
+                        .filter(|entry| {
+                            !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
+                                || entry.has_layer_inner(*id)
+                        })
+                        .count()
+                })
+                .sum(),
             LayerIds::Multiple(ids) => {
                 // no fast path, need to count
                 self.storage
@@ -220,7 +246,10 @@ where
                         let locked = segment.locked();
                         locked
                             .iter_entries()
-                            .filter(|entry| ids.iter().any(|layer| entry.has_layer_inner(layer)))
+                            .filter(|entry| {
+                                !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
+                                    || ids.iter().any(|layer| entry.has_layer_inner(layer))
+                            })
                             .count()
                     })
                     .sum()
