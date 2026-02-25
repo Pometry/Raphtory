@@ -130,7 +130,7 @@ impl<
 
         let edge_id = edge.inner();
 
-        if edge_id.layer() > 0 {
+        if edge_id.layer() > STATIC_GRAPH_LAYER_ID {
             if edge.is_new()
                 || self
                     .node_writers

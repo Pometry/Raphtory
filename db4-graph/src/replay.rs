@@ -56,6 +56,16 @@ where
                 .set(dst_name.as_ref(), dst_id)?;
         }
 
+        // Insert layer id into the layer meta of both edge and node.
+        self.graph()
+            .edge_meta()
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+        self.graph()
+            .node_meta()
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+
         // Grab src writer and add edge data.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
         self.resize_segments_to_vid(src_id); // Create enough segments.
@@ -161,7 +171,7 @@ where
             drop(dst_writer);
         }
 
-        // Grab edge writer and add temporal props & metadata.
+        // Grab edge writer and add temporal props.
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
         self.resize_segments_to_eid(eid);
 
@@ -179,16 +189,6 @@ where
 
             // Insert prop ids into edge meta.
             unify_types(edge_meta, &props, true)?;
-
-            // Insert layer id into the layer meta of both edge and node.
-            let node_meta = self.graph().node_meta();
-
-            edge_meta
-                .layer_meta()
-                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
-            node_meta
-                .layer_meta()
-                .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
 
             let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
                 StorageError::GenericFailure(format!(
@@ -279,49 +279,38 @@ where
         lsn: LSN,
         _transaction_id: TransactionID,
         t: EventTime,
-        _src_name: Option<GID>,
+        src_name: Option<GID>,
         src_id: VID,
-        _dst_name: Option<GID>,
+        dst_name: Option<GID>,
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
         layer_id: usize,
     ) -> Result<(), StorageError> {
-        let edge_meta = self.graph().edge_meta();
-        let node_meta = self.graph().node_meta();
-
-        edge_meta
-            .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
-        node_meta
-            .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
-
-        // Edge segment: delete the edge at (t, layer_id).
-        let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
-        self.resize_segments_to_eid(eid);
-
-        let segment = self
-            .graph()
-            .storage()
-            .edges()
-            .get_or_create_segment(edge_segment_id);
-
-        let immut_lsn = segment.immut_lsn();
-
-        if immut_lsn < lsn {
-            let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
-                StorageError::GenericFailure(format!(
-                    "Edge segment {edge_segment_id} not found during replay_delete_edge"
-                ))
-            })?;
-
-            let mut edge_writer = edge_writer.writer();
-            edge_writer.delete_edge(t, edge_pos, src_id, dst_id, layer_id);
-            edge_writer.set_lsn(lsn);
+        // Insert node ids into resolver.
+        if let Some(src_name) = src_name.as_ref() {
+            self.graph()
+                .logical_to_physical
+                .set(src_name.as_ref(), src_id)?;
         }
 
-        // Src node segment: record deletion time.
+        if let Some(dst_name) = dst_name.as_ref() {
+            self.graph()
+                .logical_to_physical
+                .set(dst_name.as_ref(), dst_id)?;
+        }
+
+        // Insert layer id into the layer meta of both edge and node.
+        self.graph()
+            .edge_meta()
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+        self.graph()
+            .node_meta()
+            .layer_meta()
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+
+        // Grab src writer and record deletion time.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
         self.resize_segments_to_vid(src_id);
 
@@ -342,11 +331,20 @@ where
 
             let mut src_writer = src_writer.writer();
 
+            // Increment the node counter for this segment if this is a new node.
+            if !src_writer.has_node(src_pos, STATIC_GRAPH_LAYER_ID) {
+                src_writer.increment_seg_num_nodes();
+            }
+
+            if let Some(src_name) = src_name {
+                src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name);
+            }
+
             src_writer.update_deletion_time(t, src_pos, eid.with_layer(layer_id));
             src_writer.set_lsn(lsn);
         }
 
-        // Dst node segment: record deletion time.
+        // Grab dst writer and record deletion time.
         let (dst_segment_id, dst_pos) = self.graph().storage().nodes().resolve_pos(dst_id);
         self.resize_segments_to_vid(dst_id);
 
@@ -369,6 +367,30 @@ where
 
             dst_writer.update_deletion_time(t, dst_pos, eid.with_layer(layer_id));
             dst_writer.set_lsn(lsn);
+        }
+
+        // Grab edge writer and delete the edge at (t, layer_id).
+        let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
+        self.resize_segments_to_eid(eid);
+
+        let segment = self
+            .graph()
+            .storage()
+            .edges()
+            .get_or_create_segment(edge_segment_id);
+
+        let immut_lsn = segment.immut_lsn();
+
+        if immut_lsn < lsn {
+            let edge_writer = self.edges.get_mut(edge_segment_id).ok_or_else(|| {
+                StorageError::GenericFailure(format!(
+                    "Edge segment {edge_segment_id} not found during replay_delete_edge"
+                ))
+            })?;
+
+            let mut edge_writer = edge_writer.writer();
+            edge_writer.delete_edge(t, edge_pos, src_id, dst_id, layer_id);
+            edge_writer.set_lsn(lsn);
         }
 
         Ok(())

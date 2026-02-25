@@ -18,6 +18,7 @@ pub trait InternalDeletionOps {
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, Self::Error>;
+
     fn internal_delete_existing_edge(
         &self,
         t: EventTime,
