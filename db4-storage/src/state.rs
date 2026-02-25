@@ -3,7 +3,7 @@ use rayon::prelude::*;
 use std::{
     borrow::Borrow,
     marker::PhantomData,
-    ops::{Deref, Index, IndexMut},
+    ops::{Index, IndexMut},
     sync::Arc,
 };
 

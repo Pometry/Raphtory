@@ -26,13 +26,8 @@
 // IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-use itertools::{put_back, Either, Itertools, PutBack};
-use std::{
-    fmt,
-    fmt::Formatter,
-    iter::{Fuse, FusedIterator},
-    mem::replace,
-};
+use itertools::{put_back, PutBack};
+use std::{fmt, fmt::Formatter, iter::FusedIterator, mem::replace};
 
 /// `SizeHint` is the return type of `Iterator::size_hint()`.
 pub type SizeHint = (usize, Option<usize>);
@@ -141,14 +136,6 @@ where
         heap.swap(pos, child);
     }
 }
-
-/// An iterator adaptor that merges an abitrary number of base iterators in ascending order.
-/// If all base iterators are sorted (ascending), the result is sorted.
-///
-/// Iterator element type is `I::Item`.
-///
-/// See [`.kmerge()`](crate::Itertools::kmerge) for more information.
-pub type KMerge<I> = KMergeBy<I, MergeByLt>;
 
 pub trait MergePredicate<T> {
     fn merge_pred(&mut self, a: &T, b: &T) -> bool;
@@ -304,7 +291,7 @@ impl<I: Iterator, J: Iterator, F> MergeBy<I, J, F> {
     /// Take the iterators back out.
     ///
     /// Warning: discards the head in the `PutBack` and should only be used before actually iterating over the struct!
-    pub(crate) fn into_inner(self) -> (I, J, F) {
+    pub fn into_inner(self) -> (I, J, F) {
         let (_, left) = self.left.into_parts();
         let (_, right) = self.right.into_parts();
         (left, right, self.cmp_fn)

@@ -1,12 +1,10 @@
 use crate::error::StorageError;
 use clap::{
-    Arg, ArgMatches, Args, Command, FromArgMatches,
-    builder::{TypedValueParser, ValueParser},
-    error::{ContextKind, ContextValue, Error},
+    Args, Command,
+    error::{ContextKind, ContextValue},
 };
-use itertools::Itertools;
-use serde::{Deserialize, Deserializer, Serialize, de::DeserializeOwned};
-use std::{env::var, ffi::OsStr, iter, path::Path};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use std::{iter, path::Path};
 use tracing::error;
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
@@ -150,7 +148,6 @@ mod tests {
     use crate::persist::config::{
         BaseConfig, DEFAULT_MAX_PAGE_LEN_EDGES, DEFAULT_MAX_PAGE_LEN_NODES,
     };
-    use std::env;
 
     #[test_log::test]
     fn test_default() {

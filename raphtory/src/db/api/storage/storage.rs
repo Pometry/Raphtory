@@ -4,7 +4,7 @@ use crate::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
         Base, InheritViewOps,
     },
-    errors::GraphError,
+    errors::{into_graph_err, GraphError},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -17,15 +17,15 @@ use raphtory_api::core::{
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
-use raphtory_core::entities::ELID;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-        addition_ops_ext::{AtomicAddEdge, UnlockedSession},
+        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         deletion_ops::InternalDeletionOps,
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, NodeWriterT,
     },
@@ -37,11 +37,6 @@ use std::{
 };
 use storage::wal::{GraphWalOps, WalOps, LSN};
 
-// Re-export for raphtory dependencies to use when creating graphs.
-pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
-
-use crate::{errors::into_graph_err, prelude::Graph};
-use raphtory_storage::mutation::{addition_ops_ext::AtomicAddNode, durability_ops::DurabilityOps};
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -60,6 +55,9 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
+
+// Re-export for raphtory dependencies to use when creating graphs.
+pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[derive(Debug, Default)]
 pub struct Storage {
