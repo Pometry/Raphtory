@@ -4,9 +4,10 @@ use raphtory::{
     db::graph::{graph::assert_graph_equal, views::deletion_graph::PersistentGraph},
     prelude::*,
     test_storage,
-    test_utils::{build_graph, build_graph_layer, build_graph_strat},
+    test_utils::{build_graph, build_graph_layer, build_graph_strat, GraphFixture},
 };
 use raphtory_api::core::entities::GID;
+use serde_json::json;
 
 #[test]
 fn prop_test_layering() {
@@ -16,6 +17,17 @@ fn prop_test_layering() {
             let g_layer = g.valid_layers(layer.clone());
             assert_graph_equal(&g_layer, &g_layer_expected);
     })
+}
+
+#[test]
+fn test_failure() {
+    let graph_f: GraphFixture = serde_json::from_value(json!({"nodes":{"10":{"props":{"t_props":[[0,[]]],"c_props":[]},"node_type":null}},"edges":[]})).unwrap();
+    let layer = [];
+    let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
+    let g = Graph::from(build_graph(&graph_f));
+    let g_layer = g.valid_layers(layer.clone());
+
+    assert_graph_equal(&g_layer, &g_layer_expected);
 }
 
 #[test]
