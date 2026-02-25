@@ -51,9 +51,11 @@ impl InternalDeletionOps for TemporalGraph<Extension> {
     ) -> Result<(), Self::Error> {
         let mut writer = self.storage().edge_writer(eid);
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
-        let (src, dst) = writer.get_edge(STATIC_GRAPH_LAYER_ID, edge_pos).unwrap_or_else(|| {
-            panic!("Internal Error: Edge {eid:?} not found in storage");
-        });
+        let (src, dst) = writer
+            .get_edge(STATIC_GRAPH_LAYER_ID, edge_pos)
+            .unwrap_or_else(|| {
+                panic!("Internal Error: Edge {eid:?} not found in storage");
+            });
         writer.delete_edge(t, edge_pos, src, dst, layer);
         Ok(())
     }

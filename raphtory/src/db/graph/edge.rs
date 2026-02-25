@@ -36,7 +36,10 @@ use raphtory_api::core::{
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
-use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::{AsNodeRef, NodeRef}};
+use raphtory_core::entities::{
+    graph::tgraph::InvalidLayer,
+    nodes::node_ref::{AsNodeRef, NodeRef},
+};
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
@@ -189,7 +192,7 @@ impl<
             dst.node,
             edge_id,
             layer,
-            layer_id
+            layer_id,
         )?;
 
         writer.internal_delete_edge(t, layer_id);

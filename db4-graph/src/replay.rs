@@ -101,9 +101,7 @@ where
                 .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
                 .is_none();
 
-            let is_new_edge_in_layer = src_writer
-                .get_out_edge(src_pos, dst_id, layer_id)
-                .is_none();
+            let is_new_edge_in_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
 
             // Add the edge to the static graph if it doesn't already exist.
             if is_new_edge_in_static {
@@ -155,9 +153,7 @@ where
                 .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
                 .is_none();
 
-            let is_new_edge_in_layer = dst_writer
-                .get_inb_edge(dst_pos, src_id, layer_id)
-                .is_none();
+            let is_new_edge_in_layer = dst_writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
 
             if is_new_edge_in_static {
                 dst_writer.add_static_inbound_edge(dst_pos, src_id, eid);
@@ -341,7 +337,9 @@ where
                 src_writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_name);
             }
 
-            let is_new_edge_in_static = src_writer.get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID).is_none();
+            let is_new_edge_in_static = src_writer
+                .get_out_edge(src_pos, dst_id, STATIC_GRAPH_LAYER_ID)
+                .is_none();
             let is_new_edge_in_layer = src_writer.get_out_edge(src_pos, dst_id, layer_id).is_none();
 
             // Add the edge to the static graph if it doesn't already exist.
@@ -392,9 +390,7 @@ where
                 .get_inb_edge(dst_pos, src_id, STATIC_GRAPH_LAYER_ID)
                 .is_none();
 
-            let is_new_edge_in_layer = dst_writer
-                .get_inb_edge(dst_pos, src_id, layer_id)
-                .is_none();
+            let is_new_edge_in_layer = dst_writer.get_inb_edge(dst_pos, src_id, layer_id).is_none();
 
             // Add the edge to the static graph if it doesn't already exist.
             if is_new_edge_in_static {
