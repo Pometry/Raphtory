@@ -18,7 +18,7 @@ mod io_tests {
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
     use raphtory_core::storage::timeindex::EventTime;
     use raphtory_storage::{
         core_ops::CoreGraphOps,
@@ -230,9 +230,9 @@ mod io_tests {
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
 
-            let count_edges = g.core_edges().iter(&raphtory_core::entities::LayerIds::All).count();
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            let count_edges = g.core_edges().iter(&LayerIds::All).count();
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_eq!(count_edges, distinct_edges);
             assert_graph_equal(&g, &g2);
         })
@@ -389,8 +389,8 @@ mod io_tests {
             assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
             assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
         }
-        assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-        assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+        assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+        assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
         assert_graph_equal(&g, &g2);
     }
 
@@ -409,8 +409,8 @@ mod io_tests {
                 g2.add_edge(time, &src, &dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
             }
 
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_graph_equal(&g, &g2);
         })
     }
@@ -556,8 +556,8 @@ mod io_tests {
                 max_secondary_index = max_secondary_index.max(secondary_index_val as usize);
             }
 
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_graph_equal(&g, &g2);
 
             // Both graphs should have the same event_id / secondary_index

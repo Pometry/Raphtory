@@ -31,20 +31,6 @@ where
     G: StaticGraphViewOps,
     CS: ComputeState,
 {
-    pub fn new_local_state<O: Debug + Default, F: Fn(NodeView<'static, G>) -> O>(
-        &self,
-        init_f: F,
-    ) -> Vec<O> {
-        let n = self.g.unfiltered_num_nodes();
-        let mut new_state = Vec::with_capacity(n);
-        for i in 0..n {
-            match self.g.node(VID(i)) {
-                Some(v) => new_state.push(init_f(v)),
-                None => new_state.push(O::default()),
-            }
-        }
-        new_state
-    }
     pub fn ss(&self) -> usize {
         self.ss
     }

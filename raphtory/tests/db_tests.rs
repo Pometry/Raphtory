@@ -3460,16 +3460,6 @@ fn test_unique_property() {
 }
 
 #[test]
-fn num_locks_same_as_threads() {
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(5)
-        .build()
-        .unwrap();
-    let graph = pool.install(Graph::new);
-    assert_eq!(graph.core_graph().unfiltered_num_nodes(), 0);
-}
-
-#[test]
 fn test_create_node() {
     let g = Graph::new();
     g.create_node(0, 1, [("test", Prop::Bool(true))], None)

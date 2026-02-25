@@ -5,15 +5,11 @@ use raphtory_api::core::entities::LayerIds;
 impl ListOps for GraphStorage {
     #[inline]
     fn node_list(&self) -> NodeList {
-        NodeList::All {
-            len: self.unfiltered_num_nodes(),
-        }
+        NodeList::All
     }
 
     #[inline]
     fn edge_list(&self) -> EdgeList {
-        EdgeList::All {
-            len: self.unfiltered_num_edges(&LayerIds::All),
-        }
+        EdgeList::All
     }
 }
