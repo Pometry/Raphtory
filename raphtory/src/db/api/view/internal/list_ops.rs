@@ -1,7 +1,11 @@
 use crate::{
     core::entities::{EID, VID},
-    db::api::{state::Index, view::Base},
+    db::api::{
+        state::Index,
+        view::{internal::GraphView, Base},
+    },
 };
+use raphtory_api::core::entities::LayerIds;
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{iter::Either, prelude::*};
 use std::{hash::Hash, sync::Arc};
@@ -29,7 +33,7 @@ where
 
 #[derive(Debug)]
 pub enum List<I> {
-    All { len: usize },
+    All,
     List { elems: Index<I> },
 }
 
@@ -39,7 +43,7 @@ pub type EdgeList = List<EID>;
 impl<I> Clone for List<I> {
     fn clone(&self) -> Self {
         match self {
-            List::All { len } => List::All { len: *len },
+            List::All => List::All,
             List::List { elems } => List::List {
                 elems: elems.clone(),
             },
@@ -50,10 +54,7 @@ impl<I> Clone for List<I> {
 impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
     pub fn intersection(&self, other: &List<I>) -> List<I> {
         match (self, other) {
-            (List::All { len: a }, List::All { len: b }) => {
-                let len = *a.min(b);
-                List::All { len }
-            }
+            (List::All, List::All) => List::All,
             (List::List { .. }, List::All { .. }) => self.clone(),
             (List::All { .. }, List::List { .. }) => other.clone(),
             (List::List { elems: a }, List::List { elems: b }) => {
@@ -62,23 +63,12 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             }
         }
     }
-
-    pub fn len(&self) -> usize {
-        match self {
-            List::All { len } => *len,
-            List::List { elems } => elems.len(),
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 }
 
 impl List<VID> {
     pub fn nodes_iter(self, g: &GraphStorage) -> impl Iterator<Item = VID> {
         match self {
-            List::All { .. } => {
+            List::All => {
                 let sc = g.node_segment_counts();
                 Either::Left(sc.into_iter())
             }
@@ -88,14 +78,14 @@ impl List<VID> {
 
     pub fn into_index(self, g: &GraphStorage) -> Index<VID> {
         match self {
-            List::All { .. } => Index::Full(Arc::new(g.node_state_index())),
+            List::All => Index::Full(Arc::new(g.node_state_index())),
             List::List { elems } => elems,
         }
     }
 
     pub fn nodes_par_iter(self, g: &GraphStorage) -> impl ParallelIterator<Item = VID> {
         match self {
-            List::All { .. } => {
+            List::All => {
                 let sc = g.node_segment_counts();
                 Either::Left(sc.into_par_iter())
             }

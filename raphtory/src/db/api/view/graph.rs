@@ -334,7 +334,7 @@ fn materialize_impl(
 
     {
         // scope for the write lock
-        let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
+        let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes(&LayerIds::All)];
         let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
         // reverse index pos -> new_vid

@@ -17,7 +17,11 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 use storage::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    api::{
+        edges::EdgeSegmentOps,
+        graph_props::GraphPropSegmentOps,
+        nodes::{LockedNSSegment, NodeRefOps, NodeSegmentOps},
+    },
     dir::GraphDir,
     error::StorageError,
     pages::{
@@ -202,8 +206,26 @@ where
     }
 
     #[inline]
-    pub fn internal_num_nodes(&self) -> usize {
-        self.logical_to_physical.len()
+    pub fn internal_num_nodes(&self, layer_ids: &LayerIds) -> usize {
+        match layer_ids {
+            LayerIds::None => 0,
+            LayerIds::All => self.storage.nodes().num_nodes(),
+            LayerIds::One(id) => self.storage.nodes().layer_num_nodes(*id),
+            LayerIds::Multiple(ids) => {
+                // no fast path, need to count
+                self.storage
+                    .nodes()
+                    .segments_par_iter()
+                    .map(|segment| {
+                        let locked = segment.locked();
+                        locked
+                            .iter_entries()
+                            .filter(|entry| ids.iter().any(|layer| entry.has_layer_inner(layer)))
+                            .count()
+                    })
+                    .sum()
+            }
+        }
     }
 
     #[inline]
