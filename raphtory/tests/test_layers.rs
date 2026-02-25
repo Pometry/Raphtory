@@ -20,9 +20,42 @@ fn prop_test_layering() {
 }
 
 #[test]
-fn test_failure() {
+fn test_node_explicit_node_additions() {
     let graph_f: GraphFixture = serde_json::from_value(json!({"nodes":{"10":{"props":{"t_props":[[0,[]]],"c_props":[]},"node_type":null}},"edges":[]})).unwrap();
     let layer = [];
+    let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
+    let g = Graph::from(build_graph(&graph_f));
+    let g_layer = g.valid_layers(layer.clone());
+
+    assert_graph_equal(&g_layer, &g_layer_expected);
+}
+
+#[test]
+fn test_failure() {
+    let graph_f: GraphFixture = serde_json::from_value(json!({"nodes":{},"edges":[[[0,0,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[3,9,"b"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[9,3,"b"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[0,0,null],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let layer = ["_default", "b"];
+    let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
+    let g = Graph::from(build_graph(&graph_f));
+    let g_layer = g.valid_layers(layer.clone());
+
+    assert_graph_equal(&g_layer, &g_layer_expected);
+}
+
+#[test]
+fn test_failure2() {
+    let graph_f: GraphFixture = serde_json::from_value(json!({"nodes":{},"edges":[[[0,0,null],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[0,0,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[0,0,"b"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let layer = ["_default", "b"];
+    let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
+    let g = Graph::from(build_graph(&graph_f));
+    let g_layer = g.valid_layers(layer.clone());
+
+    assert_graph_equal(&g_layer, &g_layer_expected);
+}
+
+#[test]
+fn test_failure3() {
+    let graph_f: GraphFixture = serde_json::from_value(json!({"nodes":{},"edges":[[[0,0,null],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[0,0,"b"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[0,1,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let layer = ["_default", "b"];
     let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
     let g = Graph::from(build_graph(&graph_f));
     let g_layer = g.valid_layers(layer.clone());
