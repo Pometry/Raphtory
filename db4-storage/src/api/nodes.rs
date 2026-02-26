@@ -150,6 +150,8 @@ pub trait LockedNSSegment: Debug + Send + Sync {
 
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>;
 
+    fn layer_iter(&self, layers: LayerIds) -> impl Iterator<Item = VID> + Send + Sync;
+
     fn iter_entries<'a>(&'a self) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
         let num_nodes = self.num_nodes();
         (0..num_nodes).map(move |vid| self.entry_ref(LocalPOS(vid)))
@@ -157,7 +159,7 @@ pub trait LockedNSSegment: Debug + Send + Sync {
 
     fn par_iter_entries<'a>(
         &'a self,
-    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Sync + 'a {
         let num_nodes = self.num_nodes();
         (0..num_nodes)
             .into_par_iter()

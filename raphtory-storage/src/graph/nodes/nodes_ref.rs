@@ -1,6 +1,7 @@
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
 use raphtory_api::core::entities::VID;
+use raphtory_core::entities::LayerIds;
 use rayon::iter::ParallelIterator;
 use storage::{Extension, ReadLockedNodes};
 
@@ -37,12 +38,13 @@ impl<'a> NodesStorageEntry<'a> {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
+
     pub fn par_iter(&self) -> impl ParallelIterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.par_iter())
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
-        for_all_variants!(self, nodes => nodes.iter())
+    pub fn layer_iter(self, layers: LayerIds) -> impl Iterator<Item = VID> {
+        for_all_variants!(self, nodes => nodes.layer_iter(layers))
     }
 
     /// Returns a parallel iterator over nodes row groups

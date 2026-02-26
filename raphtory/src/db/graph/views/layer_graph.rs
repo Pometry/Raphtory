@@ -6,7 +6,7 @@ use crate::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
             InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
             InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-            InternalLayerOps, InternalNodeFilterOps, Static,
+            InternalLayerOps, InternalNodeFilterOps, ListOps, NodeList, EdgeList, Static,
         },
     },
 };
@@ -102,3 +102,16 @@ impl<G: GraphView> InheritEdgeLayerFilterOps for LayeredGraph<G> {}
 impl<G: GraphView> InheritEdgeFilterOps for LayeredGraph<G> {}
 
 impl<G: GraphView> InheritExplodedEdgeFilterOps for LayeredGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> ListOps for LayeredGraph<G> {
+    fn node_list(&self) -> NodeList {
+        NodeList::All {
+            layers: self.layers.clone(),
+        }
+    }
+
+    fn edge_list(&self) -> EdgeList {
+        // self.graph.edge_list()
+        self.base().edge_list()
+    }
+}

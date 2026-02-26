@@ -2002,7 +2002,10 @@ fn test_graph_metadata() {
 
     assert_eq!(
         g.metadata().keys().collect::<HashSet<_>>(),
-        props_names.union(&props_names2).cloned().collect()
+        props_names
+            .union(&props_names2)
+            .cloned()
+            .collect::<HashSet<_>>()
     );
 }
 

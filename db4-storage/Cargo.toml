@@ -24,6 +24,7 @@ arrow-array.workspace = true
 arrow-schema.workspace = true
 parquet.workspace = true
 rayon.workspace = true
+roaring.workspace = true
 itertools.workspace = true
 thiserror.workspace = true
 tinyvec.workspace = true
