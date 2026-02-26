@@ -247,10 +247,8 @@ impl<'a, PN: AsRef<str>> PropsMetaWriter<'a, PN> {
 
 #[cfg(test)]
 mod test {
-
-    use raphtory_api::core::storage::arc_str::ArcStr;
-
     use super::*;
+    use raphtory_api::core::storage::arc_str::ArcStr;
 
     #[test]
     fn test_props_meta_writer() {

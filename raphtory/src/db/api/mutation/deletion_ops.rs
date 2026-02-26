@@ -13,7 +13,9 @@ use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTi
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
     deletion_ops::InternalDeletionOps,
+    durability_ops::DurabilityOps,
 };
+use storage::wal::{GraphWalOps, WalOps};
 
 pub trait DeletionOps:
     InternalDeletionOps<Error: Into<GraphError>>
@@ -28,6 +30,9 @@ pub trait DeletionOps:
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
+        let transaction_manager = self.core_graph().transaction_manager()?;
+        let wal = self.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
         let session = self.write_session().map_err(|err| err.into())?;
         let src = src.as_node_ref();
         let dst = dst.as_node_ref();
@@ -40,16 +45,39 @@ pub trait DeletionOps:
         .map_err(into_graph_err)?;
 
         let ti = time_from_input_session(&session, t)?;
+        let src_gid = src.as_gid_ref();
+        let dst_gid = dst.as_gid_ref();
         let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
-        let mut add_edge_op = self
+        let mut writer = self
             .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
 
-        add_edge_op.internal_delete_edge(ti, layer_id);
-        let src_id = add_edge_op.src().inner();
-        let dst_id = add_edge_op.dst().inner();
-        let edge_id = add_edge_op.eid().inner();
+        let src_id = writer.src().inner();
+        let dst_id = writer.dst().inner();
+        let edge_id = writer.eid().inner();
+
+        let lsn = wal.log_delete_edge(
+            transaction_id,
+            ti,
+            src_gid,
+            src_id,
+            dst_gid,
+            dst_id,
+            edge_id,
+            layer,
+            layer_id,
+        )?;
+
+        writer.internal_delete_edge(ti, layer_id);
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
 
         Ok(EdgeView::new(
             self.clone(),
