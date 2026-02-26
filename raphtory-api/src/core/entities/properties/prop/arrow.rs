@@ -225,6 +225,13 @@ impl<'a> ArrowRow<'a> {
     pub fn is_valid(&self, col: usize) -> bool {
         self.array.column(col).is_valid(self.index)
     }
+
+    pub fn any_valid(&self) -> bool {
+        self.array
+            .columns()
+            .iter()
+            .any(|col| col.is_valid(self.index))
+    }
 }
 
 impl<'a> ArrowRow<'a> {
