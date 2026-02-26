@@ -1098,7 +1098,6 @@ dependencies = [
  "snb",
  "tempfile",
  "thiserror 1.0.69",
- "tikv-jemallocator",
  "tokio",
  "tracing",
  "tracing-test",
