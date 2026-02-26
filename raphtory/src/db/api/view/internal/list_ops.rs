@@ -1,11 +1,7 @@
 use crate::{
     core::entities::{EID, VID},
-    db::api::{
-        state::Index,
-        view::{internal::GraphView, Base},
-    },
+    db::api::{state::Index, view::Base},
 };
-use raphtory_api::core::entities::LayerIds;
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{iter::Either, prelude::*};
 use std::{hash::Hash, sync::Arc};

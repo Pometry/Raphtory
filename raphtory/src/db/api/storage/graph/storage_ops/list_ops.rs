@@ -1,6 +1,5 @@
 use super::GraphStorage;
 use crate::db::api::view::internal::{EdgeList, ListOps, NodeList};
-use raphtory_api::core::entities::LayerIds;
 
 impl ListOps for GraphStorage {
     #[inline]

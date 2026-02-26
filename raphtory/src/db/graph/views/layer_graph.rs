@@ -5,8 +5,8 @@ use crate::{
         view::internal::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
             InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
-            InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalLayerOps, InternalNodeFilterOps, Static,
+            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
 };
