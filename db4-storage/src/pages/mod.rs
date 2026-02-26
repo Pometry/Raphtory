@@ -1,12 +1,12 @@
 use crate::{
-    LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    wal::{GraphWalOps, WalOps},
+    wal::{GraphWalOps, WalOps, LSN},
+    LocalPOS,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -88,6 +88,13 @@ impl<
         self.graph_props.flush()?;
 
         Ok(())
+    }
+
+    /// Returns the latest `LSN` on disk across all node, edge and graph prop segments.
+    pub fn latest_lsn_on_disk(&self) -> LSN {
+        self.nodes.latest_lsn_on_disk()
+            .max(self.edges.latest_lsn_on_disk())
+            .max(self.graph_props.latest_lsn_on_disk())
     }
 }
 
@@ -561,17 +568,19 @@ impl<
                 // 1. No new writes can occur since we are in a drop.
                 // 2. flush() has persisted all the segments to disk.
                 //
-                // This means that (latest_lsn_on_disk) == (wal.next_lsn() - 1).
                 // Thus, we can safely discard all records with LSN <= latest_lsn_on_disk
                 // by rotating the WAL.
-                let latest_lsn_on_disk = wal.next_lsn() - 1;
+                let latest_lsn_on_disk = self.latest_lsn_on_disk();
 
+                // Log a checkpoint record so we can restore the latest LSN during reload.
                 let checkpoint_lsn = wal
                     .log_checkpoint(latest_lsn_on_disk)
                     .expect("Failed to log checkpoint in drop");
 
-                // Include the checkpoint record in the rotation to reload LSN after recovery.
-                if let Err(e) = wal.rotate(checkpoint_lsn - 1) {
+                wal.flush(checkpoint_lsn)
+                    .expect("Failed to flush checkpoint record in drop");
+
+                if let Err(e) = wal.rotate(latest_lsn_on_disk) {
                     eprintln!("Failed to rotate WAL in drop: {}", e);
                 }
             }

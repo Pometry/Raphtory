@@ -1,16 +1,8 @@
 use super::{node_page::writer::NodeWriter, resolve_pos};
 use crate::{
-    LocalPOS,
-    api::nodes::{LockedNSSegment, NodeSegmentOps},
-    error::StorageError,
-    pages::{
-        SegmentCounts,
-        layer_counter::GraphStats,
-        locked::nodes::{LockedNodePage, WriteLockedNodePages},
-        row_group_par_iter,
-    },
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
-    segments::node::segment::MemNodeSegment,
+    api::nodes::{LockedNSSegment, NodeSegmentOps}, error::StorageError, pages::{
+        layer_counter::GraphStats, locked::nodes::{LockedNodePage, WriteLockedNodePages}, row_group_par_iter, SegmentCounts
+    }, persist::{config::ConfigOps, strategy::PersistenceStrategy}, segments::node::segment::MemNodeSegment, wal::LSN, LocalPOS
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidType, properties::meta::Meta};
@@ -629,6 +621,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
     pub(crate) fn flush(&self) -> Result<(), StorageError> {
         self.segments_par_iter().try_for_each(|seg| seg.flush())
+    }
+
+    pub(crate) fn latest_lsn_on_disk(&self) -> LSN {
+        self.segments_par_iter().map(|seg| seg.immut_lsn()).max().unwrap_or(0)
     }
 }
 

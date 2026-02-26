@@ -1,6 +1,5 @@
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
-    LocalPOS,
     api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
     error::StorageError,
     pages::{
@@ -11,6 +10,8 @@ use crate::{
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::edge::segment::MemEdgeSegment,
+    wal::LSN,
+    LocalPOS,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{
@@ -644,5 +645,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
     pub fn flush(&self) -> Result<(), StorageError> {
         self.par_iter_segments().try_for_each(|seg| seg.flush())
+    }
+
+    pub(crate) fn latest_lsn_on_disk(&self) -> LSN {
+        self.par_iter_segments()
+            .map(|seg| seg.immut_lsn())
+            .max()
+            .unwrap_or(0)
     }
 }

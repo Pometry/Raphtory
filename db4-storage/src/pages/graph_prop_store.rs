@@ -3,6 +3,7 @@ use raphtory_api::core::entities::properties::meta::Meta;
 use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
+    wal::LSN,
     pages::{
         graph_prop_page::writer::GraphPropWriter,
         locked::graph_props::{LockedGraphPropPage, WriteLockedGraphPropPages},
@@ -87,5 +88,9 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
 
     pub fn flush(&self) -> Result<(), StorageError> {
         self.page.flush()
+    }
+
+    pub(crate) fn latest_lsn_on_disk(&self) -> LSN {
+        self.page.immut_lsn()
     }
 }
