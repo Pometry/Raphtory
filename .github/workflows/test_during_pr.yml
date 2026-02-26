@@ -4,6 +4,7 @@ on:
     branches:
       - master
       - db_v4
+      - db_v4_gql
       - "0.16"
 
 concurrency:
