@@ -9,6 +9,7 @@ use raphtory::{
     test_utils::{build_graph, build_graph_strat},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use serde_json::json;
 use std::collections::BTreeSet;
 
 #[test]
@@ -520,6 +521,18 @@ fn materialize_proptest() {
         let subgraph = graph.subgraph(nodes);
         assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
     })
+}
+
+#[test]
+fn materialize_proptest_failure() {
+    let graph_f = serde_json::from_value(json!({"nodes":{},"edges":[[[1,1,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[0,0,null],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let graph = Graph::from(build_graph(&graph_f));
+    let subgraph = graph.subgraph([1]);
+    let nodes = subgraph.default_layer().nodes().id().collect_vec();
+    dbg!(nodes);
+    assert_eq!(subgraph.default_layer().count_nodes(), 0);
+    let materialised = subgraph.materialize().unwrap();
+    assert_graph_equal(&subgraph, &materialised);
 }
 
 #[test]

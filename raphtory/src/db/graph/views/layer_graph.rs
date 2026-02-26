@@ -6,12 +6,12 @@ use crate::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
             InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
             InheritMaterialize, InheritNodeFilterOps, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalLayerOps, Static,
+            InheritTimeSemantics, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
 };
 use raphtory_api::inherit::Base;
-use raphtory_storage::core_ops::InheritCoreGraphOps;
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -58,7 +58,32 @@ impl<G: GraphView> InheritStorageOps for LayeredGraph<G> {}
 impl<G: GraphView> InheritNodeHistoryFilter for LayeredGraph<G> {}
 
 impl<G: GraphView> InheritEdgeHistoryFilter for LayeredGraph<G> {}
-impl<G: GraphView> InheritNodeFilterOps for LayeredGraph<G> {}
+impl<G: GraphView> InternalNodeFilterOps for LayeredGraph<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        self.graph.internal_nodes_filtered()
+    }
+
+    fn internal_node_list_trusted(&self) -> bool {
+        // after applying a layer, previously filtered lists can no longer be trusted
+        self.graph.internal_node_list_trusted() && self.graph.node_list().unfiltered()
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    fn edge_layer_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_layer_filter_includes_node_filter()
+    }
+
+    fn exploded_edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.exploded_edge_filter_includes_node_filter()
+    }
+
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_node(node, layer_ids)
+    }
+}
 
 impl<G: GraphView> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
