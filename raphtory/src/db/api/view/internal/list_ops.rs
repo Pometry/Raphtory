@@ -63,6 +63,10 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
             }
         }
     }
+
+    pub fn unfiltered(&self) -> bool {
+        matches!(self, List::All)
+    }
 }
 
 impl List<VID> {
