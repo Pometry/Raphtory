@@ -573,6 +573,13 @@ impl<
                 // by rotating the WAL.
                 let latest_immut_lsn = self.latest_immut_lsn();
 
+                if let Err(e) = wal.rotate(latest_immut_lsn) {
+                    eprintln!("Failed to rotate WAL in drop: {}", e);
+                }
+
+                // FIXME: If the process crashes here after rotation, we lose the
+                // checkpoint record. Write next LSN to a separate file before rotation.
+
                 // Log a checkpoint record so we can restore the next LSN after reload.
                 let checkpoint_lsn = wal
                     .log_checkpoint(latest_immut_lsn)
@@ -580,10 +587,6 @@ impl<
 
                 wal.flush(checkpoint_lsn)
                     .expect("Failed to flush checkpoint record in drop");
-
-                if let Err(e) = wal.rotate(latest_immut_lsn) {
-                    eprintln!("Failed to rotate WAL in drop: {}", e);
-                }
             }
             Err(err) => {
                 eprintln!("Failed to flush storage in drop: {err}")
