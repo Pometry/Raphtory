@@ -90,7 +90,7 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
         self.page.flush()
     }
 
-    pub(crate) fn latest_lsn_on_disk(&self) -> LSN {
+    pub(crate) fn latest_immut_lsn(&self) -> LSN {
         self.page.immut_lsn()
     }
 }

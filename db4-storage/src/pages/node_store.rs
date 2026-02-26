@@ -632,7 +632,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         self.segments_par_iter().try_for_each(|seg| seg.flush())
     }
 
-    pub(crate) fn latest_lsn_on_disk(&self) -> LSN {
+    pub(crate) fn latest_immut_lsn(&self) -> LSN {
         self.segments_par_iter()
             .map(|seg| seg.immut_lsn())
             .max()

@@ -647,7 +647,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         self.par_iter_segments().try_for_each(|seg| seg.flush())
     }
 
-    pub(crate) fn latest_lsn_on_disk(&self) -> LSN {
+    pub(crate) fn latest_immut_lsn(&self) -> LSN {
         self.par_iter_segments()
             .map(|seg| seg.immut_lsn())
             .max()
