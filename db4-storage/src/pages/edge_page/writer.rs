@@ -45,18 +45,15 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         props: impl IntoIterator<Item = (usize, Prop)>,
         layer_id: usize,
     ) -> LocalPOS {
-        let is_new_edge = !self
-            .page
-            .contains_edge(edge_pos, layer_id, self.writer.deref());
-
-        if is_new_edge {
+        self.graph_stats.update_time(t.t());
+        if self
+            .writer
+            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props)
+            && !self.page.immut_has_edge(edge_pos, layer_id)
+        {
+            // edge is new to this writer and also the immutable part of the segment
             self.increment_layer_num_edges(layer_id);
         }
-
-        self.graph_stats.update_time(t.t());
-
-        self.writer
-            .insert_edge_internal(t, edge_pos, src, dst, layer_id, props);
 
         edge_pos
     }
@@ -69,17 +66,15 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         dst: VID,
         layer_id: usize,
     ) {
-        let existing_edge = self
-            .page
-            .contains_edge(edge_pos, layer_id, self.writer.deref());
-
-        if !existing_edge {
+        self.graph_stats.update_time(t.t());
+        if self
+            .writer
+            .delete_edge_internal(t, edge_pos, src, dst, layer_id)
+            && !self.page.immut_has_edge(edge_pos, layer_id)
+        {
+            // edge is new to this writer and also the immutable part of the segment
             self.increment_layer_num_edges(layer_id);
         }
-
-        self.graph_stats.update_time(t.t());
-        self.writer
-            .delete_edge_internal(t, edge_pos, src, dst, layer_id);
     }
 
     /// Adds a static edge to the graph.
@@ -118,20 +113,26 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         t_props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         if !edge_exists {
-            self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
-            self.increment_layer_num_edges(layer_id);
+            if self
+                .writer
+                .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
+            {
+                self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
+            }
+        }
 
-            self.writer
-                .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID);
+        if self
+            .writer
+            .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props)
+            && !self.page.immut_has_edge(edge_pos, layer_id)
+        {
+            self.increment_layer_num_edges(layer_id);
         }
 
         self.graph_stats.update_time(t.t());
 
         self.writer
             .update_const_properties(edge_pos, src, dst, layer_id, c_props);
-
-        self.writer
-            .insert_edge_internal(t, edge_pos, src, dst, layer_id, t_props);
     }
 
     pub fn bulk_delete_edge(
@@ -144,16 +145,22 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         layer_id: usize,
     ) {
         if !exists {
-            self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
-            self.increment_layer_num_edges(layer_id);
+            if self
+                .writer
+                .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID)
+            {
+                self.increment_layer_num_edges(STATIC_GRAPH_LAYER_ID);
+            }
         }
 
-        self.writer
-            .insert_static_edge_internal(edge_pos, src, dst, STATIC_GRAPH_LAYER_ID);
-
         self.graph_stats.update_time(t.t());
-        self.writer
-            .delete_edge_internal(t, edge_pos, src, dst, layer_id);
+        if self
+            .writer
+            .delete_edge_internal(t, edge_pos, src, dst, layer_id)
+            && !self.page.immut_has_edge(edge_pos, layer_id)
+        {
+            self.increment_layer_num_edges(layer_id);
+        }
     }
 
     pub fn segment_id(&self) -> usize {
@@ -189,9 +196,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
-        let existing_edge = self
-            .page
-            .contains_edge(edge_pos, layer_id, self.writer.deref());
+        let existing_edge = self.page.has_edge(edge_pos, layer_id, self.writer.deref());
 
         if !existing_edge {
             self.increment_layer_num_edges(layer_id);

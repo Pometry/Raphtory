@@ -274,7 +274,7 @@ where
                             .map(LocalPOS)
                             .filter(|pos| {
                                 ids.iter()
-                                    .any(|layer| segment.contains_edge(*pos, layer, head.deref()))
+                                    .any(|layer| segment.has_edge(*pos, layer, head.deref()))
                             })
                             .count()
                     })
