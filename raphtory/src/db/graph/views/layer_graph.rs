@@ -45,8 +45,6 @@ impl<G: GraphView> Base for LayeredGraph<G> {
 
 impl<G: GraphView> InheritTimeSemantics for LayeredGraph<G> {}
 
-impl<G: GraphView> InheritListOps for LayeredGraph<G> {}
-
 impl<G: GraphView> InheritCoreGraphOps for LayeredGraph<G> {}
 
 impl<G: GraphView> InheritMaterialize for LayeredGraph<G> {}
@@ -103,7 +101,7 @@ impl<G: GraphView> InheritEdgeFilterOps for LayeredGraph<G> {}
 
 impl<G: GraphView> InheritExplodedEdgeFilterOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> ListOps for LayeredGraph<G> {
+impl<G: GraphView> ListOps for LayeredGraph<G> {
     fn node_list(&self) -> NodeList {
         NodeList::All {
             layers: self.layers.clone(),

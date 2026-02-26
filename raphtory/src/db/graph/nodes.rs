@@ -27,6 +27,7 @@ use std::{
     marker::PhantomData,
     sync::Arc,
 };
+use raphtory_api::core::entities::LayerIds;
 
 #[derive(Clone)]
 pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {
@@ -256,7 +257,7 @@ where
                     self.par_iter_refs(g).count()
                 } else {
                     match self.graph.node_list() {
-                        NodeList::All => self.graph.unfiltered_num_nodes(self.graph.layer_ids()),
+                        NodeList::All{layers} => self.graph.unfiltered_num_nodes(&layers),
                         NodeList::List { elems } => elems.len(),
                     }
                 }
