@@ -12,9 +12,12 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::entities::{
-    VID,
-    properties::{meta::Meta, prop::Prop},
+use raphtory_api::core::{
+    entities::{
+        VID,
+        properties::{meta::Meta, prop::Prop},
+    },
+    storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
@@ -151,6 +154,9 @@ impl MemEdgeSegment {
             .map(|entry| (entry.src, entry.dst))
     }
 
+    /// insert an edge
+    ///
+    /// returns a boolean flag indicating if the edge is new
     pub fn insert_edge_internal<T: AsTime>(
         &mut self,
         t: T,
@@ -159,12 +165,14 @@ impl MemEdgeSegment {
         dst: VID,
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
-    ) {
+    ) -> bool {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
 
-        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
+        let (local_row, is_new) = self
+            .reserve_local_row(edge_pos, src, dst, layer_id)
+            .into_inner_with_status();
 
         let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
             .properties_mut()
@@ -175,8 +183,12 @@ impl MemEdgeSegment {
 
         let layer_est_size = self.layers[layer_id].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
+        is_new
     }
 
+    /// delete an edge
+    ///
+    /// returns a boolean flag indicating if the edge is new
     pub fn delete_edge_internal<T: AsTime>(
         &mut self,
         t: T,
@@ -184,27 +196,33 @@ impl MemEdgeSegment {
         src: VID,
         dst: VID,
         layer_id: usize,
-    ) {
+    ) -> bool {
         let t = EventTime::new(t.t(), t.i());
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
 
-        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
+        let (local_row, is_new) = self
+            .reserve_local_row(edge_pos, src, dst, layer_id)
+            .into_inner_with_status();
         let props = self.layers[layer_id].properties_mut();
         props.get_mut_entry(local_row).deletion_timestamp(t, None);
         let layer_est_size = self.layers[layer_id].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
+        is_new
     }
 
+    /// add static edge
+    ///
+    /// returns flag indicating if edge is new
     pub fn insert_static_edge_internal(
         &mut self,
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
-    ) {
+    ) -> bool {
         let src = src.into();
         let dst = dst.into();
 
@@ -212,9 +230,12 @@ impl MemEdgeSegment {
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
 
-        self.reserve_local_row(edge_pos, src, dst, layer_id);
+        let is_new = self
+            .reserve_local_row(edge_pos, src, dst, layer_id)
+            .is_new();
         let layer_est_size = self.layers[layer_id].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
+        is_new
     }
 
     fn ensure_layer(&mut self, layer_id: usize) {
@@ -243,14 +264,15 @@ impl MemEdgeSegment {
         src: impl Into<VID>,
         dst: impl Into<VID>,
         layer_id: usize,
-    ) -> usize {
+    ) -> MaybeNew<usize> {
         let src = src.into();
         let dst = dst.into();
 
-        let row = self.layers[layer_id].reserve_local_row(edge_pos).inner();
-        row.src = src;
-        row.dst = dst;
-        row.row
+        let mut row = self.layers[layer_id].reserve_local_row(edge_pos);
+        let inner = row.as_mut().inner();
+        inner.src = src;
+        inner.dst = dst;
+        row.map(|row| row.row)
     }
 
     pub fn check_metadata(
@@ -276,7 +298,7 @@ impl MemEdgeSegment {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
         let est_size = self.layers[layer_id].est_size();
-        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
+        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id).inner();
         let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
             .properties_mut()
             .get_mut_entry(local_row);
@@ -475,13 +497,17 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.num_edges.fetch_add(1, atomic::Ordering::Relaxed)
     }
 
-    fn contains_edge(
+    fn has_edge(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool {
         locked_head.contains_edge(edge_pos, layer_id)
+    }
+
+    fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: usize) -> bool {
+        false
     }
 
     fn get_edge(

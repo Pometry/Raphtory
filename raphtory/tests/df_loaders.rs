@@ -711,6 +711,7 @@ mod parquet_tests {
             NodeFixture, NodeUpdatesFixture, PropUpdatesFixture,
         },
     };
+    use serde_json::json;
     use std::{io::Cursor, str::FromStr};
     use storage::Config;
     use zip::{ZipArchive, ZipWriter};
@@ -1187,6 +1188,24 @@ mod parquet_tests {
         proptest!(|(edges in build_edge_list_dyn(0..=10, 0..=10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
+    }
+
+    #[test]
+    fn write_edges_any_props_failure() {
+        let edges: EdgeFixture = serde_json::from_value(json!([[[5,9,"b"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[5,9,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]])).unwrap();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let graph_f = edges.into();
+        let g = Graph::from(build_graph(&graph_f));
+        dbg!(&g);
+        g.encode_parquet(&temp_dir).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
+        dbg!(&g2);
+        assert_eq!(g2.valid_layers("b").count_edges(), 1);
+        assert_eq!(g2.valid_layers("a").count_edges(), 1);
+
+        assert_eq!(g.valid_layers("b").count_edges(), 1);
+
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     #[test]
