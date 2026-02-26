@@ -67,7 +67,7 @@ jobs:
         working-directory: ui-tests
         run: npm install && npx playwright install --with-deps --only-shell
       - name: Test UI
-        timeout-minutes: 50
+        timeout-minutes: 30
         run: |
           source .venv/bin/activate
           cd ui-tests
