@@ -1,5 +1,6 @@
 use super::{edge_page::writer::EdgeWriter, resolve_pos};
 use crate::{
+    LocalPOS,
     api::edges::{EdgeRefOps, EdgeSegmentOps, LockedESegment},
     error::StorageError,
     pages::{
@@ -11,7 +12,6 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::edge::segment::MemEdgeSegment,
     wal::LSN,
-    LocalPOS,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{

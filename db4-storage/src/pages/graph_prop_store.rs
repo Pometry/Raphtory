@@ -3,12 +3,12 @@ use raphtory_api::core::entities::properties::meta::Meta;
 use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
-    wal::LSN,
     pages::{
         graph_prop_page::writer::GraphPropWriter,
         locked::graph_props::{LockedGraphPropPage, WriteLockedGraphPropPages},
     },
     persist::strategy::PersistenceStrategy,
+    wal::LSN,
 };
 
 use std::{

@@ -1,12 +1,12 @@
 use crate::{
+    LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    wal::{GraphWalOps, WalOps, LSN},
-    LocalPOS,
+    wal::{GraphWalOps, LSN, WalOps},
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -92,7 +92,8 @@ impl<
 
     /// Returns the latest `LSN` on disk across all node, edge and graph prop segments.
     pub fn latest_lsn_on_disk(&self) -> LSN {
-        self.nodes.latest_lsn_on_disk()
+        self.nodes
+            .latest_lsn_on_disk()
             .max(self.edges.latest_lsn_on_disk())
             .max(self.graph_props.latest_lsn_on_disk())
     }
