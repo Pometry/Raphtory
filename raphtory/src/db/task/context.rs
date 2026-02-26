@@ -1,14 +1,10 @@
 use super::task_state::{Global, Shard};
 use crate::{
-    core::{
-        entities::VID,
-        state::{
-            accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState,
-            shuffle_state::ShuffleComputeState, StateType,
-        },
+    core::state::{
+        accumulator_id::AccId, agg::Accumulator, compute_state::ComputeState,
+        shuffle_state::ShuffleComputeState, StateType,
     },
-    db::{api::view::StaticGraphViewOps, graph::node::NodeView},
-    prelude::GraphViewOps,
+    db::api::view::StaticGraphViewOps,
 };
 use std::{fmt::Debug, sync::Arc};
 

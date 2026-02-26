@@ -73,7 +73,7 @@ use crate::{
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
-use raphtory_storage::{core_ops::CoreGraphOps, layer_ops::InternalLayerOps};
+use raphtory_storage::core_ops::CoreGraphOps;
 use std::collections::HashSet;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
