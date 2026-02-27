@@ -34,6 +34,7 @@ pub trait GIDResolverOps {
     type Init<'a>: Initialiser
     where
         Self: 'a;
+
     fn new() -> Result<Self, StorageError>
     where
         Self: Sized;

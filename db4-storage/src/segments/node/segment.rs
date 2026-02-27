@@ -550,7 +550,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     fn immut_lsn(&self) -> LSN {
-        panic!("immut_lsn not supported for NodeSegmentView");
+        0
     }
 
     fn nodes_counter(&self) -> &AtomicU32 {

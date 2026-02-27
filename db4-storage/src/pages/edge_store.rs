@@ -11,6 +11,7 @@ use crate::{
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::edge::segment::MemEdgeSegment,
+    wal::LSN,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{
