@@ -366,10 +366,6 @@ fn materialize_impl(
                     let node = NodeView::new_internal(graph, vid);
                     let gid = node.id();
                     let mut writer = shard.writer();
-                    println!(
-                        "creating {node_pos:?} in shard {}",
-                        writer.mut_segment.segment_id()
-                    );
 
                     if let Some(node_type) = node.node_type() {
                         let new_type_id = graph_storage
