@@ -1,4 +1,7 @@
-use crate::{client::ClientError, url_encode::url_decode_graph};
+use crate::{
+    client::{ClientError, GraphQLRemoteGraph},
+    url_encode::url_decode_graph,
+};
 use raphtory::{db::api::view::MaterializedGraph, prelude::Config, serialise::GraphFolder};
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
@@ -305,6 +308,10 @@ impl RaphtoryGraphQLClient {
                 "Error while reading server response for query:\n\t{query}\nGot data:\n\t'{data:?}'"
             ))),
         }
+    }
+
+    pub fn remote_graph(&self, path: String) -> GraphQLRemoteGraph {
+        GraphQLRemoteGraph::new(path, self.clone())
     }
 
     /// Create index on the server. `index_spec` must serialize to the GraphQL IndexSpecInput shape.
