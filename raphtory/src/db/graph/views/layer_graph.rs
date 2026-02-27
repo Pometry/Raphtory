@@ -4,15 +4,14 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-            InheritExplodedEdgeFilterOps, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
-            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-            InternalEdgeLayerFilterOps, InternalLayerOps, Static,
+            InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
+            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
-    prelude::GraphViewOps,
 };
 use raphtory_api::inherit::Base;
-use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
+use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 use std::fmt::{Debug, Formatter};
 
 #[derive(Clone)]
@@ -23,11 +22,11 @@ pub struct LayeredGraph<G> {
     pub layers: LayerIds,
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Immutable for LayeredGraph<G> {}
+impl<G: GraphView> Immutable for LayeredGraph<G> {}
 
 impl<G> Static for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<G> {
+impl<G: GraphView + Debug> Debug for LayeredGraph<G> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LayeredGraph")
             .field("graph", &self.graph as &dyn Debug)
@@ -36,7 +35,7 @@ impl<'graph, G: GraphViewOps<'graph> + Debug> Debug for LayeredGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> Base for LayeredGraph<G> {
+impl<G: GraphView> Base for LayeredGraph<G> {
     type Base = G;
     #[inline(always)]
     fn base(&self) -> &Self::Base {
@@ -44,48 +43,61 @@ impl<'graph, G: GraphViewOps<'graph>> Base for LayeredGraph<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for LayeredGraph<G> {}
+impl<G: GraphView> InheritTimeSemantics for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritListOps for LayeredGraph<G> {}
+impl<G: GraphView> InheritListOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for LayeredGraph<G> {}
+impl<G: GraphView> InheritCoreGraphOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for LayeredGraph<G> {}
+impl<G: GraphView> InheritMaterialize for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for LayeredGraph<G> {}
+impl<G: GraphView> InheritPropertiesOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for LayeredGraph<G> {}
+impl<G: GraphView> InheritStorageOps for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for LayeredGraph<G> {}
+impl<G: GraphView> InheritNodeHistoryFilter for LayeredGraph<G> {}
 
-impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for LayeredGraph<G> {}
-impl<'graph, G: GraphView> InheritNodeFilterOps for LayeredGraph<G> {}
+impl<G: GraphView> InheritEdgeHistoryFilter for LayeredGraph<G> {}
+impl<G: GraphView> InternalNodeFilterOps for LayeredGraph<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        self.graph.internal_nodes_filtered()
+    }
 
-impl<'graph, G: GraphViewOps<'graph>> LayeredGraph<G> {
+    fn internal_node_list_trusted(&self) -> bool {
+        // after applying a layer, previously filtered lists can no longer be trusted
+        self.graph.internal_node_list_trusted() && self.graph.node_list().unfiltered()
+    }
+
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_filter_includes_node_filter()
+    }
+
+    fn edge_layer_filter_includes_node_filter(&self) -> bool {
+        self.graph.edge_layer_filter_includes_node_filter()
+    }
+
+    fn exploded_edge_filter_includes_node_filter(&self) -> bool {
+        self.graph.exploded_edge_filter_includes_node_filter()
+    }
+
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.graph.internal_filter_node(node, layer_ids)
+    }
+}
+
+impl<G: GraphView> LayeredGraph<G> {
     pub fn new(graph: G, layers: LayerIds) -> Self {
         Self { graph, layers }
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InternalLayerOps for LayeredGraph<G> {
+impl<G: GraphView> InternalLayerOps for LayeredGraph<G> {
     fn layer_ids(&self) -> &LayerIds {
         &self.layers
     }
 }
 
-impl<G: GraphView> InternalEdgeLayerFilterOps for LayeredGraph<G> {
-    fn internal_edge_layer_filtered(&self) -> bool {
-        !matches!(self.layers, LayerIds::All) || self.graph.internal_edge_layer_filtered()
-    }
-
-    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
-        matches!(self.layers, LayerIds::All) && self.graph.internal_layer_filter_edge_list_trusted()
-    }
-
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
-        self.graph.internal_filter_edge_layer(edge, layer) // actual layer filter handled upstream for optimisation
-    }
-}
+impl<G: GraphView> InheritEdgeLayerFilterOps for LayeredGraph<G> {}
 
 impl<G: GraphView> InheritEdgeFilterOps for LayeredGraph<G> {}
 

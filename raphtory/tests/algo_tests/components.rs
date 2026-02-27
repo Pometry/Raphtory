@@ -696,7 +696,7 @@ mod components_test {
         graph.add_edge(1, 2, 99, NO_PROPS, Some("B")).unwrap();
         graph.add_edge(1, 99, 100, NO_PROPS, Some("B")).unwrap();
 
-        let mut unfiltered_ids: Vec<u64> =
+        let unfiltered_ids: Vec<u64> =
             out_component_filtered(graph.node(1).unwrap(), GraphFilter.layer("A"))
                 .unwrap()
                 .nodes()

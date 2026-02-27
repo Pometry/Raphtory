@@ -255,7 +255,10 @@ where
                     let g = self.locked_storage();
                     self.par_iter_refs(g).count()
                 } else {
-                    self.graph.node_list().len()
+                    match self.graph.node_list() {
+                        NodeList::All => self.graph.unfiltered_num_nodes(self.graph.layer_ids()),
+                        NodeList::List { elems } => elems.len(),
+                    }
                 }
             }
             Index::Partial(nodes) => {

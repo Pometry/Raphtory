@@ -3,8 +3,9 @@ use crate::{
     api::nodes::{NodeEntryOps, NodeRefOps},
     gen_ts::{EdgeAdditionCellsRef, LayerIter, PropAdditionCellsRef, WithTimeCells},
     generic_t_props::WithTProps,
-    segments::node::segment::MemNodeSegment,
+    segments::{additions::MemAdditions, node::segment::MemNodeSegment},
 };
+use itertools::Itertools;
 use raphtory_api::core::{
     Direction,
     entities::{
@@ -17,8 +18,6 @@ use raphtory_core::{
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use std::{ops::Deref, sync::Arc};
-
-use crate::segments::additions::MemAdditions;
 
 pub struct MemNodeEntry<'a, MNS> {
     pos: LocalPOS,
@@ -196,7 +195,7 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
     }
 
     fn edge_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::EdgeAdditions {
-        NodeEdgeAdditions::new_additions_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
+        NodeEdgeAdditions::new_with_layer(EdgeAdditionCellsRef::new(self), layer_id)
     }
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
@@ -204,7 +203,30 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
             LayerIds::One(layer_id) => self.ns.degree(self.pos, *layer_id, dir),
             LayerIds::All => self.ns.degree(self.pos, 0, dir),
             LayerIds::None => 0,
-            layers => self.edges_iter(layers, dir).count(),
+            LayerIds::Multiple(ids) => match dir {
+                Direction::OUT => ids
+                    .iter()
+                    .map(|id| self.out_nbrs_sorted(id))
+                    .kmerge()
+                    .dedup()
+                    .count(),
+                Direction::IN => ids
+                    .iter()
+                    .map(|id| self.inb_nbrs_sorted(id))
+                    .kmerge()
+                    .dedup()
+                    .count(),
+                Direction::BOTH => ids
+                    .iter()
+                    .map(|id| {
+                        self.out_nbrs_sorted(id)
+                            .merge(self.inb_nbrs_sorted(id))
+                            .dedup()
+                    })
+                    .kmerge()
+                    .dedup()
+                    .count(),
+            },
         }
     }
 

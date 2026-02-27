@@ -54,8 +54,8 @@ impl std::fmt::Display for GraphStorage {
         write!(
             f,
             "Graph(num_nodes={}, num_edges={})",
-            self.unfiltered_num_nodes(),
-            self.unfiltered_num_edges(),
+            self.unfiltered_num_nodes(&LayerIds::All),
+            self.unfiltered_num_edges(&LayerIds::All),
         )
     }
 }
@@ -138,18 +138,18 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn unfiltered_num_nodes(&self) -> usize {
+    pub fn unfiltered_num_nodes(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.internal_num_nodes(),
-            GraphStorage::Unlocked(storage) => storage.internal_num_nodes(),
+            GraphStorage::Mem(storage) => storage.graph.internal_num_nodes(layer_ids),
+            GraphStorage::Unlocked(storage) => storage.internal_num_nodes(layer_ids),
         }
     }
 
     #[inline(always)]
-    pub fn unfiltered_num_edges(&self) -> usize {
+    pub fn unfiltered_num_edges(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.internal_num_edges(),
-            GraphStorage::Unlocked(storage) => storage.internal_num_edges(),
+            GraphStorage::Mem(storage) => storage.graph.internal_num_edges(layer_ids),
+            GraphStorage::Unlocked(storage) => storage.internal_num_edges(layer_ids),
         }
     }
 

@@ -1,18 +1,28 @@
-use std::{
-    path::Path,
-    sync::{atomic::AtomicUsize, Arc},
-};
-
 use raphtory_api::core::{
-    entities::{self, properties::meta::Meta, GidType},
+    entities::{
+        self,
+        properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
+        GidType,
+    },
     input::input_node::InputNode,
+    storage::timeindex::TimeIndexOps,
 };
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::EventTime,
 };
+use rayon::prelude::*;
+use std::{
+    ops::Deref,
+    path::Path,
+    sync::{atomic::AtomicUsize, Arc},
+};
 use storage::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    api::{
+        edges::EdgeSegmentOps,
+        graph_props::GraphPropSegmentOps,
+        nodes::{LockedNSSegment, NodeRefOps, NodeSegmentOps},
+    },
     dir::GraphDir,
     error::StorageError,
     pages::{
@@ -25,7 +35,7 @@ use storage::{
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    Config, Extension, GIDResolver, Layer, ReadLockedLayer, ES, GS, NS,
+    Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;
@@ -197,13 +207,80 @@ where
     }
 
     #[inline]
-    pub fn internal_num_nodes(&self) -> usize {
-        self.logical_to_physical.len()
+    pub fn internal_num_nodes(&self, layer_ids: &LayerIds) -> usize {
+        match layer_ids {
+            LayerIds::None => self
+                .storage
+                .nodes()
+                .segments_par_iter()
+                .map(|segment| {
+                    let locked = segment.locked();
+                    locked
+                        .iter_entries()
+                        .filter(|entry| !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty())
+                        .count()
+                })
+                .sum(),
+            LayerIds::All => self.storage.nodes().num_nodes(),
+            LayerIds::One(id) => self
+                .storage
+                .nodes()
+                .segments_par_iter()
+                .map(|segment| {
+                    let locked = segment.locked();
+                    locked
+                        .iter_entries()
+                        .filter(|entry| {
+                            !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
+                                || entry.has_layer_inner(*id)
+                        })
+                        .count()
+                })
+                .sum(),
+            LayerIds::Multiple(ids) => {
+                // no fast path, need to count
+                self.storage
+                    .nodes()
+                    .segments_par_iter()
+                    .map(|segment| {
+                        let locked = segment.locked();
+                        locked
+                            .iter_entries()
+                            .filter(|entry| {
+                                !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
+                                    || ids.iter().any(|layer| entry.has_layer_inner(layer))
+                            })
+                            .count()
+                    })
+                    .sum()
+            }
+        }
     }
 
     #[inline]
-    pub fn internal_num_edges(&self) -> usize {
-        self.storage.edges().num_edges_layer(0)
+    pub fn internal_num_edges(&self, layer_ids: &LayerIds) -> usize {
+        match layer_ids {
+            LayerIds::None => 0,
+            LayerIds::All => self.storage.edges().num_edges_layer(STATIC_GRAPH_LAYER_ID),
+            LayerIds::One(id) => self.storage.edges().num_edges_layer(*id),
+            LayerIds::Multiple(ids) => {
+                // no fast path, need to count
+                self.storage
+                    .edges()
+                    .par_iter_segments()
+                    .map(|segment| {
+                        let head = segment.head();
+                        (0..segment.num_edges())
+                            .map(LocalPOS)
+                            .filter(|pos| {
+                                ids.iter()
+                                    .any(|layer| segment.has_edge(*pos, layer, head.deref()))
+                            })
+                            .count()
+                    })
+                    .sum()
+            }
+        }
     }
 
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedLayer<EXT> {

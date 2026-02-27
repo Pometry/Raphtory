@@ -92,6 +92,13 @@ impl<Index> MaybeNew<Index> {
             MaybeNew::Existing(_) => None,
         }
     }
+
+    pub fn into_inner_with_status(self) -> (Index, bool) {
+        match self {
+            MaybeNew::New(inner) => (inner, true),
+            MaybeNew::Existing(inner) => (inner, false),
+        }
+    }
 }
 
 impl<Index> Borrow<Index> for MaybeNew<Index> {
