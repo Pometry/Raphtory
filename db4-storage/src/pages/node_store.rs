@@ -13,10 +13,14 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{GidType, properties::meta::Meta};
+use raphtory_api::{
+    core::entities::{GidType, properties::meta::Meta},
+    iter::IntoDynBoxed,
+};
 use raphtory_core::{
-    entities::{EID, VID},
+    entities::{EID, LayerIds, VID},
     storage::timeindex::AsTime,
+    utils::iter::GenLockedIter,
 };
 use rayon::prelude::*;
 use std::{
@@ -43,7 +47,7 @@ pub struct NodeStorageInner<NS, EXT> {
 #[derive(Debug)]
 pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     storage: Arc<NodeStorageInner<NS, EXT>>,
-    locked_segments: Box<[NS::ArcLockedSegment]>,
+    locked_segments: Arc<[NS::ArcLockedSegment]>,
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNodeStorage<NS, EXT> {
@@ -126,6 +130,18 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
         let (segment_id, pos) = self.storage.resolve_pos(vid);
         segment_id < self.locked_segments.len()
             && pos.0 < self.locked_segments[segment_id].num_nodes()
+    }
+
+    pub fn layer_iter(&self, layers: LayerIds) -> Box<dyn Iterator<Item = VID> + Send + Sync> {
+        Box::new(GenLockedIter::from(
+            (self.locked_segments.clone(), layers),
+            |(segments, layers)| {
+                segments
+                    .iter()
+                    .flat_map(|segment| segment.layer_iter(layers.clone()))
+                    .into_dyn_boxed()
+            },
+        ))
     }
 }
 
@@ -212,6 +228,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             let mut head = segment.head_mut();
             if prop_mapper.num_fields() > 0 {
                 head.get_or_create_layer(0)
+                    .0
                     .properties_mut()
                     .set_has_properties()
             }
@@ -224,7 +241,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         let locked_segments = self
             .segments_iter()
             .map(|segment| segment.locked())
-            .collect::<Box<_>>();
+            .collect::<Arc<_>>();
         ReadLockedNodeStorage {
             storage: self.clone(),
             locked_segments,

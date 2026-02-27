@@ -1,3 +1,5 @@
+use crate::segments::node::layer_stats::LayerStats;
+use crate::utils::Iter4;
 use crate::{
     LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
@@ -11,6 +13,7 @@ use crate::{
     wal::LSN,
 };
 use either::Either;
+use itertools::Itertools;
 use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
     Direction,
@@ -19,6 +22,9 @@ use raphtory_api::core::{
         properties::{meta::Meta, prop::Prop},
     },
 };
+use raphtory_api::iter::IntoDynBoxed;
+use raphtory_core::entities::LayerIds;
+use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_core::{
     entities::{ELID, nodes::structure::adj::Adj},
     storage::timeindex::{AsTime, EventTime},
@@ -37,6 +43,7 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
+    layer_stats: Vec<LayerStats>,
     lsn: LSN,
 }
 
@@ -102,7 +109,10 @@ impl MemNodeSegment {
             .collect::<Vec<_>>()
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<AdjEntry> {
+    pub fn get_or_create_layer(
+        &mut self,
+        layer_id: usize,
+    ) -> (&mut SegmentContainer<AdjEntry>, &mut LayerStats) {
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -111,9 +121,11 @@ impl MemNodeSegment {
             self.layers.resize_with(layer_id + 1, || {
                 SegmentContainer::new(segment_id, max_page_len, meta.clone())
             });
+
+            self.layer_stats.resize_with(layer_id + 1, LayerStats::new);
         }
 
-        &mut self.layers[layer_id]
+        (&mut self.layers[layer_id], &mut self.layer_stats[layer_id])
     }
 
     pub fn node_meta(&self) -> &Arc<Meta> {
@@ -144,13 +156,55 @@ impl MemNodeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
+        let layer_stats = self
+            .layer_stats
+            .iter_mut()
+            .map(|stats| {
+                let mut new_stats = LayerStats::new();
+                std::mem::swap(&mut new_stats, stats);
+                new_stats
+            })
+            .collect();
 
         Self {
             segment_id: self.segment_id,
             max_page_len: self.max_page_len,
             layers,
+            layer_stats,
             lsn: self.lsn,
         }
+    }
+
+    pub fn layer_nodes(&self, layer_ids: LayerIds) -> impl Iterator<Item = VID> + Send + Sync + '_ {
+        let iter = match layer_ids {
+            LayerIds::None => Iter4::I(std::iter::empty()),
+            LayerIds::All => Iter4::J(
+                self.layers
+                    .first()
+                    .into_iter()
+                    .flat_map(|layer| 0..layer.max_rows())
+                    .map(|i| LocalPOS(i as u32)),
+            ),
+            LayerIds::One(l) => Iter4::K(
+                self.layer_stats
+                    .get(l)
+                    .into_iter()
+                    .flat_map(|stats| stats.iter_nodes()),
+            ),
+            LayerIds::Multiple(ls) => Iter4::L(
+                ls.into_iter()
+                    .flat_map(|l| {
+                        self.layer_stats
+                            .get(l)
+                            .into_iter()
+                            .map(|stats| stats.iter_nodes())
+                    })
+                    .kmerge()
+                    .dedup(),
+            ),
+        };
+
+        iter.map(move |pos| self.to_vid(pos))
     }
 
     pub fn to_vid(&self, pos: LocalPOS) -> VID {
@@ -198,6 +252,7 @@ impl MemNodeSegment {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            layer_stats: vec![LayerStats::new()],
             lsn: 0,
         }
     }
@@ -212,11 +267,14 @@ impl MemNodeSegment {
         let dst = dst.into();
         let e_id = e_id.into();
         let layer_id = e_id.layer();
-        let layer = self.get_or_create_layer(layer_id);
+        let (layer, stats) = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
 
         let add_out = layer.reserve_local_row(src_pos);
         let new_entry = add_out.is_new();
+        if new_entry {
+            stats.add_node(src_pos);
+        }
         let add_out = add_out.inner();
         let is_new_edge = add_out.adj.add_edge_out(dst, e_id.edge);
         let row = add_out.row;
@@ -241,11 +299,14 @@ impl MemNodeSegment {
         let layer_id = e_id.layer();
         let dst_pos = dst_pos.into();
 
-        let layer = self.get_or_create_layer(layer_id);
+        let (layer, stats) = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
 
         let add_in = layer.reserve_local_row(dst_pos);
         let new_entry = add_in.is_new();
+        if new_entry {
+            stats.add_node(dst_pos);
+        }
         let add_in = add_in.inner();
         let is_new_edge = add_in.adj.add_edge_into(src, e_id.edge);
         let row = add_in.row;
@@ -271,9 +332,13 @@ impl MemNodeSegment {
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, node_pos: LocalPOS, e_id: ELID) -> usize {
         let layer_id = e_id.layer();
         let (est_size, row) = {
-            let segment_container = self.get_or_create_layer(layer_id); //&mut self.layers[e_id.layer()];
+            let (segment_container, stats) = self.get_or_create_layer(layer_id); //&mut self.layers[e_id.layer()];
             let est_size = segment_container.est_size();
-            let row = segment_container.reserve_local_row(node_pos).inner().row();
+            let entry = segment_container.reserve_local_row(node_pos);
+            if entry.is_new() {
+                stats.add_node(node_pos);
+            }
+            let row = entry.inner().row();
             (est_size, row)
         };
         self.update_timestamp_inner(t, row, e_id);
@@ -288,10 +353,13 @@ impl MemNodeSegment {
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> (bool, usize) {
-        let layer = self.get_or_create_layer(layer_id);
+        let (layer, stats) = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
         let row = layer.reserve_local_row(node_pos);
         let is_new = row.is_new();
+        if is_new {
+            stats.add_node(node_pos);
+        }
         let row = row.inner().row;
         let mut prop_mut_entry = layer.properties_mut().get_mut_entry(row);
         let ts = EventTime::new(t.t(), t.i());
@@ -318,11 +386,14 @@ impl MemNodeSegment {
         layer_id: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) -> (bool, usize) {
-        let segment_container = self.get_or_create_layer(layer_id);
+        let (segment_container, stats) = self.get_or_create_layer(layer_id);
         let est_size = segment_container.est_size();
 
         let row = segment_container.reserve_local_row(node_pos).map(|a| a.row);
         let is_new = row.is_new();
+        if is_new {
+            stats.add_node(node_pos);
+        }
         let row = row.inner();
         let mut prop_mut_entry = segment_container.properties_mut().get_mut_entry(row);
         prop_mut_entry.append_const_props(props);
@@ -397,6 +468,15 @@ impl LockedNSSegment for ArcLockedSegmentView {
 
     fn num_nodes(&self) -> u32 {
         self.num_nodes
+    }
+
+    fn layer_iter(&self, layers: LayerIds) -> impl Iterator<Item = VID> + Send + Sync {
+        GenLockedIter::from(
+            ArcRwLockReadGuard::rwlock(&self.inner)
+                .clone()
+                .read_arc_recursive(),
+            |mem_seg| mem_seg.layer_nodes(layers).into_dyn_boxed(),
+        )
     }
 }
 
