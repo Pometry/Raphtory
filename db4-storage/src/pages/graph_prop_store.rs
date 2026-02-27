@@ -89,8 +89,4 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
     pub fn flush(&self) -> Result<(), StorageError> {
         self.page.flush()
     }
-
-    pub(crate) fn latest_immut_lsn(&self) -> LSN {
-        self.page.immut_lsn()
-    }
 }

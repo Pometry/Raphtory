@@ -89,14 +89,6 @@ impl<
 
         Ok(())
     }
-
-    /// Returns the latest `LSN` across all the immutable segments in nodes, edges and graph props.
-    pub fn latest_immut_lsn(&self) -> LSN {
-        self.nodes
-            .latest_immut_lsn()
-            .max(self.edges.latest_immut_lsn())
-            .max(self.graph_props.latest_immut_lsn())
-    }
 }
 
 #[derive(Debug)]
@@ -569,11 +561,11 @@ impl<
                 // 1. No new writes can occur since we are in a drop.
                 // 2. flush() has persisted all the segments to disk.
                 //
-                // Thus, we can safely discard all records with LSN <= latest_immut_lsn
+                // Thus, we can safely discard all records with LSN <= latest_lsn_on_disk
                 // by rotating the WAL.
-                let latest_immut_lsn = self.latest_immut_lsn();
+                let latest_lsn_on_disk = wal.next_lsn() - 1;
 
-                if let Err(e) = wal.rotate(latest_immut_lsn) {
+                if let Err(e) = wal.rotate(latest_lsn_on_disk) {
                     eprintln!("Failed to rotate WAL in drop: {}", e);
                 }
 
@@ -582,7 +574,7 @@ impl<
 
                 // Log a checkpoint record so we can restore the next LSN after reload.
                 let checkpoint_lsn = wal
-                    .log_checkpoint(latest_immut_lsn)
+                    .log_checkpoint(latest_lsn_on_disk)
                     .expect("Failed to log checkpoint in drop");
 
                 wal.flush(checkpoint_lsn)

@@ -646,11 +646,4 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
     pub fn flush(&self) -> Result<(), StorageError> {
         self.par_iter_segments().try_for_each(|seg| seg.flush())
     }
-
-    pub(crate) fn latest_immut_lsn(&self) -> LSN {
-        self.par_iter_segments()
-            .map(|seg| seg.immut_lsn())
-            .max()
-            .unwrap_or(0)
-    }
 }

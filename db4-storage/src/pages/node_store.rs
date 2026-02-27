@@ -631,13 +631,6 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     pub(crate) fn flush(&self) -> Result<(), StorageError> {
         self.segments_par_iter().try_for_each(|seg| seg.flush())
     }
-
-    pub(crate) fn latest_immut_lsn(&self) -> LSN {
-        self.segments_par_iter()
-            .map(|seg| seg.immut_lsn())
-            .max()
-            .unwrap_or(0)
-    }
 }
 
 /// Atomically increments `counter` and returns the previous value, but only if the result stays
