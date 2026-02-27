@@ -25,7 +25,7 @@ impl GraphWalOps for NoWal {
         _layer_id: usize,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_add_edge_metadata(
@@ -35,7 +35,7 @@ impl GraphWalOps for NoWal {
         _layer_id: usize,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_delete_edge(
@@ -50,7 +50,7 @@ impl GraphWalOps for NoWal {
         _layer_name: Option<&str>,
         _layer_id: usize,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_add_node(
@@ -62,7 +62,7 @@ impl GraphWalOps for NoWal {
         _node_type_and_id: Option<(&str, usize)>,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_add_node_metadata(
@@ -71,7 +71,7 @@ impl GraphWalOps for NoWal {
         _vid: VID,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_set_node_type(
@@ -81,7 +81,7 @@ impl GraphWalOps for NoWal {
         _node_type: &str,
         _node_type_id: usize,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_add_graph_props(
@@ -90,7 +90,7 @@ impl GraphWalOps for NoWal {
         _t: EventTime,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_add_graph_metadata(
@@ -98,11 +98,11 @@ impl GraphWalOps for NoWal {
         _transaction_id: TransactionID,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn log_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
-        Ok(1)
+        Ok(0)
     }
 
     fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
