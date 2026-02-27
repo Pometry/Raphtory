@@ -283,7 +283,6 @@ pub enum GraphError {
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
 
-    #[cfg(feature = "arrow")]
     #[error(
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]
