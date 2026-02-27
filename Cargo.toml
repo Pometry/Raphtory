@@ -12,7 +12,6 @@ members = [
     "raphtory-storage",
     "raphtory-api-macros",
     "raphtory-itertools",
-    "fast_merge",
     "clam-core",
     "clam-core/snb"
     , "raphtory-itertools"]
