@@ -9,6 +9,7 @@ _sys.modules["raphtory.vectors"] = vectors
 _sys.modules["raphtory.graphql"] = graphql
 _sys.modules["raphtory.filter"] = filter
 _sys.modules["raphtory.iterables"] = iterables
+_sys.modules["raphtory.gql"] = gql
 
 __doc__ = _raphtory.__doc__
 if hasattr(_raphtory, "__all__"):

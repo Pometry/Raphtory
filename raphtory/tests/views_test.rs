@@ -848,7 +848,7 @@ mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_node_name_in() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = NodeFilter::name().is_in(vec!["N2".into()]);
+            let filter = NodeFilter::name().is_in(vec!["N2"]);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -865,7 +865,7 @@ mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = NodeFilter::name().is_in(vec!["N2".into(), "N5".into()]);
+            let filter = NodeFilter::name().is_in(vec!["N2", "N5"]);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -885,7 +885,7 @@ mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_node_name_in() {
-            let filter = NodeFilter::name().is_in(vec!["N2".into()]);
+            let filter = NodeFilter::name().is_in(vec!["N2"]);
             let expected_results = vec!["N2"];
             assert_filter_nodes_results(
                 init_graph,
@@ -902,7 +902,7 @@ mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = NodeFilter::name().is_in(vec!["N2".into(), "N5".into()]);
+            let filter = NodeFilter::name().is_in(vec!["N2", "N5"]);
             let expected_results = vec!["N2", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -923,7 +923,7 @@ mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_node_name_not_in() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = NodeFilter::name().is_not_in(vec!["N5".into()]);
+            let filter = NodeFilter::name().is_not_in(vec!["N5"]);
             let expected_results = vec!["N1", "N2", "N3", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -943,7 +943,7 @@ mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_node_name_not_in() {
-            let filter = NodeFilter::name().is_not_in(vec!["N5".into()]);
+            let filter = NodeFilter::name().is_not_in(vec!["N5"]);
             let expected_results = vec![
                 "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N6", "N7", "N8", "N9",
             ];
@@ -1050,7 +1050,7 @@ mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_node_type_in() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
+            let filter = NodeFilter::node_type().is_in(vec!["fire_nation"]);
             let expected_results = vec!["N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1067,8 +1067,7 @@ mod test_filters_window_graph {
                 vec![TestGraphVariants::Graph],
             );
 
-            let filter =
-                NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomad".into()]);
+            let filter = NodeFilter::node_type().is_in(vec!["fire_nation", "air_nomad"]);
             let expected_results = vec!["N1", "N3", "N5", "N6"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1088,7 +1087,7 @@ mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_node_type_in() {
-            let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
+            let filter = NodeFilter::node_type().is_in(vec!["fire_nation"]);
             let expected_results = vec!["N6", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1105,8 +1104,7 @@ mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter =
-                NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomad".into()]);
+            let filter = NodeFilter::node_type().is_in(vec!["fire_nation", "air_nomad"]);
             let expected_results = vec!["N1", "N3", "N5", "N6", "N7", "N8"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1127,7 +1125,7 @@ mod test_filters_window_graph {
         #[test]
         fn test_nodes_filters_for_node_type_not_in() {
             // TODO: Enable event_disk_graph once bug fixed: https://github.com/Pometry/Raphtory/issues/2098
-            let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
+            let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]);
             let expected_results = vec!["N1", "N2", "N3", "N5"];
             assert_filter_nodes_results(
                 init_graph,
@@ -1147,7 +1145,7 @@ mod test_filters_window_graph {
 
         #[test]
         fn test_nodes_filters_pg_for_node_type_not_in() {
-            let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
+            let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]);
             let expected_results = vec![
                 "N1", "N10", "N11", "N12", "N13", "N14", "N15", "N2", "N3", "N5", "N7", "N9",
             ];
@@ -3022,7 +3020,7 @@ mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_dst_in() {
-            let filter = EdgeFilter::dst().name().is_in(vec!["N2".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["N2"]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3039,9 +3037,7 @@ mod test_filters_window_graph {
                 TestVariants::EventOnly,
             );
 
-            let filter = EdgeFilter::dst()
-                .name()
-                .is_in(vec!["N2".into(), "N5".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["N2", "N5"]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3062,7 +3058,7 @@ mod test_filters_window_graph {
         #[test]
         fn test_edges_filters_pg_for_dst_in() {
             // TODO: PropertyFilteringNotImplemented for variants persistent_graph, persistent_disk_graph for filter_edges.
-            let filter = EdgeFilter::dst().name().is_in(vec!["N2".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["N2"]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3079,9 +3075,7 @@ mod test_filters_window_graph {
                 TestVariants::PersistentOnly,
             );
 
-            let filter = EdgeFilter::dst()
-                .name()
-                .is_in(vec!["N2".into(), "N5".into()]);
+            let filter = EdgeFilter::dst().name().is_in(vec!["N2", "N5"]);
             let expected_results = vec!["N1->N2"];
             assert_filter_edges_results(
                 init_graph,
@@ -3101,7 +3095,7 @@ mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_for_dst_not_in() {
-            let filter = EdgeFilter::dst().name().is_not_in(vec!["N5".into()]);
+            let filter = EdgeFilter::dst().name().is_not_in(vec!["N5"]);
             let expected_results = vec!["N1->N2", "N2->N3", "N3->N4", "N5->N6", "N6->N7"];
             assert_filter_edges_results(
                 init_graph,
@@ -3121,7 +3115,7 @@ mod test_filters_window_graph {
 
         #[test]
         fn test_edges_filters_pg_for_dst_not_in() {
-            let filter = EdgeFilter::dst().name().is_not_in(vec!["N5".into()]);
+            let filter = EdgeFilter::dst().name().is_not_in(vec!["N5"]);
             let expected_results = vec![
                 "N1->N2", "N10->N11", "N11->N12", "N12->N13", "N13->N14", "N14->N15", "N15->N1",
                 "N2->N3", "N3->N4", "N5->N6", "N6->N7", "N7->N8", "N8->N9", "N9->N10",

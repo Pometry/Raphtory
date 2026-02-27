@@ -4,7 +4,7 @@ use crate::{
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{iter::Either, prelude::*};
-use std::hash::Hash;
+use std::{hash::Hash, sync::Arc};
 
 pub trait ListOps {
     fn node_list(&self) -> NodeList;
@@ -83,6 +83,13 @@ impl List<VID> {
                 Either::Left(sc.into_iter())
             }
             List::List { elems } => Either::Right(elems.into_iter()),
+        }
+    }
+
+    pub fn into_index(self, g: &GraphStorage) -> Index<VID> {
+        match self {
+            List::All { .. } => Index::Full(Arc::new(g.node_state_index())),
+            List::List { elems } => elems,
         }
     }
 
