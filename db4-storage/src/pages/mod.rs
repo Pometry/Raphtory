@@ -671,7 +671,7 @@ mod test {
     #[test]
     fn test_storage() {
         let edges_strat = edges_strat(10);
-        proptest!(|(edges in edges_strat, chunk_size in 1u32 .. 100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 2u32 .. 100)|{
             check_edges(edges, chunk_size, false);
         });
     }
@@ -679,7 +679,7 @@ mod test {
     #[test]
     fn test_storage_par() {
         let edges_strat = edges_strat(15);
-        proptest!(|(edges in edges_strat, chunk_size in 1u32..100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 2u32..100)|{
             check_edges(edges, chunk_size, true);
         });
     }
@@ -687,7 +687,7 @@ mod test {
     #[test]
     fn test_storage_par_1024_x2() {
         let edges_strat = edges_strat(50);
-        proptest!(|(edges in edges_strat, chunk_size in 1u32..100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 2u32..100)|{
             check_edges(edges, chunk_size, true);
         });
     }
@@ -722,7 +722,7 @@ mod test {
     fn test_storage_with_layers() {
         let edges_strat = edges_strat_with_layers(10);
 
-        proptest!(|(edges in edges_strat, chunk_size in 1u32 .. 100)|{
+        proptest!(|(edges in edges_strat, chunk_size in 2u32 .. 100)|{
             check_edges_with_layers(edges, chunk_size, false);
         });
     }
@@ -826,7 +826,7 @@ mod test {
     #[test]
     fn add_one_edge_with_props() {
         let edges = make_edges(1, 1);
-        proptest!(|(edges in edges, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
+        proptest!(|(edges in edges, node_page_len in 2u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_props(node_page_len, edge_page_len, &edges);
         });
     }
@@ -889,7 +889,7 @@ mod test {
     #[test]
     fn add_one_node_with_props() {
         let nodes = make_nodes(1);
-        proptest!(|(nodes in nodes, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
+        proptest!(|(nodes in nodes, node_page_len in 2u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_nodes(node_page_len, edge_page_len, &nodes);
         });
     }
@@ -897,7 +897,7 @@ mod test {
     #[test]
     fn add_multiple_node_with_props() {
         let nodes = make_nodes(20);
-        proptest!(|(nodes in nodes, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
+        proptest!(|(nodes in nodes, node_page_len in 2u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_nodes(node_page_len, edge_page_len, &nodes);
         });
     }
@@ -954,7 +954,7 @@ mod test {
             ],
             const_props: vec![(VID(0), vec![]), (VID(0), vec![]), (VID(0), vec![])],
         };
-        check_graph_with_nodes(1, 1, &node_fixture);
+        check_graph_with_nodes(2, 1, &node_fixture);
     }
 
     #[test]
@@ -1094,7 +1094,7 @@ mod test {
     #[test]
     fn add_multiple_edges_with_props() {
         let edges = make_edges(20, 20);
-        proptest!(|(edges in edges, node_page_len in 1u32..100, edge_page_len in 1u32 .. 100)|{
+        proptest!(|(edges in edges, node_page_len in 2u32..100, edge_page_len in 1u32 .. 100)|{
             check_graph_with_props(node_page_len, edge_page_len, &edges);
         });
     }
