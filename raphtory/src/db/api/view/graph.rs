@@ -334,13 +334,13 @@ fn materialize_impl(
 
     {
         // scope for the write lock
-        let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes(&LayerIds::All)];
-        let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
         // reverse index pos -> new_vid
         let index = Index::for_graph(graph);
-        graph.nodes().par_iter().for_each(|node| {
-            let vid = node.node;
+        let mut node_map = vec![VID::default(); index.len()];
+        let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
+
+        index.par_iter().for_each(|(pos, vid)| {
             if let Some(pos) = index.index(&vid) {
                 let new_vid = temporal_graph.storage().nodes().reserve_vid(pos);
                 node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
@@ -360,12 +360,16 @@ fn materialize_impl(
         }
 
         new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-            for node in graph.nodes().iter() {
-                let new_id = get_new_vid(node.node, &index, &node_map);
-                let gid = node.id();
-
+            for (pos, vid) in index.iter().enumerate() {
+                let new_id = node_map[pos];
                 if let Some(node_pos) = shard.resolve_pos(new_id) {
+                    let node = NodeView::new_internal(graph, vid);
+                    let gid = node.id();
                     let mut writer = shard.writer();
+                    println!(
+                        "creating {node_pos:?} in shard {}",
+                        writer.mut_segment.segment_id()
+                    );
 
                     if let Some(node_type) = node.node_type() {
                         let new_type_id = graph_storage
