@@ -1458,6 +1458,7 @@ dependencies = [
  "clap",
  "dashmap",
  "either",
+ "fast_merge",
  "iter-enum",
  "itertools 0.13.0",
  "lock_api",

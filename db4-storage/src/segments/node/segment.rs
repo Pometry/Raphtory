@@ -171,6 +171,7 @@ impl MemNodeSegment {
             .is_some_and(|layer| layer.has_item(n))
     }
 
+    #[inline(always)]
     pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
         self.get_adj(n, layer_id)
             .and_then(|adj| adj.get_edge(dst, Direction::OUT))
@@ -511,6 +512,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         locked_head.get_inb_edge(pos, src.into(), layer_id)
     }
 
+    #[inline(always)]
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {
         let pos = pos.into();
         MemNodeEntry::new(pos, self.head())

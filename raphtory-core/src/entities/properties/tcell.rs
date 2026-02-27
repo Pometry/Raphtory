@@ -151,6 +151,11 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
         }
     }
 
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         let range = match self {
             TCell::Empty => TimeIndexWindow::Empty,

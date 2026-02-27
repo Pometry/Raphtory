@@ -98,6 +98,12 @@ impl<'a> TPropCell<'a> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.t_cell.is_none()
+            || self.log.is_none()
+            || self.t_cell.is_some_and(|cell| cell.is_empty())
+    }
+
     fn iter_window_inner(
         self,
         r: Range<EventTime>,

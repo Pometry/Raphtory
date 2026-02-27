@@ -72,6 +72,15 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
         }
     }
 
+    fn is_empty(&self) -> bool {
+        match self {
+            MemAdditions::Props(props) => props.is_empty(),
+            MemAdditions::Edges(edges) => edges.is_empty(),
+            MemAdditions::WProps(window) => window.is_empty(),
+            MemAdditions::WEdges(window) => window.is_empty(),
+        }
+    }
+
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         match self {
             MemAdditions::Props(props) => MemAdditions::WProps(props.range(w)),

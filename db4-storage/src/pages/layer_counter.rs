@@ -6,15 +6,24 @@ pub struct GraphStats {
     layers: boxcar::Vec<AtomicUsize>,
     earliest: MinCounter,
     latest: MaxCounter,
+    num_nodes: AtomicUsize,
 }
 
 impl<I: IntoIterator<Item = usize>> From<I> for GraphStats {
     fn from(iter: I) -> Self {
-        let layers = iter.into_iter().map(AtomicUsize::new).collect();
+        let layers = iter
+            .into_iter()
+            .map(AtomicUsize::new)
+            .collect::<boxcar::Vec<_>>();
+
+        let num_nodes = layers
+            .get(0)
+            .map_or(0, |n| n.load(std::sync::atomic::Ordering::Acquire));
         Self {
             layers,
             earliest: MinCounter::new(),
             latest: MaxCounter::new(),
+            num_nodes: AtomicUsize::new(num_nodes),
         }
     }
 }
@@ -33,18 +42,15 @@ impl GraphStats {
             layers,
             earliest: MinCounter::new(),
             latest: MaxCounter::new(),
+            num_nodes: AtomicUsize::new(0),
         }
     }
 
     pub fn load(counts: impl IntoIterator<Item = usize>, earliest: i64, latest: i64) -> Self {
-        let layers = counts.into_iter().map(AtomicUsize::new).collect();
-        let earliest = MinCounter::from(earliest);
-        let latest = MaxCounter::from(latest);
-        Self {
-            layers,
-            earliest,
-            latest,
-        }
+        let mut stats: Self = counts.into();
+        stats.earliest = MinCounter::from(earliest);
+        stats.latest = MaxCounter::from(latest);
+        stats
     }
 
     pub fn len(&self) -> usize {
@@ -71,9 +77,19 @@ impl GraphStats {
 
     pub fn increment(&self, layer_id: usize) -> usize {
         let counter = self.get_or_create_layer(layer_id);
+        self.num_nodes.fetch_add(
+            (layer_id == 0) as usize,
+            std::sync::atomic::Ordering::Release,
+        );
         counter.fetch_add(1, std::sync::atomic::Ordering::Release)
     }
 
+    #[inline(always)]
+    pub fn num_nodes(&self) -> usize {
+        self.num_nodes.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    #[inline(always)]
     pub fn get(&self, layer_id: usize) -> usize {
         let counter = self.get_or_create_layer(layer_id);
         counter.load(std::sync::atomic::Ordering::Acquire)

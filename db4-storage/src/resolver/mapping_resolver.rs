@@ -289,6 +289,7 @@ impl GIDResolverOps for MappingResolver {
         Ok(())
     }
 
+    #[inline(always)]
     fn get_str(&self, gid: &str) -> Option<VID> {
         let map = self.map.get()?;
         map.as_str().and_then(|m| self.get_value_from_map(m, gid))
