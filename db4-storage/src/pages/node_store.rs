@@ -429,6 +429,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
 
         let mut pages = std::fs::read_dir(nodes_path)?
+            .par_bridge()
             .filter(|entry| {
                 entry
                     .as_ref()
