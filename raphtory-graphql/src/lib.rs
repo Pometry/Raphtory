@@ -1,7 +1,6 @@
 pub use crate::server::GraphServer;
 mod auth;
 pub mod data;
-mod embeddings;
 mod graph;
 pub mod model;
 pub mod observability;
@@ -25,7 +24,7 @@ mod graphql_test {
         url_encode::{url_decode_graph, url_encode_graph},
     };
     use arrow_array::types::UInt8Type;
-    use async_graphql::UploadValue;
+    use async_graphql::{dynamic::Schema, UploadValue};
     use dynamic_graphql::{Request, Variables};
     use raphtory::{
         db::{
@@ -100,7 +99,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("master".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let config = AppConfigBuilder::new().with_create_index(true).build();
         let data = Data::new(tmp_dir.path(), &config);
@@ -205,7 +206,9 @@ mod graphql_test {
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("lotr".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
 
@@ -316,7 +319,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -419,7 +424,9 @@ mod graphql_test {
 
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -484,7 +491,9 @@ mod graphql_test {
         let graph: MaterializedGraph = g.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let expected = json!({
             "graph": {
@@ -635,7 +644,9 @@ mod graphql_test {
         let g = g.into();
         let graphs = HashMap::from([("graph".to_string(), g)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -962,7 +973,9 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1137,7 +1150,9 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1278,7 +1293,9 @@ mod graphql_test {
             ("graph6".to_string(), graph6.into()),
         ]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1575,7 +1592,9 @@ mod graphql_test {
         let graph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
-        save_graphs_to_work_dir(tmp_dir.path(), &graphs).unwrap();
+        save_graphs_to_work_dir(tmp_dir.path(), &graphs)
+            .await
+            .unwrap();
 
         let data = Data::new(tmp_dir.path(), &AppConfig::default());
         let schema = App::create_schema().data(data).finish().unwrap();
@@ -1829,5 +1848,94 @@ mod graphql_test {
                 },
             }),
         );
+    }
+
+    async fn test_new_graph(schema: &Schema, path: &str, should_work: bool) {
+        let req = Request::new(format!(
+            r#"mutation {{ newGraph(path: "{path}", graphType: EVENT) }}"#,
+        ));
+        let res = schema.execute(req).await;
+
+        if should_work {
+            assert_eq!(res.errors, vec![], "expected no errors for path: {path}");
+            assert_eq!(
+                res.data.into_json().unwrap(),
+                json!({"newGraph": true}),
+                "expected newGraph to return true for path: {path}",
+            );
+        } else {
+            assert!(!res.errors.is_empty(), "expected errors for path: {path}",);
+        }
+    }
+
+    async fn assert_namespace_graphs(
+        schema: &Schema,
+        namespace_path: &str,
+        expected_graphs: Vec<&str>,
+        expected_children: Vec<&str>,
+    ) {
+        let req = Request::new(format!(
+            r#"
+            {{
+              namespace(path: "{namespace_path}") {{
+                graphs {{
+                  list {{
+                    path
+                  }}
+                }}
+                children {{
+                  list {{
+                    path
+                  }}
+                }}
+              }}
+            }}
+            "#,
+        ));
+        let res = schema.execute(req).await;
+        let into_paths = |v: Vec<&str>| v.iter().map(|p| json!({ "path": *p })).collect::<Vec<_>>();
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "namespace": {
+                    "graphs": { "list": into_paths(expected_graphs) },
+                    "children": { "list": into_paths(expected_children) },
+                }
+            }),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_new_graph_rejects_hidden_path_components() {
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        // Valid paths
+        let should_work = true;
+        test_new_graph(&schema, "valid_graph-1", should_work).await;
+        test_new_graph(&schema, "some.graph", should_work).await;
+        test_new_graph(&schema, "some-namespace/graph", should_work).await;
+
+        // Hidden paths should be rejected
+        let should_work = false;
+        test_new_graph(&schema, ".graph", should_work).await;
+        test_new_graph(&schema, "some-namespace/.some-hidden/graph", should_work).await;
+        test_new_graph(&schema, "..hidden", should_work).await;
+
+        assert_namespace_graphs(
+            &schema,
+            "",
+            vec!["some.graph", "valid_graph-1"],
+            vec!["some-namespace"],
+        )
+        .await;
+        assert_namespace_graphs(
+            &schema,
+            "some-namespace",
+            vec!["some-namespace/graph"],
+            vec![],
+        )
+        .await;
     }
 }

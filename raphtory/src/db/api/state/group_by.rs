@@ -15,8 +15,8 @@ use super::node_state_ops::ToOwnedValue;
 
 #[derive(Clone, Debug)]
 pub struct NodeGroups<V, G> {
-    groups: Arc<[(V, Index<VID>)]>,
-    graph: G,
+    pub groups: Arc<[(V, Index<VID>)]>,
+    pub graph: G,
 }
 
 impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGroups<V, G> {

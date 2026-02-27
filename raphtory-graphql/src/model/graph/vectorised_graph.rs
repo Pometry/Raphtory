@@ -1,6 +1,6 @@
+use crate::rayon::blocking_compute;
+
 use super::vector_selection::GqlVectorSelection;
-use crate::{embeddings::EmbedQuery, model::blocking_io};
-use async_graphql::Context;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     db::api::view::MaterializedGraph, errors::GraphResult,
@@ -37,6 +37,12 @@ impl From<VectorisedGraph<MaterializedGraph>> for GqlVectorisedGraph {
 
 #[ResolvedObjectFields]
 impl GqlVectorisedGraph {
+    /// Optmize the vector index
+    async fn optimize_index(&self) -> GraphResult<bool> {
+        self.0.optimize_index().await?;
+        Ok(true)
+    }
+
     /// Returns an empty selection of documents.
     async fn empty_selection(&self) -> GqlVectorSelection {
         self.0.empty_selection().into()
@@ -45,42 +51,43 @@ impl GqlVectorisedGraph {
     /// Search the top scoring entities according to a specified query returning no more than a specified limit of entities.
     async fn entities_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<GqlVectorSelection> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking_io(move || Ok(cloned.entities_by_similarity(&vector, limit, w)?.into())).await
+        let query =
+            blocking_compute(move || cloned.entities_by_similarity(&vector, limit, w)).await;
+        Ok(query.execute().await?.into())
     }
 
     /// Search the top scoring nodes according to a specified query returning no more than a specified limit of nodes.
     async fn nodes_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<GqlVectorSelection> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking_io(move || Ok(cloned.nodes_by_similarity(&vector, limit, w)?.into())).await
+        let query = blocking_compute(move || cloned.nodes_by_similarity(&vector, limit, w)).await;
+        Ok(query.execute().await?.into())
     }
 
     /// Search the top scoring edges according to a specified query returning no more than a specified limit of edges.
     async fn edges_by_similarity(
         &self,
-        ctx: &Context<'_>,
         query: String,
         limit: usize,
         window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<GqlVectorSelection> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.0.embed_text(query).await?;
         let w = window.into_window_tuple();
         let cloned = self.0.clone();
-        blocking_io(move || Ok(cloned.edges_by_similarity(&vector, limit, w)?.into())).await
+        let query = blocking_compute(move || cloned.edges_by_similarity(&vector, limit, w)).await;
+        Ok(query.execute().await?.into())
     }
 }

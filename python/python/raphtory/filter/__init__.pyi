@@ -282,7 +282,14 @@ class Node(object):
     @staticmethod
     def by_state_column(state, col): ...
     @staticmethod
-    def id(): ...
+    def id():
+        """
+        Selects the node ID field for filtering.
+
+        Returns:
+            filter.NodeIdFilterBuilder
+        """
+
     @staticmethod
     def is_active():
         """

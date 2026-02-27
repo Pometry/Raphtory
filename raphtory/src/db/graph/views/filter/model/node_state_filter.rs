@@ -1,29 +1,17 @@
 use crate::{
     db::{
-        api::{
-            state::{
-                ops::{GraphView, NodeOp},
-                Index, NodeStateValue, TypedNodeState,
-            },
-            view::BoxableGraphView,
-        },
-        graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                CompositeNodeFilter, TryAsCompositeFilter,
-            },
-            node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+        api::state::{ops::NodeOp, Index, NodeStateValue, TypedNodeState},
+        graph::views::filter::model::{
+            edge_filter::CompositeEdgeFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter,
+            TryAsCompositeFilter,
         },
     },
     errors::GraphError,
-    prelude::GraphViewOps,
 };
 use arrow_array::{cast::AsArray, Array, BooleanArray};
 use arrow_schema::DataType;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
-use std::sync::Arc;
 
 /// A NodeOp<bool> backed by a boolean column in a TypedNodeState.
 /// Does NOT depend on the graph type `G` at runtime; it only needs the column + optional keys.
