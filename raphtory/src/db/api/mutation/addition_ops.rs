@@ -16,13 +16,10 @@ use raphtory_api::core::{
     },
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
-        durability_ops::DurabilityOps,
-        MutationError,
-    },
+use raphtory_storage::mutation::{
+    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
+    durability_ops::DurabilityOps,
+    MutationError,
 };
 use storage::wal::{GraphWalOps, WalOps};
 
@@ -231,21 +228,16 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         let ti = time_from_input_session(&session, t)?;
         let src_gid = src.as_gid_ref();
         let dst_gid = dst.as_gid_ref();
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
 
-        // At this point we start modifying the graph, any error after this point is fatal and should
-        // panic!
-
-        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?;
-        let layer_id = layer_id.inner();
-
-        // Hold all locks for src node, dst node and edge until add_edge_op goes out of scope.
-        let mut add_edge_op = self
+        // Hold all locks for src node, dst node and edge until writer goes out of scope.
+        let mut writer = self
             .atomic_add_edge(src, dst, None)
             .map_err(into_graph_err)?;
 
-        // NOTE: We log edge id after it is inserted into the edge segment.
-        // This is fine as long as we hold onto the edge segment lock through add_edge_op
-        // for the entire operation.
+        let src_id = writer.src().inner();
+        let dst_id = writer.dst().inner();
+        let edge_id = writer.eid().inner();
 
         let props_for_wal = props_with_status
             .iter()
@@ -255,10 +247,9 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             })
             .collect::<Vec<_>>();
 
-        let src_id = add_edge_op.src().inner();
-        let dst_id = add_edge_op.dst().inner();
-        let edge_id = add_edge_op.eid().inner();
-
+        // NOTE: We log edge id after it is inserted into the edge segment.
+        // This is fine as long as we hold onto the edge segment lock through writer
+        // for the entire operation.
         let lsn = wal.log_add_edge(
             transaction_id,
             ti,
@@ -280,15 +271,16 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
             })
             .collect::<Vec<_>>();
 
-        add_edge_op.internal_add_update(ti, layer_id, props);
+        writer.internal_add_update(ti, layer_id, props);
+
         // Update the src, dst and edge segments with the lsn of the wal entry.
-        add_edge_op.set_lsn(lsn);
+        writer.set_lsn(lsn);
 
         transaction_manager.end_transaction(transaction_id);
 
         // Segment locks can be released before flush to allow
         // other operations to proceed.
-        drop(add_edge_op);
+        drop(writer);
 
         // Flush the wal entry to disk.
         // Any error here is fatal.
@@ -348,8 +340,8 @@ fn add_node_impl<
 
     let node_gid = node_ref.as_gid_ref();
     let ti = time_from_input_session(&session, t)?;
-
     let mut writer = graph.atomic_add_node(node_ref).map_err(into_graph_err)?;
+
     let node_type_id = match node_type {
         None => DEFAULT_NODE_TYPE_ID,
         Some(node_type) => {
@@ -365,7 +357,7 @@ fn add_node_impl<
                 graph
                     .node_meta()
                     .get_node_type_id(node_type)
-                    .filter(|&node_type| writer.get_type() == node_type)
+                    .filter(|&node_type_id| writer.get_type() == node_type_id)
                     .ok_or(MutationError::NodeTypeError)?
             }
         }
@@ -415,7 +407,6 @@ fn add_node_impl<
 
     // Update node segment with the lsn of the wal entry.
     writer.set_lsn(lsn);
-
     transaction_manager.end_transaction(transaction_id);
 
     // Segment lock can be released before flush to allow
