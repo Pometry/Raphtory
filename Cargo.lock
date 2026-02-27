@@ -1098,6 +1098,7 @@ dependencies = [
  "snb",
  "tempfile",
  "thiserror 1.0.69",
+ "tikv-jemallocator",
  "tokio",
  "tracing",
  "tracing-test",
@@ -2003,16 +2004,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "495a39d30d624c2caabe6312bfead73e7717692b44e0b32df168c275a2e8e9e4"
 dependencies = [
  "ascii_utils",
-]
-
-[[package]]
-name = "fast_merge"
-version = "0.17.0"
-dependencies = [
- "criterion",
- "itertools 0.13.0",
- "proptest",
- "rand 0.9.2",
 ]
 
 [[package]]
@@ -4793,6 +4784,12 @@ dependencies = [
 [[package]]
 name = "raphtory-itertools"
 version = "0.17.0"
+dependencies = [
+ "criterion",
+ "itertools 0.13.0",
+ "proptest",
+ "rand 0.9.2",
+]
 
 [[package]]
 name = "raphtory-pymodule"
