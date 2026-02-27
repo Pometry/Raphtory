@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1771619095383,
+  "lastUpdate": 1772189595337,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4157,6 +4157,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1282,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "85af36157465dca5cf418b7dacd40e1bf1f05a1b",
+          "message": "Update UI to c8c6dbdf4 (v0.2.1) (#2505)\n\nUpdate UI to v0.2.1\n\nCo-authored-by: rachchan <25484244+rachchan@users.noreply.github.com>",
+          "timestamp": "2026-02-27T10:12:21Z",
+          "tree_id": "3c9389898e43317499d7963b9313b43dacd7bb5b",
+          "url": "https://github.com/Pometry/Raphtory/commit/85af36157465dca5cf418b7dacd40e1bf1f05a1b"
+        },
+        "date": 1772189591121,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 22,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 208,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 144,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 996,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 859,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1240,
             "unit": "req/s"
           }
         ]
