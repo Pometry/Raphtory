@@ -14,7 +14,7 @@ use crate::{
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
-            state::ops::NodeOp,
+            state::ops::ArrowNodeOp,
             view::{
                 internal::{
                     GraphTimeSemanticsOps, GraphView, InternalFilter, NodeTimeSemanticsOps, Static,
@@ -326,7 +326,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
     type ValueType<T>
         = T::Output
     where
-        T: NodeOp + 'graph,
+        T: ArrowNodeOp + 'graph,
         T::Output: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G>;
@@ -336,7 +336,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
         &self.graph
     }
 
-    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F> {
+    fn map<F: ArrowNodeOp + 'graph>(&self, op: F) -> Self::ValueType<F> {
         let cg = self.graph.core_graph();
         op.apply(cg, self.node)
     }

@@ -3,7 +3,7 @@ use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::StaticGra
 use crate::{
     core::entities::nodes::node_ref::NodeRef,
     db::{
-        api::state::{ops::filter::NO_FILTER, Index, NodeState},
+        api::state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
         graph::nodes::Nodes,
     },
     errors::GraphError,
@@ -17,10 +17,46 @@ use raphtory_api::core::{
     },
     Direction,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     collections::{BinaryHeap, HashMap, HashSet},
 };
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct DistanceState {
+    pub distance: f64,
+    pub path: Vec<VID>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TransformedDistanceState<'graph, G>
+where
+    G: GraphViewOps<'graph>,
+{
+    pub distance: f64,
+    pub path: Nodes<'graph, G, G>,
+}
+
+impl DistanceState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: Self,
+    ) -> TransformedDistanceState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedDistanceState {
+            distance: value.distance,
+            path: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.base_graph.clone(),
+                Const(true),
+                Some(Index::from_iter(value.path)),
+            ),
+        }
+    }
+}
 
 /// A state in the Dijkstra algorithm with a cost and a node name.
 #[derive(PartialEq)]
@@ -64,7 +100,10 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
     targets: Vec<T>,
     weight: Option<&str>,
     direction: Direction,
-) -> Result<NodeState<'static, (f64, Nodes<'static, G>), G>, GraphError> {
+) -> Result<
+    TypedNodeState<'static, DistanceState, G, TransformedDistanceState<'static, G>>,
+    GraphError,
+> {
     let source_ref = source.as_node_ref();
     let source_node = match g.node(source_ref) {
         Some(src) => src,
@@ -186,17 +225,19 @@ pub fn dijkstra_single_source_shortest_paths<G: StaticGraphViewOps, T: AsNodeRef
             }
         }
     }
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = paths
-        .into_iter()
-        .map(|(id, (cost, path))| {
-            let nodes =
-                Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::new(path)));
-            (id, (cost, nodes))
-        })
-        .unzip();
-    Ok(NodeState::new(
-        g.clone(),
-        values.into(),
-        Some(Index::new(index)),
+    Ok(TypedNodeState::new_mapped(
+        GenericNodeState::new_from_map(
+            g.clone(),
+            paths,
+            |(cost, path)| DistanceState {
+                distance: cost,
+                path: path.into_iter().collect(),
+            },
+            Some(HashMap::from([(
+                "path".to_string(),
+                (NodeStateOutputType::Nodes, None),
+            )])),
+        ),
+        DistanceState::node_transform,
     ))
 }

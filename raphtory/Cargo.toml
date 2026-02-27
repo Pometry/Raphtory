@@ -33,7 +33,7 @@ rayon = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 bigdecimal = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
 dashmap = { workspace = true }
@@ -50,6 +50,10 @@ roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
 uuid = { workspace = true }
+datafusion-physical-expr-common = { workspace = true }
+datafusion-physical-expr = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+datafusion-expr-common = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -67,14 +71,17 @@ prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
 # arrow otional dependencies
-parquet = { workspace = true, optional = true }
+parquet = { workspace = true }
 arrow-json = { workspace = true, optional = true }
 arrow-csv = { workspace = true, optional = true}
-#arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
-#arrow-buffer = { workspace = true, optional = true }
-#arrow-cast = { workspace = true, optional = true }
-#arrow-schema = { workspace = true, optional = true }
-arrow = { workspace = true, optional = true, features = ["chrono-tz"] }
+arrow-array = { workspace = true, features = ["chrono-tz"] }
+arrow-schema = { workspace = true }
+arrow-ipc = {workspace = true}
+arrow-buffer = {workspace = true}
+arrow-select = { workspace = true }
+arrow-data ={ workspace = true }
+serde_arrow = {workspace = true, features = ["arrow-56"] }
+arrow = { workspace = true, features = ["chrono-tz"] }
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -89,7 +96,6 @@ minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true }
 lancedb = {workspace = true, optional = true }
-arrow-array = { workspace = true, features = ["chrono-tz"], optional = true }
 axum = "0.8.4" # TODO put this in the proper place and make optional
 
 # python binding optional dependencies
@@ -130,7 +136,6 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
-    "dep:parquet",
     "proto",
 ]
 
@@ -148,7 +153,6 @@ vectors = [
     "dep:heed",
     "dep:moka",
     "dep:lancedb",
-    "dep:arrow-array",
     "dep:tokio", # also used for the io feature
     "dep:tempfile", # also used for the storage feature
 ]
@@ -180,10 +184,8 @@ storage = [
 arrow = [
     "raphtory-api/arrow",
     "raphtory-core/arrow",
-    "dep:parquet",
     "dep:arrow-json",
     "dep:arrow-csv",
-    "dep:arrow",
 ]
 
 proto = [
@@ -197,5 +199,5 @@ proto = [
 ]
 
 test-utils = [
-    "dep:proptest", "dep:proptest-derive"
+    "dep:proptest", "dep:proptest-derive", "arrow"
 ]

@@ -127,7 +127,7 @@ mod local_motifs_test {
         let g = load_graph(ij_kj_ik);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0
@@ -138,7 +138,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ki_jk);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0
@@ -149,7 +149,7 @@ mod local_motifs_test {
         let g = load_graph(ij_jk_ik);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0
@@ -160,7 +160,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ik_jk);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0
@@ -171,7 +171,7 @@ mod local_motifs_test {
         let g = load_graph(ij_kj_ki);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0
@@ -182,7 +182,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ki_kj);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0
@@ -193,7 +193,7 @@ mod local_motifs_test {
         let g = load_graph(ij_jk_ki);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0
@@ -204,7 +204,7 @@ mod local_motifs_test {
         let g = load_graph(ij_ik_kj);
         let mc = temporal_three_node_motif(&g, 3, None);
         assert_eq!(
-            *mc.get_by_node(3).unwrap(),
+            mc.get_by_node(3).unwrap().motif_counter,
             [
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
@@ -217,7 +217,8 @@ mod local_motifs_test {
         let graph = load_sample_graph();
 
         test_storage!(&graph, |graph| {
-            let actual = temporal_three_node_motif(graph, 10, None);
+            let actual =
+                temporal_three_node_motif(graph, 10, None).to_hashmap(|value| value.motif_counter);
 
             let expected: HashMap<String, Vec<usize>> = HashMap::from([
                 (
@@ -309,7 +310,8 @@ mod local_motifs_test {
         let g_windowed = g.before(11).after(0);
         info! {"windowed graph has {:?} vertices",g_windowed.count_nodes()}
 
-        let actual = temporal_three_node_motif(&g_windowed, 10, None);
+        let actual = temporal_three_node_motif(&g_windowed, 10, None)
+            .to_hashmap(|value| value.motif_counter);
 
         let expected: HashMap<String, Vec<usize>> = HashMap::from([
             (
@@ -409,13 +411,12 @@ mod triangle_count_tests {
 
 #[cfg(test)]
 mod rich_club_test {
+    use crate::algo_tests::assert_eq_f64;
     use raphtory::{
         algorithms::motifs::temporal_rich_club_coefficient::temporal_rich_club_coefficient,
         db::{api::mutation::AdditionOps, graph::graph::Graph},
         prelude::*,
     };
-
-    use crate::algo_tests::centrality::assert_eq_f64;
 
     fn load_graph(edges: Vec<(i64, u64, u64)>) -> Graph {
         let graph = Graph::new();
@@ -468,9 +469,9 @@ mod rich_club_test {
         let rc_coef_1 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 1);
         let rc_coef_3 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 3);
         let rc_coef_5 = temporal_rich_club_coefficient(&g, g_rolling.clone(), 3, 5);
-        assert_eq_f64(Some(rc_coef_1), Some(1.0), 3);
-        assert_eq_f64(Some(rc_coef_3), Some(0.66666), 3);
-        assert_eq_f64(Some(rc_coef_5), Some(0.5), 3);
+        assert_eq_f64(rc_coef_1, 1.0, 0.001);
+        assert_eq_f64(rc_coef_3, 0.66666, 0.001);
+        assert_eq_f64(rc_coef_5, 0.5, 0.001);
     }
 }
 

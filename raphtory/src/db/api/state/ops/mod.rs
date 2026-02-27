@@ -9,7 +9,8 @@ pub use node::*;
 pub use properties::*;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{ops::Deref, sync::Arc};
+use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
@@ -26,6 +27,29 @@ pub trait NodeOp: Send + Sync {
     {
         Map { op: self, map }
     }
+}
+
+pub trait IntoArrowNodeOp: NodeOp + Sized {
+    fn into_arrow_node_op<A: InputNodeStateValue<Self::Output>>(self) -> ArrowMap<Self, A> {
+        ArrowMap {
+            op: self,
+            _phantom: PhantomData,
+        }
+    }
+}
+impl<T: NodeOp + Sized> IntoArrowNodeOp for T {}
+
+pub trait ArrowNodeOp: NodeOp {
+    type ArrowOutput: InputNodeStateValue<Self::Output>;
+
+    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
+        self.apply(storage, node).into()
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct NodeFilterResult {
+    pub filtered: bool,
 }
 
 pub type DynNodeFilter = Arc<dyn NodeOp<Output = bool>>;
@@ -74,8 +98,8 @@ pub trait IntoDynNodeOp: NodeOp + Sized + 'static {
 }
 
 impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output = V>> {
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
-        self.clone()
+    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = V>> {
+        self
     }
 }
 
@@ -83,6 +107,12 @@ impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output =
 pub struct Map<Op: NodeOp, V> {
     op: Op,
     map: fn(Op::Output) -> V,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct ArrowMap<Op: NodeOp, A> {
+    pub op: Op,
+    _phantom: PhantomData<A>,
 }
 
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
@@ -94,6 +124,23 @@ impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
 }
 
 impl<Op: NodeOp + 'static, V: Clone + Send + Sync + 'static> IntoDynNodeOp for Map<Op, V> {}
+
+impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> ArrowNodeOp for ArrowMap<Op, A> {
+    type ArrowOutput = A;
+}
+
+impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> NodeOp for ArrowMap<Op, A> {
+    type Output = Op::Output;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.op.apply(storage, node)
+    }
+}
+
+impl<Op: NodeOp + 'static, A: InputNodeStateValue<Op::Output> + 'static> IntoDynNodeOp
+    for ArrowMap<Op, A>
+{
+}
 
 impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
     type Output = V;

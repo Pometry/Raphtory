@@ -1,28 +1,27 @@
+use std::hash::RandomState;
+
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::{
-        state::{Index, NodeState},
+        state::{GenericNodeState, TypedNodeState},
         view::*,
     },
 };
-use indexmap::IndexSet;
 use itertools::Itertools;
+use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
-/// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
-/// Uses path-counting for its triangle-counting step.
-///
-/// Arguments:
-///     graph: Raphtory graph, can be directed or undirected but will be treated as undirected.
-///     v: vec of node ids, if empty, will return results for every node in the graph
-///
-/// Returns:
-///     NodeState: The local clustering coefficient of node v in g.
-pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct LCCState {
+    pub lcc: f64,
+}
+
+fn calculate_lcc<G: StaticGraphViewOps, V: AsNodeRef>(
     graph: &G,
     v: Vec<V>,
-) -> NodeState<'static, f64, G> {
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = v
+) -> TypedNodeState<'static, LCCState, G> {
+    let state: std::collections::HashMap<VID, LCCState, RandomState> = v
         .par_iter()
         .filter_map(|n| {
             let s = (&graph).node(n)?;
@@ -40,13 +39,39 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
             Some((
                 s.node,
                 if degree <= 1.0 {
-                    0.0
+                    LCCState { lcc: 0.0 }
                 } else {
-                    (2.0 * triangle_count) / (degree * (degree - 1.0))
+                    LCCState {
+                        lcc: (2.0 * triangle_count) / (degree * (degree - 1.0)),
+                    }
                 },
             ))
         })
-        .unzip();
-    let result: Option<_> = Some(Index::new(index));
-    NodeState::new(graph.clone(), values.into(), result)
+        .collect();
+
+    TypedNodeState::new(GenericNodeState::new_from_map(
+        graph.clone(),
+        state,
+        |value| value,
+        None,
+    ))
+}
+/// Local clustering coefficient (batch, intersection) - measures the degree to which one or multiple nodes in a graph tend to cluster together.
+/// Uses path-counting for its triangle-counting step.
+///
+/// # Arguments
+/// - `graph`: Raphtory graph, can be directed or undirected but will be treated as undirected.
+/// - `v`: vec of node ids, if empty, will return results for every node in the graph
+///
+/// # Returns
+/// the local clustering coefficient of node v in g.
+pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
+    graph: &G,
+    v: Vec<V>,
+) -> TypedNodeState<'static, LCCState, G> {
+    if v.is_empty() {
+        calculate_lcc(graph, (0..graph.unfiltered_num_nodes()).map(VID).collect())
+    } else {
+        calculate_lcc(graph, v)
+    }
 }

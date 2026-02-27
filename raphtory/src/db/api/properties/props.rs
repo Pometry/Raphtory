@@ -10,7 +10,7 @@ use std::{
 };
 
 /// View of the properties of an entity (graph|node|edge)
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Properties<P: InternalPropertiesOps + Clone> {
     pub(crate) props: P,
 }

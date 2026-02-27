@@ -39,7 +39,7 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };

@@ -4,7 +4,10 @@
 //! in a graph.
 use crate::{
     db::{
-        api::{state::NodeState, view::StaticGraphViewOps},
+        api::{
+            state::{GenericNodeState, TypedNodeState},
+            view::StaticGraphViewOps,
+        },
         graph::node::NodeView,
     },
     errors::GraphError,
@@ -12,6 +15,12 @@ use crate::{
 };
 use raphtory_api::core::Direction;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct BalanceState {
+    pub balance: f64,
+}
 
 /// Computes the net sum of weights for a given node based on edge direction.
 ///
@@ -86,7 +95,7 @@ pub fn balance<G: StaticGraphViewOps>(
     graph: &G,
     name: String,
     direction: Direction,
-) -> Result<NodeState<'static, f64, G>, GraphError> {
+) -> Result<TypedNodeState<'static, BalanceState, G>, GraphError> {
     if let Some((weight_id, weight_type)) = graph.edge_meta().get_prop_id_and_type(&name, false) {
         if !weight_type.is_numeric() {
             return Err(GraphError::InvalidProperty {
@@ -96,10 +105,16 @@ pub fn balance<G: StaticGraphViewOps>(
         let values: Vec<_> = graph
             .nodes()
             .par_iter()
-            .map(|n| balance_per_node(&n, weight_id, direction))
+            .map(|n| BalanceState {
+                balance: balance_per_node(&n, weight_id, direction),
+            })
             .collect();
 
-        Ok(NodeState::new_from_values(graph.clone(), values))
+        Ok(TypedNodeState::new(GenericNodeState::new_from_eval(
+            graph.clone(),
+            values,
+            None,
+        )))
     } else {
         Err(GraphError::InvalidProperty {
             reason: "Edge property {name} does not exist".to_string(),

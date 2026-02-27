@@ -5,12 +5,46 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
-        api::state::{ops::filter::NO_FILTER, Index, NodeState},
+        api::state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
         graph::{node::NodeView, nodes::Nodes},
     },
     prelude::*,
 };
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem};
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct PathState {
+    pub path: Vec<VID>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TransformedPathState<'graph, G, GH = G>
+where
+    G: GraphViewOps<'graph>,
+    GH: GraphViewOps<'graph>,
+{
+    pub path: Nodes<'graph, G, GH>,
+}
+
+impl PathState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: Self,
+    ) -> TransformedPathState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedPathState {
+            path: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.base_graph.clone(),
+                Const(true),
+                Some(Index::from_iter(value.path)),
+            ),
+        }
+    }
+}
 
 /// Calculates the single source shortest paths from a given source node.
 ///
@@ -28,7 +62,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
     g: &G,
     source: T,
     cutoff: Option<usize>,
-) -> NodeState<'graph, Nodes<'graph, G>, G> {
+) -> TypedNodeState<'graph, PathState, G, TransformedPathState<'graph, G>> {
     let mut paths: HashMap<VID, Vec<VID>> = HashMap::new();
     if let Some(source_node) = g.node(source) {
         let node_internal_id = source_node.node;
@@ -45,7 +79,7 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
             nextlevel.clear();
             for v in thislevel.iter() {
                 let node = NodeView::new_internal(g, *v);
-                for w in node.out_neighbours() {
+                for w in node.neighbours() {
                     if !paths.contains_key(&w.node) {
                         let mut new_path = paths.get(v).unwrap().clone();
                         new_path.push(w.node);
@@ -57,7 +91,16 @@ pub fn single_source_shortest_path<'graph, G: GraphViewOps<'graph>, T: AsNodeRef
             level += 1;
         }
     }
-    NodeState::new_from_map(g.clone(), paths, |v| {
-        Nodes::new_filtered(g.clone(), g.clone(), NO_FILTER, Some(Index::from_iter(v)))
-    })
+    TypedNodeState::new_mapped(
+        GenericNodeState::new_from_map(
+            g.clone(),
+            paths,
+            |path| PathState { path },
+            Some(HashMap::from([(
+                "path".to_string(),
+                (NodeStateOutputType::Nodes, None),
+            )])),
+        ),
+        PathState::node_transform,
+    )
 }

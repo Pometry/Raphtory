@@ -2,7 +2,7 @@ use crate::{
     core::entities::VID,
     db::{
         api::{
-            state::{ops::Const, Index, NodeState},
+            state::{ops::Const, GenericNodeState, Index, NodeStateOutputType, TypedNodeState},
             view::{Filter, NodeViewOps, StaticGraphViewOps},
         },
         graph::{
@@ -20,13 +20,42 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use indexmap::IndexSet;
-use itertools::Itertools;
-use std::collections::{hash_map::Entry, HashMap, HashSet, VecDeque};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet, VecDeque},
+    fmt::Debug,
+};
 
-#[derive(Clone, Debug, Default)]
-struct InState {
-    in_components: Vec<VID>,
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct InState {
+    pub in_components: Vec<VID>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TransformedInState<'graph, G>
+where
+    G: GraphViewOps<'graph>,
+{
+    pub in_components: Nodes<'graph, G, G>,
+}
+
+impl InState {
+    pub fn node_transform<'graph, G>(
+        state: &GenericNodeState<'graph, G>,
+        value: Self,
+    ) -> TransformedInState<'graph, G>
+    where
+        G: GraphViewOps<'graph>,
+    {
+        TransformedInState {
+            in_components: Nodes::new_filtered(
+                state.base_graph.clone(),
+                state.base_graph.clone(),
+                Const(true),
+                Some(Index::from_iter(value.in_components)),
+            ),
+        }
+    }
 }
 
 /// Computes the in components of each node in the graph
@@ -36,7 +65,10 @@ struct InState {
 /// - `g` - A reference to the graph
 /// - `threads` - Number of threads to use
 ///
-pub fn in_components<G>(g: &G, threads: Option<usize>) -> NodeState<'static, Nodes<'static, G>, G>
+pub fn in_components<G>(
+    g: &G,
+    threads: Option<usize>,
+) -> TypedNodeState<'static, InState, G, TransformedInState<'static, G>>
 where
     G: StaticGraphViewOps,
 {
@@ -55,7 +87,7 @@ pub fn in_components_filtered<G, F>(
     g: &G,
     threads: Option<usize>,
     filter: F,
-) -> Result<NodeState<'static, Nodes<'static, G>, G>, GraphError>
+) -> Result<TypedNodeState<'static, InState, G, TransformedInState<'static, G>>, GraphError>
 where
     G: StaticGraphViewOps,
     F: CreateFilter + 'static,
@@ -96,20 +128,28 @@ where
         vec![],
         None,
         |_, _, _, local: Vec<InState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| {
-                Nodes::new_filtered(
+            TypedNodeState::new_mapped(
+                GenericNodeState::new_from_eval(
                     g.clone(),
-                    g.clone(),
-                    Const(true),
-                    Some(Index::from_iter(v.in_components)),
-                )
-            })
+                    local,
+                    Some(HashMap::from([(
+                        "in_components".to_string(),
+                        (NodeStateOutputType::Nodes, None),
+                    )])),
+                ),
+                InState::node_transform,
+            )
         },
         threads,
         1,
         None,
         None,
     ))
+}
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct InComponentState {
+    pub distance: usize,
 }
 
 /// Computes the in-component of a given node in the graph
@@ -122,7 +162,9 @@ where
 ///
 /// The nodes within the given nodes in-component and their distances from the starting node.
 ///
-pub fn in_component<'graph, G>(node: NodeView<'graph, G>) -> NodeState<'graph, usize, G>
+pub fn in_component<'graph, G>(
+    node: NodeView<'graph, G>,
+) -> TypedNodeState<'graph, InComponentState, G>
 where
     G: GraphViewOps<'graph>,
 {
@@ -143,7 +185,7 @@ where
 pub fn in_component_filtered<'graph, G, F>(
     node: NodeView<'graph, G>,
     filter: F,
-) -> Result<NodeState<'graph, usize, G>, GraphError>
+) -> Result<TypedNodeState<'graph, InComponentState, G>, GraphError>
 where
     G: GraphViewOps<'graph>,
     F: CreateFilter + 'graph,
@@ -170,11 +212,10 @@ where
         }
     }
 
-    let (nodes, distances): (IndexSet<_, ahash::RandomState>, Vec<_>) =
-        in_components.into_iter().sorted().unzip();
-    Ok(NodeState::new(
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
         node.graph.clone(),
-        distances.into(),
-        Some(Index::new(nodes)),
-    ))
+        in_components,
+        |distance| InComponentState { distance },
+        None,
+    )))
 }
