@@ -1,6 +1,6 @@
 //! Defines the `Edge` struct, which represents an edge in the graph.
 //!
-//! Edges are used to define directed connections between verticies in the graph.
+//! Edges are used to define directed connections between vertices in the graph.
 //! Edges are identified by a unique ID, can have a direction (Ingoing, Outgoing, or Both)
 //! and can have properties associated with them.
 //!
@@ -33,15 +33,19 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::prop::PropType,
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew, timeindex::EventTime},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
-use raphtory_core::entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef};
+use raphtory_core::entities::{
+    graph::tgraph::InvalidLayer,
+    nodes::node_ref::{AsNodeRef, NodeRef},
+};
 use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps},
         deletion_ops::InternalDeletionOps,
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };
@@ -52,6 +56,7 @@ use std::{
     iter,
     sync::Arc,
 };
+use storage::wal::{GraphWalOps, WalOps};
 
 /// A view of an edge in the graph.
 #[derive(Copy, Clone)]
@@ -160,10 +165,46 @@ impl<
     > EdgeView<G>
 {
     pub fn delete<T: TryIntoInputTime>(&self, t: T, layer: Option<&str>) -> Result<(), GraphError> {
+        let transaction_manager = self.graph.core_graph().transaction_manager()?;
+        let wal = self.graph.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let src = self.src();
+        let dst = self.dst();
+        let edge_id = self.edge.pid();
+
+        let layer_id = self.resolve_layer(layer, true)?;
         let t = time_from_input(&self.graph, t)?;
-        let layer = self.resolve_layer(layer, true)?;
-        self.graph
-            .internal_delete_existing_edge(t, self.edge.pid(), layer)?;
+
+        let mut writer = self
+            .graph
+            .atomic_add_edge(src.as_node_ref(), dst.as_node_ref(), None)
+            .map_err(into_graph_err)?;
+
+        let src_name = None;
+        let dst_name = None;
+
+        let lsn = wal.log_delete_edge(
+            transaction_id,
+            t,
+            src_name,
+            src.node,
+            dst_name,
+            dst.node,
+            edge_id,
+            layer,
+            layer_id,
+        )?;
+
+        writer.internal_delete_edge(t, layer_id);
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 }
@@ -293,7 +334,9 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         &self,
         layer: Option<&str>,
     ) -> Result<usize, GraphError> {
-        let layer_id = self.resolve_layer(layer, false)?;
+        let create = false;
+        let layer_id = self.resolve_layer(layer, create)?;
+
         if self
             .graph
             .core_edge(self.edge.pid())
@@ -328,17 +371,8 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         properties: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
-        let properties = self.graph.core_graph().validate_props(
-            true,
-            self.graph.edge_meta(),
-            properties.into_iter().map(|(n, p)| (n, p.into())),
-        )?;
-
-        self.graph
-            .internal_add_edge_metadata(self.edge.pid(), input_layer_id, properties)
-            .map_err(into_graph_err)?;
-        Ok(())
+        let is_update = false;
+        self.add_metadata_impl(properties, layer, is_update)
     }
 
     pub fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
@@ -346,17 +380,69 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         props: impl IntoIterator<Item = (PN, P)>,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
+        let is_update = true;
+        self.add_metadata_impl(props, layer, is_update)
+    }
 
-        let properties = self.graph.core_graph().validate_props(
+    /// Adds metadata properties to the edge.
+    ///
+    /// When `is_update` is true, existing properties are updated, otherwise
+    /// an error is returned if the property already exists.
+    fn add_metadata_impl<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        properties: impl IntoIterator<Item = (PN, P)>,
+        layer: Option<&str>,
+        is_update: bool,
+    ) -> Result<(), GraphError> {
+        let input_layer_id = self.resolve_and_check_layer_for_metadata(layer)?;
+        let transaction_manager = self.graph.core_graph().transaction_manager()?;
+        let wal = self.graph.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
+
+        let props_with_status = self.graph.core_graph().validate_props_with_status(
             true,
             self.graph.edge_meta(),
-            props.into_iter().map(|(n, p)| (n, p.into())),
+            properties.into_iter().map(|(n, p)| (n, p.into())),
         )?;
 
-        self.graph
-            .internal_update_edge_metadata(self.edge.pid(), input_layer_id, properties)
-            .map_err(into_graph_err)?;
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let eid = self.edge.pid();
+
+        let mut writer = if is_update {
+            self.graph
+                .internal_update_edge_metadata(eid, input_layer_id, props)
+                .map_err(into_graph_err)?
+        } else {
+            self.graph
+                .internal_add_edge_metadata(eid, input_layer_id, props)
+                .map_err(into_graph_err)?
+        };
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let lsn = wal.log_add_edge_metadata(transaction_id, eid, input_layer_id, props_for_wal)?;
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 
@@ -371,14 +457,17 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
         props: PII,
         layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let session = self.graph.write_session().map_err(into_graph_err)?;
+        let transaction_manager = self.graph.core_graph().transaction_manager()?;
+        let wal = self.graph.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let session = self.graph.write_session().map_err(|err| err.into())?;
 
         let t = time_from_input_session(&session, time)?;
         let layer_id = self.resolve_layer(layer, true)?;
 
-        let props = self
+        let props_with_status = self
             .graph
-            .validate_props(
+            .validate_props_with_status(
                 false,
                 self.graph.edge_meta(),
                 props.into_iter().map(|(k, v)| (k, v.into())),
@@ -386,15 +475,61 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
             .map_err(into_graph_err)?;
 
         let src = self.src().node;
+        let src_name = None;
         let dst = self.dst().node;
-        let e_id = self.edge.pid();
+        let dst_name = None;
+        let edge_id = self.edge.pid();
 
         let mut writer = self
             .graph
-            .atomic_add_edge(NodeRef::Internal(src), NodeRef::Internal(dst), Some(e_id))
+            .atomic_add_edge(
+                NodeRef::Internal(src),
+                NodeRef::Internal(dst),
+                Some(edge_id),
+            )
             .map_err(into_graph_err)?;
 
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let lsn = wal
+            .log_add_edge(
+                transaction_id,
+                t,
+                src_name,
+                src,
+                dst_name,
+                dst,
+                edge_id,
+                layer,
+                layer_id,
+                props_for_wal,
+            )
+            .map_err(into_graph_err)?;
+
+        let props = props_with_status
+            .into_iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.inner();
+                (prop_id, prop)
+            })
+            .collect::<Vec<_>>();
+
         writer.internal_add_update(t, layer_id, props);
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 }

@@ -124,7 +124,9 @@ pub trait NodeWriteLock: Send + Sync {
         layer: usize,
         props: impl IntoIterator<Item = (usize, Prop)>,
     );
+
     fn can_set_type(&self) -> bool;
+
     fn get_type(&self) -> usize;
 
     fn set_type(&mut self, node_type: usize);

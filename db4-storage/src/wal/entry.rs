@@ -28,6 +28,31 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn log_add_edge_metadata(
+        &self,
+        _transaction_id: TransactionID,
+        _eid: EID,
+        _layer_id: usize,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
+    fn log_delete_edge(
+        &self,
+        _transaction_id: TransactionID,
+        _t: EventTime,
+        _src_name: Option<GidRef<'_>>,
+        _src_id: VID,
+        _dst_name: Option<GidRef<'_>>,
+        _dst_id: VID,
+        _eid: EID,
+        _layer_name: Option<&str>,
+        _layer_id: usize,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
     fn log_add_node(
         &self,
         _transaction_id: TransactionID,
@@ -35,6 +60,42 @@ impl GraphWalOps for NoWal {
         _node_name: Option<GidRef<'_>>,
         _node_id: VID,
         _node_type_and_id: Option<(&str, usize)>,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
+    fn log_add_node_metadata(
+        &self,
+        _transaction_id: TransactionID,
+        _vid: VID,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
+    fn log_set_node_type(
+        &self,
+        _transaction_id: TransactionID,
+        _vid: VID,
+        _node_type: &str,
+        _node_type_id: usize,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
+    fn log_add_graph_props(
+        &self,
+        _transaction_id: TransactionID,
+        _t: EventTime,
+        _props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
+    fn log_add_graph_metadata(
+        &self,
+        _transaction_id: TransactionID,
         _props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError> {
         Ok(0)

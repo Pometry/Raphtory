@@ -9,14 +9,11 @@ use crate::{
 };
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::properties::{
-        meta::{NODE_ID_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::Prop,
-    },
+    entities::properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
-    entities::{EID, ELID, GidRef, VID},
+    entities::{EID, ELID, VID},
     storage::timeindex::AsTime,
 };
 
@@ -49,30 +46,6 @@ impl<
             node_writers,
             edge_writer,
             graph,
-        }
-    }
-
-    pub fn store_src_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.graph.nodes().resolve_pos(vid.into()).1;
-
-            self.node_writers().get_mut_src().update_c_props(
-                pos,
-                STATIC_GRAPH_LAYER_ID,
-                [(NODE_ID_IDX, id.into())],
-            );
-        }
-    }
-
-    pub fn store_dst_node_info(&mut self, vid: impl Into<VID>, node_id: Option<GidRef>) {
-        if let Some(id) = node_id {
-            let pos = self.graph.nodes().resolve_pos(vid.into()).1;
-
-            self.node_writers().get_mut_dst().update_c_props(
-                pos,
-                STATIC_GRAPH_LAYER_ID,
-                [(NODE_ID_IDX, id.into())],
-            );
         }
     }
 
@@ -157,7 +130,7 @@ impl<
 
         let edge_id = edge.inner();
 
-        if edge_id.layer() > 0 {
+        if edge_id.layer() > STATIC_GRAPH_LAYER_ID {
             if edge.is_new()
                 || self
                     .node_writers
@@ -168,6 +141,7 @@ impl<
                 self.node_writers
                     .get_mut_src()
                     .add_outbound_edge(Some(t), src_pos, dst, edge_id);
+
                 self.node_writers
                     .get_mut_dst()
                     .add_inbound_edge(Some(t), dst_pos, src, edge_id);
@@ -176,6 +150,7 @@ impl<
             self.node_writers
                 .get_mut_src()
                 .update_deletion_time(t, src_pos, e_id);
+
             self.node_writers
                 .get_mut_dst()
                 .update_deletion_time(t, dst_pos, e_id);
@@ -226,12 +201,7 @@ impl<
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
-        self.node_writers.src.mut_segment.set_lsn(lsn);
-
-        if let Some(dst) = &mut self.node_writers.dst {
-            dst.mut_segment.set_lsn(lsn);
-        }
-
-        self.edge_writer.writer.set_lsn(lsn);
+        self.node_writers.set_lsn(lsn);
+        self.edge_writer.set_lsn(lsn);
     }
 }

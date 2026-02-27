@@ -78,12 +78,15 @@ impl<
     pub fn flush(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
         let config = self.ext.config().with_node_types(node_types);
+
         if let Some(graph_dir) = self.graph_dir.as_ref() {
             config.save_to_dir(graph_dir)?;
         }
+
         self.nodes.flush()?;
         self.edges.flush()?;
         self.graph_props.flush()?;
+
         Ok(())
     }
 }

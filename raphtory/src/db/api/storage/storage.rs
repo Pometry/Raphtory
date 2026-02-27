@@ -4,7 +4,7 @@ use crate::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
         Base, InheritViewOps,
     },
-    errors::GraphError,
+    errors::{into_graph_err, GraphError},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -24,10 +24,11 @@ use raphtory_storage::{
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-        addition_ops_ext::{AtomicAddEdge, UnlockedSession},
+        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         deletion_ops::InternalDeletionOps,
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
-        EdgeWriterT, NodeWriterT,
+        EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
 };
 use std::{
@@ -40,8 +41,6 @@ use storage::wal::{GraphWalOps, WalOps, LSN};
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-use crate::{errors::into_graph_err, prelude::Graph};
-use raphtory_storage::mutation::{addition_ops_ext::AtomicAddNode, durability_ops::DurabilityOps};
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -576,22 +575,22 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_properties(t, props)?;
-
-        Ok(())
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_properties(t, props)?)
     }
 
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_add_metadata(props)?;
-
-        Ok(())
+    fn internal_add_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_metadata(props)?)
     }
 
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_update_metadata(props)?;
-
-        Ok(())
+    fn internal_update_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_update_metadata(props)?)
     }
 
     fn internal_add_node_metadata(

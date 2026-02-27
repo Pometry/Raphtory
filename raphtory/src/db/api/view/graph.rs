@@ -562,7 +562,8 @@ fn materialize_impl(
         })?;
 
         // Copy over graph properties
-        if let Some(graph_writer) = new_storage.graph_props.writer() {
+        {
+            let graph_writer = new_storage.graph_props.writer();
             // Copy temporal properties
             for (prop_name, temporal_prop) in graph.properties().temporal().iter() {
                 let prop_id = graph_storage

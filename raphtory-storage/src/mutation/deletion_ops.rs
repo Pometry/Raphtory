@@ -2,7 +2,7 @@ use crate::{graph::graph::GraphStorage, mutation::MutationError};
 use db4_graph::TemporalGraph;
 use raphtory_api::{
     core::{
-        entities::{EID, VID},
+        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, EID, VID},
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
     inherit::Base,
@@ -18,6 +18,7 @@ pub trait InternalDeletionOps {
         dst: VID,
         layer: usize,
     ) -> Result<MaybeNew<EID>, Self::Error>;
+
     fn internal_delete_existing_edge(
         &self,
         t: EventTime,
@@ -37,7 +38,6 @@ impl InternalDeletionOps for TemporalGraph<Extension> {
         layer: usize,
     ) -> Result<MaybeNew<EID>, Self::Error> {
         let mut session = self.storage().write_session(src, dst, None);
-        session.set_lsn(0);
         let edge = session.add_static_edge(src, dst);
         session.delete_edge_from_layer(t, src, dst, edge.map(|eid| eid.with_layer(layer)));
         Ok(edge)
@@ -51,9 +51,11 @@ impl InternalDeletionOps for TemporalGraph<Extension> {
     ) -> Result<(), Self::Error> {
         let mut writer = self.storage().edge_writer(eid);
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
-        let (src, dst) = writer.get_edge(0, edge_pos).unwrap_or_else(|| {
-            panic!("Internal Error: Edge {eid:?} not found in storage");
-        });
+        let (src, dst) = writer
+            .get_edge(STATIC_GRAPH_LAYER_ID, edge_pos)
+            .unwrap_or_else(|| {
+                panic!("Internal Error: Edge {eid:?} not found in storage");
+            });
         writer.delete_edge(t, edge_pos, src, dst, layer);
         Ok(())
     }

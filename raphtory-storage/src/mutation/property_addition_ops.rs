@@ -1,7 +1,8 @@
 use crate::{
     graph::graph::GraphStorage,
-    mutation::{EdgeWriterT, MutationError, NodeWriterT},
+    mutation::{EdgeWriterT, GraphPropWriterT, MutationError, NodeWriterT},
 };
+use db4_graph::TemporalGraph;
 use raphtory_api::{
     core::{
         entities::{
@@ -21,11 +22,17 @@ pub trait InternalPropertyAdditionOps {
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error>;
+    ) -> Result<GraphPropWriterT<'_>, Self::Error>;
 
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+    fn internal_add_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error>;
 
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error>;
+    fn internal_update_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error>;
 
     fn internal_add_node_metadata(
         &self,
@@ -54,7 +61,7 @@ pub trait InternalPropertyAdditionOps {
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
 }
 
-impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
+impl InternalPropertyAdditionOps for TemporalGraph<Extension> {
     type Error = MutationError;
 
     // FIXME: this can't fail
@@ -62,24 +69,36 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         let mut writer = self.storage().graph_props().writer();
+
         writer.add_properties(t, props.iter().map(|(id, prop)| (*id, prop.clone())));
-        Ok(())
+
+        Ok(writer)
     }
 
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_add_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         let mut writer = self.storage().graph_props().writer();
+
         writer.check_metadata(props)?;
         writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())));
-        Ok(())
+
+        Ok(writer)
     }
 
     // FIXME: this can't fail
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_update_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         let mut writer = self.storage().graph_props().writer();
+
         writer.update_metadata(props.iter().map(|(id, prop)| (*id, prop.clone())));
-        Ok(())
+
+        Ok(writer)
     }
 
     fn internal_add_node_metadata(
@@ -89,8 +108,10 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
+
         writer.check_metadata(node_pos, STATIC_GRAPH_LAYER_ID, &props)?;
         writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
+
         Ok(writer)
     }
 
@@ -101,7 +122,9 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment_id, node_pos) = self.storage().nodes().resolve_pos(vid);
         let mut writer = self.storage().nodes().writer(segment_id);
+
         writer.update_c_props(node_pos, STATIC_GRAPH_LAYER_ID, props);
+
         Ok(writer)
     }
 
@@ -113,11 +136,14 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
+
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
             panic!("Edge with EID {eid:?} not found in layer {layer}");
         });
+
         writer.check_metadata(edge_pos, layer, &props)?;
         writer.update_c_props(edge_pos, src, dst, layer, props);
+
         Ok(writer)
     }
 
@@ -129,10 +155,13 @@ impl InternalPropertyAdditionOps for db4_graph::TemporalGraph<Extension> {
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
         let mut writer = self.storage().edge_writer(eid);
+
         let (src, dst) = writer.get_edge(layer, edge_pos).unwrap_or_else(|| {
             panic!("Edge with EID {eid:?} not found in layer {layer}");
         });
+
         writer.update_c_props(edge_pos, src, dst, layer, props);
+
         Ok(writer)
     }
 }
@@ -144,15 +173,21 @@ impl InternalPropertyAdditionOps for GraphStorage {
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
-        Ok(self.mutable()?.internal_add_properties(t, props)?)
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
+        self.mutable()?.internal_add_properties(t, props)
     }
 
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_add_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         self.mutable()?.internal_add_metadata(props)
     }
 
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_update_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         self.mutable()?.internal_update_metadata(props)
     }
 
@@ -206,17 +241,23 @@ where
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
-    ) -> Result<(), Self::Error> {
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         self.base().internal_add_properties(t, props)
     }
 
     #[inline]
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_add_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         self.base().internal_add_metadata(props)
     }
 
     #[inline]
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), Self::Error> {
+    fn internal_update_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, Self::Error> {
         self.base().internal_update_metadata(props)
     }
 
