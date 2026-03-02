@@ -190,6 +190,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         average_degree,
         directed_graph_density,
         degree_centrality,
+        alternating_mask,
         max_degree,
         min_degree,
         max_out_degree,

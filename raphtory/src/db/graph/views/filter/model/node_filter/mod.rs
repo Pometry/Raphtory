@@ -1,11 +1,15 @@
 use crate::{
     db::{
         api::{
-            state::ops::{
-                filter::{
-                    AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp, OrOp,
+            state::{
+                ops::{
+                    filter::{
+                        AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
+                        OrOp,
+                    },
+                    NodeOp, TypeId,
                 },
-                NodeOp, TypeId,
+                NodeStateValue, TypedNodeState,
             },
             view::{internal::GraphView, BoxableGraphView},
         },
@@ -20,6 +24,7 @@ use crate::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
                 },
+                node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
@@ -64,6 +69,18 @@ impl NodeFilter {
     #[inline]
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
+    }
+
+    /// Build a filter from a boolean column inside a TypedNodeState.
+    pub fn by_column<'graph, V, G, T>(
+        state: &TypedNodeState<'graph, V, G, T>,
+        col: &str,
+    ) -> Result<NodeStateBoolColOp, GraphError>
+    where
+        V: NodeStateValue + 'graph,
+        T: Clone + Send + Sync + 'graph,
+    {
+        Ok(state.bool_col_filter(col)?)
     }
 }
 
