@@ -118,6 +118,9 @@ prost-build = { workspace = true, optional = true }
 
 [features]
 default = []
+
+# enables progress bars
+progress = ["dep:kdam"]
 # Enables the graph loader io module
 io = [
     "dep:neo4rs",
@@ -128,7 +131,7 @@ io = [
     "dep:tokio",
     "dep:tempfile",
     "dep:zip",
-    "kdam",
+    "dep:kdam",
 ]
 
 # search
@@ -151,6 +154,7 @@ vectors = [
 # Enables generating the pyo3 python bindings
 python = [
     "io",
+    "progress",
     "vectors",
     "dep:pyo3",
     "dep:numpy",
