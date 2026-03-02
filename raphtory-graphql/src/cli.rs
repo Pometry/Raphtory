@@ -19,6 +19,8 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 
+const SKILL_CONTENT: &str = include_str!("../../llms/SKILL.md");
+
 #[derive(Parser)]
 #[command(name = "raphtory", about = "Raphtory CLI", version = raphtory::version())]
 struct Args {
@@ -32,6 +34,8 @@ enum Commands {
     Server(ServerArgs),
     #[command(about = "Print the GraphQL schema")]
     Schema,
+    #[command(about = "Install Claude Code skill for the raphtory Python API")]
+    InstallSkill,
 }
 
 #[derive(clap::Args)]
@@ -96,6 +100,21 @@ where
         Commands::Schema => {
             let schema = App::create_schema().finish().unwrap();
             println!("{}", schema.sdl());
+        }
+        Commands::InstallSkill => {
+            let home = std::env::var("HOME")
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::NotFound, e))?;
+            let skill_dir = PathBuf::from(home)
+                .join(".claude")
+                .join("skills")
+                .join("raphtory-python-api");
+            std::fs::create_dir_all(&skill_dir)?;
+            let skill_path = skill_dir.join("SKILL.md");
+            std::fs::write(&skill_path, SKILL_CONTENT)?;
+            println!(
+                "Installed raphtory Claude Code skill to {}",
+                skill_path.display()
+            );
         }
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new()
