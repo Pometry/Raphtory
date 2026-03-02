@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772197302603,
+  "lastUpdate": 1772448483867,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4265,6 +4265,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1141,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "4599890+shivamka1@users.noreply.github.com",
+            "name": "Shivam",
+            "username": "shivamka1"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fe205a72a8e04e3257b71237f9f1efd03593807",
+          "message": "Features/nodestatefilter (#2483)\n\n* add GenericNodeState and TypedNodeState; add python-facing OutputNodeState; convert degree centrality to use new nodestate; add conversion method to Prop\n\n* add python iterators to output_node_state\n\n* cleanup and to parquet for GenericNodeState\n\n* add id column when writing NodeState to parquet\n\n* in progress nodestate merging\n\n* checkpoint of nodestate functionality\n\n* update from master\n\n* update algorithm signatures\n\n* update label prop and update algorithm docstrings\n\n* convert lcc batch to use new nodestate\n\n* convert primitive returns types to structs for serialization to nodestate\n\n* lcc should pick all nodes if no nodes provided\n\n* lcc bugfix\n\n* formatting\n\n* update node op and lazy nodestate to return new nodestate\n\n* re-add deserialize requirement for generic node state types\n\n* learning to spell\n\n* convert all algos to return new node state\n\n* algorithms all compile\n\n* update all algo tests; fix labelprop\n\n* wrangle nasty rebase\n\n* rewrite prop conversion; sorting out python tests\n\nhad claude rewrite some of the prop conversion with the num_traits crate. Reviewing.\n\n* checkpoint; playing with function pointers\n\n* nodestates work again\n\n* add GenericNodeState and TypedNodeState; add python-facing OutputNodeState; convert degree centrality to use new nodestate; add conversion method to Prop\n\n* add python iterators to output_node_state\n\n* cleanup and to parquet for GenericNodeState\n\n* add id column when writing NodeState to parquet\n\n* in progress nodestate merging\n\n* checkpoint of nodestate functionality\n\n* update from master\n\n* update algorithm signatures\n\n* update label prop and update algorithm docstrings\n\n* convert lcc batch to use new nodestate\n\n* convert primitive returns types to structs for serialization to nodestate\n\n* lcc should pick all nodes if no nodes provided\n\n* lcc bugfix\n\n* formatting\n\n* update node op and lazy nodestate to return new nodestate\n\n* re-add deserialize requirement for generic node state types\n\n* learning to spell\n\n* convert all algos to return new node state\n\n* algorithms all compile\n\n* update all algo tests; fix labelprop\n\n* wrangle nasty rebase\n\n* rewrite prop conversion; sorting out python tests\n\nhad claude rewrite some of the prop conversion with the num_traits crate. Reviewing.\n\n* checkpoint; playing with function pointers\n\n* nodestates work again\n\n* sorting out tests\n\n* cleanup and bugfixing\n\n* getting mapped nodestates to work in python\n\n* update python deserialization\n\n* rust tests for algorithms pass now\n\n* cleanup\n\n* all python tests updated; cleanup\n\n* ensure node cols gets merged correctly; cleaning up merge; starting from_parquet\n\n* add from_parquet\n\n* cleanup\n\n* add default values to merge\n\n* address final corner case for from_parquet\n\n* add from parquet to output nodestate\n\n* add some notes for docstrings\n\n* documentation; cleanup; bugfixes\n\n* cleanup; resolve component filtering merge; fix partialeq for lazynodestate and nodestate\n\n* fix failing tests\n\n* fix bug with making genericnodestates from subgraphs; cleanup\n\n* resync with master\n\n* eliminate terminal return char\n\n* cleanup and remove unused imports\n\n* fix issue with fp precision in typednodestate deserialization; cleanup\n\n* adjust precision of python algo tests; cleanup\n\n* serde untagged prop wrapper for typednodestate\n\n* impl node state filter, add test\n\n* add review suggestions\n\n* custom deserialize implementation for PropUntagged\n\n* remove unneeded import from python algo test; add conditional compilation to nodestate block\n\n* cleanup\n\n* impl py\n\n* fix toml\n\n* fix grapherror\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: wyatt-joyner-pometry <wyatt.joyner@pometry.com>\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-02T10:07:00Z",
+          "tree_id": "7b838d8257e3ca8b325d5f08d651930b16e1ee09",
+          "url": "https://github.com/Pometry/Raphtory/commit/4fe205a72a8e04e3257b71237f9f1efd03593807"
+        },
+        "date": 1772448480081,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1270,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 208,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 138,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1020,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 904,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1331,
             "unit": "req/s"
           }
         ]
