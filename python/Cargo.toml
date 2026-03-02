@@ -27,12 +27,15 @@ raphtory-graphql = { workspace = true, features = [
     "python",
 ] }
 clam-core = { path = "../clam-core", version = "0.17.0", features = ["python"] }
+libc = "0.2.139"
+dhat = "0.3.3"
 
 
 [features]
 extension-module = ["pyo3/extension-module"]
 search = ["raphtory/search", "raphtory-graphql/search"]
 proto = ["raphtory/proto"]
+dhat-heap = []
 
 
 [build-dependencies]

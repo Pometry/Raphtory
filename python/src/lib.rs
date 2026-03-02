@@ -1,8 +1,15 @@
-#[cfg(not(target_env = "msvc"))]
-use tikv_jemallocator::Jemalloc;
-#[cfg(not(target_env = "msvc"))]
+#[cfg(feature = "dhat-heap")]
+use std::sync::Mutex;
+
+// #[cfg(not(target_env = "msvc"))]
+// use tikv_jemallocator::Jemalloc;
+// #[cfg(not(target_env = "msvc"))]
+// #[global_allocator]
+// static GLOBAL: Jemalloc = Jemalloc;
+#[cfg(feature = "dhat-heap")]
 #[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 use clam_core::python::py_gql::base_gql_module;
 use pyo3::prelude::*;
 use raphtory::python::{
@@ -15,10 +22,39 @@ use raphtory::python::{
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
+#[cfg(feature = "dhat-heap")]
+static PROFILER: Mutex<Option<dhat::Profiler>> = Mutex::new(None);
+
+
+#[cfg(feature = "dhat-heap")]
+#[pyfunction]
+fn stop_profiler() {
+    println!("Dropping profiler...");
+    let mut lock = PROFILER.lock().unwrap();
+    *lock = None; // this actually runs Drop
+}
+
+#[cfg(feature = "dhat-heap")]
+extern "C" fn on_exit() {
+    {
+        println!("atexit: dropping profiler");
+        let mut lock = PROFILER.lock().unwrap();
+        *lock = None; // triggers Drop
+    }
+}
+
+
 /// Raphtory graph analytics library
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     let _ = add_raphtory_classes(m);
+    #[cfg(feature = "dhat-heap")]
+    {
+        *PROFILER.lock().unwrap() = Some(dhat::Profiler::new_heap());
+        unsafe { libc::atexit(on_exit); }
+        m.add_function(wrap_pyfunction!(stop_profiler, m)?)?;
+    }
+
 
     let graphql_module = base_graphql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;

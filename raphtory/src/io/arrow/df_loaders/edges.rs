@@ -111,7 +111,7 @@ pub fn load_edges_from_df_prefetch<
     } = df_view;
 
     rayon::scope(|s| {
-        let (tx, rx) = mpsc::sync_channel(2);
+        let (tx, rx) = mpsc::sync_channel(1);
 
         s.spawn(move |_| {
             let sender = tx;

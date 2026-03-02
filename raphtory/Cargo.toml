@@ -100,6 +100,10 @@ pythonize = { workspace = true, optional = true }
 proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
 
+libc = "0.2.139"
+dhat = "0.3.3"
+
+
 [dev-dependencies]
 csv = { workspace = true }
 pretty_assertions = { workspace = true }
@@ -130,6 +134,7 @@ io = [
     "dep:zip",
     "kdam",
 ]
+dhat-heap = []
 
 # search
 search = ["dep:tantivy", "dep:tempfile", "proto", "io"]

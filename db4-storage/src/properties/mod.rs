@@ -1,7 +1,8 @@
 use crate::error::StorageError;
 use arrow_array::{
-    ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array, Int64Array,
-    StringViewArray, TimestampMillisecondArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
+    Array, ArrayRef, BooleanArray, Decimal128Array, Float32Array, Float64Array, Int32Array,
+    Int64Array, StringViewArray, TimestampMillisecondArray, UInt8Array, UInt16Array, UInt32Array,
+    UInt64Array,
 };
 use arrow_schema::DECIMAL128_MAX_PRECISION;
 use bigdecimal::ToPrimitive;
