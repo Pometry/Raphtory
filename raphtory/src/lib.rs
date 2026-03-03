@@ -164,3 +164,19 @@ pub mod prelude {
 }
 
 pub use raphtory_api::{atomic_extra, core::utils::logging};
+
+use std::sync::OnceLock;
+use tokio::runtime::{Builder, Runtime};
+
+static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+pub fn get_runtime() -> &'static Runtime {
+    RUNTIME.get_or_init(|| {
+        Builder::new_multi_thread()
+            .enable_all()
+            // Optional: limit threads if you want to leave room for Python
+            .worker_threads(4)
+            .build()
+            .expect("Failed to create Tokio runtime")
+    })
+}

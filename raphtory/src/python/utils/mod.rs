@@ -11,6 +11,7 @@ use crate::{
         storage::timeindex::AsTime,
     },
     db::api::view::*,
+    get_runtime,
     python::graph::node::PyNode,
 };
 use chrono::{DateTime, Utc};
@@ -20,9 +21,7 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
     VID,
 };
-use std::{future::Future, sync::OnceLock};
-use tokio::runtime::{Builder, Runtime};
-
+use std::future::Future;
 pub mod errors;
 pub(crate) mod export;
 mod module_helpers;
@@ -420,17 +419,4 @@ where
     O: Send + 'static,
 {
     Python::attach(|py| py.detach(move || get_runtime().block_on(task())))
-}
-
-static RUNTIME: OnceLock<Runtime> = OnceLock::new();
-
-pub fn get_runtime() -> &'static Runtime {
-    RUNTIME.get_or_init(|| {
-        Builder::new_multi_thread()
-            .enable_all()
-            // Optional: limit threads if you want to leave room for Python
-            .worker_threads(4)
-            .build()
-            .expect("Failed to create Tokio runtime")
-    })
 }

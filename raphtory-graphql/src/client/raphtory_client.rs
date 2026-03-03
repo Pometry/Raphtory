@@ -1,23 +1,27 @@
 use crate::{
+    client,
     client::{ClientError, GraphQLRemoteGraph},
     url_encode::url_decode_graph,
 };
-use raphtory::{db::api::view::MaterializedGraph, prelude::Config, serialise::GraphFolder};
+use raphtory::{
+    db::api::view::MaterializedGraph, get_runtime, prelude::Config, serialise::GraphFolder,
+};
 use reqwest::{multipart, multipart::Part, Client};
 use serde_json::{json, Value as JsonValue};
 use std::{collections::HashMap, io::Cursor};
+use url::Url;
 
 /// Pure Rust client for Raphtory GraphQL operations.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RaphtoryGraphQLClient {
-    pub(crate) url: String,
+    pub(crate) url: Url,
     pub(crate) token: String,
     client: Client,
 }
 
 impl RaphtoryGraphQLClient {
     /// Create a new client. Does not perform a connectivity check; use [`client::is_online`] first if needed.
-    pub fn new(url: String, token: String) -> Self {
+    pub fn new(url: Url, token: String) -> Self {
         Self {
             url,
             token,
@@ -27,26 +31,59 @@ impl RaphtoryGraphQLClient {
 
     /// Create a new client and verify the server is reachable (GET url, expect 200).
     /// Returns an error if the server is not reachable.
-    pub fn connect(url: String, token: Option<String>) -> Result<Self, ClientError> {
+    pub fn connect(url: Url, token: Option<String>) -> Result<Self, ClientError> {
         let token = token.unwrap_or_default();
-        let client = reqwest::blocking::Client::new();
-        let response = client.get(&url).bearer_auth(&token).send().map_err(|e| {
-            ClientError::HttpError(format!(
-                "Could not connect to the given server - no response --{e}"
-            ))
+        let client = Client::new();
+        let _ = get_runtime().block_on(async {
+            let response = client
+                .get(url.clone())
+                .bearer_auth(&token)
+                .send()
+                .await
+                .map_err(|e| {
+                    ClientError::HttpError(format!(
+                        "Could not connect to the given server - no response --{e}"
+                    ))
+                })?;
+            if response.status() != 200 {
+                let text = response.text().await.unwrap_or_default();
+                return Err(ClientError::HttpError(format!(
+                    "Could not connect to the given server - response {}",
+                    text
+                )));
+            }
+
+            Ok(())
         })?;
-        if response.status() != 200 {
-            let text = response.text().unwrap_or_default();
-            return Err(ClientError::HttpError(format!(
-                "Could not connect to the given server - response {}",
-                text
-            )));
-        }
-        Ok(Self {
-            url,
-            token,
-            client: Client::new(),
-        })
+
+        Ok(Self { url, token, client })
+    }
+
+    /// Returns true if the server could be reached and returns a healthy response.
+    pub fn is_healthy(&self) -> bool {
+        let health_url = self.url.join("health").expect("couldn't create health url");
+
+        get_runtime()
+            .block_on(async {
+                let response = self
+                    .client
+                    .get(health_url)
+                    .bearer_auth(&self.token)
+                    .send()
+                    .await
+                    .ok()?;
+
+                if response.status().is_success() {
+                    if let Ok(v) = response.json::<JsonValue>().await {
+                        if v.get("healthy") == Some(&JsonValue::Bool(true)) {
+                            return Some(());
+                        }
+                    }
+                }
+
+                None
+            })
+            .is_some()
     }
 
     /// Execute a GraphQL query asynchronously.
@@ -63,7 +100,7 @@ impl RaphtoryGraphQLClient {
 
         let response = self
             .client
-            .post(&self.url)
+            .post(self.url.clone())
             .bearer_auth(&self.token)
             .json(&request_body)
             .send()
@@ -163,7 +200,7 @@ impl RaphtoryGraphQLClient {
 
         let response = self
             .client
-            .post(&self.url)
+            .post(self.url.clone())
             .bearer_auth(&self.token)
             .multipart(form)
             .send()
