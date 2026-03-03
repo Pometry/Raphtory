@@ -66,15 +66,4 @@ pub trait GIDResolverOps {
     fn get_str(&self, gid: &str) -> Option<VID>;
 
     fn get_u64(&self, gid: u64) -> Option<VID>;
-
-    fn bulk_set_str<S: AsRef<str>>(
-        &self,
-        gids: impl IntoIterator<Item = (S, VID)>,
-    ) -> Result<(), StorageError>;
-
-    fn bulk_set_u64(&self, gids: impl IntoIterator<Item = (u64, VID)>) -> Result<(), StorageError>;
-
-    fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_;
-
-    fn iter_u64(&self) -> impl Iterator<Item = (u64, VID)> + '_;
 }

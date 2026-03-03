@@ -298,43 +298,4 @@ impl GIDResolverOps for MappingResolver {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| self.get_value_from_map(m, &gid))
     }
-
-    fn bulk_set_str<S: AsRef<str>>(
-        &self,
-        gids: impl IntoIterator<Item = (S, VID)>,
-    ) -> Result<(), StorageError> {
-        for (gid, vid) in gids {
-            self.set(gid.as_ref().into(), vid)?;
-        }
-        Ok(())
-    }
-
-    fn bulk_set_u64(&self, gids: impl IntoIterator<Item = (u64, VID)>) -> Result<(), StorageError> {
-        for (gid, vid) in gids {
-            self.set(gid.into(), vid)?;
-        }
-        Ok(())
-    }
-
-    fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_ {
-        self.map
-            .get()
-            .and_then(|map| map.as_str())
-            .into_iter()
-            .flat_map(|m| {
-                m.iter()
-                    .filter_map(|entry| Some((entry.key().to_owned(), (entry.value().value()?))))
-            })
-    }
-
-    fn iter_u64(&self) -> impl Iterator<Item = (u64, VID)> + '_ {
-        self.map
-            .get()
-            .and_then(|map| map.as_u64())
-            .into_iter()
-            .flat_map(|m| {
-                m.iter()
-                    .filter_map(|entry| Some((*entry.key(), (entry.value().value()?))))
-            })
-    }
 }
