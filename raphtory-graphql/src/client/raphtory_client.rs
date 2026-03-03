@@ -21,10 +21,10 @@ pub struct RaphtoryGraphQLClient {
 
 impl RaphtoryGraphQLClient {
     /// Create a new client. Does not perform a connectivity check; use [`client::is_online`] first if needed.
-    pub fn new(url: Url, token: String) -> Self {
+    pub fn new(url: Url, token: Option<String>) -> Self {
         Self {
             url,
-            token,
+            token: token.unwrap_or_default(),
             client: Client::new(),
         }
     }
