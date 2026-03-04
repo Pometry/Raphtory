@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "clam-core"
-version = "0.1.0"
+version = "0.17.0"
 dependencies = [
  "ahash",
  "arrow",
@@ -3644,7 +3644,7 @@ dependencies = [
 
 [[package]]
 name = "optd-core"
-version = "0.1.0"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "bitvec",
@@ -5575,7 +5575,7 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "snb"
-version = "0.1.0"
+version = "0.17.0"
 dependencies = [
  "chrono",
  "flate2",
