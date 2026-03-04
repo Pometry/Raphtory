@@ -298,4 +298,8 @@ impl GIDResolverOps for MappingResolver {
         let map = self.map.get()?;
         map.as_u64().and_then(|m| self.get_value_from_map(m, &gid))
     }
+
+    fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
