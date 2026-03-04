@@ -18,6 +18,7 @@ use crate::{
         schema::graph_schema::GraphSchema,
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidGraphPaths},
+    permissions::GraphPermissions,
     rayon::blocking_compute,
     GQLError,
 };
@@ -62,6 +63,9 @@ use std::{
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
+    /// When `Some`, permissions from the store are active for this request.
+    /// `None` means the server has no permissions store configured (full access).
+    graph_permissions: Option<Arc<GraphPermissions>>,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -75,6 +79,19 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
+            graph_permissions: None,
+        }
+    }
+
+    pub fn new_with_permissions<G: StaticGraphViewOps + IntoDynamic>(
+        path: ExistingGraphFolder,
+        graph: G,
+        permissions: Option<GraphPermissions>,
+    ) -> Self {
+        Self {
+            path,
+            graph: graph.into_dynamic(),
+            graph_permissions: permissions.map(Arc::new),
         }
     }
 
@@ -86,7 +103,30 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
+            graph_permissions: self.graph_permissions.clone(),
         }
+    }
+
+    fn require_node_access(&self) -> Result<()> {
+        if let Some(perms) = &self.graph_permissions {
+            if perms.nodes.is_none() {
+                return Err(async_graphql::Error::new(
+                    "Access denied: node access is not permitted for this role",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn require_edge_access(&self) -> Result<()> {
+        if let Some(perms) = &self.graph_permissions {
+            if perms.edges.is_none() {
+                return Err(async_graphql::Error::new(
+                    "Access denied: edge access is not permitted for this role",
+                ));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -374,20 +414,22 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns true if the graph contains the specified node.
-    async fn has_node(&self, name: String) -> bool {
-        self.graph.has_node(name)
+    async fn has_node(&self, name: String) -> Result<bool> {
+        self.require_node_access()?;
+        Ok(self.graph.has_node(name))
     }
 
     /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. You can restrict the search to a specified layer.
-    async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> bool {
-        match layer {
+    async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> Result<bool> {
+        self.require_edge_access()?;
+        Ok(match layer {
             Some(name) => self
                 .graph
                 .layers(name)
                 .map(|l| l.has_edge(src, dst))
                 .unwrap_or(false),
             None => self.graph.has_edge(src, dst),
-        }
+        })
     }
 
     ////////////////////////
@@ -395,12 +437,14 @@ impl GqlGraph {
     ////////////////////////
 
     /// Gets the node with the specified id.
-    async fn node(&self, name: String) -> Option<GqlNode> {
-        self.graph.node(name).map(|node| node.into())
+    async fn node(&self, name: String) -> Result<Option<GqlNode>> {
+        self.require_node_access()?;
+        Ok(self.graph.node(name).map(|node| node.into()))
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
-    async fn nodes(&self, select: Option<GqlNodeFilter>) -> Result<GqlNodes, GraphError> {
+    async fn nodes(&self, select: Option<GqlNodeFilter>) -> Result<GqlNodes> {
+        self.require_node_access()?;
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
@@ -417,12 +461,14 @@ impl GqlGraph {
     }
 
     /// Gets the edge with the specified source and destination nodes.
-    async fn edge(&self, src: String, dst: String) -> Option<GqlEdge> {
-        self.graph.edge(src, dst).map(|e| e.into())
+    async fn edge(&self, src: String, dst: String) -> Result<Option<GqlEdge>> {
+        self.require_edge_access()?;
+        Ok(self.graph.edge(src, dst).map(|e| e.into()))
     }
 
     /// Gets the edges in the graph.
-    async fn edges<'a>(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges, GraphError> {
+    async fn edges<'a>(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges> {
+        self.require_edge_access()?;
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
@@ -484,9 +530,10 @@ impl GqlGraph {
         self.graph.clone().into()
     }
 
-    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Vec<GqlNode> {
+    async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Result<Vec<GqlNode>> {
+        self.require_node_access()?;
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             if selected_nodes.is_empty() {
                 return vec![];
             }
@@ -512,7 +559,7 @@ impl GqlGraph {
                 None => vec![],
             }
         })
-        .await
+        .await)
     }
 
     /// Export all nodes and edges from this graph view to another existing graph
@@ -602,7 +649,8 @@ impl GqlGraph {
         filter: GqlNodeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<GqlNode>, GraphError> {
+    ) -> Result<Vec<GqlNode>> {
+        self.require_node_access()?;
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();
@@ -628,7 +676,8 @@ impl GqlGraph {
         filter: GqlEdgeFilter,
         limit: usize,
         offset: usize,
-    ) -> Result<Vec<GqlEdge>, GraphError> {
+    ) -> Result<Vec<GqlEdge>> {
+        self.require_edge_access()?;
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();

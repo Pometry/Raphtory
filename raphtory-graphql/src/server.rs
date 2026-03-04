@@ -7,6 +7,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
+    permissions::PermissionsStore,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
@@ -42,7 +43,7 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
@@ -211,6 +212,36 @@ impl GraphServer {
                 cache_clone.run_pending_tasks().await;
             }
         });
+
+        // Hot-reload permissions store when the file changes (polls every 5s)
+        if let (Some(path), Some(permissions)) = (
+            self.config.permissions_store_path.clone(),
+            self.data.permissions.clone(),
+        ) {
+            tokio::spawn(async move {
+                let mut last_modified = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+                loop {
+                    interval.tick().await;
+                    let current_modified = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+                    if current_modified != last_modified {
+                        match PermissionsStore::load(&path) {
+                            Ok(new_store) => {
+                                *permissions.write().await = new_store;
+                                info!("Permissions store reloaded from {:?}", path);
+                                last_modified = current_modified;
+                            }
+                            Err(e) => {
+                                warn!(
+                                    error = %e,
+                                    "Failed to reload permissions store — keeping old. Restart server to load new permissions."
+                                );
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self

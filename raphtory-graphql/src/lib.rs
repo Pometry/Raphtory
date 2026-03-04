@@ -11,6 +11,7 @@ mod graph;
 pub mod model;
 pub mod observability;
 mod paths;
+pub mod permissions;
 mod routes;
 pub mod server;
 pub mod url_encode;

@@ -17,6 +17,7 @@ use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{RwLock, Semaphore};
+use tracing::{debug, warn};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -28,6 +29,8 @@ pub(crate) enum Access {
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
     pub(crate) a: Access,
+    #[serde(default)]
+    pub(crate) role: Option<String>,
 }
 
 // TODO: maybe this should be renamed as it doens't only take care of auth anymore
@@ -124,23 +127,28 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let access = match &self.config.public_key {
+        let (access, role) = match &self.config.public_key {
             Some(public_key) => {
-                let presented_access = req
+                let claims = req
                     .header(AUTHORIZATION)
-                    .and_then(|header| extract_access_from_header(header, public_key));
-                match presented_access {
-                    Some(access) => access,
+                    .and_then(|header| extract_claims_from_header(header, public_key));
+                match claims {
+                    Some(claims) => {
+                        debug!(role = ?claims.role, "JWT validated successfully");
+                        (claims.a, claims.role)
+                    }
                     None => {
                         if self.config.enabled_for_reads {
+                            warn!("Request missing valid JWT — rejecting (auth_enabled_for_reads=true)");
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
-                            Access::Ro // if read access is not required, we give read access to all requests
+                            debug!("No valid JWT but auth_enabled_for_reads=false — granting read access");
+                            (Access::Ro, None)
                         }
                     }
                 }
             }
-            None => Access::Rw, // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, None), // if auth is not setup, we give write access to all requests
         };
 
         let is_accept_multipart_mixed = req
@@ -151,7 +159,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access);
+            let req = req.0.data(access).data(role);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -162,7 +170,7 @@ where
         } else {
             let (req, mut body) = req.split();
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access);
+            let req = req.0.data(access).data(role);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => request.query.contains("updateGraph"),
@@ -200,14 +208,21 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("inNeighbours")
 }
 
-fn extract_access_from_header(header: &str, public_key: &PublicKey) -> Option<Access> {
+fn extract_claims_from_header(header: &str, public_key: &PublicKey) -> Option<TokenClaims> {
     if header.starts_with("Bearer ") {
         let jwt = header.replace("Bearer ", "");
         let mut validation = Validation::new(Algorithm::EdDSA);
         validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
         let decoded = decode::<TokenClaims>(&jwt, &public_key.decoding_key, &validation);
-        Some(decoded.ok()?.claims.a)
+        match decoded {
+            Ok(token_data) => Some(token_data.claims),
+            Err(e) => {
+                warn!(error = %e, "JWT signature validation failed");
+                None
+            }
+        }
     } else {
+        warn!("Authorization header is missing or does not start with 'Bearer '");
         None
     }
 }

@@ -10,6 +10,7 @@ use crate::{
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
     paths::{ValidGraphPaths, ValidWriteableGraphFolder},
+    permissions::GraphPermissions,
     rayon::blocking_compute,
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
@@ -25,7 +26,7 @@ use raphtory::{
             storage::storage::{Extension, PersistenceStrategy},
             view::MaterializedGraph,
         },
-        graph::views::deletion_graph::PersistentGraph,
+        graph::views::{deletion_graph::PersistentGraph, filter::model::NodeViewFilterOps},
     },
     errors::GraphError,
     prelude::*,
@@ -35,6 +36,7 @@ use std::{
     error::Error,
     fmt::{Display, Formatter},
 };
+use tracing::{debug, warn};
 
 pub(crate) mod graph;
 pub mod plugins;
@@ -98,7 +100,47 @@ impl QueryRoot {
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
-        Ok(data.get_graph(path).await?.into())
+
+        let graph_perms: Option<GraphPermissions> = if let Some(store) = &data.permissions {
+            let store = store.read().await;
+            let role = ctx
+                .data::<Option<String>>()
+                .ok()
+                .and_then(|r| r.as_deref())
+                .unwrap_or("");
+            debug!(role = role, graph = path, "Checking permissions store");
+            match store.get_graph_permissions(role, path) {
+                None => {
+                    warn!(
+                        role = role,
+                        graph = path,
+                        "Access denied: no matching permission entry"
+                    );
+                    return Err(async_graphql::Error::new(format!(
+                        "Access denied: role '{role}' is not permitted to access graph '{path}'"
+                    )));
+                }
+                Some(perms) => {
+                    debug!(
+                        role = role,
+                        graph = path,
+                        nodes = ?perms.nodes,
+                        edges = ?perms.edges,
+                        "Permission granted"
+                    );
+                    Some(perms.clone())
+                }
+            }
+        } else {
+            None // no store -> unrestricted
+        };
+
+        let graph_with_vecs = data.get_graph(path).await?;
+        Ok(GqlGraph::new_with_permissions(
+            graph_with_vecs.folder,
+            graph_with_vecs.graph,
+            graph_perms,
+        ))
     }
 
     /// Update graph query, has side effects to update graph state
