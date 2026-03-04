@@ -1,8 +1,3 @@
-#[cfg(not(target_env = "msvc"))]
-use tikv_jemallocator::Jemalloc;
-#[cfg(not(target_env = "msvc"))]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
 use clam_core::python::py_gql::base_gql_module;
 use pyo3::prelude::*;
 use raphtory::python::{

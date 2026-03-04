@@ -68,7 +68,8 @@ bincode = { version = "2", features = ["serde"] }
 async-graphql-poem = "7.0.16"
 dynamic-graphql = "0.10.1"
 derive_more = "2.0.1"
-tikv-jemallocator = "0.6.1"
+#[target.'cfg(not(target_env = "msvc"))'.dependencies]
+#tikv-jemallocator = "0.6.1"
 reqwest = { version = "0.12.8", default-features = false, features = [
     "rustls-tls",
     "multipart",
