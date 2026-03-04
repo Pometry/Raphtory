@@ -56,7 +56,8 @@ impl PyRaphtoryClient {
     #[pyo3(signature = (url, token=None))]
     pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
         let url = Url::parse(url.as_str()).map_err(|e| PyException::new_err(e.to_string()))?;
-        let client = RaphtoryGraphQLClient::connect(url, token).map_err(PyErr::from)?;
+        let client = execute_async_task(|| RaphtoryGraphQLClient::connect(url, token))
+            .map_err(PyErr::from)?;
         Ok(Self { client })
     }
 
@@ -65,7 +66,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///     bool: Returns true if server is online otherwise false.
     fn is_server_online(&self) -> bool {
-        is_online((&self.client.url).as_ref())
+        is_online(self.client.url.as_ref())
     }
 
     /// Make a GraphQL query against the server.
