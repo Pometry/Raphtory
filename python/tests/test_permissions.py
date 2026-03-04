@@ -342,6 +342,7 @@ QUERY_SCHEMA = """query { __schema { queryType { name } } }"""
 QUERY_COUNT_NODES = """query { graph(path: "jira") { countNodes } }"""
 QUERY_UNIQUE_LAYERS = """query { graph(path: "jira") { uniqueLayers } }"""
 QUERY_COUNT_EDGES = """query { graph(path: "jira") { countEdges } }"""
+QUERY_GRAPH_SCHEMA = """query { graph(path: "jira") { schema { layers { name } } } }"""
 
 
 def test_schema_introspection_denied_when_role_flag_false():
@@ -526,3 +527,38 @@ def test_per_graph_introspection_overrides_role_level():
         )
         assert "errors" not in response.json(), response.json()
         assert isinstance(response.json()["data"]["graph"]["countNodes"], int)
+
+
+def test_graph_schema_denied_when_introspection_false():
+    """Raphtory's graph schema resolver is blocked when introspection is false."""
+    work_dir = tempfile.mkdtemp()
+    store = {
+        "roles": {
+            "analyst": {
+                "introspection": False,
+                "graphs": [{"name": "jira", "nodes": "ro"}],
+            },
+            "admin": {"graphs": [{"name": "*", "nodes": "rw", "edges": "rw"}]},
+        }
+    }
+    store_path = os.path.join(work_dir, "permissions.json")
+    with open(store_path, "w") as f:
+        json.dump(store, f)
+
+    with GraphServer(
+        work_dir,
+        auth_public_key=PUB_KEY,
+        permissions_store_path=store_path,
+    ).start():
+        requests.post(
+            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": CREATE_JIRA})
+        )
+        response = requests.post(
+            RAPHTORY,
+            headers=ANALYST_HEADERS,
+            data=json.dumps({"query": QUERY_GRAPH_SCHEMA}),
+        )
+        assert (
+            response.json()["data"] is None or response.json()["data"]["graph"] is None
+        )
+        assert "Access denied" in response.json()["errors"][0]["message"]

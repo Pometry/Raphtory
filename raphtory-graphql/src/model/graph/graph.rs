@@ -541,9 +541,10 @@ impl GqlGraph {
     }
 
     /// Returns the graph schema.
-    async fn schema(&self) -> GraphSchema {
+    async fn schema(&self) -> Result<GraphSchema> {
+        self.require_introspection()?;
         let self_clone = self.clone();
-        blocking_compute(move || GraphSchema::new(&self_clone.graph)).await
+        Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
     }
 
     async fn algorithms(&self) -> GraphAlgorithmPlugin {
