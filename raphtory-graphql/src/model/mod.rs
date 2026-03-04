@@ -101,45 +101,49 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
 
-        let graph_perms: Option<GraphPermissions> = if let Some(store) = &data.permissions {
-            let store = store.read().await;
-            let role = ctx
-                .data::<Option<String>>()
-                .ok()
-                .and_then(|r| r.as_deref())
-                .unwrap_or("");
-            debug!(role = role, graph = path, "Checking permissions store");
-            match store.get_graph_permissions(role, path) {
-                None => {
-                    warn!(
-                        role = role,
-                        graph = path,
-                        "Access denied: no matching permission entry"
-                    );
-                    return Err(async_graphql::Error::new(format!(
-                        "Access denied: role '{role}' is not permitted to access graph '{path}'"
-                    )));
+        let (graph_perms, introspection_allowed): (Option<GraphPermissions>, bool) =
+            if let Some(store) = &data.permissions {
+                let store = store.read().await;
+                let role = ctx
+                    .data::<Option<String>>()
+                    .ok()
+                    .and_then(|r| r.as_deref())
+                    .unwrap_or("");
+                debug!(role = role, graph = path, "Checking permissions store");
+                match store.get_graph_permissions(role, path) {
+                    None => {
+                        warn!(
+                            role = role,
+                            graph = path,
+                            "Access denied: no matching permission entry"
+                        );
+                        return Err(async_graphql::Error::new(format!(
+                            "Access denied: role '{role}' is not permitted to access graph '{path}'"
+                        )));
+                    }
+                    Some(perms) => {
+                        let introspection = store.is_graph_introspection_allowed(role, path);
+                        debug!(
+                            role = role,
+                            graph = path,
+                            nodes = ?perms.nodes,
+                            edges = ?perms.edges,
+                            introspection = introspection,
+                            "Permission granted"
+                        );
+                        (Some(perms.clone()), introspection)
+                    }
                 }
-                Some(perms) => {
-                    debug!(
-                        role = role,
-                        graph = path,
-                        nodes = ?perms.nodes,
-                        edges = ?perms.edges,
-                        "Permission granted"
-                    );
-                    Some(perms.clone())
-                }
-            }
-        } else {
-            None // no store -> unrestricted
-        };
+            } else {
+                (None, true) // no store -> unrestricted
+            };
 
         let graph_with_vecs = data.get_graph(path).await?;
         Ok(GqlGraph::new_with_permissions(
             graph_with_vecs.folder,
             graph_with_vecs.graph,
             graph_perms,
+            introspection_allowed,
         ))
     }
 

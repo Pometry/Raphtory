@@ -66,6 +66,9 @@ pub(crate) struct GqlGraph {
     /// When `Some`, permissions from the store are active for this request.
     /// `None` means the server has no permissions store configured (full access).
     graph_permissions: Option<Arc<GraphPermissions>>,
+    /// Whether this role may perform introspection on this graph
+    /// (countNodes, countEdges, uniqueLayers). Derived from permissions store at request time.
+    introspection_allowed: bool,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -80,6 +83,7 @@ impl GqlGraph {
             path,
             graph: graph.into_dynamic(),
             graph_permissions: None,
+            introspection_allowed: true,
         }
     }
 
@@ -87,11 +91,13 @@ impl GqlGraph {
         path: ExistingGraphFolder,
         graph: G,
         permissions: Option<GraphPermissions>,
+        introspection_allowed: bool,
     ) -> Self {
         Self {
             path,
             graph: graph.into_dynamic(),
             graph_permissions: permissions.map(Arc::new),
+            introspection_allowed,
         }
     }
 
@@ -104,6 +110,7 @@ impl GqlGraph {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
             graph_permissions: self.graph_permissions.clone(),
+            introspection_allowed: self.introspection_allowed,
         }
     }
 
@@ -128,6 +135,15 @@ impl GqlGraph {
         }
         Ok(())
     }
+
+    fn require_introspection(&self) -> Result<()> {
+        if !self.introspection_allowed {
+            return Err(async_graphql::Error::new(
+                "Access denied: introspection is not permitted for this role on this graph",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[ResolvedObjectFields]
@@ -137,9 +153,10 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the names of all layers in the graphview.
-    async fn unique_layers(&self) -> Vec<String> {
+    async fn unique_layers(&self) -> Result<Vec<String>> {
+        self.require_introspection()?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await
+        Ok(blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await)
     }
 
     /// Returns a view containing only the default layer.
@@ -390,23 +407,26 @@ impl GqlGraph {
     ///
     /// Returns:
     ///     int:
-    async fn count_edges(&self) -> usize {
+    async fn count_edges(&self) -> Result<usize> {
+        self.require_introspection()?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.count_edges()).await
+        Ok(blocking_compute(move || self_clone.graph.count_edges()).await)
     }
 
     /// Returns the number of temporal edges in the graph.
-    async fn count_temporal_edges(&self) -> usize {
+    async fn count_temporal_edges(&self) -> Result<usize> {
+        self.require_introspection()?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.count_temporal_edges()).await
+        Ok(blocking_compute(move || self_clone.graph.count_temporal_edges()).await)
     }
 
     /// Returns the number of nodes in the graph.
     ///
     /// Optionally takes a list of node ids to return a subset.
-    async fn count_nodes(&self) -> usize {
+    async fn count_nodes(&self) -> Result<usize> {
+        self.require_introspection()?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.graph.count_nodes()).await
+        Ok(blocking_compute(move || self_clone.graph.count_nodes()).await)
     }
 
     ////////////////////////

@@ -273,6 +273,8 @@ impl GraphServer {
         self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
+        let permissions = self.data.permissions.clone();
+
         let schema_builder = App::create_schema();
         let schema_builder = schema_builder.data(self.data);
         let schema_builder = schema_builder.extension(MutationAuth);
@@ -291,7 +293,7 @@ impl GraphServer {
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir,
-                    AuthenticatedGraphQL::new(schema, self.config.auth),
+                    AuthenticatedGraphQL::new(schema, self.config.auth, permissions),
                 ),
             )
             .at("/health", get(health))
