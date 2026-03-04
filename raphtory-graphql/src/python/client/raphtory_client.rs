@@ -207,7 +207,7 @@ impl PyRaphtoryClient {
     ///
     fn remote_graph(&self, path: String) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(GraphQLRemoteGraph::new(path, self.client.clone())),
+            graph: Arc::new(self.client.remote_graph(path)),
         }
     }
 
