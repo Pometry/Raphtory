@@ -27,8 +27,10 @@ jobs:
         if: "contains(matrix.os, 'macOS')"
         with:
           xcode-version: latest-stable
-      - uses: actions/checkout@v3
-        name: Checkout
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Free up space (ubuntu)
