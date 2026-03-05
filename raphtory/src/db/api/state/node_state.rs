@@ -18,7 +18,7 @@ use crate::{
 };
 use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime};
 use rayon::{iter::Either, prelude::*};
 use std::{
     borrow::Borrow,
@@ -66,19 +66,13 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
 
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
-        if graph.filtered() {
-            if graph.node_list_trusted() {
-                match graph.node_list() {
-                    NodeList::All { .. } => {
-                        Self::Full(graph.core_graph().node_state_index().into())
-                    }
-                    NodeList::List { elems } => elems,
-                }
-            } else {
-                Self::from_iter(graph.nodes().iter().map(|node| node.node))
+        if graph.node_list_trusted() {
+            match graph.node_list() {
+                NodeList::All { .. } => Self::Full(graph.core_graph().node_state_index().into()),
+                NodeList::List { elems } => elems,
             }
         } else {
-            Self::Full(graph.core_graph().node_state_index().into())
+            Self::from_iter(graph.nodes().iter().map(|node| node.node))
         }
     }
 }
