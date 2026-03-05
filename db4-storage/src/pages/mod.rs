@@ -6,6 +6,7 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    wal::{GraphWalOps, LSN, WalOps},
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -553,7 +554,32 @@ impl<
 {
     fn drop(&mut self) {
         match self.flush() {
-            Ok(_) => {}
+            Ok(_) => {
+                let wal = self.ext.wal();
+
+                // INVARIANTS:
+                // 1. No new writes can occur since we are in a drop.
+                // 2. flush() has persisted all the segments to disk.
+                //
+                // Thus, we can safely discard all records with LSN <= latest_lsn_on_disk
+                // by rotating the WAL.
+                let latest_lsn_on_disk = wal.next_lsn() - 1;
+
+                if let Err(e) = wal.rotate(latest_lsn_on_disk) {
+                    eprintln!("Failed to rotate WAL in drop: {}", e);
+                }
+
+                // FIXME: If the process crashes here after rotation, we lose the
+                // checkpoint record. Write next LSN to a separate file before rotation.
+
+                // Log a checkpoint record so we can restore the next LSN after reload.
+                let checkpoint_lsn = wal
+                    .log_checkpoint(latest_lsn_on_disk)
+                    .expect("Failed to log checkpoint in drop");
+
+                wal.flush(checkpoint_lsn)
+                    .expect("Failed to flush checkpoint record in drop");
+            }
             Err(err) => {
                 eprintln!("Failed to flush storage in drop: {err}")
             }
