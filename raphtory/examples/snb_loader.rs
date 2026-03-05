@@ -1,5 +1,8 @@
-use raphtory::io::arrow::df_loaders::edges::ColumnNames;
-use raphtory::io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet};
+#[cfg(feature = "io")]
+use raphtory::io::{
+    arrow::df_loaders::edges::ColumnNames,
+    parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet}
+};
 use std::path::{Path, PathBuf};
 use raphtory::errors::GraphError;
 use raphtory::prelude::*;
@@ -10,6 +13,7 @@ fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
 }
 
 /// Load SNB data from Parquet files into a Raphtory Graph.
+#[cfg(feature = "io")]
 fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     // ── Static Nodes ──────────────────────────────────────────────────────
 
@@ -562,3 +566,7 @@ fn main() {
     let graph = Graph::new_at_path(&graph_path).unwrap();
     load_snb_graph(&parquet_dir, &graph).unwrap()
 }
+
+#[cfg(not(feature = "io"))]
+fn main() {}
+
