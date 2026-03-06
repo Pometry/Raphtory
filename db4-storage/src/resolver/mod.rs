@@ -67,5 +67,12 @@ pub trait GIDResolverOps {
 
     fn get_u64(&self, gid: u64) -> Option<VID>;
 
+    fn get(&self, gid: GidRef) -> Option<VID> {
+        match gid {
+            GidRef::Str(s) => self.get_str(s),
+            GidRef::U64(u) => self.get_u64(u),
+        }
+    }
+
     fn flush(&self) -> Result<(), StorageError>;
 }
