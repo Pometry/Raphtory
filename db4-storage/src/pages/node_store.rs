@@ -51,6 +51,7 @@ pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
 }
 
 impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNodeStorage<NS, EXT> {
+    #[inline(always)]
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
@@ -142,8 +143,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         self.stats.len()
     }
 
+    #[inline(always)]
     pub fn num_nodes(&self) -> usize {
-        self.stats.get(0)
+        self.stats.num_nodes()
     }
 
     // FIXME: this should be called by the high level APIs on layer filter
@@ -179,6 +181,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 
     /// Return the position of the chunk and the position within the chunk
+    #[inline(always)]
     pub fn resolve_pos(&self, i: impl Into<VID>) -> (usize, LocalPOS) {
         resolve_pos(i.into(), self.max_segment_len())
     }
@@ -366,6 +369,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         segment_id
     }
 
+    #[inline(always)]
     pub fn node<'a>(&'a self, node: impl Into<VID>) -> NS::Entry<'a> {
         let (page_id, pos) = self.resolve_pos(node);
         let node_page = self
