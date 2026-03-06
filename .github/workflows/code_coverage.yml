@@ -18,8 +18,12 @@
        SCCACHE_DIR: /home/runner/.cache/sccache
        SCCACHE_PATH: /home/runner/.cache/sccache
      steps:
-       - uses: actions/checkout@v3
+       - uses: actions/checkout@v5
          name: Checkout
+         with:
+           ref: ${{ github.head_ref }}
+           submodules: recursive
+           token: '${{ secrets.PULL_TOKEN }}'
        - name: Cache sccache
          uses: actions/cache@v3
          with:

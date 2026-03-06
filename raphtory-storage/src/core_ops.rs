@@ -56,14 +56,14 @@ pub trait CoreGraphOps: Send + Sync {
 
     /// get the number of nodes in the main graph
     #[inline]
-    fn unfiltered_num_nodes(&self) -> usize {
-        self.core_graph().unfiltered_num_nodes()
+    fn unfiltered_num_nodes(&self, layer_ids: &LayerIds) -> usize {
+        self.core_graph().unfiltered_num_nodes(layer_ids)
     }
 
     /// get the number of edges in the main graph
     #[inline]
-    fn unfiltered_num_edges(&self) -> usize {
-        self.core_graph().unfiltered_num_edges()
+    fn unfiltered_num_edges(&self, layer_ids: &LayerIds) -> usize {
+        self.core_graph().unfiltered_num_edges(layer_ids)
     }
 
     /// get the number of layers in the main graph

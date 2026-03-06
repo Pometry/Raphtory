@@ -34,7 +34,7 @@ use std::{
     collections::{hash_map, HashMap},
     fmt::{Debug, Formatter},
     mem,
-    ops::{Deref, Range, RangeInclusive},
+    ops::{Deref, RangeInclusive},
     sync::Arc,
 };
 

@@ -240,6 +240,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         }
 
         let mut pages = std::fs::read_dir(edges_path)?
+            .par_bridge()
             .filter(|entry| {
                 entry
                     .as_ref()
@@ -589,7 +590,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             .ok()
     }
 
-    fn par_iter_segments(&self) -> impl ParallelIterator<Item = &ES> {
+    pub fn par_iter_segments(&self) -> impl ParallelIterator<Item = &ES> {
         (0..self.segments.count())
             .into_par_iter()
             .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))

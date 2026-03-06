@@ -1,9 +1,3 @@
-use std::{
-    path::{Path, PathBuf},
-    thread,
-    time::Duration,
-};
-
 use crate::{
     gen_ts::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
@@ -32,6 +26,11 @@ use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
 use segments::{
     edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
+};
+use std::{
+    path::{Path, PathBuf},
+    thread,
+    time::Duration,
 };
 
 pub mod api;

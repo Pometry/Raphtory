@@ -1,5 +1,3 @@
-#[cfg(feature = "python")]
-use crate::io::arrow::df_loaders::build_progress_bar;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
@@ -18,8 +16,6 @@ use crate::{
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use itertools::izip;
-#[cfg(feature = "python")]
-use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
     core::{
@@ -32,6 +28,11 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::collections::HashMap;
 use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension};
+
+#[cfg(feature = "progress")]
+use crate::io::arrow::df_loaders::build_progress_bar;
+#[cfg(feature = "progress")]
+use kdam::BarExt;
 
 pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -77,7 +78,7 @@ pub fn load_nodes_from_df<
             .map_err(into_graph_err)
     })?;
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
@@ -158,7 +159,7 @@ pub fn load_nodes_from_df<
                 Ok::<_, GraphError>(())
             })?;
 
-        #[cfg(feature = "python")]
+        #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
 
@@ -209,7 +210,7 @@ pub fn load_node_props_from_df<
 
     let resolve_nodes = node_type_ids_col.is_some() && node_id_index.is_some();
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading node properties".to_string(), df_view.num_rows)?;
 
     let mut node_col_resolved = vec![];
@@ -287,7 +288,7 @@ pub fn load_node_props_from_df<
             Ok::<_, GraphError>(())
         })?;
 
-        #[cfg(feature = "python")]
+        #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
     Ok(())

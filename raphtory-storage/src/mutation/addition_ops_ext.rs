@@ -250,10 +250,9 @@ impl InternalAdditionOps for TemporalGraph {
                 let id = match self.logical_to_physical.get_or_init(id)? {
                     MaybeInit::VID(vid) => MaybeNew::Existing(vid),
                     MaybeInit::Init(init) => {
-                        let (seg, pos) = self
-                            .storage()
-                            .nodes()
-                            .reserve_free_pos(self.event_counter.fetch_add(1, Ordering::Relaxed));
+                        let (seg, pos) = self.storage().nodes().reserve_free_pos(
+                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
+                        );
                         let vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
                         init.init(vid)?;
                         MaybeNew::New(vid)
@@ -384,7 +383,7 @@ impl InternalAdditionOps for TemporalGraph {
                     }
                     MaybeInit::Init(init) => {
                         let (pos, writer) = nodes.reserve_and_lock_segment(
-                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                             1,
                         );
                         let vid =
@@ -404,7 +403,7 @@ impl InternalAdditionOps for TemporalGraph {
             (MaybeInit::Init(src_init), Some(MaybeInit::Init(dst_init))) => {
                 // both new, put them in the same segment
                 let (pos, writer) = nodes.reserve_and_lock_segment(
-                    self.event_counter.fetch_add(1, Ordering::Relaxed),
+                    self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                     2,
                 );
                 let src_id =
@@ -429,7 +428,7 @@ impl InternalAdditionOps for TemporalGraph {
                     None => {
                         // existing segment is full, need to get a new one
                         let (src_pos, src_writer) = nodes.reserve_and_lock_segment(
-                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                             1,
                         );
                         let src_id = src_pos.as_vid(
@@ -469,7 +468,7 @@ impl InternalAdditionOps for TemporalGraph {
                 match nodes.reserve_segment_row(src_writer.page) {
                     None => {
                         let (dst_pos, dst_writer) = nodes.reserve_and_lock_segment(
-                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                             1,
                         );
                         let dst_id = dst_pos.as_vid(
@@ -624,7 +623,7 @@ impl InternalAdditionOps for TemporalGraph {
                 MaybeInit::VID(vid) => vid,
                 MaybeInit::Init(init) => {
                     let (pos, mut writer) = self.storage().nodes().reserve_and_lock_segment(
-                        self.event_counter.fetch_add(1, Ordering::Relaxed),
+                        self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                         1,
                     );
                     writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, gid.to_owned());

@@ -12,7 +12,6 @@ use pyo3::{exceptions::PyException, prelude::*, types::PyDict};
 use raphtory::{db::api::view::MaterializedGraph, python::utils::execute_async_task};
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, future::Future, sync::Arc};
-use tokio::runtime::Runtime;
 use tracing::debug;
 
 /// A client for handling GraphQL operations in the context of Raphtory.

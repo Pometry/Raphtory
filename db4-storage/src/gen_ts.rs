@@ -52,14 +52,6 @@ impl<'a, Ref> GenericTimeOps<'a, Ref> {
             item_ref: node,
         }
     }
-
-    pub fn new_additions_with_layer(node: Ref, layer_id: impl Into<LayerIter<'a>>) -> Self {
-        Self {
-            range: None,
-            layer_id: layer_id.into(),
-            item_ref: node,
-        }
-    }
 }
 
 pub trait WithTimeCells<'a>: Copy + Clone + Send + Sync + std::fmt::Debug
@@ -377,5 +369,9 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
 
     fn len(&self) -> usize {
         self.time_cells().map(|t_cell| t_cell.len()).sum()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.time_cells().all(|t_cell| t_cell.is_empty())
     }
 }

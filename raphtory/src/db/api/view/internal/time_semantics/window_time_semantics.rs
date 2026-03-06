@@ -75,9 +75,10 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
         self.semantics
-            .node_history_window(node, view, self.window.clone())
+            .node_history_window(node, view, layer_ids, self.window.clone())
     }
 
     #[inline]
@@ -85,9 +86,10 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
         self.semantics
-            .node_history_window_rev(node, view, self.window.clone())
+            .node_history_window_rev(node, view, layer_ids, self.window.clone())
     }
 
     #[inline]
@@ -95,9 +97,10 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        self.semantics.node_history_window(node, view, w)
+        self.semantics.node_history_window(node, view, layer_ids, w)
     }
 
     #[inline]
@@ -105,9 +108,11 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = EventTime> + Send + Sync + 'graph {
-        self.semantics.node_history_window_rev(node, view, w)
+        self.semantics
+            .node_history_window_rev(node, view, layer_ids, w)
     }
 
     #[inline]
@@ -135,9 +140,10 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         self.semantics
-            .node_edge_history_window(node, view, self.window.clone())
+            .node_edge_history_window(node, view, layer_ids, self.window.clone())
     }
 
     #[inline]
@@ -145,27 +151,32 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        self.semantics.node_edge_history_window(node, view, w)
+        self.semantics
+            .node_edge_history_window(node, view, layer_ids, w)
     }
     #[inline]
     fn node_edge_history_rev<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         self.semantics
-            .node_edge_history_rev_window(node, view, self.window.clone())
+            .node_edge_history_rev_window(node, view, layer_ids, self.window.clone())
     }
     #[inline]
     fn node_edge_history_rev_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        layer_ids: &'graph LayerIds,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
-        self.semantics.node_edge_history_rev_window(node, view, w)
+        self.semantics
+            .node_edge_history_rev_window(node, view, layer_ids, w)
     }
     #[inline]
     fn node_updates<'graph, G: GraphView + 'graph>(

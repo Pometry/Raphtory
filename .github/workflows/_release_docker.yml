@@ -38,9 +38,10 @@ jobs:
       - name: Print input
         run: echo '${{ toJSON(inputs) }}'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.base }}
+          token: '${{ secrets.PULL_TOKEN }}'
 
       - name: Read rust version
         run: echo "RUST_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].rust_version')" >> $GITHUB_ENV

@@ -15,7 +15,10 @@ jobs:
     outputs:
       should_run: ${{ steps.should_run.outputs.should_run }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - id: should_run
         continue-on-error: true
         name: Check latest commit is less than a day

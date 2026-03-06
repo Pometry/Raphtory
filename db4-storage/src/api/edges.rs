@@ -72,12 +72,14 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
-    fn contains_edge(
+    fn has_edge(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
+
+    fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool;
 
     fn get_edge(
         &self,

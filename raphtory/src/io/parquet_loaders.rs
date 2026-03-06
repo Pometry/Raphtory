@@ -14,7 +14,7 @@ use crate::{
 use arrow::{
     array::{Array, RecordBatch, StructArray},
     compute::cast,
-    datatypes::{DataType, Field, FieldRef, Fields, SchemaRef},
+    datatypes::{DataType, FieldRef, Fields},
     error::ArrowError,
 };
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
@@ -385,7 +385,7 @@ pub(crate) fn process_parquet_file_to_df(
         Some(batch_size) => chunks.with_batch_size(batch_size),
     };
 
-    let chunks = chunks.build()?.into_iter().map(move |result| match result {
+    let chunks = chunks.build()?.map(move |result| match result {
         Ok(r) => {
             let casted_batch = if let Some(schema) = schema.as_deref() {
                 cast_columns(r, schema)?

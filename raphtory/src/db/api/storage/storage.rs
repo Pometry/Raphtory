@@ -17,7 +17,6 @@ use raphtory_api::core::{
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
-use raphtory_core::entities::ELID;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
     graph::graph::GraphStorage,
@@ -38,9 +37,6 @@ use std::{
 };
 use storage::wal::{GraphWalOps, WalOps, LSN};
 
-// Re-export for raphtory dependencies to use when creating graphs.
-pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
-
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -59,6 +55,9 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
+
+// Re-export for raphtory dependencies to use when creating graphs.
+pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[derive(Debug, Default)]
 pub struct Storage {

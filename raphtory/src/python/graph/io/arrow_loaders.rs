@@ -6,8 +6,8 @@ use crate::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edges::{load_edges_from_df_prefetch, ColumnNames},
-                load_edge_deletions_from_df, load_edge_deletions_from_df_prefetch,
-                load_edges_props_from_df_prefetch, load_graph_props_from_df,
+                load_edge_deletions_from_df_prefetch, load_edges_props_from_df_prefetch,
+                load_graph_props_from_df,
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },

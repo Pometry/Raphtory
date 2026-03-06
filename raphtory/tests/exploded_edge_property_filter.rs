@@ -349,6 +349,15 @@ fn test_filter_eq() {
 }
 
 #[test]
+fn test_filter_eq_one_edge() {
+    let g = Graph::new();
+    g.add_edge(0, 0, 0, [("int_prop", Prop::I64(0))], None)
+        .unwrap();
+    let filter = ExplodedEdgeFilter.property("int_prop").eq(0i64);
+    assert_graph_equal(&g.filter(filter.clone()).unwrap(), &g);
+}
+
+#[test]
 fn test_filter_eq_persistent() {
     proptest!(|(
         edges in build_edge_list_with_deletions(100, 100), v in any::<i64>()

@@ -26,8 +26,11 @@ jobs:
         include:
           - os: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         name: Checkout
+        with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Protoc
