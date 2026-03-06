@@ -378,4 +378,8 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     fn len(&self) -> usize {
         self.time_cells().map(|t_cell| t_cell.len()).sum()
     }
+
+    fn is_empty(&self) -> bool {
+        self.time_cells().all(|t_cell| t_cell.is_empty())
+    }
 }

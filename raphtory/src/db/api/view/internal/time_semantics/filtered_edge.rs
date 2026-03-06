@@ -106,6 +106,14 @@ impl<'a, TS: TimeIndexOps<'a, IndexType = EventTime, RangeType = TS>, G: GraphVi
             self.time_index.len()
         }
     }
+
+    fn is_empty(&self) -> bool {
+        if self.view.internal_exploded_edge_filtered() {
+            self.clone().iter().next().is_none()
+        } else {
+            self.time_index.is_empty()
+        }
+    }
 }
 
 #[derive(Clone)]

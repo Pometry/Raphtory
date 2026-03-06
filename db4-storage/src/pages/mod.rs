@@ -24,6 +24,7 @@ use raphtory_api::core::{
 };
 use rayon::prelude::*;
 
+use crate::state::StateIndex;
 use raphtory_core::{
     entities::{EID, ELID, VID},
     storage::timeindex::EventTime,
@@ -505,7 +506,7 @@ pub struct SegmentCounts<I> {
     _marker: std::marker::PhantomData<I>,
 }
 
-impl<I: From<usize>> SegmentCounts<I> {
+impl<I: From<usize> + Into<usize>> SegmentCounts<I> {
     pub fn new(max_seg_len: u32, counts: impl IntoIterator<Item = u32>) -> Self {
         let counts: TinyVec<[u32; node_store::N]> = counts.into_iter().collect();
 
@@ -522,6 +523,10 @@ impl<I: From<usize>> SegmentCounts<I> {
             let g_pos = i * max_seg_len as usize;
             (0..c).map(move |offset| I::from(g_pos + offset as usize))
         })
+    }
+
+    pub fn into_index(self) -> StateIndex<I> {
+        StateIndex::from(self)
     }
 
     pub(crate) fn counts(&self) -> &[u32] {

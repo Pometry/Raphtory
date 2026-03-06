@@ -40,7 +40,7 @@ where
 {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
-    pub event_counter: AtomicUsize,
+    pub round_robin_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
@@ -127,7 +127,7 @@ where
             logical_to_physical,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
-            event_counter: AtomicUsize::new(0),
+            round_robin_counter: AtomicUsize::new(0),
         })
     }
 
@@ -141,7 +141,7 @@ where
 
         Ok(Self {
             graph_dir: Some(path.into()),
-            event_counter: AtomicUsize::new(resolver.len()),
+            round_robin_counter: AtomicUsize::new(0),
             logical_to_physical: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),

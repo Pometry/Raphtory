@@ -1,3 +1,9 @@
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+use clam_core::python::py_gql::base_gql_module;
 use pyo3::prelude::*;
 use raphtory::python::{
     filter::base_filter_module,
@@ -30,5 +36,9 @@ fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_submodule(&node_state_module)?;
     m.add_submodule(&filter_module)?;
     m.add_submodule(&iterables)?;
+
+    let gql_module = base_gql_module(py)?;
+    m.add_submodule(&gql_module)?;
+
     Ok(())
 }

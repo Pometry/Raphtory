@@ -109,4 +109,13 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
             MemAdditions::WEdges(window) => window.len(),
         }
     }
+
+    fn is_empty(&self) -> bool {
+        match self {
+            MemAdditions::Edges(edges) => edges.is_empty(),
+            MemAdditions::Props(props) => props.is_empty(),
+            MemAdditions::WEdges(edges) => edges.is_empty(),
+            MemAdditions::WProps(edges) => edges.is_empty(),
+        }
+    }
 }

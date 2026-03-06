@@ -17,6 +17,7 @@ use crate::{
     prelude::{GraphViewOps, NodeViewOps},
 };
 use indexmap::IndexSet;
+use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
 use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{iter::Either, prelude::*};
 use std::{
@@ -25,9 +26,10 @@ use std::{
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
     marker::PhantomData,
+    ops::Range,
     sync::Arc,
 };
-use storage::state::StateIndex;
+use storage::state::{StateIndex, StateIndexIter};
 
 #[derive(Debug)]
 pub enum Index<K> {
@@ -105,15 +107,6 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
         }
     }
 
-    pub fn into_iter(self) -> impl Iterator<Item = K> {
-        match self {
-            Index::Full(index) => Either::Left(index.arc_into_iter().map(|(_, k)| k)),
-            Index::Partial(index) => {
-                Either::Right((0..index.len()).map(move |i| *index.get_index(i).unwrap()))
-            }
-        }
-    }
-
     #[inline]
     pub fn index(&self, key: &K) -> Option<usize> {
         // self.index.get_index_of(key)
@@ -160,6 +153,72 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             (Self::Partial(a), Self::Full(_)) => Self::Partial(a.clone()),
             (Self::Partial(a), Self::Partial(b)) => a.intersection(b).copied().collect(),
             _ => self.clone(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct PartialIndexIntoIter<K> {
+    range: Range<usize>,
+    index: Arc<IndexSet<K, ahash::RandomState>>,
+}
+
+impl<K: Eq + Hash + Copy> Iterator for PartialIndexIntoIter<K> {
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let i = self.range.next()?;
+        self.index.get_index(i).copied()
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.range.size_hint()
+    }
+
+    fn count(self) -> usize
+    where
+        Self: Sized,
+    {
+        self.range.count()
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let i = self.range.nth(n)?;
+        self.index.get_index(i).copied()
+    }
+}
+
+impl<K: Eq + Hash + Copy> DoubleEndedIterator for PartialIndexIntoIter<K> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let i = self.range.next_back()?;
+        self.index.get_index(i).copied()
+    }
+
+    fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+        let i = self.range.nth_back(n)?;
+        self.index.get_index(i).copied()
+    }
+}
+
+impl<K: Eq + Hash + Copy> ExactSizeIterator for PartialIndexIntoIter<K> {}
+
+#[derive(Clone, Iterator, DoubleEndedIterator, ExactSizeIterator, FusedIterator)]
+pub enum IndexIntoIter<K> {
+    Full(StateIndexIter<Arc<StateIndex<K>>, K>),
+    Partial(PartialIndexIntoIter<K>),
+}
+
+impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> IntoIterator for Index<K> {
+    type Item = K;
+    type IntoIter = IndexIntoIter<K>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Index::Full(index) => IndexIntoIter::Full(index.arc_into_iter()),
+            Index::Partial(index) => IndexIntoIter::Partial(PartialIndexIntoIter {
+                range: 0..index.len(),
+                index,
+            }),
         }
     }
 }
