@@ -539,7 +539,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn set_dirty(&self, _dirty: bool) {}
 
     fn immut_lsn(&self) -> LSN {
-        panic!("immut_lsn not supported for EdgeSegmentView");
+        0
     }
 
     fn flush(&self) -> Result<(), StorageError> {

@@ -33,7 +33,7 @@ pub trait WalOps {
     fn flush(&self, lsn: LSN) -> Result<(), StorageError>;
 
     /// Rotates the underlying WAL file.
-    /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
+    /// All records with LSN > `cutoff_lsn` are copied to the new WAL file.
     fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
 
     /// Returns an iterator over the entries in the wal.
@@ -41,6 +41,9 @@ pub trait WalOps {
 
     /// Returns true if there are entries in the WAL file on disk.
     fn has_entries(&self) -> Result<bool, StorageError>;
+
+    /// Returns the LSN that will be assigned to the next appended record.
+    fn next_lsn(&self) -> LSN;
 }
 
 #[derive(Debug)]

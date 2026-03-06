@@ -12,6 +12,7 @@ pub struct NoWal;
 
 impl WalOps for NoWal {
     type Config = ();
+
     fn new(_dir: Option<&Path>, _config: ()) -> Result<Self, StorageError> {
         Ok(Self)
     }
@@ -39,5 +40,9 @@ impl WalOps for NoWal {
 
     fn has_entries(&self) -> Result<bool, StorageError> {
         Ok(false)
+    }
+
+    fn next_lsn(&self) -> LSN {
+        1
     }
 }
