@@ -231,20 +231,12 @@ def assert_set_eq(left, right):
 
 def assert_has_properties(entity, props):
     for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.properties.get(k))
-            assert v == actual
-        else:
-            assert entity.properties.get(k) == v
+        assert entity.properties.get(k) == v
 
 
 def assert_has_metadata(entity, props):
     for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.metadata.get(k))
-            assert v == actual
-        else:
-            assert entity.metadata.get(k) == v
+        assert entity.metadata.get(k) == v
 
 
 def expect_unify_error(fn):
@@ -258,3 +250,8 @@ def expect_unify_error(fn):
 def assert_in_all(haystack: str, needles):
     for n in needles:
         assert n in haystack, f"expected to find {n!r} in {haystack!r}"
+
+# Needed because datetimes generated using .now() have sub millisecond precision which raphtory does not support.
+# Equality checks are failing because of this (in assert_has_properties and assert_has_metadata).
+def truncate_dt_to_ms(dt: datetime) -> datetime:
+    return dt.replace(microsecond=(dt.microsecond // 1000) * 1000)
