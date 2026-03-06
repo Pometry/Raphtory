@@ -1,11 +1,10 @@
 #[cfg(feature = "io")]
 use raphtory::io::{
     arrow::df_loaders::edges::ColumnNames,
-    parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet}
+    parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
 };
+use raphtory::{errors::GraphError, prelude::*};
 use std::path::{Path, PathBuf};
-use raphtory::errors::GraphError;
-use raphtory::prelude::*;
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.
 fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
@@ -569,4 +568,3 @@ fn main() {
 
 #[cfg(not(feature = "io"))]
 fn main() {}
-
