@@ -15,7 +15,8 @@ use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVarian
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GraphPropEntry,
+    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GIDResolver,
+    GraphPropEntry,
 };
 use thiserror::Error;
 
@@ -113,6 +114,13 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(graph) => graph.graph.disk_storage_path(),
             GraphStorage::Unlocked(graph) => graph.disk_storage_path(),
+        }
+    }
+
+    pub fn logical_to_physical(&self) -> &GIDResolver {
+        match self {
+            GraphStorage::Mem(graph) => &graph.graph.logical_to_physical,
+            GraphStorage::Unlocked(graph) => &graph.logical_to_physical,
         }
     }
 
