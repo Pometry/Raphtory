@@ -42,6 +42,7 @@ use serde_arrow::{
     to_record_batch, Deserializer,
 };
 
+use crate::db::graph::views::filter::model::node_state_filter::NodeStateBoolColOp;
 use std::{
     cmp::{Ordering, PartialEq},
     collections::{BinaryHeap, HashMap},
@@ -176,11 +177,23 @@ impl Ord for HeapRow {
 pub struct GenericNodeState<'graph, G> {
     pub base_graph: G,
     values: RecordBatch,
-    keys: Option<Index<VID>>,
+    pub(crate) keys: Option<Index<VID>>,
     // Data structure mapping which columns are node-containing and, if so, which graph they belong to
     // note: maybe change that Option<G> to a Option<Box<dyn GraphViewOps>> or something
     pub node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G> GenericNodeState<'graph, G> {
+    #[inline]
+    pub fn values_ref(&self) -> &RecordBatch {
+        &self.values
+    }
+
+    #[inline]
+    pub fn keys_ref(&self) -> Option<&Index<VID>> {
+        self.keys.as_ref()
+    }
 }
 
 // This is what most code will interface with. A TypedNodeState is a wrapper around a GenericNodeState
@@ -902,6 +915,16 @@ impl<
             .collect();
 
         return Ok(result);
+    }
+}
+
+impl<'graph, V, G, T> TypedNodeState<'graph, V, G, T>
+where
+    V: NodeStateValue + 'graph,
+    T: Clone + Send + Sync + 'graph,
+{
+    pub fn bool_col_filter(&self, col: &str) -> Result<NodeStateBoolColOp, GraphError> {
+        NodeStateBoolColOp::new(self, col)
     }
 }
 

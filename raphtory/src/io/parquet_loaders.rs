@@ -8,7 +8,7 @@ use crate::{
 use arrow::{
     array::{Array, RecordBatch, StructArray},
     compute::cast,
-    datatypes::{DataType, Field, FieldRef, Fields, SchemaRef},
+    datatypes::{DataType, FieldRef, Fields},
     error::ArrowError,
 };
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};

@@ -1,8 +1,7 @@
 use async_openai::types::{CreateEmbeddingResponse, Embedding, EmbeddingUsage};
 use axum::{
     extract::{Json, State},
-    http::{Response, StatusCode},
-    response::IntoResponse,
+    http::StatusCode,
     routing::post,
     Router,
 };

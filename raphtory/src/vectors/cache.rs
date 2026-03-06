@@ -2,7 +2,6 @@ use crate::{
     errors::GraphResult,
     vectors::{
         embeddings::{EmbeddingError, ModelConfig},
-        storage::OpenAIEmbeddings,
         Embedding,
     },
 };

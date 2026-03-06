@@ -1,5 +1,5 @@
 #[cfg(feature = "vectors")]
-use crate::vectors::{embeddings::EmbeddingError, Embedding};
+use crate::vectors::embeddings::EmbeddingError;
 use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
@@ -283,7 +283,6 @@ pub enum GraphError {
     #[error("Failed to load graph: {0}")]
     LoadFailure(String),
 
-    #[cfg(feature = "arrow")]
     #[error(
         "Failed to load graph as the following columns are not present within the dataframe: {0}"
     )]

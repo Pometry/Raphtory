@@ -5,6 +5,7 @@ use crate::{
             ops::{NodeFilterOps, NodeIdFilterOps},
             NodeFilter,
         },
+        node_state_filter::NodeStateBoolColOp,
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
         NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
     },
@@ -15,6 +16,7 @@ use crate::{
                 PyNodeViewPropsFilterBuilder, PyPropertyExprBuilder, PyPropertyFilterBuilder,
             },
         },
+        graph::node_state::PyOutputNodeState,
         types::iterable::FromIterable,
     },
 };
@@ -39,7 +41,7 @@ pub struct PyNodeIdFilterBuilder(Arc<NodeIdFilterBuilder>);
 impl PyNodeIdFilterBuilder {
     /// Returns a filter expression that checks whether the node ID
     /// is equal to the given value.
-    ///
+    ///pub(crate) pub(crate)
     /// Arguments:
     ///     value (int): Node ID to compare against.
     ///
@@ -549,5 +551,12 @@ impl PyNodeFilter {
     #[staticmethod]
     fn is_active() -> PyFilterExpr {
         PyFilterExpr(Arc::new(NodeFilter.is_active()))
+    }
+
+    #[staticmethod]
+    fn by_state_column(state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
+        let op = NodeStateBoolColOp::new(&state.inner, &col)
+            .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        Ok(PyFilterExpr(Arc::new(op)))
     }
 }

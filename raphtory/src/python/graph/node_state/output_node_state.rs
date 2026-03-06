@@ -5,8 +5,8 @@ use crate::{
     db::{
         api::{
             state::{
-                convert_prop_map, ops::Const, GenericNodeState, MergePriority, NodeGroups,
-                NodeStateOutput, OutputTypedNodeState, TransformedPropMap, TypedNodeState,
+                convert_prop_map, ops::Const, GenericNodeState, MergePriority, NodeStateOutput,
+                OutputTypedNodeState, TransformedPropMap, TypedNodeState,
             },
             view::DynamicGraph,
         },
@@ -37,7 +37,7 @@ use raphtory_api::core::entities::properties::prop::PropUntagged;
     frozen
 )]
 pub struct PyOutputNodeState {
-    inner: OutputTypedNodeState<'static, DynamicGraph>,
+    pub inner: OutputTypedNodeState<'static, DynamicGraph>,
 }
 
 impl PyOutputNodeState {

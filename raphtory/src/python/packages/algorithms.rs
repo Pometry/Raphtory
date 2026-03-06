@@ -4,6 +4,7 @@
 use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
+        alternating_mask::alternating_mask as alternating_mask_rs,
         bipartite::max_weight_matching::{max_weight_matching as mwm, Matching},
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
@@ -1084,4 +1085,17 @@ pub fn fast_rp(
         threads,
     )
     .to_output_nodestate()
+}
+
+/// Alternating mask algorithm. It is a mock algorithm suitable only for testing purposes.
+///
+/// Arguments:
+///     graph (GraphView): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     PyOutputNodeState: NodeState mapping nodes to their associated alternating masks.
+#[pyfunction]
+#[pyo3[signature = (graph)]]
+pub fn alternating_mask(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
+    alternating_mask_rs(&graph.graph).to_output_nodestate()
 }

@@ -327,7 +327,6 @@ def test_algo_result():
 def test_page_rank():
     g = gen_graph()
     actual = algorithms.pagerank(g)
-    print(actual.top_k({"pagerank_score": "desc"}, 5))
     expected = {
         "1": 0.07209850165402759,
         "2": 0.10274080842110422,

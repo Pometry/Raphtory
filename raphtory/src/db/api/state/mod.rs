@@ -1,4 +1,4 @@
-mod generic_node_state;
+pub mod generic_node_state;
 mod group_by;
 mod lazy_node_state;
 mod node_state;

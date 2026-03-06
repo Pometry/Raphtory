@@ -1,8 +1,4 @@
-use std::{
-    hash::{Hash, Hasher},
-    pin::Pin,
-    sync::Arc,
-};
+use std::{hash::Hash, pin::Pin, sync::Arc};
 
 use async_openai::{
     types::{CreateEmbeddingRequest, EmbeddingInput},
