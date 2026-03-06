@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772448483867,
+  "lastUpdate": 1772823926230,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4319,6 +4319,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1331,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6617c3f4ca82584b9862531308ae5bd0b4354795",
+          "message": "Update UI to a3d8781b1 (v0.3.0) (#2510)\n\nUpdate UI to v0.3.0\n\nCo-authored-by: ricopinazo <38461987+ricopinazo@users.noreply.github.com>",
+          "timestamp": "2026-03-06T18:23:45Z",
+          "tree_id": "71f8d5da78bd72bb4db78bfca4982667ab0692c2",
+          "url": "https://github.com/Pometry/Raphtory/commit/6617c3f4ca82584b9862531308ae5bd0b4354795"
+        },
+        "date": 1772823922437,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 30,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 212,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 148,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1150,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 924,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1348,
             "unit": "req/s"
           }
         ]
