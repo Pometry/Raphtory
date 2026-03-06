@@ -7,7 +7,7 @@ use crate::{
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
     },
-    wal::{WalOps, no_wal::NoWal},
+    wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
 use std::{fmt::Debug, ops::DerefMut, path::Path};
 
@@ -15,7 +15,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
     type ES: EdgeSegmentOps;
     type GS: GraphPropSegmentOps;
-    type Wal: WalOps;
+    type Wal: WalOps + GraphWalOps;
     type Config: ConfigOps;
 
     fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;

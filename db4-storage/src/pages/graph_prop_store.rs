@@ -8,6 +8,7 @@ use crate::{
         locked::graph_props::{LockedGraphPropPage, WriteLockedGraphPropPages},
     },
     persist::strategy::PersistenceStrategy,
+    wal::LSN,
 };
 
 use std::{
