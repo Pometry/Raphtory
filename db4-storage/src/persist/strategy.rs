@@ -34,6 +34,13 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn wal(&self) -> &Self::Wal;
 
+    fn attempt_flush_segment<MP: DerefMut<Target = MemNodeSegment>>(
+        &self,
+        ns: &Self::NS,
+        writer: MP,
+    ) where
+        Self: Sized;
+
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_segment: &Self::NS,
@@ -63,6 +70,9 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Increment estimated global memory used
     fn increment_estimated_size(&self, increment: usize);
+
+    /// Called by bulk loaders to decide if a global flush should be triggered
+    fn should_flush(&self) -> bool;
 }
 
 #[derive(Debug, Clone)]
@@ -98,6 +108,15 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.wal
     }
 
+    fn attempt_flush_segment<MP: DerefMut<Target = MemNodeSegment>>(
+        &self,
+        _ns: &Self::NS,
+        _writer: MP,
+    ) where
+        Self: Sized,
+    {
+    }
+
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         _node_page: &Self::NS,
@@ -131,4 +150,8 @@ impl PersistenceStrategy for NoOpStrategy {
     }
 
     fn increment_estimated_size(&self, _increment: usize) {}
+
+    fn should_flush(&self) -> bool {
+        false
+    }
 }

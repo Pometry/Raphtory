@@ -29,10 +29,12 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension};
 
+use crate::db::api::storage::storage::PersistenceStrategy;
 #[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
+use raphtory_storage::core_ops::CoreGraphOps;
 
 pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -158,6 +160,13 @@ pub fn load_nodes_from_df<
 
                 Ok::<_, GraphError>(())
             })?;
+
+        if graph.core_graph().extension().should_flush() {
+            println!("global flush triggered");
+            write_locked_graph
+                .nodes
+                .attempt_flush(graph.core_graph().extension());
+        }
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
