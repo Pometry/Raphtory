@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use crate::{errors::LoadError, io::arrow::dataframe::DFChunk, prelude::AdditionOps};
 use arrow::{
     array::{
@@ -6,8 +8,12 @@ use arrow::{
     },
     datatypes::{DataType, Int32Type, Int64Type, UInt32Type, UInt64Type},
 };
-use raphtory_api::core::entities::{GidRef, GidType};
+use raphtory_api::{
+    core::entities::{GidRef, GidType},
+    iter::IntoDynBoxed,
+};
 use rayon::prelude::{IndexedParallelIterator, *};
+use storage::utils::Iter4;
 
 trait NodeColOps: Send + Sync {
     fn has_missing_values(&self) -> bool {
@@ -20,6 +26,8 @@ trait NodeColOps: Send + Sync {
     fn null_count(&self) -> usize;
 
     fn len(&self) -> usize;
+
+    fn as_any(&self) -> &dyn Any;
 }
 
 impl NodeColOps for Int32Array {
@@ -36,6 +44,10 @@ impl NodeColOps for Int32Array {
     fn len(&self) -> usize {
         Array::len(self)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl NodeColOps for Int64Array {
@@ -51,6 +63,10 @@ impl NodeColOps for Int64Array {
     }
     fn len(&self) -> usize {
         Array::len(self)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -75,6 +91,10 @@ impl NodeColOps for StringArray {
     }
     fn len(&self) -> usize {
         Array::len(self)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -101,6 +121,10 @@ impl NodeColOps for LargeStringArray {
     fn len(&self) -> usize {
         Array::len(self)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl NodeColOps for StringViewArray {
@@ -125,6 +149,10 @@ impl NodeColOps for StringViewArray {
     fn len(&self) -> usize {
         Array::len(self)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl NodeColOps for UInt32Array {
@@ -141,6 +169,10 @@ impl NodeColOps for UInt32Array {
     fn len(&self) -> usize {
         Array::len(self)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl NodeColOps for UInt64Array {
@@ -156,6 +188,10 @@ impl NodeColOps for UInt64Array {
     }
     fn len(&self) -> usize {
         Array::len(self)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
@@ -205,7 +241,38 @@ impl NodeCol {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = GidRef<'_>> + '_ {
-        (0..self.0.len()).map(|i| self.0.get(i).unwrap())
+        if let Some(arr) = self.0.as_any().downcast_ref::<StringViewArray>() {
+            Iter4::I(arr.iter().filter_map(|item| Some(GidRef::Str(item?))))
+        } else if let Some(arr) = self.0.as_any().downcast_ref::<StringArray>() {
+            Iter4::J(arr.iter().filter_map(|item| Some(GidRef::Str(item?))))
+        } else if let Some(arr) = self.0.as_any().downcast_ref::<UInt64Array>() {
+            Iter4::K(arr.iter().filter_map(|item| Some(GidRef::U64(item?))))
+        } else if let Some(arr) = self.0.as_any().downcast_ref::<UInt32Array>() {
+            Iter4::L(
+                arr.iter()
+                    .filter_map(|item| Some(GidRef::U64(item? as u64)))
+                    .into_dyn_boxed(),
+            )
+        } else if let Some(arr) = self.0.as_any().downcast_ref::<Int32Array>() {
+            Iter4::L(
+                arr.iter()
+                    .filter_map(|item| Some(GidRef::U64(item? as u64)))
+                    .into_dyn_boxed(),
+            )
+        } else if let Some(arr) = self.0.as_any().downcast_ref::<LargeStringArray>() {
+            Iter4::L(
+                arr.iter()
+                    .filter_map(|item| Some(GidRef::Str(item?)))
+                    .into_dyn_boxed(),
+            )
+        } else if let Some(arr) = self.0.as_any().downcast_ref::<Int64Array>() {
+            Iter4::L(
+                arr.iter()
+                    .filter_map(|item| Some(GidRef::U64(item? as u64))).into_dyn_boxed(),
+            )
+        } else {
+            unreachable!("Unsupported node column")
+        }
     }
 
     pub fn validate(
