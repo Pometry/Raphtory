@@ -27,9 +27,9 @@ import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ["gql", "GqlResult", "GqlRow"]
+__all__ = ["gql", "register_procedure", "GqlResult", "GqlRow"]
 
-def gql(graph: Any, query: Any):
+def gql(graph: Any, query: Any, params=None):
     """
     Execute a GQL query against a Raphtory graph view.
 
@@ -39,6 +39,20 @@ def gql(graph: Any, query: Any):
 
     Returns:
         A GqlResult object with table display, pandas conversion, and iteration.
+    """
+
+def register_procedure(
+    graph: Any, name: Any, input_params: Any, output_params: Any, data: Any
+):
+    """
+    Register a mock procedure with the cached coordinator.
+
+    Args:
+        graph: A Raphtory GraphView (needed to ensure coordinator is initialized)
+        name: Procedure name (e.g., "test.my.proc")
+        input_params: List of input parameter names
+        output_params: List of output parameter names
+        data: List of dicts, each dict maps column name -> value
     """
 
 class GqlResult(object):

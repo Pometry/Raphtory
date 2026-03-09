@@ -4,12 +4,12 @@ from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
 from numpy.testing import assert_equal as check_arr
-from utils import assert_set_eq, assert_has_metadata, assert_has_properties
+from utils import assert_set_eq, assert_has_metadata, assert_has_properties, truncate_dt_to_ms
 
 
 def make_props():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah",
         "prop_float": 2.0,

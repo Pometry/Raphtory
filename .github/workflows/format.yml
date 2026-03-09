@@ -14,6 +14,7 @@ jobs:
           ref: ${{ github.head_ref }}
           submodules: recursive
           token: '${{ secrets.PULL_TOKEN }}'
+          persist-credentials: 'false'
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Setup nightly rust
@@ -78,10 +79,9 @@ jobs:
             echo "Changes detected. Committing and pushing..."
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout ${{ github.head_ref }}
             git add .
             git commit -m "chore: apply tidy-public auto-fixes"
-            git push --force-with-lease origin HEAD:${{ github.head_ref }} 
+            git push https://oauth2:$GITHUB_TOKEN@github.com/Pometry/Raphtory.git HEAD:${{ github.head_ref }} 
           else
             echo "No changes to commit."
           fi
