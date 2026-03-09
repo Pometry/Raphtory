@@ -57,6 +57,12 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
+
+    /// Estimated global memory used
+    fn estimated_size(&self) -> usize;
+
+    /// Increment estimated global memory used
+    fn increment_estimated_size(&self, increment: usize);
 }
 
 #[derive(Debug, Clone)]
@@ -66,8 +72,8 @@ pub struct NoOpStrategy {
 }
 
 impl PersistenceStrategy for NoOpStrategy {
-    type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
+    type ES = EdgeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
@@ -119,4 +125,10 @@ impl PersistenceStrategy for NoOpStrategy {
     fn disk_storage_enabled() -> bool {
         false
     }
+
+    fn estimated_size(&self) -> usize {
+        0
+    }
+
+    fn increment_estimated_size(&self, _increment: usize) {}
 }

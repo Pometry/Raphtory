@@ -116,7 +116,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn est_size(&self) -> usize;
 
-    fn increment_est_size(&self, size: usize) -> usize;
+    fn increment_est_size(&self, size: usize);
 
     fn vacuum(
         &self,

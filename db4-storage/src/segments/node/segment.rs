@@ -369,7 +369,7 @@ pub struct NodeSegmentView<EXT> {
     segment_id: usize,
     est_size: AtomicUsize,
     max_num_node: AtomicU32,
-    _ext: EXT,
+    ext: EXT,
 }
 
 #[derive(Debug)]
@@ -448,7 +448,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         Self {
             inner,
             segment_id,
-            _ext: ext,
+            ext: ext,
             max_num_node: AtomicU32::new(0),
             est_size: AtomicUsize::new(0),
         }
@@ -538,8 +538,9 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         self.est_size.load(Ordering::Relaxed)
     }
 
-    fn increment_est_size(&self, size: usize) -> usize {
-        self.est_size.fetch_add(size, Ordering::Relaxed)
+    fn increment_est_size(&self, size: usize) {
+        self.est_size.fetch_add(size, Ordering::Relaxed);
+        self.ext.increment_estimated_size(size);
     }
 
     fn vacuum(
