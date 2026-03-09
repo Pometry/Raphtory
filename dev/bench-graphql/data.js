@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1772823926230,
+  "lastUpdate": 1773074248409,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4373,6 +4373,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1348,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa6d8d241a68284957a18eb35c7e6d9c4ad59b65",
+          "message": "Update UI to 9ddf8253e (v0.3.0) (#2514)\n\nUpdate UI to v0.3.0\n\nCo-authored-by: ricopinazo <38461987+ricopinazo@users.noreply.github.com>",
+          "timestamp": "2026-03-09T16:55:55+01:00",
+          "tree_id": "739f587894742a2257c0d912204db4ee2f48dd86",
+          "url": "https://github.com/Pometry/Raphtory/commit/fa6d8d241a68284957a18eb35c7e6d9c4ad59b65"
+        },
+        "date": 1773074244402,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1271,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 205,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 128,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 929,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 905,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1377,
             "unit": "req/s"
           }
         ]
