@@ -27,7 +27,7 @@ use std::{
 pub mod edge_props;
 pub mod edges;
 pub mod nodes;
-#[cfg(feature = "python")]
+#[cfg(feature = "progress")]
 fn build_progress_bar(des: String, num_rows: Option<usize>) -> Result<Bar, GraphError> {
     if let Some(num_rows) = num_rows {
         BarBuilder::default()

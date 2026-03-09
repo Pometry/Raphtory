@@ -167,7 +167,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         self.segments.count()
     }
 
-    fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
+    pub fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
         let len = self.segments.count();
         (0..len)
             .into_par_iter()
@@ -430,6 +430,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         }
 
         let mut pages = std::fs::read_dir(nodes_path)?
+            .par_bridge()
             .filter(|entry| {
                 entry
                     .as_ref()

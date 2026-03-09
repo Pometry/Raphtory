@@ -19,8 +19,10 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
           ref: ${{ inputs.base }}
 
       - name: Read rust version

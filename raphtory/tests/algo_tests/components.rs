@@ -6,7 +6,7 @@ use raphtory::{
     prelude::*,
     test_storage,
 };
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 fn assert_same_partition<G: GraphView, ID: Into<GID>>(
     left: NodeState<usize, G>,
@@ -149,6 +149,38 @@ fn windowed_connected_components() {
         let results = weakly_connected_components(&wg);
         assert_same_partition(results, [[1, 2]]);
     });
+}
+
+#[test]
+fn layered_connected_components() {
+    let g = Graph::new();
+    g.add_edge(0, 1, 2, NO_PROPS, Some("ZERO-TWO")).unwrap();
+    g.add_edge(1, 1, 3, NO_PROPS, Some("ZERO-TWO")).unwrap();
+    g.add_edge(2, 4, 5, NO_PROPS, Some("ZERO-TWO")).unwrap();
+    g.add_edge(3, 6, 7, NO_PROPS, Some("THREE-FIVE")).unwrap();
+    g.add_edge(4, 8, 9, NO_PROPS, Some("THREE-FIVE")).unwrap();
+
+    let g_layer_zero_two = g.layers("ZERO-TWO").unwrap();
+
+    assert_eq!(g_layer_zero_two.nodes().id(), [1, 2, 3, 4, 5]);
+    let g_layer_three_five = g.layers("THREE-FIVE").unwrap();
+
+    let res_zero_two = weakly_connected_components(&g_layer_zero_two);
+    let c1 = *res_zero_two.get_by_node(1).unwrap();
+    let c2 = *res_zero_two.get_by_node(4).unwrap();
+
+    let expected_zero_two: HashMap<u64, usize> =
+        [(1, c1), (2, c1), (3, c1), (4, c2), (5, c2)].into();
+
+    assert_eq!(res_zero_two, expected_zero_two);
+
+    let res_three_five = weakly_connected_components(&g_layer_three_five);
+
+    let c6 = *res_three_five.get_by_node(6).unwrap();
+    let c7 = *res_three_five.get_by_node(8).unwrap();
+
+    let expected_three_five: HashMap<u64, usize> = [(6u64, c6), (7, c6), (8, c7), (9, c7)].into();
+    assert_eq!(res_three_five, expected_three_five);
 }
 
 fn random_component_edges(
@@ -696,7 +728,7 @@ mod components_test {
         graph.add_edge(1, 2, 99, NO_PROPS, Some("B")).unwrap();
         graph.add_edge(1, 99, 100, NO_PROPS, Some("B")).unwrap();
 
-        let mut unfiltered_ids: Vec<u64> =
+        let unfiltered_ids: Vec<u64> =
             out_component_filtered(graph.node(1).unwrap(), GraphFilter.layer("A"))
                 .unwrap()
                 .nodes()

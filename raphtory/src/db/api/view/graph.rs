@@ -97,8 +97,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// (assuming the storage feature is enabled). Sets a new config.
     ///
     /// # Arguments
-    ///     path: The path for the new graph.
-    ///     config: The new config.
+    ///     * path: The path for the new graph.
+    ///     * config: The new config.
     #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
@@ -334,13 +334,13 @@ fn materialize_impl(
 
     {
         // scope for the write lock
-        let mut node_map = vec![VID::default(); storage.unfiltered_num_nodes()];
-        let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
         // reverse index pos -> new_vid
         let index = Index::for_graph(graph);
-        graph.nodes().par_iter().for_each(|node| {
-            let vid = node.node;
+        let mut node_map = vec![VID::default(); index.len()];
+        let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
+
+        index.par_iter().for_each(|(pos, vid)| {
             if let Some(pos) = index.index(&vid) {
                 let new_vid = temporal_graph.storage().nodes().reserve_vid(pos);
                 node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
@@ -360,11 +360,11 @@ fn materialize_impl(
         }
 
         new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-            for node in graph.nodes().iter() {
-                let new_id = get_new_vid(node.node, &index, &node_map);
-                let gid = node.id();
-
+            for (pos, vid) in index.iter().enumerate() {
+                let new_id = node_map[pos];
                 if let Some(node_pos) = shard.resolve_pos(new_id) {
+                    let node = NodeView::new_internal(graph, vid);
+                    let gid = node.id();
                     let mut writer = shard.writer();
 
                     if let Some(node_type) = node.node_type() {
@@ -682,10 +682,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     /// Get the `EventTime` of the earliest activity in the graph.
     #[inline]
     fn earliest_time(&self) -> Option<EventTime> {
-        match self.filter_state() {
-            FilterState::Neither => self.earliest_time_global().map(EventTime::start), // TODO: change earliest_time_global() to return EventTime
-            _ => self
-                .properties()
+        if self.layer_ids().is_all() && !self.filtered() {
+            self.earliest_time_global().map(EventTime::start)
+        } else {
+            self.properties()
                 .temporal()
                 .values()
                 .flat_map(|prop| prop.history().earliest_time())
@@ -698,24 +698,24 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                         .flatten()
                         .min(),
                 )
-                .min(),
+                .min()
         }
     }
 
     /// Get the `EventTime` of the latest activity in the graph.
     #[inline]
     fn latest_time(&self) -> Option<EventTime> {
-        match self.filter_state() {
-            FilterState::Neither => self.latest_time_global().map(EventTime::end), // TODO: change latest_time_global to return EventTime
-            _ => self
-                .properties()
+        if self.layer_ids().is_all() && !self.filtered() {
+            self.latest_time_global().map(EventTime::end)
+        } else {
+            self.properties()
                 .temporal()
                 .values()
                 .flat_map(|prop| prop.history().latest_time())
                 .max()
                 .into_iter()
                 .chain(self.nodes().latest_time().par_iter_values().flatten().max())
-                .max(),
+                .max()
         }
     }
 
@@ -734,7 +734,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .filter(|e| self.filter_edge(e.as_ref()))
                 .count()
         } else {
-            self.unfiltered_num_edges()
+            self.unfiltered_num_edges(self.layer_ids())
         }
     }
 

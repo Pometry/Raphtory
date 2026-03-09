@@ -142,12 +142,6 @@ pub fn hits<G: StaticGraphViewOps>(
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
         |_, _, _, local, index| {
-            if g.unfiltered_num_nodes() <= 10 {
-                println!("\nDEBUG Final local state (index -> (hub, auth)):");
-                for (i, h) in local.iter().enumerate() {
-                    println!("  local[{}] = ({}, {})", i, h.hub_score, h.auth_score);
-                }
-            }
             NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |h| {
                 (h.hub_score, h.auth_score)
             })

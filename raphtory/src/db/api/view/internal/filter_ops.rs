@@ -4,12 +4,12 @@ use iter_enum::{
     ParallelIterator,
 };
 use raphtory_api::core::{
-    entities::ELID,
+    entities::{LayerIds, ELID},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-    nodes::node_ref::NodeStorageRef,
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 
 #[derive(Debug)]
@@ -69,6 +69,8 @@ pub trait InnerFilterOps {
     fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: usize) -> bool;
 
     fn filter_exploded_edge_inner(&self, eid: ELID, t: EventTime) -> bool;
+
+    fn is_layer_filtered(&self) -> bool;
 }
 
 impl<G: GraphView> InnerFilterOps for G {
@@ -114,6 +116,10 @@ impl<G: GraphView> InnerFilterOps for G {
                     && self.filter_edge_from_nodes(edge.as_ref())
             })
     }
+
+    fn is_layer_filtered(&self) -> bool {
+        !matches!(self.layer_ids(), LayerIds::All)
+    }
 }
 
 impl<G: GraphView> FilterOps for G {
@@ -124,7 +130,11 @@ impl<G: GraphView> FilterOps for G {
             self.internal_filter_node(node, self.layer_ids())
                 && time_semantics.node_valid(node, self)
         } else {
-            true
+            if self.is_layer_filtered() {
+                node.has_layers(self.layer_ids())
+            } else {
+                true
+            }
         }
     }
 

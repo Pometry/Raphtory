@@ -18,7 +18,7 @@ mod io_tests {
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
     use raphtory_core::storage::timeindex::EventTime;
     use raphtory_storage::{
         core_ops::CoreGraphOps,
@@ -230,9 +230,9 @@ mod io_tests {
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
 
-            let count_edges = g.core_edges().iter(&raphtory_core::entities::LayerIds::All).count();
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            let count_edges = g.core_edges().iter(&LayerIds::All).count();
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_eq!(count_edges, distinct_edges);
             assert_graph_equal(&g, &g2);
         })
@@ -389,8 +389,8 @@ mod io_tests {
             assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
             assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
         }
-        assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-        assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+        assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+        assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
         assert_graph_equal(&g, &g2);
     }
 
@@ -409,8 +409,8 @@ mod io_tests {
                 g2.add_edge(time, &src, &dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
             }
 
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_graph_equal(&g, &g2);
         })
     }
@@ -556,8 +556,8 @@ mod io_tests {
                 max_secondary_index = max_secondary_index.max(secondary_index_val as usize);
             }
 
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_graph_equal(&g, &g2);
 
             // Both graphs should have the same event_id / secondary_index
@@ -711,6 +711,7 @@ mod parquet_tests {
             NodeFixture, NodeUpdatesFixture, PropUpdatesFixture,
         },
     };
+    use serde_json::json;
     use std::{io::Cursor, str::FromStr};
     use storage::Config;
     use zip::{ZipArchive, ZipWriter};
@@ -1187,6 +1188,24 @@ mod parquet_tests {
         proptest!(|(edges in build_edge_list_dyn(0..=10, 0..=10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
+    }
+
+    #[test]
+    fn write_edges_any_props_failure() {
+        let edges: EdgeFixture = serde_json::from_value(json!([[[5,9,"b"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[5,9,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]])).unwrap();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let graph_f = edges.into();
+        let g = Graph::from(build_graph(&graph_f));
+        dbg!(&g);
+        g.encode_parquet(&temp_dir).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
+        dbg!(&g2);
+        assert_eq!(g2.valid_layers("b").count_edges(), 1);
+        assert_eq!(g2.valid_layers("a").count_edges(), 1);
+
+        assert_eq!(g.valid_layers("b").count_edges(), 1);
+
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     #[test]

@@ -5,6 +5,7 @@ use arrow_array::{
 };
 use arrow_schema::{DataType, TimeUnit};
 use chrono::DateTime;
+use itertools::Itertools;
 use serde::{ser::SerializeMap, Serialize};
 
 use crate::core::entities::properties::prop::{Prop, PropArray, PropRef};
@@ -223,7 +224,23 @@ impl<'a> ArrowRow<'a> {
     }
 
     pub fn is_valid(&self, col: usize) -> bool {
-        self.array.column(col).is_valid(self.index)
+        let col = self.array.column(col);
+        !col.data_type().is_null() && col.is_valid(self.index)
+    }
+
+    pub fn any_valid(&self) -> bool {
+        self.array
+            .columns()
+            .iter()
+            .any(|col| !col.data_type().is_null() && col.is_valid(self.index))
+    }
+
+    pub fn first_valid(&self) -> Option<usize> {
+        self.array
+            .columns()
+            .iter()
+            .find_position(|col| !col.data_type().is_null() && col.is_valid(self.index))
+            .map(|(pos, _)| pos)
     }
 }
 
