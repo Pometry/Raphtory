@@ -502,13 +502,13 @@ impl<
 #[derive(Debug)]
 pub struct SegmentCounts<I> {
     max_seg_len: u32,
-    counts: TinyVec<[u32; node_store::N]>, // this might come to be a problem
+    counts: TinyVec<[u32; 32]>, // this might come to be a problem
     _marker: std::marker::PhantomData<I>,
 }
 
 impl<I: From<usize> + Into<usize>> SegmentCounts<I> {
     pub fn new(max_seg_len: u32, counts: impl IntoIterator<Item = u32>) -> Self {
-        let counts: TinyVec<[u32; node_store::N]> = counts.into_iter().collect();
+        let counts: TinyVec<[u32; 32]> = counts.into_iter().collect();
 
         Self {
             max_seg_len,
