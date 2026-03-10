@@ -223,7 +223,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
     let mut total_size = 0;
-    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
     for chunk in df_view.chunks {
         let df = chunk?;
         total_size += df.size();
@@ -274,6 +273,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         // Load the secondary index column if it exists, otherwise generate from start_id.
         let secondary_index_col =
             extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
+
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
         eid_col_resolved.resize_with(df.len(), Default::default);
         eids_exist.resize_with(df.len(), Default::default);
@@ -360,6 +361,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
             update_inbound_edges(shard, zip, delete);
         });
+
+        drop(write_locked_graph);
+        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
             let zip = izip!(
