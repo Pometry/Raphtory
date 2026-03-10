@@ -156,9 +156,10 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
-    /// Logs a checkpoint record, indicating that all Wal operations upto and including
-    /// `lsn` has been persisted to disk.
-    fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+    /// Logs a checkpoint indicating that all LSN < `redo` are persisted.
+    /// On recovery, replay will start from `redo` in the WAL stream.
+    /// Set `is_shutdown` to true on a clean shutdown to differentiate from periodic checkpoints.
+    fn log_checkpoint(&self, redo: LSN, is_shutdown: bool) -> Result<LSN, StorageError>;
 
     /// Returns an iterator over the entries in the wal.
     fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;

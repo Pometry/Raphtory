@@ -579,7 +579,7 @@ impl<
 
                 // Log a checkpoint record so we can restore the next LSN after reload.
                 let checkpoint_lsn = wal
-                    .log_checkpoint(latest_lsn_on_disk)
+                    .log_checkpoint(latest_lsn_on_disk, true)
                     .expect("Failed to log checkpoint in drop");
 
                 wal.flush(checkpoint_lsn)
