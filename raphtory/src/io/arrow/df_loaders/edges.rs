@@ -384,6 +384,9 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             write_locked_graph
                 .edges
                 .attempt_flush(graph.core_graph().extension());
+            write_locked_graph
+                .nodes
+                .attempt_flush(graph.core_graph().extension());
         }
 
         #[cfg(feature = "progress")]
