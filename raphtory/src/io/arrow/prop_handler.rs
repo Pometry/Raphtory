@@ -22,6 +22,7 @@ use raphtory_api::core::{
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
+use raphtory_api::iter::IntoDynBoxed;
 
 pub struct PropCols {
     prop_ids: Vec<usize>,
@@ -35,6 +36,23 @@ impl PropCols {
             .iter()
             .zip(self.cols.iter())
             .filter_map(move |(id, col)| col.get(i).map(|v| (*id, v)))
+    }
+
+    pub fn rows_iter(&self) -> impl Iterator<Item = Vec<(usize, Prop)>> + '_ {
+        let mut iters = self.cols.iter().enumerate().map(|(prop_id, col)| (prop_id, col.iter())).collect::<Vec<_>>();
+        std::iter::from_fn(move || {
+            let mut row = Vec::new();
+            for (prop_id, iter) in iters.iter_mut() {
+                if let Some(value) = iter.next() {
+                    if let Some(prop) = value {
+                        row.push((*prop_id, prop));
+                    }
+                } else {
+                    return None; // No more rows
+                }
+            }
+            Some(row)
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -250,6 +268,10 @@ pub(crate) trait PropCol: Send + Sync {
     fn get(&self, i: usize) -> Option<Prop>;
 
     fn as_array(&self) -> ArrayRef;
+
+    fn iter(&self) -> Box<dyn Iterator<Item = Option<Prop>> + '_> {
+        (0..self.as_array().len()).map(move |i| self.get(i)).into_dyn_boxed()
+    }
 }
 
 impl PropCol for BooleanArray {
@@ -262,6 +284,10 @@ impl PropCol for BooleanArray {
     }
     fn as_array(&self) -> ArrayRef {
         Arc::new(self.clone())
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item=Option<Prop>> + '_> {
+        self.iter().map(|opt| opt.map(Prop::Bool)).into_dyn_boxed()
     }
 }
 
@@ -280,6 +306,11 @@ where
     fn as_array(&self) -> ArrayRef {
         Arc::new(self.clone())
     }
+
+    fn iter(&self) -> Box<dyn Iterator<Item=Option<Prop>> + '_> {
+        self.iter().map(|opt| opt.map(|v| v.into())).into_dyn_boxed()
+    }
+
 }
 
 impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
@@ -293,6 +324,10 @@ impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
     fn as_array(&self) -> ArrayRef {
         Arc::new(self.clone())
     }
+
+    fn iter(&self) -> Box<dyn Iterator<Item=Option<Prop>> + '_> {
+        self.iter().map(|opt| opt.map(Prop::str)).into_dyn_boxed()
+    }
 }
 
 impl PropCol for StringViewArray {
@@ -305,6 +340,10 @@ impl PropCol for StringViewArray {
     }
     fn as_array(&self) -> ArrayRef {
         Arc::new(self.clone())
+    }
+
+    fn iter(&self) -> Box<dyn Iterator<Item = Option<Prop>> + '_> {
+        self.iter().map(|opt| opt.map(Prop::str)).into_dyn_boxed()
     }
 }
 

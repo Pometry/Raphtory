@@ -3,15 +3,18 @@ use crate::io::arrow::df_loaders::build_progress_bar;
 use crate::{
     db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
     errors::{into_graph_err, GraphError, LoadError},
-    io::arrow::{
-        dataframe::{DFChunk, DFView},
-        df_loaders::{
-            extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
-            GidKey,
+    io::{
+        arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::{
+                extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
+                GidKey,
+            },
+            layer_col::lift_layer_col,
+            node_col::NodeCol,
+            prop_handler::*,
         },
-        layer_col::lift_layer_col,
-        node_col::NodeCol,
-        prop_handler::*,
+        LOAD_POOL,
     },
     prelude::*,
 };
@@ -110,40 +113,42 @@ pub fn load_edges_from_df_prefetch<
         num_rows,
     } = df_view;
 
-    rayon::scope(|s| {
-        let (tx, rx) = mpsc::sync_channel(2);
+    LOAD_POOL.install(|| {
+        rayon::scope(|s| {
+            let (tx, rx) = mpsc::sync_channel(2);
 
-        s.spawn(move |_| {
-            let sender = tx;
-            for chunk in chunks {
-                if let Err(e) = sender.send(chunk) {
-                    eprintln!("Error sending chunk to loader: {}", e);
-                    break;
+            s.spawn(move |_| {
+                let sender = tx;
+                for chunk in chunks {
+                    if let Err(e) = sender.send(chunk) {
+                        eprintln!("Error sending chunk to loader: {}", e);
+                        break;
+                    }
                 }
-            }
-        });
+            });
 
-        let df_view_prefetch = DFView {
-            names,
-            chunks: rx,
-            num_rows,
-        };
+            let df_view_prefetch = DFView {
+                names,
+                chunks: rx,
+                num_rows,
+            };
 
-        load_edges_from_df(
-            df_view_prefetch,
-            column_names,
-            resolve_nodes,
-            properties,
-            metadata,
-            shared_metadata,
-            layer,
-            graph,
-            delete,
-        )?;
-        Ok::<(), GraphError>(())
-    })?;
+            load_edges_from_df(
+                df_view_prefetch,
+                column_names,
+                resolve_nodes,
+                properties,
+                metadata,
+                shared_metadata,
+                layer,
+                graph,
+                delete,
+            )?;
+            Ok::<(), GraphError>(())
+        })?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
@@ -216,8 +221,11 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
+    let mut total_size = 0;
+    let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
     for chunk in df_view.chunks {
         let df = chunk?;
+        total_size += df.size();
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 session
@@ -265,8 +273,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         // Load the secondary index column if it exists, otherwise generate from start_id.
         let secondary_index_col =
             extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
-
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
         eid_col_resolved.resize_with(df.len(), Default::default);
         eids_exist.resize_with(df.len(), Default::default);
@@ -354,10 +360,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             update_inbound_edges(shard, zip, delete);
         });
 
-        drop(write_locked_graph);
-
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
             let zip = izip!(
                 src_vids.iter(),
@@ -380,6 +382,18 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             );
         });
 
+        if let Some(flush_after_mb) = std::env::var("RAPHTORY_LOAD_FLUSH_AFTER_MB")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+        {
+            let flush_after_bytes = flush_after_mb * 1024 * 1024;
+            if total_size >= flush_after_bytes {
+                println!("Flushing at size {total_size}");
+                graph.flush().map_err(into_graph_err)?;
+                total_size = 0;
+            }
+        }
+
         if graph.core_graph().extension().should_flush() {
             write_locked_graph
                 .edges
@@ -391,6 +405,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
+        total_size += df.size();
     }
     Ok::<_, GraphError>(())
 }

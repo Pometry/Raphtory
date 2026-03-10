@@ -11,7 +11,6 @@ use crate::{
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::edge::segment::MemEdgeSegment,
-    wal::LSN,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{
@@ -29,14 +28,16 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use std::sync::LazyLock;
 
-const N: usize = 32;
+pub static N: LazyLock<usize> =
+    LazyLock::new(|| std::thread::available_parallelism().unwrap().get());
 
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {
     segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
-    free_pages: Box<[RwLock<usize>; N]>,
+    free_pages: Box<[RwLock<usize>]>,
     edges_path: Option<PathBuf>,
     prop_meta: Arc<Meta>,
     ext: EXT,
@@ -164,7 +165,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
-        let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
+        let free_pages = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
@@ -312,7 +313,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .map(|last| last + 1)
             .unwrap_or_else(|| pages.count());
 
-        free_pages.resize_with(N, || {
+        free_pages.resize_with(*N, || {
             let lock = RwLock::new(next_free_page);
             next_free_page += 1;
             lock
@@ -508,7 +509,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
         // optimistic first try to get a free page 3 times
         let num_edges = self.num_edges();
-        let slot_idx = num_edges % N;
+        let slot_idx = num_edges % *N;
         let maybe_free_page = self.free_pages[slot_idx..]
             .iter()
             .cycle()
@@ -549,7 +550,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
-        let slot_idx = row % N;
+        let slot_idx = row % *N;
         let maybe_free_page = {
             let lock_slot = self.free_pages[slot_idx].read_recursive();
             let page_id = *lock_slot;

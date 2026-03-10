@@ -33,7 +33,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     println!("  ✓ places");
-    
+
     let fp = pq(parquet_dir, "place_IS_PART_OF_place");
     if fp.exists() {
         load_edges_from_parquet(
@@ -51,7 +51,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         graph.flush()?;
         println!("  ✓ IS_PART_OF edges");
     }
-    
+
     println!("Loading Organisations...");
     load_nodes_from_parquet(
         graph,
@@ -69,7 +69,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     println!("  ✓ organisations");
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "organisation_IS_LOCATED_IN_place"),
@@ -84,7 +84,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ Organisation IS_LOCATED_IN edges");
-    
+
     println!("Loading Tags...");
     load_nodes_from_parquet(
         graph,
@@ -102,7 +102,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     println!("  ✓ tags");
-    
+
     let fp = pq(parquet_dir, "tagclass");
     if fp.exists() {
         println!("Loading TagClasses...");
@@ -123,7 +123,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         )?;
         println!("  ✓ tag classes");
     }
-    
+
     let fp = pq(parquet_dir, "tag_HAS_TYPE_tagclass");
     if fp.exists() {
         load_edges_from_parquet(
@@ -141,7 +141,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         graph.flush()?;
         println!("  ✓ HAS_TYPE edges");
     }
-    
+
     let fp = pq(parquet_dir, "tagclass_IS_SUBCLASS_OF_tagclass");
     if fp.exists() {
         load_edges_from_parquet(
@@ -159,9 +159,9 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         graph.flush()?;
         println!("  ✓ IS_SUBCLASS_OF edges");
     }
-    
+
     // ── Dynamic Nodes ─────────────────────────────────────────────────────
-    
+
     println!("Loading Persons...");
     load_nodes_from_parquet(
         graph,
@@ -190,7 +190,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     println!("  ✓ persons");
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "person_IS_LOCATED_IN_place"),
@@ -204,7 +204,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     println!("Loading Forums...");
     load_nodes_from_parquet(
         graph,
@@ -222,7 +222,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     println!("  ✓ forums");
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "forum_HAS_MODERATOR_person"),
@@ -236,7 +236,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     println!("Loading Posts...");
     load_nodes_from_parquet(
         graph,
@@ -263,7 +263,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     println!("  ✓ posts");
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "post_HAS_CREATOR_person"),
@@ -277,7 +277,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "post_IS_LOCATED_IN_place"),
@@ -291,7 +291,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "forum_CONTAINER_OF_post"),
@@ -345,7 +345,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "comment_IS_LOCATED_IN_place"),
@@ -359,7 +359,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "comment_REPLY_OF_post"),
@@ -372,7 +372,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "comment_REPLY_OF_comment"),
@@ -386,9 +386,9 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     // ── Edge-only relationships ───────────────────────────────────────────
-    
+
     println!("Loading KNOWS edges...");
     load_edges_from_parquet(
         graph,
@@ -404,7 +404,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ KNOWS edges");
-    
+
     println!("Loading LIKES edges...");
     load_edges_from_parquet(
         graph,
@@ -420,7 +420,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ LIKES (Post) edges");
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "person_LIKES_comment"),
@@ -435,7 +435,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ LIKES (Comment) edges");
-    
+
     println!("Loading HAS_MEMBER edges...");
     load_edges_from_parquet(
         graph,
@@ -451,7 +451,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ HAS_MEMBER edges");
-    
+
     println!("Loading STUDY_AT edges...");
     load_edges_from_parquet(
         graph,
@@ -467,7 +467,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ STUDY_AT edges");
-    
+
     println!("Loading WORK_AT edges...");
     load_edges_from_parquet(
         graph,
@@ -483,7 +483,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ WORK_AT edges");
-    
+
     println!("Loading HAS_TAG edges...");
     load_edges_from_parquet(
         graph,
@@ -498,7 +498,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "comment_HAS_TAG_tag"),
@@ -512,7 +512,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     graph.flush()?;
-    
+
     load_edges_from_parquet(
         graph,
         &pq(parquet_dir, "forum_HAS_TAG_tag"),
@@ -527,7 +527,7 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     )?;
     graph.flush()?;
     println!("  ✓ HAS_TAG edges");
-    
+
     println!("Loading HAS_INTEREST edges...");
     load_edges_from_parquet(
         graph,
