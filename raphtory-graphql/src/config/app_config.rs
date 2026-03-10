@@ -17,7 +17,6 @@ pub struct AppConfig {
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
     pub public_dir: Option<PathBuf>,
-    pub permissions_store_path: Option<PathBuf>,
     #[cfg(feature = "search")]
     pub index: IndexConfig,
 }
@@ -28,7 +27,6 @@ pub struct AppConfigBuilder {
     tracing: TracingConfig,
     auth: AuthConfig,
     public_dir: Option<PathBuf>,
-    permissions_store_path: Option<PathBuf>,
     #[cfg(feature = "search")]
     index: IndexConfig,
 }
@@ -41,7 +39,6 @@ impl From<AppConfig> for AppConfigBuilder {
             tracing: config.tracing,
             auth: config.auth,
             public_dir: config.public_dir,
-            permissions_store_path: config.permissions_store_path,
             #[cfg(feature = "search")]
             index: config.index,
         }
@@ -119,11 +116,6 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_permissions_store_path(mut self, path: Option<PathBuf>) -> Self {
-        self.permissions_store_path = path;
-        self
-    }
-
     #[cfg(feature = "search")]
     pub fn with_create_index(mut self, create_index: bool) -> Self {
         self.index.create_index = create_index;
@@ -137,7 +129,6 @@ impl AppConfigBuilder {
             tracing: self.tracing,
             auth: self.auth,
             public_dir: self.public_dir,
-            permissions_store_path: self.permissions_store_path,
             #[cfg(feature = "search")]
             index: self.index,
         }
@@ -210,10 +201,6 @@ pub fn load_config(
 
     if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {
         app_config_builder = app_config_builder.with_public_dir(public_dir);
-    }
-
-    if let Ok(permissions_store_path) = settings.get::<Option<PathBuf>>("permissions_store_path") {
-        app_config_builder = app_config_builder.with_permissions_store_path(permissions_store_path);
     }
 
     #[cfg(feature = "search")]

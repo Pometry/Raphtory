@@ -4,6 +4,7 @@ use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 mod auth;
+pub mod auth_policy;
 pub mod client;
 pub mod data;
 mod embeddings;
@@ -11,7 +12,6 @@ mod graph;
 pub mod model;
 pub mod observability;
 mod paths;
-pub mod permissions;
 mod routes;
 pub mod server;
 pub mod url_encode;

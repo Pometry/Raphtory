@@ -4677,6 +4677,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "raphtory-auth"
+version = "0.17.0"
+dependencies = [
+ "async-graphql",
+ "dynamic-graphql",
+ "futures-util",
+ "pyo3",
+ "raphtory-graphql",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "raphtory-benchmark"
 version = "0.17.0"
 dependencies = [
@@ -4794,6 +4808,7 @@ dependencies = [
  "pyo3",
  "pyo3-build-config",
  "raphtory",
+ "raphtory-auth",
  "raphtory-graphql",
 ]
 

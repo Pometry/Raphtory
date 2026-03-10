@@ -1,5 +1,6 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
+    auth_policy::AuthorizationPolicy,
     config::app_config::{load_config, AppConfig},
     data::{Data, EmbeddingConf},
     model::{
@@ -7,7 +8,6 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    permissions::PermissionsStore,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
 };
@@ -79,10 +79,14 @@ impl From<ServerError> for io::Error {
     }
 }
 
+type SchemaDataInjector =
+    Box<dyn FnOnce(async_graphql::dynamic::SchemaBuilder) -> async_graphql::dynamic::SchemaBuilder + Send + Sync>;
+
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct GraphServer {
     data: Data,
     config: AppConfig,
+    schema_data: Vec<SchemaDataInjector>,
 }
 
 pub fn register_query_plugin<
@@ -121,12 +125,28 @@ impl GraphServer {
         }
         let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
         let data = Data::new(work_dir.as_path(), &config, graph_config);
-        Ok(Self { data, config })
+        Ok(Self {
+            data,
+            config,
+            schema_data: Vec::new(),
+        })
     }
 
     /// Turn off index for all graphs
     pub fn turn_off_index(mut self) -> Self {
         self.data.create_index = false;
+        self
+    }
+
+    /// Set the authorization policy used for graph access checks.
+    pub fn with_auth_policy(mut self, policy: std::sync::Arc<dyn AuthorizationPolicy>) -> Self {
+        self.data.auth_policy = Some(policy);
+        self
+    }
+
+    /// Inject arbitrary typed data into the GQL schema (accessible via `ctx.data::<T>()`).
+    pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
+        self.schema_data.push(Box::new(move |sb| sb.data(data)));
         self
     }
 
@@ -213,36 +233,6 @@ impl GraphServer {
             }
         });
 
-        // Hot-reload permissions store when the file changes (polls every 5s)
-        if let (Some(path), Some(permissions)) = (
-            self.config.permissions_store_path.clone(),
-            self.data.permissions.clone(),
-        ) {
-            tokio::spawn(async move {
-                let mut last_modified = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
-                let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
-                loop {
-                    interval.tick().await;
-                    let current_modified = std::fs::metadata(&path).and_then(|m| m.modified()).ok();
-                    if current_modified != last_modified {
-                        match PermissionsStore::load(&path) {
-                            Ok(new_store) => {
-                                *permissions.write().await = new_store;
-                                info!("Permissions store reloaded from {:?}", path);
-                                last_modified = current_modified;
-                            }
-                            Err(e) => {
-                                warn!(
-                                    error = %e,
-                                    "Failed to reload permissions store — keeping old. Restart server to load new permissions."
-                                );
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
             .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
@@ -273,11 +263,12 @@ impl GraphServer {
         self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
-        let permissions = self.data.permissions.clone();
-
-        let schema_builder = App::create_schema();
-        let schema_builder = schema_builder.data(self.data);
-        let schema_builder = schema_builder.extension(MutationAuth);
+        let mut schema_builder = App::create_schema();
+        schema_builder = schema_builder.data(self.data);
+        for inject in self.schema_data {
+            schema_builder = inject(schema_builder);
+        }
+        schema_builder = schema_builder.extension(MutationAuth);
         let trace_level = self.config.tracing.tracing_level.clone();
         let schema = if let Some(t) = tracer {
             schema_builder
@@ -293,7 +284,7 @@ impl GraphServer {
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir,
-                    AuthenticatedGraphQL::new(schema, self.config.auth, permissions),
+                    AuthenticatedGraphQL::new(schema, self.config.auth),
                 ),
             )
             .at("/health", get(health))

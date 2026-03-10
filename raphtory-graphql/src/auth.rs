@@ -1,7 +1,4 @@
-use crate::{
-    config::auth_config::{AuthConfig, PublicKey},
-    permissions::PermissionsStore,
-};
+use crate::config::auth_config::{AuthConfig, PublicKey};
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -19,7 +16,7 @@ use poem::{
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
-use tokio::sync::{RwLock, Semaphore};
+use tokio::sync::Semaphore;
 use tracing::{debug, warn};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -41,21 +38,15 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AuthConfig,
     semaphore: Option<Semaphore>,
-    lock: Option<RwLock<()>>,
-    permissions: Option<Arc<RwLock<PermissionsStore>>>,
+    lock: Option<tokio::sync::RwLock<()>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint.
-    pub fn new(
-        executor: E,
-        config: AuthConfig,
-        permissions: Option<Arc<RwLock<PermissionsStore>>>,
-    ) -> Self {
+    pub fn new(executor: E, config: AuthConfig) -> Self {
         Self {
             executor,
             config,
-            permissions,
             semaphore: std::env::var("RAPHTORY_CONCURRENCY_LIMIT")
                 .ok()
                 .and_then(|limit| {
@@ -70,7 +61,7 @@ impl<E> AuthenticatedGraphQL<E> {
                 .and_then(|thread_safe| {
                     if thread_safe == "1" {
                         println!("Server running in threadsafe mode");
-                        Some(RwLock::new(()))
+                        Some(tokio::sync::RwLock::new(()))
                     } else {
                         None
                     }
@@ -160,15 +151,6 @@ where
             None => (Access::Rw, None), // if auth is not setup, we give write access to all requests
         };
 
-        // Determine whether this role may perform schema introspection.
-        // When no permissions store is configured, introspection is always allowed.
-        let allow_introspection = match (&self.permissions, &role) {
-            (Some(perms), Some(role_name)) => {
-                perms.read().await.is_introspection_allowed(role_name)
-            }
-            _ => true,
-        };
-
         let is_accept_multipart_mixed = req
             .header("accept")
             .map(is_accept_multipart_mixed)
@@ -177,10 +159,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let mut req = req.0.data(access).data(role);
-            if !allow_introspection {
-                req = req.disable_introspection();
-            }
+            let req = req.0.data(access).data(role);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -192,17 +171,6 @@ where
             let (req, mut body) = req.split();
             let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
             let req = req.0.data(access).data(role);
-
-            let req = if !allow_introspection {
-                match req {
-                    BatchRequest::Single(r) => BatchRequest::Single(r.disable_introspection()),
-                    BatchRequest::Batch(rs) => BatchRequest::Batch(
-                        rs.into_iter().map(|r| r.disable_introspection()).collect(),
-                    ),
-                }
-            } else {
-                req
-            };
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => request.query.contains("updateGraph"),

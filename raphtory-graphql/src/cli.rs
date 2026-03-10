@@ -81,9 +81,6 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None, help = "Public directory path")]
     public_dir: Option<PathBuf>,
 
-    #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the permissions store JSON file")]
-    permissions_store_path: Option<PathBuf>,
-
     #[cfg(feature = "search")]
     #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX, help = "Enable index creation")]
     create_index: bool,
@@ -117,7 +114,6 @@ where
                 .with_auth_public_key(server_args.auth_public_key)
                 .expect(PUBLIC_KEY_DECODING_ERR_MSG)
                 .with_public_dir(server_args.public_dir)
-                .with_permissions_store_path(server_args.permissions_store_path)
                 .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads);
 
             #[cfg(feature = "search")]

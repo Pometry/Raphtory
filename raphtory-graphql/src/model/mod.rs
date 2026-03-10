@@ -7,10 +7,12 @@ use crate::{
             mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
         },
-        plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
+        plugins::{
+            mutation_plugin::MutationPlugin, permissions_plugin::PermissionsPlugin,
+            query_plugin::QueryPlugin,
+        },
     },
     paths::{ValidGraphPaths, ValidWriteableGraphFolder},
-    permissions::GraphPermissions,
     rayon::blocking_compute,
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
@@ -36,7 +38,7 @@ use std::{
     error::Error,
     fmt::{Display, Formatter},
 };
-use tracing::{debug, warn};
+use tracing::warn;
 
 pub(crate) mod graph;
 pub mod plugins;
@@ -100,49 +102,27 @@ impl QueryRoot {
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
 
-        let (graph_perms, introspection_allowed): (Option<GraphPermissions>, bool) =
-            if let Some(store) = &data.permissions {
-                let store = store.read().await;
-                let role = ctx
-                    .data::<Option<String>>()
-                    .ok()
-                    .and_then(|r| r.as_deref())
-                    .unwrap_or("");
-                debug!(role = role, graph = path, "Checking permissions store");
-                match store.get_graph_permissions(role, path) {
-                    None => {
-                        warn!(
-                            role = role,
-                            graph = path,
-                            "Access denied: no matching permission entry"
-                        );
-                        return Err(async_graphql::Error::new(format!(
-                            "Access denied: role '{role}' is not permitted to access graph '{path}'"
-                        )));
-                    }
-                    Some(perms) => {
-                        let introspection = store.is_graph_introspection_allowed(role, path);
-                        debug!(
-                            role = role,
-                            graph = path,
-                            nodes = ?perms.nodes,
-                            edges = ?perms.edges,
-                            introspection = introspection,
-                            "Permission granted"
-                        );
-                        (Some(perms.clone()), introspection)
-                    }
+        let introspection_allowed = if let Some(policy) = &data.auth_policy {
+            match policy.check_graph_access(role, path) {
+                Some(false) | None => {
+                    let role_str = role.unwrap_or("<no role>");
+                    warn!(role = role_str, graph = path, "Access denied by auth policy");
+                    return Err(async_graphql::Error::new(format!(
+                        "Access denied: role '{role_str}' is not permitted to access graph '{path}'"
+                    )));
                 }
-            } else {
-                (None, true) // no store -> unrestricted
-            };
+                Some(true) => policy.check_graph_introspection(role, path),
+            }
+        } else {
+            true // no policy -> unrestricted
+        };
 
         let graph_with_vecs = data.get_graph(path).await?;
         Ok(GqlGraph::new_with_permissions(
             graph_with_vecs.folder,
             graph_with_vecs.graph,
-            graph_perms,
             introspection_allowed,
         ))
     }
@@ -235,6 +215,11 @@ impl Mut {
     /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
+    }
+
+    /// Returns the permissions namespace for managing roles and access policies.
+    async fn permissions<'a>(_ctx: &Context<'a>) -> PermissionsPlugin {
+        PermissionsPlugin::default()
     }
 
     /// Delete graph from a path on the server.

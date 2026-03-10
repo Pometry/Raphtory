@@ -1,4 +1,5 @@
 use crate::{
+    auth_policy::AuthorizationPolicy,
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::blocking_io,
@@ -6,7 +7,6 @@ use crate::{
         mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
         ValidGraphPaths, ValidWriteableGraphFolder,
     },
-    permissions::PermissionsStore,
     rayon::blocking_compute,
     GQLError,
 };
@@ -28,7 +28,6 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::sync::RwLock;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
@@ -138,7 +137,7 @@ pub struct Data {
     pub(crate) create_index: bool,
     pub(crate) embedding_conf: Option<EmbeddingConf>,
     pub(crate) graph_conf: Config,
-    pub(crate) permissions: Option<Arc<RwLock<PermissionsStore>>>,
+    pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
 impl Data {
@@ -170,23 +169,13 @@ impl Data {
         #[cfg(not(feature = "search"))]
         let create_index = false;
 
-        let permissions = configs.permissions_store_path.as_ref().and_then(|path| {
-            match PermissionsStore::load(path) {
-                Ok(store) => Some(Arc::new(RwLock::new(store))),
-                Err(e) => {
-                    eprintln!("Warning: failed to load permissions store from {path:?}: {e}");
-                    None
-                }
-            }
-        });
-
         Self {
             work_dir: work_dir.to_path_buf(),
             cache,
             create_index,
             embedding_conf: Default::default(),
             graph_conf,
-            permissions,
+            auth_policy: None,
         }
     }
 

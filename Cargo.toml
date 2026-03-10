@@ -13,8 +13,9 @@ members = [
     "raphtory-api-macros",
     "raphtory-itertools",
     "clam-core",
-    "clam-core/snb"
-    , "raphtory-itertools"]
+    "clam-core/snb",
+    "raphtory-itertools"
+]
 default-members = ["raphtory"]
 exclude = ["optd"]
 resolver = "2"
@@ -60,6 +61,7 @@ raphtory-api = { version = "0.17.0", path = "raphtory-api", default-features = f
 raphtory-api-macros = { version = "0.17.0", path = "raphtory-api-macros", default-features = false }
 raphtory-core = { version = "0.17.0", path = "raphtory-core", default-features = false }
 raphtory-graphql = { version = "0.17.0", path = "raphtory-graphql", default-features = false }
+raphtory-auth = { version = "0.17.0", path = "../members/raphtory-auth" }
 raphtory-storage = { version = "0.17.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.17.0", path = "raphtory-itertools" }
 clam-core = { path = "clam-core" }
