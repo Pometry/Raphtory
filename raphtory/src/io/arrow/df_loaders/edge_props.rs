@@ -1,5 +1,6 @@
-#[cfg(feature = "python")]
+#[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
+
 use crate::{
     db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
     errors::{into_graph_err, GraphError, LoadError},
@@ -75,7 +76,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .map_err(into_graph_err)
     })?;
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading edges metadata".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved: Vec<VID> = vec![];
@@ -161,7 +162,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 .attempt_flush(graph.core_graph().extension())
         }
 
-        #[cfg(feature = "python")]
+        #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
     Ok::<_, GraphError>(())
