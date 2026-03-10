@@ -132,10 +132,8 @@ where
                 None,
                 server_args.graph_config,
             )?;
-            let server = apply_server_extension(
-                server,
-                server_args.permissions_store_path.as_deref(),
-            );
+            let server =
+                apply_server_extension(server, server_args.permissions_store_path.as_deref());
             server.run_with_port(server_args.port).await?;
         }
     }

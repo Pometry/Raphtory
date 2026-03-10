@@ -634,7 +634,6 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlNode>> {
-
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();
@@ -661,7 +660,6 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlEdge>> {
-
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();

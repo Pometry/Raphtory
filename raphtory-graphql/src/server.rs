@@ -12,6 +12,7 @@ use crate::{
     server::ServerError::SchemaError,
 };
 use config::ConfigError;
+use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use poem::{
@@ -27,7 +28,6 @@ use raphtory::{
     vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
 };
 use serde_json::json;
-use once_cell::sync::Lazy;
 use std::{
     fs::create_dir_all,
     path::{Path, PathBuf},
@@ -53,11 +53,9 @@ use url::ParseError;
 
 pub const DEFAULT_PORT: u16 = 1736;
 
-type ServerExtensionFn =
-    Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
+type ServerExtensionFn = Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
 
-static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> =
-    Lazy::new(|| RwLock::new(None));
+static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> = Lazy::new(|| RwLock::new(None));
 
 pub fn register_server_extension(f: ServerExtensionFn) {
     *SERVER_EXTENSION.write().unwrap() = Some(f);
@@ -102,8 +100,11 @@ impl From<ServerError> for io::Error {
     }
 }
 
-type SchemaDataInjector =
-    Box<dyn FnOnce(async_graphql::dynamic::SchemaBuilder) -> async_graphql::dynamic::SchemaBuilder + Send + Sync>;
+type SchemaDataInjector = Box<
+    dyn FnOnce(async_graphql::dynamic::SchemaBuilder) -> async_graphql::dynamic::SchemaBuilder
+        + Send
+        + Sync,
+>;
 
 /// A struct for defining and running a Raphtory GraphQL server
 pub struct GraphServer {

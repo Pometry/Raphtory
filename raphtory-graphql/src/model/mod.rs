@@ -108,7 +108,11 @@ impl QueryRoot {
             match policy.check_graph_access(role, path) {
                 Some(false) | None => {
                     let role_str = role.unwrap_or("<no role>");
-                    warn!(role = role_str, graph = path, "Access denied by auth policy");
+                    warn!(
+                        role = role_str,
+                        graph = path,
+                        "Access denied by auth policy"
+                    );
                     return Err(async_graphql::Error::new(format!(
                         "Access denied: role '{role_str}' is not permitted to access graph '{path}'"
                     )));

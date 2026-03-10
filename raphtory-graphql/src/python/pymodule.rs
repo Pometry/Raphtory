@@ -39,7 +39,10 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_function(wrap_pyfunction!(decode_graph, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(schema, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(python_cli, &graphql_module)?)?;
-    graphql_module.add_function(wrap_pyfunction!(has_permissions_extension, &graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(
+        has_permissions_extension,
+        &graphql_module
+    )?)?;
 
     Ok(graphql_module)
 }
