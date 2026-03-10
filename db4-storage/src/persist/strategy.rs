@@ -34,13 +34,16 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn wal(&self) -> &Self::Wal;
 
-    fn attempt_flush_segment<MP: DerefMut<Target = MemNodeSegment>>(
+    /// Used by bulk loaders to trigger a flush of all segments
+    /// (ignores memory limits and always triggers a flush if it is not already in progress)
+    fn attempt_flush_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         ns: &Self::NS,
         writer: MP,
     ) where
         Self: Sized;
 
+    /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_segment: &Self::NS,
@@ -48,6 +51,16 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     ) where
         Self: Sized;
 
+    /// Used by bulk loaders to trigger a flush of all segments
+    /// (ignores memory limits and always triggers a flush if it is not already in progress)
+    fn attempt_flush_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
+        &self,
+        edge_page: &Self::ES,
+        writer: MP,
+    ) where
+        Self: Sized;
+
+    /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         edge_segment: &Self::ES,
@@ -70,6 +83,8 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Increment estimated global memory used
     fn increment_estimated_size(&self, increment: usize);
+
+    fn decrement_estimated_size(&self, decrement: usize);
 
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
@@ -108,7 +123,7 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.wal
     }
 
-    fn attempt_flush_segment<MP: DerefMut<Target = MemNodeSegment>>(
+    fn attempt_flush_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         _ns: &Self::NS,
         _writer: MP,
@@ -122,6 +137,16 @@ impl PersistenceStrategy for NoOpStrategy {
         _node_page: &Self::NS,
         _writer: MP,
     ) {
+        // No operation
+    }
+
+    fn attempt_flush_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
+        &self,
+        _edge_page: &Self::ES,
+        _writer: MP,
+    ) where
+        Self: Sized,
+    {
         // No operation
     }
 
@@ -150,6 +175,8 @@ impl PersistenceStrategy for NoOpStrategy {
     }
 
     fn increment_estimated_size(&self, _increment: usize) {}
+
+    fn decrement_estimated_size(&self, _decrement: usize) {}
 
     fn should_flush(&self) -> bool {
         false

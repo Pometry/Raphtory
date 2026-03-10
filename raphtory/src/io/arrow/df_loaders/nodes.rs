@@ -297,6 +297,12 @@ pub fn load_node_props_from_df<
             Ok::<_, GraphError>(())
         })?;
 
+        if graph.core_graph().extension().should_flush() {
+            write_locked_graph
+                .nodes
+                .attempt_flush(graph.core_graph().extension());
+        }
+
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }

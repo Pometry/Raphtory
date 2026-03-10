@@ -1,7 +1,7 @@
 #[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
 use crate::{
-    db::api::view::StaticGraphViewOps,
+    db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView},
@@ -28,7 +28,7 @@ use raphtory_api::{
     },
 };
 use raphtory_core::entities::VID;
-use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
+use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::SessionAdditionOps};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -380,6 +380,12 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             );
         });
 
+        if graph.core_graph().extension().should_flush() {
+            write_locked_graph
+                .edges
+                .attempt_flush(graph.core_graph().extension());
+        }
+
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
@@ -539,8 +545,9 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
 #[inline(never)]
 fn add_and_resolve_outbound_edges<
     'a,
-    NS: NodeSegmentOps<Extension = Extension>,
-    ES: EdgeSegmentOps<Extension = Extension>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES>,
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
 >(
     eids_exist: &[AtomicBool],
     layer_eids_exist: &[AtomicBool],

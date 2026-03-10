@@ -135,10 +135,12 @@ impl MemEdgeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
+        let est_size = self.est_size();
+        self.est_size = 0;
 
         Self {
             layers,
-            est_size: 0,
+            est_size,
             lsn: self.lsn,
         }
     }
@@ -335,7 +337,7 @@ pub struct EdgeSegmentView<EXT> {
     segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,
     num_edges: AtomicU32,
-    _ext: EXT,
+    ext: EXT,
 }
 
 #[derive(Debug)]
@@ -424,6 +426,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
+    fn extension(&self) -> &Self::Extension {
+        &self.ext
+    }
+
     fn latest(&self) -> Option<EventTime> {
         self.head().latest()
     }
@@ -434,6 +440,16 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn t_len(&self) -> usize {
         self.head().t_len()
+    }
+
+    fn num_layers(&self) -> usize {
+        self.head().layers.len()
+    }
+
+    fn layer_count(&self, layer_id: usize) -> u32 {
+        self.head()
+            .get_layer(layer_id)
+            .map_or(0, |layer| layer.len())
     }
 
     fn load(
@@ -459,7 +475,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
                 .into(),
             segment_id: page_id,
             num_edges: AtomicU32::new(0),
-            _ext: ext,
+            ext: ext,
         }
     }
 
@@ -486,6 +502,8 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn try_head_mut(&self) -> Option<parking_lot::RwLockWriteGuard<'_, MemEdgeSegment>> {
         self.segment.try_write()
     }
+
+    fn set_dirty(&self, _dirty: bool) {}
 
     fn notify_write(
         &self,
@@ -551,18 +569,6 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     ) -> Result<(), StorageError> {
         Ok(())
     }
-
-    fn num_layers(&self) -> usize {
-        self.head().layers.len()
-    }
-
-    fn layer_count(&self, layer_id: usize) -> u32 {
-        self.head()
-            .get_layer(layer_id)
-            .map_or(0, |layer| layer.len())
-    }
-
-    fn set_dirty(&self, _dirty: bool) {}
 
     fn immut_lsn(&self) -> LSN {
         0

@@ -1,7 +1,7 @@
 #[cfg(feature = "python")]
 use crate::io::arrow::df_loaders::build_progress_bar;
 use crate::{
-    db::api::view::StaticGraphViewOps,
+    db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView},
@@ -21,7 +21,7 @@ use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{atomic_extra::atomic_usize_from_mut_slice, core::entities::EID};
 use raphtory_core::entities::VID;
-use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
+use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::SessionAdditionOps};
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -154,6 +154,12 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             );
             update_edge_metadata(&shared_metadata, &metadata_cols, shard, zip);
         });
+
+        if graph.core_graph().extension().should_flush() {
+            write_locked_graph
+                .edges
+                .attempt_flush(graph.core_graph().extension())
+        }
 
         #[cfg(feature = "python")]
         let _ = pb.update(df.len());

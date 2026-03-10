@@ -17,16 +17,19 @@ pub struct EdgeWriter<
     pub page: &'a ES,
     pub writer: MP,
     pub graph_stats: &'a GraphStats,
+    old_estimated_size: usize,
 }
 
 impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmentOps>
     EdgeWriter<'a, MP, ES>
 {
     pub fn new(global_num_edges: &'a GraphStats, page: &'a ES, writer: MP) -> Self {
+        let old_estimated_size = writer.est_size();
         Self {
             page,
             writer,
             graph_stats: global_num_edges,
+            old_estimated_size,
         }
     }
 
@@ -210,6 +213,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
     for EdgeWriter<'a, MP, ES>
 {
     fn drop(&mut self) {
+        let delta = self.writer.est_size() - self.old_estimated_size;
+        self.page.increment_est_size(delta);
         if let Err(err) = self.page.notify_write(self.writer.deref_mut()) {
             eprintln!("Failed to persist {}, err: {}", self.segment_id(), err)
         }

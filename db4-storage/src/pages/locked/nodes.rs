@@ -131,7 +131,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
 
     pub fn attempt_flush(&mut self, ext: &EXT) {
         for LockedNodePage { page, lock, .. } in &mut self.writers {
-            ext.attempt_flush_segment(page, lock.deref_mut());
+            ext.attempt_flush_node_segment(page, lock.deref_mut());
         }
     }
 }
