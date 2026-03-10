@@ -13,6 +13,12 @@ use crate::{
 };
 use pyo3::prelude::*;
 
+/// Returns True if the permissions extension (raphtory-auth) is compiled in.
+#[pyfunction]
+pub fn has_permissions_extension() -> bool {
+    crate::server::has_server_extension()
+}
+
 pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let graphql_module = PyModule::new(py, "graphql")?;
     graphql_module.add_class::<PyGraphServer>()?;
@@ -33,6 +39,7 @@ pub fn base_graphql_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
     graphql_module.add_function(wrap_pyfunction!(decode_graph, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(schema, &graphql_module)?)?;
     graphql_module.add_function(wrap_pyfunction!(python_cli, &graphql_module)?)?;
+    graphql_module.add_function(wrap_pyfunction!(has_permissions_extension, &graphql_module)?)?;
 
     Ok(graphql_module)
 }

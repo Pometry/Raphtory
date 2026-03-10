@@ -6,6 +6,7 @@ use crate::{
     python::server::{
         running_server::PyRunningGraphServer, take_server_ownership, wait_server, BridgeCommand,
     },
+    server::apply_server_extension,
     GraphServer,
 };
 use pyo3::{
@@ -86,7 +87,7 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, tracing_level=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, tracing_level=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None, permissions_store_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
@@ -102,6 +103,7 @@ impl PyGraphServer {
         auth_enabled_for_reads: Option<bool>,
         config_path: Option<PathBuf>,
         create_index: Option<bool>,
+        permissions_store_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
         if let Some(log_level) = log_level {
@@ -150,6 +152,7 @@ impl PyGraphServer {
         let app_config = Some(app_config_builder.build());
 
         let server = GraphServer::new(work_dir, app_config, config_path, Config::default())?;
+        let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer::new(server))
     }
 

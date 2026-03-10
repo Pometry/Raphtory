@@ -13,13 +13,10 @@ use raphtory_graphql::python::pymodule::base_graphql_module;
 /// Raphtory graph analytics library
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
+    auth::init();
     let _ = add_raphtory_classes(m);
 
     let graphql_module = base_graphql_module(py)?;
-    graphql_module.add_function(wrap_pyfunction!(
-        raphtory_auth::python::with_permissions_store,
-        &graphql_module
-    )?)?;
     let algorithm_module = base_algorithm_module(py)?;
     let graph_loader_module = base_graph_loader_module(py)?;
     let graph_gen_module = base_graph_gen_module(py)?;

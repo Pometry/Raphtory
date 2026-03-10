@@ -3,7 +3,13 @@ import os
 import tempfile
 import requests
 import jwt
-from raphtory.graphql import GraphServer, with_permissions_store
+import pytest
+from raphtory.graphql import GraphServer, has_permissions_extension
+
+pytestmark = pytest.mark.skipif(
+    not has_permissions_extension(),
+    reason="raphtory-auth not compiled in (open-source build)",
+)
 
 # Reuse the same key pair as test_auth.py
 PUB_KEY = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
@@ -54,9 +60,10 @@ def grant_namespace(role: str, path: str, permissions: list) -> None:
 
 def make_server(work_dir: str):
     """Create a GraphServer wired with a permissions store at {work_dir}/permissions.json."""
-    return with_permissions_store(
-        GraphServer(work_dir, auth_public_key=PUB_KEY),
-        os.path.join(work_dir, "permissions.json"),
+    return GraphServer(
+        work_dir,
+        auth_public_key=PUB_KEY,
+        permissions_store_path=os.path.join(work_dir, "permissions.json"),
     )
 
 
@@ -121,7 +128,7 @@ def test_no_role_is_denied_when_policy_is_active():
 
 
 def test_no_policy_gives_full_access():
-    """Without with_permissions_store, all authenticated users see everything."""
+    """Without permissions_store_path, all authenticated users see everything."""
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         gql(CREATE_JIRA)

@@ -12,7 +12,7 @@ use crate::{
         },
     },
     model::App,
-    server::DEFAULT_PORT,
+    server::{apply_server_extension, DEFAULT_PORT},
     GraphServer,
 };
 use clap::{Parser, Subcommand};
@@ -81,6 +81,9 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None, help = "Public directory path")]
     public_dir: Option<PathBuf>,
 
+    #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the JSON permissions store file")]
+    permissions_store_path: Option<PathBuf>,
+
     #[cfg(feature = "search")]
     #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX, help = "Enable index creation")]
     create_index: bool,
@@ -123,14 +126,17 @@ where
 
             let app_config = Some(builder.build());
 
-            GraphServer::new(
+            let server = GraphServer::new(
                 server_args.work_dir,
                 app_config,
                 None,
                 server_args.graph_config,
-            )?
-            .run_with_port(server_args.port)
-            .await?;
+            )?;
+            let server = apply_server_extension(
+                server,
+                server_args.permissions_store_path.as_deref(),
+            );
+            server.run_with_port(server_args.port).await?;
         }
     }
     Ok(())

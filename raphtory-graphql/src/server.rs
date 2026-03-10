@@ -27,9 +27,11 @@ use raphtory::{
     vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
 };
 use serde_json::json;
+use once_cell::sync::Lazy;
 use std::{
     fs::create_dir_all,
     path::{Path, PathBuf},
+    sync::RwLock,
 };
 use thiserror::Error;
 use tokio::{
@@ -50,6 +52,27 @@ use tracing_subscriber::{
 use url::ParseError;
 
 pub const DEFAULT_PORT: u16 = 1736;
+
+type ServerExtensionFn =
+    Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
+
+static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> =
+    Lazy::new(|| RwLock::new(None));
+
+pub fn register_server_extension(f: ServerExtensionFn) {
+    *SERVER_EXTENSION.write().unwrap() = Some(f);
+}
+
+pub fn apply_server_extension(server: GraphServer, path: Option<&Path>) -> GraphServer {
+    match SERVER_EXTENSION.read().unwrap().as_ref() {
+        Some(ext) => ext(server, path),
+        None => server,
+    }
+}
+
+pub fn has_server_extension() -> bool {
+    SERVER_EXTENSION.read().unwrap().is_some()
+}
 
 #[derive(Error, Debug)]
 pub enum ServerError {
