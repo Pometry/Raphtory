@@ -32,7 +32,7 @@ use storage::{
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    Extension, LocalPOS, Wal, ES, GS, NS,
+    Extension, LocalPOS, Wal, ES, GS, NS, ControlFile,
 };
 
 pub struct AtomicAddEdge<'a, EXT>
@@ -703,5 +703,9 @@ impl DurabilityOps for TemporalGraph {
 
     fn wal(&self) -> Result<&Wal, MutationError> {
         Ok(&self.extension().wal())
+    }
+
+    fn control_file(&self) -> Result<&ControlFile, MutationError> {
+        Ok(&self.extension().control_file())
     }
 }

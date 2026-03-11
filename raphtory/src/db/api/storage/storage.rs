@@ -141,6 +141,7 @@ impl Storage {
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
         let temporal_graph = TemporalGraph::load(path, ext)?;
         let wal = temporal_graph.wal()?;
+        let control_file = temporal_graph.control_file()?;
 
         // Replay any pending writes from the WAL.
         if wal.has_entries()? {
