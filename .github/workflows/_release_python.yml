@@ -53,13 +53,11 @@ jobs:
             3.14
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        env:
-          RUSTUP_TOOLCHAIN: ${{ env.RUST_VERSION }}
-          BUILD_TARGET: ${{ matrix.target }}
         with:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
           manylinux: 2_28
           before-script-linux: |
@@ -106,16 +104,11 @@ jobs:
               exit 1
             fi
 
-            rustup toolchain install 1.91.0 --no-self-update
-            rustup default 1.91.0
-            if [ "$BUILD_TARGET" = "aarch64" ]; then
-              rustup target add aarch64-unknown-linux-gnu --toolchain 1.91.0
-            fi
-
             PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
               echo "Running on aarch64 architecture"
+              # rustup override set stable-msvc
               FILE="protoc-27.2-linux-aarch_64.zip"
             else
               FILE="protoc-27.2-linux-x86_64.zip"
@@ -126,11 +119,6 @@ jobs:
             unzip -o $FILE -d /usr/local
             rm $FILE
             ln -s /usr/local/bin/protoc /usr/bin/protoc
-
-            rustup override set 1.91.0
-            echo ">>>>>>>>>>>> printing rust version used:"
-            rustc --version
-            cargo --version
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
         with:
@@ -149,10 +137,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ inputs.base }}
-      - name: Setup rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
       - uses: actions/setup-python@v4
         with:
           python-version: |
@@ -167,6 +151,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
@@ -197,10 +182,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ inputs.base }}
-      - name: Setup rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
       - uses: actions/setup-python@v4
         with:
           python-version: |
@@ -214,6 +195,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
