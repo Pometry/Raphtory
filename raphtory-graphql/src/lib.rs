@@ -1,3 +1,4 @@
+pub use crate::auth::require_write_access_dynamic;
 pub use crate::server::GraphServer;
 use crate::{data::InsertionError, paths::PathValidationError};
 use raphtory::errors::GraphError;

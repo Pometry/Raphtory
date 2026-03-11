@@ -6,6 +6,10 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Returns `true` if the role may perform graph-level introspection
     /// (countNodes, countEdges, uniqueLayers, schema).
     fn check_graph_introspection(&self, role: Option<&str>, path: &str) -> bool;
+
+    /// Returns `true` if the role may write to this graph (addNode, addEdge, updateGraph, newGraph).
+    /// `"a": "rw"` users bypass this check entirely — it is only called for `"a": "ro"` users.
+    fn check_graph_write_access(&self, role: Option<&str>, path: &str) -> bool;
 }
 
 /// A no-op policy that permits all reads and leaves writes to the `PermissionsPlugin`.
@@ -18,6 +22,10 @@ impl AuthorizationPolicy for NoopPolicy {
     }
 
     fn check_graph_introspection(&self, _: Option<&str>, _: &str) -> bool {
+        true
+    }
+
+    fn check_graph_write_access(&self, _: Option<&str>, _: &str) -> bool {
         true
     }
 }

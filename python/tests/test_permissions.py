@@ -210,3 +210,176 @@ def test_namespace_wildcard_grants_access_to_all_graphs():
                 RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
             )
             assert "errors" not in response.json(), response.json()
+
+
+# --- WRITE permission enforcement ---
+
+UPDATE_JIRA = """mutation { updateGraph(path: "jira") { addNode(time: 1, name: "test_node") } }"""
+CREATE_JIRA_NS = """mutation { newGraph(path:"team/jira", graphType:EVENT) }"""
+
+
+def test_admin_bypasses_policy_for_reads():
+    """'a':'rw' admin can read any graph even without a role entry in the store."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        # Policy is active (analyst role exists) but admin has no role entry
+        create_role("analyst")
+        grant_graph("analyst", "jira", ["READ"])
+
+        response = requests.post(
+            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_JIRA})
+        )
+        assert "errors" not in response.json(), response.json()
+        assert response.json()["data"]["graph"]["path"] == "jira"
+
+
+def test_analyst_can_write_with_write_grant():
+    """'a':'ro' user with WRITE grant on a specific graph can call updateGraph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", ["READ", "WRITE"])
+
+        response = requests.post(
+            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": UPDATE_JIRA})
+        )
+        assert "errors" not in response.json(), response.json()
+
+
+def test_analyst_cannot_write_without_write_grant():
+    """'a':'ro' user with READ-only grant cannot call updateGraph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", ["READ"])  # READ only, no WRITE
+
+        response = requests.post(
+            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": UPDATE_JIRA})
+        )
+        assert (
+            response.json()["data"] is None
+            or response.json()["data"].get("updateGraph") is None
+        )
+        assert "errors" in response.json()
+        assert "Access denied" in response.json()["errors"][0]["message"]
+
+
+def test_analyst_can_create_graph_in_namespace():
+    """'a':'ro' user with namespace WRITE grant can create a new graph in that namespace."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "team/", ["READ", "WRITE"])
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ANALYST_HEADERS,
+            data=json.dumps({"query": CREATE_JIRA_NS}),
+        )
+        assert "errors" not in response.json(), response.json()
+
+
+def test_analyst_cannot_create_graph_outside_namespace():
+    """'a':'ro' user with namespace WRITE grant cannot create a graph outside that namespace."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "team/", ["READ", "WRITE"])
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ANALYST_HEADERS,
+            data=json.dumps({"query": CREATE_JIRA}),  # "jira" not under "team/"
+        )
+        assert "errors" in response.json()
+        assert "Access denied" in response.json()["errors"][0]["message"]
+
+
+def test_analyst_cannot_call_permissions_mutations():
+    """'a':'ro' user with WRITE grant on a graph cannot manage roles/permissions."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "*", ["READ", "WRITE"])
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ANALYST_HEADERS,
+            data=json.dumps(
+                {"query": 'mutation { permissions { createRole(name: "hacker") { success } } }'}
+            ),
+        )
+        assert "errors" in response.json()
+        assert "Access denied" in response.json()["errors"][0]["message"]
+
+
+def test_admin_can_list_roles():
+    """'a':'rw' admin can query permissions { listRoles }."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ADMIN_HEADERS,
+            data=json.dumps({"query": "query { permissions { listRoles } }"}),
+        )
+        assert "errors" not in response.json(), response.json()
+        assert "analyst" in response.json()["data"]["permissions"]["listRoles"]
+
+
+def test_analyst_cannot_list_roles():
+    """'a':'ro' user cannot query permissions { listRoles }."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ANALYST_HEADERS,
+            data=json.dumps({"query": "query { permissions { listRoles } }"}),
+        )
+        assert "errors" in response.json()
+        assert "Access denied" in response.json()["errors"][0]["message"]
+
+
+def test_admin_can_get_role():
+    """'a':'rw' admin can query permissions { getRole(...) }."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_graph("analyst", "jira", ["READ"])
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ADMIN_HEADERS,
+            data=json.dumps(
+                {
+                    "query": 'query { permissions { getRole(name: "analyst") { name graphs { path permissions } } } }'
+                }
+            ),
+        )
+        assert "errors" not in response.json(), response.json()
+        role_data = response.json()["data"]["permissions"]["getRole"]
+        assert role_data["name"] == "analyst"
+        assert role_data["graphs"][0]["path"] == "jira"
+
+
+def test_analyst_cannot_get_role():
+    """'a':'ro' user cannot query permissions { getRole(...) }."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ANALYST_HEADERS,
+            data=json.dumps(
+                {"query": 'query { permissions { getRole(name: "analyst") { name } } }'}
+            ),
+        )
+        assert "errors" in response.json()
+        assert "Access denied" in response.json()["errors"][0]["message"]

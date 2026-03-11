@@ -231,6 +231,19 @@ pub(crate) trait ContextValidation {
     fn require_write_access(&self) -> Result<(), AuthError>;
 }
 
+/// Check that the request carries a write-access JWT (`"a": "rw"`).
+/// For use in dynamic resolver ops that run under `query { ... }` and are
+/// therefore not covered by the `MutationAuth` extension.
+pub fn require_write_access_dynamic(
+    ctx: &async_graphql::dynamic::ResolverContext,
+) -> Result<(), async_graphql::Error> {
+    if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
+        Ok(())
+    } else {
+        Err(async_graphql::Error::new("Access denied: write access required"))
+    }
+}
+
 impl<'a> ContextValidation for &Context<'a> {
     fn require_write_access(&self) -> Result<(), AuthError> {
         if self.data::<Access>().is_ok_and(|role| role == &Access::Rw) {
@@ -264,10 +277,18 @@ impl Extension for MutationAuth {
                 .iter()
                 .any(|op| op.1.node.ty == OperationType::Mutation);
             if mutation && ctx.data::<Access>() != Ok(&Access::Rw) {
-                Err(AuthError::RequireWrite.into())
-            } else {
-                Ok(doc)
+                // If a policy is active, allow "ro" users through to resolvers —
+                // each resolver enforces its own per-graph or admin-only check.
+                // Without a policy (OSS), preserve the original blanket deny.
+                let policy_active = ctx
+                    .data::<crate::data::Data>()
+                    .map(|d| d.auth_policy.is_some())
+                    .unwrap_or(false);
+                if !policy_active {
+                    return Err(AuthError::RequireWrite.into());
+                }
             }
+            Ok(doc)
         })
     }
 }

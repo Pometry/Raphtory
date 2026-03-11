@@ -58,6 +58,27 @@ impl<'a> Operation<'a, super::permissions_plugin::PermissionsPlugin> for NoOpPer
     }
 }
 
+pub(crate) struct NoOpPermissionsQuery;
+
+impl<'a> Operation<'a, super::permissions_plugin::PermissionsQueryPlugin> for NoOpPermissionsQuery {
+    type OutputType = String;
+
+    fn output_type() -> TypeRef {
+        TypeRef::named_nn(TypeRef::STRING)
+    }
+
+    fn args<'b>() -> Vec<(&'b str, TypeRef)> {
+        vec![]
+    }
+
+    fn apply<'b>(
+        _entry_point: &super::permissions_plugin::PermissionsQueryPlugin,
+        _ctx: ResolverContext<'b>,
+    ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
+        Box::pin(async move { Ok(Some(FieldValue::value("no-op".to_owned()))) })
+    }
+}
+
 pub(crate) struct NoOpMutation;
 
 impl<'a> Operation<'a, MutationPlugin> for NoOpMutation {

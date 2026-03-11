@@ -1,6 +1,6 @@
 use crate::{
-    auth::ContextValidation,
-    data::{Data, DeletionError},
+    auth::{Access, ContextValidation},
+    data::Data,
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
@@ -8,7 +8,8 @@ use crate::{
             vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{
-            mutation_plugin::MutationPlugin, permissions_plugin::PermissionsPlugin,
+            mutation_plugin::MutationPlugin,
+            permissions_plugin::{PermissionsPlugin, PermissionsQueryPlugin},
             query_plugin::QueryPlugin,
         },
     },
@@ -104,7 +105,9 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
 
-        let introspection_allowed = if let Some(policy) = &data.auth_policy {
+        let introspection_allowed = if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
+            true // "a": "rw" = admin, bypass all per-graph policy checks
+        } else if let Some(policy) = &data.auth_policy {
             match policy.check_graph_access(role, path) {
                 Some(false) => {
                     let role_str = role.unwrap_or("<no role>");
@@ -136,8 +139,22 @@ impl QueryRoot {
     ///
     /// Returns:: GqlMutableGraph
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
-        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
+        if !ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
+            // Not admin — check per-graph write permission from the policy
+            match &data.auth_policy {
+                Some(policy) => {
+                    let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+                    if !policy.check_graph_write_access(role, &path) {
+                        let role_str = role.unwrap_or("<no role>");
+                        return Err(async_graphql::Error::new(format!(
+                            "Access denied: role '{role_str}' does not have write permission for graph '{path}'"
+                        )));
+                    }
+                }
+                None => ctx.require_write_access()?,
+            }
+        }
 
         let graph = data.get_graph(path.as_ref()).await?.into();
 
@@ -207,6 +224,11 @@ impl QueryRoot {
     async fn version<'a>(_ctx: &Context<'a>) -> String {
         String::from(version())
     }
+
+    /// Returns the permissions namespace for inspecting roles and access policies (admin only).
+    async fn permissions<'a>(_ctx: &Context<'a>) -> PermissionsQueryPlugin {
+        PermissionsQueryPlugin::default()
+    }
 }
 
 #[derive(MutationRoot)]
@@ -229,7 +251,8 @@ impl Mut {
 
     /// Delete graph from a path on the server.
     // If namespace is not provided, it will be set to the current working directory.
-    async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool, DeletionError> {
+    async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
+        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
         data.delete_graph(&path).await?;
         Ok(true)
@@ -242,6 +265,20 @@ impl Mut {
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
+        if !ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
+            match &data.auth_policy {
+                Some(policy) => {
+                    let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+                    if !policy.check_graph_write_access(role, &path) {
+                        let role_str = role.unwrap_or("<no role>");
+                        return Err(async_graphql::Error::new(format!(
+                            "Access denied: role '{role_str}' does not have write permission for namespace '{path}'"
+                        )));
+                    }
+                }
+                None => ctx.require_write_access()?,
+            }
+        }
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
@@ -269,6 +306,7 @@ impl Mut {
         new_path: &str,
         overwrite: Option<bool>,
     ) -> Result<bool> {
+        ctx.require_write_access()?;
         Self::copy_graph(ctx, path, new_path, overwrite).await?;
         let data = ctx.data_unchecked::<Data>();
         data.delete_graph(path).await?;
@@ -282,6 +320,7 @@ impl Mut {
         new_path: &str,
         overwrite: Option<bool>,
     ) -> Result<bool> {
+        ctx.require_write_access()?;
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
@@ -304,6 +343,7 @@ impl Mut {
         graph: Upload,
         overwrite: bool,
     ) -> Result<String> {
+        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
@@ -322,6 +362,7 @@ impl Mut {
         graph: String,
         overwrite: bool,
     ) -> Result<String> {
+        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
         let folder = if overwrite {
             ValidWriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
@@ -349,6 +390,7 @@ impl Mut {
         new_path: String,
         overwrite: bool,
     ) -> Result<String> {
+        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
         let parent_graph = data.get_graph(parent_path).await?.graph;
@@ -374,6 +416,7 @@ impl Mut {
         index_spec: Option<IndexSpecInput>,
         in_ram: bool,
     ) -> Result<bool> {
+        ctx.require_write_access()?;
         #[cfg(feature = "search")]
         {
             let data = ctx.data_unchecked::<Data>();
