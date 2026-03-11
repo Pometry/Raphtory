@@ -495,11 +495,11 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
 ) {
     let mut t_props: Vec<(usize, Prop)> = vec![];
     let mut c_props: Vec<(usize, Prop)> = vec![];
+    let mut writer = shard.writer();
 
     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
         if let Some(eid_pos) = shard.resolve_pos(*eid) {
             let t = EventTime(time, secondary_index);
-            let mut writer = shard.writer();
 
             t_props.clear();
             t_props.extend(prop_cols.iter_row(row));
@@ -543,9 +543,9 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
         edge_exists_in_static_graph,
     ) in zip
     {
+        let mut writer = shard.writer();
         if let Some(dst_pos) = shard.resolve_pos(*dst) {
             let t = EventTime(time, secondary_index);
-            let mut writer = shard.writer();
 
             if !edge_exists_in_static_graph {
                 writer.add_static_inbound_edge(dst_pos, *src, *eid);
@@ -588,9 +588,9 @@ fn add_and_resolve_outbound_edges<
     zip: impl Iterator<Item = (&'a VID, &'a VID, i64, usize, &'a usize)>,
     delete: bool,
 ) {
+    let mut writer = locked_page.writer();
     for (row, (src, dst, time, secondary_index, layer)) in zip.enumerate() {
         if let Some(src_pos) = locked_page.resolve_pos(*src) {
-            let mut writer = locked_page.writer();
             let t = EventTime(time, secondary_index);
             // find the original EID in the static graph if it exists
             // otherwise create a new one
@@ -636,11 +636,11 @@ pub fn store_node_ids<K: Eq + std::hash::Hash, NS: NodeSegmentOps<Extension = Ex
     gid_str_cache: &FxDashMap<K, (GID, MaybeNew<VID>)>,
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
+    let mut writer = locked_page.writer();
     for entry in gid_str_cache.iter() {
         let (src_gid, vid) = entry.value();
 
         if let Some(src_pos) = locked_page.resolve_pos(vid.inner()) {
-            let mut writer = locked_page.writer();
             writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_gid.clone());
         }
     }
