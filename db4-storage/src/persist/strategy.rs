@@ -138,8 +138,12 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.wal
     }
 
-    fn flush_node_segment<MP: DerefMut<Target = MemNodeSegment>>(&self, _ns: &Self::NS, _writer: MP, _pause: bool)
-    where
+    fn flush_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
+        &self,
+        _ns: &Self::NS,
+        _writer: MP,
+        _pause: bool,
+    ) where
         Self: Sized,
     {
     }
@@ -156,7 +160,7 @@ impl PersistenceStrategy for NoOpStrategy {
         &self,
         _edge_page: &Self::ES,
         _writer: MP,
-         _pause: bool
+        _pause: bool,
     ) where
         Self: Sized,
     {
