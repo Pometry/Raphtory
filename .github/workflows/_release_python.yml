@@ -53,6 +53,9 @@ jobs:
             3.14
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        env:
+          RUSTUP_TOOLCHAIN: ${{ env.RUST_VERSION }}
+          BUILD_TARGET: ${{ matrix.target }}
         with:
           working-directory: ./python
           command: build
@@ -105,6 +108,9 @@ jobs:
 
             rustup toolchain install 1.91.0 --no-self-update
             rustup default 1.91.0
+            if [ "$BUILD_TARGET" = "aarch64" ]; then
+              rustup target add aarch64-unknown-linux-gnu --toolchain 1.91.0
+            fi
 
             PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
