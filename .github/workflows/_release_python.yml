@@ -44,10 +44,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           ref: ${{ inputs.base }}
-      - name: Setup rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
       - uses: actions/setup-python@v4
         with:
           python-version: |
@@ -107,8 +103,8 @@ jobs:
               exit 1
             fi
 
-            rustup toolchain install $RUST_VERSION --no-self-update
-            rustup default $RUST_VERSION
+            rustup toolchain install 1.91.0 --no-self-update
+            rustup default 1.91.0
 
             PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
