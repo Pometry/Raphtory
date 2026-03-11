@@ -403,6 +403,10 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 graph.core_graph().extension().estimated_size()
             );
         } else if graph.core_graph().extension().should_flush() {
+            println!(
+                "triggered flush at size {}",
+                graph.core_graph().extension().estimated_size()
+            );
             write_locked_graph
                 .edges
                 .attempt_flush(graph.core_graph().extension(), false);
