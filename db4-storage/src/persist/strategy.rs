@@ -95,6 +95,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
+    fn should_pause(&self) -> bool;
 }
 
 #[derive(Debug, Clone)]
@@ -187,6 +188,10 @@ impl PersistenceStrategy for NoOpStrategy {
     }
 
     fn should_flush(&self) -> bool {
+        false
+    }
+
+    fn should_pause(&self) -> bool {
         false
     }
 }
