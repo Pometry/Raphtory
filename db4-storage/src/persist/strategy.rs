@@ -1,7 +1,7 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    persist::{config::{BaseConfig, ConfigOps}, control_file::NoControlFile},
+    persist::{config::{BaseConfig, ConfigOps}, control_file::{ControlFileOps, NoControlFile}},
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{segment::MemGraphPropSegment, GraphPropSegmentView},
@@ -17,6 +17,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type GS: GraphPropSegmentOps;
     type Wal: WalOps + GraphWalOps;
     type Config: ConfigOps;
+    type ControlFile: ControlFileOps;
 
     fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
 
@@ -33,6 +34,8 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     fn config_mut(&mut self) -> &mut Self::Config;
 
     fn wal(&self) -> &Self::Wal;
+
+    fn control_file(&self) -> &Self::ControlFile;
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
@@ -67,11 +70,12 @@ pub struct NoOpStrategy {
 }
 
 impl PersistenceStrategy for NoOpStrategy {
-    type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
+    type ES = EdgeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
+    type ControlFile = NoControlFile;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
         Ok(Self { config, wal: NoWal, control_file: NoControlFile })
@@ -91,6 +95,10 @@ impl PersistenceStrategy for NoOpStrategy {
 
     fn wal(&self) -> &Self::Wal {
         &self.wal
+    }
+
+    fn control_file(&self) -> &Self::ControlFile {
+        &self.control_file
     }
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(

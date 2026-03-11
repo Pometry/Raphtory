@@ -35,7 +35,9 @@ impl ControlFileOps for NoControlFile {
     }
 
     fn db_state(&self) -> &DBState {
-        &DBState::Running
+        // Without a control file there is no persistence, hence this always reports a clean
+        // shutdown state so that no recovery is attempted.
+        &DBState::Shutdown
     }
 
     fn last_checkpoint(&self) -> LSN {
