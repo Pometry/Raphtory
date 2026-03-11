@@ -27,10 +27,6 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn extension(&self) -> &Self::Extension;
 
-    fn increment_est_size(&self, delta: usize) {
-        self.extension().increment_estimated_size(delta);
-    }
-
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
 

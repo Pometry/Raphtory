@@ -114,10 +114,6 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn flush(&self) -> Result<(), StorageError>;
 
-    fn est_size(&self) -> usize;
-
-    fn increment_est_size(&self, size: usize);
-
     fn vacuum(
         &self,
         locked_head: impl DerefMut<Target = MemNodeSegment>,

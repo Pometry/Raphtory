@@ -20,14 +20,17 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
     pub page: &'a NS,
     pub mut_segment: MP,
     pub l_counter: &'a GraphStats,
+    pub old_est_size: usize,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
     pub fn new(page: &'a NS, global_num_nodes: &'a GraphStats, writer: MP) -> Self {
+        let old_est_size = writer.est_size();
         Self {
             page,
             mut_segment: writer,
             l_counter: global_num_nodes,
+            old_est_size,
         }
     }
 
@@ -72,7 +75,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         let e_id = e_id.into();
         let layer_id = e_id.layer();
         let (is_new_node, add) = self.mut_segment.add_outbound_edge(t, src_pos, dst, e_id);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
 
         if is_new_node && !self.page.has_node(src_pos, layer_id) {
             self.l_counter.increment(layer_id);
@@ -120,7 +123,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         let dst_pos = dst_pos.into();
         let (is_new_node, add) = self.mut_segment.add_inbound_edge(t, dst_pos, src, e_id);
 
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
 
         if is_new_node && !self.page.has_node(dst_pos, layer) {
             self.l_counter.increment(layer);
@@ -136,7 +139,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     ) {
         self.l_counter.update_time(t.t());
         let (is_new_node, add) = self.mut_segment.add_props(t, pos, layer_id, props);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
         if is_new_node && !self.page.has_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
@@ -158,7 +161,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
         if is_new_node && !self.page.has_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
@@ -171,7 +174,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID) {
         self.l_counter.update_time(t.t());
         let add = self.mut_segment.update_timestamp(t, pos, e_id);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
     }
 
     #[inline(always)]
@@ -243,6 +246,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
+        self.mut_segment
+            .increment_global_est_size(self.mut_segment.est_size() - self.old_est_size);
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");

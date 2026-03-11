@@ -214,7 +214,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
 {
     fn drop(&mut self) {
         let delta = self.writer.est_size() - self.old_estimated_size;
-        self.page.increment_est_size(delta);
+        self.writer.increment_global_memory(delta);
         if let Err(err) = self.page.notify_write(self.writer.deref_mut()) {
             eprintln!("Failed to persist {}, err: {}", self.segment_id(), err)
         }

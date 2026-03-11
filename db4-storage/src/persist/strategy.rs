@@ -9,7 +9,15 @@ use crate::{
     },
     wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
-use std::{fmt::Debug, ops::DerefMut, path::Path};
+use std::{
+    fmt::Debug,
+    ops::DerefMut,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
 pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
@@ -79,12 +87,11 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     fn disk_storage_enabled() -> bool;
 
     /// Estimated global memory used
-    fn estimated_size(&self) -> usize;
+    fn memory_tracker(&self) -> &Arc<AtomicUsize>;
 
-    /// Increment estimated global memory used
-    fn increment_estimated_size(&self, increment: usize);
-
-    fn decrement_estimated_size(&self, decrement: usize);
+    fn estimated_size(&self) -> usize {
+        self.memory_tracker().load(Ordering::Relaxed)
+    }
 
     /// Called by bulk loaders to decide if a global flush should be triggered
     fn should_flush(&self) -> bool;
@@ -93,6 +100,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 #[derive(Debug, Clone)]
 pub struct NoOpStrategy {
     config: BaseConfig,
+    memory_tracker: Arc<AtomicUsize>,
     wal: NoWal,
 }
 
@@ -104,7 +112,11 @@ impl PersistenceStrategy for NoOpStrategy {
     type Config = BaseConfig;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
-        Ok(Self { config, wal: NoWal })
+        Ok(Self {
+            config,
+            memory_tracker: Arc::new(AtomicUsize::new(0)),
+            wal: NoWal,
+        })
     }
 
     fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
@@ -170,13 +182,9 @@ impl PersistenceStrategy for NoOpStrategy {
         false
     }
 
-    fn estimated_size(&self) -> usize {
-        0
+    fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.memory_tracker
     }
-
-    fn increment_estimated_size(&self, _increment: usize) {}
-
-    fn decrement_estimated_size(&self, _decrement: usize) {}
 
     fn should_flush(&self) -> bool {
         false
