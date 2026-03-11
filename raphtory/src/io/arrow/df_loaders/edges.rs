@@ -387,13 +387,20 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             );
         });
 
-        if graph.core_graph().extension().should_flush() {
+        if graph.core_graph().extension().should_pause() {
             write_locked_graph
                 .edges
-                .attempt_flush(graph.core_graph().extension());
+                .attempt_flush(graph.core_graph().extension(), true);
             write_locked_graph
                 .nodes
-                .attempt_flush(graph.core_graph().extension());
+                .attempt_flush(graph.core_graph().extension(), true);
+        } else if graph.core_graph().extension().should_flush() {
+            write_locked_graph
+                .edges
+                .attempt_flush(graph.core_graph().extension(), false);
+            write_locked_graph
+                .nodes
+                .attempt_flush(graph.core_graph().extension(), false);
         }
 
         #[cfg(feature = "progress")]

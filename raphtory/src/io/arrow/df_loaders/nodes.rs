@@ -167,10 +167,14 @@ pub fn load_nodes_from_df<
                     Ok::<_, GraphError>(())
                 })?;
 
-            if graph.core_graph().extension().should_flush() {
+            if graph.core_graph().extension().should_pause() {
                 write_locked_graph
                     .nodes
-                    .attempt_flush(graph.core_graph().extension());
+                    .attempt_flush(graph.core_graph().extension(), true);
+            } else if graph.core_graph().extension().should_flush() {
+                write_locked_graph
+                    .nodes
+                    .attempt_flush(graph.core_graph().extension(), false);
             }
 
             #[cfg(feature = "progress")]
@@ -304,10 +308,14 @@ pub fn load_node_props_from_df<
             Ok::<_, GraphError>(())
         })?;
 
-        if graph.core_graph().extension().should_flush() {
+        if graph.core_graph().extension().should_pause() {
             write_locked_graph
                 .nodes
-                .attempt_flush(graph.core_graph().extension());
+                .attempt_flush(graph.core_graph().extension(), true);
+        } else if graph.core_graph().extension().should_flush() {
+            write_locked_graph
+                .nodes
+                .attempt_flush(graph.core_graph().extension(), false);
         }
 
         #[cfg(feature = "progress")]

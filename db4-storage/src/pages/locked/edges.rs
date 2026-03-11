@@ -137,9 +137,17 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         self.writers.is_empty()
     }
 
-    pub fn attempt_flush(&mut self, ext: &EXT) {
-        for LockedEdgePage { page, lock, .. } in &mut self.writers {
-            ext.attempt_flush_edge_segment(page, lock.deref_mut());
+    pub fn attempt_flush(&mut self, ext: &EXT, pause: bool) {
+        if pause {
+            self.writers
+                .par_iter_mut()
+                .for_each(|LockedEdgePage { page, lock, .. }| {
+                    ext.flush_edge_segment(page, lock.deref_mut(), true);
+                })
+        } else {
+            for LockedEdgePage { page, lock, .. } in &mut self.writers {
+                ext.flush_edge_segment(page, lock.deref_mut(), false);
+            }
         }
     }
 }

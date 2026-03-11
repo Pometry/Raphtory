@@ -129,9 +129,17 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         Ok(())
     }
 
-    pub fn attempt_flush(&mut self, ext: &EXT) {
-        for LockedNodePage { page, lock, .. } in &mut self.writers {
-            ext.attempt_flush_node_segment(page, lock.deref_mut());
+    pub fn attempt_flush(&mut self, ext: &EXT, pause: bool) {
+        if pause {
+            self.writers
+                .par_iter_mut()
+                .for_each(|LockedNodePage { page, lock, .. }| {
+                    ext.flush_node_segment(page, lock.deref_mut(), true);
+                })
+        } else {
+            for LockedNodePage { page, lock, .. } in &mut self.writers {
+                ext.flush_node_segment(page, lock.deref_mut(), false);
+            }
         }
     }
 }
