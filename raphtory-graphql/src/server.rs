@@ -156,6 +156,11 @@ impl GraphServer {
         })
     }
 
+    /// Returns the working directory for this server.
+    pub fn work_dir(&self) -> &Path {
+        &self.data.work_dir
+    }
+
     /// Turn off index for all graphs
     pub fn turn_off_index(mut self) -> Self {
         self.data.create_index = false;

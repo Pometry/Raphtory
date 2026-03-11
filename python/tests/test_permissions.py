@@ -127,10 +127,10 @@ def test_no_role_is_denied_when_policy_is_active():
         assert "Access denied" in response.json()["errors"][0]["message"]
 
 
-def test_no_policy_gives_full_access():
-    """Without permissions_store_path, all authenticated users see everything."""
+def test_empty_store_gives_full_access():
+    """With an empty permissions store (no roles configured), authenticated users see everything."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
+    with make_server(work_dir).start():
         gql(CREATE_JIRA)
 
         response = requests.post(

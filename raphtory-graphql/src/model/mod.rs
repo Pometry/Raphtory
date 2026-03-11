@@ -106,7 +106,7 @@ impl QueryRoot {
 
         let introspection_allowed = if let Some(policy) = &data.auth_policy {
             match policy.check_graph_access(role, path) {
-                Some(false) | None => {
+                Some(false) => {
                     let role_str = role.unwrap_or("<no role>");
                     warn!(
                         role = role_str,
@@ -118,6 +118,7 @@ impl QueryRoot {
                     )));
                 }
                 Some(true) => policy.check_graph_introspection(role, path),
+                None => true, // role not in store = no rules apply = full access
             }
         } else {
             true // no policy -> unrestricted
