@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use crate::{
     error::StorageError,
     wal::{LSN, ReplayRecord, WalOps},
@@ -11,16 +9,6 @@ use crate::{
 pub struct NoWal;
 
 impl WalOps for NoWal {
-    type Config = ();
-
-    fn new(_dir: Option<&Path>, _config: ()) -> Result<Self, StorageError> {
-        Ok(Self)
-    }
-
-    fn load(_dir: Option<&Path>, _config: ()) -> Result<Self, StorageError> {
-        Ok(Self)
-    }
-
     fn append(&self, _data: &[u8]) -> Result<LSN, StorageError> {
         Ok(0)
     }

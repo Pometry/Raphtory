@@ -4,7 +4,6 @@ use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
 };
-use std::path::Path;
 
 pub mod entry;
 pub mod no_wal;
@@ -14,17 +13,6 @@ pub type TransactionID = u64;
 
 /// Core Wal methods.
 pub trait WalOps {
-    type Config;
-
-    fn new(dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>
-    where
-        Self: Sized;
-
-    /// Loads an existing WAL file from the given directory in append mode.
-    fn load(dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>
-    where
-        Self: Sized;
-
     /// Appends data to the WAL and returns the assigned LSN.
     fn append(&self, data: &[u8]) -> Result<LSN, StorageError>;
 

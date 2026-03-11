@@ -6,6 +6,7 @@ pub const CONTROL_FILE_NAME: &str = "control.json";
 pub enum DBState {
     Running,
     Shutdown,
+    CrashRecovery,
 }
 
 pub trait ControlFileOps: Sized {
@@ -23,12 +24,6 @@ pub trait ControlFileOps: Sized {
 }
 
 pub struct NoControlFile;
-
-impl NoControlFile {
-    pub fn new() -> Self {
-        NoControlFile
-    }
-}
 
 impl ControlFileOps for NoControlFile {
     fn load_from_dir(_dir: &Path) -> Result<Self, StorageError> {
