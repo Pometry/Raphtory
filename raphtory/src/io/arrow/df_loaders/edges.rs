@@ -532,6 +532,7 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, i64, usize, &'a usize, bool, bool)>,
     delete: bool,
 ) {
+    let mut writer = shard.writer();
     for (
         src,
         dst,
@@ -543,7 +544,7 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
         edge_exists_in_static_graph,
     ) in zip
     {
-        let mut writer = shard.writer();
+        
         if let Some(dst_pos) = writer.resolve_pos(*dst) {
             let t = EventTime(time, secondary_index);
 
