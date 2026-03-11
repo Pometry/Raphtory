@@ -1,7 +1,9 @@
-use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+use crate::{
     durability_ops::DurabilityOps,
-    MutationError, NodeWriterT,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+        MutationError, NodeWriterT,
+    },
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{

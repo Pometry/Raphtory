@@ -13,8 +13,8 @@ use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTi
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps},
     deletion_ops::InternalDeletionOps,
-    durability_ops::DurabilityOps,
 };
+use raphtory_storage::durability_ops::DurabilityOps;
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait DeletionOps:

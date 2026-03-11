@@ -19,13 +19,13 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
+    durability_ops::DurabilityOps,
     graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         deletion_ops::InternalDeletionOps,
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
@@ -36,6 +36,7 @@ use std::{
     sync::Arc,
 };
 use storage::wal::{GraphWalOps, WalOps, LSN};
+use storage::persist::control_file::{ControlFileOps, DBState};
 
 #[cfg(feature = "search")]
 use {

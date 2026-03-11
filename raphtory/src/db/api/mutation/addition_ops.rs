@@ -18,9 +18,9 @@ use raphtory_api::core::{
 };
 use raphtory_storage::mutation::{
     addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
-    durability_ops::DurabilityOps,
     MutationError,
 };
+use raphtory_storage::durability_ops::DurabilityOps;
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {
