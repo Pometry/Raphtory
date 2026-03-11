@@ -1,8 +1,7 @@
 use std::path::Path;
 use crate::{error::StorageError, wal::LSN};
 
-pub const CONTROL_FILE_NAME: &str = "control.json";
-
+#[derive(Debug)]
 pub enum DBState {
     Running,
     Shutdown,
@@ -23,6 +22,7 @@ pub trait ControlFileOps: Sized {
     fn set_last_checkpoint(&self, lsn: LSN) -> Result<(), StorageError>;
 }
 
+#[derive(Debug, Clone)]
 pub struct NoControlFile;
 
 impl ControlFileOps for NoControlFile {

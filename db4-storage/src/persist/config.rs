@@ -9,7 +9,8 @@ use tracing::error;
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
-pub const CONFIG_FILE_NAME: &str = "config.json";
+
+const CONFIG_FILE_NAME: &str = "config.json";
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn max_node_page_len(&self) -> u32;

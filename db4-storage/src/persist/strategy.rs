@@ -1,13 +1,13 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    persist::config::{BaseConfig, ConfigOps},
+    persist::{config::{BaseConfig, ConfigOps}, control_file::NoControlFile},
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
-        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
+        graph_prop::{segment::MemGraphPropSegment, GraphPropSegmentView},
         node::segment::{MemNodeSegment, NodeSegmentView},
     },
-    wal::{GraphWalOps, WalOps, no_wal::NoWal},
+    wal::{no_wal::NoWal, GraphWalOps, WalOps},
 };
 use std::{fmt::Debug, ops::DerefMut, path::Path};
 
@@ -63,6 +63,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 pub struct NoOpStrategy {
     config: BaseConfig,
     wal: NoWal,
+    control_file: NoControlFile,
 }
 
 impl PersistenceStrategy for NoOpStrategy {
@@ -73,7 +74,7 @@ impl PersistenceStrategy for NoOpStrategy {
     type Config = BaseConfig;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
-        Ok(Self { config, wal: NoWal })
+        Ok(Self { config, wal: NoWal, control_file: NoControlFile })
     }
 
     fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
