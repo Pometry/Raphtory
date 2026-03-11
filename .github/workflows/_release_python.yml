@@ -105,16 +105,11 @@ jobs:
 
             rustup toolchain install 1.91.0 --no-self-update
             rustup default 1.91.0
-            rustup override set 1.91.0
-            echo ">>>>>>>>>>>> printing rust version used:"
-            rustc --version
-            cargo --version
 
             PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
               echo "Running on aarch64 architecture"
-              rustup override set stable-msvc
               FILE="protoc-27.2-linux-aarch_64.zip"
             else
               FILE="protoc-27.2-linux-x86_64.zip"
@@ -125,6 +120,11 @@ jobs:
             unzip -o $FILE -d /usr/local
             rm $FILE
             ln -s /usr/local/bin/protoc /usr/bin/protoc
+
+            rustup override set 1.91.0
+            echo ">>>>>>>>>>>> printing rust version used:"
+            rustc --version
+            cargo --version
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
         with:
