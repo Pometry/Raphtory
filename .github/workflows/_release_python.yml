@@ -107,6 +107,9 @@ jobs:
               exit 1
             fi
 
+            rustup toolchain install $RUST_VERSION --no-self-update
+            rustup default $RUST_VERSION
+
             PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
