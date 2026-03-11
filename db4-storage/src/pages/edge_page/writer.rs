@@ -1,9 +1,13 @@
 use crate::{
-    LocalPOS, api::edges::EdgeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::edge::segment::MemEdgeSegment, wal::LSN,
+    LocalPOS,
+    api::edges::EdgeSegmentOps,
+    error::StorageError,
+    pages::{layer_counter::GraphStats, resolve_pos},
+    segments::edge::segment::MemEdgeSegment,
+    wal::LSN,
 };
 use raphtory_api::core::entities::{
-    VID,
+    EID, VID,
     properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
 };
 use raphtory_core::storage::timeindex::{AsTime, EventTime};
@@ -206,6 +210,17 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         }
         self.writer
             .update_const_properties(edge_pos, src, dst, layer_id, props);
+    }
+
+    #[inline(always)]
+    pub fn resolve_pos(&self, edge_id: EID) -> Option<LocalPOS> {
+        let (page, pos) = resolve_pos(edge_id, self.writer.max_page_len());
+
+        if page == self.page.segment_id() {
+            Some(pos)
+        } else {
+            None
+        }
     }
 }
 

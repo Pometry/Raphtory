@@ -498,7 +498,7 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     let mut writer = shard.writer();
 
     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
-        if let Some(eid_pos) = shard.resolve_pos(*eid) {
+        if let Some(eid_pos) = writer.resolve_pos(*eid) {
             let t = EventTime(time, secondary_index);
 
             t_props.clear();
@@ -544,7 +544,7 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     ) in zip
     {
         let mut writer = shard.writer();
-        if let Some(dst_pos) = shard.resolve_pos(*dst) {
+        if let Some(dst_pos) = writer.resolve_pos(*dst) {
             let t = EventTime(time, secondary_index);
 
             if !edge_exists_in_static_graph {
@@ -590,7 +590,7 @@ fn add_and_resolve_outbound_edges<
 ) {
     let mut writer = locked_page.writer();
     for (row, (src, dst, time, secondary_index, layer)) in zip.enumerate() {
-        if let Some(src_pos) = locked_page.resolve_pos(*src) {
+        if let Some(src_pos) = writer.resolve_pos(*src) {
             let t = EventTime(time, secondary_index);
             // find the original EID in the static graph if it exists
             // otherwise create a new one
@@ -640,7 +640,7 @@ pub fn store_node_ids<K: Eq + std::hash::Hash, NS: NodeSegmentOps<Extension = Ex
     for entry in gid_str_cache.iter() {
         let (src_gid, vid) = entry.value();
 
-        if let Some(src_pos) = locked_page.resolve_pos(vid.inner()) {
+        if let Some(src_pos) = writer.resolve_pos(vid.inner()) {
             writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_gid.clone());
         }
     }

@@ -1,6 +1,10 @@
 use crate::{
-    LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::node::segment::MemNodeSegment, wal::LSN,
+    LocalPOS,
+    api::nodes::NodeSegmentOps,
+    error::StorageError,
+    pages::{layer_counter::GraphStats, resolve_pos},
+    segments::node::segment::MemNodeSegment,
+    wal::LSN,
 };
 use raphtory_api::core::entities::{
     EID, GID, VID,
@@ -31,6 +35,17 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             mut_segment: writer,
             l_counter: global_num_nodes,
             old_est_size,
+        }
+    }
+
+    #[inline(always)]
+    pub fn resolve_pos(&self, node_id: VID) -> Option<LocalPOS> {
+        let (page, pos) = resolve_pos(node_id, self.mut_segment.max_page_len());
+
+        if page == self.mut_segment.segment_id() {
+            Some(pos)
+        } else {
+            None
         }
     }
 
