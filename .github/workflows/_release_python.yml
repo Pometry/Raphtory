@@ -105,6 +105,10 @@ jobs:
 
             rustup toolchain install 1.91.0 --no-self-update
             rustup default 1.91.0
+            rustup override set 1.91.0
+            echo ">>>>>>>>>>>> printing rust version used:"
+            rustc --version
+            cargo --version
 
             PB_REL="https://github.com/protocolbuffers/protobuf/releases"
             ARCH=$(uname -m)
