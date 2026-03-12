@@ -10,11 +10,13 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps},
-    deletion_ops::InternalDeletionOps,
+use raphtory_storage::{
+    durability_ops::DurabilityOps,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps},
+        deletion_ops::InternalDeletionOps,
+    },
 };
-use raphtory_storage::durability_ops::DurabilityOps;
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait DeletionOps:

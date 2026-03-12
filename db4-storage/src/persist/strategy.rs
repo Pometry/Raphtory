@@ -1,13 +1,16 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    persist::{config::{BaseConfig, ConfigOps}, control_file::{ControlFileOps, NoControlFile}},
+    persist::{
+        config::{BaseConfig, ConfigOps},
+        control_file::{ControlFileOps, NoControlFile},
+    },
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
-        graph_prop::{segment::MemGraphPropSegment, GraphPropSegmentView},
+        graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
     },
-    wal::{no_wal::NoWal, GraphWalOps, WalOps},
+    wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
 use std::{fmt::Debug, ops::DerefMut, path::Path};
 
@@ -78,7 +81,11 @@ impl PersistenceStrategy for NoOpStrategy {
     type ControlFile = NoControlFile;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
-        Ok(Self { config, wal: NoWal, control_file: NoControlFile })
+        Ok(Self {
+            config,
+            wal: NoWal,
+            control_file: NoControlFile,
+        })
     }
 
     fn load(_graph_dir: &Path) -> Result<Self, StorageError> {

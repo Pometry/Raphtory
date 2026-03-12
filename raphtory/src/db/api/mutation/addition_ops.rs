@@ -16,11 +16,13 @@ use raphtory_api::core::{
     },
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
-    MutationError,
+use raphtory_storage::{
+    durability_ops::DurabilityOps,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
+        MutationError,
+    },
 };
-use raphtory_storage::durability_ops::DurabilityOps;
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<GraphError>> {

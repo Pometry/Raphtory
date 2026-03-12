@@ -19,7 +19,6 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    durability_ops::DurabilityOps,
     graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::{
@@ -29,14 +28,17 @@ use raphtory_storage::{
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
+    recovery_ops::RecoveryOps,
 };
 use std::{
     fmt::{Display, Formatter},
     path::Path,
     sync::Arc,
 };
-use storage::wal::{GraphWalOps, WalOps, LSN};
-use storage::persist::control_file::{ControlFileOps, DBState};
+use storage::{
+    persist::control_file::{ControlFileOps, DBState},
+    wal::{GraphWalOps, WalOps, LSN},
+};
 
 #[cfg(feature = "search")]
 use {
@@ -141,14 +143,8 @@ impl Storage {
 
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
         let temporal_graph = TemporalGraph::load(path, ext)?;
-        let wal = temporal_graph.wal()?;
-        let control_file = temporal_graph.control_file()?;
 
-        // Replay any pending writes from the WAL.
-        if wal.has_entries()? {
-            let mut write_locked_graph = temporal_graph.write_lock()?;
-            wal.replay_to_graph(&mut write_locked_graph)?;
-        }
+        temporal_graph.run_recovery()?;
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
@@ -160,12 +156,14 @@ impl Storage {
     pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load(path)?;
+
         Self::load_with_extension(path, ext)
     }
 
     pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load_with_config(path, config)?;
+
         Self::load_with_extension(path, ext)
     }
 
