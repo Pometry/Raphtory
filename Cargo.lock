@@ -450,23 +450,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-convert"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d416feee97712e43152cd42874de162b8f9b77295b1c85e5d92725cc8310bae"
-dependencies = [
- "async-trait",
-]
-
-[[package]]
 name = "async-graphql"
-version = "7.1.0"
+version = "7.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31b75c5a43a58890d6dcc02d03952456570671332bb0a5a947b1f09c699912a5"
+checksum = "1057a9f7ccf2404d94571dec3451ade1cb524790df6f1ada0d19c2a49f6b0f40"
 dependencies = [
  "async-graphql-derive",
  "async-graphql-parser",
  "async-graphql-value",
+ "async-io",
  "async-trait",
  "asynk-strim",
  "base64 0.22.1",
@@ -474,7 +466,6 @@ dependencies = [
  "chrono",
  "fast_chemail",
  "fnv",
- "futures-timer",
  "futures-util",
  "handlebars",
  "http 1.4.0",
@@ -494,9 +485,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-derive"
-version = "7.1.0"
+version = "7.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c266ec9a094bbf2d088e016f71aa8d3be7f18c7343b2f0fe6d0e6c1e78977ea"
+checksum = "2e6cbeadc8515e66450fba0985ce722192e28443697799988265d86304d7cc68"
 dependencies = [
  "Inflector",
  "async-graphql-parser",
@@ -511,9 +502,9 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-parser"
-version = "7.1.0"
+version = "7.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67e2188d3f1299087aa02cfb281f12414905ce63f425dbcfe7b589773468d771"
+checksum = "e64ef70f77a1c689111e52076da1cd18f91834bcb847de0a9171f83624b07fbf"
 dependencies = [
  "async-graphql-value",
  "pest",
@@ -540,14 +531,32 @@ dependencies = [
 
 [[package]]
 name = "async-graphql-value"
-version = "7.1.0"
+version = "7.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "527a4c6022fc4dac57b4f03f12395e9a391512e85ba98230b93315f8f45f27fc"
+checksum = "3e3ef112905abea9dea592fc868a6873b10ebd3f983e83308f995d6284e9ba41"
 dependencies = [
  "bytes",
  "indexmap 2.13.0",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "async-io"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "456b8a8feb6f42d237746d4b3e9a178494627745c3c56c6ea55d92ba50d026fc"
+dependencies = [
+ "autocfg",
+ "cfg-if",
+ "concurrent-queue",
+ "futures-io",
+ "futures-lite",
+ "parking",
+ "polling",
+ "rustix 1.1.3",
+ "slab",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -563,11 +572,11 @@ dependencies = [
 
 [[package]]
 name = "async-openai"
-version = "0.26.0"
+version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d226540b4ecf884b0fb4370008631ccbd9605cf82f98bb504ec8f2cee0810e8"
+checksum = "4df839a6643e1e3248733b01f229dc4f462d7256f808bbaf04cac40739b345c2"
 dependencies = [
- "async-convert",
+ "async-openai-macros",
  "backoff",
  "base64 0.22.1",
  "bytes",
@@ -580,11 +589,22 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "tokio",
  "tokio-stream",
  "tokio-util",
  "tracing",
+]
+
+[[package]]
+name = "async-openai-macros"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81872a8e595e8ceceab71c6ba1f9078e313b452a1e31934e6763ef5d308705e4"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.114",
 ]
 
 [[package]]
@@ -3227,6 +3247,16 @@ name = "futures-io"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e5c1b78ca4aae1ac06c48a526a655760685149f0d465d21f37abfe57ce075c6"
+
+[[package]]
+name = "futures-lite"
+version = "2.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f78e10609fe0e0b3f4157ffab1876319b5b0db102a2c60dc4626306dc46b44ad"
+dependencies = [
+ "futures-core",
+ "pin-project-lite",
+]
 
 [[package]]
 name = "futures-macro"
@@ -6140,6 +6170,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "polling"
+version = "3.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5d0e4f59085d47d8241c88ead0f274e8a0cb551f3625263c05eb8dd897c34218"
+dependencies = [
+ "cfg-if",
+ "concurrent-queue",
+ "hermit-abi",
+ "pin-project-lite",
+ "rustix 1.1.3",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "pometry-storage"
 version = "0.17.0"
 
@@ -7578,9 +7622,9 @@ dependencies = [
 
 [[package]]
 name = "secrecy"
-version = "0.8.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bd1c54ea06cfd2f6b63219704de0b9b4f72dcc2b8fdef820be6cd799780e91e"
+checksum = "e891af845473308773346dc847b2c23ee78fe442e0472ac50e22a18a93d3ae5a"
 dependencies = [
  "serde",
  "zeroize",
