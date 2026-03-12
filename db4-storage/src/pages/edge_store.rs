@@ -26,9 +26,8 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
-use std::sync::LazyLock;
 
 pub static N: LazyLock<usize> =
     LazyLock::new(|| std::thread::available_parallelism().unwrap().get());

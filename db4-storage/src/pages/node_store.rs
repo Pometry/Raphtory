@@ -19,12 +19,11 @@ use raphtory_core::{
     storage::timeindex::AsTime,
 };
 use rayon::prelude::*;
-use std::sync::LazyLock;
 use std::{
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, atomic::AtomicU32},
+    sync::{Arc, LazyLock, atomic::AtomicU32},
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks

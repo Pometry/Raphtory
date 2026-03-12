@@ -247,6 +247,9 @@ impl DFChunk {
     }
 
     pub fn size(&self) -> usize {
-        self.chunk.iter().map(|arr| arr.get_array_memory_size()).sum()
+        self.chunk
+            .iter()
+            .map(|arr| arr.get_array_memory_size())
+            .sum()
     }
 }

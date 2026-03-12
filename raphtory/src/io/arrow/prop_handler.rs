@@ -15,14 +15,16 @@ use arrow::{
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc};
-use raphtory_api::core::{
-    entities::properties::prop::{data_type_as_prop_type, IntoPropList, PropArray, PropType},
-    storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+use raphtory_api::{
+    core::{
+        entities::properties::prop::{data_type_as_prop_type, IntoPropList, PropArray, PropType},
+        storage::{arc_str::ArcStr, dict_mapper::MaybeNew},
+    },
+    iter::IntoDynBoxed,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
-use raphtory_api::iter::IntoDynBoxed;
 
 pub struct PropCols {
     prop_ids: Vec<usize>,
@@ -39,7 +41,12 @@ impl PropCols {
     }
 
     pub fn rows_iter(&self) -> impl Iterator<Item = Vec<(usize, Prop)>> + '_ {
-        let mut iters = self.cols.iter().enumerate().map(|(prop_id, col)| (prop_id, col.iter())).collect::<Vec<_>>();
+        let mut iters = self
+            .cols
+            .iter()
+            .enumerate()
+            .map(|(prop_id, col)| (prop_id, col.iter()))
+            .collect::<Vec<_>>();
         std::iter::from_fn(move || {
             let mut row = Vec::new();
             for (prop_id, iter) in iters.iter_mut() {
@@ -270,7 +277,9 @@ pub(crate) trait PropCol: Send + Sync {
     fn as_array(&self) -> ArrayRef;
 
     fn iter(&self) -> Box<dyn Iterator<Item = Option<Prop>> + '_> {
-        (0..self.as_array().len()).map(move |i| self.get(i)).into_dyn_boxed()
+        (0..self.as_array().len())
+            .map(move |i| self.get(i))
+            .into_dyn_boxed()
     }
 }
 
@@ -286,7 +295,7 @@ impl PropCol for BooleanArray {
         Arc::new(self.clone())
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item=Option<Prop>> + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = Option<Prop>> + '_> {
         self.iter().map(|opt| opt.map(Prop::Bool)).into_dyn_boxed()
     }
 }
@@ -307,10 +316,11 @@ where
         Arc::new(self.clone())
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item=Option<Prop>> + '_> {
-        self.iter().map(|opt| opt.map(|v| v.into())).into_dyn_boxed()
+    fn iter(&self) -> Box<dyn Iterator<Item = Option<Prop>> + '_> {
+        self.iter()
+            .map(|opt| opt.map(|v| v.into()))
+            .into_dyn_boxed()
     }
-
 }
 
 impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
@@ -325,7 +335,7 @@ impl<I: OffsetSizeTrait> PropCol for GenericStringArray<I> {
         Arc::new(self.clone())
     }
 
-    fn iter(&self) -> Box<dyn Iterator<Item=Option<Prop>> + '_> {
+    fn iter(&self) -> Box<dyn Iterator<Item = Option<Prop>> + '_> {
         self.iter().map(|opt| opt.map(Prop::str)).into_dyn_boxed()
     }
 }

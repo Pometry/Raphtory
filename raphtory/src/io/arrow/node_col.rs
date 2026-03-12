@@ -268,7 +268,8 @@ impl NodeCol {
         } else if let Some(arr) = self.0.as_any().downcast_ref::<Int64Array>() {
             Iter4::L(
                 arr.iter()
-                    .filter_map(|item| Some(GidRef::U64(item? as u64))).into_dyn_boxed(),
+                    .filter_map(|item| Some(GidRef::U64(item? as u64)))
+                    .into_dyn_boxed(),
             )
         } else {
             unreachable!("Unsupported node column")
