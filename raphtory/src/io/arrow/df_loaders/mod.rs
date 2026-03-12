@@ -19,14 +19,29 @@ use raphtory_api::core::{
 use raphtory_core::entities::{GidRef, VID};
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
+use std::sync::LazyLock;
 use std::{
     collections::HashMap,
     sync::atomic::{AtomicUsize, Ordering},
 };
+use sysinfo::{MemoryRefreshKind, RefreshKind};
 
 pub mod edge_props;
 pub mod edges;
 pub mod nodes;
+
+pub const SYS_MEMORY: LazyLock<usize> = LazyLock::new(|| {
+    let mut sys = sysinfo::System::new_with_specifics(
+        RefreshKind::default().with_memory(MemoryRefreshKind::everything()),
+    );
+    sys.refresh_memory();
+    sys.total_memory() as usize
+});
+
+pub(crate) fn flush_at() -> usize {
+    *SYS_MEMORY / 4
+}
+
 #[cfg(feature = "progress")]
 fn build_progress_bar(des: String, num_rows: Option<usize>) -> Result<Bar, GraphError> {
     if let Some(num_rows) = num_rows {

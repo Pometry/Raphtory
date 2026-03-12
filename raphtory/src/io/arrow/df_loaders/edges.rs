@@ -1,5 +1,6 @@
 #[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
+use crate::io::arrow::df_loaders::flush_at;
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
@@ -389,22 +390,17 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             });
         }
 
-        if let Some(flush_after_mb) = std::env::var("RAPHTORY_LOAD_FLUSH_AFTER_MB")
-            .ok()
-            .and_then(|s| s.parse::<usize>().ok())
-        {
-            let flush_after_bytes = flush_after_mb * 1024 * 1024;
-            if total_size >= flush_after_bytes {
-                println!("Flushing at size {total_size}");
-                graph.flush().map_err(into_graph_err)?;
-                total_size = 0;
-            }
+        let flush_after_bytes = flush_at();
+        if total_size >= flush_after_bytes {
+            graph.flush().map_err(into_graph_err)?;
+            total_size = 0;
         }
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
         total_size += df.size();
     }
+    graph.flush().map_err(into_graph_err)?;
     Ok::<_, GraphError>(())
 }
 

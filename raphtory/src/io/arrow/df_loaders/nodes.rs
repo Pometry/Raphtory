@@ -34,6 +34,7 @@ use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, 
 
 #[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
+use crate::io::arrow::df_loaders::flush_at;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
 
@@ -88,6 +89,7 @@ pub fn load_nodes_from_df<
 
         let mut node_col_resolved = vec![];
 
+        let mut total_size = 0;
         for chunk in df_view.chunks {
             let df = chunk?;
             let prop_cols =
@@ -164,11 +166,20 @@ pub fn load_nodes_from_df<
                     Ok::<_, GraphError>(())
                 })?;
 
+            let flush_after_bytes = flush_at();
+            if total_size >= flush_after_bytes {
+                graph.flush().map_err(into_graph_err)?;
+                total_size = 0;
+            }
+
             #[cfg(feature = "progress")]
             let _ = pb.update(df.len());
+            total_size += df.size();
         }
         Ok::<_, GraphError>(())
     })?;
+
+    graph.flush().map_err(into_graph_err)?;
 
     Ok(())
 }
@@ -223,6 +234,7 @@ pub fn load_node_props_from_df<
     let mut node_col_resolved = vec![];
     let mut node_type_resolved = vec![];
 
+    let mut total_size = 0;
     for chunk in df_view.chunks {
         let df = chunk?;
         if df.is_empty() {
@@ -295,9 +307,17 @@ pub fn load_node_props_from_df<
             Ok::<_, GraphError>(())
         })?;
 
+        let flush_after_bytes = flush_at();
+        if total_size >= flush_after_bytes {
+            graph.flush().map_err(into_graph_err)?;
+            total_size = 0;
+        }
+
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
+        total_size += df.size();
     }
+    graph.flush().map_err(into_graph_err)?;
     Ok(())
 }
 

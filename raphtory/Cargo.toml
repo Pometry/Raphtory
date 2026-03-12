@@ -42,6 +42,7 @@ ordered-float = { workspace = true }
 glam = { workspace = true }
 quad-rand = { workspace = true }
 serde_json = { workspace = true }
+sysinfo.workspace = true
 ouroboros = { workspace = true }
 either = { workspace = true }
 bytemuck = { workspace = true }

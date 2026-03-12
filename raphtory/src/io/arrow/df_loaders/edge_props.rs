@@ -35,6 +35,7 @@ use storage::{
     pages::locked::{edges::LockedEdgePage, nodes::LockedNodePage},
     Extension,
 };
+use crate::io::arrow::df_loaders::flush_at;
 
 #[allow(clippy::too_many_arguments)]
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
@@ -75,13 +76,14 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .map_err(into_graph_err)
     })?;
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading edges metadata".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved: Vec<VID> = vec![];
     let mut dst_col_resolved: Vec<VID> = vec![];
     let mut eid_col_resolved: Vec<EID> = vec![];
 
+    let mut total_size = 0;
     for chunk in df_view.chunks {
         let df = chunk?;
         let metadata_cols =
@@ -155,9 +157,17 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             update_edge_metadata(&shared_metadata, &metadata_cols, shard, zip);
         });
 
-        #[cfg(feature = "python")]
+        let flush_after_bytes = flush_at();
+        if total_size >= flush_after_bytes {
+            graph.flush().map_err(into_graph_err)?;
+            total_size = 0;
+        }
+
+        #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
+        total_size += df.size();
     }
+    graph.flush().map_err(into_graph_err)?;
     Ok::<_, GraphError>(())
 }
 
