@@ -544,7 +544,6 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
         edge_exists_in_static_graph,
     ) in zip
     {
-        
         if let Some(dst_pos) = writer.resolve_pos(*dst) {
             let t = EventTime(time, secondary_index);
 
