@@ -387,7 +387,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             );
         });
 
-        if graph.core_graph().extension().should_pause() {
+        if graph.core_graph().extension().should_flush() {
             println!(
                 "triggered global pause at size {}",
                 graph.core_graph().extension().estimated_size()
@@ -402,18 +402,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                 "estimated size after completed flush {}",
                 graph.core_graph().extension().estimated_size()
             );
-        } else if graph.core_graph().extension().should_flush() {
-            println!(
-                "triggered flush at size {}",
-                graph.core_graph().extension().estimated_size()
-            );
-            write_locked_graph
-                .edges
-                .attempt_flush(graph.core_graph().extension(), false);
-            write_locked_graph
-                .nodes
-                .attempt_flush(graph.core_graph().extension(), false);
-        }
+        } 
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
