@@ -105,6 +105,18 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
+    fn read_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
+        Err(StorageError::GenericFailure(
+            "read_checkpoint is not supported for NoWAL".to_string(),
+        ))
+    }
+
+    fn read_shutdown_checkpoint(&self, _lsn: LSN) -> Result<LSN, StorageError> {
+        Err(StorageError::GenericFailure(
+            "read_shutdown_checkpoint is not supported for NoWAL".to_string(),
+        ))
+    }
+
     fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
         std::iter::empty()
     }

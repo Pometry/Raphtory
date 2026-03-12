@@ -24,12 +24,12 @@ pub trait WalOps {
     /// All records with LSN > `cutoff_lsn` are copied to the new WAL file.
     fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
 
-    /// Returns an iterator over the entries in the wal.
-    fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
-
     /// Reads the WAL record at the given LSN.
     /// Returns `Ok(None)` if there is no record at that LSN.
     fn read(&self, lsn: LSN) -> Result<Option<ReplayRecord>, StorageError>;
+
+    /// Returns an iterator over the entries in the wal.
+    fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
     /// Returns the LSN that will be assigned to the next appended record.
     fn next_lsn(&self) -> LSN;
@@ -59,6 +59,11 @@ impl ReplayRecord {
 
     pub fn lsn(&self) -> LSN {
         self.lsn
+    }
+
+    /// Returns the LSN immediately following this record in the WAL stream.
+    pub fn next_lsn(&self) -> LSN {
+        self.lsn + self.raw_bytes.len() as LSN
     }
 
     pub fn data(&self) -> &[u8] {
@@ -153,11 +158,18 @@ pub trait GraphWalOps {
     /// Set `is_shutdown` to true on a clean shutdown to differentiate from periodic checkpoints.
     fn log_checkpoint(&self, redo: LSN, is_shutdown: bool) -> Result<LSN, StorageError>;
 
+    /// Reads and decodes the WAL entry at the given LSN and validates that it is a checkpoint.
+    /// Returns the checkpoint redo LSN, denoting where replay should start from.
+    fn read_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+
+    /// Reads and decodes the WAL entry at the given LSN and validates that it is a shutdown checkpoint.
+    /// Returns the LSN immediately after this record which marks the end of the WAL stream.
+    fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+
     /// Returns an iterator over the entries in the wal.
     fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
 
     /// Replays and applies all the entries in the wal to the given graph.
-    /// Subsequent appends to the WAL will start from the LSN of the last replayed entry.
     fn replay_to_graph<G: GraphReplay>(&self, graph: &mut G) -> Result<(), StorageError>;
 }
 

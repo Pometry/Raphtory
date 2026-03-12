@@ -1,4 +1,5 @@
 use storage::persist::control_file::{ControlFileOps, DBState};
+use storage::wal::{GraphWalOps, WalOps};
 
 use crate::{
     durability_ops::DurabilityOps,
@@ -14,9 +15,12 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
         match control_file.db_state() {
             DBState::Shutdown => {
                 let checkpoint_lsn = control_file.last_checkpoint();
-                // let (record, next_lsn) = wal.read(checkpoint_lsn)?;
-                // Make sure record is Checkpoint and record.is_shutdown() is true.
-                // wal.set_next_lsn(next_lsn);
+                let end_of_wal_lsn = wal.read_shutdown_checkpoint(checkpoint_lsn)?;
+
+                // LSN after the shutdown checkpoint points to the end of WAL stream.
+                // Set this as the next LSN for future writes.
+                wal.set_next_lsn(end_of_wal_lsn);
+
                 return Ok(());
             }
             DBState::Running | DBState::CrashRecovery => {
