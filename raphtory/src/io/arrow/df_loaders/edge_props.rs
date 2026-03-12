@@ -156,22 +156,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             update_edge_metadata(&shared_metadata, &metadata_cols, shard, zip);
         });
 
-        if graph.core_graph().extension().should_pause() {
-            write_locked_graph
-                .edges
-                .attempt_flush(graph.core_graph().extension(), true);
-            write_locked_graph
-                .nodes
-                .attempt_flush(graph.core_graph().extension(), true);
-        } else if graph.core_graph().extension().should_flush() {
-            write_locked_graph
-                .edges
-                .attempt_flush(graph.core_graph().extension(), false);
-            write_locked_graph
-                .nodes
-                .attempt_flush(graph.core_graph().extension(), false);
-        }
-
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
@@ -233,9 +217,9 @@ fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>
     locked_page: &mut LockedNodePage<'_, NS>,
     zip: impl Iterator<Item = (&'a VID, &'a VID)>,
 ) -> Result<(), LoadError> {
+    let writer = locked_page.writer();
     for (row, (src, dst)) in zip.enumerate() {
-        if let Some(src_pos) = locked_page.resolve_pos(*src) {
-            let writer = locked_page.writer();
+        if let Some(src_pos) = writer.resolve_pos(*src) {
             // find the original EID in the static graph if it exists
             // otherwise create a new one
             if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
@@ -256,10 +240,9 @@ fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
     let mut c_props: Vec<(usize, Prop)> = Vec::new();
+    let mut writer = shard.writer();
     for (row, (src, dst, eid, layer)) in zip.enumerate() {
-        if let Some(eid_pos) = shard.resolve_pos(*eid) {
-            let mut writer = shard.writer();
-
+        if let Some(eid_pos) = writer.resolve_pos(*eid) {
             c_props.clear();
             c_props.extend(metadata_cols.iter_row(row));
             c_props.extend_from_slice(shared_metadata);

@@ -145,10 +145,10 @@ pub fn load_nodes_from_df<
                     if resolve_nodes {
                         store_node_ids_and_type(&gid_str_cache, shard);
                     }
+                    let mut writer = shard.writer();
 
                     for (row, (vid, time, secondary_index)) in zip.enumerate() {
-                        if let Some(mut_node) = shard.resolve_pos(*vid) {
-                            let mut writer = shard.writer();
+                        if let Some(mut_node) = writer.resolve_pos(*vid) {
                             let t = EventTime(time, secondary_index);
                             let layer_id = STATIC_GRAPH_LAYER_ID;
 
@@ -166,16 +166,6 @@ pub fn load_nodes_from_df<
 
                     Ok::<_, GraphError>(())
                 })?;
-
-            if graph.core_graph().extension().should_pause() {
-                write_locked_graph
-                    .nodes
-                    .attempt_flush(graph.core_graph().extension(), true);
-            } else if graph.core_graph().extension().should_flush() {
-                write_locked_graph
-                    .nodes
-                    .attempt_flush(graph.core_graph().extension(), false);
-            }
 
             #[cfg(feature = "progress")]
             let _ = pb.update(df.len());
@@ -275,14 +265,14 @@ pub fn load_node_props_from_df<
         write_locked_graph.nodes.iter_mut().try_for_each(|shard| {
             let mut c_props = vec![];
 
+            let mut writer = shard.writer();
             for (idx, ((vid, node_type), gid)) in node_col_resolved
                 .iter()
                 .zip(node_type_col_resolved.iter())
                 .zip(node_col.iter())
                 .enumerate()
             {
-                if let Some(mut_node) = shard.resolve_pos(*vid) {
-                    let mut writer = shard.writer();
+                if let Some(mut_node) = writer.resolve_pos(*vid) {
                     writer.store_node_id_and_node_type(
                         mut_node,
                         STATIC_GRAPH_LAYER_ID,
@@ -307,16 +297,6 @@ pub fn load_node_props_from_df<
 
             Ok::<_, GraphError>(())
         })?;
-
-        if graph.core_graph().extension().should_pause() {
-            write_locked_graph
-                .nodes
-                .attempt_flush(graph.core_graph().extension(), true);
-        } else if graph.core_graph().extension().should_flush() {
-            write_locked_graph
-                .nodes
-                .attempt_flush(graph.core_graph().extension(), false);
-        }
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());

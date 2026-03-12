@@ -42,31 +42,11 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn wal(&self) -> &Self::Wal;
 
-    /// Used by bulk loaders to trigger a flush of all segments
-    /// (ignores memory limits and always triggers a flush if it is not already in progress)
-    fn flush_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
-        &self,
-        ns: &Self::NS,
-        writer: MP,
-        pause: bool,
-    ) where
-        Self: Sized;
-
     /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_segment: &Self::NS,
         writer: MP,
-    ) where
-        Self: Sized;
-
-    /// Used by bulk loaders to trigger a flush of all segments
-    /// (ignores memory limits and always triggers a flush if it is not already in progress)
-    fn flush_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
-        &self,
-        edge_page: &Self::ES,
-        writer: MP,
-        pause: bool,
     ) where
         Self: Sized;
 
@@ -138,32 +118,11 @@ impl PersistenceStrategy for NoOpStrategy {
         &self.wal
     }
 
-    fn flush_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
-        &self,
-        _ns: &Self::NS,
-        _writer: MP,
-        _pause: bool,
-    ) where
-        Self: Sized,
-    {
-    }
-
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         _node_page: &Self::NS,
         _writer: MP,
     ) {
-        // No operation
-    }
-
-    fn flush_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
-        &self,
-        _edge_page: &Self::ES,
-        _writer: MP,
-        _pause: bool,
-    ) where
-        Self: Sized,
-    {
         // No operation
     }
 

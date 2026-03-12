@@ -387,22 +387,22 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             );
         });
 
-        if graph.core_graph().extension().should_flush() {
-            println!(
-                "triggered global pause at size {}",
-                graph.core_graph().extension().estimated_size()
-            );
-            write_locked_graph
-                .edges
-                .attempt_flush(graph.core_graph().extension(), true);
-            write_locked_graph
-                .nodes
-                .attempt_flush(graph.core_graph().extension(), true);
-            println!(
-                "estimated size after completed flush {}",
-                graph.core_graph().extension().estimated_size()
-            );
-        } 
+        // if graph.core_graph().extension().should_flush() {
+        //     println!(
+        //         "triggered global pause at size {}",
+        //         graph.core_graph().extension().estimated_size()
+        //     );
+        //     write_locked_graph
+        //         .edges
+        //         .attempt_flush(graph.core_graph().extension(), true);
+        //     write_locked_graph
+        //         .nodes
+        //         .attempt_flush(graph.core_graph().extension(), true);
+        //     println!(
+        //         "estimated size after completed flush {}",
+        //         graph.core_graph().extension().estimated_size()
+        //     );
+        // }
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());

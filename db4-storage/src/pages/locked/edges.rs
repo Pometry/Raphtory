@@ -136,18 +136,4 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
     pub fn is_empty(&self) -> bool {
         self.writers.is_empty()
     }
-
-    pub fn attempt_flush(&mut self, ext: &EXT, pause: bool) {
-        if pause {
-            self.writers
-                .par_iter_mut()
-                .for_each(|LockedEdgePage { page, lock, .. }| {
-                    ext.flush_edge_segment(page, lock.deref_mut(), true);
-                })
-        } else {
-            for LockedEdgePage { page, lock, .. } in &mut self.writers {
-                ext.flush_edge_segment(page, lock.deref_mut(), false);
-            }
-        }
-    }
 }
