@@ -31,6 +31,9 @@ impl WalOps for NoWal {
     }
 
     fn next_lsn(&self) -> LSN {
-        1
+        0
+    }
+
+    fn set_next_lsn(&self, _lsn: LSN) {
     }
 }

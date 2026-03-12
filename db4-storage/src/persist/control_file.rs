@@ -6,6 +6,7 @@ pub enum DBState {
     Running,
     Shutdown,
     CrashRecovery,
+    NotSupported,
 }
 
 pub trait ControlFileOps: Sized {
@@ -35,9 +36,7 @@ impl ControlFileOps for NoControlFile {
     }
 
     fn db_state(&self) -> &DBState {
-        // Without a control file there is no persistence, hence this always reports a clean
-        // shutdown state so that no recovery is attempted.
-        &DBState::Shutdown
+        &DBState::NotSupported
     }
 
     fn last_checkpoint(&self) -> LSN {

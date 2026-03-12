@@ -32,6 +32,9 @@ pub trait WalOps {
 
     /// Returns the LSN that will be assigned to the next appended record.
     fn next_lsn(&self) -> LSN;
+
+    /// Sets the next LSN to be assigned to a record.
+    fn set_next_lsn(&self, lsn: LSN);
 }
 
 #[derive(Debug)]

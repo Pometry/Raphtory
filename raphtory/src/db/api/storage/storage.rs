@@ -144,6 +144,7 @@ impl Storage {
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
         let temporal_graph = TemporalGraph::load(path, ext)?;
 
+        // Run crash recovery if needed.
         temporal_graph.run_recovery()?;
 
         Ok(Self {
