@@ -26,8 +26,10 @@ impl WalOps for NoWal {
         std::iter::once(Err(StorageError::GenericFailure(error.to_string())))
     }
 
-    fn has_entries(&self) -> Result<bool, StorageError> {
-        Ok(false)
+    fn read(&self, _lsn: LSN) -> Result<Option<ReplayRecord>, StorageError> {
+        Err(StorageError::GenericFailure(
+            "read is not supported for NoWAL".to_string(),
+        ))
     }
 
     fn next_lsn(&self) -> LSN {

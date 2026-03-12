@@ -27,8 +27,9 @@ pub trait WalOps {
     /// Returns an iterator over the entries in the wal.
     fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
-    /// Returns true if there are entries in the WAL file on disk.
-    fn has_entries(&self) -> Result<bool, StorageError>;
+    /// Reads the WAL record at the given LSN.
+    /// Returns `Ok(None)` if there is no record at that LSN.
+    fn read(&self, lsn: LSN) -> Result<Option<ReplayRecord>, StorageError>;
 
     /// Returns the LSN that will be assigned to the next appended record.
     fn next_lsn(&self) -> LSN;
