@@ -36,7 +36,14 @@ impl Serialize for ParquetGID {
 }
 
 #[derive(Debug)]
-pub(crate) struct ParquetTEdge<'a, G: StaticGraphViewOps>(pub(crate) EdgeView<&'a G>);
+pub(crate) struct ParquetTEdge<'a, G: StaticGraphViewOps> {
+    pub edge: EdgeView<&'a G>,
+    pub export_src_vid: u64,
+    pub export_dst_vid: u64,
+    pub export_eid: u64,
+    pub export_layer_id: u64,
+    pub export_layer_name: ArcStr,
+}
 
 impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -75,7 +82,14 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
 }
 
 #[derive(Debug)]
-pub(crate) struct ParquetCEdge<'a, G: StaticGraphViewOps>(pub(crate) EdgeView<&'a G>);
+pub(crate) struct ParquetCEdge<'a, G: StaticGraphViewOps> {
+    pub(crate) edge: EdgeView<&'a G>,
+    pub(crate) export_src_vid: u64,
+    pub(crate) export_dst_vid: u64,
+    pub(crate) export_eid: u64,
+    pub(crate) export_layer_name: ArcStr,
+    pub(crate) export_layer_id: u64,
+}
 
 impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -101,11 +115,14 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
     }
 }
 
-pub(crate) struct ParquetDelEdge<'a, G> {
-    pub layer: &'a str,
-    pub layer_id: usize,
-    pub edge: EdgeView<&'a G>,
-    pub del: EventTime,
+pub(crate) struct ParquetDelEdge<'a, G: StaticGraphViewOps> {
+    pub(crate) edge: EdgeView<&'a G>,
+    pub(crate) del: EventTime,
+    pub(crate) export_src_vid: u64,
+    pub(crate) export_dst_vid: u64,
+    pub(crate) export_eid: u64,
+    pub(crate) export_layer_id: u64,
+    pub(crate) export_layer_name: ArcStr,
 }
 
 impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
