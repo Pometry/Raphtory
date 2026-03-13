@@ -20,10 +20,6 @@ pub trait WalOps {
     /// Returns immediately if the given LSN is already flushed to disk.
     fn flush(&self, lsn: LSN) -> Result<(), StorageError>;
 
-    /// Rotates the underlying WAL file.
-    /// All records with LSN > `cutoff_lsn` are copied to the new WAL file.
-    fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
-
     /// Reads the WAL record at the given LSN.
     /// Returns `Ok(None)` if there is no record at that LSN.
     fn read(&self, lsn: LSN) -> Result<Option<ReplayRecord>, StorageError>;
