@@ -29,8 +29,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-pub static N: LazyLock<usize> =
-    LazyLock::new(|| std::thread::available_parallelism().unwrap().get());
+pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
 
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {

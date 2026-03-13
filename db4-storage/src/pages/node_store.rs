@@ -27,8 +27,7 @@ use std::{
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
-pub static N: LazyLock<usize> =
-    LazyLock::new(|| std::thread::available_parallelism().unwrap().get());
+pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
 
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
