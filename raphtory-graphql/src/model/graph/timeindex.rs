@@ -124,9 +124,7 @@ impl<'de> Deserialize<'de> for GqlTimeInput {
                         .map_err(|e| D::Error::custom(e.to_string()))?,
                     _ => return Err(D::Error::custom("timestamp must be number or string")),
                 };
-                let event_id = if let Some(id_val) =
-                    obj.get("eventId").or_else(|| obj.get("id"))
-                {
+                let event_id = if let Some(id_val) = obj.get("eventId").or_else(|| obj.get("id")) {
                     match id_val {
                         serde_json::Value::Number(n) => n
                             .as_u64()

@@ -240,7 +240,9 @@ pub fn require_write_access_dynamic(
     if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
         Ok(())
     } else {
-        Err(async_graphql::Error::new("Access denied: write access required"))
+        Err(async_graphql::Error::new(
+            "Access denied: write access required",
+        ))
     }
 }
 

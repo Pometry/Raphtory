@@ -58,6 +58,14 @@ def grant_namespace(role: str, path: str, permissions: list) -> None:
     )
 
 
+def grant_graph_filtered_read_only(role: str, path: str, filter_gql: str) -> None:
+    """Call grantGraphFilteredReadOnly with a raw GQL filter fragment."""
+    resp = gql(
+        f'mutation {{ permissions {{ grantGraphFilteredReadOnly(role: "{role}", path: "{path}", filter: {filter_gql}) {{ success }} }} }}'
+    )
+    assert "errors" not in resp, f"grantGraphFilteredReadOnly failed: {resp}"
+
+
 def make_server(work_dir: str):
     """Create a GraphServer wired with a permissions store at {work_dir}/permissions.json."""
     return GraphServer(
@@ -214,7 +222,7 @@ def test_namespace_wildcard_grants_access_to_all_graphs():
 
 # --- WRITE permission enforcement ---
 
-UPDATE_JIRA = """mutation { updateGraph(path: "jira") { addNode(time: 1, name: "test_node") } }"""
+UPDATE_JIRA = """query { updateGraph(path: "jira") { addNode(time: 1, name: "test_node") { success } } }"""
 CREATE_JIRA_NS = """mutation { newGraph(path:"team/jira", graphType:EVENT) }"""
 
 
@@ -383,3 +391,207 @@ def test_analyst_cannot_get_role():
         )
         assert "errors" in response.json()
         assert "Access denied" in response.json()["errors"][0]["message"]
+
+
+def test_analyst_sees_only_filtered_nodes():
+    """grantGraphFilteredReadOnly applies a node filter transparently for the role.
+
+    Admin sees all nodes; analyst only sees nodes matching the stored filter.
+    Calling grantGraph([READ]) clears the filter and restores full access.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        # Create graph and add nodes with a "region" property
+        gql(CREATE_JIRA)
+        for name, region in [("alice", "us-west"), ("bob", "us-east"), ("carol", "us-west")]:
+            resp = gql(
+                f"""query {{
+                    updateGraph(path: "jira") {{
+                        addNode(
+                            time: 1,
+                            name: "{name}",
+                            properties: [{{ key: "region", value: {{ str: "{region}" }} }}]
+                        ) {{
+                            success
+                            node {{
+                                name
+                            }}
+                        }}
+                    }}
+                }}"""
+            )
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        # Grant filtered read-only: analyst only sees nodes where region = "us-west"
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }',
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+
+        # Analyst should only see alice and carol (region=us-west)
+        analyst_response = requests.post(
+            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_NODES})
+        )
+        assert "errors" not in analyst_response.json(), analyst_response.json()
+        analyst_names = {
+            n["name"]
+            for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
+        }
+        assert analyst_names == {"alice", "carol"}, f"expected {{alice, carol}}, got {analyst_names}"
+
+        # Admin should see all three nodes (filter is bypassed for "a":"rw")
+        admin_response = requests.post(
+            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_NODES})
+        )
+        assert "errors" not in admin_response.json(), admin_response.json()
+        admin_names = {
+            n["name"]
+            for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
+        }
+        assert admin_names == {"alice", "bob", "carol"}, f"expected all 3 nodes, got {admin_names}"
+
+        # Clear the filter by calling grantGraph([READ]) — analyst should now see all nodes
+        grant_graph("analyst", "jira", ["READ"])
+        analyst_response_after = requests.post(
+            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_NODES})
+        )
+        assert "errors" not in analyst_response_after.json(), analyst_response_after.json()
+        names_after = {
+            n["name"]
+            for n in analyst_response_after.json()["data"]["graph"]["nodes"]["list"]
+        }
+        assert names_after == {"alice", "bob", "carol"}, (
+            f"after plain grant, expected all 3 nodes, got {names_after}"
+        )
+
+
+def test_analyst_sees_only_filtered_edges():
+    """grantGraphFilteredReadOnly with an edge filter hides edges that don't match.
+
+    Edges with weight >= 5 are visible; edges with weight < 5 are hidden.
+    Admin bypasses the filter and sees all edges.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        # Add three edges: (a->b weight=3), (b->c weight=7), (a->c weight=9)
+        for src, dst, weight in [("a", "b", 3), ("b", "c", 7), ("a", "c", 9)]:
+            resp = gql(
+                f"""query {{
+                    updateGraph(path: "jira") {{
+                        addEdge(
+                            time: 1,
+                            src: "{src}",
+                            dst: "{dst}",
+                            properties: [{{ key: "weight", value: {{ i64: {weight} }} }}]
+                        ) {{
+                            success
+                            edge {{
+                                src {{ name }}
+                                dst {{ name }}
+                            }}
+                        }}
+                    }}
+                }}"""
+            )
+            assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
+
+        create_role("analyst")
+        # Only show edges where weight >= 5
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }',
+        )
+
+        QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
+
+        analyst_response = requests.post(
+            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_EDGES})
+        )
+        assert "errors" not in analyst_response.json(), analyst_response.json()
+        analyst_edges = {
+            (e["src"]["name"], e["dst"]["name"])
+            for e in analyst_response.json()["data"]["graph"]["edges"]["list"]
+        }
+        assert analyst_edges == {("b", "c"), ("a", "c")}, (
+            f"expected only heavy edges, got {analyst_edges}"
+        )
+
+        # Admin sees all three edges
+        admin_response = requests.post(
+            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_EDGES})
+        )
+        assert "errors" not in admin_response.json(), admin_response.json()
+        admin_edges = {
+            (e["src"]["name"], e["dst"]["name"])
+            for e in admin_response.json()["data"]["graph"]["edges"]["list"]
+        }
+        assert admin_edges == {("a", "b"), ("b", "c"), ("a", "c")}, (
+            f"expected all edges for admin, got {admin_edges}"
+        )
+
+
+def test_analyst_sees_only_graph_filter_window():
+    """grantGraphFilteredReadOnly with a graph-level window filter restricts the temporal view.
+
+    Nodes added inside the window [5, 15) are visible; those outside are not.
+    Admin bypasses the filter and sees all nodes.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        # Add nodes at different timestamps: t=1 (outside), t=10 (inside), t=20 (outside)
+        for name, t in [("early", 1), ("middle", 10), ("late", 20)]:
+            resp = gql(
+                f"""query {{
+                    updateGraph(path: "jira") {{
+                        addNode(time: {t}, name: "{name}") {{
+                            success
+                            node {{
+                                name
+                            }}
+                        }}
+                    }}
+                }}"""
+            )
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        # Window [5, 15) — only "middle" (t=10) falls inside
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            "{ graph: { window: { start: 5, end: 15 } } }",
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+
+        analyst_response = requests.post(
+            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_NODES})
+        )
+        assert "errors" not in analyst_response.json(), analyst_response.json()
+        analyst_names = {
+            n["name"]
+            for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
+        }
+        assert analyst_names == {"middle"}, (
+            f"expected only 'middle' in window, got {analyst_names}"
+        )
+
+        # Admin sees all three nodes
+        admin_response = requests.post(
+            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_NODES})
+        )
+        assert "errors" not in admin_response.json(), admin_response.json()
+        admin_names = {
+            n["name"]
+            for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
+        }
+        assert admin_names == {"early", "middle", "late"}, (
+            f"expected all nodes for admin, got {admin_names}"
+        )

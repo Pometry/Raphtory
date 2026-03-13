@@ -11,7 +11,6 @@ use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
 };
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use raphtory::{
     db::api::properties::{
         dyn_props::{DynMetadata, DynProperties, DynProps, DynTemporalProperties},
@@ -29,6 +28,7 @@ use raphtory_api::core::{
     utils::time::{IntoTime, TryIntoTime},
 };
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::{
     collections::HashMap,
