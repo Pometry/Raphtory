@@ -855,13 +855,21 @@ mod tests {
     fn test_iter_skip() {
         let index: StateIndex<usize> = StateIndex::new(vec![10, 1, 5], 10);
 
-        let expected = (0..10).chain(10..11).chain(20..25);
+        let expected: Vec<_> = (0..10).chain(10..11).chain(20..25).collect();
         // check all skips
-        for (i, v) in expected.enumerate() {
+        for (i, v) in expected.iter().copied().enumerate() {
             assert_eq!(index.iter().nth(i), Some(v));
         }
 
         assert_eq!(index.iter().nth(100), None);
-        assert_eq!(index.iter().nth(16), None);
+
+        // check that iterator is correctly exhausted after calling nth
+        let mut iter = index.iter();
+        assert_eq!(iter.nth(16), None);
+        assert!(iter.next().is_none());
+
+        let mut iter = index.iter();
+        assert_eq!(iter.nth(15), Some(expected[15]));
+        assert!(iter.next().is_none());
     }
 }
