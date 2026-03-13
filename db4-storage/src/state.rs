@@ -270,6 +270,8 @@ impl<V: From<usize> + Into<usize>, I: Borrow<StateIndex<V>>> Iterator for StateI
         let current = index.offsets[self.current_chunk] + self.current_local;
         let target = current.saturating_add(n);
         if &target >= index.offsets.last()? {
+            // need to set this so that future calls actually return None!
+            self.current_chunk = index.num_chunks();
             return None;
         }
         // find the first offset > target, then substract 1 to get the last chunk starting at <= target
