@@ -1,7 +1,8 @@
 use crate::{error::StorageError, wal::LSN};
+use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum DBState {
     Running,
     Shutdown,
@@ -14,7 +15,7 @@ pub trait ControlFileOps: Sized {
 
     fn save(&self) -> Result<(), StorageError>;
 
-    fn db_state(&self) -> &DBState;
+    fn db_state(&self) -> DBState;
 
     fn last_checkpoint(&self) -> LSN;
 
@@ -35,8 +36,8 @@ impl ControlFileOps for NoControlFile {
         Ok(())
     }
 
-    fn db_state(&self) -> &DBState {
-        &DBState::NotSupported
+    fn db_state(&self) -> DBState {
+        DBState::NotSupported
     }
 
     fn last_checkpoint(&self) -> LSN {
