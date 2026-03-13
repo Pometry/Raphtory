@@ -3,8 +3,13 @@ use crate::{
     data::Data,
     model::{
         graph::{
-            collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
-            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
+            collection::GqlCollection,
+            filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter},
+            graph::GqlGraph,
+            index::IndexSpecInput,
+            mutable_graph::GqlMutableGraph,
+            namespace::Namespace,
+            namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{
@@ -27,7 +32,7 @@ use raphtory::{
     db::{
         api::{
             storage::storage::{Extension, PersistenceStrategy},
-            view::MaterializedGraph,
+            view::{DynamicGraph, Filter, IntoDynamic, MaterializedGraph},
         },
         graph::views::{deletion_graph::PersistentGraph, filter::model::NodeViewFilterOps},
     },
@@ -89,6 +94,61 @@ pub enum GqlGraphType {
     Event,
 }
 
+/// Applies a stored data filter (serialised as `serde_json::Value` with optional `node`, `edge`,
+/// `graph` keys) to a `DynamicGraph`, returning a new filtered view.
+async fn apply_graph_filter(
+    mut graph: DynamicGraph,
+    filter: serde_json::Value,
+) -> async_graphql::Result<DynamicGraph> {
+    use raphtory::db::graph::views::filter::model::{
+        edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynView,
+    };
+
+    if let Some(node_val) = filter.get("node") {
+        let gql_filter: GqlNodeFilter = serde_json::from_value(node_val.clone())
+            .map_err(|e| async_graphql::Error::new(format!("node filter invalid: {e}")))?;
+        let raphtory_filter = CompositeNodeFilter::try_from(gql_filter)
+            .map_err(|e| async_graphql::Error::new(format!("node filter conversion: {e}")))?;
+        graph = blocking_compute({
+            let g = graph.clone();
+            move || g.filter(raphtory_filter)
+        })
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("node filter apply: {e}")))?
+        .into_dynamic();
+    }
+
+    if let Some(edge_val) = filter.get("edge") {
+        let gql_filter: GqlEdgeFilter = serde_json::from_value(edge_val.clone())
+            .map_err(|e| async_graphql::Error::new(format!("edge filter invalid: {e}")))?;
+        let raphtory_filter = CompositeEdgeFilter::try_from(gql_filter)
+            .map_err(|e| async_graphql::Error::new(format!("edge filter conversion: {e}")))?;
+        graph = blocking_compute({
+            let g = graph.clone();
+            move || g.filter(raphtory_filter)
+        })
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("edge filter apply: {e}")))?
+        .into_dynamic();
+    }
+
+    if let Some(graph_val) = filter.get("graph") {
+        let gql_filter: GqlGraphFilter = serde_json::from_value(graph_val.clone())
+            .map_err(|e| async_graphql::Error::new(format!("graph filter invalid: {e}")))?;
+        let dyn_view = DynView::try_from(gql_filter)
+            .map_err(|e| async_graphql::Error::new(format!("graph filter conversion: {e}")))?;
+        graph = blocking_compute({
+            let g = graph.clone();
+            move || g.filter(dyn_view)
+        })
+        .await
+        .map_err(|e| async_graphql::Error::new(format!("graph filter apply: {e}")))?
+        .into_dynamic();
+    }
+
+    Ok(graph)
+}
+
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub(crate) struct QueryRoot;
@@ -128,9 +188,26 @@ impl QueryRoot {
         };
 
         let graph_with_vecs = data.get_graph(path).await?;
+        let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
+
+        // Apply per-role data filter if one is configured (admin "a":"rw" bypasses this)
+        let graph = if !ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
+            if let Some(policy) = &data.auth_policy {
+                if let Some(filter_json) = policy.get_graph_data_filter(role, path) {
+                    apply_graph_filter(graph, filter_json).await?
+                } else {
+                    graph
+                }
+            } else {
+                graph
+            }
+        } else {
+            graph
+        };
+
         Ok(GqlGraph::new_with_permissions(
             graph_with_vecs.folder,
-            graph_with_vecs.graph,
+            graph,
             introspection_allowed,
         ))
     }

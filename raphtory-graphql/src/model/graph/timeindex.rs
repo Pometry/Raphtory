@@ -5,6 +5,7 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::{IntoTime, TryIntoTime},
 };
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Input for primary time component. Expects Int, DateTime formatted String, or Object { timestamp, eventId }
 /// where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
@@ -83,6 +84,67 @@ impl From<i64> for GqlTimeInput {
 impl IntoTime for GqlTimeInput {
     fn into_time(self) -> EventTime {
         self.0
+    }
+}
+
+impl Serialize for GqlTimeInput {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // Stored as raw millisecond timestamp (matches how GQL sends an Int time)
+        self.0.t().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for GqlTimeInput {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::Error;
+        let v = serde_json::Value::deserialize(deserializer)?;
+        match v {
+            serde_json::Value::Number(n) => {
+                let millis = n
+                    .as_i64()
+                    .ok_or_else(|| D::Error::custom("time must be an i64 millisecond timestamp"))?;
+                Ok(GqlTimeInput(EventTime::start(millis)))
+            }
+            serde_json::Value::String(s) => s
+                .try_into_time()
+                .map(|t| GqlTimeInput(t.set_event_id(0)))
+                .map_err(|e| D::Error::custom(e.to_string())),
+            serde_json::Value::Object(obj) => {
+                let ts_val = obj
+                    .get("timestamp")
+                    .or_else(|| obj.get("time"))
+                    .ok_or_else(|| D::Error::custom("time object must contain 'timestamp'"))?;
+                let ts = match ts_val {
+                    serde_json::Value::Number(n) => n
+                        .as_i64()
+                        .ok_or_else(|| D::Error::custom("timestamp must be i64"))?,
+                    serde_json::Value::String(s) => s
+                        .try_into_time()
+                        .map(|t| t.t())
+                        .map_err(|e| D::Error::custom(e.to_string()))?,
+                    _ => return Err(D::Error::custom("timestamp must be number or string")),
+                };
+                let event_id = if let Some(id_val) =
+                    obj.get("eventId").or_else(|| obj.get("id"))
+                {
+                    match id_val {
+                        serde_json::Value::Number(n) => n
+                            .as_u64()
+                            .and_then(|u| usize::try_from(u).ok())
+                            .ok_or_else(|| {
+                                D::Error::custom("eventId must be a non-negative integer")
+                            })?,
+                        _ => return Err(D::Error::custom("eventId must be a number")),
+                    }
+                } else {
+                    0
+                };
+                Ok(GqlTimeInput(EventTime::new(ts, event_id)))
+            }
+            _ => Err(D::Error::custom(
+                "time must be a number (millis), string (datetime), or object {timestamp, eventId}",
+            )),
+        }
     }
 }
 

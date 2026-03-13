@@ -1754,6 +1754,10 @@ type MutRoot {
 	"""
 	plugins: MutationPlugin!
 	"""
+	Returns the permissions namespace for managing roles and access policies.
+	"""
+	permissions: PermissionsPlugin!
+	"""
 	Delete graph from a path on the server.
 	"""
 	deleteGraph(path: String!): Boolean!
@@ -2904,6 +2908,14 @@ type PathFromNodeWindowSet {
 	list: [PathFromNode!]!
 }
 
+type PermissionsPlugin {
+	NoOps: String!
+}
+
+type PermissionsQueryPlugin {
+	NoOps: String!
+}
+
 """
 Boolean expression over a property value.
 
@@ -3178,6 +3190,10 @@ type QueryRoot {
 	"""
 	receiveGraph(path: String!): String!
 	version: String!
+	"""
+	Returns the permissions namespace for inspecting roles and access policies (admin only).
+	"""
+	permissions: PermissionsQueryPlugin!
 }
 
 type ShortestPathOutput {

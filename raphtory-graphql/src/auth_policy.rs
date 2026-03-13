@@ -10,6 +10,12 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Returns `true` if the role may write to this graph (addNode, addEdge, updateGraph, newGraph).
     /// `"a": "rw"` users bypass this check entirely — it is only called for `"a": "ro"` users.
     fn check_graph_write_access(&self, role: Option<&str>, path: &str) -> bool;
+
+    /// Returns a JSON value with optional `node`, `edge`, `graph` keys representing a data filter
+    /// to apply transparently when this role queries the graph.
+    /// Returns `None` if no filter is configured (full access to graph data).
+    /// `"a": "rw"` admin users bypass this — it is never called for them.
+    fn get_graph_data_filter(&self, role: Option<&str>, path: &str) -> Option<serde_json::Value>;
 }
 
 /// A no-op policy that permits all reads and leaves writes to the `PermissionsPlugin`.
@@ -27,5 +33,9 @@ impl AuthorizationPolicy for NoopPolicy {
 
     fn check_graph_write_access(&self, _: Option<&str>, _: &str) -> bool {
         true
+    }
+
+    fn get_graph_data_filter(&self, _: Option<&str>, _: &str) -> Option<serde_json::Value> {
+        None
     }
 }

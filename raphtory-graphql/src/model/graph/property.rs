@@ -11,6 +11,7 @@ use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
 };
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use raphtory::{
     db::api::properties::{
         dyn_props::{DynMetadata, DynProperties, DynProps, DynTemporalProperties},
@@ -38,7 +39,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectEntry {
     /// Key.
     pub key: String,
@@ -46,7 +47,8 @@ pub struct ObjectEntry {
     pub value: Value,
 }
 
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Value {
     /// 8 bit unsigned integer.
     U8(u8),
