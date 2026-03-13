@@ -22,11 +22,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn load(graph_dir: &Path) -> Result<Self, StorageError>;
 
-    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError> {
-        let mut extension = Self::load(graph_dir)?;
-        extension.config_mut().update(config);
-        Ok(extension)
-    }
+    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
 
     fn config(&self) -> &Self::Config;
 
@@ -77,6 +73,10 @@ impl PersistenceStrategy for NoOpStrategy {
     }
 
     fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
+        Err(StorageError::DiskStorageNotSupported)
+    }
+
+    fn load_with_config(_graph_dir: &Path, _config: Self::Config) -> Result<Self, StorageError> {
         Err(StorageError::DiskStorageNotSupported)
     }
 
