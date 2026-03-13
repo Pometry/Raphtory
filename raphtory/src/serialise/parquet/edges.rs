@@ -44,7 +44,13 @@ pub(crate) fn encode_edge_tprop(
                     let edge_ref = g.core_edge(eid).out_ref();
                     EdgeView::new(g, edge_ref).explode()
                 })
-                .map(ParquetTEdge)
+                .map(|edge| ParquetTEdge {
+                    edge,
+                    export_src_vid: edge.src().node.0,
+                    export_dst_vid: edge.dst().node.0,
+                    export_eid: edge.edge.pid(),
+                    export_layer_id: edge.edge.layer(),
+                })
                 .chunks(row_group_size)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
@@ -103,11 +109,17 @@ pub(crate) fn encode_edge_deletions(
                         GenLockedIter::from(edge, |edge| {
                             edge.deletions(layer_id).iter().into_dyn_boxed()
                         })
-                        .map(move |deletions| ParquetDelEdge {
-                            del: deletions,
-                            layer: &layers[layer_id - 1],
-                            layer_id,
-                            edge: EdgeView::new(g, edge_ref),
+                        .map(move |deletions| {
+                            let edge = EdgeView::new(g, edge_ref);
+                            ParquetDelEdge {
+                                edge,
+                                del: deletions,
+                                export_src_vid: edge.src().node.0,
+                                export_dst_vid: edge.dst().node.0,
+                                export_eid: edge.edge.pid().0,
+                                export_layer_id: layer_id,
+                                export_layer_name: &layers[layer_id - 1],
+                            }
                         })
                     })
                 })
@@ -153,12 +165,14 @@ pub(crate) fn encode_edge_cprop(
                 .into_iter()
                 .flat_map(|eid| {
                     let edge_ref = g.core_edge(eid).out_ref();
-                    EdgeView::new(g, edge_ref)
-                        .explode_layers()
-                        .into_iter()
-                        .map(|e| e.edge)
+                    EdgeView::new(g, edge_ref).explode_layers().into_iter()
                 })
-                .map(|edge| ParquetCEdge(EdgeView::new(g, edge)))
+                .map(|edge| ParquetCEdge {
+                    edge,
+                    export_src_vid: edge.src().node.0,
+                    export_dst_vid: edge.dst().node.0,
+                    export_eid: edge.edge.pid().0,
+                })
                 .chunks(row_group_size)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())

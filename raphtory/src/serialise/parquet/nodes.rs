@@ -2,6 +2,7 @@ use crate::{
     core::utils::iter::GenLockedIter,
     db::graph::node::NodeView,
     errors::GraphError,
+    prelude::NodeViewOps,
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
         run_encode_indexed, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, NODE_VID_COL,
@@ -45,7 +46,7 @@ pub(crate) fn encode_nodes_tprop(
                     GenLockedIter::from(node, |node| {
                         node.rows()
                             .map(|(t, props)| ParquetTNode {
-                                node: *node,
+                                export_vid: node.node.0,
                                 cols,
                                 t,
                                 props,
@@ -91,7 +92,11 @@ pub(crate) fn encode_nodes_cprop(
 
             for node_rows in nodes
                 .map(|vid| NodeView::new_internal(g, vid))
-                .map(move |node| ParquetCNode { node })
+                .map(move |node| ParquetCNode {
+                    node,
+                    export_vid: node.node.0,
+                    export_node_type_id: node.node_type_id(),
+                })
                 .chunks(row_group_size)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
