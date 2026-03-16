@@ -13,17 +13,23 @@
         "bench": "pnpm build && K6_WEB_DASHBOARD=true K6_WEB_DASHBOARD_EXPORT=report.html k6 run --out csv=output.csv.gz dist/bench.js"
     },
     "devDependencies": {
-        "@genql/cli": "^6.3.2",
-        "@types/k6": "^1.0.2",
-        "@types/node": "^22.10.2",
-        "concurrently": "^9.1.2",
-        "tsup": "8.3.0",
-        "typescript": "^5.8.3"
+        "@genql/cli": "^6.3.3",
+        "@types/k6": "^1.6.0",
+        "@types/node": "^25.3.5",
+        "concurrently": "^9.2.1",
+        "tsup": "8.5.1",
+        "typescript": "^5.9.3"
     },
     "dependencies": {
-        "@google-cloud/compute": "^5.2.0",
-        "dotenv": "^16.5.0",
+        "@google-cloud/compute": "^6.8.0",
+        "dotenv": "^17.3.1",
         "node-ssh": "^13.2.1",
-        "zod": "^3.23.8"
+        "zod": "^4.3.6"
+    },
+    "pnpm": {
+        "overrides": {
+            "@tootallnate/once@<3.0.1": ">=3.0.1",
+            "undici@<6.23.0": ">=6.23.0"
+        }
     }
 }
