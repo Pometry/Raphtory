@@ -255,6 +255,7 @@ pub fn load_node_props_from_df<
         // We assume this is fast enough
         let max_vid = node_col_resolved
             .iter()
+            .filter(|vid|vid.is_initialised())
             .map(|vid| vid.index())
             .max()
             .map(VID)
@@ -262,16 +263,17 @@ pub fn load_node_props_from_df<
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
         write_locked_graph.resize_segments_to_vid(max_vid);
 
-        write_locked_graph.nodes.iter_mut().try_for_each(|shard| {
+        write_locked_graph.nodes.par_iter_mut().try_for_each(|shard| {
             let mut c_props = vec![];
 
             let mut writer = shard.writer();
-            for (idx, ((vid, node_type), gid)) in node_col_resolved
+            for (idx, ((vid, node_type ), gid)) in node_col_resolved
                 .iter()
                 .zip(node_type_col_resolved.iter())
                 .zip(node_col.iter())
-                .enumerate()
+                .enumerate().filter(|(_, ((vid, _ ), _))| vid.is_initialised() ) // filter out unresolved vids
             {
+
                 if let Some(mut_node) = writer.resolve_pos(*vid) {
                     writer.store_node_id_and_node_type(
                         mut_node,
@@ -421,10 +423,8 @@ fn resolve_node_and_meta_for_node_col<
             *node_type_id = id;
         }
 
-        let res_vid = graph
-            .resolve_node(gid.as_node_ref())
-            .map_err(into_graph_err)?;
-        *vid = res_vid.inner();
+        let res_vid = graph.internalise_node(gid.as_node_ref()).unwrap_or_default();
+        *vid = res_vid;
         last_node_type = node_type;
     }
 
