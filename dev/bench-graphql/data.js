@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773256430250,
+  "lastUpdate": 1773668301873,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4481,6 +4481,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1367,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ricopinazo@gmail.com",
+            "name": "Pedro Rico Pinazo",
+            "username": "ricopinazo"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a2719fc499a0da8aad5cd42a8c0eaee87ffdcabe",
+          "message": "Fix rust build on release action (#2518)\n\n* Fix rust build on release action\n\n* add toolchain file\n\n* set up rust 1.91.0 inside the linu docker container\n\n* hardcode the rust version on the python linux build\n\n* try using rustup override set\n\n* remove wrong override set stable-msvc\n\n* add build target for arm\n\n* try just using maturin rust-toolchain option\n\n---------\n\nCo-authored-by: Ben Steer <b.a.steer@qmul.ac.uk>",
+          "timestamp": "2026-03-16T12:56:51Z",
+          "tree_id": "fb1aad88c0d406e29d658ccfc31a817956caabd8",
+          "url": "https://github.com/Pometry/Raphtory/commit/a2719fc499a0da8aad5cd42a8c0eaee87ffdcabe"
+        },
+        "date": 1773668295658,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1203,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 191,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 150,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 969,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 871,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1256,
             "unit": "req/s"
           }
         ]
