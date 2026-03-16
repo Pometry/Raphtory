@@ -16,6 +16,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RUST_VERSION: "1.91.0"
+
 jobs:
   python-linux:
     runs-on: ubuntu-latest
@@ -54,6 +57,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
           manylinux: 2_28
           before-script-linux: |
@@ -104,7 +108,7 @@ jobs:
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
               echo "Running on aarch64 architecture"
-              rustup override set stable-msvc
+              # rustup override set stable-msvc
               FILE="protoc-27.2-linux-aarch_64.zip"
             else
               FILE="protoc-27.2-linux-x86_64.zip"
@@ -147,6 +151,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
@@ -190,6 +195,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4

@@ -41,7 +41,7 @@ jobs:
       - name: Setup rust
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: "1.91.0"
       - name: Dry run publish
         run: cargo publish ${{ inputs.crates }} --dry-run
       - name: Publish crates
