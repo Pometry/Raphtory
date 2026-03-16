@@ -49,8 +49,8 @@ jobs:
         run: |
           set -o pipefail
           cargo bench --bench base --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
-      - name: Delete cargo.lock if it exists
-        run: rm -f Cargo.lock
+      - name: Restore Cargo.lock to avoid dirty working tree
+        run: git checkout -- Cargo.lock
       - name: Store benchmark results from master branch
         if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1
