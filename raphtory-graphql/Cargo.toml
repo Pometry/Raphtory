@@ -51,9 +51,9 @@ rustc-hash = { workspace = true }
 moka = { workspace = true }
 rayon = { workspace = true }
 ahash = { workspace = true }
-strum = {workspace = true}
-strum_macros = {workspace = true}
-bigdecimal = {workspace = true, features = ["serde"]}
+strum = { workspace = true }
+strum_macros = { workspace = true }
+bigdecimal = { workspace = true, features = ["serde"] }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -69,6 +69,7 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
+raphtory = { workspace = true, features = ["test-utils"] }
 arrow-array = { workspace = true }
 
 [features]
