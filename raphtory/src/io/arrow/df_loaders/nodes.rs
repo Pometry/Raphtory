@@ -252,7 +252,7 @@ pub fn load_node_props_from_df<
         // We assume this is fast enough
         let max_vid = node_col_resolved
             .iter()
-            .filter(|vid|vid.is_initialised())
+            .filter(|vid| vid.is_initialised())
             .map(|vid| vid.index())
             .max()
             .map(VID)
@@ -260,42 +260,50 @@ pub fn load_node_props_from_df<
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
         write_locked_graph.resize_segments_to_vid(max_vid);
 
-        write_locked_graph.nodes.par_iter_mut().try_for_each(|shard| {
-            let mut c_props = vec![];
+        write_locked_graph
+            .nodes
+            .par_iter_mut()
+            .try_for_each(|shard| {
+                let mut c_props = vec![];
 
-            let mut writer = shard.writer();
-            for (idx, ((vid, node_type ), gid)) in node_col_resolved
-                .iter()
-                .zip(node_type_col_resolved.iter())
-                .zip(node_col.iter())
-                .enumerate().filter(|(_, ((vid, _ ), _))| vid.is_initialised() ) // filter out unresolved vids
-            {
+                let mut writer = shard.writer();
+                for (idx, ((vid, node_type), gid)) in node_col_resolved
+                    .iter()
+                    .zip(node_type_col_resolved.iter())
+                    .zip(node_col.iter())
+                    .enumerate()
+                    .filter(|(_, ((vid, _), _))| vid.is_initialised())
+                // filter out unresolved vids
+                {
+                    if let Some(mut_node) = writer.resolve_pos(*vid) {
+                        writer.store_node_id_and_node_type(
+                            mut_node,
+                            STATIC_GRAPH_LAYER_ID,
+                            gid,
+                            *node_type,
+                        );
 
-                if let Some(mut_node) = writer.resolve_pos(*vid) {
-                    writer.store_node_id_and_node_type(
-                        mut_node,
-                        STATIC_GRAPH_LAYER_ID,
-                        gid,
-                        *node_type,
-                    );
+                        if resolve_nodes {
+                            // because we don't call resolve_node above
+                            writer.increment_seg_num_nodes()
+                        }
 
-                    if resolve_nodes {
-                        // because we don't call resolve_node above
-                        writer.increment_seg_num_nodes()
-                    }
+                        c_props.clear();
+                        c_props.extend(metadata_cols.iter_row(idx));
+                        c_props.extend_from_slice(&shared_metadata);
 
-                    c_props.clear();
-                    c_props.extend(metadata_cols.iter_row(idx));
-                    c_props.extend_from_slice(&shared_metadata);
+                        if !c_props.is_empty() {
+                            writer.update_c_props(
+                                mut_node,
+                                STATIC_GRAPH_LAYER_ID,
+                                c_props.drain(..),
+                            );
+                        }
+                    };
+                }
 
-                    if !c_props.is_empty() {
-                        writer.update_c_props(mut_node, STATIC_GRAPH_LAYER_ID, c_props.drain(..));
-                    }
-                };
-            }
-
-            Ok::<_, GraphError>(())
-        })?;
+                Ok::<_, GraphError>(())
+            })?;
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
@@ -420,7 +428,9 @@ fn resolve_node_and_meta_for_node_col<
             *node_type_id = id;
         }
 
-        let res_vid = graph.internalise_node(gid.as_node_ref()).unwrap_or_default();
+        let res_vid = graph
+            .internalise_node(gid.as_node_ref())
+            .unwrap_or_default();
         *vid = res_vid;
         last_node_type = node_type;
     }
