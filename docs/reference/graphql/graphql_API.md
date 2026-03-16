@@ -142,6 +142,15 @@ Returns:: Base64 url safe encoded string
 <td valign="top"><a href="#string">String</a>!</td>
 <td></td>
 </tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.permissions">permissions</strong></td>
+<td valign="top"><a href="#permissionsqueryplugin">PermissionsQueryPlugin</a>!</td>
+<td>
+
+Returns the permissions namespace for inspecting roles and access policies (admin only).
+
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -162,6 +171,15 @@ Returns:: Base64 url safe encoded string
 <td>
 
 Returns a collection of mutation plugins.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.permissions">permissions</strong></td>
+<td valign="top"><a href="#permissionsplugin">PermissionsPlugin</a>!</td>
+<td>
+
+Returns the permissions namespace for managing roles and access policies.
 
 </td>
 </tr>
@@ -5604,6 +5622,46 @@ will be returned.
 <tr>
 <td colspan="2" valign="top"><strong id="pathfromnodewindowset.list">list</strong></td>
 <td valign="top">[<a href="#pathfromnode">PathFromNode</a>!]!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### PermissionsPlugin
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="permissionsplugin.noops">NoOps</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+### PermissionsQueryPlugin
+
+<table>
+<thead>
+<tr>
+<th align="left">Field</th>
+<th align="right">Argument</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="permissionsqueryplugin.noops">NoOps</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
 <td></td>
 </tr>
 </tbody>

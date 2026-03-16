@@ -317,7 +317,9 @@ def test_analyst_cannot_call_permissions_mutations():
             RAPHTORY,
             headers=ANALYST_HEADERS,
             data=json.dumps(
-                {"query": 'mutation { permissions { createRole(name: "hacker") { success } } }'}
+                {
+                    "query": 'mutation { permissions { createRole(name: "hacker") { success } } }'
+                }
             ),
         )
         assert "errors" in response.json()
@@ -409,7 +411,9 @@ def test_introspect_only_can_call_introspection_fields():
             response = requests.post(
                 RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
             )
-            assert "errors" not in response.json(), f"query={query} response={response.json()}"
+            assert (
+                "errors" not in response.json()
+            ), f"query={query} response={response.json()}"
 
 
 def test_introspect_only_cannot_read_nodes_or_edges():
@@ -418,27 +422,42 @@ def test_introspect_only_cannot_read_nodes_or_edges():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         # Add a node and edge so the graph has data to query
-        gql('query { updateGraph(path: "jira") { addNode(time: 1, name: "a") { success } } }')
-        gql('query { updateGraph(path: "jira") { addEdge(time: 1, src: "a", dst: "b") { success } } }')
+        gql(
+            'query { updateGraph(path: "jira") { addNode(time: 1, name: "a") { success } } }'
+        )
+        gql(
+            'query { updateGraph(path: "jira") { addEdge(time: 1, src: "a", dst: "b") { success } } }'
+        )
         create_role("analyst")
         grant_graph("analyst", "jira", ["INTROSPECT"])  # no READ
 
         for query, expected_field in [
             ('query { graph(path: "jira") { nodes { list { name } } } }', "nodes"),
-            ('query { graph(path: "jira") { edges { list { src { name } } } } }', "edges"),
+            (
+                'query { graph(path: "jira") { edges { list { src { name } } } } }',
+                "edges",
+            ),
             ('query { graph(path: "jira") { node(name: "a") { name } } }', "node"),
-            ('query { graph(path: "jira") { properties { values { key } } } }', "properties"),
-            ('query { graph(path: "jira") { earliestTime { timestamp } } }', "earliestTime"),
+            (
+                'query { graph(path: "jira") { properties { values { key } } } }',
+                "properties",
+            ),
+            (
+                'query { graph(path: "jira") { earliestTime { timestamp } } }',
+                "earliestTime",
+            ),
         ]:
             response = requests.post(
                 RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
             )
             errors = response.json().get("errors", [])
-            assert errors, f"expected denial for query={query!r}, got: {response.json()}"
+            assert (
+                errors
+            ), f"expected denial for query={query!r}, got: {response.json()}"
             msg = errors[0]["message"]
-            assert "Access denied" in msg and expected_field in msg and "read" in msg, (
-                f"unexpected error for {expected_field!r}: {msg!r}"
-            )
+            assert (
+                "Access denied" in msg and expected_field in msg and "read" in msg
+            ), f"unexpected error for {expected_field!r}: {msg!r}"
 
 
 def test_read_only_cannot_call_introspection_fields():
@@ -453,17 +472,22 @@ def test_read_only_cannot_call_introspection_fields():
             ('query { graph(path: "jira") { countNodes } }', "countNodes"),
             ('query { graph(path: "jira") { countEdges } }', "countEdges"),
             ('query { graph(path: "jira") { uniqueLayers } }', "uniqueLayers"),
-            ('query { graph(path: "jira") { schema { nodes { typeName } } } }', "schema"),
+            (
+                'query { graph(path: "jira") { schema { nodes { typeName } } } }',
+                "schema",
+            ),
         ]:
             response = requests.post(
                 RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
             )
             errors = response.json().get("errors", [])
-            assert errors, f"expected denial for query={query!r}, got: {response.json()}"
+            assert (
+                errors
+            ), f"expected denial for query={query!r}, got: {response.json()}"
             msg = errors[0]["message"]
-            assert "Access denied" in msg and expected_field in msg and "introspect" in msg, (
-                f"unexpected error for {expected_field!r}: {msg!r}"
-            )
+            assert (
+                "Access denied" in msg and expected_field in msg and "introspect" in msg
+            ), f"unexpected error for {expected_field!r}: {msg!r}"
 
 
 def test_introspect_only_is_denied_without_introspect_or_read():
@@ -493,9 +517,12 @@ def test_analyst_sees_only_filtered_nodes():
     with make_server(work_dir).start():
         # Create graph and add nodes with a "region" property
         gql(CREATE_JIRA)
-        for name, region in [("alice", "us-west"), ("bob", "us-east"), ("carol", "us-west")]:
-            resp = gql(
-                f"""query {{
+        for name, region in [
+            ("alice", "us-west"),
+            ("bob", "us-east"),
+            ("carol", "us-west"),
+        ]:
+            resp = gql(f"""query {{
                     updateGraph(path: "jira") {{
                         addNode(
                             time: 1,
@@ -508,8 +535,7 @@ def test_analyst_sees_only_filtered_nodes():
                             }}
                         }}
                     }}
-                }}"""
-            )
+                }}""")
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
         create_role("analyst")
@@ -528,10 +554,12 @@ def test_analyst_sees_only_filtered_nodes():
         )
         assert "errors" not in analyst_response.json(), analyst_response.json()
         analyst_names = {
-            n["name"]
-            for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
         }
-        assert analyst_names == {"alice", "carol"}, f"expected {{alice, carol}}, got {analyst_names}"
+        assert analyst_names == {
+            "alice",
+            "carol",
+        }, f"expected {{alice, carol}}, got {analyst_names}"
 
         # Admin should see all three nodes (filter is bypassed for "a":"rw")
         admin_response = requests.post(
@@ -539,24 +567,31 @@ def test_analyst_sees_only_filtered_nodes():
         )
         assert "errors" not in admin_response.json(), admin_response.json()
         admin_names = {
-            n["name"]
-            for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
         }
-        assert admin_names == {"alice", "bob", "carol"}, f"expected all 3 nodes, got {admin_names}"
+        assert admin_names == {
+            "alice",
+            "bob",
+            "carol",
+        }, f"expected all 3 nodes, got {admin_names}"
 
         # Clear the filter by calling grantGraph([READ]) — analyst should now see all nodes
         grant_graph("analyst", "jira", ["READ"])
         analyst_response_after = requests.post(
             RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_NODES})
         )
-        assert "errors" not in analyst_response_after.json(), analyst_response_after.json()
+        assert (
+            "errors" not in analyst_response_after.json()
+        ), analyst_response_after.json()
         names_after = {
             n["name"]
             for n in analyst_response_after.json()["data"]["graph"]["nodes"]["list"]
         }
-        assert names_after == {"alice", "bob", "carol"}, (
-            f"after plain grant, expected all 3 nodes, got {names_after}"
-        )
+        assert names_after == {
+            "alice",
+            "bob",
+            "carol",
+        }, f"after plain grant, expected all 3 nodes, got {names_after}"
 
 
 def test_analyst_sees_only_filtered_edges():
@@ -570,8 +605,7 @@ def test_analyst_sees_only_filtered_edges():
         gql(CREATE_JIRA)
         # Add three edges: (a->b weight=3), (b->c weight=7), (a->c weight=9)
         for src, dst, weight in [("a", "b", 3), ("b", "c", 7), ("a", "c", 9)]:
-            resp = gql(
-                f"""query {{
+            resp = gql(f"""query {{
                     updateGraph(path: "jira") {{
                         addEdge(
                             time: 1,
@@ -586,8 +620,7 @@ def test_analyst_sees_only_filtered_edges():
                             }}
                         }}
                     }}
-                }}"""
-            )
+                }}""")
             assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
 
         create_role("analyst")
@@ -608,9 +641,10 @@ def test_analyst_sees_only_filtered_edges():
             (e["src"]["name"], e["dst"]["name"])
             for e in analyst_response.json()["data"]["graph"]["edges"]["list"]
         }
-        assert analyst_edges == {("b", "c"), ("a", "c")}, (
-            f"expected only heavy edges, got {analyst_edges}"
-        )
+        assert analyst_edges == {
+            ("b", "c"),
+            ("a", "c"),
+        }, f"expected only heavy edges, got {analyst_edges}"
 
         # Admin sees all three edges
         admin_response = requests.post(
@@ -621,9 +655,11 @@ def test_analyst_sees_only_filtered_edges():
             (e["src"]["name"], e["dst"]["name"])
             for e in admin_response.json()["data"]["graph"]["edges"]["list"]
         }
-        assert admin_edges == {("a", "b"), ("b", "c"), ("a", "c")}, (
-            f"expected all edges for admin, got {admin_edges}"
-        )
+        assert admin_edges == {
+            ("a", "b"),
+            ("b", "c"),
+            ("a", "c"),
+        }, f"expected all edges for admin, got {admin_edges}"
 
 
 def test_analyst_sees_only_graph_filter_window():
@@ -637,8 +673,7 @@ def test_analyst_sees_only_graph_filter_window():
         gql(CREATE_JIRA)
         # Add nodes at different timestamps: t=1 (outside), t=10 (inside), t=20 (outside)
         for name, t in [("early", 1), ("middle", 10), ("late", 20)]:
-            resp = gql(
-                f"""query {{
+            resp = gql(f"""query {{
                     updateGraph(path: "jira") {{
                         addNode(time: {t}, name: "{name}") {{
                             success
@@ -647,8 +682,7 @@ def test_analyst_sees_only_graph_filter_window():
                             }}
                         }}
                     }}
-                }}"""
-            )
+                }}""")
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
         create_role("analyst")
@@ -666,12 +700,11 @@ def test_analyst_sees_only_graph_filter_window():
         )
         assert "errors" not in analyst_response.json(), analyst_response.json()
         analyst_names = {
-            n["name"]
-            for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
         }
-        assert analyst_names == {"middle"}, (
-            f"expected only 'middle' in window, got {analyst_names}"
-        )
+        assert analyst_names == {
+            "middle"
+        }, f"expected only 'middle' in window, got {analyst_names}"
 
         # Admin sees all three nodes
         admin_response = requests.post(
@@ -679,9 +712,10 @@ def test_analyst_sees_only_graph_filter_window():
         )
         assert "errors" not in admin_response.json(), admin_response.json()
         admin_names = {
-            n["name"]
-            for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
         }
-        assert admin_names == {"early", "middle", "late"}, (
-            f"expected all nodes for admin, got {admin_names}"
-        )
+        assert admin_names == {
+            "early",
+            "middle",
+            "late",
+        }, f"expected all nodes for admin, got {admin_names}"
