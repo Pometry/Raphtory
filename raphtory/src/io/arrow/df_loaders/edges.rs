@@ -32,7 +32,7 @@ use raphtory_api::{
     },
 };
 use raphtory_core::entities::VID;
-use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::SessionAdditionOps};
+use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
@@ -222,10 +222,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
 
-    let mut total_size = 0;
     for chunk in df_view.chunks {
         let df = chunk?;
-        total_size += df.size();
         let prop_cols =
             combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
                 session
@@ -406,7 +404,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
-        total_size += df.size();
     }
     Ok::<_, GraphError>(())
 }

@@ -18,7 +18,7 @@ use crate::{
 };
 use indexmap::IndexSet;
 use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator};
-use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime};
+use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{iter::Either, prelude::*};
 use std::{
     borrow::Borrow,

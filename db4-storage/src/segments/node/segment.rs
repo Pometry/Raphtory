@@ -421,13 +421,13 @@ impl ArcLockedSegmentView {
 impl LockedNSSegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemNodeRef<'a>;
 
+    fn num_nodes(&self) -> u32 {
+        self.num_nodes
+    }
+
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a> {
         let pos = pos.into();
         MemNodeRef::new(pos, &self.inner)
-    }
-
-    fn num_nodes(&self) -> u32 {
-        self.num_nodes
     }
 }
 
@@ -494,13 +494,13 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     #[inline(always)]
-    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
-        self.inner.read_recursive()
+    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
+        self.inner.read_arc_recursive()
     }
 
     #[inline(always)]
-    fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
-        self.inner.read_arc_recursive()
+    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
+        self.inner.read_recursive()
     }
 
     #[inline(always)]
@@ -555,16 +555,6 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
-    fn num_layers(&self) -> usize {
-        self.head().layers.len()
-    }
-
-    fn layer_count(&self, layer_id: usize) -> u32 {
-        self.head()
-            .get_layer(layer_id)
-            .map_or(0, |layer| layer.len())
-    }
-
     fn flush(&self) -> Result<(), StorageError> {
         Ok(())
     }
@@ -582,6 +572,16 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     fn nodes_counter(&self) -> &AtomicU32 {
         &self.max_num_node
+    }
+
+    fn num_layers(&self) -> usize {
+        self.head().layers.len()
+    }
+
+    fn layer_count(&self, layer_id: usize) -> u32 {
+        self.head()
+            .get_layer(layer_id)
+            .map_or(0, |layer| layer.len())
     }
 }
 

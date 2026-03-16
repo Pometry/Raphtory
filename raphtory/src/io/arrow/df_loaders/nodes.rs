@@ -1,6 +1,6 @@
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
-    db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
+    db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::{
         arrow::{
@@ -27,10 +27,7 @@ use raphtory_api::{
     },
 };
 use raphtory_core::{entities::VID, storage::timeindex::AsTime};
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
-};
+use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
 use std::collections::HashMap;
 use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension};

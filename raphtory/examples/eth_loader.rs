@@ -1,15 +1,9 @@
 #[cfg(feature = "io")]
 use raphtory::io::{
-    arrow::df_loaders::edges::ColumnNames,
-    parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
+    arrow::df_loaders::edges::ColumnNames, parquet_loaders::load_edges_from_parquet,
 };
 use raphtory::{errors::GraphError, prelude::*};
 use std::path::{Path, PathBuf};
-
-/// Construct the path to a named Parquet file inside `parquet_dir`.
-fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
-    parquet_dir.join(format!("{}.parquet", name))
-}
 
 /// Load ETH data from Parquet files into a Raphtory Graph.
 #[cfg(feature = "io")]

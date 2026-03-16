@@ -6,7 +6,7 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    wal::{GraphWalOps, LSN, WalOps},
+    wal::{GraphWalOps, WalOps},
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;

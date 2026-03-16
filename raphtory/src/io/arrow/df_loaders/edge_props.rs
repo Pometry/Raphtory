@@ -2,7 +2,7 @@
 use crate::io::arrow::df_loaders::build_progress_bar;
 
 use crate::{
-    db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
+    db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
     io::arrow::{
         dataframe::{DFChunk, DFView},
@@ -22,7 +22,7 @@ use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{atomic_extra::atomic_usize_from_mut_slice, core::entities::EID};
 use raphtory_core::entities::VID;
-use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::SessionAdditionOps};
+use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
