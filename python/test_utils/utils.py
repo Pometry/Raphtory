@@ -251,6 +251,7 @@ def assert_in_all(haystack: str, needles):
     for n in needles:
         assert n in haystack, f"expected to find {n!r} in {haystack!r}"
 
+
 # Needed because datetimes generated using .now() have sub millisecond precision which raphtory does not support.
 # Equality checks are failing because of this (in assert_has_properties and assert_has_metadata).
 def truncate_dt_to_ms(dt: datetime) -> datetime:
