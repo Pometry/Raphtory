@@ -175,11 +175,11 @@ def test_introspection_denied_without_introspect_permission():
             headers=ANALYST_HEADERS,
             data=json.dumps({"query": QUERY_COUNT_NODES}),
         )
-        assert (
-            response.json()["data"] is None
-            or response.json()["data"]["graph"] is None
-        )
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        errors = response.json().get("errors", [])
+        assert errors, response.json()
+        assert "Access denied" in errors[0]["message"]
+        assert "countNodes" in errors[0]["message"]
+        assert "introspect" in errors[0]["message"]
 
 
 def test_permissions_update_via_mutation():
@@ -390,6 +390,96 @@ def test_analyst_cannot_get_role():
             ),
         )
         assert "errors" in response.json()
+        assert "Access denied" in response.json()["errors"][0]["message"]
+
+
+def test_introspect_only_can_call_introspection_fields():
+    """A role with only INTROSPECT (no READ) can call countNodes/countEdges/schema/uniqueLayers."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", ["INTROSPECT"])  # no READ
+
+        for query in [
+            'query { graph(path: "jira") { countNodes } }',
+            'query { graph(path: "jira") { countEdges } }',
+            'query { graph(path: "jira") { uniqueLayers } }',
+        ]:
+            response = requests.post(
+                RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
+            )
+            assert "errors" not in response.json(), f"query={query} response={response.json()}"
+
+
+def test_introspect_only_cannot_read_nodes_or_edges():
+    """A role with only INTROSPECT (no READ) is denied access to node/edge data."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        # Add a node and edge so the graph has data to query
+        gql('query { updateGraph(path: "jira") { addNode(time: 1, name: "a") { success } } }')
+        gql('query { updateGraph(path: "jira") { addEdge(time: 1, src: "a", dst: "b") { success } } }')
+        create_role("analyst")
+        grant_graph("analyst", "jira", ["INTROSPECT"])  # no READ
+
+        for query, expected_field in [
+            ('query { graph(path: "jira") { nodes { list { name } } } }', "nodes"),
+            ('query { graph(path: "jira") { edges { list { src { name } } } } }', "edges"),
+            ('query { graph(path: "jira") { node(name: "a") { name } } }', "node"),
+            ('query { graph(path: "jira") { properties { values { key } } } }', "properties"),
+            ('query { graph(path: "jira") { earliestTime { timestamp } } }', "earliestTime"),
+        ]:
+            response = requests.post(
+                RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
+            )
+            errors = response.json().get("errors", [])
+            assert errors, f"expected denial for query={query!r}, got: {response.json()}"
+            msg = errors[0]["message"]
+            assert "Access denied" in msg and expected_field in msg and "read" in msg, (
+                f"unexpected error for {expected_field!r}: {msg!r}"
+            )
+
+
+def test_read_only_cannot_call_introspection_fields():
+    """A role with only READ (no INTROSPECT) is denied countNodes/countEdges/schema/uniqueLayers."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", ["READ"])  # no INTROSPECT
+
+        for query, expected_field in [
+            ('query { graph(path: "jira") { countNodes } }', "countNodes"),
+            ('query { graph(path: "jira") { countEdges } }', "countEdges"),
+            ('query { graph(path: "jira") { uniqueLayers } }', "uniqueLayers"),
+            ('query { graph(path: "jira") { schema { nodes { typeName } } } }', "schema"),
+        ]:
+            response = requests.post(
+                RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
+            )
+            errors = response.json().get("errors", [])
+            assert errors, f"expected denial for query={query!r}, got: {response.json()}"
+            msg = errors[0]["message"]
+            assert "Access denied" in msg and expected_field in msg and "introspect" in msg, (
+                f"unexpected error for {expected_field!r}: {msg!r}"
+            )
+
+
+def test_introspect_only_is_denied_without_introspect_or_read():
+    """A role with no permissions on a graph is denied even when trying introspection fields."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        # analyst has no grant on jira at all
+
+        response = requests.post(
+            RAPHTORY,
+            headers=ANALYST_HEADERS,
+            data=json.dumps({"query": 'query { graph(path: "jira") { countNodes } }'}),
+        )
+        assert response.json()["data"] is None
         assert "Access denied" in response.json()["errors"][0]["message"]
 
 

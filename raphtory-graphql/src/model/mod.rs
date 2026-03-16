@@ -165,26 +165,34 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
 
-        let introspection_allowed = if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
-            true // "a": "rw" = admin, bypass all per-graph policy checks
+        let (read_allowed, introspection_allowed) = if ctx
+            .data::<Access>()
+            .is_ok_and(|a| a == &Access::Rw)
+        {
+            (true, true) // "a": "rw" = admin, bypass all per-graph policy checks
         } else if let Some(policy) = &data.auth_policy {
             match policy.check_graph_access(role, path) {
                 Some(false) => {
-                    let role_str = role.unwrap_or("<no role>");
-                    warn!(
-                        role = role_str,
-                        graph = path,
-                        "Access denied by auth policy"
-                    );
-                    return Err(async_graphql::Error::new(format!(
-                        "Access denied: role '{role_str}' is not permitted to access graph '{path}'"
-                    )));
+                    // No READ — introspect-only access is still allowed
+                    if policy.check_graph_introspection(role, path) {
+                        (false, true)
+                    } else {
+                        let role_str = role.unwrap_or("<no role>");
+                        warn!(
+                            role = role_str,
+                            graph = path,
+                            "Access denied by auth policy"
+                        );
+                        return Err(async_graphql::Error::new(format!(
+                                "Access denied: role '{role_str}' is not permitted to access graph '{path}'"
+                            )));
+                    }
                 }
-                Some(true) => policy.check_graph_introspection(role, path),
-                None => true, // role not in store = no rules apply = full access
+                Some(true) => (true, policy.check_graph_introspection(role, path)),
+                None => (true, true), // role not in store = no rules apply = full access
             }
         } else {
-            true // no policy -> unrestricted
+            (true, true) // no policy -> unrestricted
         };
 
         let graph_with_vecs = data.get_graph(path).await?;
@@ -208,6 +216,7 @@ impl QueryRoot {
         Ok(GqlGraph::new_with_permissions(
             graph_with_vecs.folder,
             graph,
+            read_allowed,
             introspection_allowed,
         ))
     }
@@ -222,11 +231,23 @@ impl QueryRoot {
             match &data.auth_policy {
                 Some(policy) => {
                     let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-                    if !policy.check_graph_write_access(role, &path) {
-                        let role_str = role.unwrap_or("<no role>");
-                        return Err(async_graphql::Error::new(format!(
-                            "Access denied: role '{role_str}' does not have write permission for graph '{path}'"
-                        )));
+                    match policy.check_graph_access(role, &path) {
+                        // No active policy entries (empty store) — fall back to JWT-level check
+                        None => ctx.require_write_access()?,
+                        Some(false) => {
+                            let role_str = role.unwrap_or("<no role>");
+                            return Err(async_graphql::Error::new(format!(
+                                "Access denied: role '{role_str}' does not have write permission for graph '{path}'"
+                            )));
+                        }
+                        Some(true) => {
+                            if !policy.check_graph_write_access(role, &path) {
+                                let role_str = role.unwrap_or("<no role>");
+                                return Err(async_graphql::Error::new(format!(
+                                    "Access denied: role '{role_str}' does not have write permission for graph '{path}'"
+                                )));
+                            }
+                        }
                     }
                 }
                 None => ctx.require_write_access()?,
@@ -346,11 +367,23 @@ impl Mut {
             match &data.auth_policy {
                 Some(policy) => {
                     let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-                    if !policy.check_graph_write_access(role, &path) {
-                        let role_str = role.unwrap_or("<no role>");
-                        return Err(async_graphql::Error::new(format!(
-                            "Access denied: role '{role_str}' does not have write permission for namespace '{path}'"
-                        )));
+                    match policy.check_graph_access(role, &path) {
+                        // No active policy entries (empty store) — fall back to JWT-level check
+                        None => ctx.require_write_access()?,
+                        Some(false) => {
+                            let role_str = role.unwrap_or("<no role>");
+                            return Err(async_graphql::Error::new(format!(
+                                "Access denied: role '{role_str}' does not have write permission for namespace '{path}'"
+                            )));
+                        }
+                        Some(true) => {
+                            if !policy.check_graph_write_access(role, &path) {
+                                let role_str = role.unwrap_or("<no role>");
+                                return Err(async_graphql::Error::new(format!(
+                                    "Access denied: role '{role_str}' does not have write permission for namespace '{path}'"
+                                )));
+                            }
+                        }
                     }
                 }
                 None => ctx.require_write_access()?,
