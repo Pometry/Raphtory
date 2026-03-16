@@ -255,8 +255,8 @@ pub fn load_node_props_from_df<
         // We assume this is fast enough
         let max_vid = node_col_resolved
             .iter()
+            .filter(|vid|vid.is_initialised())
             .map(|vid| vid.index())
-            .filter(|idx| *idx != usize::MAX) // filter out unresolved vids
             .max()
             .map(VID)
             .unwrap_or(VID(0));
@@ -271,7 +271,7 @@ pub fn load_node_props_from_df<
                 .iter()
                 .zip(node_type_col_resolved.iter())
                 .zip(node_col.iter())
-                .enumerate().filter(|(_, ((vid, _ ), _))| vid.index() != usize::MAX ) // filter out unresolved vids
+                .enumerate().filter(|(_, ((vid, _ ), _))| vid.is_initialised() ) // filter out unresolved vids
             {
 
                 if let Some(mut_node) = writer.resolve_pos(*vid) {
@@ -423,7 +423,7 @@ fn resolve_node_and_meta_for_node_col<
             *node_type_id = id;
         }
 
-        let res_vid = graph.internalise_node(gid.as_node_ref()).unwrap_or(VID(usize::MAX));
+        let res_vid = graph.internalise_node(gid.as_node_ref()).unwrap_or_default();
         *vid = res_vid;
         last_node_type = node_type;
     }
