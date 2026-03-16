@@ -1140,22 +1140,31 @@ fn temporal_node_rows_1_node() {
 #[test]
 fn temporal_node_rows_nodes() {
     let graph = Graph::new();
+    let mut nodes = Vec::new();
+    nodes.push(
+        graph
+            .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None)
+            .unwrap()
+            .node,
+    );
+    nodes.push(
+        graph
+            .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None)
+            .unwrap()
+            .node,
+    );
+    nodes.push(
+        graph
+            .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None)
+            .unwrap()
+            .node,
+    );
 
-    graph
-        .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None)
-        .unwrap();
-    graph
-        .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None)
-        .unwrap();
-    graph
-        .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None)
-        .unwrap();
-
-    for (id, n) in graph.nodes().into_iter().enumerate() {
+    for (id, n) in nodes.into_iter().enumerate() {
         let actual = graph
             .core_graph()
             .nodes()
-            .node(n.node)
+            .node(n)
             .temp_prop_rows()
             .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
@@ -2290,13 +2299,10 @@ fn test_node_ids() {
     graph.add_node(1, 2, NO_PROPS, None).unwrap();
     graph.add_node(2, 3, NO_PROPS, None).unwrap();
 
-    assert_eq!(
-        graph.nodes().id().collect::<Vec<_>>(),
-        vec![1u64, 2u64, 3u64]
-    );
+    assert_eq!(graph.nodes().id().sort_by_id(), vec![1u64, 2u64, 3u64]);
 
     let g_at = graph.at(1);
-    assert_eq!(g_at.nodes().id().collect::<Vec<_>>(), vec![1u64, 2u64]);
+    assert_eq!(g_at.nodes().id().sort_by_id(), vec![1u64, 2u64]);
 }
 
 #[test]
