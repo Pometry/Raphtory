@@ -162,8 +162,8 @@ def test_filter_nodes_for_property_starts_with():
 
         filter_expr = filter.Node.metadata("p10").starts_with("Paper")
         with pytest.raises(
-            Exception,
-            match=r"Metadata p10 does not exist",
+                Exception,
+                match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -215,8 +215,8 @@ def test_filter_nodes_for_property_ends_with():
 
         filter_expr = filter.Node.metadata("p10").ends_with("ane")
         with pytest.raises(
-            Exception,
-            match=r"Metadata p10 does not exist",
+                Exception,
+                match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -248,8 +248,8 @@ def test_filter_nodes_for_property_contains():
 
         filter_expr = filter.Node.metadata("p10").contains("Paper")
         with pytest.raises(
-            Exception,
-            match=r"Metadata p10 does not exist",
+                Exception,
+                match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -283,8 +283,8 @@ def test_filter_nodes_for_property_not_contains():
 
         filter_expr = filter.Node.metadata("p10").not_contains("ship")
         with pytest.raises(
-            Exception,
-            match=r"Metadata p10 does not exist",
+                Exception,
+                match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -789,8 +789,8 @@ def test_filter_nodes_with_with_qualifier_on_non_string():
     def check(graph):
         filter_expr = filter.Node.property("prop8").any() == "3"
         with pytest.raises(
-            Exception,
-            match=r"Wrong type for property prop8: expected I64 but actual type is Str",
+                Exception,
+                match=r"Wrong type for property prop8: expected I64 but actual type is Str",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -802,8 +802,8 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_operators():
     def check(graph):
         filter_expr = filter.Node.property("prop8").any().is_some()
         with pytest.raises(
-            Exception,
-            match=r"Invalid filter: Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself \(without elem qualifiers\).",
+                Exception,
+                match=r"Invalid filter: Operator IS_SOME/IS_NONE is not supported with element qualifiers; apply it to the list itself \(without elem qualifiers\).",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -815,15 +815,15 @@ def test_filter_nodes_with_with_qualifier_alongside_illegal_agg_operators():
     def check(graph):
         filter_expr = filter.Node.property("prop8").all().len() > 0
         with pytest.raises(
-            Exception,
-            match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
+                Exception,
+                match=r"List aggregation len cannot be used after an element qualifier \(any/all\)",
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop8").sum().any() > 0
         with pytest.raises(
-            Exception,
-            match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
+                Exception,
+                match=r"Element qualifiers \(any/all\) cannot be used after a list aggregation \(len/sum/avg/min/max\).",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -867,26 +867,28 @@ def test_nodes_getitem_property_filter_expr():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.nodes[filter_expr].neighbours.name.collect())
-        expected_ids = [["1", "2", "4"], ["2", "3"]]
+        result_ids = dict(
+            zip(graph.nodes[filter_expr].id, (sorted(v) for v in graph.nodes[filter_expr].neighbours.name)))
+        expected_ids = {"1": ["2", "3"], "3": ["1", "2", "4"]}
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.filter(filter_expr).nodes.neighbours.name.collect())
-        expected_ids = [
-            ["1"],
-            ["3"],
-        ]  # graph filter applies to nodes neighbours as well
+        result_ids = dict(
+            zip(graph.filter(filter_expr).nodes.id, graph.filter(filter_expr).nodes.neighbours.name.collect()))
+        expected_ids = {
+            "3": ["1"],
+            "1": ["3"],
+        }  # graph filter applies to nodes neighbours as well
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.nodes[filter_expr].degree())
-        expected_ids = [2, 3]
+        result_ids = graph.nodes[filter_expr].degree()
+        expected_ids = {"1": 2, "3": 3}
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.filter(filter_expr).nodes.degree())
-        expected_ids = [1, 1]  # graph filter applies to nodes neighbours as well
+        result_ids = graph.filter(filter_expr).nodes.degree()
+        expected_ids = {"1": 1, "3": 1}  # graph filter applies to nodes neighbours as well
         assert result_ids == expected_ids
 
         # Test 2
@@ -910,47 +912,49 @@ def test_path_from_graph_nodes_getitem_property_filter_expr():
         filter_expr = filter.Node.property("p100") > 30
 
         # Test 1
-        result_ids = graph.nodes.id.collect()
-        expected_ids = ["1", "2", "3", "4", "David Gilmour", "John Mayer", "Jimmy Page"]
+        node_ids = graph.nodes.id.collect()
+        expected_ids = ["1", "2", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
+        assert sorted(node_ids) == expected_ids
+
+        result_ids = dict(zip(node_ids, (sorted(v) for v in graph.nodes.neighbours.id)))
+        expected_ids = {
+            "1": ["2", "3"],
+            "2": ["1", "3"],
+            "3": ["1", "2", "4"],
+            "4": ["3"],
+            "David Gilmour": ["John Mayer"],
+            "John Mayer": ["David Gilmour", "Jimmy Page"],
+            "Jimmy Page": ["John Mayer"],
+        }
         assert result_ids == expected_ids
 
-        result_ids = graph.nodes.neighbours.id.collect()
-        expected_ids = [
-            ["2", "3"],
-            ["1", "3"],
-            ["1", "2", "4"],
-            ["3"],
-            ["John Mayer"],
-            ["David Gilmour", "Jimmy Page"],
-            ["John Mayer"],
-        ]
+        result_ids = dict(zip(node_ids, (sorted(v) for v in graph.nodes.neighbours[filter_expr].id)))
+        expected_ids = {"1": ["3"], "2": ["1", "3"], "3": ["1"], "4": ["3"], "David Gilmour": [], "John Mayer": [],
+                        "Jimmy Page": []}
         assert result_ids == expected_ids
 
-        result_ids = graph.nodes.neighbours[filter_expr].id.collect()
-        expected_ids = [["3"], ["1", "3"], ["1"], ["3"], [], [], []]
-        assert result_ids == expected_ids
-
-        result_ids = graph.nodes.neighbours[filter_expr].neighbours.id.collect()
-        expected_ids = [
-            ["1", "2", "4"],
-            ["2", "3", "1", "2", "4"],
-            ["2", "3"],
-            ["1", "2", "4"],
-            [],
-            [],
-            [],
-        ]
+        result_ids = dict(zip(node_ids, (sorted(v) for v in graph.nodes.neighbours[filter_expr].neighbours.id)))
+        expected_ids = {"1": ["1", "2", "4"],
+                        "2": ["1", "2", "2", "3", "4"],
+                        "3": ["2", "3"],
+                        "4": ["1", "2", "4"],
+                        "David Gilmour": [],
+                        "John Mayer": [],
+                        "Jimmy Page": [],
+                        }
         assert result_ids == expected_ids
 
         # Test 2
         filter_expr2 = filter.Node.property("p9") == 5
-        result_ids = graph.nodes.neighbours[filter_expr][filter_expr2].id.collect()
-        expected_ids = [[], ["1"], ["1"], [], [], [], []]
+        result_ids = dict(zip(node_ids, graph.nodes.neighbours[filter_expr][filter_expr2].id.collect()))
+        expected_ids = {"1": [], "2": ["1"], "3": ["1"], "4": [], "David Gilmour": [], "John Mayer": [],
+                        "Jimmy Page": []}
         assert result_ids == expected_ids
 
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = graph.nodes.neighbours[filter_expr3].id.collect()
-        expected_ids = [[], ["1"], ["1"], [], [], [], []]
+        result_ids = dict(zip(node_ids, graph.nodes.neighbours[filter_expr3].id.collect()))
+        expected_ids = {"1": [], "2": ["1"], "3": ["1"], "4": [], "David Gilmour": [], "John Mayer": [],
+                        "Jimmy Page": []}
         assert result_ids == expected_ids
 
     return check
@@ -963,7 +967,7 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
         assert graph.node("1") is not None
 
         # Test 1
-        result_ids = graph.node("1").neighbours.id.collect()
+        result_ids = sorted(graph.node("1").neighbours.id)
         expected_ids = ["2", "3"]
         assert result_ids == expected_ids
 
@@ -971,7 +975,7 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
         expected_ids = ["3"]
         assert result_ids == expected_ids
 
-        result_ids = graph.node("1").neighbours[filter_expr].neighbours.id.collect()
+        result_ids = sorted(graph.node("1").neighbours[filter_expr].neighbours.id)
         expected_ids = ["1", "2", "4"]
         assert result_ids == expected_ids
 
@@ -994,8 +998,8 @@ def test_prop_not_found_error():
     def check(graph):
         filter_expr = filter.Node.property("p").any().is_some()
         with pytest.raises(
-            Exception,
-            match=r"Property p does not exist",
+                Exception,
+                match=r"Property p does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1090,16 +1094,16 @@ def test_filter_nodes_for_temporal_property_fails():
         filter_expr = filter.Node.property("prop1").temporal() == 60
         msg = "Wrong type for property prop1: expected List(I64) but actual type is I64"
         with pytest.raises(
-            Exception,
-            match=re.escape(msg),
+                Exception,
+                match=re.escape(msg),
         ):
             graph.filter(filter_expr).nodes.id
 
         filter_expr = filter.Node.property("prop1").temporal() == "pometry"
         msg = "Wrong type for property prop1: expected List(I64) but actual type is Str"
         with pytest.raises(
-            Exception,
-            match=re.escape(msg),
+                Exception,
+                match=re.escape(msg),
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1122,10 +1126,10 @@ def test_filter_nodes_temporal_window_sum_ge():
 def test_filter_nodes_two_windows_and():
     def check(graph):
         filter1 = (
-            filter.Node.window(1, 2).property("prop5").temporal().first().sum() == 6
+                filter.Node.window(1, 2).property("prop5").temporal().first().sum() == 6
         )
         filter2 = (
-            filter.Node.window(2, 3).property("prop6").temporal().last().sum() == 12
+                filter.Node.window(2, 3).property("prop6").temporal().last().sum() == 12
         )
         assert sorted(graph.filter(filter1 & filter2).nodes.id) == ["a"]
 
@@ -1145,17 +1149,17 @@ def test_filter_nodes_window_out_of_range_is_empty():
 def test_filter_nodes_temporal_layer_sum_ge():
     def check(graph):
         expr = (
-            filter.Node.layers(["fire_nation"])
-            .property("prop5")
-            .temporal()
-            .last()
-            .sum()
-            >= 12
+                filter.Node.layers(["fire_nation"])
+                .property("prop5")
+                .temporal()
+                .last()
+                .sum()
+                >= 12
         )
         msg = """Invalid layer: fire_nation. Valid layers: ["_default"]"""
         with pytest.raises(
-            Exception,
-            match=re.escape(msg),
+                Exception,
+                match=re.escape(msg),
         ):
             graph.filter(expr).nodes.id
 
@@ -1217,7 +1221,7 @@ def test_filter_nodes_snapshot_at():
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
         expr = (
-            filter.Node.snapshot_at(1).property("prop5").temporal().last().sum() >= 10
+                filter.Node.snapshot_at(1).property("prop5").temporal().last().sum() >= 10
         )
         assert sorted(graph.filter(expr).nodes.id) == ["c"]
 
@@ -1231,8 +1235,8 @@ def test_filter_nodes_snapshot_at():
 def test_filter_nodes_snapshot_latest():
     def check(graph):
         expr = (
-            filter.Node.snapshot_latest().property("prop6").temporal().last().sum()
-            == 12
+                filter.Node.snapshot_latest().property("prop6").temporal().last().sum()
+                == 12
         )
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
@@ -1246,8 +1250,8 @@ def test_filter_nodes_snapshot_latest():
 def test_filter_nodes_window_latest():
     def check(graph):
         expr = (
-            filter.Node.window(1, 3).latest().property("prop6").temporal().last().sum()
-            == 12
+                filter.Node.window(1, 3).latest().property("prop6").temporal().last().sum()
+                == 12
         )
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
@@ -1258,8 +1262,8 @@ def test_filter_nodes_window_latest():
 def test_filter_nodes_latest_window():
     def check(graph):
         expr = (
-            filter.Node.latest().window(1, 3).property("prop6").temporal().last().sum()
-            == 12
+                filter.Node.latest().window(1, 3).property("prop6").temporal().last().sum()
+                == 12
         )
         assert sorted(graph.filter(expr).nodes.id) == ["a"]
 
@@ -1270,8 +1274,8 @@ def test_filter_nodes_latest_window():
 def test_filter_nodes_layer_latest():
     def check(graph):
         expr = (
-            filter.Node.layer("fire_nation").latest().property("p9").temporal().sum()
-            == 5
+                filter.Node.layer("fire_nation").latest().property("p9").temporal().sum()
+                == 5
         )
 
         assert sorted(graph.filter(expr).nodes.id) == [1]
@@ -1283,8 +1287,8 @@ def test_filter_nodes_layer_latest():
 def test_filter_nodes_latest_layer():
     def check(graph):
         expr = (
-            filter.Node.latest().layer("fire_nation").property("p9").temporal().sum()
-            == 5
+                filter.Node.latest().layer("fire_nation").property("p9").temporal().sum()
+                == 5
         )
 
         assert sorted(graph.filter(expr).nodes.id) == [1]

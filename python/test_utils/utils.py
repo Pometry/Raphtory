@@ -26,6 +26,34 @@ def sort_dict_recursive(d) -> dict:
         return d
 
 
+def gql_sort_key(v):
+    if isinstance(v, dict):
+        direct = v.get("name", v.get("id", ""))
+        if direct:
+            return direct
+        # sort by src/dst for edges
+        src = gql_sort_key(v.get("src"))
+        dst = gql_sort_key(v.get("dst"))
+        if src:
+            if dst:
+                return [src, dst]
+            else:
+                return src
+        else:
+            return dst
+    else:
+        return ""
+
+
+def sort_by_gql_name_or_id(d):
+    if isinstance(d, dict):
+        return {key: sort_by_gql_name_or_id(value) for key, value in d.items()}
+    elif isinstance(d, list):
+        return sorted((sort_dict_recursive(v) for v in d), key=gql_sort_key)
+    else:
+        return d
+
+
 if "DISK_TEST_MARK" in os.environ:
 
     def with_disk_graph(func):
@@ -81,8 +109,8 @@ def with_disk_variants(init_fn, variants=None):
 
                 with tempfile.TemporaryDirectory() as tmpdir:
                     if (
-                        "event_disk_graph" in variants
-                        or "persistent_disk_graph" in variants
+                            "event_disk_graph" in variants
+                            or "persistent_disk_graph" in variants
                     ):
                         g = init_fn(Graph())
                         g.to_disk_graph(tmpdir)
@@ -122,7 +150,7 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
     return result
 
 
-def run_graphql_test(query, expected_output, graph):
+def run_graphql_test(query, expected_output, graph, sort_output=False):
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
@@ -131,12 +159,15 @@ def run_graphql_test(query, expected_output, graph):
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
+        if sort_output:
+            response_dict = sort_by_gql_name_or_id(response_dict)
+            expected_output = sort_by_gql_name_or_id(expected_output)
         assert (
-            response_dict == expected_output
+                response_dict == expected_output
         ), f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
 
 
-def run_group_graphql_test(queries_and_expected_outputs, graph):
+def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=False):
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
@@ -147,9 +178,10 @@ def run_group_graphql_test(queries_and_expected_outputs, graph):
             response_dict = (
                 json.loads(response) if isinstance(response, str) else response
             )
-            assert sort_dict_recursive(response_dict) == sort_dict_recursive(
-                expected_output
-            ), f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
+            if sort_output:
+                response_dict = sort_by_gql_name_or_id(response_dict)
+                expected_output = sort_by_gql_name_or_id(expected_output)
+            assert response_dict == expected_output, f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
 
 
 def run_graphql_error_test(query, expected_error_message, graph):
@@ -166,7 +198,7 @@ def run_graphql_error_test(query, expected_error_message, graph):
         error_message = match.group(1) if match else ""
 
         assert (
-            error_message == expected_error_message
+                error_message == expected_error_message
         ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 
@@ -183,7 +215,7 @@ def run_group_graphql_error_test(queries_and_expected_error_messages, graph):
             match = re.search(r'"message":"(.*?)"', full_error_message)
             error_message = match.group(1) if match else ""
             assert (
-                error_message == expected_error_message
+                    error_message == expected_error_message
             ), f"Expected '{expected_error_message}', but got '{error_message}'"
 
 

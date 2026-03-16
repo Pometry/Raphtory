@@ -1,8 +1,8 @@
 import json
 import os
 import tempfile
-
 import pytest
+from utils import sort_by_gql_name_or_id
 from raphtory import Graph, graph_loader
 from raphtory.graphql import (
     GraphServer,
@@ -45,8 +45,8 @@ def test_wrong_url():
     with pytest.raises(Exception) as excinfo:
         client = RaphtoryClient("http://broken_url.com")
     assert (
-        str(excinfo.value)
-        == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
+            str(excinfo.value)
+            == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
     )
 
 
@@ -155,40 +155,40 @@ def test_namespaces():
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
-            in str(excinfo.value)
+                "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
+                in str(excinfo.value)
         )
 
         path = "./shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path './shivam/g': References to the current dir are not allowed within the path"
-            in str(excinfo.value)
+                "Invalid path './shivam/g': References to the current dir are not allowed within the path"
+                in str(excinfo.value)
         )
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
-            in str(excinfo.value)
+                "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
+                in str(excinfo.value)
         )
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
-            in str(excinfo.value)
+                "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
+                in str(excinfo.value)
         )
 
         path = "shivam/investigation//2024-12-12/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
-            in str(excinfo.value)
+                "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
+                in str(excinfo.value)
         )
 
         path = r"shivam/investigation\2024-12-12"
@@ -206,8 +206,8 @@ def test_namespaces():
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
-            in str(excinfo.value)
+                "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
+                in str(excinfo.value)
         )
 
 
@@ -707,7 +707,7 @@ def test_edge_id():
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {edges {list {id}}}}"""
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "edges": {
                     "list": [
@@ -741,7 +741,7 @@ def test_graph_persistence_across_restarts():
         query_nodes = """{graph(path: "persistent_graph") {nodes {list {name}}}}"""
         query_edges = """{graph(path: "persistent_graph") {edges {list {id}}}}"""
 
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "nodes": {
                     "list": [{"name": "node1"}, {"name": "node2"}, {"name": "node3"}]
@@ -749,7 +749,7 @@ def test_graph_persistence_across_restarts():
             }
         }
 
-        assert client.query(query_edges) == {
+        assert sort_by_gql_name_or_id(client.query(query_edges)) == {
             "graph": {
                 "edges": {
                     "list": [
@@ -866,7 +866,6 @@ def test_float_is_stable_on_roundtrip():
             resp = client.query(query)
             retrieved_float = resp["graph"]["node"]["at"]["properties"]["get"]["value"]
             assert retrieved_float == num
-
 
 # def test_disk_graph_name():
 #     import pandas as pd

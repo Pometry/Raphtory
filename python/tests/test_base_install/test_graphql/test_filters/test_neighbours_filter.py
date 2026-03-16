@@ -218,7 +218,7 @@ def test_neighbours_found(graph):
             "node": {"filter": {"neighbours": {"list": [{"name": "b"}, {"name": "c"}]}}}
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -321,11 +321,13 @@ def test_neighbours_neighbours_filtering(graph):
           graph(path: "g") {
             nodes(select: { property: { name: "p100", where: { gt: { i64: 30 } } } }) {
               list {
+                name
                 neighbours {
                   filter(expr: {
                      property: { name: "p2", where: { gt: { i64: 3 } } }
                   }) {
                     list {
+                      name
                       neighbours {
                         list {
                           name
@@ -344,22 +346,24 @@ def test_neighbours_neighbours_filtering(graph):
             "nodes": {
                 "list": [
                     {
+                        "name": "1",
                         "neighbours": {
                             "filter": {
                                 "list": [
-                                    {"neighbours": {"list": [{"name": "3"}]}},
-                                    {"neighbours": {"list": []}},
+                                    {"name": "2", "neighbours": {"list": [{"name": "3"}]}},
+                                    {"name": "3", "neighbours": {"list": []}},
                                 ]
                             }
                         }
                     },
                     {
+                        "name": "3",
                         "neighbours": {
                             "filter": {
                                 "list": [
-                                    {"neighbours": {"list": [{"name": "3"}]}},
-                                    {"neighbours": {"list": [{"name": "3"}]}},
-                                    {"neighbours": {"list": [{"name": "3"}]}},
+                                    {"name": "1", "neighbours": {"list": [{"name": "3"}]}},
+                                    {"name": "2", "neighbours": {"list": [{"name": "3"}]}},
+                                    {"name": "4", "neighbours": {"list": [{"name": "3"}]}},
                                 ]
                             }
                         }
@@ -368,4 +372,4 @@ def test_neighbours_neighbours_filtering(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
