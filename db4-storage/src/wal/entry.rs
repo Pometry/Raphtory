@@ -117,11 +117,15 @@ impl GraphWalOps for NoWal {
         ))
     }
 
-    fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
+    fn replay_iter(&self, _start: LSN) -> impl Iterator<Item = Result<(LSN, ()), StorageError>> {
         std::iter::empty()
     }
 
-    fn replay_to_graph<G: GraphReplay>(&self, _graph: &mut G) -> Result<(), StorageError> {
+    fn replay_to_graph<G: GraphReplay>(
+        &self,
+        _graph: &mut G,
+        _start: LSN,
+    ) -> Result<(), StorageError> {
         panic!("NoWAL does not support replay")
     }
 }

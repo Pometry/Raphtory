@@ -581,7 +581,9 @@ impl<
                     .log_checkpoint(redo_lsn, is_shutdown)
                     .expect("Failed to log checkpoint in drop");
 
-                wal.flush(checkpoint_lsn)
+                // Flush up to the end of the WAL stream.
+                let flush_lsn = wal.next_lsn();
+                wal.flush(flush_lsn)
                     .expect("Failed to flush checkpoint record in drop");
 
                 // Record the checkpoint and shutdown state and write control file to disk.

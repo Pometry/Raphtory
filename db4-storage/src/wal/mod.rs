@@ -24,8 +24,8 @@ pub trait WalOps {
     /// Returns `Ok(None)` if there is no record at that LSN.
     fn read(&self, lsn: LSN) -> Result<Option<ReplayRecord>, StorageError>;
 
-    /// Returns an iterator over the entries in the wal.
-    fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
+    /// Returns an iterator over the entries in the wal, starting from the given LSN.
+    fn replay(&self, start: LSN) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
     /// Returns the LSN that will be assigned to the next appended record.
     fn next_lsn(&self) -> LSN;
@@ -162,11 +162,18 @@ pub trait GraphWalOps {
     /// Returns the LSN immediately after this record which marks the end of the WAL stream.
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
-    /// Returns an iterator over the entries in the wal.
-    fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
+    /// Returns an iterator over the entries in the wal, starting from the given LSN.
+    fn replay_iter(
+        &self,
+        start: LSN,
+    ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
 
-    /// Replays and applies all the entries in the wal to the given graph.
-    fn replay_to_graph<G: GraphReplay>(&self, graph: &mut G) -> Result<(), StorageError>;
+    /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
+    fn replay_to_graph<G: GraphReplay>(
+        &self,
+        graph: &mut G,
+        start: LSN,
+    ) -> Result<(), StorageError>;
 }
 
 /// Trait for defining callbacks for replaying from wal.
