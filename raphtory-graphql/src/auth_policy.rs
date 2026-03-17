@@ -31,7 +31,12 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
 pub struct NoopPolicy;
 
 impl AuthorizationPolicy for NoopPolicy {
-    fn graph_permissions(&self, _: bool, _: Option<&str>, _: &str) -> Result<GraphPermission, String> {
+    fn graph_permissions(
+        &self,
+        _: bool,
+        _: Option<&str>,
+        _: &str,
+    ) -> Result<GraphPermission, String> {
         Ok(GraphPermission::Write)
     }
 }

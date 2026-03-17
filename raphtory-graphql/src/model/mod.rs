@@ -165,7 +165,11 @@ impl QueryRoot {
             policy
                 .graph_permissions(is_admin, role, path)
                 .map_err(|msg| {
-                    warn!(role = role.unwrap_or("<no role>"), graph = path, "Access denied by auth policy");
+                    warn!(
+                        role = role.unwrap_or("<no role>"),
+                        graph = path,
+                        "Access denied by auth policy"
+                    );
                     async_graphql::Error::new(msg)
                 })?
         } else {
@@ -175,13 +179,20 @@ impl QueryRoot {
         let graph_with_vecs = data.get_graph(path).await?;
         let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
 
-        let graph = if let GraphPermission::Read { filter: Some(ref f) } = perms {
+        let graph = if let GraphPermission::Read {
+            filter: Some(ref f),
+        } = perms
+        {
             apply_graph_filter(graph, f.clone()).await?
         } else {
             graph
         };
 
-        Ok(GqlGraph::new_with_permissions(graph_with_vecs.folder, graph, perms))
+        Ok(GqlGraph::new_with_permissions(
+            graph_with_vecs.folder,
+            graph,
+            perms,
+        ))
     }
 
     /// Update graph query, has side effects to update graph state
@@ -195,7 +206,8 @@ impl QueryRoot {
             match &data.auth_policy {
                 None => ctx.require_write_access()?,
                 Some(policy) => {
-                    let perms = policy.graph_permissions(false, role, &path)
+                    let perms = policy
+                        .graph_permissions(false, role, &path)
                         .map_err(|msg| async_graphql::Error::new(msg))?;
                     if !matches!(perms, GraphPermission::Write) {
                         // role=Some: policy is active and grants less than Write.
@@ -327,7 +339,8 @@ impl Mut {
             match &data.auth_policy {
                 None => ctx.require_write_access()?,
                 Some(policy) => {
-                    let perms = policy.graph_permissions(false, role, &path)
+                    let perms = policy
+                        .graph_permissions(false, role, &path)
                         .map_err(|msg| async_graphql::Error::new(msg))?;
                     if !matches!(perms, GraphPermission::Write) {
                         // role=Some: policy is active and grants less than Write.
