@@ -49,7 +49,7 @@ def sort_by_gql_name_or_id(d):
     if isinstance(d, dict):
         return {key: sort_by_gql_name_or_id(value) for key, value in d.items()}
     elif isinstance(d, list):
-        return sorted((sort_dict_recursive(v) for v in d), key=gql_sort_key)
+        return sorted((sort_by_gql_name_or_id(v) for v in d), key=gql_sort_key)
     else:
         return d
 
