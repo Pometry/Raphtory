@@ -4,7 +4,7 @@ import tempfile
 import requests
 import jwt
 import pytest
-from raphtory.graphql import GraphServer, has_permissions_extension
+from raphtory.graphql import GraphServer, RaphtoryClient, has_permissions_extension
 
 pytestmark = pytest.mark.skipif(
     not has_permissions_extension(),
@@ -548,6 +548,61 @@ def test_analyst_sees_only_filtered_edges():
             ("b", "c"),
             ("a", "c"),
         }, f"expected all edges for admin, got {admin_edges}"
+
+
+def test_raphtory_client_analyst_can_query_permitted_graph():
+    """RaphtoryClient with analyst role can query a graph it has READ access to."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "READ")
+
+        client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
+        result = client.query(QUERY_JIRA)
+        assert result["graph"]["path"] == "jira"
+
+
+def test_raphtory_client_analyst_denied_unpermitted_graph():
+    """RaphtoryClient with analyst role is denied access to a graph it has no grant for."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        # No grant on jira
+
+        client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
+        with pytest.raises(Exception, match="Access denied"):
+            client.query(QUERY_JIRA)
+
+
+def test_raphtory_client_analyst_write_with_write_grant():
+    """RaphtoryClient with analyst role and WRITE grant can add nodes via remote_graph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "WRITE")
+
+        client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
+        client.remote_graph("jira").add_node(1, "client_node")
+
+        client2 = RaphtoryClient(url=RAPHTORY, token=ADMIN_JWT)
+        received = client2.receive_graph("jira")
+        assert received.node("client_node") is not None
+
+
+def test_raphtory_client_analyst_write_denied_without_write_grant():
+    """RaphtoryClient with analyst role and READ-only grant cannot add nodes via remote_graph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "READ")
+
+        client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
+        with pytest.raises(Exception, match="Access denied"):
+            client.remote_graph("jira").add_node(1, "client_node")
 
 
 def test_analyst_sees_only_graph_filter_window():

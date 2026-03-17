@@ -206,6 +206,28 @@ def test_raphtory_client():
         assert g.node("test") is not None
 
 
+def test_raphtory_client_write_denied_for_read_jwt():
+    """RaphtoryClient initialized with a read JWT is denied write operations."""
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
+        client = RaphtoryClient(url=RAPHTORY, token=READ_JWT)
+        with pytest.raises(Exception, match="requires write access"):
+            client.new_graph("test", "EVENT")
+
+
+def test_raphtory_client_read_jwt_can_receive_graph():
+    """RaphtoryClient initialized with a read JWT can download graphs."""
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
+        client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
+        client.new_graph("test", "EVENT")
+        client.remote_graph("test").add_node(0, "mynode")
+
+        client2 = RaphtoryClient(url=RAPHTORY, token=READ_JWT)
+        g = client2.receive_graph("test")
+        assert g.node("mynode") is not None
+
+
 def test_upload_graph():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
