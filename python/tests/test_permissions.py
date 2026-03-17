@@ -19,10 +19,14 @@ MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
 
 RAPHTORY = "http://localhost:1736"
 
-ANALYST_JWT = jwt.encode({"access": "ro", "role": "analyst"}, PRIVATE_KEY, algorithm="EdDSA")
+ANALYST_JWT = jwt.encode(
+    {"access": "ro", "role": "analyst"}, PRIVATE_KEY, algorithm="EdDSA"
+)
 ANALYST_HEADERS = {"Authorization": f"Bearer {ANALYST_JWT}"}
 
-ADMIN_JWT = jwt.encode({"access": "rw", "role": "admin"}, PRIVATE_KEY, algorithm="EdDSA")
+ADMIN_JWT = jwt.encode(
+    {"access": "rw", "role": "admin"}, PRIVATE_KEY, algorithm="EdDSA"
+)
 ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_JWT}"}
 
 NO_ROLE_JWT = jwt.encode({"access": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
@@ -234,10 +238,7 @@ def test_analyst_cannot_write_without_write_grant():
         grant_graph("analyst", "jira", "READ")  # READ only, no WRITE
 
         response = gql(UPDATE_JIRA, headers=ANALYST_HEADERS)
-        assert (
-            response["data"] is None
-            or response["data"].get("updateGraph") is None
-        )
+        assert response["data"] is None or response["data"].get("updateGraph") is None
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
 
@@ -422,8 +423,7 @@ def test_analyst_sees_only_filtered_nodes():
             ("bob", "us-east"),
             ("carol", "us-west"),
         ]:
-            resp = gql(
-                f"""query {{
+            resp = gql(f"""query {{
                     updateGraph(path: "jira") {{
                         addNode(
                             time: 1,
@@ -436,8 +436,7 @@ def test_analyst_sees_only_filtered_nodes():
                             }}
                         }}
                     }}
-                }}"""
-            )
+                }}""")
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
         create_role("analyst")
@@ -454,31 +453,37 @@ def test_analyst_sees_only_filtered_nodes():
         analyst_response = gql(QUERY_NODES, headers=ANALYST_HEADERS)
         assert "errors" not in analyst_response, analyst_response
         analyst_names = {
-            n["name"]
-            for n in analyst_response["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in analyst_response["data"]["graph"]["nodes"]["list"]
         }
-        assert analyst_names == {"alice", "carol"}, f"expected {{alice, carol}}, got {analyst_names}"
+        assert analyst_names == {
+            "alice",
+            "carol",
+        }, f"expected {{alice, carol}}, got {analyst_names}"
 
         # Admin should see all three nodes (filter is bypassed for "access":"rw")
         admin_response = gql(QUERY_NODES, headers=ADMIN_HEADERS)
         assert "errors" not in admin_response, admin_response
         admin_names = {
-            n["name"]
-            for n in admin_response["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in admin_response["data"]["graph"]["nodes"]["list"]
         }
-        assert admin_names == {"alice", "bob", "carol"}, f"expected all 3 nodes, got {admin_names}"
+        assert admin_names == {
+            "alice",
+            "bob",
+            "carol",
+        }, f"expected all 3 nodes, got {admin_names}"
 
         # Clear the filter by calling grantGraph(READ) — analyst should now see all nodes
         grant_graph("analyst", "jira", "READ")
         analyst_response_after = gql(QUERY_NODES, headers=ANALYST_HEADERS)
         assert "errors" not in analyst_response_after, analyst_response_after
         names_after = {
-            n["name"]
-            for n in analyst_response_after["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in analyst_response_after["data"]["graph"]["nodes"]["list"]
         }
-        assert names_after == {"alice", "bob", "carol"}, (
-            f"after plain grant, expected all 3 nodes, got {names_after}"
-        )
+        assert names_after == {
+            "alice",
+            "bob",
+            "carol",
+        }, f"after plain grant, expected all 3 nodes, got {names_after}"
 
 
 def test_analyst_sees_only_filtered_edges():
@@ -492,8 +497,7 @@ def test_analyst_sees_only_filtered_edges():
         gql(CREATE_JIRA)
         # Add three edges: (a->b weight=3), (b->c weight=7), (a->c weight=9)
         for src, dst, weight in [("a", "b", 3), ("b", "c", 7), ("a", "c", 9)]:
-            resp = gql(
-                f"""query {{
+            resp = gql(f"""query {{
                     updateGraph(path: "jira") {{
                         addEdge(
                             time: 1,
@@ -508,8 +512,7 @@ def test_analyst_sees_only_filtered_edges():
                             }}
                         }}
                     }}
-                }}"""
-            )
+                }}""")
             assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
 
         create_role("analyst")
@@ -528,9 +531,10 @@ def test_analyst_sees_only_filtered_edges():
             (e["src"]["name"], e["dst"]["name"])
             for e in analyst_response["data"]["graph"]["edges"]["list"]
         }
-        assert analyst_edges == {("b", "c"), ("a", "c")}, (
-            f"expected only heavy edges, got {analyst_edges}"
-        )
+        assert analyst_edges == {
+            ("b", "c"),
+            ("a", "c"),
+        }, f"expected only heavy edges, got {analyst_edges}"
 
         # Admin sees all three edges
         admin_response = gql(QUERY_EDGES, headers=ADMIN_HEADERS)
@@ -539,9 +543,11 @@ def test_analyst_sees_only_filtered_edges():
             (e["src"]["name"], e["dst"]["name"])
             for e in admin_response["data"]["graph"]["edges"]["list"]
         }
-        assert admin_edges == {("a", "b"), ("b", "c"), ("a", "c")}, (
-            f"expected all edges for admin, got {admin_edges}"
-        )
+        assert admin_edges == {
+            ("a", "b"),
+            ("b", "c"),
+            ("a", "c"),
+        }, f"expected all edges for admin, got {admin_edges}"
 
 
 def test_analyst_sees_only_graph_filter_window():
@@ -555,8 +561,7 @@ def test_analyst_sees_only_graph_filter_window():
         gql(CREATE_JIRA)
         # Add nodes at different timestamps: t=1 (outside), t=10 (inside), t=20 (outside)
         for name, t in [("early", 1), ("middle", 10), ("late", 20)]:
-            resp = gql(
-                f"""query {{
+            resp = gql(f"""query {{
                     updateGraph(path: "jira") {{
                         addNode(time: {t}, name: "{name}") {{
                             success
@@ -565,8 +570,7 @@ def test_analyst_sees_only_graph_filter_window():
                             }}
                         }}
                     }}
-                }}"""
-            )
+                }}""")
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
         create_role("analyst")
@@ -582,20 +586,20 @@ def test_analyst_sees_only_graph_filter_window():
         analyst_response = gql(QUERY_NODES, headers=ANALYST_HEADERS)
         assert "errors" not in analyst_response, analyst_response
         analyst_names = {
-            n["name"]
-            for n in analyst_response["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in analyst_response["data"]["graph"]["nodes"]["list"]
         }
-        assert analyst_names == {"middle"}, (
-            f"expected only 'middle' in window, got {analyst_names}"
-        )
+        assert analyst_names == {
+            "middle"
+        }, f"expected only 'middle' in window, got {analyst_names}"
 
         # Admin sees all three nodes
         admin_response = gql(QUERY_NODES, headers=ADMIN_HEADERS)
         assert "errors" not in admin_response, admin_response
         admin_names = {
-            n["name"]
-            for n in admin_response["data"]["graph"]["nodes"]["list"]
+            n["name"] for n in admin_response["data"]["graph"]["nodes"]["list"]
         }
-        assert admin_names == {"early", "middle", "late"}, (
-            f"expected all nodes for admin, got {admin_names}"
-        )
+        assert admin_names == {
+            "early",
+            "middle",
+            "late",
+        }, f"expected all nodes for admin, got {admin_names}"
