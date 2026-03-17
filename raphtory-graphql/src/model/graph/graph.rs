@@ -104,21 +104,6 @@ impl GqlGraph {
             permission: self.permission.clone(),
         }
     }
-
-    fn require_read_access(&self, field: &str) -> Result<()> {
-        if matches!(self.permission, GraphPermission::Introspect) {
-            return Err(async_graphql::Error::new(format!(
-                "Access denied: '{field}' requires read permission on this graph"
-            )));
-        }
-        Ok(())
-    }
-
-    fn require_introspection(&self, field: &str) -> Result<()> {
-        // All GraphPermission variants include introspection; this check always passes.
-        let _ = field;
-        Ok(())
-    }
 }
 
 #[ResolvedObjectFields]
@@ -129,7 +114,6 @@ impl GqlGraph {
 
     /// Returns the names of all layers in the graphview.
     async fn unique_layers(&self) -> Result<Vec<String>> {
-        self.require_introspection("uniqueLayers")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await)
     }
@@ -317,33 +301,28 @@ impl GqlGraph {
 
     /// Returns the time entry of the earliest activity in the graph.
     async fn earliest_time(&self) -> Result<GqlEventTime> {
-        self.require_read_access("earliestTime")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.earliest_time().into()).await)
     }
 
     /// Returns the time entry of the latest activity in the graph.
     async fn latest_time(&self) -> Result<GqlEventTime> {
-        self.require_read_access("latestTime")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.latest_time().into()).await)
     }
 
     /// Returns the start time of the window. Errors if there is no window.
     async fn start(&self) -> Result<GqlEventTime> {
-        self.require_read_access("start")?;
         Ok(self.graph.start().into())
     }
 
     /// Returns the end time of the window. Errors if there is no window.
     async fn end(&self) -> Result<GqlEventTime> {
-        self.require_read_access("end")?;
         Ok(self.graph.end().into())
     }
 
     /// Returns the earliest time that any edge in this graph is valid.
     async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Result<GqlEventTime> {
-        self.require_read_access("earliestEdgeTime")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -361,7 +340,6 @@ impl GqlGraph {
 
     /// Returns the latest time that any edge in this graph is valid.
     async fn latest_edge_time(&self, include_negative: Option<bool>) -> Result<GqlEventTime> {
-        self.require_read_access("latestEdgeTime")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             let include_negative = include_negative.unwrap_or(true);
@@ -386,14 +364,12 @@ impl GqlGraph {
     /// Returns:
     ///     int:
     async fn count_edges(&self) -> Result<usize> {
-        self.require_introspection("countEdges")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.count_edges()).await)
     }
 
     /// Returns the number of temporal edges in the graph.
     async fn count_temporal_edges(&self) -> Result<usize> {
-        self.require_introspection("countTemporalEdges")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.count_temporal_edges()).await)
     }
@@ -402,7 +378,6 @@ impl GqlGraph {
     ///
     /// Optionally takes a list of node ids to return a subset.
     async fn count_nodes(&self) -> Result<usize> {
-        self.require_introspection("countNodes")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.graph.count_nodes()).await)
     }
@@ -413,13 +388,11 @@ impl GqlGraph {
 
     /// Returns true if the graph contains the specified node.
     async fn has_node(&self, name: String) -> Result<bool> {
-        self.require_read_access("hasNode")?;
         Ok(self.graph.has_node(name))
     }
 
     /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. You can restrict the search to a specified layer.
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> Result<bool> {
-        self.require_read_access("hasEdge")?;
         Ok(match layer {
             Some(name) => self
                 .graph
@@ -436,13 +409,11 @@ impl GqlGraph {
 
     /// Gets the node with the specified id.
     async fn node(&self, name: String) -> Result<Option<GqlNode>> {
-        self.require_read_access("node")?;
         Ok(self.graph.node(name).map(|node| node.into()))
     }
 
     /// Gets (optionally a subset of) the nodes in the graph.
     async fn nodes(&self, select: Option<GqlNodeFilter>) -> Result<GqlNodes> {
-        self.require_read_access("nodes")?;
         let nn = self.graph.nodes();
 
         if let Some(sel) = select {
@@ -460,13 +431,11 @@ impl GqlGraph {
 
     /// Gets the edge with the specified source and destination nodes.
     async fn edge(&self, src: String, dst: String) -> Result<Option<GqlEdge>> {
-        self.require_read_access("edge")?;
         Ok(self.graph.edge(src, dst).map(|e| e.into()))
     }
 
     /// Gets the edges in the graph.
     async fn edges<'a>(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges> {
-        self.require_read_access("edges")?;
         let base = self.graph.edges_unlocked();
 
         if let Some(sel) = select {
@@ -484,13 +453,11 @@ impl GqlGraph {
 
     /// Returns the properties of the graph.
     async fn properties(&self) -> Result<GqlProperties> {
-        self.require_read_access("properties")?;
         Ok(Into::<DynProperties>::into(self.graph.properties()).into())
     }
 
     /// Returns the metadata of the graph.
     async fn metadata(&self) -> Result<GqlMetadata> {
-        self.require_read_access("metadata")?;
         Ok(self.graph.metadata().into())
     }
 
@@ -522,7 +489,6 @@ impl GqlGraph {
 
     /// Returns the graph schema.
     async fn schema(&self) -> Result<GraphSchema> {
-        self.require_introspection("schema")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
     }
@@ -532,7 +498,6 @@ impl GqlGraph {
     }
 
     async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Result<Vec<GqlNode>> {
-        self.require_read_access("sharedNeighbours")?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             if selected_nodes.is_empty() {
@@ -565,7 +530,6 @@ impl GqlGraph {
 
     /// Export all nodes and edges from this graph view to another existing graph
     async fn export_to<'a>(&self, ctx: &Context<'a>, path: String) -> Result<bool> {
-        self.require_read_access("exportTo")?;
         let data = ctx.data_unchecked::<Data>();
         let other_g = data.get_graph(path.as_ref()).await?.graph;
         let g = self.graph.clone();
@@ -652,7 +616,6 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlNode>> {
-        self.require_read_access("searchNodes")?;
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();
@@ -679,7 +642,6 @@ impl GqlGraph {
         limit: usize,
         offset: usize,
     ) -> Result<Vec<GqlEdge>> {
-        self.require_read_access("searchEdges")?;
         #[cfg(feature = "search")]
         {
             let self_clone = self.clone();

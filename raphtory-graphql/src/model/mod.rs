@@ -176,6 +176,14 @@ impl QueryRoot {
             GraphPermission::Write // no policy: unrestricted
         };
 
+        if matches!(perms, GraphPermission::Introspect) {
+            return Err(async_graphql::Error::new(format!(
+                "Access denied: role '{}' has introspect-only access to graph '{path}' — \
+                 use namespace listings for graph metadata",
+                role.unwrap_or("<no role>")
+            )));
+        }
+
         let graph_with_vecs = data.get_graph(path).await?;
         let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
 

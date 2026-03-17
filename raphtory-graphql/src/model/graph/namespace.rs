@@ -1,11 +1,13 @@
 use crate::{
-    data::get_relative_path,
+    auth::Access,
+    data::{get_relative_path, Data},
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidPath},
     rayon::blocking_compute,
 };
+use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use std::path::PathBuf;
@@ -137,15 +139,28 @@ impl Namespace {
 
 #[ResolvedObjectFields]
 impl Namespace {
-    async fn graphs(&self) -> GqlCollection<MetaGraph> {
+    async fn graphs(&self, ctx: &Context<'_>) -> GqlCollection<MetaGraph> {
+        let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role: Option<String> = ctx.data::<Option<String>>().ok().and_then(|r| r.clone());
+        let policy = data.auth_policy.clone();
         let self_clone = self.clone();
         blocking_compute(move || {
             GqlCollection::new(
                 self_clone
                     .get_children()
-                    .into_iter()
                     .filter_map(|g| match g {
-                        NamespacedItem::MetaGraph(g) => Some(g),
+                        NamespacedItem::MetaGraph(g) => {
+                            if let Some(ref policy) = policy {
+                                let path = g.local_path();
+                                match policy.graph_permissions(is_admin, role.as_deref(), &path) {
+                                    Ok(_) => Some(g),
+                                    Err(_) => None,
+                                }
+                            } else {
+                                Some(g)
+                            }
+                        }
                         NamespacedItem::Namespace(_) => None,
                     })
                     .sorted()
@@ -193,9 +208,34 @@ impl Namespace {
 
     // Fetch the collection of namespaces/graphs in this namespace.
     // Namespaces will be listed before graphs.
-    async fn items(&self) -> GqlCollection<NamespacedItem> {
+    async fn items(&self, ctx: &Context<'_>) -> GqlCollection<NamespacedItem> {
+        let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role: Option<String> = ctx.data::<Option<String>>().ok().and_then(|r| r.clone());
+        let policy = data.auth_policy.clone();
         let self_clone = self.clone();
-        blocking_compute(move || GqlCollection::new(self_clone.get_children().sorted().collect()))
-            .await
+        blocking_compute(move || {
+            GqlCollection::new(
+                self_clone
+                    .get_children()
+                    .filter_map(|item| match item {
+                        NamespacedItem::MetaGraph(ref g) => {
+                            if let Some(ref policy) = policy {
+                                let path = g.local_path();
+                                match policy.graph_permissions(is_admin, role.as_deref(), &path) {
+                                    Ok(_) => Some(item),
+                                    Err(_) => None,
+                                }
+                            } else {
+                                Some(item)
+                            }
+                        }
+                        NamespacedItem::Namespace(_) => Some(item),
+                    })
+                    .sorted()
+                    .collect(),
+            )
+        })
+        .await
     }
 }

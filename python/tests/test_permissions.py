@@ -34,7 +34,7 @@ NO_ROLE_HEADERS = {"Authorization": f"Bearer {NO_ROLE_JWT}"}
 
 QUERY_JIRA = """query { graph(path: "jira") { path } }"""
 QUERY_ADMIN = """query { graph(path: "admin") { path } }"""
-QUERY_COUNT_NODES = """query { graph(path: "jira") { countNodes } }"""
+QUERY_NS_GRAPHS = """query { root { graphs { list { path } } } }"""
 CREATE_JIRA = """mutation { newGraph(path:"jira", graphType:EVENT) }"""
 CREATE_ADMIN = """mutation { newGraph(path:"admin", graphType:EVENT) }"""
 
@@ -140,29 +140,37 @@ def test_empty_store_gives_full_access():
 
 
 def test_introspection_allowed_with_introspect_permission():
-    """INTROSPECT-only role can call countNodes."""
+    """INTROSPECT-only role sees graph in namespace listing but is denied by graph()."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
         grant_graph("analyst", "jira", "INTROSPECT")
 
-        response = gql(QUERY_COUNT_NODES, headers=ANALYST_HEADERS)
+        # Namespace listing is allowed
+        response = gql(QUERY_NS_GRAPHS, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
-        assert isinstance(response["data"]["graph"]["countNodes"], int)
+        paths = [g["path"] for g in response["data"]["root"]["graphs"]["list"]]
+        assert "jira" in paths
+
+        # graph() resolver is denied
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_read_implies_introspect():
-    """READ implies INTROSPECT: a role with READ can call countNodes without an explicit INTROSPECT grant."""
+    """READ also shows the graph in namespace listings (implies INTROSPECT)."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", "READ")  # READ implies INTROSPECT
+        grant_graph("analyst", "jira", "READ")
 
-        response = gql(QUERY_COUNT_NODES, headers=ANALYST_HEADERS)
+        response = gql(QUERY_NS_GRAPHS, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
-        assert isinstance(response["data"]["graph"]["countNodes"], int)
+        paths = [g["path"] for g in response["data"]["root"]["graphs"]["list"]]
+        assert "jira" in paths
 
 
 def test_permissions_update_via_mutation():
@@ -335,77 +343,37 @@ def test_analyst_cannot_get_role():
         assert "Access denied" in response["errors"][0]["message"]
 
 
-def test_introspect_only_can_call_introspection_fields():
-    """A role with only INTROSPECT (no READ) can call countNodes/countEdges/schema/uniqueLayers."""
+def test_introspect_only_cannot_access_graph_data():
+    """INTROSPECT-only role is denied by graph() — graph data is not accessible at all."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
         grant_graph("analyst", "jira", "INTROSPECT")  # no READ
 
-        for query in [
-            'query { graph(path: "jira") { countNodes } }',
-            'query { graph(path: "jira") { countEdges } }',
-            'query { graph(path: "jira") { uniqueLayers } }',
-        ]:
-            response = gql(query, headers=ANALYST_HEADERS)
-            assert "errors" not in response, f"query={query} response={response}"
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
 
 
-def test_introspect_only_cannot_read_nodes_or_edges():
-    """A role with only INTROSPECT (no READ) is denied access to node/edge data."""
-    work_dir = tempfile.mkdtemp()
-    with make_server(work_dir).start():
-        gql(CREATE_JIRA)
-        # Add a node and edge so the graph has data to query
-        gql(
-            'query { updateGraph(path: "jira") { addNode(time: 1, name: "a") { success } } }'
-        )
-        gql(
-            'query { updateGraph(path: "jira") { addEdge(time: 1, src: "a", dst: "b") { success } } }'
-        )
-        create_role("analyst")
-        grant_graph("analyst", "jira", "INTROSPECT")  # no READ
-
-        for query, expected_field in [
-            ('query { graph(path: "jira") { nodes { list { name } } } }', "nodes"),
-            (
-                'query { graph(path: "jira") { edges { list { src { name } } } } }',
-                "edges",
-            ),
-            ('query { graph(path: "jira") { node(name: "a") { name } } }', "node"),
-            (
-                'query { graph(path: "jira") { properties { values { key } } } }',
-                "properties",
-            ),
-            (
-                'query { graph(path: "jira") { earliestTime { timestamp } } }',
-                "earliestTime",
-            ),
-        ]:
-            response = gql(query, headers=ANALYST_HEADERS)
-            errors = response.get("errors", [])
-            assert errors, f"expected denial for query={query!r}, got: {response}"
-            msg = errors[0]["message"]
-            assert (
-                "Access denied" in msg and expected_field in msg and "read" in msg
-            ), f"unexpected error for {expected_field!r}: {msg!r}"
-
-
-def test_introspect_only_is_denied_without_introspect_or_read():
-    """A role with no permissions on a graph is denied even when trying introspection fields."""
+def test_no_grant_hidden_from_namespace_and_graph():
+    """A role with no permissions on a graph sees it neither in listings nor via graph()."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
         # analyst has no grant on jira at all
 
-        response = gql(
-            'query { graph(path: "jira") { countNodes } }',
-            headers=ANALYST_HEADERS,
-        )
+        # graph() denied
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
         assert response["data"] is None
         assert "Access denied" in response["errors"][0]["message"]
+
+        # namespace listing hides it
+        response = gql(QUERY_NS_GRAPHS, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        paths = [g["path"] for g in response["data"]["root"]["graphs"]["list"]]
+        assert "jira" not in paths
 
 
 def test_analyst_sees_only_filtered_nodes():
