@@ -516,11 +516,10 @@ def test_graph_edge_sort_by_eprop4(graph):
         edges {
           sorted(sortBys: [{ property: "eprop4" }]) {
             list {
-              src {
-                id
-              }
-              dst {
-                id
+             properties {
+                get(key: "eprop4") {
+                  value
+                }
               }
             }
           }
@@ -533,11 +532,39 @@ def test_graph_edge_sort_by_eprop4(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": {"id": "b"}, "dst": {"id": "c"}},
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
-                        {"src": {"id": "a"}, "dst": {"id": "b"}},
-                        {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}},
+                        {
+                            "properties": {
+                                "get": None
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": False
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": False
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": True
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": True
+                                }
+                            }
+                        }
                     ]
                 }
             }

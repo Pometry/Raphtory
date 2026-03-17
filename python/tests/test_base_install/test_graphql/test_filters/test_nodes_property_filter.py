@@ -34,12 +34,13 @@ def test_node_property_filter_equal2(graph):
             }
           ) {
             list {
-                neighbours {
-                  list {
-                    name
-                  }
+              name
+              neighbours {
+                list {
+                  name
                 }
-          }
+              }
+            }
           }
         }
       }
@@ -50,16 +51,16 @@ def test_node_property_filter_equal2(graph):
             "nodes": {
                 "filter": {
                     "list": [
-                        {"neighbours": {"list": []}},
-                        {"neighbours": {"list": []}},
-                        {"neighbours": {"list": []}},
-                        {"neighbours": {"list": [{"name": "a"}]}},
+                        {"name": "a", "neighbours": {"list": []}},
+                        {"name": "b", "neighbours": {"list": []}},
+                        {"name": "c", "neighbours": {"list": []}},
+                        {"name": "d", "neighbours": {"list": [{"name": "a"}]}},
                     ]
                 }
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -145,7 +146,7 @@ def test_node_property_filter_not_equal(graph):
     expected_output = {
         "graph": {"nodes": {"select": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -419,7 +420,7 @@ def test_node_property_filter_is_none(graph):
     expected_output = {
         "graph": {"nodes": {"select": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -445,7 +446,7 @@ def test_node_property_filter_is_some(graph):
     expected_output = {
         "graph": {"nodes": {"select": {"list": [{"name": "a"}, {"name": "c"}]}}}
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -471,7 +472,7 @@ def test_node_property_filter_is_in(graph):
     expected_output = {
         "graph": {"nodes": {"select": {"list": [{"name": "b"}, {"name": "d"}]}}}
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
