@@ -1,5 +1,4 @@
 use crate::{
-    client,
     client::{ClientError, GraphQLRemoteGraph},
     url_encode::url_decode_graph,
 };

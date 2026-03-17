@@ -11,16 +11,21 @@ use std::{
     sync::{Arc, atomic::AtomicU32},
 };
 
-use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
+use crate::{
+    LocalPOS, error::StorageError, persist::strategy::PersistenceStrategy,
+    segments::edge::segment::MemEdgeSegment, wal::LSN,
+};
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
-    type Extension;
+    type Extension: PersistenceStrategy<ES = Self>;
 
     type Entry<'a>: EdgeEntryOps<'a>
     where
         Self: 'a;
 
     type ArcLockedSegment: LockedESegment;
+
+    fn extension(&self) -> &Self::Extension;
 
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;

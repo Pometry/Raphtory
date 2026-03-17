@@ -245,4 +245,11 @@ impl DFChunk {
     pub fn secondary_index_col(&self, index: usize) -> Result<SecondaryIndexCol, LoadError> {
         SecondaryIndexCol::new_from_df(self.chunk[index].as_ref())
     }
+
+    pub fn size(&self) -> usize {
+        self.chunk
+            .iter()
+            .map(|arr| arr.get_array_memory_size())
+            .sum()
+    }
 }

@@ -100,7 +100,7 @@ def test_graph_edge_no_sort(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -138,7 +138,7 @@ def test_graph_edge_sort_by_nothing(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -152,9 +152,6 @@ def test_graph_edge_sort_by_src(graph):
               src {
                 id
               }
-              dst {
-                id
-              }
             }
           }
         }
@@ -166,11 +163,11 @@ def test_graph_edge_sort_by_src(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "a"}, "dst": {"id": "b"}},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "c"}},
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
+                        {"src": {"id": "a"}},
+                        {"src": {"id": "a"}},
+                        {"src": {"id": "b"}},
+                        {"src": {"id": "b"}},
+                        {"src": {"id": "c"}},
                     ]
                 }
             }
@@ -187,9 +184,6 @@ def test_graph_edge_sort_by_dst(graph):
         edges {
           sorted(sortBys: [{ dst: true }]) {
             list {
-              src {
-                id
-              }
               dst {
                 id
               }
@@ -204,11 +198,11 @@ def test_graph_edge_sort_by_dst(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": {"id": "a"}, "dst": {"id": "b"}},
-                        {"src": {"id": "b"}, "dst": {"id": "c"}},
-                        {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}},
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
+                        {"dst": {"id": "b"}},
+                        {"dst": {"id": "c"}},
+                        {"dst": {"id": "d"}},
+                        {"dst": {"id": "d"}},
+                        {"dst": {"id": "d"}},
                     ]
                 }
             }
@@ -450,33 +444,62 @@ def test_graph_edge_sort_by_eprop2(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_edge_sort_by_eprop3(graph):
     query = """
-    query {
-      graph(path: "g") {
-        edges {
-          sorted(sortBys: [{ property: "eprop3" }]) {
-            list {
-              src {
-                id
-              }
-              dst {
-                id
+          query {
+          graph(path: "g") {
+            edges {
+              sorted(sortBys: [{ property: "eprop3" }]) {
+                list {
+                  properties {
+                    get(key: "eprop3") {
+                      value
+                    }
+                  }
+                }
               }
             }
           }
         }
-      }
-    }
     """
     expected_output = {
         "graph": {
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": {"id": "b"}, "dst": {"id": "c"}},
-                        {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}},
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
-                        {"src": {"id": "a"}, "dst": {"id": "b"}},
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": "ayz123"
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": "xyz123"
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": "xyz123"
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": "xyz123"
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": "xyz1234"
+                                }
+                            }
+                        }
                     ]
                 }
             }
@@ -493,11 +516,10 @@ def test_graph_edge_sort_by_eprop4(graph):
         edges {
           sorted(sortBys: [{ property: "eprop4" }]) {
             list {
-              src {
-                id
-              }
-              dst {
-                id
+             properties {
+                get(key: "eprop4") {
+                  value
+                }
               }
             }
           }
@@ -510,11 +532,39 @@ def test_graph_edge_sort_by_eprop4(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {"src": {"id": "b"}, "dst": {"id": "c"}},
-                        {"src": {"id": "c"}, "dst": {"id": "d"}},
-                        {"src": {"id": "a"}, "dst": {"id": "b"}},
-                        {"src": {"id": "a"}, "dst": {"id": "d"}},
-                        {"src": {"id": "b"}, "dst": {"id": "d"}},
+                        {
+                            "properties": {
+                                "get": None
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": False
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": False
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": True
+                                }
+                            }
+                        },
+                        {
+                            "properties": {
+                                "get": {
+                                    "value": True
+                                }
+                            }
+                        }
                     ]
                 }
             }

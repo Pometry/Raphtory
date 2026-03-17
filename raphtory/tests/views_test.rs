@@ -510,7 +510,8 @@ fn test_entity_history() {
                 .nodes()
                 .neighbours()
                 .latest_time()
-                .map(|it| it.flatten().collect_vec())
+                .sorted_by_key(|(n, _)| n.id())
+                .map(|(_, it)| it.flatten().collect_vec())
                 .collect_vec(),
             [vec![], vec![3, 7], vec![7], vec![7],]
         );
@@ -520,7 +521,8 @@ fn test_entity_history() {
                 .nodes()
                 .neighbours()
                 .earliest_time()
-                .map(|it| it.flatten().collect_vec())
+                .sorted_by_key(|(n, _)| n.id())
+                .map(|(_, it)| it.flatten().collect_vec())
                 .collect_vec(),
             [vec![], vec![0, 4], vec![0], vec![0],]
         );

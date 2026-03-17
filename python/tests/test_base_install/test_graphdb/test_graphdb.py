@@ -256,29 +256,15 @@ def test_windowed_graph_edges():
     def check(g):
         view = g.window(0, sys.maxsize)
 
-        tedges = [v.edges for v in view.nodes]
-        edges = []
-        for e_iter in tedges:
-            for e in e_iter:
-                edges.append([e.src.id, e.dst.id])
+        edges = {v.id: sorted(v.edges.id) for v in view.nodes}
+        assert edges == {1: [(1, 1), (1, 2), (1, 3)], 2: [(1, 2), (3, 2)], 3: [(1, 3), (3, 2)]}
 
-        assert edges == [[1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
+        in_edges = {v.id: sorted(v.in_edges.id) for v in view.nodes}
+        assert in_edges == {1: [(1, 1)], 2: [(1, 2), (3, 2)], 3: [(1, 3)]}
 
-        tedges = [v.in_edges for v in view.nodes]
-        in_edges = []
-        for e_iter in tedges:
-            for e in e_iter:
-                in_edges.append([e.src.id, e.dst.id])
+        out_edges = {v.id: sorted(v.out_edges.id) for v in view.nodes}
 
-        assert in_edges == [[1, 1], [1, 2], [3, 2], [1, 3]]
-
-        tedges = [v.out_edges for v in view.nodes]
-        out_edges = []
-        for e_iter in tedges:
-            for e in e_iter:
-                out_edges.append([e.src.id, e.dst.id])
-
-        assert out_edges == [[1, 1], [1, 2], [1, 3], [3, 2]]
+        assert out_edges == {1: [(1, 1), (1, 2), (1, 3)], 2: [], 3: [(3, 2)]}
 
     check(g)
 
@@ -321,14 +307,14 @@ def test_windowed_graph_neighbours():
 
         view = g.window(min_size, max_size)
 
-        neighbours = view.nodes.neighbours.id.collect()
-        assert neighbours == [[1, 2, 3], [1, 3], [1, 2]]
+        neighbours = dict(zip(view.nodes.id, (sorted(v) for v in view.nodes.neighbours.id)))
+        assert neighbours == {1: [1, 2, 3], 2: [1, 3], 3: [1, 2]}
 
-        in_neighbours = view.nodes.in_neighbours.id.collect()
-        assert in_neighbours == [[1, 2], [1, 3], [1]]
+        in_neighbours = dict(zip(view.nodes.id, (sorted(v) for v in view.nodes.in_neighbours.id)))
+        assert in_neighbours == {1: [1, 2], 2: [1, 3], 3: [1]}
 
-        out_neighbours = view.nodes.out_neighbours.id.collect()
-        assert out_neighbours == [[1, 2, 3], [1], [2]]
+        out_neighbours = dict(zip(view.nodes.id, (sorted(v) for v in view.nodes.out_neighbours.id)))
+        assert out_neighbours == {1: [1, 2, 3], 2: [1], 3: [2]}
 
     check(g)
 
@@ -349,8 +335,8 @@ def test_getitem():
     @with_disk_graph
     def check(g):
         assert (
-            g.node(1).properties.temporal.get("cost")
-            == g.node(1).properties.temporal["cost"]
+                g.node(1).properties.temporal.get("cost")
+                == g.node(1).properties.temporal["cost"]
         )
 
     check(g)
@@ -645,7 +631,7 @@ def test_node_properties():
                 assert g.at(time).node(1).properties.temporal.get(key) is None
                 assert g.at(time).nodes.properties.temporal.get(key) is None
                 assert (
-                    g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
+                        g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
                 )
             else:
                 assert g.at(time).node(1).properties.temporal.get(key).items() == value
@@ -864,8 +850,8 @@ def test_node_properties():
         assert sorted(g.node(1).properties.temporal.keys()) == expected_names_no_static
         assert sorted(g.nodes.properties.temporal.keys()) == expected_names_no_static
         assert (
-            sorted(g.nodes.out_neighbours.properties.temporal.keys())
-            == expected_names_no_static
+                sorted(g.nodes.out_neighbours.properties.temporal.keys())
+                == expected_names_no_static
         )
 
         expected_names_no_static_at_1 = ["prop 1", "prop 2", "prop 3", "prop 4"]
@@ -875,12 +861,12 @@ def test_node_properties():
             "prop 4",
         ]
         assert (
-            sorted(g.at(1).nodes.properties.temporal.keys())
-            == expected_names_no_static_at_1
+                sorted(g.at(1).nodes.properties.temporal.keys())
+                == expected_names_no_static_at_1
         )
         assert (
-            sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
-            == expected_names_no_static_at_1
+                sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
+                == expected_names_no_static_at_1
         )
 
         # testing has_property
@@ -897,7 +883,7 @@ def test_node_properties():
         assert "prop 5" not in g.nodes.out_neighbours.properties
 
         assert (
-            "prop 2" not in g.at(1).node(1).properties.as_dict()
+                "prop 2" not in g.at(1).node(1).properties.as_dict()
         )  # TODO should be as dict?
         #       assert "prop 2" not in g.at(1).nodes.properties #TODO Do these make sense any more?
         #        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties #TODO Do these make sense any more?
@@ -1076,7 +1062,7 @@ def test_edge_properties():
         assert "prop 2" in g.edge(1, 2).properties
         assert "prop 5" not in g.edge(1, 2).properties
         assert (
-            "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
+                "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
         )  # TODO should be as dict? - Properties now returns all keys here
 
     def check(g):
@@ -1687,46 +1673,37 @@ def test_node_history():
 
 
 def test_edge_history():
+    expected_history = {(1, 2): [1, 3], (1, 3): [2], (1, 4): [4]}
     g = Graph()
+    for (src, dst), timestamps in expected_history.items():
+        for t in timestamps:
+            g.add_edge(t, src, dst)
 
-    g.add_edge(1, 1, 2)
-    g.add_edge(2, 1, 3)
-    g.add_edge(3, 1, 2)
-    g.add_edge(4, 1, 4)
+    view = g.window(1, 5)
+    view2 = g.window(1, 4)
 
-    @with_disk_graph
-    def check(g):
-        view = g.window(1, 5)
-        view2 = g.window(1, 4)
+    check_arr(g.edge(1, 2).history.t.collect(), expected_history[(1, 2)])
+    check_arr(view.edge(1, 4).history.t.collect(), expected_history[(1, 4)])
+    check_arr(g.edges.history.t.collect(), [expected_history[e] for e in g.edges.id])
+    assert sorted(view2.edges.id) == [(1, 2), (1, 3)]
+    check_arr(view2.edges.history.t.collect(), [expected_history[e] for e in view2.edges.id])
 
-        check_arr(g.edge(1, 2).history.t.collect(), [1, 3])
-        check_arr(view.edge(1, 4).history.t.collect(), [4])
-        check_arr(g.edges.history.t.collect(), [[1, 3], [2], [4]])
-        check_arr(view2.edges.history.t.collect(), [[1, 3], [2]])
+    old_way = []
+    for e in g.edges:
+        old_way.append(e.history.collect())
+    check_arr(g.edges.history.collect(), old_way)
 
-        old_way = []
-        for e in g.edges:
-            old_way.append(e.history.collect())
-        check_arr(g.edges.history.collect(), old_way)
+    res = g.nodes.edges.history.t.collect()
+    for node, v in zip(g.nodes, res):
+        for e, vv in zip(node.edges.id, v):
+            check_arr(vv, expected_history[e])
 
-        check_arr(
-            g.nodes.edges.history.t.collect(),
-            [
-                [[1, 3], [2], [4]],
-                [[1, 3]],
-                [[2]],
-                [[4]],
-            ],
-        )
-
-        old_way2 = []
-        for edges in g.nodes.edges:
-            for edge in edges:
-                old_way2.append(edge.history.collect())
-        new_way = g.nodes.edges.history.collect()
-        check_arr([np.array(item) for sublist in new_way for item in sublist], old_way2)
-
-    check(g)
+    old_way2 = []
+    for edges in g.nodes.edges:
+        for edge in edges:
+            old_way2.append(edge.history.collect())
+    new_way = g.nodes.edges.history.collect()
+    check_arr([np.array(item) for sublist in new_way for item in sublist], old_way2)
 
 
 def test_lotr_edge_history():
@@ -1860,18 +1837,18 @@ def test_layer():
         assert g.exclude_layer("layer2").count_edges() == 4
 
         with pytest.raises(
-            Exception,
-            match=re.escape(
-                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-            ),
+                Exception,
+                match=re.escape(
+                    """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+                ),
         ):
             g.layers(["test_layer"])
 
         with pytest.raises(
-            Exception,
-            match=re.escape(
-                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-            ),
+                Exception,
+                match=re.escape(
+                    """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+                ),
         ):
             g.edge(1, 2).layers(["test_layer"])
 
@@ -1948,20 +1925,20 @@ def test_layer_name():
     assert str(e.value) == error_msg
 
     assert [
-        list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
-    ] == [
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-    ]
+               list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
+           ] == [
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+           ]
     assert [
-        list(iterator)
-        for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
-    ] == [
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-        ["_default", "awesome layer"],
-    ]
+               list(iterator)
+               for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
+           ] == [
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+               ["_default", "awesome layer"],
+           ]
 
 
 def test_time():
@@ -1995,12 +1972,12 @@ def test_time():
         # assert str(e.value) == error_msg
 
         assert [
-            list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
-        ] == [
-            [0, 0, 1],
-            [0, 0, 1],
-            [0, 0, 1],
-        ]
+                   list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
+               ] == [
+                   [0, 0, 1],
+                   [0, 0, 1],
+                   [0, 0, 1],
+               ]
 
     check(g)
 
@@ -2230,7 +2207,7 @@ def test_exclude_nodes():
     @with_disk_graph
     def check(g):
         exclude_nodes = g.exclude_nodes([1])
-        assert exclude_nodes.nodes.id.collect() == [2, 3]
+        assert sorted(exclude_nodes.nodes.id.collect()) == [2, 3]
 
     check(g)
 
@@ -2535,8 +2512,8 @@ def test_weird_windows():
     @with_disk_graph
     def check(g):
         with pytest.raises(
-            Exception,
-            match="'ddd' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
+                Exception,
+                match="'ddd' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
         ):
             g.window("ddd", "aaa")
 
@@ -2634,12 +2611,8 @@ def test_type_filter():
     g.add_node(1, 3, node_type="timer")
     g.add_node(1, 4, node_type="wallet")
 
-    @with_disk_graph
-    def check(g):
-        assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
-        assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
-
-    check(g)
+    assert sorted(node.name for node in g.nodes.type_filter(["wallet"])) == ["1", "4"]
+    assert g.subgraph_node_types(["timer"]).nodes.name.sorted_by_id() == ["2", "3"]
 
     g = PersistentGraph()
     g.add_node(1, 1, node_type="wallet")
@@ -2647,23 +2620,19 @@ def test_type_filter():
     g.add_node(3, 3, node_type="timer")
     g.add_node(4, 4, node_type="wallet")
 
-    # @with_disk_graph # FIXME PersistentGraph cannot be used with with_disk_graph
-    def check(g):
-        assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
-        assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+    assert sorted(node.name for node in g.nodes.type_filter(["wallet"])) == ["1", "4"]
+    assert sorted(g.subgraph_node_types(["timer"]).nodes.name.collect()) == ["2", "3"]
 
-        subgraph = g.subgraph([1, 2, 3])
-        assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ["1"]
-        assert subgraph.subgraph_node_types(["timer"]).nodes.name.collect() == [
-            "2",
-            "3",
-        ]
+    subgraph = g.subgraph([1, 2, 3])
+    assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ["1"]
+    assert sorted(subgraph.subgraph_node_types(["timer"]).nodes.name.collect()) == [
+        "2",
+        "3",
+    ]
 
-        w = g.window(1, 4)
-        assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
-        assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
-
-    check(g)
+    w = g.window(1, 4)
+    assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
+    assert sorted(w.subgraph_node_types(["timer"]).nodes.name.collect()) == ["2", "3"]
 
     g = Graph()
     g.add_node(1, 1, node_type="wallet")
@@ -2674,13 +2643,9 @@ def test_type_filter():
     g.add_edge(2, 2, 3, layer="layer1")
     g.add_edge(3, 2, 4, layer="layer2")
 
-    @with_disk_graph
-    def check(g):
-        layer = g.layers(["layer1"])
-        assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ["1"]
-        assert layer.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
-
-    check(g)
+    layer = g.layers(["layer1"])
+    assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ["1"]
+    assert sorted(layer.subgraph_node_types(["timer"]).nodes.name.collect()) == ["2", "3"]
 
     g = Graph()
     g.add_node(1, 1, node_type="a")
@@ -2700,84 +2665,86 @@ def test_type_filter():
     g.add_edge(2, 5, 6, layer="a")
     g.add_edge(2, 3, 6, layer="a")
 
-    # @with_disk_graph # FIXME: add support for type_filters + layers support on edges
-    def check(g):
-        assert g.nodes.type_filter([""]).name.collect() == ["7", "8", "9"]
+    assert sorted(g.nodes.type_filter([""]).name.collect()) == ["7", "8", "9"]
 
-        assert g.nodes.type_filter(["a"]).name.collect() == ["1", "4"]
-        assert g.nodes.type_filter(["a", "c"]).name.collect() == ["1", "4", "5"]
-        assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [
-            ["2"],
-            ["2", "5"],
-        ]
+    assert sorted(g.nodes.type_filter(["a"]).name.collect()) == ["1", "4"]
+    assert sorted(g.nodes.type_filter(["a", "c"]).name.collect()) == ["1", "4", "5"]
+    assert dict(
+        zip(g.nodes.type_filter(["a"]).id, (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name))) == {
+               1: ["2"],
+               4: ["2", "5"],
+           }
 
-        assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2, 0, 0, 0]
-        assert g.nodes.type_filter(["a"]).degree().collect() == [1, 2]
-        assert g.nodes.type_filter(["d"]).degree().collect() == []
-        assert g.nodes.type_filter([]).name.collect() == []
+    assert g.nodes.degree() == {1: 1, 2: 3, 3: 2, 4: 2, 5: 2, 6: 2, 7: 0, 8: 0, 9: 0}
+    assert g.nodes.type_filter(["a"]).degree() == {1: 1, 4: 2}
+    assert g.nodes.type_filter(["d"]).degree().collect() == []
+    assert g.nodes.type_filter([]).name.collect() == []
 
-        assert len(g.nodes) == 9
-        assert len(g.nodes.type_filter(["b"])) == 2
-        assert len(g.nodes.type_filter(["d"])) == 0
+    assert len(g.nodes) == 9
+    assert len(g.nodes.type_filter(["b"])) == 2
+    assert len(g.nodes.type_filter(["d"])) == 0
 
-        assert g.nodes.type_filter(["d"]).neighbours.name.collect() == []
-        assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [
-            ["2"],
-            ["2", "5"],
-        ]
-        assert g.nodes.type_filter(["a", "c"]).neighbours.name.collect() == [
-            ["2"],
-            ["2", "5"],
-            ["4", "6"],
-        ]
+    assert g.nodes.type_filter(["d"]).neighbours.name.collect() == []
+    assert dict(
+        zip(g.nodes.type_filter(["a"]).id, (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name))) == {
+               1: ["2"],
+               4: ["2", "5"],
+           }
+    assert dict(zip(g.nodes.type_filter(["a", "c"]).id,
+                    (sorted(v) for v in g.nodes.type_filter(["a", "c"]).neighbours.name))) == {
+               1: ["2"],
+               4: ["2", "5"],
+               5: ["4", "6"],
+           }
 
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["c"]
-        ).name.collect() == [
-            [],
-            ["5"],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
-            [],
-            [],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+    assert dict(zip(g.nodes.type_filter(["a"]).id, g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ["c"]
+    ).name.collect())) == {
+               1: [],
+               4: ["5"],
+           }
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
+        [],
+        [],
+    ]
+    assert dict(
+        zip(g.nodes.type_filter(["a"]).id, (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.type_filter(
             ["b", "c"]
-        ).name.collect() == [["2"], ["2", "5"]]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["d"]
-        ).name.collect() == [
-            [],
-            [],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.neighbours.name.collect() == [
-            ["1", "3", "4"],
-            ["1", "3", "4", "4", "6"],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ).name))) == {1: ["2"], 4: ["2", "5"]}
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ["d"]
+    ).name.collect() == [
+               [],
+               [],
+           ]
+    assert dict(zip(g.nodes.type_filter(["a"]).id,
+                    (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.neighbours.name))) == {
+               1: ["1", "3", "4"],
+               4: ["1", "3", "4", "4", "6"],
+           }
+    assert dict(
+        zip(g.nodes.type_filter(["a"]).id, (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.type_filter(
             ["c"]
-        ).neighbours.name.collect() == [[], ["4", "6"]]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["d"]
-        ).neighbours.name.collect() == [[], []]
+        ).neighbours.name))) == {1: [], 4: ["4", "6"]}
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ["d"]
+    ).neighbours.name.collect() == [[], []]
 
-        assert g.node("2").neighbours.type_filter(["b"]).name.collect() == ["3"]
-        assert g.node("2").neighbours.type_filter(["d"]).name.collect() == []
-        assert g.node("2").neighbours.type_filter([]).name.collect() == []
-        assert g.node("2").neighbours.type_filter(["c", "a"]).name.collect() == [
-            "1",
-            "4",
-        ]
-        assert g.node("2").neighbours.type_filter(["c"]).neighbours.name.collect() == []
-        assert g.node("2").neighbours.neighbours.name.collect() == [
-            "2",
-            "2",
-            "6",
-            "2",
-            "5",
-        ]
-
-    check(g)
+    assert g.node("2").neighbours.type_filter(["b"]).name.collect() == ["3"]
+    assert g.node("2").neighbours.type_filter(["d"]).name.collect() == []
+    assert g.node("2").neighbours.type_filter([]).name.collect() == []
+    assert sorted(g.node("2").neighbours.type_filter(["c", "a"]).name.collect()) == [
+        "1",
+        "4",
+    ]
+    assert g.node("2").neighbours.type_filter(["c"]).neighbours.name.collect() == []
+    assert sorted(g.node("2").neighbours.neighbours.name.collect()) == [
+        "2",
+        "2",
+        "2",
+        "5",
+        "6",
+    ]
 
 
 def test_time_exploded_edges():
@@ -2804,20 +2771,20 @@ def test_time_exploded_edges():
             for edge in edges:
                 time_nested.append(edge.time)
         assert [
-            item
-            for sublist in g.nodes.edges.explode().time.collect()
-            for item in sublist
-        ] == time_nested
+                   item
+                   for sublist in g.nodes.edges.explode().time.collect()
+                   for item in sublist
+               ] == time_nested
 
         date_time_nested = []
         for edges in g.nodes.edges.explode():
             for edge in edges:
                 date_time_nested.append(edge.time.dt)
         assert [
-            item
-            for sublist in g.nodes.edges.explode().time.dt.collect()
-            for item in sublist
-        ] == date_time_nested
+                   item
+                   for sublist in g.nodes.edges.explode().time.dt.collect()
+                   for item in sublist
+               ] == date_time_nested
 
     check(g)
 
@@ -2829,24 +2796,16 @@ def test_leading_zeroes_ids():
     g.add_node(0, "001")
     g.add_node(0, "0001")
 
-    @with_disk_graph
-    def check(g):
-        assert g.count_nodes() == 4
-        assert g.nodes.name.collect() == ["1", "01", "001", "0001"]
-
-    check(g)
+    assert g.count_nodes() == 4
+    assert sorted(g.nodes.name.collect()) == ["0001", "001", "01", "1"]
 
     g = Graph()
     g.add_node(0, 0)
     g.add_node(1, 0)
 
-    # @with_disk_graph # FIXME: need special handling for nodes additions from Graph
-    def check(g):
-        check_arr(g.node(0).history.t.collect(), [0, 1])
-        check_arr(g.node("0").history.t.collect(), [0, 1])
-        assert g.nodes.name.collect() == ["0"]
-
-    check(g)
+    check_arr(g.node(0).history.t.collect(), [0, 1])
+    check_arr(g.node("0").history.t.collect(), [0, 1])
+    assert g.nodes.name.collect() == ["0"]
 
 
 def test_node_types():
@@ -3286,7 +3245,6 @@ def datadir(tmpdir, request):
         except Exception as e:
             raise e
     return tmpdir
-
 
 # def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
 # g = Graph()

@@ -11,7 +11,6 @@ use crate::{
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
-    wal::LSN,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidType, properties::meta::Meta};
@@ -24,11 +23,11 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, atomic::AtomicU32},
+    sync::{Arc, LazyLock, atomic::AtomicU32},
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
-pub const N: usize = 32;
+pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
 
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
@@ -36,7 +35,7 @@ pub struct NodeStorageInner<NS, EXT> {
     stats: Arc<GraphStats>,
 
     /// Contains ids of segments that can accomodate new nodes.
-    free_segments: Box<[RwLock<usize>; N]>,
+    free_segments: Box<[RwLock<usize>]>,
 
     nodes_path: Option<PathBuf>,
     node_meta: Arc<Meta>,
@@ -50,7 +49,9 @@ pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNodeStorage<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
+    ReadLockedNodeStorage<NS, EXT>
+{
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
@@ -133,7 +134,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
+    NodeStorageInner<NS, EXT>
+{
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -188,14 +191,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
+    NodeStorageInner<NS, EXT>
+{
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Self {
-        let free_segments = (0..N).map(RwLock::new).collect::<Box<[_]>>();
+        let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
@@ -258,7 +263,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
-        let slot_idx = row % N;
+        let slot_idx = row % *N;
         let maybe_free_page = {
             let page_id = *self.free_segments[slot_idx].read_recursive();
             let page = self.segments.get(page_id);
@@ -295,7 +300,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         LocalPOS,
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
     ) {
-        let mut slot_idx = row % N;
+        let mut slot_idx = row % *N;
         let mut segment_id = *self.free_segments[slot_idx].read_recursive();
 
         // Iterate through `free_segments` until we can acquire a write lock on a free segment.
@@ -306,7 +311,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             match self.try_writer(segment_id) {
                 None => {
                     // The current segment is being written to, round-robin to the next slot.
-                    slot_idx = (slot_idx + 1) % N;
+                    slot_idx = (slot_idx + 1) % *N;
                     let slot = self.free_segments[slot_idx].read_recursive();
                     segment_id = *slot;
                 }
@@ -530,7 +535,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             .map(|last| last + 1)
             .unwrap_or_else(|| pages.count());
 
-        free_pages.resize_with(N, || {
+        free_pages.resize_with(*N, || {
             let lock = RwLock::new(next_free_page);
             next_free_page += 1;
             lock

@@ -1,17 +1,21 @@
-#[cfg(feature = "python")]
+#[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
+
 use crate::{
-    db::api::view::StaticGraphViewOps,
+    db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
     errors::{into_graph_err, GraphError, LoadError},
-    io::arrow::{
-        dataframe::{DFChunk, DFView},
-        df_loaders::{
-            extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
-            GidKey,
+    io::{
+        arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::{
+                extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
+                GidKey,
+            },
+            layer_col::lift_layer_col,
+            node_col::NodeCol,
+            prop_handler::*,
         },
-        layer_col::lift_layer_col,
-        node_col::NodeCol,
-        prop_handler::*,
+        LOAD_POOL,
     },
     prelude::*,
 };
@@ -110,40 +114,42 @@ pub fn load_edges_from_df_prefetch<
         num_rows,
     } = df_view;
 
-    rayon::scope(|s| {
-        let (tx, rx) = mpsc::sync_channel(2);
+    LOAD_POOL.install(|| {
+        rayon::scope(|s| {
+            let (tx, rx) = mpsc::sync_channel(2);
 
-        s.spawn(move |_| {
-            let sender = tx;
-            for chunk in chunks {
-                if let Err(e) = sender.send(chunk) {
-                    eprintln!("Error sending chunk to loader: {}", e);
-                    break;
+            s.spawn(move |_| {
+                let sender = tx;
+                for chunk in chunks {
+                    if let Err(e) = sender.send(chunk) {
+                        eprintln!("Error sending chunk to loader: {}", e);
+                        break;
+                    }
                 }
-            }
-        });
+            });
 
-        let df_view_prefetch = DFView {
-            names,
-            chunks: rx,
-            num_rows,
-        };
+            let df_view_prefetch = DFView {
+                names,
+                chunks: rx,
+                num_rows,
+            };
 
-        load_edges_from_df(
-            df_view_prefetch,
-            column_names,
-            resolve_nodes,
-            properties,
-            metadata,
-            shared_metadata,
-            layer,
-            graph,
-            delete,
-        )?;
-        Ok::<(), GraphError>(())
-    })?;
+            load_edges_from_df(
+                df_view_prefetch,
+                column_names,
+                resolve_nodes,
+                properties,
+                metadata,
+                shared_metadata,
+                layer,
+                graph,
+                delete,
+            )?;
+            Ok::<(), GraphError>(())
+        })?;
 
-    Ok(())
+        Ok(())
+    })
 }
 
 pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
@@ -207,7 +213,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         "resolve_nodes must be false when layer_id is provided or true when layer_id is None, {{resolve_nodes:{resolve_nodes:?}, layer_id:{layer_id_index:?}}}"
     );
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading edges".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved: Vec<VID> = vec![];
@@ -355,7 +361,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
         });
 
         drop(write_locked_graph);
-
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
 
         write_locked_graph.edges.par_iter_mut().for_each(|shard| {
@@ -380,7 +385,24 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             );
         });
 
-        #[cfg(feature = "python")]
+        // if graph.core_graph().extension().should_flush() {
+        //     println!(
+        //         "triggered global pause at size {}",
+        //         graph.core_graph().extension().estimated_size()
+        //     );
+        //     write_locked_graph
+        //         .edges
+        //         .attempt_flush(graph.core_graph().extension(), true);
+        //     write_locked_graph
+        //         .nodes
+        //         .attempt_flush(graph.core_graph().extension(), true);
+        //     println!(
+        //         "estimated size after completed flush {}",
+        //         graph.core_graph().extension().estimated_size()
+        //     );
+        // }
+
+        #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
     Ok::<_, GraphError>(())
@@ -459,11 +481,11 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
 ) {
     let mut t_props: Vec<(usize, Prop)> = vec![];
     let mut c_props: Vec<(usize, Prop)> = vec![];
+    let mut writer = shard.writer();
 
     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
-        if let Some(eid_pos) = shard.resolve_pos(*eid) {
+        if let Some(eid_pos) = writer.resolve_pos(*eid) {
             let t = EventTime(time, secondary_index);
-            let mut writer = shard.writer();
 
             t_props.clear();
             t_props.extend(prop_cols.iter_row(row));
@@ -496,6 +518,7 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, i64, usize, &'a usize, bool, bool)>,
     delete: bool,
 ) {
+    let mut writer = shard.writer();
     for (
         src,
         dst,
@@ -507,9 +530,8 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
         edge_exists_in_static_graph,
     ) in zip
     {
-        if let Some(dst_pos) = shard.resolve_pos(*dst) {
+        if let Some(dst_pos) = writer.resolve_pos(*dst) {
             let t = EventTime(time, secondary_index);
-            let mut writer = shard.writer();
 
             if !edge_exists_in_static_graph {
                 writer.add_static_inbound_edge(dst_pos, *src, *eid);
@@ -539,8 +561,9 @@ fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
 #[inline(never)]
 fn add_and_resolve_outbound_edges<
     'a,
-    NS: NodeSegmentOps<Extension = Extension>,
-    ES: EdgeSegmentOps<Extension = Extension>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES>,
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
 >(
     eids_exist: &[AtomicBool],
     layer_eids_exist: &[AtomicBool],
@@ -551,9 +574,9 @@ fn add_and_resolve_outbound_edges<
     zip: impl Iterator<Item = (&'a VID, &'a VID, i64, usize, &'a usize)>,
     delete: bool,
 ) {
+    let mut writer = locked_page.writer();
     for (row, (src, dst, time, secondary_index, layer)) in zip.enumerate() {
-        if let Some(src_pos) = locked_page.resolve_pos(*src) {
-            let mut writer = locked_page.writer();
+        if let Some(src_pos) = writer.resolve_pos(*src) {
             let t = EventTime(time, secondary_index);
             // find the original EID in the static graph if it exists
             // otherwise create a new one
@@ -599,11 +622,11 @@ pub fn store_node_ids<K: Eq + std::hash::Hash, NS: NodeSegmentOps<Extension = Ex
     gid_str_cache: &FxDashMap<K, (GID, MaybeNew<VID>)>,
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
+    let mut writer = locked_page.writer();
     for entry in gid_str_cache.iter() {
         let (src_gid, vid) = entry.value();
 
-        if let Some(src_pos) = locked_page.resolve_pos(vid.inner()) {
-            let mut writer = locked_page.writer();
+        if let Some(src_pos) = writer.resolve_pos(vid.inner()) {
             writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_gid.clone());
         }
     }
