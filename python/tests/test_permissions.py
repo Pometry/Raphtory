@@ -44,17 +44,15 @@ def create_role(role: str) -> None:
     gql(f'mutation {{ permissions {{ createRole(name: "{role}") {{ success }} }} }}')
 
 
-def grant_graph(role: str, path: str, permissions: list) -> None:
-    perms = "[" + ", ".join(permissions) + "]"
+def grant_graph(role: str, path: str, permission: str) -> None:
     gql(
-        f'mutation {{ permissions {{ grantGraph(role: "{role}", path: "{path}", permissions: {perms}) {{ success }} }} }}'
+        f'mutation {{ permissions {{ grantGraph(role: "{role}", path: "{path}", permission: {permission}) {{ success }} }} }}'
     )
 
 
-def grant_namespace(role: str, path: str, permissions: list) -> None:
-    perms = "[" + ", ".join(permissions) + "]"
+def grant_namespace(role: str, path: str, permission: str) -> None:
     gql(
-        f'mutation {{ permissions {{ grantNamespace(role: "{role}", path: "{path}", permissions: {perms}) {{ success }} }} }}'
+        f'mutation {{ permissions {{ grantNamespace(role: "{role}", path: "{path}", permission: {permission}) {{ success }} }} }}'
     )
 
 
@@ -82,14 +80,12 @@ def test_analyst_can_access_permitted_graph():
         gql(CREATE_ADMIN)
         create_role("analyst")
         create_role("admin")
-        grant_graph("analyst", "jira", ["READ"])
-        grant_namespace("admin", "*", ["READ"])
+        grant_graph("analyst", "jira", "READ")
+        grant_namespace("admin", "*", "READ")
 
-        response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_JIRA})
-        )
-        assert "errors" not in response.json(), response.json()
-        assert response.json()["data"]["graph"]["path"] == "jira"
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["graph"]["path"] == "jira"
 
 
 def test_analyst_cannot_access_denied_graph():
@@ -97,13 +93,11 @@ def test_analyst_cannot_access_denied_graph():
     with make_server(work_dir).start():
         gql(CREATE_ADMIN)
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ"])  # only jira, not admin
+        grant_graph("analyst", "jira", "READ")  # only jira, not admin
 
-        response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_ADMIN})
-        )
-        assert response.json()["data"] is None
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        response = gql(QUERY_ADMIN, headers=ANALYST_HEADERS)
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_admin_can_access_all_graphs():
@@ -112,13 +106,11 @@ def test_admin_can_access_all_graphs():
         gql(CREATE_JIRA)
         gql(CREATE_ADMIN)
         create_role("admin")
-        grant_namespace("admin", "*", ["READ"])
+        grant_namespace("admin", "*", "READ")
 
         for query in [QUERY_JIRA, QUERY_ADMIN]:
-            response = requests.post(
-                RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": query})
-            )
-            assert "errors" not in response.json(), response.json()
+            response = gql(query, headers=ADMIN_HEADERS)
+            assert "errors" not in response, response
 
 
 def test_no_role_is_denied_when_policy_is_active():
@@ -126,13 +118,11 @@ def test_no_role_is_denied_when_policy_is_active():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ"])
+        grant_graph("analyst", "jira", "READ")
 
-        response = requests.post(
-            RAPHTORY, headers=NO_ROLE_HEADERS, data=json.dumps({"query": QUERY_JIRA})
-        )
-        assert response.json()["data"] is None
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        response = gql(QUERY_JIRA, headers=NO_ROLE_HEADERS)
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_empty_store_gives_full_access():
@@ -141,45 +131,34 @@ def test_empty_store_gives_full_access():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
 
-        response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_JIRA})
-        )
-        assert "errors" not in response.json(), response.json()
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
 
 
 def test_introspection_allowed_with_introspect_permission():
+    """INTROSPECT-only role can call countNodes."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ", "INTROSPECT"])
+        grant_graph("analyst", "jira", "INTROSPECT")
 
-        response = requests.post(
-            RAPHTORY,
-            headers=ANALYST_HEADERS,
-            data=json.dumps({"query": QUERY_COUNT_NODES}),
-        )
-        assert "errors" not in response.json(), response.json()
-        assert isinstance(response.json()["data"]["graph"]["countNodes"], int)
+        response = gql(QUERY_COUNT_NODES, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert isinstance(response["data"]["graph"]["countNodes"], int)
 
 
-def test_introspection_denied_without_introspect_permission():
+def test_read_implies_introspect():
+    """READ implies INTROSPECT: a role with READ can call countNodes without an explicit INTROSPECT grant."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ"])  # READ only, no INTROSPECT
+        grant_graph("analyst", "jira", "READ")  # READ implies INTROSPECT
 
-        response = requests.post(
-            RAPHTORY,
-            headers=ANALYST_HEADERS,
-            data=json.dumps({"query": QUERY_COUNT_NODES}),
-        )
-        errors = response.json().get("errors", [])
-        assert errors, response.json()
-        assert "Access denied" in errors[0]["message"]
-        assert "countNodes" in errors[0]["message"]
-        assert "introspect" in errors[0]["message"]
+        response = gql(QUERY_COUNT_NODES, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert isinstance(response["data"]["graph"]["countNodes"], int)
 
 
 def test_permissions_update_via_mutation():
@@ -190,19 +169,15 @@ def test_permissions_update_via_mutation():
         create_role("analyst")
 
         # No grants yet — denied
-        response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_JIRA})
-        )
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert "Access denied" in response["errors"][0]["message"]
 
         # Grant via mutation
-        grant_graph("analyst", "jira", ["READ"])
+        grant_graph("analyst", "jira", "READ")
 
-        response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_JIRA})
-        )
-        assert "errors" not in response.json(), response.json()
-        assert response.json()["data"]["graph"]["path"] == "jira"
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["graph"]["path"] == "jira"
 
 
 def test_namespace_wildcard_grants_access_to_all_graphs():
@@ -211,13 +186,11 @@ def test_namespace_wildcard_grants_access_to_all_graphs():
         gql(CREATE_JIRA)
         gql(CREATE_ADMIN)
         create_role("analyst")
-        grant_namespace("analyst", "*", ["READ"])
+        grant_namespace("analyst", "*", "READ")
 
         for query in [QUERY_JIRA, QUERY_ADMIN]:
-            response = requests.post(
-                RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
-            )
-            assert "errors" not in response.json(), response.json()
+            response = gql(query, headers=ANALYST_HEADERS)
+            assert "errors" not in response, response
 
 
 # --- WRITE permission enforcement ---
@@ -233,13 +206,11 @@ def test_admin_bypasses_policy_for_reads():
         gql(CREATE_JIRA)
         # Policy is active (analyst role exists) but admin has no role entry
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ"])
+        grant_graph("analyst", "jira", "READ")
 
-        response = requests.post(
-            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_JIRA})
-        )
-        assert "errors" not in response.json(), response.json()
-        assert response.json()["data"]["graph"]["path"] == "jira"
+        response = gql(QUERY_JIRA, headers=ADMIN_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["graph"]["path"] == "jira"
 
 
 def test_analyst_can_write_with_write_grant():
@@ -248,12 +219,10 @@ def test_analyst_can_write_with_write_grant():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ", "WRITE"])
+        grant_graph("analyst", "jira", "WRITE")
 
-        response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": UPDATE_JIRA})
-        )
-        assert "errors" not in response.json(), response.json()
+        response = gql(UPDATE_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
 
 
 def test_analyst_cannot_write_without_write_grant():
@@ -262,17 +231,15 @@ def test_analyst_cannot_write_without_write_grant():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ"])  # READ only, no WRITE
+        grant_graph("analyst", "jira", "READ")  # READ only, no WRITE
 
-        response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": UPDATE_JIRA})
-        )
+        response = gql(UPDATE_JIRA, headers=ANALYST_HEADERS)
         assert (
-            response.json()["data"] is None
-            or response.json()["data"].get("updateGraph") is None
+            response["data"] is None
+            or response["data"].get("updateGraph") is None
         )
-        assert "errors" in response.json()
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_analyst_can_create_graph_in_namespace():
@@ -280,14 +247,10 @@ def test_analyst_can_create_graph_in_namespace():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "team/", ["READ", "WRITE"])
+        grant_namespace("analyst", "team/", "WRITE")
 
-        response = requests.post(
-            RAPHTORY,
-            headers=ANALYST_HEADERS,
-            data=json.dumps({"query": CREATE_JIRA_NS}),
-        )
-        assert "errors" not in response.json(), response.json()
+        response = gql(CREATE_JIRA_NS, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
 
 
 def test_analyst_cannot_create_graph_outside_namespace():
@@ -295,15 +258,11 @@ def test_analyst_cannot_create_graph_outside_namespace():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "team/", ["READ", "WRITE"])
+        grant_namespace("analyst", "team/", "WRITE")
 
-        response = requests.post(
-            RAPHTORY,
-            headers=ANALYST_HEADERS,
-            data=json.dumps({"query": CREATE_JIRA}),  # "jira" not under "team/"
-        )
-        assert "errors" in response.json()
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        response = gql(CREATE_JIRA, headers=ANALYST_HEADERS)  # "jira" not under "team/"
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_analyst_cannot_call_permissions_mutations():
@@ -311,17 +270,14 @@ def test_analyst_cannot_call_permissions_mutations():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "*", ["READ", "WRITE"])
+        grant_namespace("analyst", "*", "WRITE")
 
-        response = requests.post(
-            RAPHTORY,
+        response = gql(
+            'mutation { permissions { createRole(name: "hacker") { success } } }',
             headers=ANALYST_HEADERS,
-            data=json.dumps(
-                {"query": 'mutation { permissions { createRole(name: "hacker") { success } } }'}
-            ),
         )
-        assert "errors" in response.json()
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_admin_can_list_roles():
@@ -330,13 +286,9 @@ def test_admin_can_list_roles():
     with make_server(work_dir).start():
         create_role("analyst")
 
-        response = requests.post(
-            RAPHTORY,
-            headers=ADMIN_HEADERS,
-            data=json.dumps({"query": "query { permissions { listRoles } }"}),
-        )
-        assert "errors" not in response.json(), response.json()
-        assert "analyst" in response.json()["data"]["permissions"]["listRoles"]
+        response = gql("query { permissions { listRoles } }", headers=ADMIN_HEADERS)
+        assert "errors" not in response, response
+        assert "analyst" in response["data"]["permissions"]["listRoles"]
 
 
 def test_analyst_cannot_list_roles():
@@ -345,13 +297,9 @@ def test_analyst_cannot_list_roles():
     with make_server(work_dir).start():
         create_role("analyst")
 
-        response = requests.post(
-            RAPHTORY,
-            headers=ANALYST_HEADERS,
-            data=json.dumps({"query": "query { permissions { listRoles } }"}),
-        )
-        assert "errors" in response.json()
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        response = gql("query { permissions { listRoles } }", headers=ANALYST_HEADERS)
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_admin_can_get_role():
@@ -359,21 +307,17 @@ def test_admin_can_get_role():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_graph("analyst", "jira", ["READ"])
+        grant_graph("analyst", "jira", "READ")
 
-        response = requests.post(
-            RAPHTORY,
+        response = gql(
+            'query { permissions { getRole(name: "analyst") { name graphs { path permission } } } }',
             headers=ADMIN_HEADERS,
-            data=json.dumps(
-                {
-                    "query": 'query { permissions { getRole(name: "analyst") { name graphs { path permissions } } } }'
-                }
-            ),
         )
-        assert "errors" not in response.json(), response.json()
-        role_data = response.json()["data"]["permissions"]["getRole"]
+        assert "errors" not in response, response
+        role_data = response["data"]["permissions"]["getRole"]
         assert role_data["name"] == "analyst"
         assert role_data["graphs"][0]["path"] == "jira"
+        assert role_data["graphs"][0]["permission"] == "READ"
 
 
 def test_analyst_cannot_get_role():
@@ -382,15 +326,12 @@ def test_analyst_cannot_get_role():
     with make_server(work_dir).start():
         create_role("analyst")
 
-        response = requests.post(
-            RAPHTORY,
+        response = gql(
+            'query { permissions { getRole(name: "analyst") { name } } }',
             headers=ANALYST_HEADERS,
-            data=json.dumps(
-                {"query": 'query { permissions { getRole(name: "analyst") { name } } }'}
-            ),
         )
-        assert "errors" in response.json()
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_introspect_only_can_call_introspection_fields():
@@ -399,17 +340,15 @@ def test_introspect_only_can_call_introspection_fields():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", ["INTROSPECT"])  # no READ
+        grant_graph("analyst", "jira", "INTROSPECT")  # no READ
 
         for query in [
             'query { graph(path: "jira") { countNodes } }',
             'query { graph(path: "jira") { countEdges } }',
             'query { graph(path: "jira") { uniqueLayers } }',
         ]:
-            response = requests.post(
-                RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
-            )
-            assert "errors" not in response.json(), f"query={query} response={response.json()}"
+            response = gql(query, headers=ANALYST_HEADERS)
+            assert "errors" not in response, f"query={query} response={response}"
 
 
 def test_introspect_only_cannot_read_nodes_or_edges():
@@ -421,7 +360,7 @@ def test_introspect_only_cannot_read_nodes_or_edges():
         gql('query { updateGraph(path: "jira") { addNode(time: 1, name: "a") { success } } }')
         gql('query { updateGraph(path: "jira") { addEdge(time: 1, src: "a", dst: "b") { success } } }')
         create_role("analyst")
-        grant_graph("analyst", "jira", ["INTROSPECT"])  # no READ
+        grant_graph("analyst", "jira", "INTROSPECT")  # no READ
 
         for query, expected_field in [
             ('query { graph(path: "jira") { nodes { list { name } } } }', "nodes"),
@@ -430,38 +369,11 @@ def test_introspect_only_cannot_read_nodes_or_edges():
             ('query { graph(path: "jira") { properties { values { key } } } }', "properties"),
             ('query { graph(path: "jira") { earliestTime { timestamp } } }', "earliestTime"),
         ]:
-            response = requests.post(
-                RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
-            )
-            errors = response.json().get("errors", [])
-            assert errors, f"expected denial for query={query!r}, got: {response.json()}"
+            response = gql(query, headers=ANALYST_HEADERS)
+            errors = response.get("errors", [])
+            assert errors, f"expected denial for query={query!r}, got: {response}"
             msg = errors[0]["message"]
             assert "Access denied" in msg and expected_field in msg and "read" in msg, (
-                f"unexpected error for {expected_field!r}: {msg!r}"
-            )
-
-
-def test_read_only_cannot_call_introspection_fields():
-    """A role with only READ (no INTROSPECT) is denied countNodes/countEdges/schema/uniqueLayers."""
-    work_dir = tempfile.mkdtemp()
-    with make_server(work_dir).start():
-        gql(CREATE_JIRA)
-        create_role("analyst")
-        grant_graph("analyst", "jira", ["READ"])  # no INTROSPECT
-
-        for query, expected_field in [
-            ('query { graph(path: "jira") { countNodes } }', "countNodes"),
-            ('query { graph(path: "jira") { countEdges } }', "countEdges"),
-            ('query { graph(path: "jira") { uniqueLayers } }', "uniqueLayers"),
-            ('query { graph(path: "jira") { schema { nodes { typeName } } } }', "schema"),
-        ]:
-            response = requests.post(
-                RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": query})
-            )
-            errors = response.json().get("errors", [])
-            assert errors, f"expected denial for query={query!r}, got: {response.json()}"
-            msg = errors[0]["message"]
-            assert "Access denied" in msg and expected_field in msg and "introspect" in msg, (
                 f"unexpected error for {expected_field!r}: {msg!r}"
             )
 
@@ -474,20 +386,19 @@ def test_introspect_only_is_denied_without_introspect_or_read():
         create_role("analyst")
         # analyst has no grant on jira at all
 
-        response = requests.post(
-            RAPHTORY,
+        response = gql(
+            'query { graph(path: "jira") { countNodes } }',
             headers=ANALYST_HEADERS,
-            data=json.dumps({"query": 'query { graph(path: "jira") { countNodes } }'}),
         )
-        assert response.json()["data"] is None
-        assert "Access denied" in response.json()["errors"][0]["message"]
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_analyst_sees_only_filtered_nodes():
     """grantGraphFilteredReadOnly applies a node filter transparently for the role.
 
     Admin sees all nodes; analyst only sees nodes matching the stored filter.
-    Calling grantGraph([READ]) clears the filter and restores full access.
+    Calling grantGraph(READ) clears the filter and restores full access.
     """
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
@@ -523,36 +434,30 @@ def test_analyst_sees_only_filtered_nodes():
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
 
         # Analyst should only see alice and carol (region=us-west)
-        analyst_response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_NODES})
-        )
-        assert "errors" not in analyst_response.json(), analyst_response.json()
+        analyst_response = gql(QUERY_NODES, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_response, analyst_response
         analyst_names = {
             n["name"]
-            for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
+            for n in analyst_response["data"]["graph"]["nodes"]["list"]
         }
         assert analyst_names == {"alice", "carol"}, f"expected {{alice, carol}}, got {analyst_names}"
 
         # Admin should see all three nodes (filter is bypassed for "a":"rw")
-        admin_response = requests.post(
-            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_NODES})
-        )
-        assert "errors" not in admin_response.json(), admin_response.json()
+        admin_response = gql(QUERY_NODES, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_response, admin_response
         admin_names = {
             n["name"]
-            for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
+            for n in admin_response["data"]["graph"]["nodes"]["list"]
         }
         assert admin_names == {"alice", "bob", "carol"}, f"expected all 3 nodes, got {admin_names}"
 
-        # Clear the filter by calling grantGraph([READ]) — analyst should now see all nodes
-        grant_graph("analyst", "jira", ["READ"])
-        analyst_response_after = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_NODES})
-        )
-        assert "errors" not in analyst_response_after.json(), analyst_response_after.json()
+        # Clear the filter by calling grantGraph(READ) — analyst should now see all nodes
+        grant_graph("analyst", "jira", "READ")
+        analyst_response_after = gql(QUERY_NODES, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_response_after, analyst_response_after
         names_after = {
             n["name"]
-            for n in analyst_response_after.json()["data"]["graph"]["nodes"]["list"]
+            for n in analyst_response_after["data"]["graph"]["nodes"]["list"]
         }
         assert names_after == {"alice", "bob", "carol"}, (
             f"after plain grant, expected all 3 nodes, got {names_after}"
@@ -600,26 +505,22 @@ def test_analyst_sees_only_filtered_edges():
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
 
-        analyst_response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_EDGES})
-        )
-        assert "errors" not in analyst_response.json(), analyst_response.json()
+        analyst_response = gql(QUERY_EDGES, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_response, analyst_response
         analyst_edges = {
             (e["src"]["name"], e["dst"]["name"])
-            for e in analyst_response.json()["data"]["graph"]["edges"]["list"]
+            for e in analyst_response["data"]["graph"]["edges"]["list"]
         }
         assert analyst_edges == {("b", "c"), ("a", "c")}, (
             f"expected only heavy edges, got {analyst_edges}"
         )
 
         # Admin sees all three edges
-        admin_response = requests.post(
-            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_EDGES})
-        )
-        assert "errors" not in admin_response.json(), admin_response.json()
+        admin_response = gql(QUERY_EDGES, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_response, admin_response
         admin_edges = {
             (e["src"]["name"], e["dst"]["name"])
-            for e in admin_response.json()["data"]["graph"]["edges"]["list"]
+            for e in admin_response["data"]["graph"]["edges"]["list"]
         }
         assert admin_edges == {("a", "b"), ("b", "c"), ("a", "c")}, (
             f"expected all edges for admin, got {admin_edges}"
@@ -661,26 +562,22 @@ def test_analyst_sees_only_graph_filter_window():
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
 
-        analyst_response = requests.post(
-            RAPHTORY, headers=ANALYST_HEADERS, data=json.dumps({"query": QUERY_NODES})
-        )
-        assert "errors" not in analyst_response.json(), analyst_response.json()
+        analyst_response = gql(QUERY_NODES, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_response, analyst_response
         analyst_names = {
             n["name"]
-            for n in analyst_response.json()["data"]["graph"]["nodes"]["list"]
+            for n in analyst_response["data"]["graph"]["nodes"]["list"]
         }
         assert analyst_names == {"middle"}, (
             f"expected only 'middle' in window, got {analyst_names}"
         )
 
         # Admin sees all three nodes
-        admin_response = requests.post(
-            RAPHTORY, headers=ADMIN_HEADERS, data=json.dumps({"query": QUERY_NODES})
-        )
-        assert "errors" not in admin_response.json(), admin_response.json()
+        admin_response = gql(QUERY_NODES, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_response, admin_response
         admin_names = {
             n["name"]
-            for n in admin_response.json()["data"]["graph"]["nodes"]["list"]
+            for n in admin_response["data"]["graph"]["nodes"]["list"]
         }
         assert admin_names == {"early", "middle", "late"}, (
             f"expected all nodes for admin, got {admin_names}"
