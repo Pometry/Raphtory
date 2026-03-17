@@ -245,25 +245,26 @@ def test_graph_nodes_sort_by_prop2(graph):
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_graph_nodes_sort_by_prop3(graph):
     query = """
-        {
+        query {
           graph(path: "g") {
             nodes {
-              sorted(sortBys: [{property: "prop3"}]) {
+              sorted(sortBys: [{ property: "prop3" }]) {
                 list {
-                  id
+                  properties {
+                    get(key: "prop3") {
+                      value
+                    }
+                  }
                 }
               }
             }
           }
         }
     """
-    expected_output = {
-        "graph": {
-            "nodes": {
-                "sorted": {"list": [{"id": "c"}, {"id": "a"}, {"id": "b"}, {"id": "d"}]}
-            }
-        }
-    }
+    expected_output = {"graph": {"nodes": {
+        "sorted": {
+            "list": [{"properties": {"get": {"value": "ayz123"}}}, {"properties": {"get": {"value": "xyz123"}}},
+                     {"properties": {"get": {"value": "xyz123"}}}, {"properties": {"get": {"value": "xyz123"}}}]}}}}
     run_graphql_test(query, expected_output, graph)
 
 
