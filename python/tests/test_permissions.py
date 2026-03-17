@@ -19,13 +19,13 @@ MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
 
 RAPHTORY = "http://localhost:1736"
 
-ANALYST_JWT = jwt.encode({"a": "ro", "role": "analyst"}, PRIVATE_KEY, algorithm="EdDSA")
+ANALYST_JWT = jwt.encode({"access": "ro", "role": "analyst"}, PRIVATE_KEY, algorithm="EdDSA")
 ANALYST_HEADERS = {"Authorization": f"Bearer {ANALYST_JWT}"}
 
-ADMIN_JWT = jwt.encode({"a": "rw", "role": "admin"}, PRIVATE_KEY, algorithm="EdDSA")
+ADMIN_JWT = jwt.encode({"access": "rw", "role": "admin"}, PRIVATE_KEY, algorithm="EdDSA")
 ADMIN_HEADERS = {"Authorization": f"Bearer {ADMIN_JWT}"}
 
-NO_ROLE_JWT = jwt.encode({"a": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
+NO_ROLE_JWT = jwt.encode({"access": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
 NO_ROLE_HEADERS = {"Authorization": f"Bearer {NO_ROLE_JWT}"}
 
 QUERY_JIRA = """query { graph(path: "jira") { path } }"""
@@ -459,7 +459,7 @@ def test_analyst_sees_only_filtered_nodes():
         }
         assert analyst_names == {"alice", "carol"}, f"expected {{alice, carol}}, got {analyst_names}"
 
-        # Admin should see all three nodes (filter is bypassed for "a":"rw")
+        # Admin should see all three nodes (filter is bypassed for "access":"rw")
         admin_response = gql(QUERY_NODES, headers=ADMIN_HEADERS)
         assert "errors" not in admin_response, admin_response
         admin_names = {

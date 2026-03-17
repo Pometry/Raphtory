@@ -19,12 +19,12 @@ MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
 
 RAPHTORY = "http://localhost:1736"
 
-READ_JWT = jwt.encode({"a": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
+READ_JWT = jwt.encode({"access": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
 READ_HEADERS = {
     "Authorization": f"Bearer {READ_JWT}",
 }
 
-WRITE_JWT = jwt.encode({"a": "rw"}, PRIVATE_KEY, algorithm="EdDSA")
+WRITE_JWT = jwt.encode({"access": "rw"}, PRIVATE_KEY, algorithm="EdDSA")
 WRITE_HEADERS = {
     "Authorization": f"Bearer {WRITE_JWT}",
 }
@@ -54,7 +54,7 @@ def test_expired_token():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
         exp = time() - 100
-        token = jwt.encode({"a": "ro", "exp": exp}, PRIVATE_KEY, algorithm="EdDSA")
+        token = jwt.encode({"access": "ro", "exp": exp}, PRIVATE_KEY, algorithm="EdDSA")
         headers = {
             "Authorization": f"Bearer {token}",
         }
@@ -63,7 +63,7 @@ def test_expired_token():
         )
         assert response.status_code == 401
 
-        token = jwt.encode({"a": "rw", "exp": exp}, PRIVATE_KEY, algorithm="EdDSA")
+        token = jwt.encode({"access": "rw", "exp": exp}, PRIVATE_KEY, algorithm="EdDSA")
         headers = {
             "Authorization": f"Bearer {token}",
         }

@@ -28,7 +28,7 @@ pub(crate) enum Access {
 
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
-    pub(crate) a: Access,
+    pub(crate) access: Access,
     #[serde(default)]
     pub(crate) role: Option<String>,
 }
@@ -135,7 +135,7 @@ where
                 match claims {
                     Some(claims) => {
                         debug!(role = ?claims.role, "JWT validated successfully");
-                        (claims.a, claims.role)
+                        (claims.access, claims.role)
                     }
                     None => {
                         if self.config.enabled_for_reads {
@@ -231,7 +231,7 @@ pub(crate) trait ContextValidation {
     fn require_write_access(&self) -> Result<(), AuthError>;
 }
 
-/// Check that the request carries a write-access JWT (`"a": "rw"`).
+/// Check that the request carries a write-access JWT (`"access": "rw"`).
 /// For use in dynamic resolver ops that run under `query { ... }` and are
 /// therefore not covered by the `MutationAuth` extension.
 pub fn require_write_access_dynamic(
