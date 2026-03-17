@@ -10,6 +10,9 @@ pub enum DBState {
     NotSupported,
 }
 
+// Starting value for `last_checkpoint` in the control file.
+pub const LAST_CHECKPOINT_INIT: LSN = 0;
+
 pub trait ControlFileOps: Sized {
     fn load(dir: &Path) -> Result<Self, StorageError>;
 

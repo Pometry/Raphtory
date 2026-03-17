@@ -159,7 +159,7 @@ pub trait GraphWalOps {
     fn read_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
     /// Reads and decodes the WAL entry at the given LSN and validates that it is a shutdown checkpoint.
-    /// Returns the LSN immediately after this record which marks the end of the WAL stream.
+    /// Returns the LSN immediately after this record, marking the end of the WAL stream.
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
     /// Returns an iterator over the entries in the wal, starting from the given LSN.
@@ -169,11 +169,12 @@ pub trait GraphWalOps {
     ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
 
     /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
+    /// Returns the LSN immediately after the last entry in the WAL stream on success.
     fn replay_to_graph<G: GraphReplay>(
         &self,
         graph: &mut G,
         start: LSN,
-    ) -> Result<(), StorageError>;
+    ) -> Result<LSN, StorageError>;
 }
 
 /// Trait for defining callbacks for replaying from wal.
