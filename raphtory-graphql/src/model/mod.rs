@@ -1,5 +1,5 @@
 use crate::{
-    auth::{Access, ContextValidation},
+    auth::{Access, AuthError, ContextValidation},
     auth_policy::GraphPermission,
     data::Data,
     model::{
@@ -198,10 +198,15 @@ impl QueryRoot {
                     let perms = policy.graph_permissions(false, role, &path)
                         .map_err(|msg| async_graphql::Error::new(msg))?;
                     if !matches!(perms, GraphPermission::Write) {
-                        return Err(async_graphql::Error::new(format!(
-                            "Access denied: role '{}' does not have write permission for graph '{path}'",
-                            role.unwrap_or("<no role>")
-                        )));
+                        // role=Some: policy is active and grants less than Write.
+                        // role=None: store is empty (no policy yet), fall back to JWT check.
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: role '{role}' does not have write permission for graph '{path}'"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
                     }
                 }
             }
@@ -325,10 +330,15 @@ impl Mut {
                     let perms = policy.graph_permissions(false, role, &path)
                         .map_err(|msg| async_graphql::Error::new(msg))?;
                     if !matches!(perms, GraphPermission::Write) {
-                        return Err(async_graphql::Error::new(format!(
-                            "Access denied: role '{}' does not have write permission for graph '{path}'",
-                            role.unwrap_or("<no role>")
-                        )));
+                        // role=Some: policy is active and grants less than Write.
+                        // role=None: store is empty (no policy yet), fall back to JWT check.
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: role '{role}' does not have write permission for graph '{path}'"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
                     }
                 }
             }
