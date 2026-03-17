@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1773668301873,
+  "lastUpdate": 1773706402345,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4535,6 +4535,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1256,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "706a0a61f24f82505f3b36319cea7cfbd48c2661",
+          "message": "Fix all current dependency issues within graph bench and raphtory (#2512)\n\n* updated graphql-bench\n\n* cargo.toml\n\n* update rust version\n\n* fixed package\n\n* fixing\n\n* working auth code\n\n* 91.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.191.1\n\n* chore: apply tidy-public auto-fixes\n\n---------\n\nCo-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2026-03-16T23:31:58Z",
+          "tree_id": "d0142a51b2ae4b0e27c466ea6a4d26305076c2e3",
+          "url": "https://github.com/Pometry/Raphtory/commit/706a0a61f24f82505f3b36319cea7cfbd48c2661"
+        },
+        "date": 1773706398479,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 1225,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 204,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 139,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1032,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 772,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1124,
             "unit": "req/s"
           }
         ]
