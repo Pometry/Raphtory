@@ -44,6 +44,7 @@ __all__ = [
     "decode_graph",
     "schema",
     "cli",
+    "has_permissions_extension",
 ]
 
 class GraphServer(object):
@@ -781,3 +782,5 @@ def schema():
     """
 
 def cli(): ...
+def has_permissions_extension():
+    """Returns True if the permissions extension (raphtory-auth) is compiled in."""

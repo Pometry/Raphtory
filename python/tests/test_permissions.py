@@ -357,25 +357,38 @@ def test_introspect_only_cannot_read_nodes_or_edges():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         # Add a node and edge so the graph has data to query
-        gql('query { updateGraph(path: "jira") { addNode(time: 1, name: "a") { success } } }')
-        gql('query { updateGraph(path: "jira") { addEdge(time: 1, src: "a", dst: "b") { success } } }')
+        gql(
+            'query { updateGraph(path: "jira") { addNode(time: 1, name: "a") { success } } }'
+        )
+        gql(
+            'query { updateGraph(path: "jira") { addEdge(time: 1, src: "a", dst: "b") { success } } }'
+        )
         create_role("analyst")
         grant_graph("analyst", "jira", "INTROSPECT")  # no READ
 
         for query, expected_field in [
             ('query { graph(path: "jira") { nodes { list { name } } } }', "nodes"),
-            ('query { graph(path: "jira") { edges { list { src { name } } } } }', "edges"),
+            (
+                'query { graph(path: "jira") { edges { list { src { name } } } } }',
+                "edges",
+            ),
             ('query { graph(path: "jira") { node(name: "a") { name } } }', "node"),
-            ('query { graph(path: "jira") { properties { values { key } } } }', "properties"),
-            ('query { graph(path: "jira") { earliestTime { timestamp } } }', "earliestTime"),
+            (
+                'query { graph(path: "jira") { properties { values { key } } } }',
+                "properties",
+            ),
+            (
+                'query { graph(path: "jira") { earliestTime { timestamp } } }',
+                "earliestTime",
+            ),
         ]:
             response = gql(query, headers=ANALYST_HEADERS)
             errors = response.get("errors", [])
             assert errors, f"expected denial for query={query!r}, got: {response}"
             msg = errors[0]["message"]
-            assert "Access denied" in msg and expected_field in msg and "read" in msg, (
-                f"unexpected error for {expected_field!r}: {msg!r}"
-            )
+            assert (
+                "Access denied" in msg and expected_field in msg and "read" in msg
+            ), f"unexpected error for {expected_field!r}: {msg!r}"
 
 
 def test_introspect_only_is_denied_without_introspect_or_read():
@@ -404,7 +417,11 @@ def test_analyst_sees_only_filtered_nodes():
     with make_server(work_dir).start():
         # Create graph and add nodes with a "region" property
         gql(CREATE_JIRA)
-        for name, region in [("alice", "us-west"), ("bob", "us-east"), ("carol", "us-west")]:
+        for name, region in [
+            ("alice", "us-west"),
+            ("bob", "us-east"),
+            ("carol", "us-west"),
+        ]:
             resp = gql(
                 f"""query {{
                     updateGraph(path: "jira") {{
