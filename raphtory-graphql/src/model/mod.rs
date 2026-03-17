@@ -1,10 +1,11 @@
 use crate::{
     auth::{Access, ContextValidation},
+    auth_policy::GraphPermission,
     data::Data,
     model::{
         graph::{
             collection::GqlCollection,
-            filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter},
+            filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphAccessFilter},
             graph::GqlGraph,
             index::IndexSpecInput,
             mutable_graph::GqlMutableGraph,
@@ -46,7 +47,7 @@ use std::{
 };
 use tracing::warn;
 
-pub(crate) mod graph;
+pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
@@ -98,15 +99,13 @@ pub enum GqlGraphType {
 /// `graph` keys) to a `DynamicGraph`, returning a new filtered view.
 async fn apply_graph_filter(
     mut graph: DynamicGraph,
-    filter: serde_json::Value,
+    filter: GraphAccessFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynView,
     };
 
-    if let Some(node_val) = filter.get("node") {
-        let gql_filter: GqlNodeFilter = serde_json::from_value(node_val.clone())
-            .map_err(|e| async_graphql::Error::new(format!("node filter invalid: {e}")))?;
+    if let Some(gql_filter) = filter.node {
         let raphtory_filter = CompositeNodeFilter::try_from(gql_filter)
             .map_err(|e| async_graphql::Error::new(format!("node filter conversion: {e}")))?;
         graph = blocking_compute({
@@ -118,9 +117,7 @@ async fn apply_graph_filter(
         .into_dynamic();
     }
 
-    if let Some(edge_val) = filter.get("edge") {
-        let gql_filter: GqlEdgeFilter = serde_json::from_value(edge_val.clone())
-            .map_err(|e| async_graphql::Error::new(format!("edge filter invalid: {e}")))?;
+    if let Some(gql_filter) = filter.edge {
         let raphtory_filter = CompositeEdgeFilter::try_from(gql_filter)
             .map_err(|e| async_graphql::Error::new(format!("edge filter conversion: {e}")))?;
         graph = blocking_compute({
@@ -132,9 +129,7 @@ async fn apply_graph_filter(
         .into_dynamic();
     }
 
-    if let Some(graph_val) = filter.get("graph") {
-        let gql_filter: GqlGraphFilter = serde_json::from_value(graph_val.clone())
-            .map_err(|e| async_graphql::Error::new(format!("graph filter invalid: {e}")))?;
+    if let Some(gql_filter) = filter.graph {
         let dyn_view = DynView::try_from(gql_filter)
             .map_err(|e| async_graphql::Error::new(format!("graph filter conversion: {e}")))?;
         graph = blocking_compute({
@@ -164,61 +159,29 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
 
-        let (read_allowed, introspection_allowed) = if ctx
-            .data::<Access>()
-            .is_ok_and(|a| a == &Access::Rw)
-        {
-            (true, true) // "a": "rw" = admin, bypass all per-graph policy checks
-        } else if let Some(policy) = &data.auth_policy {
-            match policy.check_graph_access(role, path) {
-                Some(false) => {
-                    // No READ — introspect-only access is still allowed
-                    if policy.check_graph_introspection(role, path) {
-                        (false, true)
-                    } else {
-                        let role_str = role.unwrap_or("<no role>");
-                        warn!(
-                            role = role_str,
-                            graph = path,
-                            "Access denied by auth policy"
-                        );
-                        return Err(async_graphql::Error::new(format!(
-                                "Access denied: role '{role_str}' is not permitted to access graph '{path}'"
-                            )));
-                    }
-                }
-                Some(true) => (true, policy.check_graph_introspection(role, path)),
-                None => (true, true), // role not in store = no rules apply = full access
-            }
+        let perms = if let Some(policy) = &data.auth_policy {
+            policy
+                .graph_permissions(is_admin, role, path)
+                .map_err(|msg| {
+                    warn!(role = role.unwrap_or("<no role>"), graph = path, "Access denied by auth policy");
+                    async_graphql::Error::new(msg)
+                })?
         } else {
-            (true, true) // no policy -> unrestricted
+            GraphPermission::Write // no policy: unrestricted
         };
 
         let graph_with_vecs = data.get_graph(path).await?;
         let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
 
-        // Apply per-role data filter if one is configured (admin "a":"rw" bypasses this)
-        let graph = if !ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
-            if let Some(policy) = &data.auth_policy {
-                if let Some(filter_json) = policy.get_graph_data_filter(role, path) {
-                    apply_graph_filter(graph, filter_json).await?
-                } else {
-                    graph
-                }
-            } else {
-                graph
-            }
+        let graph = if let GraphPermission::Read { filter: Some(ref f) } = perms {
+            apply_graph_filter(graph, f.clone()).await?
         } else {
             graph
         };
 
-        Ok(GqlGraph::new_with_permissions(
-            graph_with_vecs.folder,
-            graph,
-            read_allowed,
-            introspection_allowed,
-        ))
+        Ok(GqlGraph::new_with_permissions(graph_with_vecs.folder, graph, perms))
     }
 
     /// Update graph query, has side effects to update graph state
@@ -226,31 +189,21 @@ impl QueryRoot {
     /// Returns:: GqlMutableGraph
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
-        if !ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
-            // Not admin — check per-graph write permission from the policy
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
             match &data.auth_policy {
+                None => ctx.require_write_access()?,
                 Some(policy) => {
-                    let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-                    match policy.check_graph_access(role, &path) {
-                        // No active policy entries (empty store) — fall back to JWT-level check
-                        None => ctx.require_write_access()?,
-                        Some(false) => {
-                            let role_str = role.unwrap_or("<no role>");
-                            return Err(async_graphql::Error::new(format!(
-                                "Access denied: role '{role_str}' does not have write permission for graph '{path}'"
-                            )));
-                        }
-                        Some(true) => {
-                            if !policy.check_graph_write_access(role, &path) {
-                                let role_str = role.unwrap_or("<no role>");
-                                return Err(async_graphql::Error::new(format!(
-                                    "Access denied: role '{role_str}' does not have write permission for graph '{path}'"
-                                )));
-                            }
-                        }
+                    let perms = policy.graph_permissions(false, role, &path)
+                        .map_err(|msg| async_graphql::Error::new(msg))?;
+                    if !matches!(perms, GraphPermission::Write) {
+                        return Err(async_graphql::Error::new(format!(
+                            "Access denied: role '{}' does not have write permission for graph '{path}'",
+                            role.unwrap_or("<no role>")
+                        )));
                     }
                 }
-                None => ctx.require_write_access()?,
             }
         }
 
@@ -363,30 +316,21 @@ impl Mut {
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        if !ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
             match &data.auth_policy {
+                None => ctx.require_write_access()?,
                 Some(policy) => {
-                    let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-                    match policy.check_graph_access(role, &path) {
-                        // No active policy entries (empty store) — fall back to JWT-level check
-                        None => ctx.require_write_access()?,
-                        Some(false) => {
-                            let role_str = role.unwrap_or("<no role>");
-                            return Err(async_graphql::Error::new(format!(
-                                "Access denied: role '{role_str}' does not have write permission for namespace '{path}'"
-                            )));
-                        }
-                        Some(true) => {
-                            if !policy.check_graph_write_access(role, &path) {
-                                let role_str = role.unwrap_or("<no role>");
-                                return Err(async_graphql::Error::new(format!(
-                                    "Access denied: role '{role_str}' does not have write permission for namespace '{path}'"
-                                )));
-                            }
-                        }
+                    let perms = policy.graph_permissions(false, role, &path)
+                        .map_err(|msg| async_graphql::Error::new(msg))?;
+                    if !matches!(perms, GraphPermission::Write) {
+                        return Err(async_graphql::Error::new(format!(
+                            "Access denied: role '{}' does not have write permission for graph '{path}'",
+                            role.unwrap_or("<no role>")
+                        )));
                     }
                 }
-                None => ctx.require_write_access()?,
             }
         }
         let overwrite = false;

@@ -1,4 +1,5 @@
 use crate::{
+    auth_policy::GraphPermission,
     data::Data,
     graph::GraphWithVectors,
     model::{
@@ -62,11 +63,7 @@ use std::{
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
-    /// Whether this role may read graph data (nodes, edges, properties).
-    read_allowed: bool,
-    /// Whether this role may perform introspection on this graph
-    /// (countNodes, countEdges, uniqueLayers, schema). Derived from auth policy at request time.
-    introspection_allowed: bool,
+    permission: GraphPermission,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -80,22 +77,19 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
-            read_allowed: true,
-            introspection_allowed: true,
+            permission: GraphPermission::Write,
         }
     }
 
     pub fn new_with_permissions<G: StaticGraphViewOps + IntoDynamic>(
         path: ExistingGraphFolder,
         graph: G,
-        read_allowed: bool,
-        introspection_allowed: bool,
+        permission: GraphPermission,
     ) -> Self {
         Self {
             path,
             graph: graph.into_dynamic(),
-            read_allowed,
-            introspection_allowed,
+            permission,
         }
     }
 
@@ -107,13 +101,12 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
-            read_allowed: self.read_allowed,
-            introspection_allowed: self.introspection_allowed,
+            permission: self.permission.clone(),
         }
     }
 
     fn require_read_access(&self, field: &str) -> Result<()> {
-        if !self.read_allowed {
+        if matches!(self.permission, GraphPermission::Introspect) {
             return Err(async_graphql::Error::new(format!(
                 "Access denied: '{field}' requires read permission on this graph"
             )));
@@ -122,11 +115,8 @@ impl GqlGraph {
     }
 
     fn require_introspection(&self, field: &str) -> Result<()> {
-        if !self.introspection_allowed {
-            return Err(async_graphql::Error::new(format!(
-                "Access denied: '{field}' requires introspect permission on this graph"
-            )));
-        }
+        // All GraphPermission variants include introspection; this check always passes.
+        let _ = field;
         Ok(())
     }
 }
