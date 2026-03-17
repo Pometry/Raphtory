@@ -1,11 +1,11 @@
 use crate::{
     core::utils::iter::GenLockedIter,
-    db::graph::node::NodeView,
+    db::{api::state::ops::GraphView, graph::node::NodeView},
     errors::GraphError,
-    prelude::NodeViewOps,
+    prelude::{GraphViewOps, NodeViewOps},
     serialise::parquet::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode_indexed, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, NODE_VID_COL,
+        run_encode_indexed, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
         SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
 };
@@ -15,14 +15,14 @@ use raphtory_api::iter::IntoDynBoxed;
 use raphtory_storage::graph::graph::GraphStorage;
 use std::path::Path;
 
-pub(crate) fn encode_nodes_tprop(
-    g: &GraphStorage,
+pub(crate) fn encode_nodes_tprop<G: GraphView>(
+    g: &G,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
     run_encode_indexed(
         g,
         g.node_meta().temporal_prop_mapper(),
-        g.nodes().row_groups_par_iter(),
+        g.core_graph().lock().nodes().row_groups_par_iter(),
         path,
         NODES_T_PATH,
         |_| {
@@ -33,9 +33,7 @@ pub(crate) fn encode_nodes_tprop(
             ]
         },
         |nodes, g, decoder, writer| {
-            let row_group_size = 100_000;
             let nodes = nodes.collect::<Vec<_>>();
-
             let nodes = nodes.into_iter();
 
             let cols = g.node_meta().temporal_prop_mapper().all_keys();
@@ -54,7 +52,7 @@ pub(crate) fn encode_nodes_tprop(
                             .into_dyn_boxed()
                     })
                 })
-                .chunks(row_group_size)
+                .chunks(ROW_GROUP_SIZE)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
             {
@@ -69,14 +67,14 @@ pub(crate) fn encode_nodes_tprop(
     )
 }
 
-pub(crate) fn encode_nodes_cprop(
-    g: &GraphStorage,
+pub(crate) fn encode_nodes_cprop<G: GraphView>(
+    g: &G,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
     run_encode_indexed(
         g,
         g.node_meta().metadata_mapper(),
-        g.nodes().row_groups_par_iter(),
+        g.core_graph().lock().nodes().row_groups_par_iter(),
         path,
         NODES_C_PATH,
         |id_type| {
@@ -88,8 +86,6 @@ pub(crate) fn encode_nodes_cprop(
             ]
         },
         |nodes, g, decoder, writer| {
-            let row_group_size = 100_000;
-
             for node_rows in nodes
                 .map(|vid| NodeView::new_internal(g, vid))
                 .map(move |node| ParquetCNode {
@@ -97,7 +93,7 @@ pub(crate) fn encode_nodes_cprop(
                     export_vid: node.node.0,
                     export_node_type_id: node.node_type_id(),
                 })
-                .chunks(row_group_size)
+                .chunks(ROW_GROUP_SIZE)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
             // scope for the decoder

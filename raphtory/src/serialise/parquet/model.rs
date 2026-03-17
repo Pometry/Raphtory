@@ -179,7 +179,6 @@ impl<'a, G: GraphView> Serialize for ParquetCNode<'a, G> {
         S: serde::Serializer,
     {
         let mut state = serializer.serialize_map(None)?;
-        let x = self.node.node_type_id();
 
         state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
         state.serialize_entry(NODE_VID_COL, &self.export_vid)?;

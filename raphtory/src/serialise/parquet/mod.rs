@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        api::{storage::storage::Storage, view::MaterializedGraph},
+        api::{state::ops::GraphView, storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
@@ -159,6 +159,7 @@ pub trait ParquetDecoder: Sized {
     ) -> Result<Self, GraphError>;
 }
 
+const ROW_GROUP_SIZE: usize = 100_000;
 const NODE_ID_COL: &str = "rap_node_id";
 const NODE_VID_COL: &str = "rap_node_vid";
 const TYPE_COL: &str = "rap_node_type";
@@ -206,8 +207,8 @@ impl ParquetEncoder for MaterializedGraph {
     }
 }
 
-fn encode_graph_storage(
-    g: &GraphStorage,
+fn encode_graph_storage<G: GraphView>(
+    g: &G,
     path: impl AsRef<Path>,
     graph_type: GraphType,
 ) -> Result<(), GraphError> {
@@ -221,19 +222,14 @@ fn encode_graph_storage(
     Ok(())
 }
 
-pub(crate) fn run_encode(
-    g: &GraphStorage,
+pub(crate) fn run_encode<G: GraphView>(
+    g: &G,
     meta: &PropMapper,
     size: usize,
     path: impl AsRef<Path>,
     suffix: &str,
     default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
-    encode_fn: impl Fn(
-            Range<usize>,
-            &GraphStorage,
-            &mut Decoder,
-            &mut ArrowWriter<File>,
-        ) -> Result<(), GraphError>
+    encode_fn: impl Fn(Range<usize>, &G, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError>
         + Sync,
 ) -> Result<(), GraphError> {
     let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
@@ -266,15 +262,14 @@ pub(crate) fn run_encode(
     Ok(())
 }
 
-pub(crate) fn run_encode_indexed<Index, II: Iterator<Item = Index>>(
-    g: &GraphStorage,
+pub(crate) fn run_encode_indexed<Index, II: Iterator<Item = Index>, G: GraphView>(
+    g: &G,
     meta: &PropMapper,
     items: impl ParallelIterator<Item = (usize, II)>,
     path: impl AsRef<Path>,
     suffix: &str,
     default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
-    encode_fn: impl Fn(II, &GraphStorage, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError>
-        + Sync,
+    encode_fn: impl Fn(II, &G, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
     let root_dir = path.as_ref().join(suffix);

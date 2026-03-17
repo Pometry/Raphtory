@@ -1,4 +1,5 @@
 use crate::{
+    db::api::state::ops::GraphView,
     errors::GraphError,
     prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
@@ -18,7 +19,7 @@ use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
 
-pub fn encode_graph_tprop(g: &GraphStorage, path: impl AsRef<Path>) -> Result<(), GraphError> {
+pub fn encode_graph_tprop<G: GraphView>(g: &G, path: impl AsRef<Path>) -> Result<(), GraphError> {
     run_encode(
         g,
         g.graph_props_meta().temporal_prop_mapper(),
@@ -98,8 +99,8 @@ impl Serialize for Row {
     }
 }
 
-pub fn encode_graph_cprop(
-    g: &GraphStorage,
+pub fn encode_graph_cprop<G: GraphView>(
+    g: &G,
     graph_type: GraphType,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {

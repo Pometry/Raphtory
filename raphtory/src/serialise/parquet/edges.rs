@@ -1,27 +1,50 @@
 use super::*;
 use crate::{
-    core::utils::iter::GenLockedIter, db::graph::edge::EdgeView, errors::GraphError,
+    core::utils::iter::GenLockedIter,
+    db::{api::state::ops::FilterOps, graph::edge::EdgeView},
+    errors::GraphError,
     serialise::parquet::model::ParquetDelEdge,
 };
 use arrow::datatypes::{DataType, Field};
+use either::Either;
 use model::ParquetCEdge;
-use raphtory_api::{core::storage::timeindex::TimeIndexOps, iter::IntoDynBoxed};
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
+use raphtory_api::{
+    core::{entities::EID, storage::timeindex::TimeIndexOps},
+    iter::IntoDynBoxed,
 };
+use raphtory_storage::{core_ops::CoreGraphOps, graph::edges::edge_storage_ops::EdgeStorageOps};
 use std::path::Path;
 
-pub(crate) fn encode_edge_tprop(
-    g: &GraphStorage,
+fn get_edges_par_iter<'a, G: GraphView>(
+    g: &'a G,
+    locked: &'a GraphStorage,
+) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = EID> + 'a)> {
+    let filtered = g.filtered();
+
+    locked
+        .edges()
+        .segmented_par_iter()
+        .expect("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
+        .map(move |(chunk, eids)| {
+            (
+                chunk,
+                eids.filter(move |eid| {
+                    !filtered || g.filter_edge(locked.edge_entry(*eid).as_ref())
+                }),
+            )
+        })
+}
+
+pub(crate) fn encode_edge_tprop<G: GraphView>(
+    g: &G,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
+    let locked = g.core_graph().lock();
+    let edges_par_iter = get_edges_par_iter(g, &locked);
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.edges().segmented_par_iter().unwrap_or_else(|| {
-            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
-        }),
+        edges_par_iter,
         path,
         EDGES_T_PATH,
         |_| {
@@ -36,8 +59,6 @@ pub(crate) fn encode_edge_tprop(
             ]
         },
         |edges, g, decoder, writer| {
-            let row_group_size = 100_000;
-
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|eid| {
@@ -51,7 +72,7 @@ pub(crate) fn encode_edge_tprop(
                     export_eid: edge.edge.pid(),
                     export_layer_id: edge.edge.layer(),
                 })
-                .chunks(row_group_size)
+                .chunks(ROW_GROUP_SIZE)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
             {
@@ -66,16 +87,16 @@ pub(crate) fn encode_edge_tprop(
     )
 }
 
-pub(crate) fn encode_edge_deletions(
-    g: &GraphStorage,
+pub(crate) fn encode_edge_deletions<G: GraphView>(
+    g: &G,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
+    let locked = g.core_graph().lock();
+    let edges_par_iter = get_edges_par_iter(g, &locked);
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
-        g.edges().segmented_par_iter().unwrap_or_else(|| {
-            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
-        }),
+        edges_par_iter,
         path,
         EDGES_D_PATH,
         |_| {
@@ -90,8 +111,7 @@ pub(crate) fn encode_edge_deletions(
             ]
         },
         |edges, g, decoder, writer| {
-            let row_group_size = 100_000;
-            let g = g.lock();
+            let g = g.core_graph().lock();
             let g = &g;
             let g_edges = g.edges();
             let layers = g
@@ -123,7 +143,7 @@ pub(crate) fn encode_edge_deletions(
                         })
                     })
                 })
-                .chunks(row_group_size)
+                .chunks(ROW_GROUP_SIZE)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
             {
@@ -138,16 +158,16 @@ pub(crate) fn encode_edge_deletions(
     )
 }
 
-pub(crate) fn encode_edge_cprop(
-    g: &GraphStorage,
+pub(crate) fn encode_edge_cprop<G: GraphView>(
+    g: &G,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
+    let locked = g.core_graph().lock();
+    let edges_par_iter = get_edges_par_iter(g, &locked);
     run_encode_indexed(
         g,
         g.edge_meta().metadata_mapper(),
-        g.edges().segmented_par_iter().unwrap_or_else(|| {
-            panic!("Internal Error: segmented_par_iter cannot be called from unlocked GraphStorage")
-        }),
+        edges_par_iter,
         path,
         EDGES_C_PATH,
         |_| {
@@ -159,8 +179,6 @@ pub(crate) fn encode_edge_cprop(
             ]
         },
         |edges, g, decoder, writer| {
-            let row_group_size = 100_000;
-
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|eid| {
@@ -173,7 +191,7 @@ pub(crate) fn encode_edge_cprop(
                     export_dst_vid: edge.dst().node.0,
                     export_eid: edge.edge.pid().0,
                 })
-                .chunks(row_group_size)
+                .chunks(ROW_GROUP_SIZE)
                 .into_iter()
                 .map(|chunk| chunk.collect_vec())
             {
