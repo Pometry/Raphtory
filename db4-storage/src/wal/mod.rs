@@ -162,12 +162,6 @@ pub trait GraphWalOps {
     /// Returns the LSN immediately after this record, marking the end of the WAL stream.
     fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
 
-    /// Returns an iterator over the entries in the wal, starting from the given LSN.
-    fn replay_iter(
-        &self,
-        start: LSN,
-    ) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
-
     /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
     /// Returns the LSN immediately after the last entry in the WAL stream on success.
     fn replay_to_graph<G: GraphReplay>(
