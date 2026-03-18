@@ -425,14 +425,7 @@ pub fn get_or_resolve_node_vids<
     df: &'b DFChunk,
     src_col: &'a NodeCol,
     dst_col: &'a NodeCol,
-) -> Result<
-    (
-        &'c [VID],
-        &'c [VID],
-        FxDashMap<GidKey<'a>, (GID, MaybeNew<VID>)>,
-    ),
-    GraphError,
-> {
+) -> Result<(&'c [VID], &'c [VID], Vec<(GID, MaybeNew<VID>)>), GraphError> {
     let (src_vids, dst_vids, gid_str_cache) = if resolve_nodes {
         src_col_resolved.resize_with(df.len(), Default::default);
         dst_col_resolved.resize_with(df.len(), Default::default);
@@ -448,7 +441,7 @@ pub fn get_or_resolve_node_vids<
         (
             src_col_resolved.as_slice(),
             dst_col_resolved.as_slice(),
-            gid_str_cache,
+            gid_str_cache.into_iter().map(|(_, v)| v).collect(),
         )
     } else {
         let srcs = df.chunk[src_index]
@@ -464,7 +457,7 @@ pub fn get_or_resolve_node_vids<
         (
             bytemuck::cast_slice(srcs),
             bytemuck::cast_slice(dsts),
-            FxDashMap::default(),
+            vec![],
         )
     };
     Ok((src_vids, dst_vids, gid_str_cache))
@@ -618,14 +611,12 @@ fn add_and_resolve_outbound_edges<
     }
 }
 
-pub fn store_node_ids<K: Eq + std::hash::Hash, NS: NodeSegmentOps<Extension = Extension>>(
-    gid_str_cache: &FxDashMap<K, (GID, MaybeNew<VID>)>,
+pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
+    gid_str_cache: &[(GID, MaybeNew<VID>)],
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
     let mut writer = locked_page.writer();
-    for entry in gid_str_cache.iter() {
-        let (src_gid, vid) = entry.value();
-
+    for (src_gid, vid) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(vid.inner()) {
             writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, src_gid.clone());
         }

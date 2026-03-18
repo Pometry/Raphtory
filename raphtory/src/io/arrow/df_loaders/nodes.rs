@@ -21,10 +21,7 @@ use arrow::{array::AsArray, datatypes::UInt64Type};
 use itertools::izip;
 use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
-    core::{
-        entities::properties::meta::STATIC_GRAPH_LAYER_ID,
-        storage::{timeindex::EventTime, FxDashMap},
-    },
+    core::{entities::properties::meta::STATIC_GRAPH_LAYER_ID, storage::timeindex::EventTime},
 };
 use raphtory_core::{entities::VID, storage::timeindex::AsTime};
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
@@ -311,6 +308,7 @@ pub fn load_node_props_from_df<
     Ok(())
 }
 
+type Resolved<'a> = (GidKey<'a>, (VID, usize));
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn get_or_resolve_node_vids<
     'a: 'c,
@@ -325,7 +323,7 @@ fn get_or_resolve_node_vids<
     df: &'b DFChunk,
     src_col: &'a NodeCol,
     node_type_col: LayerCol<'a>,
-) -> Result<(&'c [VID], FxDashMap<GidKey<'a>, (VID, usize)>), GraphError> {
+) -> Result<(&'c [VID], Vec<Resolved<'a>>), GraphError> {
     let (src_vids, gid_str_cache) = if resolve_nodes {
         src_col_resolved.resize_with(df.len(), Default::default);
 
@@ -337,14 +335,17 @@ fn get_or_resolve_node_vids<
             [atomic_src_col].as_ref(),
             node_type_col,
         )?;
-        (src_col_resolved.as_slice(), gid_str_cache)
+        (
+            src_col_resolved.as_slice(),
+            gid_str_cache.into_iter().collect(),
+        )
     } else {
         let srcs = df.chunk[src_index]
             .as_primitive_opt::<UInt64Type>()
             .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[src_index].data_type().clone()))?
             .values()
             .as_ref();
-        (bytemuck::cast_slice(srcs), FxDashMap::default())
+        (bytemuck::cast_slice(srcs), vec![])
     };
     Ok((src_vids, gid_str_cache))
 }
@@ -489,16 +490,15 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
 
 #[inline(never)]
 fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
-    gid_str_cache: &FxDashMap<GidKey<'_>, (VID, usize)>,
+    gid_str_cache: &[Resolved<'_>],
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
-    for entry in gid_str_cache.iter() {
-        let (vid, node_type) = entry.value();
-        let GidKey { gid, .. } = entry.key();
+    for (gid, (vid, node_type)) in gid_str_cache.iter() {
+        let gid = gid.gid;
 
         if let Some(src_pos) = locked_page.resolve_pos(*vid) {
             let mut writer = locked_page.writer();
-            writer.store_node_id_and_node_type(src_pos, STATIC_GRAPH_LAYER_ID, *gid, *node_type);
+            writer.store_node_id_and_node_type(src_pos, STATIC_GRAPH_LAYER_ID, gid, *node_type);
         }
     }
 }

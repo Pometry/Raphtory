@@ -58,6 +58,14 @@ pub trait GIDResolverOps {
         gid: GidRef<'a>,
     ) -> Result<MaybeInit<Self::Init<'a>>, StorageError>;
 
+    //
+    fn get_or_init_optimistic<'a>(
+        &'a self,
+        gid: GidRef<'a>,
+    ) -> Result<MaybeInit<Self::Init<'a>>, StorageError> {
+        self.get_or_init(gid)
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,

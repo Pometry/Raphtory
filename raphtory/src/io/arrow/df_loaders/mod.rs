@@ -299,7 +299,7 @@ fn resolve_nodes_and_type_with_cache<
         |gid, _| {
             let GidKey { gid, node_type } = gid;
             let (vid, node_type) = graph
-                .resolve_node_and_type(gid.as_node_ref(), node_type)
+                .bulk_load_resolve_node_and_type(gid.as_node_ref(), node_type)
                 .map_err(into_graph_err)?;
             Ok((vid, node_type))
         },
@@ -360,7 +360,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
                     // Check if exists in this shard
                     if let Some((_, value)) = shard_guard.get(hash, |(g, _)| g == &gid) {
                         let v = value.get();
-                        update_fn(&v, idx, col_id);
+                        update_fn(v, idx, col_id);
                     } else {
                         let v = new_fn(gid, idx)?;
 

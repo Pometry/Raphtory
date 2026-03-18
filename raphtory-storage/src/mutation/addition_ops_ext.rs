@@ -331,6 +331,36 @@ impl InternalAdditionOps for TemporalGraph {
         Ok((vid, node_type_id))
     }
 
+    fn bulk_load_resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        let vid = match id {
+            NodeRef::External(id) => match self.logical_to_physical.get(id) {
+                Some(vid) => vid,
+                None => {
+                    let (seg, pos) = self
+                        .storage()
+                        .nodes()
+                        .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
+                    pos.as_vid(seg, self.extension().config().max_node_page_len())
+                }
+            },
+            NodeRef::Internal(id) => id,
+        };
+
+        let node_type_id = match node_type {
+            Some(node_type) => self
+                .node_meta()
+                .get_or_create_node_type_id(node_type)
+                .inner(),
+            None => DEFAULT_NODE_TYPE_ID,
+        };
+
+        Ok((vid, node_type_id))
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,

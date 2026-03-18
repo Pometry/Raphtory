@@ -56,6 +56,12 @@ pub trait InternalAdditionOps {
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error>;
 
+    fn bulk_load_resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error>;
+
     /// validate the GidRef is the correct type
     fn validate_gids<'a>(
         &self,
@@ -272,6 +278,16 @@ impl InternalAdditionOps for GraphStorage {
             .map_err(MutationError::from)
     }
 
+    fn bulk_load_resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        self.mutable()?
+            .bulk_load_resolve_node_and_type(id, node_type)
+            .map_err(MutationError::from)
+    }
+
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
         self.mutable()?.atomic_add_node(node)
     }
@@ -380,6 +396,14 @@ where
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error> {
         self.base().resolve_node_and_type(id, node_type)
+    }
+
+    fn bulk_load_resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        self.base().bulk_load_resolve_node_and_type(id, node_type)
     }
 
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
