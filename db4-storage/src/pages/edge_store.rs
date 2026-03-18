@@ -22,7 +22,6 @@ use raphtory_core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
-use std::sync::LazyLock;
 use std::{
     collections::HashMap,
     ops::Deref,

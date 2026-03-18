@@ -97,8 +97,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// (assuming the storage feature is enabled). Sets a new config.
     ///
     /// # Arguments
-    ///     * path: The path for the new graph.
-    ///     * config: The new config.
+    ///     path: The path for the new graph.
+    ///     config: The new config.
     #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
