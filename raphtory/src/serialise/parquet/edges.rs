@@ -58,6 +58,14 @@ pub(crate) fn encode_edge_tprop<G: GraphView>(
         get_edges_par_iter(g, &edges_locked),
         path,
         EDGES_T_PATH,
+        |schema, chunk, num_digits| {
+            create_arrow_writer_sink(
+                &path.as_ref().join(EDGES_T_PATH),
+                schema.clone(),
+                chunk,
+                num_digits,
+            )
+        },
         |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
@@ -86,7 +94,7 @@ pub(crate) fn encode_edge_tprop<G: GraphView>(
             {
                 decoder.serialize(&edge_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    writer.write(&rb)?;
+                    writer.write_batch(&rb)?;
                     writer.flush()?;
                 }
             }

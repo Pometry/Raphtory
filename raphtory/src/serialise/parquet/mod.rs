@@ -24,7 +24,10 @@ use crate::{
         GraphPaths,
     },
 };
-use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+use arrow::{
+    array::RecordBatch,
+    datatypes::{DataType, Field, Schema, SchemaRef},
+};
 use arrow_json::{reader::Decoder, ReaderBuilder};
 use edges::{encode_edge_cprop, encode_edge_tprop};
 use itertools::Itertools;
@@ -207,6 +210,52 @@ impl ParquetEncoder for MaterializedGraph {
     }
 }
 
+pub trait RecordBatchSink {
+    fn write_batch(&mut self, batch: &RecordBatch) -> Result<(), GraphError>;
+    fn flush(&mut self) -> Result<(), GraphError>;
+    fn finish(self) -> Result<(), GraphError>
+    where
+        Self: Sized;
+}
+
+impl<W> RecordBatchSink for ArrowWriter<W>
+where
+    W: Write + Seek + Send,
+{
+    fn write_batch(&mut self, batch: &RecordBatch) -> Result<(), GraphError> {
+        self.write(batch)?;
+        Ok(())
+    }
+    fn flush(&mut self) -> Result<(), GraphError> {
+        ArrowWriter::flush(self)?;
+        Ok(())
+    }
+    fn finish(self) -> Result<(), GraphError> {
+        self.close()?;
+        Ok(())
+    }
+}
+
+pub(crate) fn create_arrow_writer_sink(
+    root_dir: &Path,
+    schema: SchemaRef,
+    chunk: usize,
+    filename_num_digits: usize,
+) -> Result<ArrowWriter<File>, GraphError> {
+    std::fs::create_dir_all(&root_dir)?;
+
+    let writer_properties = WriterProperties::builder()
+        .set_compression(Compression::SNAPPY)
+        .build();
+
+    let node_file = File::create(root_dir.join(format!("{chunk:0filename_num_digits$}.parquet")))?;
+    Ok(ArrowWriter::try_new(
+        node_file,
+        schema.clone(),
+        Some(writer_properties),
+    )?)
+}
+
 fn encode_graph_storage<G: GraphView>(
     g: &G,
     path: impl AsRef<Path>,
@@ -222,15 +271,14 @@ fn encode_graph_storage<G: GraphView>(
     Ok(())
 }
 
-pub(crate) fn run_encode<G: GraphView>(
+pub(crate) fn run_encode<G: GraphView, S: RecordBatchSink>(
     g: &G,
     meta: &PropMapper,
     size: usize,
     path: impl AsRef<Path>,
     suffix: &str,
     default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
-    encode_fn: impl Fn(Range<usize>, &G, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError>
-        + Sync,
+    encode_fn: impl Fn(Range<usize>, &G, &mut Decoder, &mut S) -> Result<(), GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
     let root_dir = path.as_ref().join(suffix);
@@ -249,47 +297,46 @@ pub(crate) fn run_encode<G: GraphView>(
             let items = first..(first + chunk_size).min(size);
 
             let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
-            let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
+            let mut sink = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
 
             let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
 
-            encode_fn(items, g, &mut decoder, &mut writer)?;
+            encode_fn(items, g, &mut decoder, &mut sink)?;
 
-            writer.close()?;
+            sink.finish()?;
             Ok::<_, GraphError>(())
         })?;
     }
     Ok(())
 }
 
-pub(crate) fn run_encode_indexed<Index, II: Iterator<Item = Index>, G: GraphView>(
+pub(crate) fn run_encode_indexed<
+    Index,
+    II: Iterator<Item = Index>,
+    G: GraphView,
+    S: RecordBatchSink,
+>(
     g: &G,
     meta: &PropMapper,
     items: impl ParallelIterator<Item = (usize, II)>,
     path: impl AsRef<Path>,
     suffix: &str,
+    make_sink_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
     default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
-    encode_fn: impl Fn(II, &G, &mut Decoder, &mut ArrowWriter<File>) -> Result<(), GraphError> + Sync,
+    encode_fn: impl Fn(II, &G, &mut Decoder, &mut S) -> Result<(), GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
     let root_dir = path.as_ref().join(suffix);
-    std::fs::create_dir_all(&root_dir)?;
 
     let num_digits = 8;
 
     items.try_for_each(|(chunk, items)| {
-        let props = WriterProperties::builder()
-            .set_compression(Compression::SNAPPY)
-            .build();
-
-        let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
-        let mut writer = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
-
+        let mut sink = make_sink_fn(schema.clone(), chunk, num_digits)?;
         let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
 
-        encode_fn(items, g, &mut decoder, &mut writer)?;
+        encode_fn(items, g, &mut decoder, &mut sink)?;
 
-        writer.close()?;
+        sink.finish()?;
         Ok::<_, GraphError>(())
     })?;
 
