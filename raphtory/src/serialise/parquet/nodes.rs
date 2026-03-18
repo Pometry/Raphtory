@@ -1,6 +1,9 @@
 use crate::{
     core::utils::iter::GenLockedIter,
-    db::{api::state::ops::GraphView, graph::node::NodeView},
+    db::{
+        api::state::ops::{FilterOps, GraphView},
+        graph::{edge::EdgeView, node::NodeView},
+    },
     errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
     serialise::parquet::{
@@ -11,18 +14,50 @@ use crate::{
 };
 use arrow::datatypes::{DataType, Field};
 use itertools::Itertools;
-use raphtory_api::iter::IntoDynBoxed;
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_api::{core::entities::edges::edge_ref::Dir, iter::IntoDynBoxed};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+        nodes::nodes_ref::NodesStorageEntry,
+    },
+};
+use rayon::iter::ParallelIterator;
 use std::path::Path;
+
+fn get_nodes_par_iter<'a, G: GraphView>(
+    g: &'a G,
+    nodes_locked: &'a NodesStorageEntry,
+) -> impl ParallelIterator<Item = (usize, impl Iterator<Item = NodeView<'a, &'a G>> + 'a)> {
+    let filtered = g.filtered();
+
+    nodes_locked
+        .row_groups_par_iter()
+        .map(move |(chunk, vids)| {
+            (
+                chunk,
+                vids.filter_map(move |vid| {
+                    let node = g.core_node(vid);
+                    if !filtered || g.filter_node(node.as_ref()) {
+                        Some(NodeView::new_internal(g, vid))
+                    } else {
+                        None
+                    }
+                }),
+            )
+        })
+}
 
 pub(crate) fn encode_nodes_tprop<G: GraphView>(
     g: &G,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
+    let graph_locked = g.core_graph().lock();
+    let nodes_locked = graph_locked.nodes();
     run_encode_indexed(
         g,
         g.node_meta().temporal_prop_mapper(),
-        g.core_graph().lock().nodes().row_groups_par_iter(),
+        get_nodes_par_iter(g, &nodes_locked),
         path,
         NODES_T_PATH,
         |_| {
@@ -39,7 +74,6 @@ pub(crate) fn encode_nodes_tprop<G: GraphView>(
             let cols = g.node_meta().temporal_prop_mapper().all_keys();
             let cols = &cols;
             for node_rows in nodes
-                .map(|vid| NodeView::new_internal(g, vid))
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         node.rows()
@@ -71,10 +105,12 @@ pub(crate) fn encode_nodes_cprop<G: GraphView>(
     g: &G,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
+    let graph_locked = g.core_graph().lock();
+    let nodes_locked = graph_locked.nodes();
     run_encode_indexed(
         g,
         g.node_meta().metadata_mapper(),
-        g.core_graph().lock().nodes().row_groups_par_iter(),
+        get_nodes_par_iter(g, &nodes_locked),
         path,
         NODES_C_PATH,
         |id_type| {
@@ -87,7 +123,6 @@ pub(crate) fn encode_nodes_cprop<G: GraphView>(
         },
         |nodes, g, decoder, writer| {
             for node_rows in nodes
-                .map(|vid| NodeView::new_internal(g, vid))
                 .map(move |node| ParquetCNode {
                     node,
                     export_vid: node.node.0,
