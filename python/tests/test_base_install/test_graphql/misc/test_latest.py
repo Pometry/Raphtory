@@ -116,22 +116,18 @@ def test_latest_and_active():
                         "edges": {
                             "latest": {
                                 "list": [
-
                                     {
                                         "id": ["1", "2"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 2}]
-                                        }
+                                        },
                                     },
-                                    {
-                                        "id": ["1", "3"],
-                                        "history": {"list": []}
-                                    },
+                                    {"id": ["1", "3"], "history": {"list": []}},
                                     {
                                         "id": ["1", "4"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 5}]
-                                        }
+                                        },
                                     },
                                 ]
                             }
@@ -146,7 +142,7 @@ def test_latest_and_active():
                                         "id": ["1", "2"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 2}]
-                                        }
+                                        },
                                     }
                                 ]
                             }
@@ -154,9 +150,11 @@ def test_latest_and_active():
                     },
                     {
                         "name": "3",
-                        "edges": {"latest": {"list": [{
-                            "id": ["1", "3"],
-                            "history": {"list": []}}]}},
+                        "edges": {
+                            "latest": {
+                                "list": [{"id": ["1", "3"], "history": {"list": []}}]
+                            }
+                        },
                     },
                     {
                         "name": "4",
@@ -167,7 +165,7 @@ def test_latest_and_active():
                                         "id": ["1", "4"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 5}]
-                                        }
+                                        },
                                     }
                                 ]
                             }
@@ -203,9 +201,15 @@ def test_latest_and_active():
             "edges": {
                 "latest": {
                     "list": [
-                        {"id": ["1", "2"], "history": {"list": [{"timestamp": 3, "eventId": 2}]}},
+                        {
+                            "id": ["1", "2"],
+                            "history": {"list": [{"timestamp": 3, "eventId": 2}]},
+                        },
                         {"id": ["1", "3"], "history": {"list": []}},
-                        {"id": ["1", "4"], "history": {"list": [{"timestamp": 3, "eventId": 5}]}},
+                        {
+                            "id": ["1", "4"],
+                            "history": {"list": [{"timestamp": 3, "eventId": 5}]},
+                        },
                     ]
                 }
             },

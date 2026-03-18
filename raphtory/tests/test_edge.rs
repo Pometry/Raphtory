@@ -14,7 +14,7 @@ fn test_properties() {
         let e1_w = graph.window(0, 1).edge(1, 2).unwrap();
         assert_eq!(
             HashMap::from_iter(e1.properties().as_vec()),
-            props.clone().into()
+            props.into_iter().collect::<HashMap<_, _>>()
         );
         assert!(e1_w.properties().as_vec().is_empty())
     });
@@ -100,7 +100,7 @@ fn test_property_additions() {
             .into_iter()
             .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
             .chain([(ArcStr::from("test2"), "_default".into_prop())])
-            .collect()
+            .collect::<HashMap<_, _>>()
     );
     assert_eq!(
         e.layers("test2").unwrap().properties().as_map(),
@@ -108,7 +108,7 @@ fn test_property_additions() {
             .into_iter()
             .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
             .chain([(ArcStr::from("test2"), "test2".into_prop())])
-            .collect()
+            .collect::<HashMap<_, _>>()
     );
     assert_eq!(e1_w.properties().as_map(), HashMap::default())
 }

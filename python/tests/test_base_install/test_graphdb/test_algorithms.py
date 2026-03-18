@@ -471,7 +471,10 @@ def test_hits_algorithm():
         0.007476257625967264,
     )
 
-    assert all(math.isclose(r, e, rel_tol=1e-6) for r, e in zip(algorithms.hits(g).get("Aldor"), expected))
+    assert all(
+        math.isclose(r, e, rel_tol=1e-6)
+        for r, e in zip(algorithms.hits(g).get("Aldor"), expected)
+    )
 
 
 def test_balance_algorithm():

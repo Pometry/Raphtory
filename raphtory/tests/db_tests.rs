@@ -1383,33 +1383,21 @@ fn layers() -> Result<(), GraphError> {
     assert!(graph.has_edge(11, 22));
     assert!(graph.default_layer().has_edge(11, 22));
     assert!(!graph.default_layer().has_edge(11, 44));
-    assert!(!graph.layers("layer2").unwrap().has_edge(11, 22));
-    assert!(graph.layers("layer2").unwrap().has_edge(11, 44));
+    assert!(!graph.layers("layer2")?.has_edge(11, 22));
+    assert!(graph.layers("layer2")?.has_edge(11, 44));
 
     assert!(graph.edge(11, 22).is_some());
-    assert!(graph.layers(Layer::Default).unwrap().edge(11, 44).is_none());
-    assert!(graph.layers("layer2").unwrap().edge(11, 22).is_none());
-    assert!(graph.layers("layer2").unwrap().edge(11, 44).is_some());
+    assert!(graph.layers(Layer::Default)?.edge(11, 44).is_none());
+    assert!(graph.layers("layer2")?.edge(11, 22).is_none());
+    assert!(graph.layers("layer2")?.edge(11, 44).is_some());
 
-    assert!(graph
-        .exclude_layers("layer2")
-        .unwrap()
-        .edge(11, 44)
-        .is_none());
-    assert!(graph
-        .exclude_layers("layer2")
-        .unwrap()
-        .edge(11, 33)
-        .is_some());
-    assert!(graph
-        .exclude_layers("layer2")
-        .unwrap()
-        .edge(11, 22)
-        .is_some());
+    assert!(graph.exclude_layers("layer2")?.edge(11, 44).is_none());
+    assert!(graph.exclude_layers("layer2")?.edge(11, 33).is_some());
+    assert!(graph.exclude_layers("layer2")?.edge(11, 22).is_some());
 
     let dft_layer = graph.default_layer();
-    let layer1 = graph.layers("layer1").expect("layer1");
-    let layer2 = graph.layers("layer2").expect("layer2");
+    let layer1 = graph.layers("layer1")?;
+    let layer2 = graph.layers("layer2")?;
     assert!(graph.layers("missing layer").is_err());
 
     assert_eq!(graph.count_nodes(), 4);
@@ -2011,7 +1999,10 @@ fn test_graph_metadata() {
 
     assert_eq!(
         g.metadata().keys().collect::<HashSet<_>>(),
-        props_names.union(&props_names2).cloned().collect()
+        props_names
+            .union(&props_names2)
+            .cloned()
+            .collect::<HashSet<_>>()
     );
 }
 
