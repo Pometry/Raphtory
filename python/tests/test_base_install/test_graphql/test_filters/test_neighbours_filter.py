@@ -350,23 +350,35 @@ def test_neighbours_neighbours_filtering(graph):
                         "neighbours": {
                             "filter": {
                                 "list": [
-                                    {"name": "2", "neighbours": {"list": [{"name": "3"}]}},
+                                    {
+                                        "name": "2",
+                                        "neighbours": {"list": [{"name": "3"}]},
+                                    },
                                     {"name": "3", "neighbours": {"list": []}},
                                 ]
                             }
-                        }
+                        },
                     },
                     {
                         "name": "3",
                         "neighbours": {
                             "filter": {
                                 "list": [
-                                    {"name": "1", "neighbours": {"list": [{"name": "3"}]}},
-                                    {"name": "2", "neighbours": {"list": [{"name": "3"}]}},
-                                    {"name": "4", "neighbours": {"list": [{"name": "3"}]}},
+                                    {
+                                        "name": "1",
+                                        "neighbours": {"list": [{"name": "3"}]},
+                                    },
+                                    {
+                                        "name": "2",
+                                        "neighbours": {"list": [{"name": "3"}]},
+                                    },
+                                    {
+                                        "name": "4",
+                                        "neighbours": {"list": [{"name": "3"}]},
+                                    },
                                 ]
                             }
-                        }
+                        },
                     },
                 ]
             }

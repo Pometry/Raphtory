@@ -465,41 +465,11 @@ def test_graph_edge_sort_by_eprop3(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": "ayz123"
-                                }
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": "xyz123"
-                                }
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": "xyz123"
-                                }
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": "xyz123"
-                                }
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": "xyz1234"
-                                }
-                            }
-                        }
+                        {"properties": {"get": {"value": "ayz123"}}},
+                        {"properties": {"get": {"value": "xyz123"}}},
+                        {"properties": {"get": {"value": "xyz123"}}},
+                        {"properties": {"get": {"value": "xyz123"}}},
+                        {"properties": {"get": {"value": "xyz1234"}}},
                     ]
                 }
             }
@@ -532,39 +502,11 @@ def test_graph_edge_sort_by_eprop4(graph):
             "edges": {
                 "sorted": {
                     "list": [
-                        {
-                            "properties": {
-                                "get": None
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": False
-                                }
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": False
-                                }
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": True
-                                }
-                            }
-                        },
-                        {
-                            "properties": {
-                                "get": {
-                                    "value": True
-                                }
-                            }
-                        }
+                        {"properties": {"get": None}},
+                        {"properties": {"get": {"value": False}}},
+                        {"properties": {"get": {"value": False}}},
+                        {"properties": {"get": {"value": True}}},
+                        {"properties": {"get": {"value": True}}},
                     ]
                 }
             }

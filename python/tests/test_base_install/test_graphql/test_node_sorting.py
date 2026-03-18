@@ -261,10 +261,20 @@ def test_graph_nodes_sort_by_prop3(graph):
           }
         }
     """
-    expected_output = {"graph": {"nodes": {
-        "sorted": {
-            "list": [{"properties": {"get": {"value": "ayz123"}}}, {"properties": {"get": {"value": "xyz123"}}},
-                     {"properties": {"get": {"value": "xyz123"}}}, {"properties": {"get": {"value": "xyz123"}}}]}}}}
+    expected_output = {
+        "graph": {
+            "nodes": {
+                "sorted": {
+                    "list": [
+                        {"properties": {"get": {"value": "ayz123"}}},
+                        {"properties": {"get": {"value": "xyz123"}}},
+                        {"properties": {"get": {"value": "xyz123"}}},
+                        {"properties": {"get": {"value": "xyz123"}}},
+                    ]
+                }
+            }
+        }
+    }
     run_graphql_test(query, expected_output, graph)
 
 

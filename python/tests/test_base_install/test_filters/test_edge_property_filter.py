@@ -252,8 +252,8 @@ def test_filter_edges_for_property_starts_with():
 
         filter_expr = filter.Edge.metadata("p10").starts_with("Paper")
         with pytest.raises(
-                Exception,
-                match=r"Metadata p10 does not exist",
+            Exception,
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -295,8 +295,8 @@ def test_filter_edges_for_property_ends_with():
 
         filter_expr = filter.Edge.metadata("p10").ends_with("hip")
         with pytest.raises(
-                Exception,
-                match=r"Metadata p10 does not exist",
+            Exception,
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -328,8 +328,8 @@ def test_filter_edges_for_property_contains():
 
         filter_expr = filter.Edge.metadata("p10").contains("Paper")
         with pytest.raises(
-                Exception,
-                match=r"Metadata p10 does not exist",
+            Exception,
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -363,8 +363,8 @@ def test_filter_edges_for_property_not_contains():
 
         filter_expr = filter.Edge.metadata("p10").not_contains("ship")
         with pytest.raises(
-                Exception,
-                match=r"Metadata p10 does not exist",
+            Exception,
+            match=r"Metadata p10 does not exist",
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -1236,20 +1236,30 @@ def test_exploded_edges_getitem_property_filter_expr():
 def test_nested_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 5
-        result_ids = dict(zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr].id)))
+        result_ids = dict(
+            zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr].id))
+        )
         expected_ids = {
             "1": [("2", "1"), ("3", "1")],
             "2": [("2", "1")],
             "3": [("3", "1"), ("3", "4")],
             "4": [("3", "4")],
             "David Gilmour": [("David Gilmour", "John Mayer")],
-            "John Mayer": [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
+            "John Mayer": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
             "Jimmy Page": [("John Mayer", "Jimmy Page")],
         }
         assert result_ids == expected_ids
 
         filter_expr2 = filter.Edge.property("p20") == "Gold_ship"
-        result_ids = dict(zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr][filter_expr2].id)))
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                (sorted(v) for v in graph.nodes.edges[filter_expr][filter_expr2].id),
+            )
+        )
         expected_ids = {
             "1": [],
             "2": [],
@@ -1262,7 +1272,9 @@ def test_nested_edges_getitem_property_filter_expr():
         assert result_ids == expected_ids
 
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = dict(zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr3].id)))
+        result_ids = dict(
+            zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr3].id))
+        )
         expected_ids = {
             "1": [],
             "2": [],
@@ -1285,32 +1297,80 @@ def test_nested_exploded_edges_getitem_property_filter_expr():
 
         # Test 1
         result_ids = dict(
-            zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr].explode()[filter_expr2].id)))
+            zip(
+                graph.nodes.id,
+                (
+                    sorted(v)
+                    for v in graph.nodes.edges[filter_expr].explode()[filter_expr2].id
+                ),
+            )
+        )
         expected_ids = {
-            "1": [("1", "2")], "2": [("1", "2")], "3": [], "4": [], "David Gilmour": [], "John Mayer": [],
-            "Jimmy Page": []}
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
         result_ids = dict(
-            zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr].explode()[filter_expr2].id)))
-        expected_ids = {"1": [("1", "2")], "2": [("1", "2")], "3": [], "4": [], "David Gilmour": [], "John Mayer": [],
-                        "Jimmy Page": []}
+            zip(
+                graph.nodes.id,
+                (
+                    sorted(v)
+                    for v in graph.nodes.edges[filter_expr].explode()[filter_expr2].id
+                ),
+            )
+        )
+        expected_ids = {
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
         # Test 2
         filter_expr = filter.ExplodedEdge.property("p20") == "Gold_ship"
         filter_expr2 = filter.ExplodedEdge.property("p2") == 4
-        result_ids = dict(zip(graph.nodes.id, graph.nodes.edges.explode()[filter_expr][filter_expr2].id.collect()))
-        expected_ids = {"1": [("1", "2")], "2": [("1", "2")], "3": [], "4": [], "David Gilmour": [], "John Mayer": [],
-                        "Jimmy Page": []}
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                graph.nodes.edges.explode()[filter_expr][filter_expr2].id.collect(),
+            )
+        )
+        expected_ids = {
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
         filter_expr = filter.ExplodedEdge.property("p20") == "Gold_ship"
         filter_expr2 = filter.ExplodedEdge.property("p2") == 4
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = dict(zip(graph.nodes.id, graph.nodes.edges.explode()[filter_expr3].id.collect()))
-        expected_ids = {"1": [("1", "2")], "2": [("1", "2")], "3": [], "4": [], "David Gilmour": [], "John Mayer": [],
-                        "Jimmy Page": []}
+        result_ids = dict(
+            zip(graph.nodes.id, graph.nodes.edges.explode()[filter_expr3].id.collect())
+        )
+        expected_ids = {
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
     return check
@@ -1320,22 +1380,39 @@ def test_nested_exploded_edges_getitem_property_filter_expr():
 def test_nodes_nested_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 5
-        result_ids = dict(zip(graph.nodes.id, (sorted(v) for v in graph.nodes.neighbours.edges[filter_expr].id)))
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                (sorted(v) for v in graph.nodes.neighbours.edges[filter_expr].id),
+            )
+        )
         expected_ids = {
             "1": [("2", "1"), ("3", "1"), ("3", "4")],
             "2": [("2", "1"), ("3", "1"), ("3", "1"), ("3", "4")],
             "3": [("2", "1"), ("2", "1"), ("3", "1"), ("3", "4")],
             "4": [("3", "1"), ("3", "4")],
-            "David Gilmour": [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
-            "John Mayer": [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
-            "Jimmy Page": [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
+            "David Gilmour": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
+            "John Mayer": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
+            "Jimmy Page": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
         }
         assert result_ids == expected_ids
 
         filter_expr2 = filter.Edge.property("p20") == "Gold_ship"
-        result_ids = dict(zip(graph.nodes.id, graph.nodes.neighbours.edges[filter_expr][
-            filter_expr2
-        ].id.collect()))
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                graph.nodes.neighbours.edges[filter_expr][filter_expr2].id.collect(),
+            )
+        )
         expected_ids = {
             "1": [],
             "2": [],
@@ -1348,7 +1425,9 @@ def test_nodes_nested_edges_getitem_property_filter_expr():
         assert result_ids == expected_ids
 
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = dict(zip(graph.nodes.id, graph.nodes.neighbours.edges[filter_expr3].id.collect()))
+        result_ids = dict(
+            zip(graph.nodes.id, graph.nodes.neighbours.edges[filter_expr3].id.collect())
+        )
         expected_ids = {
             "1": [],
             "2": [],
@@ -1449,8 +1528,8 @@ def test_edge_property_temporal_len():
 def test_filter_edges_temporal_layer_eq():
     def check(graph):
         expr = (
-                filter.Edge.layers(["air_nomads"]).property("p10").temporal().last()
-                == "Paper_ship"
+            filter.Edge.layers(["air_nomads"]).property("p10").temporal().last()
+            == "Paper_ship"
         )
         assert _pairs(graph.filter(expr).edges) == {("2", "3")}
 
@@ -1461,8 +1540,8 @@ def test_filter_edges_temporal_layer_eq():
 def test_filter_edges_temporal_layer_eq_is_empty():
     def check(graph):
         expr = (
-                filter.Edge.layer("air_nomads").property("p10").temporal().last()
-                == "Paper_airplane"
+            filter.Edge.layer("air_nomads").property("p10").temporal().last()
+            == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == set()
 
@@ -1497,7 +1576,7 @@ def test_filter_edges_at_persistent():
 def test_filter_edges_before():
     def check(graph):
         expr = (
-                filter.Edge.before(2).property("p10").temporal().last() == "Paper_airplane"
+            filter.Edge.before(2).property("p10").temporal().last() == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == {("1", "2")}
 
@@ -1511,7 +1590,7 @@ def test_filter_edges_before():
 def test_filter_edges_after():
     def check(graph):
         expr = (
-                filter.Edge.after(2).property("p10").temporal().last() == "Paper_airplane"
+            filter.Edge.after(2).property("p10").temporal().last() == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == {("2", "1")}
 
@@ -1525,7 +1604,7 @@ def test_filter_edges_after():
 def test_filter_edges_after_persistent():
     def check(graph):
         expr = (
-                filter.Edge.after(2).property("p10").temporal().last() == "Paper_airplane"
+            filter.Edge.after(2).property("p10").temporal().last() == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == {("1", "2"), ("2", "1")}
 
@@ -1542,7 +1621,7 @@ def test_filter_edges_latest():
         assert ("1", "2") not in _pairs(graph.filter(expr).edges)
 
         expr = (
-                filter.Edge.latest().property("p10").temporal().last() == "Paper_airplane"
+            filter.Edge.latest().property("p10").temporal().last() == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == set()
 
@@ -1556,7 +1635,7 @@ def test_filter_edges_latest():
 def test_filter_edges_latest_persistent():
     def check(graph):
         expr = (
-                filter.Edge.latest().property("p10").temporal().last() == "Paper_airplane"
+            filter.Edge.latest().property("p10").temporal().last() == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == {("1", "2"), ("2", "1")}
 
@@ -1570,19 +1649,19 @@ def test_filter_edges_latest_persistent():
 def test_filter_edges_snapshot_at():
     def check(graph):
         expr = (
-                filter.Edge.snapshot_at(2).property("p10").temporal().last()
-                == "Paper_airplane"
+            filter.Edge.snapshot_at(2).property("p10").temporal().last()
+            == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == {("1", "2")}
 
         expr = (
-                filter.Edge.snapshot_at(2).property("p10").temporal().last() == "Paper_ship"
+            filter.Edge.snapshot_at(2).property("p10").temporal().last() == "Paper_ship"
         )
         assert _pairs(graph.filter(expr).edges) == {("2", "3")}
 
         expr = (
-                filter.Edge.snapshot_at(1).property("p10").temporal().last()
-                == "Paper_airplane"
+            filter.Edge.snapshot_at(1).property("p10").temporal().last()
+            == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == {("1", "2")}
 
@@ -1593,14 +1672,14 @@ def test_filter_edges_snapshot_at():
 def test_filter_edges_snapshot_latest():
     def check(graph):
         expr = (
-                filter.Edge.snapshot_latest().property("p10").temporal().last()
-                == "Paper_airplane"
+            filter.Edge.snapshot_latest().property("p10").temporal().last()
+            == "Paper_airplane"
         )
         assert _pairs(graph.filter(expr).edges) == {("1", "2"), ("2", "1")}
 
         expr = (
-                filter.Edge.snapshot_latest().property("p10").temporal().last()
-                == "Paper_ship"
+            filter.Edge.snapshot_latest().property("p10").temporal().last()
+            == "Paper_ship"
         )
         assert _pairs(graph.filter(expr).edges) == {("2", "3")}
 
@@ -1611,8 +1690,8 @@ def test_filter_edges_snapshot_latest():
 def test_filter_edges_layer_latest():
     def check(graph):
         expr = (
-                filter.Edge.layer("fire_nation").latest().property("p2").temporal().last()
-                == 7
+            filter.Edge.layer("fire_nation").latest().property("p2").temporal().last()
+            == 7
         )
 
         assert sorted(graph.filter(expr).edges.id) == [(1, 2)]
@@ -1624,8 +1703,8 @@ def test_filter_edges_layer_latest():
 def test_filter_edges_latest_layer():
     def check(graph):
         expr = (
-                filter.Edge.latest().layer("fire_nation").property("p2").temporal().last()
-                == 7
+            filter.Edge.latest().layer("fire_nation").property("p2").temporal().last()
+            == 7
         )
 
         assert sorted(graph.filter(expr).edges.id) == []
