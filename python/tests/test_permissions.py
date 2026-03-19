@@ -615,6 +615,29 @@ def test_raphtory_client_analyst_write_denied_without_write_grant():
             client.remote_graph("jira").add_node(1, "client_node")
 
 
+def test_receive_graph_requires_read():
+    """receive_graph (graph download) requires at least READ; INTROSPECT is not enough."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+
+        # No grant — denied
+        client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
+        with pytest.raises(Exception, match="Access denied"):
+            client.receive_graph("jira")
+
+        # INTROSPECT only — also denied
+        grant_graph("analyst", "jira", "INTROSPECT")
+        with pytest.raises(Exception, match="Access denied"):
+            client.receive_graph("jira")
+
+        # READ — allowed
+        grant_graph("analyst", "jira", "READ")
+        g = client.receive_graph("jira")
+        assert g is not None
+
+
 def test_analyst_sees_only_graph_filter_window():
     """grantGraphFilteredReadOnly with a graph-level window filter restricts the temporal view.
 

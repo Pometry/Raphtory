@@ -96,6 +96,36 @@ pub enum GqlGraphType {
     Event,
 }
 
+/// Checks that the caller has at least READ permission for the graph at `path`.
+/// Returns `Err` if denied or if only INTROSPECT was granted.
+fn require_at_least_read(
+    policy: &Option<std::sync::Arc<dyn crate::auth_policy::AuthorizationPolicy>>,
+    is_admin: bool,
+    role: Option<&str>,
+    path: &str,
+) -> async_graphql::Result<()> {
+    if let Some(policy) = policy {
+        let perms = policy
+            .graph_permissions(is_admin, role, path)
+            .map_err(|msg| {
+                warn!(
+                    role = role.unwrap_or("<no role>"),
+                    graph = path,
+                    "Access denied by auth policy"
+                );
+                async_graphql::Error::new(msg)
+            })?;
+        if matches!(perms, GraphPermission::Introspect) {
+            return Err(async_graphql::Error::new(format!(
+                "Access denied: role '{}' has introspect-only access to graph '{path}' — \
+                 use namespace listings for graph metadata",
+                role.unwrap_or("<no role>")
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Applies a stored data filter (serialised as `serde_json::Value` with optional `node`, `edge`,
 /// `graph` keys) to a `DynamicGraph`, returning a new filtered view.
 async fn apply_graph_filter(
@@ -163,7 +193,7 @@ impl QueryRoot {
         let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
 
         let perms = if let Some(policy) = &data.auth_policy {
-            policy
+            let perms = policy
                 .graph_permissions(is_admin, role, path)
                 .map_err(|msg| {
                     warn!(
@@ -172,18 +202,18 @@ impl QueryRoot {
                         "Access denied by auth policy"
                     );
                     async_graphql::Error::new(msg)
-                })?
+                })?;
+            if matches!(perms, GraphPermission::Introspect) {
+                return Err(async_graphql::Error::new(format!(
+                    "Access denied: role '{}' has introspect-only access to graph '{path}' — \
+                     use namespace listings for graph metadata",
+                    role.unwrap_or("<no role>")
+                )));
+            }
+            perms
         } else {
             GraphPermission::Write // no policy: unrestricted
         };
-
-        if matches!(perms, GraphPermission::Introspect) {
-            return Err(async_graphql::Error::new(format!(
-                "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                 use namespace listings for graph metadata",
-                role.unwrap_or("<no role>")
-            )));
-        }
 
         let graph_with_vecs = data.get_graph(path).await?;
         let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
@@ -266,10 +296,20 @@ impl QueryRoot {
     /// Create vectorised graph in the format used for queries
     ///
     /// Returns:: GqlVectorisedGraph
-    async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
+    async fn vectorised_graph<'a>(
+        ctx: &Context<'a>,
+        path: &str,
+    ) -> Result<Option<GqlVectorisedGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path).await.ok()?.vectors?;
-        Some(g.into())
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        require_at_least_read(&data.auth_policy, is_admin, role, path)?;
+        Ok(data
+            .get_graph(path)
+            .await
+            .ok()
+            .and_then(|g| g.vectors)
+            .map(|v| v.into()))
     }
 
     /// Returns all namespaces using recursive search
@@ -316,9 +356,11 @@ impl QueryRoot {
     ///
     /// Returns:: Base64 url safe encoded string
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
-        let path = path.as_ref();
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path).await?.graph.clone();
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        require_at_least_read(&data.auth_policy, is_admin, role, &path)?;
+        let g = data.get_graph(&path).await?.graph.clone();
         let res = url_encode_graph(g)?;
         Ok(res)
     }
