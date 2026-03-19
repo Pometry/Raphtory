@@ -848,7 +848,7 @@ impl PyPathFromGraph {
     #[getter]
     fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
-        (move || path.id()).into()
+        (move || path.id().map(|(_, v)| v)).into()
     }
 
     /// The node names.
@@ -858,7 +858,7 @@ impl PyPathFromGraph {
     #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
-        (move || path.name()).into()
+        (move || path.name().map(|(_, v)| v)).into()
     }
 
     /// The node types.
@@ -868,7 +868,7 @@ impl PyPathFromGraph {
     #[getter]
     fn node_type(&self) -> NestedOptionArcStringIterable {
         let path = self.path.clone();
-        (move || path.node_type()).into()
+        (move || path.node_type().map(|(_, v)| v)).into()
     }
 
     /// The node earliest times.
@@ -878,7 +878,7 @@ impl PyPathFromGraph {
     #[getter]
     fn earliest_time(&self) -> NestedOptionEventTimeIterable {
         let path = self.path.clone();
-        (move || path.earliest_time()).into()
+        (move || path.earliest_time().map(|(_, v)| v)).into()
     }
 
     /// The node latest times.
@@ -888,7 +888,7 @@ impl PyPathFromGraph {
     #[getter]
     fn latest_time(&self) -> NestedOptionEventTimeIterable {
         let path = self.path.clone();
-        (move || path.latest_time()).into()
+        (move || path.latest_time().map(|(_, v)| v)).into()
     }
 
     /// Returns a history object for each node with time entries for when a node is added or change to a node is made.
@@ -900,7 +900,7 @@ impl PyPathFromGraph {
         let path = self.path.clone();
         (move || {
             path.history()
-                .map(|h_iter| h_iter.map(|h| h.into_arc_dyn()))
+                .map(|(_, h_iter)| h_iter.map(|h| h.into_arc_dyn()))
         })
         .into()
     }
@@ -920,7 +920,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn edge_history_count(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.edge_history_count()).into()
+        (move || path.edge_history_count().map(|(_, v)| v)).into()
     }
 
     /// Returns the node properties.
@@ -930,7 +930,7 @@ impl PyPathFromGraph {
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
-        (move || path.properties()).into()
+        (move || path.properties().map(|(_, v)| v)).into()
     }
 
     /// Returns the node metadata.
@@ -940,7 +940,7 @@ impl PyPathFromGraph {
     #[getter]
     fn metadata(&self) -> MetadataListList {
         let path = self.path.clone();
-        (move || path.metadata()).into()
+        (move || path.metadata().map(|(_, v)| v)).into()
     }
 
     /// Returns the node degrees.
@@ -949,7 +949,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.degree()).into()
+        (move || path.degree().map(|(_, v)| v)).into()
     }
 
     /// Returns the node in-degrees.
@@ -958,7 +958,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.in_degree()).into()
+        (move || path.in_degree().map(|(_, v)| v)).into()
     }
 
     /// Returns the node out-degrees.
@@ -967,7 +967,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.out_degree()).into()
+        (move || path.out_degree().map(|(_, v)| v)).into()
     }
 
     /// filter nodes by type

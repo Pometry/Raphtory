@@ -461,7 +461,7 @@ mod in_component_test {
                 .nodes()
                 .in_neighbours()
                 .iter()
-                .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
+                .flat_map(|(_, ns)| ns.iter().filter_map(|c| c.id().as_u64()))
                 .collect();
 
         assert_eq!(unfiltered_ids, vec![99]);
@@ -734,7 +734,7 @@ mod components_test {
                 .nodes()
                 .out_neighbours()
                 .iter()
-                .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
+                .flat_map(|(_, ns)| ns.iter().filter_map(|c| c.id().as_u64()))
                 .collect();
 
         assert_eq!(unfiltered_ids, vec![99]);

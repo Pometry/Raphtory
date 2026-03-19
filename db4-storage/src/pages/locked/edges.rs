@@ -5,6 +5,7 @@ use crate::{
     api::edges::EdgeSegmentOps,
     error::StorageError,
     pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats, resolve_pos},
+    persist::strategy::PersistenceStrategy,
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -75,7 +76,9 @@ impl<ES> Default for WriteLockedEdgePages<'_, ES> {
     }
 }
 
-impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
+impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
+    WriteLockedEdgePages<'a, ES>
+{
     pub fn new(writers: Vec<LockedEdgePage<'a, ES>>) -> Self {
         Self { writers }
     }

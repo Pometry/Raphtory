@@ -1,3 +1,4 @@
+from utils import sort_by_gql_name_or_id
 from raphtory.graphql import RaphtoryClient
 
 
@@ -49,6 +50,7 @@ def test_latest_and_active():
                 edges {
                   latest {
                     list {
+                      id
                       history {
                         list {
                           timestamp
@@ -74,6 +76,7 @@ def test_latest_and_active():
             edges {
               latest {
                 list {
+                  id
                   history {
                     list {
                       timestamp
@@ -114,15 +117,17 @@ def test_latest_and_active():
                             "latest": {
                                 "list": [
                                     {
+                                        "id": ["1", "2"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 2}]
-                                        }
+                                        },
                                     },
-                                    {"history": {"list": []}},
+                                    {"id": ["1", "3"], "history": {"list": []}},
                                     {
+                                        "id": ["1", "4"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 5}]
-                                        }
+                                        },
                                     },
                                 ]
                             }
@@ -134,9 +139,10 @@ def test_latest_and_active():
                             "latest": {
                                 "list": [
                                     {
+                                        "id": ["1", "2"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 2}]
-                                        }
+                                        },
                                     }
                                 ]
                             }
@@ -144,7 +150,11 @@ def test_latest_and_active():
                     },
                     {
                         "name": "3",
-                        "edges": {"latest": {"list": [{"history": {"list": []}}]}},
+                        "edges": {
+                            "latest": {
+                                "list": [{"id": ["1", "3"], "history": {"list": []}}]
+                            }
+                        },
                     },
                     {
                         "name": "4",
@@ -152,9 +162,10 @@ def test_latest_and_active():
                             "latest": {
                                 "list": [
                                     {
+                                        "id": ["1", "4"],
                                         "history": {
                                             "list": [{"timestamp": 3, "eventId": 5}]
-                                        }
+                                        },
                                     }
                                 ]
                             }
@@ -190,9 +201,15 @@ def test_latest_and_active():
             "edges": {
                 "latest": {
                     "list": [
-                        {"history": {"list": [{"timestamp": 3, "eventId": 2}]}},
-                        {"history": {"list": []}},
-                        {"history": {"list": [{"timestamp": 3, "eventId": 5}]}},
+                        {
+                            "id": ["1", "2"],
+                            "history": {"list": [{"timestamp": 3, "eventId": 2}]},
+                        },
+                        {"id": ["1", "3"], "history": {"list": []}},
+                        {
+                            "id": ["1", "4"],
+                            "history": {"list": [{"timestamp": 3, "eventId": 5}]},
+                        },
                     ]
                 }
             },
@@ -217,4 +234,4 @@ def test_latest_and_active():
     g.save_to_file(work_dir + "/graph")
     with GraphServer(work_dir).start():
         client = RaphtoryClient("http://localhost:1736")
-        assert client.query(query) == result
+        assert sort_by_gql_name_or_id(client.query(query)) == result

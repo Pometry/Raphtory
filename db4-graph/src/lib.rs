@@ -159,7 +159,8 @@ where
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.storage.flush()
+        self.storage.flush()?;
+        self.logical_to_physical.flush()
     }
 
     pub fn disk_storage_path(&self) -> Option<&Path> {

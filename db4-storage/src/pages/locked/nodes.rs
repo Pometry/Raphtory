@@ -3,6 +3,7 @@ use crate::{
     api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, node_page::writer::NodeWriter, resolve_pos},
+    persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
@@ -45,6 +46,10 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
         NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
     }
 
+    pub fn head(&mut self) -> &mut MemNodeSegment {
+        self.lock.deref_mut()
+    }
+
     pub fn vacuum(&mut self) {
         let _ = self.page.vacuum(self.lock.deref_mut());
     }
@@ -83,7 +88,9 @@ impl<NS> Default for WriteLockedNodePages<'_, NS> {
     }
 }
 
-impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> {
+impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
+    WriteLockedNodePages<'a, NS>
+{
     pub fn new(writers: Vec<LockedNodePage<'a, NS>>) -> Self {
         Self { writers }
     }
