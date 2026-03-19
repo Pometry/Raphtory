@@ -3,8 +3,8 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, Prop, PropertiesOps},
     serialise::parquet::{
-        run_encode, EVENT_GRAPH_TYPE, GRAPH_C_PATH, GRAPH_TYPE, GRAPH_T_PATH,
-        PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
+        create_arrow_writer_sink, run_encode, RecordBatchSink, EVENT_GRAPH_TYPE, GRAPH_C_PATH,
+        GRAPH_TYPE, GRAPH_T_PATH, PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
     },
 };
 use arrow::datatypes::{DataType, Field};
@@ -20,19 +20,21 @@ use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
 
 pub fn encode_graph_tprop<G: GraphView>(g: &G, path: impl AsRef<Path>) -> Result<(), GraphError> {
+    let root_dir = path.as_ref().join(GRAPH_T_PATH);
     run_encode(
         g,
         g.graph_props_meta().temporal_prop_mapper(),
         1,
-        path,
-        GRAPH_T_PATH,
+        |schema, chunk, num_digits| {
+            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
+        },
         |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
             ]
         },
-        |_, g, decoder, writer| {
+        |_, g, decoder, sink| {
             // Collect into owned props here to avoid lifetime issues on prop_view.
             // Ideally we want to be returning refs to the props but this
             // is not possible with the current API.
@@ -66,8 +68,8 @@ pub fn encode_graph_tprop<G: GraphView>(g: &G, path: impl AsRef<Path>) -> Result
             decoder.serialize(&rows)?;
 
             if let Some(rb) = decoder.flush()? {
-                writer.write(&rb)?;
-                writer.flush()?;
+                RecordBatchSink::write_batch(sink, &rb)?;
+                RecordBatchSink::flush(sink)?;
             }
 
             Ok(())
@@ -104,14 +106,16 @@ pub fn encode_graph_cprop<G: GraphView>(
     graph_type: GraphType,
     path: impl AsRef<Path>,
 ) -> Result<(), GraphError> {
+    let root_dir = path.as_ref().join(GRAPH_C_PATH);
     run_encode(
         g,
         g.graph_props_meta().metadata_mapper(),
         1,
-        path,
-        GRAPH_C_PATH,
+        |schema, chunk, num_digits| {
+            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
+        },
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],
-        |_, g, decoder, writer| {
+        |_, g, decoder, sink| {
             let row = g.metadata().as_map();
             let time = EventTime::new(0, 0); // const props don't have time
             let rows = vec![Row { t: time, row }];
@@ -119,16 +123,18 @@ pub fn encode_graph_cprop<G: GraphView>(
             decoder.serialize(&rows)?;
 
             if let Some(rb) = decoder.flush()? {
-                writer.write(&rb)?;
-                writer.flush()?;
+                RecordBatchSink::write_batch(sink, &rb)?;
+                RecordBatchSink::flush(sink)?;
             }
 
+            // even though encode_fn in run_encode() expects a generic RecordBatchSink, we can access
+            // ArrowWriter<File> specific functions here because the type S gets resolved in this closure
             match graph_type {
-                GraphType::EventGraph => writer.append_key_value_metadata(KeyValue::new(
+                GraphType::EventGraph => sink.append_key_value_metadata(KeyValue::new(
                     GRAPH_TYPE.to_string(),
                     Some(EVENT_GRAPH_TYPE.to_string()),
                 )),
-                GraphType::PersistentGraph => writer.append_key_value_metadata(KeyValue::new(
+                GraphType::PersistentGraph => sink.append_key_value_metadata(KeyValue::new(
                     GRAPH_TYPE.to_string(),
                     Some(PERSISTENT_GRAPH_TYPE.to_string()),
                 )),

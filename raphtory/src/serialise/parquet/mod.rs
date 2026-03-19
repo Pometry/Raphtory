@@ -275,14 +275,11 @@ pub(crate) fn run_encode<G: GraphView, S: RecordBatchSink>(
     g: &G,
     meta: &PropMapper,
     size: usize,
-    path: impl AsRef<Path>,
-    suffix: &str,
+    make_sink_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
     default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
     encode_fn: impl Fn(Range<usize>, &G, &mut Decoder, &mut S) -> Result<(), GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
-    let root_dir = path.as_ref().join(suffix);
-    std::fs::create_dir_all(&root_dir)?;
 
     if size > 0 {
         let chunk_size = (size / rayon::current_num_threads()).max(128);
@@ -291,14 +288,9 @@ pub(crate) fn run_encode<G: GraphView, S: RecordBatchSink>(
         let num_digits = iter.len().to_string().len();
 
         iter.enumerate().try_for_each(|(chunk, first)| {
-            let props = WriterProperties::builder()
-                .set_compression(Compression::SNAPPY)
-                .build();
             let items = first..(first + chunk_size).min(size);
 
-            let node_file = File::create(root_dir.join(format!("{chunk:0num_digits$}.parquet")))?;
-            let mut sink = ArrowWriter::try_new(node_file, schema.clone(), Some(props))?;
-
+            let mut sink = make_sink_fn(schema.clone(), chunk, num_digits)?;
             let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
 
             encode_fn(items, g, &mut decoder, &mut sink)?;
@@ -319,15 +311,11 @@ pub(crate) fn run_encode_indexed<
     g: &G,
     meta: &PropMapper,
     items: impl ParallelIterator<Item = (usize, II)>,
-    path: impl AsRef<Path>,
-    suffix: &str,
     make_sink_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
     default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
     encode_fn: impl Fn(II, &G, &mut Decoder, &mut S) -> Result<(), GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
-    let root_dir = path.as_ref().join(suffix);
-
     let num_digits = 8;
 
     items.try_for_each(|(chunk, items)| {

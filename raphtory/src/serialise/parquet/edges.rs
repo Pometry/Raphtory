@@ -1,7 +1,10 @@
 use super::*;
 use crate::{
     core::utils::iter::GenLockedIter,
-    db::{api::state::ops::FilterOps, graph::edge::EdgeView},
+    db::{
+        api::state::ops::{FilterOps, GraphView},
+        graph::edge::EdgeView,
+    },
     errors::GraphError,
     serialise::parquet::model::ParquetDelEdge,
 };
@@ -52,19 +55,13 @@ pub(crate) fn encode_edge_tprop<G: GraphView>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
+    let root_dir = path.as_ref().join(EDGES_T_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
         get_edges_par_iter(g, &edges_locked),
-        path,
-        EDGES_T_PATH,
         |schema, chunk, num_digits| {
-            create_arrow_writer_sink(
-                &path.as_ref().join(EDGES_T_PATH),
-                schema.clone(),
-                chunk,
-                num_digits,
-            )
+            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
         },
         |_| {
             vec![
@@ -77,7 +74,7 @@ pub(crate) fn encode_edge_tprop<G: GraphView>(
                 Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
-        |edges, g, decoder, writer| {
+        |edges, g, decoder, sink| {
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode())
@@ -94,8 +91,8 @@ pub(crate) fn encode_edge_tprop<G: GraphView>(
             {
                 decoder.serialize(&edge_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    writer.write_batch(&rb)?;
-                    writer.flush()?;
+                    RecordBatchSink::write_batch(sink, &rb)?;
+                    RecordBatchSink::flush(sink)?;
                 }
             }
             Ok(())
@@ -109,12 +106,14 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
+    let root_dir = path.as_ref().join(EDGES_T_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
         get_edges_par_iter(g, &edges_locked),
-        path,
-        EDGES_D_PATH,
+        |schema, chunk, num_digits| {
+            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
+        },
         |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
@@ -126,7 +125,7 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
                 Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
-        |edges, g, decoder, writer| {
+        |edges, g, decoder, sink| {
             // let g = g.core_graph().lock();
             // let g = &g;
             // let g_edges = g.edges();
@@ -139,17 +138,16 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|edge| {
-                    edge.deletions().into_iter().map(move |deletion| {
-                        ParquetDelEdge {
+                    edge.deletions()
+                        .into_iter()
+                        .map(move |deletion| ParquetDelEdge {
                             edge,
                             del: deletion,
                             export_src_vid: edge.src().node.0,
                             export_dst_vid: edge.dst().node.0,
                             export_eid: edge.edge.pid().0,
                             export_layer_id: edge.edge.layer(),
-                            // export_layer_name: &layers[layer_id - 1],
-                        }
-                    })
+                        })
                 })
                 .chunks(ROW_GROUP_SIZE)
                 .into_iter()
@@ -157,8 +155,8 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
             {
                 decoder.serialize(&edge_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    writer.write(&rb)?;
-                    writer.flush()?;
+                    RecordBatchSink::write_batch(sink, &rb)?;
+                    RecordBatchSink::flush(sink)?;
                 }
             }
             Ok(())
@@ -172,12 +170,14 @@ pub(crate) fn encode_edge_cprop<G: GraphView>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
+    let root_dir = path.as_ref().join(EDGES_T_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().metadata_mapper(),
         get_edges_par_iter(g, &edges_locked),
-        path,
-        EDGES_C_PATH,
+        |schema, chunk, num_digits| {
+            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
+        },
         |_| {
             vec![
                 Field::new(SRC_COL_ID, DataType::UInt64, false),
@@ -186,7 +186,7 @@ pub(crate) fn encode_edge_cprop<G: GraphView>(
                 Field::new(LAYER_COL, DataType::Utf8, true),
             ]
         },
-        |edges, g, decoder, writer| {
+        |edges, g, decoder, sink| {
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode_layers().into_iter())
@@ -202,8 +202,8 @@ pub(crate) fn encode_edge_cprop<G: GraphView>(
             {
                 decoder.serialize(&edge_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    writer.write(&rb)?;
-                    writer.flush()?;
+                    RecordBatchSink::write_batch(sink, &rb)?;
+                    RecordBatchSink::flush(sink)?;
                 }
             }
             Ok(())

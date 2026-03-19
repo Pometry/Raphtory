@@ -7,9 +7,10 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, NodeViewOps},
     serialise::parquet::{
+        create_arrow_writer_sink,
         model::{ParquetCNode, ParquetTNode},
-        run_encode_indexed, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
-        SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        run_encode_indexed, RecordBatchSink, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, NODE_VID_COL,
+        ROW_GROUP_SIZE, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
 };
 use arrow::datatypes::{DataType, Field};
@@ -54,12 +55,14 @@ pub(crate) fn encode_nodes_tprop<G: GraphView>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
+    let root_dir = path.as_ref().join(NODES_T_PATH);
     run_encode_indexed(
         g,
         g.node_meta().temporal_prop_mapper(),
         get_nodes_par_iter(g, &nodes_locked),
-        path,
-        NODES_T_PATH,
+        |schema, chunk, num_digits| {
+            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
+        },
         |_| {
             vec![
                 Field::new(NODE_VID_COL, DataType::UInt64, false),
@@ -67,7 +70,7 @@ pub(crate) fn encode_nodes_tprop<G: GraphView>(
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
             ]
         },
-        |nodes, g, decoder, writer| {
+        |nodes, g, decoder, sink| {
             let nodes = nodes.collect::<Vec<_>>();
             let nodes = nodes.into_iter();
 
@@ -92,8 +95,8 @@ pub(crate) fn encode_nodes_tprop<G: GraphView>(
             {
                 decoder.serialize(&node_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    writer.write(&rb)?;
-                    writer.flush()?;
+                    RecordBatchSink::write_batch(sink, &rb)?;
+                    RecordBatchSink::flush(sink)?;
                 }
             }
             Ok(())
@@ -107,12 +110,14 @@ pub(crate) fn encode_nodes_cprop<G: GraphView>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
+    let root_dir = path.as_ref().join(NODES_C_PATH);
     run_encode_indexed(
         g,
         g.node_meta().metadata_mapper(),
         get_nodes_par_iter(g, &nodes_locked),
-        path,
-        NODES_C_PATH,
+        |schema, chunk, num_digits| {
+            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
+        },
         |id_type| {
             vec![
                 Field::new(NODE_ID_COL, id_type.clone(), false),
@@ -121,7 +126,7 @@ pub(crate) fn encode_nodes_cprop<G: GraphView>(
                 Field::new(TYPE_ID_COL, DataType::UInt64, true),
             ]
         },
-        |nodes, g, decoder, writer| {
+        |nodes, g, decoder, sink| {
             for node_rows in nodes
                 .map(move |node| ParquetCNode {
                     node,
@@ -136,8 +141,8 @@ pub(crate) fn encode_nodes_cprop<G: GraphView>(
                 decoder.serialize(&node_rows)?;
 
                 if let Some(rb) = decoder.flush()? {
-                    writer.write(&rb)?;
-                    writer.flush()?;
+                    RecordBatchSink::write_batch(sink, &rb)?;
+                    RecordBatchSink::flush(sink)?;
                 }
             }
 
