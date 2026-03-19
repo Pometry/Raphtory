@@ -137,6 +137,7 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
 
             for edge_rows in edges
                 .into_iter()
+                .flat_map(|e| e.explode_layers())
                 .flat_map(|edge| {
                     edge.deletions()
                         .into_iter()
