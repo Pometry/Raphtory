@@ -35,6 +35,7 @@ NO_ROLE_HEADERS = {"Authorization": f"Bearer {NO_ROLE_JWT}"}
 QUERY_JIRA = """query { graph(path: "jira") { path } }"""
 QUERY_ADMIN = """query { graph(path: "admin") { path } }"""
 QUERY_NS_GRAPHS = """query { root { graphs { list { path } } } }"""
+QUERY_META_JIRA = """query { graphMetadata(path: "jira") { path nodeCount } }"""
 CREATE_JIRA = """mutation { newGraph(path:"jira", graphType:EVENT) }"""
 CREATE_ADMIN = """mutation { newGraph(path:"admin", graphType:EVENT) }"""
 
@@ -374,6 +375,47 @@ def test_no_grant_hidden_from_namespace_and_graph():
         assert "errors" not in response, response
         paths = [g["path"] for g in response["data"]["root"]["graphs"]["list"]]
         assert "jira" not in paths
+
+
+def test_graph_metadata_allowed_with_introspect():
+    """graphMetadata is accessible with INTROSPECT (no full graph load required)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "INTROSPECT")
+
+        response = gql(QUERY_META_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        meta = response["data"]["graphMetadata"]
+        assert meta["path"] == "jira"
+        assert isinstance(meta["nodeCount"], int)
+
+
+def test_graph_metadata_allowed_with_read():
+    """graphMetadata is also accessible with READ."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "READ")
+
+        response = gql(QUERY_META_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["graphMetadata"]["path"] == "jira"
+
+
+def test_graph_metadata_denied_without_grant():
+    """graphMetadata is denied when the role has no grant on the graph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        # no grant on jira
+
+        response = gql(QUERY_META_JIRA, headers=ANALYST_HEADERS)
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_analyst_sees_only_filtered_nodes():

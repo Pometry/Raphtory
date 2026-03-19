@@ -8,6 +8,7 @@ use crate::{
             filtering::{GqlEdgeFilter, GqlGraphFilter, GqlNodeFilter, GraphAccessFilter},
             graph::GqlGraph,
             index::IndexSpecInput,
+            meta_graph::MetaGraph,
             mutable_graph::GqlMutableGraph,
             namespace::Namespace,
             namespaced_item::NamespacedItem,
@@ -19,7 +20,7 @@ use crate::{
             query_plugin::QueryPlugin,
         },
     },
-    paths::{ValidGraphPaths, ValidWriteableGraphFolder},
+    paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::blocking_compute,
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
@@ -201,6 +202,31 @@ impl QueryRoot {
             graph,
             perms,
         ))
+    }
+
+    /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+    /// Requires at least INTROSPECT permission.
+    async fn graph_metadata<'a>(ctx: &Context<'a>, path: String) -> Result<MetaGraph> {
+        let data = ctx.data_unchecked::<Data>();
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+
+        if let Some(policy) = &data.auth_policy {
+            policy
+                .graph_permissions(is_admin, role, &path)
+                .map_err(|msg| {
+                    warn!(
+                        role = role.unwrap_or("<no role>"),
+                        graph = path.as_str(),
+                        "Access denied by auth policy"
+                    );
+                    async_graphql::Error::new(msg)
+                })?;
+        }
+
+        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        Ok(MetaGraph::new(folder))
     }
 
     /// Update graph query, has side effects to update graph state
