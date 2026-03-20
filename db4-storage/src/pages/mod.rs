@@ -529,7 +529,7 @@ impl<I: From<usize> + Into<usize>> SegmentCounts<I> {
         StateIndex::from(self)
     }
 
-    pub(crate) fn counts(&self) -> &[u32] {
+    pub fn counts(&self) -> &[u32] {
         &self.counts
     }
 

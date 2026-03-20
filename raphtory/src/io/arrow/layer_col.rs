@@ -9,6 +9,7 @@ use arrow::array::{Array, AsArray, LargeStringArray, StringArray, StringViewArra
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
+use raphtory_api::core::entities::properties::meta::DEFAULT_NODE_TYPE_ID;
 use rayon::prelude::*;
 
 #[derive(Copy, Clone, Debug)]
@@ -86,6 +87,60 @@ impl<'a> LayerCol<'a> {
                 } else {
                     None
                 }
+            }
+        }
+    }
+
+    pub fn resolve_node_type<'b>(
+        self,
+        node_type_id_col: Option<&'b [u64]>,
+        graph: &(impl AdditionOps + Send + Sync),
+    ) -> Result<Cow<'b, [usize]>, GraphError> {
+        match (self, node_type_id_col) {
+            (LayerCol::Name { name, len }, _) => {
+                let node_type_id = if let Some(name) = name {
+                    let nt = graph.node_meta().get_or_create_node_type_id(name);
+                    nt.inner()
+                } else {
+                    DEFAULT_NODE_TYPE_ID
+                };
+                Ok(Cow::Owned(vec![node_type_id; len]))
+            }
+            (col, None) => {
+                let mut res = vec![0usize; col.len()];
+                let node_type_mapper = graph.node_meta().node_type_meta();
+                let mut locked_node_type_mapper = node_type_mapper.write();
+                let mut last = None;
+                let mut last_id = DEFAULT_NODE_TYPE_ID;
+                for (row, name) in col.iter().enumerate() {
+                    let node_type_id = if let Some(name) = name {
+                        if last != Some(name) {
+                            locked_node_type_mapper.get_or_create_id(name).inner()
+                        } else {
+                            last_id
+                        }
+                    } else {
+                        DEFAULT_NODE_TYPE_ID
+                    };
+                    res[row] = node_type_id;
+                    last = name;
+                    last_id = node_type_id;
+                }
+                Ok(Cow::Owned(res))
+            }
+            (col, Some(node_type_ids)) => {
+                let node_type_mapper = graph.node_meta().node_type_meta();
+                let mut locked_node_type_mapper = node_type_mapper.write();
+                let mut last = None;
+                for (name, &id) in col.iter().zip(node_type_ids.iter()) {
+                    if name != last {
+                        if let Some(name) = name {
+                            locked_node_type_mapper.set_id(name, id as usize);
+                        };
+                    }
+                    last = name;
+                }
+                Ok(Cow::Borrowed(bytemuck::cast_slice(node_type_ids)))
             }
         }
     }

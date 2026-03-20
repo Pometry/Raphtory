@@ -134,6 +134,20 @@ impl GraphStorage {
         }
     }
 
+    pub fn num_node_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().nodes().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().nodes().num_segments(),
+        }
+    }
+
+    pub fn num_edge_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
+        }
+    }
+
     #[inline(always)]
     pub fn internalise_node(&self, v: NodeRef) -> Option<VID> {
         match v {

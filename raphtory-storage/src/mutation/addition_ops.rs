@@ -56,11 +56,8 @@ pub trait InternalAdditionOps {
         node_type: Option<&str>,
     ) -> Result<(VID, usize), Self::Error>;
 
-    fn bulk_load_resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error>;
+    /// SAFETY this function assumes it is called from behind a sharded structure that does not allow the same id to be resolved at the same time by more than 1 thread
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error>;
 
     /// validate the GidRef is the correct type
     fn validate_gids<'a>(
@@ -278,13 +275,9 @@ impl InternalAdditionOps for GraphStorage {
             .map_err(MutationError::from)
     }
 
-    fn bulk_load_resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
         self.mutable()?
-            .bulk_load_resolve_node_and_type(id, node_type)
+            .bulk_load_resolve_node(id)
             .map_err(MutationError::from)
     }
 
@@ -398,12 +391,8 @@ where
         self.base().resolve_node_and_type(id, node_type)
     }
 
-    fn bulk_load_resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        self.base().bulk_load_resolve_node_and_type(id, node_type)
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        self.base().bulk_load_resolve_node(id)
     }
 
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {

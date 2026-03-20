@@ -562,12 +562,8 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
     }
 
-    fn bulk_load_resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: Option<&str>,
-    ) -> Result<(VID, usize), Self::Error> {
-        Ok(self.graph.bulk_load_resolve_node_and_type(id, node_type)?)
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        Ok(self.graph.bulk_load_resolve_node(id)?)
     }
 
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
