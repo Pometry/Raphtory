@@ -106,7 +106,7 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
-    let root_dir = path.as_ref().join(EDGES_T_PATH);
+    let root_dir = path.as_ref().join(EDGES_D_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
@@ -171,7 +171,7 @@ pub(crate) fn encode_edge_cprop<G: GraphView>(
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
-    let root_dir = path.as_ref().join(EDGES_T_PATH);
+    let root_dir = path.as_ref().join(EDGES_C_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().metadata_mapper(),
