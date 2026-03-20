@@ -121,7 +121,7 @@ pub fn load_nodes_from_df<
                     df.chunk[idx]
                         .as_primitive_opt::<UInt64Type>()
                         .ok_or_else(|| {
-                            LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
+                            LoadError::InvalidNodeIdType(df.chunk[idx].data_type().clone())
                         })
                         .map(|array| array.values().as_ref())
                 })

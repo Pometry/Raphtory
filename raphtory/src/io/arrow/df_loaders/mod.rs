@@ -227,7 +227,6 @@ pub(crate) fn load_graph_props_from_df<
     Ok(())
 }
 
-#[inline(never)]
 pub(crate) fn extract_secondary_index_col<G: InternalAdditionOps + AdditionOps>(
     secondary_index_index: Option<usize>,
     session: &<G as InternalAdditionOps>::WS<'_>,
@@ -252,7 +251,6 @@ pub(crate) fn extract_secondary_index_col<G: InternalAdditionOps + AdditionOps>(
     Ok(secondary_index_col)
 }
 
-#[inline(never)]
 fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
@@ -270,7 +268,6 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
     )
 }
 
-#[inline(never)]
 fn resolve_nodes_and_type_with_cache<
     'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
@@ -291,7 +288,6 @@ fn resolve_nodes_and_type_with_cache<
     )
 }
 
-#[inline(always)]
 fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
     cols_to_resolve: &[&'a NodeCol],
     update_fn: impl Fn(&V, usize, usize) + Send + Sync,
