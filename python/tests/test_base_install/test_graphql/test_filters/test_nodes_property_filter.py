@@ -880,12 +880,16 @@ def test_nodes_neighbours_selection_with_prop_filter(graph):
         "graph": {
             "nodes": {
                 "list": [
-                    {"name": "1", "neighbours": {"list": [{"name": "2"}, {"name": "3"}]}},
-                    {"name": "3",
-                     "neighbours": {
-                         "list": [{"name": "1"}, {"name": "2"}, {"name": "4"}]
-                     }
-                     },
+                    {
+                        "name": "1",
+                        "neighbours": {"list": [{"name": "2"}, {"name": "3"}]},
+                    },
+                    {
+                        "name": "3",
+                        "neighbours": {
+                            "list": [{"name": "1"}, {"name": "2"}, {"name": "4"}]
+                        },
+                    },
                 ]
             }
         }
