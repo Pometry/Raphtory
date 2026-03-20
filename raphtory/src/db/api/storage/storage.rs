@@ -24,7 +24,6 @@ use raphtory_storage::{
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
-        deletion_ops::InternalDeletionOps,
         durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
@@ -662,29 +661,5 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_index_mut(|index| index.update_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
-    }
-}
-
-impl InternalDeletionOps for Storage {
-    type Error = GraphError;
-    fn internal_delete_edge(
-        &self,
-        t: EventTime,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: EventTime,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_delete_existing_edge(t, eid, layer)?;
-
-        Ok(())
     }
 }
