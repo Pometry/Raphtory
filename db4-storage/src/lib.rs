@@ -79,9 +79,7 @@ pub type EdgeTProps<'a> = GenericTProps<'a, MemEdgeRef<'a>>;
 pub type GraphTProps<'a> = GenericTProps<'a, MemGraphPropRef<'a>>;
 
 pub mod error {
-    use std::io;
-    use std::panic::Location;
-    use std::{path::PathBuf, sync::Arc};
+    use std::{io, panic::Location, path::PathBuf, sync::Arc};
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
     use raphtory_api::core::{entities::properties::prop::PropError, utils::time::ParseTimeError};
