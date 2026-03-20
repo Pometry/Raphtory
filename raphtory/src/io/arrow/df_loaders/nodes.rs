@@ -116,18 +116,7 @@ pub fn load_nodes_from_df<
                         .map_err(into_graph_err)
                 })?;
             let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
-            let node_type_id_values = node_type_index
-                .map(|idx| {
-                    df.chunk[idx]
-                        .as_primitive_opt::<UInt64Type>()
-                        .ok_or_else(|| {
-                            LoadError::InvalidNodeIdType(df.chunk[idx].data_type().clone())
-                        })
-                        .map(|array| array.values().as_ref())
-                })
-                .transpose()?;
-            let node_type_col_resolved =
-                node_type_col.resolve_node_type(node_type_id_values, graph)?;
+            let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
@@ -141,6 +130,7 @@ pub fn load_nodes_from_df<
                 graph,
                 node_id_index,
                 &mut node_col_resolved,
+                &node_type_col_resolved,
                 resolve_nodes,
                 &df,
                 &node_col,
@@ -157,7 +147,7 @@ pub fn load_nodes_from_df<
                 .max_segment_len() as usize;
 
             if !gid_str_cache.is_empty() {
-                for (_, vid) in &gid_str_cache {
+                for (_, (vid, _)) in &gid_str_cache {
                     let (node_segment, _) = resolve_pos(vid.index(), max_node_segment_len as u32);
                     node_segments_touched[node_segment].store(true, Ordering::Relaxed);
                 }
@@ -198,7 +188,7 @@ pub fn load_nodes_from_df<
                     // assumes we are loading our own graph, via the parquet loaders,
                     // so previous calls have already stored the node ids and types
                     if resolve_nodes {
-                        store_node_ids_and_type(&gid_str_cache, &node_type_col_resolved, shard);
+                        store_node_ids_and_type(&gid_str_cache, shard);
                     }
                     let mut writer = shard.writer();
 
@@ -372,7 +362,7 @@ pub fn load_node_props_from_df<
     Ok(())
 }
 
-type Resolved<'a> = (GidRef<'a>, VID);
+type Resolved<'a> = (GidRef<'a>, (VID, usize));
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn get_or_resolve_node_vids<
     'a: 'c,
@@ -383,6 +373,7 @@ fn get_or_resolve_node_vids<
     graph: &G,
     src_index: usize,
     src_col_resolved: &'a mut Vec<VID>,
+    node_type_resolved: &'a [usize],
     resolve_nodes: bool,
     df: &'b DFChunk,
     src_col: &'a NodeCol,
@@ -395,6 +386,7 @@ fn get_or_resolve_node_vids<
         let gid_str_cache = resolve_nodes_and_type_with_cache::<G>(
             graph,
             [src_col].as_ref(),
+            [node_type_resolved].as_ref(),
             [atomic_src_col].as_ref(),
         )?;
         (
@@ -553,13 +545,12 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
 #[inline(never)]
 fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[Resolved<'_>],
-    node_type_ids: &[usize],
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
     let mut writer = locked_page.writer();
-    for ((gid, vid), &node_type_id) in gid_str_cache.iter().zip(node_type_ids) {
+    for (gid, (vid, node_type)) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(*vid) {
-            writer.store_node_id_and_node_type(src_pos, STATIC_GRAPH_LAYER_ID, *gid, node_type_id);
+            writer.store_node_id_and_node_type(src_pos, STATIC_GRAPH_LAYER_ID, *gid, *node_type);
         }
     }
 }

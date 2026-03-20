@@ -93,11 +93,10 @@ impl<'a> LayerCol<'a> {
 
     pub fn resolve_node_type<'b>(
         self,
-        node_type_id_col: Option<&'b [u64]>,
         graph: &(impl AdditionOps + Send + Sync),
     ) -> Result<Cow<'b, [usize]>, GraphError> {
-        match (self, node_type_id_col) {
-            (LayerCol::Name { name, len }, _) => {
+        match self {
+            LayerCol::Name { name, len } => {
                 let node_type_id = if let Some(name) = name {
                     let nt = graph.node_meta().get_or_create_node_type_id(name);
                     nt.inner()
@@ -106,7 +105,7 @@ impl<'a> LayerCol<'a> {
                 };
                 Ok(Cow::Owned(vec![node_type_id; len]))
             }
-            (col, None) => {
+            col => {
                 let mut res = vec![0usize; col.len()];
                 let node_type_mapper = graph.node_meta().node_type_meta();
                 let mut locked_node_type_mapper = node_type_mapper.write();
@@ -127,20 +126,6 @@ impl<'a> LayerCol<'a> {
                     last_id = node_type_id;
                 }
                 Ok(Cow::Owned(res))
-            }
-            (col, Some(node_type_ids)) => {
-                let node_type_mapper = graph.node_meta().node_type_meta();
-                let mut locked_node_type_mapper = node_type_mapper.write();
-                let mut last = None;
-                for (name, &id) in col.iter().zip(node_type_ids.iter()) {
-                    if name != last {
-                        if let Some(name) = name {
-                            locked_node_type_mapper.set_id(name, id as usize);
-                        };
-                    }
-                    last = name;
-                }
-                Ok(Cow::Borrowed(bytemuck::cast_slice(node_type_ids)))
             }
         }
     }
@@ -250,9 +235,9 @@ pub(crate) fn lift_node_type_col<'a>(
         }),
         (None, Some(layer_index)) => {
             let col = &df.chunk[layer_index];
-            if let Some(col) = col.as_string_opt() {
+            if let Some(col) = col.as_string_opt::<i32>() {
                 Ok(LayerCol::Utf8 { col })
-            } else if let Some(col) = col.as_string_opt() {
+            } else if let Some(col) = col.as_string_opt::<i64>() {
                 Ok(LayerCol::LargeUtf8 { col })
             } else if let Some(col) = col.as_string_view_opt() {
                 Ok(LayerCol::Utf8View { col })

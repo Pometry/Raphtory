@@ -43,7 +43,6 @@ use std::{
 use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::{
-        edge_store::EdgeStorageInner,
         locked::{
             edges::{LockedEdgePage, WriteLockedEdgePages},
             nodes::LockedNodePage,
@@ -52,7 +51,6 @@ use storage::{
     },
     Extension,
 };
-use zip::write;
 
 #[derive(Debug, Copy, Clone)]
 pub struct ColumnNames<'a> {

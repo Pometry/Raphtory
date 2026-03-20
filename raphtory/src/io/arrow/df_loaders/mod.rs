@@ -261,7 +261,7 @@ fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + Ad
         |vid: &VID, idx, col_idx| {
             resolved_cols[col_idx][idx].store(vid.0, Ordering::Relaxed);
         },
-        |gid, _idx| {
+        |gid, _, _| {
             let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
             Ok(vid)
         },
@@ -274,16 +274,19 @@ fn resolve_nodes_and_type_with_cache<
 >(
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
+    node_types: &[&'a [usize]],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<FxDashMap<GidRef<'a>, VID>, GraphError> {
+) -> Result<FxDashMap<GidRef<'a>, (VID, usize)>, GraphError> {
     resolve_nodes_with_cache_generic(
         cols_to_resolve,
-        |vid: &VID, row, col_idx| {
+        |vid: &(VID, usize), row, col_idx| {
+            let (vid, _) = vid;
             resolved_cols[col_idx][row].store(vid.index(), Ordering::Relaxed);
         },
-        |gid, _| {
+        |gid, row, col_idx| {
             let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
-            Ok(vid)
+            let node_type = node_types[col_idx][row];
+            Ok((vid, node_type))
         },
     )
 }
@@ -291,7 +294,7 @@ fn resolve_nodes_and_type_with_cache<
 fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
     cols_to_resolve: &[&'a NodeCol],
     update_fn: impl Fn(&V, usize, usize) + Send + Sync,
-    new_fn: impl Fn(GidRef<'a>, usize) -> Result<V, GraphError> + Send + Sync,
+    new_fn: impl Fn(GidRef<'a>, usize, usize) -> Result<V, GraphError> + Send + Sync,
 ) -> Result<FxDashMap<GidRef<'a>, V>, GraphError> {
     let gid_str_cache: dashmap::DashMap<GidRef<'_>, V, _> = FxDashMap::default();
     let hasher_factory = gid_str_cache.hasher().clone();
@@ -312,7 +315,7 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
 
             for (col_id, node_col) in cols_to_resolve.iter().enumerate() {
                 // Process src_col sequentially for this shard
-                for (idx, gid) in node_col.iter().enumerate() {
+                for (row, gid) in node_col.iter().enumerate() {
                     // Check if this key belongs to this shard
                     if gid_str_cache.determine_map(&gid) != shard_idx {
                         continue; // Skip, not our shard
@@ -323,11 +326,11 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
                     // Check if exists in this shard
                     if let Some((_, value)) = shard_guard.get(hash, |(g, _)| g == &gid) {
                         let v = value.get();
-                        update_fn(v, idx, col_id);
+                        update_fn(v, row, col_id);
                     } else {
-                        let v = new_fn(gid, idx)?;
+                        let v = new_fn(gid, row, col_id)?;
 
-                        update_fn(&v, idx, col_id);
+                        update_fn(&v, row, col_id);
                         let data = (gid, SharedValue::new(v));
                         shard_guard.insert(hash, data, hasher_fn);
                     }
