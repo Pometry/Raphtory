@@ -13,7 +13,7 @@ use crate::{
         ROW_GROUP_SIZE, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
 };
-use arrow::datatypes::{DataType, Field};
+use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;
 use raphtory_api::{core::entities::edges::edge_ref::Dir, iter::IntoDynBoxed};
 use raphtory_storage::{
@@ -49,20 +49,17 @@ fn get_nodes_par_iter<'a, G: GraphView>(
         })
 }
 
-pub(crate) fn encode_nodes_tprop<G: GraphView>(
+pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    path: impl AsRef<Path>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
-    let root_dir = path.as_ref().join(NODES_T_PATH);
     run_encode_indexed(
         g,
         g.node_meta().temporal_prop_mapper(),
         get_nodes_par_iter(g, &nodes_locked),
-        |schema, chunk, num_digits| {
-            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
-        },
+        sink_factory_fn,
         |_| {
             vec![
                 Field::new(NODE_VID_COL, DataType::UInt64, false),
@@ -95,8 +92,7 @@ pub(crate) fn encode_nodes_tprop<G: GraphView>(
             {
                 decoder.serialize(&node_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    RecordBatchSink::write_batch(sink, &rb)?;
-                    RecordBatchSink::flush(sink)?;
+                    RecordBatchSink::send_batch(sink, rb)?;
                 }
             }
             Ok(())
@@ -104,20 +100,17 @@ pub(crate) fn encode_nodes_tprop<G: GraphView>(
     )
 }
 
-pub(crate) fn encode_nodes_cprop<G: GraphView>(
+pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    path: impl AsRef<Path>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let nodes_locked = graph_locked.nodes();
-    let root_dir = path.as_ref().join(NODES_C_PATH);
     run_encode_indexed(
         g,
         g.node_meta().metadata_mapper(),
         get_nodes_par_iter(g, &nodes_locked),
-        |schema, chunk, num_digits| {
-            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
-        },
+        sink_factory_fn,
         |id_type| {
             vec![
                 Field::new(NODE_ID_COL, id_type.clone(), false),
@@ -141,8 +134,7 @@ pub(crate) fn encode_nodes_cprop<G: GraphView>(
                 decoder.serialize(&node_rows)?;
 
                 if let Some(rb) = decoder.flush()? {
-                    RecordBatchSink::write_batch(sink, &rb)?;
-                    RecordBatchSink::flush(sink)?;
+                    RecordBatchSink::send_batch(sink, rb)?;
                 }
             }
 

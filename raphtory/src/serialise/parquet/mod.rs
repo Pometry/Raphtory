@@ -35,7 +35,7 @@ use model::ParquetTEdge;
 use parquet::{
     arrow::{arrow_reader::ArrowReaderMetadata, ArrowWriter},
     basic::Compression,
-    file::properties::WriterProperties,
+    file::{metadata::KeyValue, properties::WriterProperties},
 };
 use raphtory_api::{
     core::entities::{
@@ -188,14 +188,14 @@ const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
 impl ParquetEncoder for Graph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let gs = self.core_graph().lock();
-        encode_graph_storage(&gs, path, GraphType::EventGraph)
+        encode_graph_storage_to_parquet(&gs, path, GraphType::EventGraph)
     }
 }
 
 impl ParquetEncoder for PersistentGraph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
         let gs = self.core_graph().lock();
-        encode_graph_storage(&gs, path, GraphType::PersistentGraph)
+        encode_graph_storage_to_parquet(&gs, path, GraphType::PersistentGraph)
     }
 }
 
@@ -211,8 +211,7 @@ impl ParquetEncoder for MaterializedGraph {
 }
 
 pub trait RecordBatchSink {
-    fn write_batch(&mut self, batch: &RecordBatch) -> Result<(), GraphError>;
-    fn flush(&mut self) -> Result<(), GraphError>;
+    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError>;
     fn finish(self) -> Result<(), GraphError>
     where
         Self: Sized;
@@ -222,16 +221,65 @@ impl<W> RecordBatchSink for ArrowWriter<W>
 where
     W: Write + Seek + Send,
 {
-    fn write_batch(&mut self, batch: &RecordBatch) -> Result<(), GraphError> {
-        self.write(batch)?;
-        Ok(())
-    }
-    fn flush(&mut self) -> Result<(), GraphError> {
+    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
+        ArrowWriter::write(self, &batch)?;
         ArrowWriter::flush(self)?;
         Ok(())
     }
+
     fn finish(self) -> Result<(), GraphError> {
         self.close()?;
+        Ok(())
+    }
+}
+
+type RecordBatchTx = crossbeam_channel::Sender<RecordBatchMessage>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RecordBatchKind {
+    EdgesT,
+    EdgesC,
+    EdgesD,
+    NodesT,
+    NodesC,
+    GraphT,
+    GraphC,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct RecordBatchMessage {
+    batch: RecordBatch,
+    kind: RecordBatchKind,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ChannelRecordBatchSink {
+    tx: RecordBatchTx,
+    kind: RecordBatchKind,
+    schema: SchemaRef,
+}
+
+impl ChannelRecordBatchSink {
+    fn new(tx: RecordBatchTx, kind: RecordBatchKind, schema: SchemaRef) -> Self {
+        Self { tx, kind, schema }
+    }
+}
+
+impl RecordBatchSink for ChannelRecordBatchSink {
+    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
+        // sinks propagate their record batch kind to their messages
+        let record_batch_message = RecordBatchMessage {
+            batch,
+            kind: self.kind,
+        };
+
+        self.tx
+            .send(record_batch_message)
+            .map_err(|e| GraphError::IOErrorMsg(format!("RecordBatch receiver was dropped: {e}")))
+    }
+
+    fn finish(self) -> Result<(), GraphError> {
+        // implicitly drops self, so the transmitter (tx) is dropped as well
         Ok(())
     }
 }
@@ -241,11 +289,13 @@ pub(crate) fn create_arrow_writer_sink(
     schema: SchemaRef,
     chunk: usize,
     filename_num_digits: usize,
+    key_value_metadata: Option<Vec<KeyValue>>,
 ) -> Result<ArrowWriter<File>, GraphError> {
     std::fs::create_dir_all(&root_dir)?;
 
     let writer_properties = WriterProperties::builder()
         .set_compression(Compression::SNAPPY)
+        .set_key_value_metadata(key_value_metadata)
         .build();
 
     let node_file = File::create(root_dir.join(format!("{chunk:0filename_num_digits$}.parquet")))?;
@@ -256,18 +306,85 @@ pub(crate) fn create_arrow_writer_sink(
     )?)
 }
 
-fn encode_graph_storage<G: GraphView>(
+fn encode_graph_storage_to_parquet<G: GraphView>(
     g: &G,
     path: impl AsRef<Path>,
     graph_type: GraphType,
 ) -> Result<(), GraphError> {
-    encode_edge_tprop(g, path.as_ref())?;
-    encode_edge_cprop(g, path.as_ref())?;
-    encode_edge_deletions(g, path.as_ref())?;
-    encode_nodes_tprop(g, path.as_ref())?;
-    encode_nodes_cprop(g, path.as_ref())?;
-    encode_graph_tprop(g, path.as_ref())?;
-    encode_graph_cprop(g, graph_type, path.as_ref())?;
+    let base_dir = path.as_ref();
+
+    encode_edge_tprop(g, |schema, chunk, num_digits| {
+        create_arrow_writer_sink(
+            &base_dir.join(EDGES_T_PATH),
+            schema.clone(),
+            chunk,
+            num_digits,
+            None,
+        )
+    })?;
+    encode_edge_cprop(g, |schema, chunk, num_digits| {
+        create_arrow_writer_sink(
+            &base_dir.join(EDGES_C_PATH),
+            schema.clone(),
+            chunk,
+            num_digits,
+            None,
+        )
+    })?;
+    encode_edge_deletions(g, |schema, chunk, num_digits| {
+        create_arrow_writer_sink(
+            &base_dir.join(EDGES_D_PATH),
+            schema.clone(),
+            chunk,
+            num_digits,
+            None,
+        )
+    })?;
+    encode_nodes_tprop(g, |schema, chunk, num_digits| {
+        create_arrow_writer_sink(
+            &base_dir.join(NODES_T_PATH),
+            schema.clone(),
+            chunk,
+            num_digits,
+            None,
+        )
+    })?;
+    encode_nodes_cprop(g, |schema, chunk, num_digits| {
+        create_arrow_writer_sink(
+            &base_dir.join(NODES_C_PATH),
+            schema.clone(),
+            chunk,
+            num_digits,
+            None,
+        )
+    })?;
+    encode_graph_tprop(g, |schema, chunk, num_digits| {
+        create_arrow_writer_sink(
+            &base_dir.join(GRAPH_T_PATH),
+            schema.clone(),
+            chunk,
+            num_digits,
+            None,
+        )
+    })?;
+    encode_graph_cprop(g, |schema, chunk, num_digits| {
+        let graph_type_str = match graph_type {
+            GraphType::EventGraph => EVENT_GRAPH_TYPE,
+            GraphType::PersistentGraph => PERSISTENT_GRAPH_TYPE,
+        };
+        let key_value_metadata = vec![KeyValue::new(
+            GRAPH_TYPE.to_string(),
+            Some(graph_type_str.to_string()),
+        )];
+
+        create_arrow_writer_sink(
+            &base_dir.join(GRAPH_C_PATH),
+            schema.clone(),
+            chunk,
+            num_digits,
+            Some(key_value_metadata),
+        )
+    })?;
     Ok(())
 }
 

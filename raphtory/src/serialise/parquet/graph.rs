@@ -7,7 +7,7 @@ use crate::{
         GRAPH_TYPE, GRAPH_T_PATH, PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
     },
 };
-use arrow::datatypes::{DataType, Field};
+use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;
 use parquet::file::metadata::KeyValue;
 use raphtory_api::{
@@ -19,15 +19,15 @@ use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
 use std::{collections::HashMap, path::Path};
 
-pub fn encode_graph_tprop<G: GraphView>(g: &G, path: impl AsRef<Path>) -> Result<(), GraphError> {
-    let root_dir = path.as_ref().join(GRAPH_T_PATH);
+pub fn encode_graph_tprop<G: GraphView, S: RecordBatchSink>(
+    g: &G,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
+) -> Result<(), GraphError> {
     run_encode(
         g,
         g.graph_props_meta().temporal_prop_mapper(),
         1,
-        |schema, chunk, num_digits| {
-            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
-        },
+        sink_factory_fn,
         |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
@@ -68,8 +68,7 @@ pub fn encode_graph_tprop<G: GraphView>(g: &G, path: impl AsRef<Path>) -> Result
             decoder.serialize(&rows)?;
 
             if let Some(rb) = decoder.flush()? {
-                RecordBatchSink::write_batch(sink, &rb)?;
-                RecordBatchSink::flush(sink)?;
+                RecordBatchSink::send_batch(sink, rb)?;
             }
 
             Ok(())
@@ -101,19 +100,15 @@ impl Serialize for Row {
     }
 }
 
-pub fn encode_graph_cprop<G: GraphView>(
+pub fn encode_graph_cprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    graph_type: GraphType,
-    path: impl AsRef<Path>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
-    let root_dir = path.as_ref().join(GRAPH_C_PATH);
     run_encode(
         g,
         g.graph_props_meta().metadata_mapper(),
         1,
-        |schema, chunk, num_digits| {
-            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
-        },
+        sink_factory_fn,
         |_| vec![Field::new(TIME_COL, DataType::Int64, true)],
         |_, g, decoder, sink| {
             let row = g.metadata().as_map();
@@ -123,22 +118,8 @@ pub fn encode_graph_cprop<G: GraphView>(
             decoder.serialize(&rows)?;
 
             if let Some(rb) = decoder.flush()? {
-                RecordBatchSink::write_batch(sink, &rb)?;
-                RecordBatchSink::flush(sink)?;
+                RecordBatchSink::send_batch(sink, rb)?;
             }
-
-            // even though encode_fn in run_encode() expects a generic RecordBatchSink, we can access
-            // ArrowWriter<File> specific functions here because the type S gets resolved in this closure
-            match graph_type {
-                GraphType::EventGraph => sink.append_key_value_metadata(KeyValue::new(
-                    GRAPH_TYPE.to_string(),
-                    Some(EVENT_GRAPH_TYPE.to_string()),
-                )),
-                GraphType::PersistentGraph => sink.append_key_value_metadata(KeyValue::new(
-                    GRAPH_TYPE.to_string(),
-                    Some(PERSISTENT_GRAPH_TYPE.to_string()),
-                )),
-            };
 
             Ok(())
         },

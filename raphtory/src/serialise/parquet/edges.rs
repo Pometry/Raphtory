@@ -49,20 +49,17 @@ fn get_edges_par_iter<'a, G: GraphView>(
         })
 }
 
-pub(crate) fn encode_edge_tprop<G: GraphView>(
+pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    path: impl AsRef<Path>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
-    let root_dir = path.as_ref().join(EDGES_T_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
         get_edges_par_iter(g, &edges_locked),
-        |schema, chunk, num_digits| {
-            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
-        },
+        sink_factory_fn,
         |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
@@ -91,8 +88,7 @@ pub(crate) fn encode_edge_tprop<G: GraphView>(
             {
                 decoder.serialize(&edge_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    RecordBatchSink::write_batch(sink, &rb)?;
-                    RecordBatchSink::flush(sink)?;
+                    RecordBatchSink::send_batch(sink, rb)?;
                 }
             }
             Ok(())
@@ -100,20 +96,17 @@ pub(crate) fn encode_edge_tprop<G: GraphView>(
     )
 }
 
-pub(crate) fn encode_edge_deletions<G: GraphView>(
+pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    path: impl AsRef<Path>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
-    let root_dir = path.as_ref().join(EDGES_D_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().temporal_prop_mapper(),
         get_edges_par_iter(g, &edges_locked),
-        |schema, chunk, num_digits| {
-            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
-        },
+        sink_factory_fn,
         |_| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
@@ -156,8 +149,7 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
             {
                 decoder.serialize(&edge_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    RecordBatchSink::write_batch(sink, &rb)?;
-                    RecordBatchSink::flush(sink)?;
+                    RecordBatchSink::send_batch(sink, rb)?;
                 }
             }
             Ok(())
@@ -165,20 +157,17 @@ pub(crate) fn encode_edge_deletions<G: GraphView>(
     )
 }
 
-pub(crate) fn encode_edge_cprop<G: GraphView>(
+pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    path: impl AsRef<Path>,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
-    let root_dir = path.as_ref().join(EDGES_C_PATH);
     run_encode_indexed(
         g,
         g.edge_meta().metadata_mapper(),
         get_edges_par_iter(g, &edges_locked),
-        |schema, chunk, num_digits| {
-            create_arrow_writer_sink(&root_dir, schema.clone(), chunk, num_digits)
-        },
+        sink_factory_fn,
         |_| {
             vec![
                 Field::new(SRC_COL_ID, DataType::UInt64, false),
@@ -203,8 +192,7 @@ pub(crate) fn encode_edge_cprop<G: GraphView>(
             {
                 decoder.serialize(&edge_rows)?;
                 if let Some(rb) = decoder.flush()? {
-                    RecordBatchSink::write_batch(sink, &rb)?;
-                    RecordBatchSink::flush(sink)?;
+                    RecordBatchSink::send_batch(sink, rb)?;
                 }
             }
             Ok(())
