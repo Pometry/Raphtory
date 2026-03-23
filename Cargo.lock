@@ -4625,6 +4625,7 @@ dependencies = [
  "tantivy",
  "tempfile",
  "thiserror 2.0.17",
+ "tikv-jemallocator",
  "tokio",
  "tracing",
  "uuid",

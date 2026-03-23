@@ -500,7 +500,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
             .into(),
             segment_id: page_id,
             num_edges: AtomicU32::new(0),
-            ext: ext,
+            ext,
         }
     }
 
@@ -529,6 +529,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn set_dirty(&self, _dirty: bool) {}
+
+    fn is_dirty(&self) -> bool {
+        true
+    }
 
     fn notify_write(
         &self,

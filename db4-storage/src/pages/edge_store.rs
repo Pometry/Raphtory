@@ -162,6 +162,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         &self.segments
     }
 
+    pub fn num_segments(&self) -> usize {
+        self.segments.count()
+    }
+
     pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
         let free_pages = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
@@ -640,7 +644,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             })
     }
 
-    pub(crate) fn segment_counts(&self) -> SegmentCounts<EID> {
+    pub fn segment_counts(&self) -> SegmentCounts<EID> {
         SegmentCounts::new(
             self.max_page_len(),
             self.pages().iter().map(|(_, seg)| seg.num_edges()),

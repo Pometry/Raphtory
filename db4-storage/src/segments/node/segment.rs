@@ -400,7 +400,7 @@ pub struct NodeSegmentView<EXT> {
     inner: Arc<RwLock<MemNodeSegment>>,
     segment_id: usize,
     max_num_node: AtomicU32,
-    ext: EXT,
+    _ext: EXT,
 }
 
 #[derive(Debug)]
@@ -484,13 +484,17 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         Self {
             inner,
             segment_id,
-            ext: ext,
+            _ext: ext,
             max_num_node: AtomicU32::new(0),
         }
     }
 
     fn segment_id(&self) -> usize {
         self.segment_id
+    }
+
+    fn is_dirty(&self) -> bool {
+        true
     }
 
     #[inline(always)]

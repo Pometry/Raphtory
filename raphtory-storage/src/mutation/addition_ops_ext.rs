@@ -331,6 +331,23 @@ impl InternalAdditionOps for TemporalGraph {
         Ok((vid, node_type_id))
     }
 
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        let vid = match self.logical_to_physical.get(id) {
+            Some(vid) => vid,
+            None => {
+                let (seg, pos) = self
+                    .storage()
+                    .nodes()
+                    .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
+                let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
+                self.logical_to_physical.set(id, new_vid)?;
+                new_vid
+            }
+        };
+
+        Ok(vid)
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,

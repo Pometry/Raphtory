@@ -24,10 +24,7 @@ use crate::{
         GraphPaths,
     },
 };
-use arrow::{
-    datatypes::{DataType, Field, Schema, SchemaRef},
-    ipc::RecordBatch,
-};
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use arrow_json::{reader::Decoder, ReaderBuilder};
 use edges::{encode_edge_cprop, encode_edge_tprop};
 use itertools::Itertools;

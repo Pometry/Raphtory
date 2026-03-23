@@ -62,6 +62,10 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     pub fn ensure_layer(&mut self, layer_id: usize) {
         self.lock.get_or_create_layer(layer_id);
     }
+
+    pub fn page(&self) -> &ES {
+        &self.page
+    }
 }
 #[derive(Debug)]
 pub struct WriteLockedEdgePages<'a, ES> {

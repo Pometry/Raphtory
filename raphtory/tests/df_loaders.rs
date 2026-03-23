@@ -161,6 +161,37 @@ mod io_tests {
         }
     }
 
+    fn build_nodes_df(
+        chunk_size: usize,
+        nodes: &[(u64, i64, &str)],
+    ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>>> {
+        let chunks = nodes.iter().chunks(chunk_size);
+        let mut node_id_col = UInt64Builder::new();
+        let mut time_col = Int64Builder::new();
+        let mut node_type_col = StringViewBuilder::new();
+        let chunks = chunks
+            .into_iter()
+            .map(|chunk| {
+                for (node_id, time, node_type) in chunk {
+                    node_id_col.append_value(*node_id);
+                    time_col.append_value(*time);
+                    node_type_col.append_value(node_type);
+                }
+                let chunk = vec![
+                    ArrayBuilder::finish(&mut node_id_col),
+                    ArrayBuilder::finish(&mut time_col),
+                    ArrayBuilder::finish(&mut node_type_col),
+                ];
+                Ok(DFChunk { chunk })
+            })
+            .collect_vec();
+        DFView {
+            names: vec!["id".to_owned(), "time".to_owned(), "node_type".to_owned()],
+            chunks: chunks.into_iter(),
+            num_rows: Some(nodes.len()),
+        }
+    }
+
     fn build_nodes_df_with_secondary_index(
         chunk_size: usize,
         nodes: &[(u64, i64, u64, &str, i64, &str)],
@@ -690,6 +721,52 @@ mod io_tests {
             Some(ArcStr::from("TypeC")),
         ];
         assert_eq!(act_node_types, exp_node_types);
+    }
+
+    #[test]
+    fn test_load_node_type_only() {
+        // (node_id, time, node_type)
+        let nodes: Vec<(u64, i64, &str)> = vec![
+            (1, 1, "P1"),
+            (2, 2, "P2"),
+            (3, 3, "P3"),
+            (4, 4, "P4"),
+            (5, 5, "P5"),
+            (6, 6, "P6"),
+        ];
+
+        // CHECK ALL NODE FUNCTIONS ON GRAPH FAIL WITH BOTH node_type AND node_type_col
+        let g = Graph::new();
+        load_nodes_from_df(
+            build_nodes_df(50, &nodes),
+            "time",
+            None,
+            "id",
+            &[],
+            &[],
+            None,
+            None,              // node_type (constant name)
+            Some("node_type"), // node_type_col (column name) — conflict!
+            &g,
+            true,
+        )
+        .unwrap();
+        let mut result = g
+            .nodes()
+            .into_iter()
+            .map(|node| (node.id(), node.node_type()))
+            .collect::<Vec<_>>();
+
+        result.sort();
+        let expected: Vec<(GID, Option<ArcStr>)> = vec![
+            (1u64.into(), Some(ArcStr::from("P1"))),
+            (2u64.into(), Some(ArcStr::from("P2"))),
+            (3u64.into(), Some(ArcStr::from("P3"))),
+            (4u64.into(), Some(ArcStr::from("P4"))),
+            (5u64.into(), Some(ArcStr::from("P5"))),
+            (6u64.into(), Some(ArcStr::from("P6"))),
+        ];
+        assert_eq!(result, expected);
     }
 }
 
