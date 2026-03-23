@@ -2,6 +2,7 @@ use crate::{
     entities::properties::{props::TPropError, tprop::IllegalPropType},
     storage::lazy_vec::IllegalSet,
 };
+use arrow_array::builder::StringViewBuilder;
 use bigdecimal::BigDecimal;
 use lazy_vec::LazyVec;
 use raphtory_api::core::{
@@ -13,13 +14,15 @@ use serde::Serialize;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
+use crate::storage::string_col::StringCol;
 use raphtory_api::core::entities::properties::prop::PropArray;
 
 pub mod lazy_vec;
 pub mod locked_view;
+mod string_col;
 pub mod timeindex;
 
-#[derive(Debug, Serialize, PartialEq, Default)]
+#[derive(Debug, Default)]
 pub struct TColumns {
     t_props_log: Vec<PropColumn>,
     num_rows: usize,
@@ -118,7 +121,7 @@ impl TColumns {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug)]
 pub enum PropColumn {
     Empty(usize),
     Bool(LazyVec<bool>),
@@ -130,7 +133,7 @@ pub enum PropColumn {
     I64(LazyVec<i64>),
     F32(LazyVec<f32>),
     F64(LazyVec<f64>),
-    Str(LazyVec<ArcStr>),
+    Str(StringCol),
     List(LazyVec<PropArray>),
     Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
@@ -195,31 +198,6 @@ impl PropColumn {
     pub(crate) fn grow(&mut self, new_len: usize) {
         while self.len() < new_len {
             self.push_null();
-        }
-    }
-
-    fn init_from_prop_type(&mut self, prop_type: impl Into<PropType>) {
-        if let PropColumn::Empty(len) = self {
-            match prop_type.into() {
-                PropType::Bool => *self = PropColumn::Bool(LazyVec::with_len(*len)),
-                PropType::I64 => *self = PropColumn::I64(LazyVec::with_len(*len)),
-                PropType::U32 => *self = PropColumn::U32(LazyVec::with_len(*len)),
-                PropType::U64 => *self = PropColumn::U64(LazyVec::with_len(*len)),
-                PropType::F32 => *self = PropColumn::F32(LazyVec::with_len(*len)),
-                PropType::F64 => *self = PropColumn::F64(LazyVec::with_len(*len)),
-                PropType::Str => *self = PropColumn::Str(LazyVec::with_len(*len)),
-                PropType::U8 => *self = PropColumn::U8(LazyVec::with_len(*len)),
-                PropType::U16 => *self = PropColumn::U16(LazyVec::with_len(*len)),
-                PropType::I32 => *self = PropColumn::I32(LazyVec::with_len(*len)),
-                PropType::List(_) => *self = PropColumn::List(LazyVec::with_len(*len)),
-                PropType::Map(_) => *self = PropColumn::Map(LazyVec::with_len(*len)),
-                PropType::NDTime => *self = PropColumn::NDTime(LazyVec::with_len(*len)),
-                PropType::DTime => *self = PropColumn::DTime(LazyVec::with_len(*len)),
-                PropType::Decimal { .. } => *self = PropColumn::Decimal(LazyVec::with_len(*len)),
-                PropType::Empty => {
-                    panic!("Cannot initialize PropColumn from Empty PropType")
-                }
-            }
         }
     }
 
@@ -316,7 +294,7 @@ impl PropColumn {
                 Prop::U64(_) => *self = PropColumn::U64(LazyVec::with_len(*len)),
                 Prop::F32(_) => *self = PropColumn::F32(LazyVec::with_len(*len)),
                 Prop::F64(_) => *self = PropColumn::F64(LazyVec::with_len(*len)),
-                Prop::Str(_) => *self = PropColumn::Str(LazyVec::with_len(*len)),
+                Prop::Str(_) => *self = PropColumn::Str(StringCol::with_len(*len)),
                 Prop::U8(_) => *self = PropColumn::U8(LazyVec::with_len(*len)),
                 Prop::U16(_) => *self = PropColumn::U16(LazyVec::with_len(*len)),
                 Prop::I32(_) => *self = PropColumn::I32(LazyVec::with_len(*len)),
