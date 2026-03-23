@@ -18,7 +18,10 @@ use crate::{
     },
     prelude::*,
 };
-use arrow::{array::AsArray, datatypes::UInt64Type};
+use arrow::{
+    array::{AsArray, NullBufferBuilder},
+    datatypes::UInt64Type,
+};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
@@ -438,8 +441,10 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .for_each(|(segment_id, shard)| {
                 if !edge_segments_touched[segment_id].load(Ordering::Relaxed) {
                     // we still need the writer in case we need to flush
-                    let mut _writer = shard.writer();
-                    return;
+                    if shard.page().is_dirty() {
+                        let mut _writer = shard.writer();
+                        return;
+                    }
                 }
 
                 let zip = izip!(

@@ -192,7 +192,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.mut_segment.increment_est_size(add);
     }
 
-    #[inline(always)]
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
         self.page
             .get_out_edge(pos, dst, layer_id, self.mut_segment.deref())
