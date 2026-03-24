@@ -254,6 +254,11 @@ pub enum StringCol {
     },
 }
 
+impl Default for StringCol {
+    fn default() -> Self {
+        StringCol::Empty { len: 0 }
+    }
+}
 impl StringCol {
     pub fn with_len(len: usize) -> Self {
         StringCol::Empty { len }
@@ -365,5 +370,39 @@ impl StringCol {
             StringCol::One { len, .. } => *len += 1,
             StringCol::Many { values } => values.append_null(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::storage::string_col::StringCol;
+    use proptest::{arbitrary::any, proptest};
+    use raphtory_api::core::storage::arc_str::OptionAsStr;
+
+    #[test]
+    fn test_upsert_and_push() {
+        proptest!(|(mut old_values in proptest::collection::vec(any::<Option<String>>(), 0..100usize), new_value in any::<String>(), new_index in 0..100usize)|{
+            let mut col = StringCol::default();
+            for v in &old_values {
+                match v {
+                    None => {col.push_null()}
+                    Some(v) => {col.push_value(v).unwrap()}
+                }
+            }
+            assert_eq!(col.len(), old_values.len());
+            for (i, v) in old_values.iter().enumerate() {
+                assert_eq!(col.get_opt(i), v.as_str());
+            }
+
+            // upsert
+            col.upsert(new_index, &new_value).unwrap();
+
+            old_values.resize(old_values.len().max(new_index+1), None);
+            old_values[new_index] = Some(new_value);
+            assert_eq!(col.len(), old_values.len());
+            for (i, v) in old_values.iter().enumerate() {
+                assert_eq!(col.get_opt(i), v.as_str());
+            }
+        })
     }
 }
