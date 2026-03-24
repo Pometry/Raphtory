@@ -18,7 +18,7 @@ use raphtory_api::core::{
         EID, VID,
         properties::{
             meta::Meta,
-            prop::{AsPropRef, Prop},
+            prop::{AsPropRef, Prop, PropRef},
         },
     },
 };
@@ -335,11 +335,11 @@ impl MemNodeSegment {
         (is_new, layer_est_size - est_size)
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         node_pos: LocalPOS,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(layer_id) {
             layer.check_metadata(node_pos, props)?;
@@ -347,11 +347,11 @@ impl MemNodeSegment {
         Ok(())
     }
 
-    pub fn update_metadata(
+    pub fn update_metadata<P: AsPropRef>(
         &mut self,
         node_pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let segment_container = self.get_or_create_layer(layer_id);
         let est_size = segment_container.est_size();

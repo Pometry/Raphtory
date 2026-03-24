@@ -2,12 +2,11 @@ use crate::{
     entities::properties::{props::TPropError, tprop::IllegalPropType},
     storage::lazy_vec::IllegalSet,
 };
-use arrow_array::builder::StringViewBuilder;
 use arrow_schema::ArrowError;
-use bigdecimal::BigDecimal;
+use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use lazy_vec::LazyVec;
 use raphtory_api::core::{
-    entities::properties::prop::{AsPropRef, Prop, PropRef, PropType},
+    entities::properties::prop::{prop_col::PropCol, AsPropRef, Prop, PropRef, PropType},
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
@@ -16,7 +15,9 @@ use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
 use crate::storage::string_col::StringCol;
-use raphtory_api::core::entities::properties::prop::{IntoProp, PropArray, PropMapRef, PropNum};
+use raphtory_api::core::entities::properties::prop::{
+    IntoProp, PropArray, PropMapRef, PropNum, PropUnwrap,
+};
 
 pub mod lazy_vec;
 pub mod locked_view;
@@ -218,20 +219,23 @@ impl PropColumn {
             (PropColumn::U16(col), PropRef::Num(PropNum::U16(v))) => col.upsert(index, v),
             (PropColumn::I32(col), PropRef::Num(PropNum::I32(v))) => col.upsert(index, v),
             (PropColumn::List(col), PropRef::List(v)) => col.upsert(index, v.into_owned()),
-            (PropColumn::Map(col), PropRef::Map(v)) => {
-                match v {
-                    PropMapRef::Mem(map) => col.upsert(index, map.clone()),
-                    PropMapRef::Arrow(arc_map) => {
-                        if let Some(prop) = arc_map.into_prop() {
-                            if let Some(map_ref) = prop.as_prop_ref().as_map_ref() {
-                                if let Some(map) = map_ref.as_map() {
-                                    col.upsert(index, map.clone());
-                                }
+            (PropColumn::Map(col), PropRef::Map(v)) => match v {
+                PropMapRef::Mem(map) => col.upsert(index, map.clone()),
+                PropMapRef::PropCol { map, i } => {
+                    if let Some(entry) = map.get(i).and_then(|prop| prop.into_map()) {
+                        col.upsert(index, entry);
+                    }
+                }
+                PropMapRef::Arrow(arc_map) => {
+                    if let Some(prop) = arc_map.into_prop() {
+                        if let Some(map_ref) = prop.as_prop_ref().as_map_ref() {
+                            if let Some(map) = map_ref.as_map() {
+                                col.upsert(index, map.clone());
                             }
                         }
                     }
                 }
-            }
+            },
             (PropColumn::NDTime(col), PropRef::NDTime(v)) => col.upsert(index, v),
             (PropColumn::DTime(col), PropRef::DTime(v)) => col.upsert(index, v),
             (PropColumn::Decimal(col), PropRef::Decimal { num, scale }) => {
@@ -247,28 +251,31 @@ impl PropColumn {
         Ok(())
     }
 
-    pub fn check(&self, index: usize, prop: &Prop) -> Result<(), TPropColumnError> {
+    pub fn check(&self, index: usize, prop: &PropRef<'_>) -> Result<(), TPropColumnError> {
         match (self, prop) {
             (PropColumn::Empty(_), _) => {}
-            (PropColumn::Bool(col), Prop::Bool(v)) => col.check(index, v)?,
-            (PropColumn::I64(col), Prop::I64(v)) => col.check(index, v)?,
-            (PropColumn::U32(col), Prop::U32(v)) => col.check(index, v)?,
-            (PropColumn::U64(col), Prop::U64(v)) => col.check(index, v)?,
-            (PropColumn::F32(col), Prop::F32(v)) => col.check(index, v)?,
-            (PropColumn::F64(col), Prop::F64(v)) => col.check(index, v)?,
-            (PropColumn::Str(col), Prop::Str(v)) => col.check(index, v)?,
-            (PropColumn::U8(col), Prop::U8(v)) => col.check(index, v)?,
-            (PropColumn::U16(col), Prop::U16(v)) => col.check(index, v)?,
-            (PropColumn::I32(col), Prop::I32(v)) => col.check(index, v)?,
-            (PropColumn::List(col), Prop::List(v)) => col.check(index, v)?,
-            (PropColumn::Map(col), Prop::Map(v)) => col.check(index, v)?,
-            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.check(index, v)?,
-            (PropColumn::DTime(col), Prop::DTime(v)) => col.check(index, v)?,
-            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.check(index, v)?,
+            (PropColumn::Bool(col), PropRef::Bool(v)) => col.check(index, v)?,
+            (PropColumn::I64(col), PropRef::Num(PropNum::I64(v))) => col.check(index, v)?,
+            (PropColumn::U32(col), PropRef::Num(PropNum::U32(v))) => col.check(index, v)?,
+            (PropColumn::U64(col), PropRef::Num(PropNum::U64(v))) => col.check(index, v)?,
+            (PropColumn::F32(col), PropRef::Num(PropNum::F32(v))) => col.check(index, v)?,
+            (PropColumn::F64(col), PropRef::Num(PropNum::F64(v))) => col.check(index, v)?,
+            (PropColumn::Str(col), PropRef::Str(v)) => col.check(index, v)?,
+            (PropColumn::U8(col), PropRef::Num(PropNum::U8(v))) => col.check(index, v)?,
+            (PropColumn::U16(col), PropRef::Num(PropNum::U16(v))) => col.check(index, v)?,
+            (PropColumn::I32(col), PropRef::Num(PropNum::I32(v))) => col.check(index, v)?,
+            (PropColumn::List(col), PropRef::List(v)) => col.check(index, v)?,
+            (PropColumn::Map(col), PropRef::Map(v)) => col.check(index, &v.as_mem())?,
+            (PropColumn::NDTime(col), PropRef::NDTime(v)) => col.check(index, v)?,
+            (PropColumn::DTime(col), PropRef::DTime(v)) => col.check(index, v)?,
+            (PropColumn::Decimal(col), PropRef::Decimal { num, scale }) => col.check(
+                index,
+                &BigDecimal::from_bigint(BigInt::from(*num), *scale as i64),
+            )?,
             (col, prop) => {
                 Err(IllegalPropType {
                     expected: col.dtype(),
-                    actual: prop.dtype(),
+                    actual: prop.clone().into_prop().dtype(),
                 })?;
             }
         }
@@ -289,9 +296,13 @@ impl PropColumn {
             (PropColumn::U16(col), PropRef::Num(PropNum::U16(v))) => col.push(Some(v)),
             (PropColumn::I32(col), PropRef::Num(PropNum::I32(v))) => col.push(Some(v)),
             (PropColumn::List(col), PropRef::List(v)) => col.push(Some(v.into_owned())),
-            (PropColumn::Map(col), PropRef::Map(v)) => { // FIXME: if we start bulk loading complex structs this won't do
+            (PropColumn::Map(col), PropRef::Map(v)) => {
+                // FIXME: if we start bulk loading complex structs this won't do
                 match v {
                     PropMapRef::Mem(map) => col.push(Some(map.clone())),
+                    PropMapRef::PropCol { map, i } => {
+                        col.push(map.get(i).and_then(|prop| prop.into_map()))
+                    }
                     PropMapRef::Arrow(arc_map) => {
                         if let Some(prop) = arc_map.into_prop() {
                             if let Some(map_ref) = prop.as_prop_ref().as_map_ref() {

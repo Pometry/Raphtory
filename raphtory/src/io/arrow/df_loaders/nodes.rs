@@ -43,6 +43,7 @@ use storage::{
 use crate::io::arrow::df_loaders::build_progress_bar;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
+use raphtory_api::core::entities::properties::prop::AsPropRef;
 
 #[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
@@ -200,9 +201,11 @@ pub fn load_nodes_from_df<
                             update_time(t);
 
                             let t_props = prop_cols.iter_row(row);
-                            let c_props = metadata_cols
-                                .iter_row(row)
-                                .chain(shared_metadata.iter().cloned());
+                            let c_props = metadata_cols.iter_row(row).chain(
+                                shared_metadata
+                                    .iter()
+                                    .map(|(id, prop)| (*id, prop.as_prop_ref())),
+                            );
 
                             writer.add_props(t, mut_node, layer_id, t_props);
                             writer.update_c_props(mut_node, layer_id, c_props);
@@ -341,7 +344,7 @@ pub fn load_node_props_from_df<
 
                         c_props.clear();
                         c_props.extend(metadata_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_metadata);
+                        c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
                             writer.update_c_props(

@@ -15,7 +15,10 @@ use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::{
     entities::{
         VID,
-        properties::{meta::Meta, prop::Prop},
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop, PropRef},
+        },
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -33,7 +36,6 @@ use std::{
         atomic::{self, AtomicU32, AtomicUsize, Ordering},
     },
 };
-use raphtory_api::core::entities::properties::prop::AsPropRef;
 
 #[derive(Debug, Default)]
 pub struct EdgeEntry {
@@ -173,7 +175,7 @@ impl MemEdgeSegment {
     /// insert an edge
     ///
     /// returns a boolean flag indicating if the edge is new
-    pub fn insert_edge_internal<T: AsTime, P:AsPropRef>(
+    pub fn insert_edge_internal<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         edge_pos: LocalPOS,
@@ -291,11 +293,11 @@ impl MemEdgeSegment {
         row.map(|row| row.row)
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(layer_id) {
             layer.check_metadata(edge_pos, props)?;
@@ -304,7 +306,7 @@ impl MemEdgeSegment {
         Ok(())
     }
 
-    pub fn update_const_properties<P:AsPropRef>(
+    pub fn update_const_properties<P: AsPropRef>(
         &mut self,
         edge_pos: LocalPOS,
         src: VID,

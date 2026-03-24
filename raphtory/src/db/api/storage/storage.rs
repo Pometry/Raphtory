@@ -36,6 +36,7 @@ use std::{
 };
 use storage::wal::{GraphWalOps, WalOps, LSN};
 
+use raphtory_api::core::entities::properties::prop::{AsPropRef, IntoProp};
 #[cfg(feature = "search")]
 use {
     crate::{
@@ -54,7 +55,6 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
-
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
@@ -573,17 +573,17 @@ impl InternalAdditionOps for Storage {
 impl InternalPropertyAdditionOps for Storage {
     type Error = GraphError;
 
-    fn internal_add_properties(
+    fn internal_add_properties<P: AsPropRef>(
         &self,
         t: EventTime,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<GraphPropWriterT<'_>, GraphError> {
         Ok(self.graph.internal_add_properties(t, props)?)
     }
 
-    fn internal_add_metadata(
+    fn internal_add_metadata<P: AsPropRef>(
         &self,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<GraphPropWriterT<'_>, GraphError> {
         Ok(self.graph.internal_add_metadata(props)?)
     }
@@ -595,13 +595,16 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(self.graph.internal_update_metadata(props)?)
     }
 
-    fn internal_add_node_metadata(
+    fn internal_add_node_metadata<P: AsPropRef>(
         &self,
         vid: VID,
-        props: Vec<(usize, Prop)>,
+        props: Vec<(usize, P)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
-        let props_for_index = props.clone();
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
 
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
@@ -627,16 +630,19 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(lock)
     }
 
-    fn internal_add_edge_metadata(
+    fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
         layer: usize,
-        props: Vec<(usize, Prop)>,
+        props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
 
         #[cfg(feature = "search")]
-        let props_for_index = props.clone();
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
 
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 

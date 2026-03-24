@@ -8,11 +8,13 @@ use crate::{
 };
 use raphtory_api::core::entities::{
     EID, VID,
-    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+    properties::{
+        meta::STATIC_GRAPH_LAYER_ID,
+        prop::{AsPropRef, Prop, PropRef},
+    },
 };
 use raphtory_core::storage::timeindex::{AsTime, EventTime};
 use std::ops::DerefMut;
-use raphtory_api::core::entities::properties::prop::AsPropRef;
 
 pub struct EdgeWriter<
     'a,
@@ -109,7 +111,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         edge_pos
     }
 
-    pub fn bulk_add_edge<P:AsPropRef>(
+    pub fn bulk_add_edge<P: AsPropRef>(
         &mut self,
         t: EventTime,
         edge_pos: LocalPOS,
@@ -187,11 +189,11 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.writer.set_lsn(lsn);
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         self.writer.check_metadata(edge_pos, layer_id, props)
     }

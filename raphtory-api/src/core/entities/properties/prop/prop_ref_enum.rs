@@ -1,6 +1,8 @@
 use crate::core::{
     entities::properties::prop::{
-        validate_bd, InvalidBigDecimal, Prop, PropArray, PropType, SerdeArrowList, SerdeArrowMap,
+        prop_col::{MapCol, PropCol},
+        validate_bd, ArrowRow, InvalidBigDecimal, Prop, PropArray, PropType, PropUnwrap,
+        SerdeArrowList, SerdeArrowMap,
     },
     storage::arc_str::ArcStr,
 };
@@ -11,9 +13,7 @@ use rustc_hash::FxHashMap;
 use serde::Serialize;
 use std::{borrow::Cow, sync::Arc};
 
-use crate::core::entities::properties::prop::ArrowRow;
-
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum PropRef<'a> {
     Str(&'a str),
     Num(PropNum),
@@ -35,9 +35,10 @@ impl PropRef<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum PropMapRef<'a> {
     Mem(&'a Arc<FxHashMap<ArcStr, Prop>>),
+    PropCol { map: &'a MapCol, i: usize },
     Arrow(ArrowRow<'a>),
 }
 
@@ -45,15 +46,24 @@ impl<'a> PropMapRef<'a> {
     pub fn into_prop(self) -> Option<Prop> {
         match self {
             PropMapRef::Mem(map) => Some(Prop::Map(map.clone())),
+            PropMapRef::PropCol { map, i } => map.get(i),
             PropMapRef::Arrow(row) => row.into_prop(),
         }
     }
-    
+
     pub fn as_map(&self) -> Option<&'a Arc<FxHashMap<ArcStr, Prop>>> {
         if let PropMapRef::Mem(m) = self {
             Some(*m)
         } else {
             None
+        }
+    }
+
+    pub fn as_mem(&self) -> Arc<FxHashMap<ArcStr, Prop>> {
+        match self {
+            PropMapRef::Mem(m) => (*m).clone(),
+            PropMapRef::PropCol { map, i } => map.get(*i).unwrap_map(),
+            PropMapRef::Arrow(row) => row.into_prop().unwrap_map(),
         }
     }
 }
@@ -180,33 +190,6 @@ impl<'a> PropRef<'a> {
             scale: scale as i8,
         })
     }
-
-    // pub fn dtype(&self) -> PropType {
-    //     match self {
-    //         PropRef::Str(_) => PropType::Str,
-    //         PropRef::Num(n) => match n {
-    //             PropNum::U8(_) => PropType::U8,
-    //             PropNum::U16(_) => PropType::U16,
-    //             PropNum::I32(_) => PropType::I32,
-    //             PropNum::I64(_) => PropType::I64,
-    //             PropNum::U32(_) => PropType::U32,
-    //             PropNum::U64(_) => PropType::U64,
-    //             PropNum::F32(_) => PropType::F32,
-    //             PropNum::F64(_) => PropType::F64,
-    //         },
-    //         PropRef::Bool(_) => PropType::Bool,
-    //         PropRef::List(lst) => PropType::List(Box::new(lst.dtype())),
-    //         PropRef::Map(m) => match m {
-    //             PropMapRef::Mem(map) => PropType::map(map.iter().map(|(k, v)| (k, v.dtype()))),
-    //             PropMapRef::Arrow(_) => PropType::Map,
-    //         },
-    //         PropRef::NDTime(_) => PropType::NDTime,
-    //         PropRef::DTime(_) => PropType::DTime,
-    //         PropRef::Decimal { scale, .. } => PropType::Decimal {
-    //             scale: *scale as i64,
-    //         },
-    //     }
-    // }
 }
 
 impl<'a> Serialize for PropMapRef<'a> {
@@ -216,6 +199,10 @@ impl<'a> Serialize for PropMapRef<'a> {
     {
         match self {
             PropMapRef::Mem(map) => SerdeArrowMap(map).serialize(serializer),
+            PropMapRef::PropCol { map, i } => match map.get_ref(*i) {
+                Some(prop) => prop.serialize(serializer),
+                None => serializer.serialize_none(),
+            },
             PropMapRef::Arrow(row) => row.serialize(serializer),
         }
     }

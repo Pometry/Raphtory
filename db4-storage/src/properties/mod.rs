@@ -8,8 +8,8 @@ use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
     prop::{
-        AsPropRef, Prop, PropType, SerdeArrowList, SerdeArrowMap, arrow_dtype_from_prop_type,
-        list_array_from_props, struct_array_from_props,
+        AsPropRef, Prop, PropRef, PropType, SerdeArrowList, SerdeArrowMap,
+        arrow_dtype_from_prop_type, list_array_from_props, struct_array_from_props,
     },
 };
 use raphtory_core::{
@@ -331,7 +331,10 @@ impl<'a> PropMutEntry<'a> {
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn append_const_props<P:AsPropRef>(&mut self, props: impl IntoIterator<Item = (usize, P)>) {
+    pub(crate) fn append_const_props<P: AsPropRef>(
+        &mut self,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) {
         for (prop_id, prop) in props {
             if self.properties.c_properties.len() <= prop_id {
                 self.properties
@@ -355,9 +358,9 @@ impl<'a> PropEntry<'a> {
         self.properties.c_column(prop_id)?.get(self.row)
     }
 
-    pub fn check_metadata(self, prop_id: usize, new_val: &Prop) -> Result<(), StorageError> {
+    pub fn check_metadata(self, prop_id: usize, new_val: PropRef<'_>) -> Result<(), StorageError> {
         if let Some(col) = self.properties.c_column(prop_id) {
-            col.check(self.row, new_val)
+            col.check(self.row, &new_val)
                 .map_err(Into::<MetadataError>::into)?;
         }
 
