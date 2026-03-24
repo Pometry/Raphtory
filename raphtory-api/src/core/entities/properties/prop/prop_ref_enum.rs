@@ -1,6 +1,6 @@
 use crate::core::{
     entities::properties::prop::{
-        validate_bd, InvalidBigDecimal, Prop, PropArray, SerdeArrowList, SerdeArrowMap,
+        validate_bd, InvalidBigDecimal, Prop, PropArray, PropType, SerdeArrowList, SerdeArrowMap,
     },
     storage::arc_str::ArcStr,
 };
@@ -25,6 +25,16 @@ pub enum PropRef<'a> {
     Decimal { num: i128, scale: i8 },
 }
 
+impl PropRef<'_> {
+    pub fn as_map_ref(&self) -> Option<PropMapRef<'_>> {
+        if let PropRef::Map(m) = self {
+            Some(*m)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum PropMapRef<'a> {
     Mem(&'a Arc<FxHashMap<ArcStr, Prop>>),
@@ -36,6 +46,14 @@ impl<'a> PropMapRef<'a> {
         match self {
             PropMapRef::Mem(map) => Some(Prop::Map(map.clone())),
             PropMapRef::Arrow(row) => row.into_prop(),
+        }
+    }
+    
+    pub fn as_map(&self) -> Option<&'a Arc<FxHashMap<ArcStr, Prop>>> {
+        if let PropMapRef::Mem(m) = self {
+            Some(*m)
+        } else {
+            None
         }
     }
 }
@@ -162,6 +180,33 @@ impl<'a> PropRef<'a> {
             scale: scale as i8,
         })
     }
+
+    // pub fn dtype(&self) -> PropType {
+    //     match self {
+    //         PropRef::Str(_) => PropType::Str,
+    //         PropRef::Num(n) => match n {
+    //             PropNum::U8(_) => PropType::U8,
+    //             PropNum::U16(_) => PropType::U16,
+    //             PropNum::I32(_) => PropType::I32,
+    //             PropNum::I64(_) => PropType::I64,
+    //             PropNum::U32(_) => PropType::U32,
+    //             PropNum::U64(_) => PropType::U64,
+    //             PropNum::F32(_) => PropType::F32,
+    //             PropNum::F64(_) => PropType::F64,
+    //         },
+    //         PropRef::Bool(_) => PropType::Bool,
+    //         PropRef::List(lst) => PropType::List(Box::new(lst.dtype())),
+    //         PropRef::Map(m) => match m {
+    //             PropMapRef::Mem(map) => PropType::map(map.iter().map(|(k, v)| (k, v.dtype()))),
+    //             PropMapRef::Arrow(_) => PropType::Map,
+    //         },
+    //         PropRef::NDTime(_) => PropType::NDTime,
+    //         PropRef::DTime(_) => PropType::DTime,
+    //         PropRef::Decimal { scale, .. } => PropType::Decimal {
+    //             scale: *scale as i64,
+    //         },
+    //     }
+    // }
 }
 
 impl<'a> Serialize for PropMapRef<'a> {

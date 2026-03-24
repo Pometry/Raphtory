@@ -8,7 +8,7 @@ use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
     meta::PropMapper,
     prop::{
-        Prop, PropType, SerdeArrowList, SerdeArrowMap, arrow_dtype_from_prop_type,
+        AsPropRef, Prop, PropType, SerdeArrowList, SerdeArrowMap, arrow_dtype_from_prop_type,
         list_array_from_props, struct_array_from_props,
     },
 };
@@ -264,21 +264,13 @@ impl Properties {
     pub fn t_len(&self) -> usize {
         self.t_properties.len()
     }
-
-    // pub(crate) fn t_properties_mut(&mut self) -> &mut TColumns {
-    //     &mut self.t_properties
-    // }
-
-    // pub(crate) fn reset_t_len(&mut self) {
-    //     self.t_properties.reset_len();
-    // }
 }
 
 impl<'a> PropMutEntry<'a> {
-    pub(crate) fn append_t_props(
+    pub(crate) fn append_t_props<P: AsPropRef>(
         &mut self,
         t: EventTime,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         let t_prop_row = if let Some(t_prop_row) = self
             .properties
@@ -339,7 +331,7 @@ impl<'a> PropMutEntry<'a> {
         self.properties.update_earliest_latest(t);
     }
 
-    pub(crate) fn append_const_props(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) {
+    pub(crate) fn append_const_props<P:AsPropRef>(&mut self, props: impl IntoIterator<Item = (usize, P)>) {
         for (prop_id, prop) in props {
             if self.properties.c_properties.len() <= prop_id {
                 self.properties
@@ -348,7 +340,7 @@ impl<'a> PropMutEntry<'a> {
             }
             let const_props = &mut self.properties.c_properties[prop_id];
             // property types should have been validated before!
-            const_props.upsert(self.row, prop.clone()).unwrap();
+            const_props.upsert(self.row, prop.as_prop_ref()).unwrap();
         }
     }
 }

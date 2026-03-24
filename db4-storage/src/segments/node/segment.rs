@@ -16,7 +16,10 @@ use raphtory_api::core::{
     Direction,
     entities::{
         EID, VID,
-        properties::{meta::Meta, prop::Prop},
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop},
+        },
     },
 };
 use raphtory_core::{
@@ -313,12 +316,12 @@ impl MemNodeSegment {
         layer_est_size - est_size
     }
 
-    pub fn add_props<T: AsTime>(
+    pub fn add_props<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         node_pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();

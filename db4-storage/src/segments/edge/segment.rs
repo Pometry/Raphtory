@@ -33,6 +33,7 @@ use std::{
         atomic::{self, AtomicU32, AtomicUsize, Ordering},
     },
 };
+use raphtory_api::core::entities::properties::prop::AsPropRef;
 
 #[derive(Debug, Default)]
 pub struct EdgeEntry {
@@ -172,14 +173,14 @@ impl MemEdgeSegment {
     /// insert an edge
     ///
     /// returns a boolean flag indicating if the edge is new
-    pub fn insert_edge_internal<T: AsTime>(
+    pub fn insert_edge_internal<T: AsTime, P:AsPropRef>(
         &mut self,
         t: T,
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> bool {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
@@ -303,13 +304,13 @@ impl MemEdgeSegment {
         Ok(())
     }
 
-    pub fn update_const_properties(
+    pub fn update_const_properties<P:AsPropRef>(
         &mut self,
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
