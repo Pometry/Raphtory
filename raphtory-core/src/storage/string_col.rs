@@ -301,7 +301,7 @@ impl StringCol {
                         } else {
                             (new_index, new_value, *index, value.as_str())
                         };
-                    let mut values = StringViewBuilder::with_capacity(len);
+                    let mut values = StringColBuilder::with_capacity(len);
                     for _ in 0..first_index {
                         values.append_null();
                     }
@@ -313,6 +313,7 @@ impl StringCol {
                     for _ in second_index + 1..len {
                         values.append_null();
                     }
+                    *self = StringCol::Many { values };
                 }
             }
             StringCol::Many { values } => values.upsert_value(new_index, new_value)?,
@@ -336,7 +337,7 @@ impl StringCol {
     pub fn push_value(&mut self, new_value: &str) -> Result<(), ArrowError> {
         match self {
             StringCol::Empty { len } => {
-                let index = self.len();
+                let index = *len;
                 let len = index + 1;
                 let value = new_value.to_owned();
                 *self = StringCol::One { len, index, value }
