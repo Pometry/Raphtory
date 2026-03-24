@@ -3,6 +3,7 @@ use crate::{
     storage::lazy_vec::IllegalSet,
 };
 use arrow_array::builder::StringViewBuilder;
+use arrow_schema::ArrowError;
 use bigdecimal::BigDecimal;
 use lazy_vec::LazyVec;
 use raphtory_api::core::{
@@ -147,6 +148,8 @@ pub enum TPropColumnError {
     IllegalSet(IllegalSet<Prop>),
     #[error(transparent)]
     IllegalType(#[from] IllegalPropType),
+    #[error(transparent)]
+    Arrow(#[from] ArrowError),
 }
 
 impl<A: Into<Prop> + Debug> From<IllegalSet<A>> for TPropColumnError {
@@ -210,7 +213,7 @@ impl PropColumn {
             (PropColumn::U64(col), Prop::U64(v)) => col.upsert(index, v),
             (PropColumn::F32(col), Prop::F32(v)) => col.upsert(index, v),
             (PropColumn::F64(col), Prop::F64(v)) => col.upsert(index, v),
-            (PropColumn::Str(col), Prop::Str(v)) => col.upsert(index, v),
+            (PropColumn::Str(col), Prop::Str(v)) => col.upsert(index, &v)?,
             (PropColumn::U8(col), Prop::U8(v)) => col.upsert(index, v),
             (PropColumn::U16(col), Prop::U16(v)) => col.upsert(index, v),
             (PropColumn::I32(col), Prop::I32(v)) => col.upsert(index, v),
@@ -257,7 +260,7 @@ impl PropColumn {
         Ok(())
     }
 
-    pub(crate) fn push(&mut self, prop: Prop) -> Result<(), IllegalPropType> {
+    pub(crate) fn push(&mut self, prop: Prop) -> Result<(), TPropColumnError> {
         self.init_empty_col(&prop);
         match (self, prop) {
             (PropColumn::Bool(col), Prop::Bool(v)) => col.push(Some(v)),
@@ -267,7 +270,7 @@ impl PropColumn {
             (PropColumn::U64(col), Prop::U64(v)) => col.push(Some(v)),
             (PropColumn::F32(col), Prop::F32(v)) => col.push(Some(v)),
             (PropColumn::F64(col), Prop::F64(v)) => col.push(Some(v)),
-            (PropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
+            (PropColumn::Str(col), Prop::Str(v)) => col.push_value(&v)?,
             (PropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
             (PropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
             (PropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
@@ -276,10 +279,10 @@ impl PropColumn {
             (PropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
             (PropColumn::Decimal(col), Prop::Decimal(v)) => col.push(Some(v)),
             (col, prop) => {
-                return Err(IllegalPropType {
+                Err(IllegalPropType {
                     expected: col.dtype(),
                     actual: prop.dtype(),
-                })
+                })?;
             }
         }
         Ok(())
@@ -319,7 +322,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.push(None),
             PropColumn::F32(col) => col.push(None),
             PropColumn::F64(col) => col.push(None),
-            PropColumn::Str(col) => col.push(None),
+            PropColumn::Str(col) => col.push_null(),
             PropColumn::U8(col) => col.push(None),
             PropColumn::U16(col) => col.push(None),
             PropColumn::I32(col) => col.push(None),

@@ -1,3 +1,4 @@
+use crate::storage::lazy_vec::IllegalSet;
 use arrow_array::{
     builder::{ArrayBuilder, StringLikeArrayBuilder, StringViewBuilder},
     types::StringViewType,
@@ -120,6 +121,13 @@ impl StringColBuilder {
             ))
         })?;
 
+        let length: u32 = bytes.len().try_into().map_err(|_| {
+            ArrowError::InvalidArgumentError(format!(
+                "String length {} exceeds u32::MAX",
+                bytes.len()
+            ))
+        })?;
+
         let view = ByteView {
             length,
             // This won't panic as we checked the length of prefix earlier.
@@ -144,7 +152,7 @@ impl StringColBuilder {
             ))
         })?;
         let old_view = self.views_buffer[index];
-        let old_len = *old_view as u32;
+        let old_len = old_view as u32;
         if old_len >= new_len {
             // can maybe reuse old allocation
             let mut view = ByteView::from(old_view);
@@ -221,11 +229,18 @@ impl StringColBuilder {
             self.push_completed(f)
         }
     }
+
+    /// Append a block to `self.completed`, checking for overflow
+    #[inline]
+    fn push_completed(&mut self, block: Buffer) {
+        assert!(block.len() < u32::MAX as usize, "Block too large");
+        assert!(self.completed.len() < u32::MAX as usize, "Too many blocks");
+        self.completed.push(block);
+    }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub enum StringCol {
-    #[default]
     Empty {
         len: usize,
     },
@@ -261,22 +276,11 @@ impl StringCol {
                     None
                 }
             }
-            StringCol::Many { values } => {
-                if i < values.len()
-                    && values
-                        .validity_slice()
-                        .is_none_or(|validity| get_bit(validity, i))
-                {
-                    // safety: strings inside a StringViewBuilder are always valid
-                    Some(unsafe { str::from_utf8_unchecked(values.get_value(i)) })
-                } else {
-                    None
-                }
-            }
+            StringCol::Many { values } => values.get_value(i),
         }
     }
 
-    pub fn upsert(&mut self, new_index: usize, new_value: &str) {
+    pub fn upsert(&mut self, new_index: usize, new_value: &str) -> Result<(), ArrowError> {
         match self {
             StringCol::Empty { len } => {
                 let len = (*len).max(new_index + 1);
@@ -284,7 +288,7 @@ impl StringCol {
                     len,
                     index: new_index,
                     value: new_value.to_string(),
-                }
+                };
             }
             StringCol::One { len, index, value } => {
                 if *index == new_index {
@@ -311,7 +315,54 @@ impl StringCol {
                     }
                 }
             }
-            StringCol::Many { values } => {}
+            StringCol::Many { values } => values.upsert_value(new_index, new_value)?,
+        }
+        Ok(())
+    }
+
+    pub fn check(&self, new_index: usize, new_value: &str) -> Result<(), IllegalSet<String>> {
+        if let Some(old_value) = self.get_opt(new_index) {
+            if old_value != new_value {
+                return Err(IllegalSet::new(
+                    new_index,
+                    old_value.to_owned(),
+                    new_value.to_owned(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn push_value(&mut self, new_value: &str) -> Result<(), ArrowError> {
+        match self {
+            StringCol::Empty { len } => {
+                let index = self.len();
+                let len = index + 1;
+                let value = new_value.to_owned();
+                *self = StringCol::One { len, index, value }
+            }
+            StringCol::One { index, value, len } => {
+                let mut values = StringColBuilder::with_capacity(*len + 1);
+                for _ in 0..*index {
+                    values.append_null();
+                }
+                values.try_append_value(value)?;
+                for _ in *index + 1..*len {
+                    values.append_null();
+                }
+                values.try_append_value(new_value)?;
+                *self = StringCol::Many { values };
+            }
+            StringCol::Many { values } => values.try_append_value(new_value)?,
+        }
+        Ok(())
+    }
+
+    pub fn push_null(&mut self) {
+        match self {
+            StringCol::Empty { len } => *len += 1,
+            StringCol::One { len, .. } => *len += 1,
+            StringCol::Many { values } => values.append_null(),
         }
     }
 }

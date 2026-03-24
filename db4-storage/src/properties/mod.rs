@@ -163,7 +163,7 @@ impl Properties {
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
             ))),
             PropColumn::Str(lazy_vec) => Some(Arc::new(StringViewArray::from_iter(
-                indices.map(|i| lazy_vec.get_opt(i).map(|str| str.as_ref())),
+                indices.map(|i| lazy_vec.get_opt(i)),
             ))),
             PropColumn::DTime(lazy_vec) => Some(Arc::new(
                 TimestampMillisecondArray::from_iter(
