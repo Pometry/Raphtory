@@ -1,5 +1,7 @@
 use crate::core::{
-    entities::properties::prop::{Prop, SerdeArrowList, SerdeArrowMap},
+    entities::properties::prop::{
+        validate_bd, InvalidBigDecimal, Prop, PropArray, SerdeArrowList, SerdeArrowMap,
+    },
     storage::arc_str::ArcStr,
 };
 use bigdecimal::BigDecimal;
@@ -9,7 +11,7 @@ use rustc_hash::FxHashMap;
 use serde::Serialize;
 use std::{borrow::Cow, sync::Arc};
 
-use crate::core::entities::properties::prop::{ArrowRow, PropArray};
+use crate::core::entities::properties::prop::ArrowRow;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum PropRef<'a> {
@@ -108,6 +110,40 @@ pub enum PropNum {
     F64(f64),
 }
 
+/// A trait for types that can be cheaply viewed as a [`PropRef`].
+pub trait AsPropRef {
+    fn as_prop_ref(&self) -> PropRef<'_>;
+}
+
+impl<'a> AsPropRef for PropRef<'a> {
+    #[inline]
+    fn as_prop_ref(&self) -> PropRef<'_> {
+        self.clone()
+    }
+}
+
+impl AsPropRef for Prop {
+    fn as_prop_ref(&self) -> PropRef<'_> {
+        match self {
+            Prop::Str(s) => PropRef::Str(s),
+            Prop::U8(v) => PropRef::Num(PropNum::U8(*v)),
+            Prop::U16(v) => PropRef::Num(PropNum::U16(*v)),
+            Prop::I32(v) => PropRef::Num(PropNum::I32(*v)),
+            Prop::I64(v) => PropRef::Num(PropNum::I64(*v)),
+            Prop::U32(v) => PropRef::Num(PropNum::U32(*v)),
+            Prop::U64(v) => PropRef::Num(PropNum::U64(*v)),
+            Prop::F32(v) => PropRef::Num(PropNum::F32(*v)),
+            Prop::F64(v) => PropRef::Num(PropNum::F64(*v)),
+            Prop::Bool(b) => PropRef::Bool(*b),
+            Prop::List(lst) => PropRef::List(std::borrow::Cow::Borrowed(lst)),
+            Prop::Map(map) => PropRef::Map(PropMapRef::Mem(map)),
+            Prop::NDTime(dt) => PropRef::NDTime(*dt),
+            Prop::DTime(dt) => PropRef::DTime(*dt),
+            Prop::Decimal(bd) => PropRef::from(bd),
+        }
+    }
+}
+
 impl<'a> PropRef<'a> {
     pub fn as_str(&self) -> Option<&'a str> {
         if let PropRef::Str(s) = self {
@@ -115,6 +151,16 @@ impl<'a> PropRef<'a> {
         } else {
             None
         }
+    }
+
+    pub fn try_from_bd(bd: BigDecimal) -> Result<Self, InvalidBigDecimal> {
+        validate_bd(&bd)?;
+        let (num, scale) = bd.as_bigint_and_exponent();
+        let num = num.to_i128().unwrap();
+        Ok(PropRef::Decimal {
+            num,
+            scale: scale as i8,
+        })
     }
 }
 
