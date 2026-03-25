@@ -14,22 +14,13 @@ use crate::{
         },
     },
     prelude::*,
-    serialise::{
-        parquet::{
-            edges::encode_edge_deletions,
-            graph::{encode_graph_cprop, encode_graph_tprop},
-            model::get_id_type,
-            nodes::{encode_nodes_cprop, encode_nodes_tprop},
-        },
-        GraphPaths,
-    },
+    serialise::{parquet::model::get_id_type, GraphPaths},
 };
 use arrow::{
     array::RecordBatch,
     datatypes::{DataType, Field, Schema, SchemaRef},
 };
 use arrow_json::{reader::Decoder, ReaderBuilder};
-use edges::{encode_edge_cprop, encode_edge_tprop};
 use itertools::Itertools;
 use model::ParquetTEdge;
 use parquet::{
@@ -62,6 +53,10 @@ mod model;
 mod nodes;
 
 mod graph;
+
+pub(crate) use edges::{encode_edge_cprop, encode_edge_deletions, encode_edge_tprop};
+pub(crate) use graph::{encode_graph_cprop, encode_graph_tprop};
+pub(crate) use nodes::{encode_nodes_cprop, encode_nodes_tprop};
 
 pub trait ParquetEncoder {
     /// Encode the graph as parquet data to the zip writer

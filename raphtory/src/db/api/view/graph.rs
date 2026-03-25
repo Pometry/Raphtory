@@ -20,9 +20,15 @@ use crate::{
         },
     },
     errors::GraphError,
+    io::arrow::dataframe::{DFChunk, DFView},
     prelude::*,
+    serialise::parquet::{
+        encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
+        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink,
+    },
 };
 use ahash::HashSet;
+use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
 use raphtory_api::{
@@ -241,6 +247,162 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
         base_graph: g.clone(),
         edges,
     }
+}
+
+#[derive(Clone)]
+struct RecordBatchChannelSink {
+    tx: crossbeam_channel::Sender<RecordBatch>,
+}
+
+impl RecordBatchChannelSink {
+    fn new(tx: crossbeam_channel::Sender<RecordBatch>) -> Self {
+        Self { tx }
+    }
+}
+
+impl RecordBatchSink for RecordBatchChannelSink {
+    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
+        self.tx
+            .send(batch)
+            .map_err(|e| GraphError::IOErrorMsg(format!("RecordBatch receiver was dropped: {e}")))
+    }
+
+    fn finish(self) -> Result<(), GraphError> {
+        Ok(())
+    }
+}
+
+fn record_batch_field_names(batch: &RecordBatch) -> Vec<String> {
+    batch
+        .schema()
+        .fields()
+        .iter()
+        .map(|field| field.name().to_string())
+        .collect()
+}
+
+fn df_view_from_record_batches(
+    rx: crossbeam_channel::Receiver<RecordBatch>,
+) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send> {
+    let mut batches = rx.into_iter();
+    let first_batch = batches.next();
+    let names = first_batch
+        .as_ref()
+        .map(record_batch_field_names)
+        .unwrap_or_default();
+
+    let chunks = first_batch.into_iter().chain(batches).map(|batch| {
+        let (_, columns, _) = batch.into_parts();
+        Ok(DFChunk::new(columns))
+    });
+
+    DFView::new(names, chunks, None)
+}
+
+fn materialize_using_recordbatches(
+    graph: &impl GraphView,
+    path: Option<&Path>,
+    config: Config,
+) -> Result<MaterializedGraph, GraphError> {
+    let mut node_meta = Meta::new_for_nodes();
+    let mut edge_meta = Meta::new_for_edges();
+    let mut graph_props_meta = Meta::new_for_graph_props();
+
+    node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
+    node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
+    edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
+    edge_meta.set_temporal_prop_mapper(graph.edge_meta().temporal_prop_mapper().deep_clone());
+    graph_props_meta.set_metadata_mapper(graph.graph_props_meta().metadata_mapper().deep_clone());
+    graph_props_meta
+        .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
+
+    let layer_meta = graph.edge_meta().layer_meta().deep_clone();
+    edge_meta.set_layer_mapper(layer_meta.deep_clone());
+    node_meta.set_layer_mapper(layer_meta);
+
+    let node_type_meta = graph.node_meta().node_type_meta();
+    for (id, name) in node_type_meta.ids().zip(node_type_meta.all_keys().iter()) {
+        node_meta.node_type_meta().set_id(name.clone(), id);
+    }
+
+    let ext = Extension::new(config, path)?;
+    let temporal_graph = TemporalGraph::new_with_meta(
+        path.map(|p| p.into()),
+        node_meta,
+        edge_meta,
+        graph_props_meta,
+        ext,
+    )?;
+
+    if let Some(earliest) = graph.earliest_time() {
+        temporal_graph.update_time(earliest);
+    }
+
+    if let Some(latest) = graph.latest_time() {
+        temporal_graph.update_time(latest);
+    }
+
+    temporal_graph
+        .storage()
+        .set_event_id(graph.core_graph().lock().read_event_id());
+
+    let _graph_storage = GraphStorage::from(Arc::new(temporal_graph));
+
+    // TODO: switch these to bounded channels once the loaders consume concurrently with encoding.
+    let (edges_t_tx, edges_t_rx) = crossbeam_channel::unbounded();
+    let (edges_c_tx, edges_c_rx) = crossbeam_channel::unbounded();
+    let (edges_d_tx, edges_d_rx) = crossbeam_channel::unbounded();
+    let (nodes_t_tx, nodes_t_rx) = crossbeam_channel::unbounded();
+    let (nodes_c_tx, nodes_c_rx) = crossbeam_channel::unbounded();
+    let (graph_t_tx, graph_t_rx) = crossbeam_channel::unbounded();
+    let (graph_c_tx, graph_c_rx) = crossbeam_channel::unbounded();
+
+    encode_edge_tprop(graph, {
+        let tx = edges_t_tx.clone();
+        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+    })?;
+    encode_edge_cprop(graph, {
+        let tx = edges_c_tx.clone();
+        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+    })?;
+    encode_edge_deletions(graph, {
+        let tx = edges_d_tx.clone();
+        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+    })?;
+    encode_nodes_tprop(graph, {
+        let tx = nodes_t_tx.clone();
+        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+    })?;
+    encode_nodes_cprop(graph, {
+        let tx = nodes_c_tx.clone();
+        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+    })?;
+    encode_graph_tprop(graph, {
+        let tx = graph_t_tx.clone();
+        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+    })?;
+    encode_graph_cprop(graph, {
+        let tx = graph_c_tx.clone();
+        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+    })?;
+
+    drop(edges_t_tx);
+    drop(edges_c_tx);
+    drop(edges_d_tx);
+    drop(nodes_t_tx);
+    drop(nodes_c_tx);
+    drop(graph_t_tx);
+    drop(graph_c_tx);
+
+    let _edges_t_df = df_view_from_record_batches(edges_t_rx);
+    let _edges_c_df = df_view_from_record_batches(edges_c_rx);
+    let _edges_d_df = df_view_from_record_batches(edges_d_rx);
+    let _nodes_t_df = df_view_from_record_batches(nodes_t_rx);
+    let _nodes_c_df = df_view_from_record_batches(nodes_c_rx);
+    let _graph_t_df = df_view_from_record_batches(graph_t_rx);
+    let _graph_c_df = df_view_from_record_batches(graph_c_rx);
+
+    todo!("load RecordBatches into graph storage using df_loaders")
 }
 
 fn materialize_impl(
