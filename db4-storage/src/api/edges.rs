@@ -16,13 +16,15 @@ use std::{
 };
 
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
-    type Extension;
+    type Extension: PersistenceStrategy<ES = Self>;
 
     type Entry<'a>: EdgeEntryOps<'a>
     where
         Self: 'a;
 
     type ArcLockedSegment: LockedESegment;
+
+    fn extension(&self) -> &Self::Extension;
 
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
@@ -63,6 +65,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn set_dirty(&self, dirty: bool);
 
+    fn is_dirty(&self) -> bool;
+
     /// notify that an edge was added (might need to write to disk)
     fn notify_write(
         &self,
@@ -74,12 +78,14 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
-    fn contains_edge(
+    fn has_edge(
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
+
+    fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool;
 
     fn get_edge(
         &self,

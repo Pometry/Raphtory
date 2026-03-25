@@ -7,11 +7,8 @@ use criterion::{
 };
 use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
-use raphtory_api::core::{
-    storage::timeindex::{AsTime, TimeIndexOps},
-    utils::logging::global_info_logger,
-};
-use std::collections::HashSet;
+use raphtory_api::core::{storage::timeindex::AsTime, utils::logging::global_info_logger};
+use std::{collections::HashSet, iter};
 use tempfile::TempDir;
 use tracing::info;
 
@@ -516,12 +513,12 @@ pub fn run_graph_ops_benches(
 
     // subgraph
     let mut rng = rand::rngs::StdRng::seed_from_u64(73);
-    let nodes = graph
+    let nodes = (&&graph)
         .nodes()
         .into_iter()
-        .choose_multiple(&mut rng, graph.count_nodes() / 10)
+        .choose_multiple(&mut rng, 1.max(graph.count_nodes() / 10))
         .into_iter()
-        .map(|n| n.id())
+        .flat_map(|n| iter::once(n.id()).chain(n.out_neighbours().id().next())) // at least one edge per node
         .collect::<Vec<_>>();
     let subgraph = graph.subgraph(nodes);
     let group_name = format!("{graph_name}_subgraph_10pc");

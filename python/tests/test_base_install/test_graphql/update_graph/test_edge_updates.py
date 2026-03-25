@@ -1,14 +1,14 @@
 import tempfile
 from datetime import datetime, timezone
 import pytest
-from utils import assert_has_metadata, assert_has_properties
+from utils import assert_has_metadata, assert_has_properties, truncate_dt_to_ms
 from raphtory.graphql import GraphServer, RaphtoryClient
 from numpy.testing import assert_equal as check_arr
 
 
 def make_props():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah",
         "prop_float": 2.0,
@@ -33,8 +33,8 @@ def make_props():
 
 
 def make_props2():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah2",
         "prop_float": 3.0,

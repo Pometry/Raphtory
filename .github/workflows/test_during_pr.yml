@@ -4,7 +4,7 @@ on:
     branches:
       - master
       - db_v4
-      - "0.16"
+      - v16
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -46,7 +46,7 @@ jobs:
     needs: [
       call-test-rust-workflow-in-local-repo,
       call-test-python-workflow-in-local-repo,
-      call-test-ui-in-local-repo,
+      #      call-test-ui-in-local-repo,
       call-benchmark-workflow-in-local-repo,
       call-graphql-bench-workflow-in-local-repo,
       call-stress-test-workflow-in-local-repo

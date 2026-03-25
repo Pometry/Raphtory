@@ -25,6 +25,8 @@ jobs:
         name: Checkout
         with:
           ref: ${{ github.head_ref }}
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Setup SSH for UI tests submodule

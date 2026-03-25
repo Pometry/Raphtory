@@ -20,7 +20,8 @@ use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
     VID,
 };
-use std::{future::Future, thread};
+use std::{future::Future, sync::OnceLock};
+use tokio::runtime::{Builder, Runtime};
 
 pub mod errors;
 pub(crate) mod export;
@@ -418,18 +419,18 @@ where
     F: Future<Output = O> + 'static,
     O: Send + 'static,
 {
-    Python::attach(|py| {
-        py.detach(move || {
-            // we call `detach` because the task might need to grab the GIL
-            thread::spawn(move || {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-                    .block_on(task())
-            })
-            .join()
-            .expect("error when waiting for async task to complete")
-        })
+    Python::attach(|py| py.detach(move || get_runtime().block_on(task())))
+}
+
+static RUNTIME: OnceLock<Runtime> = OnceLock::new();
+
+pub fn get_runtime() -> &'static Runtime {
+    RUNTIME.get_or_init(|| {
+        Builder::new_multi_thread()
+            .enable_all()
+            // Optional: limit threads if you want to leave room for Python
+            .worker_threads(4)
+            .build()
+            .expect("Failed to create Tokio runtime")
     })
 }

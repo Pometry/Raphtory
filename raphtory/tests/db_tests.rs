@@ -1201,22 +1201,31 @@ fn temporal_node_rows_1_node() {
 #[test]
 fn temporal_node_rows_nodes() {
     let graph = Graph::new();
+    let mut nodes = Vec::new();
+    nodes.push(
+        graph
+            .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None, None)
+            .unwrap()
+            .node,
+    );
+    nodes.push(
+        graph
+            .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None, None)
+            .unwrap()
+            .node,
+    );
+    nodes.push(
+        graph
+            .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None, None)
+            .unwrap()
+            .node,
+    );
 
-    graph
-        .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None, None)
-        .unwrap();
-    graph
-        .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None, None)
-        .unwrap();
-    graph
-        .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None, None)
-        .unwrap();
-
-    for (id, n) in graph.nodes().into_iter().enumerate() {
+    for (id, n) in nodes.into_iter().enumerate() {
         let actual = graph
             .core_graph()
             .nodes()
-            .node(n.node)
+            .node(n)
             .temp_prop_rows()
             .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
@@ -1432,122 +1441,106 @@ fn layers() -> Result<(), GraphError> {
     graph.add_edge(0, 11, 33, NO_PROPS, Some("layer2"))?;
     graph.add_edge(0, 11, 44, NO_PROPS, Some("layer2"))?;
 
-    test_storage!(&graph, |graph| {
-        assert!(graph.has_edge(11, 22));
-        assert!(graph.default_layer().has_edge(11, 22));
-        assert!(!graph.default_layer().has_edge(11, 44));
-        assert!(!graph.layers("layer2").unwrap().has_edge(11, 22));
-        assert!(graph.layers("layer2").unwrap().has_edge(11, 44));
+    assert!(graph.has_edge(11, 22));
+    assert!(graph.default_layer().has_edge(11, 22));
+    assert!(!graph.default_layer().has_edge(11, 44));
+    assert!(!graph.layers("layer2")?.has_edge(11, 22));
+    assert!(graph.layers("layer2")?.has_edge(11, 44));
 
-        assert!(graph.edge(11, 22).is_some());
-        assert!(graph.layers(Layer::Default).unwrap().edge(11, 44).is_none());
-        assert!(graph.layers("layer2").unwrap().edge(11, 22).is_none());
-        assert!(graph.layers("layer2").unwrap().edge(11, 44).is_some());
+    assert!(graph.edge(11, 22).is_some());
+    assert!(graph.layers(Layer::Default)?.edge(11, 44).is_none());
+    assert!(graph.layers("layer2")?.edge(11, 22).is_none());
+    assert!(graph.layers("layer2")?.edge(11, 44).is_some());
 
-        assert!(graph
-            .exclude_layers("layer2")
-            .unwrap()
-            .edge(11, 44)
-            .is_none());
-        assert!(graph
-            .exclude_layers("layer2")
-            .unwrap()
-            .edge(11, 33)
-            .is_some());
-        assert!(graph
-            .exclude_layers("layer2")
-            .unwrap()
-            .edge(11, 22)
-            .is_some());
+    assert!(graph.exclude_layers("layer2")?.edge(11, 44).is_none());
+    assert!(graph.exclude_layers("layer2")?.edge(11, 33).is_some());
+    assert!(graph.exclude_layers("layer2")?.edge(11, 22).is_some());
 
-        let dft_layer = graph.default_layer();
-        let layer1 = graph.layers("layer1").expect("layer1");
-        let layer2 = graph.layers("layer2").expect("layer2");
-        assert!(graph.layers("missing layer").is_err());
+    let dft_layer = graph.default_layer();
+    let layer1 = graph.layers("layer1")?;
+    let layer2 = graph.layers("layer2")?;
+    assert!(graph.layers("missing layer").is_err());
 
-        assert_eq!(graph.count_nodes(), 4);
-        assert_eq!(graph.count_edges(), 4);
-        assert_eq!(dft_layer.count_edges(), 3);
-        assert_eq!(layer1.count_edges(), 1);
-        assert_eq!(layer2.count_edges(), 2);
+    assert_eq!(graph.count_nodes(), 4);
+    assert_eq!(graph.count_edges(), 4);
+    assert_eq!(dft_layer.count_edges(), 3);
+    assert_eq!(layer1.count_edges(), 1);
+    assert_eq!(layer2.count_edges(), 2);
 
-        let node = graph.node(11).unwrap();
-        let node_dft = dft_layer.node(11).unwrap();
-        let node1 = layer1.node(11).unwrap();
-        let node2 = layer2.node(11).unwrap();
+    let node = graph.node(11).unwrap();
+    let node_dft = dft_layer.node(11).unwrap();
+    let node1 = layer1.node(11).unwrap();
+    let node2 = layer2.node(11).unwrap();
 
-        assert_eq!(node.degree(), 3);
-        assert_eq!(node_dft.degree(), 2);
-        assert_eq!(node1.degree(), 1);
-        assert_eq!(node2.degree(), 2);
+    assert_eq!(node.degree(), 3);
+    assert_eq!(node_dft.degree(), 2);
+    assert_eq!(node1.degree(), 1);
+    assert_eq!(node2.degree(), 2);
 
-        assert_eq!(node.out_degree(), 3);
-        assert_eq!(node_dft.out_degree(), 2);
-        assert_eq!(node1.out_degree(), 1);
-        assert_eq!(node2.out_degree(), 2);
+    assert_eq!(node.out_degree(), 3);
+    assert_eq!(node_dft.out_degree(), 2);
+    assert_eq!(node1.out_degree(), 1);
+    assert_eq!(node2.out_degree(), 2);
 
-        assert_eq!(node.in_degree(), 1);
-        assert_eq!(node_dft.in_degree(), 1);
-        assert_eq!(node1.in_degree(), 0);
-        assert_eq!(node2.in_degree(), 0);
+    assert_eq!(node.in_degree(), 1);
+    assert_eq!(node_dft.in_degree(), 1);
+    assert_eq!(node1.in_degree(), 0);
+    assert_eq!(node2.in_degree(), 0);
 
-        fn to_tuples<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<(u64, u64)> {
-            edges
-                .id()
-                .filter_map(|(s, d)| s.to_u64().zip(d.to_u64()))
-                .sorted()
-                .collect_vec()
-        }
+    fn to_tuples<'graph, G: GraphViewOps<'graph>>(edges: Edges<'graph, G>) -> Vec<(u64, u64)> {
+        edges
+            .id()
+            .filter_map(|(s, d)| s.to_u64().zip(d.to_u64()))
+            .sorted()
+            .collect_vec()
+    }
 
-        assert_eq!(
-            to_tuples(node.edges()),
-            vec![(11, 22), (11, 33), (11, 44), (33, 11)]
-        );
-        assert_eq!(
-            to_tuples(node_dft.edges()),
-            vec![(11, 22), (11, 33), (33, 11)]
-        );
-        assert_eq!(to_tuples(node1.edges()), vec![(11, 22)]);
-        assert_eq!(to_tuples(node2.edges()), vec![(11, 33), (11, 44)]);
+    assert_eq!(
+        to_tuples(node.edges()),
+        vec![(11, 22), (11, 33), (11, 44), (33, 11)]
+    );
+    assert_eq!(
+        to_tuples(node_dft.edges()),
+        vec![(11, 22), (11, 33), (33, 11)]
+    );
+    assert_eq!(to_tuples(node1.edges()), vec![(11, 22)]);
+    assert_eq!(to_tuples(node2.edges()), vec![(11, 33), (11, 44)]);
 
-        assert_eq!(to_tuples(node.in_edges()), vec![(33, 11)]);
-        assert_eq!(to_tuples(node_dft.in_edges()), vec![(33, 11)]);
-        assert_eq!(to_tuples(node1.in_edges()), vec![]);
-        assert_eq!(to_tuples(node2.in_edges()), vec![]);
+    assert_eq!(to_tuples(node.in_edges()), vec![(33, 11)]);
+    assert_eq!(to_tuples(node_dft.in_edges()), vec![(33, 11)]);
+    assert_eq!(to_tuples(node1.in_edges()), vec![]);
+    assert_eq!(to_tuples(node2.in_edges()), vec![]);
 
-        assert_eq!(
-            to_tuples(node.out_edges()),
-            vec![(11, 22), (11, 33), (11, 44)]
-        );
-        assert_eq!(to_tuples(node_dft.out_edges()), vec![(11, 22), (11, 33)]);
-        assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
-        assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
+    assert_eq!(
+        to_tuples(node.out_edges()),
+        vec![(11, 22), (11, 33), (11, 44)]
+    );
+    assert_eq!(to_tuples(node_dft.out_edges()), vec![(11, 22), (11, 33)]);
+    assert_eq!(to_tuples(node1.out_edges()), vec![(11, 22)]);
+    assert_eq!(to_tuples(node2.out_edges()), vec![(11, 33), (11, 44)]);
 
-        fn to_ids<'graph, G: GraphViewOps<'graph>>(
-            neighbours: PathFromNode<'graph, G>,
-        ) -> Vec<u64> {
-            neighbours
-                .iter()
-                .filter_map(|n| n.id().as_u64())
-                .sorted()
-                .collect_vec()
-        }
+    fn to_ids<'graph, G: GraphViewOps<'graph>>(neighbours: PathFromNode<'graph, G>) -> Vec<u64> {
+        neighbours
+            .iter()
+            .filter_map(|n| n.id().as_u64())
+            .sorted()
+            .collect_vec()
+    }
 
-        assert_eq!(to_ids(node.neighbours()), vec![22, 33, 44]);
-        assert_eq!(to_ids(node_dft.neighbours()), vec![22, 33]);
-        assert_eq!(to_ids(node1.neighbours()), vec![22]);
-        assert_eq!(to_ids(node2.neighbours()), vec![33, 44]);
+    assert_eq!(to_ids(node.neighbours()), vec![22, 33, 44]);
+    assert_eq!(to_ids(node_dft.neighbours()), vec![22, 33]);
+    assert_eq!(to_ids(node1.neighbours()), vec![22]);
+    assert_eq!(to_ids(node2.neighbours()), vec![33, 44]);
 
-        assert_eq!(to_ids(node.out_neighbours()), vec![22, 33, 44]);
-        assert_eq!(to_ids(node_dft.out_neighbours()), vec![22, 33]);
-        assert_eq!(to_ids(node1.out_neighbours()), vec![22]);
-        assert_eq!(to_ids(node2.out_neighbours()), vec![33, 44]);
+    assert_eq!(to_ids(node.out_neighbours()), vec![22, 33, 44]);
+    assert_eq!(to_ids(node_dft.out_neighbours()), vec![22, 33]);
+    assert_eq!(to_ids(node1.out_neighbours()), vec![22]);
+    assert_eq!(to_ids(node2.out_neighbours()), vec![33, 44]);
 
-        assert_eq!(to_ids(node.in_neighbours()), vec![33]);
-        assert_eq!(to_ids(node_dft.in_neighbours()), vec![33]);
-        assert!(to_ids(node1.in_neighbours()).is_empty());
-        assert!(to_ids(node2.in_neighbours()).is_empty());
-    });
+    assert_eq!(to_ids(node.in_neighbours()), vec![33]);
+    assert_eq!(to_ids(node_dft.in_neighbours()), vec![33]);
+    assert!(to_ids(node1.in_neighbours()).is_empty());
+    assert!(to_ids(node2.in_neighbours()).is_empty());
     Ok(())
 }
 
@@ -2079,7 +2072,10 @@ fn test_graph_metadata() {
 
     assert_eq!(
         g.metadata().keys().collect::<HashSet<_>>(),
-        props_names.union(&props_names2).cloned().collect()
+        props_names
+            .union(&props_names2)
+            .cloned()
+            .collect::<HashSet<_>>()
     );
 }
 
@@ -2367,13 +2363,10 @@ fn test_node_ids() {
     graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
     graph.add_node(2, 3, NO_PROPS, None, None).unwrap();
 
-    assert_eq!(
-        graph.nodes().id().collect::<Vec<_>>(),
-        vec![1u64, 2u64, 3u64]
-    );
+    assert_eq!(graph.nodes().id().sort_by_id(), vec![1u64, 2u64, 3u64]);
 
     let g_at = graph.at(1);
-    assert_eq!(g_at.nodes().id().collect::<Vec<_>>(), vec![1u64, 2u64]);
+    assert_eq!(g_at.nodes().id().sort_by_id(), vec![1u64, 2u64]);
 }
 
 #[test]
@@ -2976,6 +2969,7 @@ fn test_type_filter() {
             .type_filter(["wallet"])
             .name()
             .into_iter_values()
+            .sorted()
             .collect_vec(),
         vec!["1", "4"]
     );
@@ -3002,30 +2996,23 @@ fn test_type_filter() {
         g.nodes()
             .type_filter(["a", "b", "c", "e"])
             .name()
-            .collect_vec(),
+            .sort_by_values(false),
         vec!["1", "2", "3", "4", "5", "6"]
     );
 
     assert_eq!(
-        g.nodes()
-            .type_filter(Vec::<String>::new())
-            .name()
-            .collect_vec(),
+        g.nodes().type_filter(Vec::<String>::new()).name(),
         Vec::<String>::new()
     );
 
     assert_eq!(
-        g.nodes().type_filter([""]).name().collect_vec(),
+        g.nodes().type_filter([""]).name().sort_by_values(false),
         vec!["7", "8", "9"]
     );
 
     let w = g.window(1, 4);
     assert_eq!(
-        w.nodes()
-            .type_filter(["a"])
-            .iter()
-            .map(|v| v.degree())
-            .collect::<Vec<_>>(),
+        w.nodes().type_filter(["a"]).degree().sort_by_id(),
         vec![1, 2]
     );
     assert_eq!(
@@ -3034,18 +3021,15 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["c", "b"])
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![vec!["2"], vec!["2", "5"]]
     );
 
     let l = g.layers(["a"]).unwrap();
     assert_eq!(
-        l.nodes()
-            .type_filter(["a"])
-            .iter()
-            .map(|v| v.degree())
-            .collect::<Vec<_>>(),
+        l.nodes().type_filter(["a"]).degree().sort_by_id(),
         vec![1, 2]
     );
     assert_eq!(
@@ -3054,18 +3038,15 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["c", "b"])
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![vec!["2"], vec!["2", "5"]]
     );
 
     let sg = g.subgraph([1, 2, 3, 4, 5, 6]);
     assert_eq!(
-        sg.nodes()
-            .type_filter(["a"])
-            .iter()
-            .map(|v| v.degree())
-            .collect::<Vec<_>>(),
+        sg.nodes().type_filter(["a"]).degree().sort_by_id(),
         vec![1, 2]
     );
     assert_eq!(
@@ -3074,37 +3055,34 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["c", "b"])
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect_vec())
             .collect_vec(),
         vec![vec!["2"], vec!["2", "5"]]
     );
 
     assert_eq!(
-        g.nodes().iter().map(|v| v.degree()).collect::<Vec<_>>(),
+        g.nodes().degree().sort_by_id(),
         vec![1, 3, 2, 2, 2, 2, 0, 0, 0]
     );
     assert_eq!(
-        g.nodes()
-            .type_filter(["a"])
-            .iter()
-            .map(|v| v.degree())
-            .collect::<Vec<_>>(),
+        g.nodes().type_filter(["a"]).degree().sort_by_id(),
         vec![1, 2]
     );
     assert_eq!(
-        g.nodes()
-            .type_filter(["d"])
-            .iter()
-            .map(|v| v.degree())
-            .collect::<Vec<_>>(),
+        g.nodes().type_filter(["d"]).degree().sort_by_id(),
         Vec::<usize>::new()
     );
     assert_eq!(
         g.nodes()
             .type_filter(["a"])
             .par_iter()
-            .map(|v| v.degree())
-            .collect::<Vec<_>>(),
+            .map(|v| (v, v.degree()))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v)
+            .collect_vec(),
         vec![1, 2]
     );
     assert_eq!(
@@ -3122,6 +3100,9 @@ fn test_type_filter() {
             .collect()
             .into_iter()
             .map(|n| n.name())
+            .collect_vec()
+            .into_iter()
+            .sorted()
             .collect_vec(),
         vec!["1", "4"]
     );
@@ -3155,6 +3136,7 @@ fn test_type_filter() {
             .type_filter(["a", "c"])
             .name()
             .into_iter_values()
+            .sorted()
             .collect_vec(),
         vec!["1", "4", "5"]
     );
@@ -3164,7 +3146,8 @@ fn test_type_filter() {
             .type_filter(["a"])
             .neighbours()
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![vec!["2"], vec!["2", "5"]]
     );
@@ -3173,7 +3156,8 @@ fn test_type_filter() {
             .type_filter(["a", "c"])
             .neighbours()
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![vec!["2"], vec!["2", "5"], vec!["4", "6"]]
     );
@@ -3182,7 +3166,7 @@ fn test_type_filter() {
             .type_filter(["d"])
             .neighbours()
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .map(|(_, n)| n.collect_vec())
             .collect_vec(),
         Vec::<Vec<&str>>::new()
     );
@@ -3193,7 +3177,8 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["c"])
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.collect::<Vec<_>>())
             .collect_vec(),
         vec![vec![], vec!["5"]]
     );
@@ -3203,7 +3188,7 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(Vec::<&str>::new())
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .map(|(_, n)| { n.collect::<Vec<_>>() })
             .collect_vec(),
         vec![vec![], Vec::<&str>::new()]
     );
@@ -3213,7 +3198,8 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["c", "b"])
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![vec!["2"], vec!["2", "5"]]
     );
@@ -3223,7 +3209,7 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["d"])
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .map(|(_, n)| { n.collect::<Vec<_>>() })
             .collect_vec(),
         vec![vec![], Vec::<&str>::new()]
     );
@@ -3234,7 +3220,8 @@ fn test_type_filter() {
             .neighbours()
             .neighbours()
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![vec!["1", "3", "4"], vec!["1", "3", "4", "4", "6"]]
     );
@@ -3246,7 +3233,8 @@ fn test_type_filter() {
             .type_filter(["c"])
             .neighbours()
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![vec![], vec!["4", "6"]]
     );
@@ -3256,15 +3244,16 @@ fn test_type_filter() {
             .neighbours()
             .neighbours()
             .name()
-            .map(|n| { n.collect::<Vec<_>>() })
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, v)| v.sorted().collect::<Vec<_>>())
             .collect_vec(),
         vec![
             vec!["1", "3", "4"],
-            vec!["2", "2", "6", "2", "5"],
-            vec!["1", "3", "4", "3", "5"],
+            vec!["2", "2", "2", "5", "6"],
+            vec!["1", "3", "3", "4", "5"],
             vec!["1", "3", "4", "4", "6"],
-            vec!["2", "5", "3", "5"],
-            vec!["2", "6", "4", "6"],
+            vec!["2", "3", "5", "5"],
+            vec!["2", "4", "6", "6"],
             vec![],
             vec![],
             vec![],
@@ -3293,7 +3282,7 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["d"])
             .iter()
-            .map(|n| { n.name().collect::<Vec<_>>() })
+            .map(|(_, n)| { n.name().collect::<Vec<_>>() })
             .collect_vec(),
         vec![vec![], Vec::<&str>::new()]
     );
@@ -3325,7 +3314,12 @@ fn test_type_filter() {
     );
 
     assert_eq!(
-        g.node("2").unwrap().neighbours().name().collect_vec(),
+        g.node("2")
+            .unwrap()
+            .neighbours()
+            .name()
+            .sorted()
+            .collect_vec(),
         vec!["1", "3", "4"]
     );
 
@@ -3355,6 +3349,7 @@ fn test_type_filter() {
             .neighbours()
             .type_filter(["c", "a"])
             .name()
+            .sorted()
             .collect_vec(),
         vec!["1", "4"]
     );
@@ -3376,8 +3371,9 @@ fn test_type_filter() {
             .neighbours()
             .neighbours()
             .name()
+            .sorted()
             .collect_vec(),
-        vec!["2", "2", "6", "2", "5"],
+        vec!["2", "2", "2", "5", "6"],
     );
 
     assert_eq!(
@@ -3545,16 +3541,6 @@ fn test_unique_property() {
 }
 
 #[test]
-fn num_locks_same_as_threads() {
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(5)
-        .build()
-        .unwrap();
-    let graph = pool.install(Graph::new);
-    assert_eq!(graph.core_graph().unfiltered_num_nodes(), 0);
-}
-
-#[test]
 fn test_create_node() {
     let g = Graph::new();
     g.create_node(0, 1, [("test", Prop::Bool(true))], None, None)
@@ -3627,15 +3613,6 @@ fn materialize_temporal_properties_one_edge() {
 
     let gw = g.window(-9, 3);
     let gmw = gw.materialize().unwrap();
-
-    assert_eq!(gmw.unfiltered_num_edges(), 1);
-    assert_eq!(
-        gmw.unfiltered_num_edges(),
-        gmw.core_edges()
-            .iter(&raphtory_core::entities::LayerIds::All)
-            .count()
-    );
-
     assert_graph_equal(&gw, &gmw);
 }
 

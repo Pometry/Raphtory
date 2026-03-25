@@ -1,9 +1,3 @@
-use std::{
-    path::{Path, PathBuf},
-    thread,
-    time::Duration,
-};
-
 use crate::{
     gen_ts::{
         AdditionCellsRef, DeletionCellsRef, EdgeAdditionCellsRef, GenericTimeOps,
@@ -32,6 +26,11 @@ use parking_lot::RwLock;
 use raphtory_api::core::entities::{EID, VID};
 use segments::{
     edge::segment::MemEdgeSegment, graph_prop::GraphPropSegmentView, node::segment::MemNodeSegment,
+};
+use std::{
+    path::{Path, PathBuf},
+    thread,
+    time::Duration,
 };
 
 pub mod api;
@@ -80,7 +79,7 @@ pub type EdgeTProps<'a> = GenericTProps<'a, MemEdgeRef<'a>>;
 pub type GraphTProps<'a> = GenericTProps<'a, MemGraphPropRef<'a>>;
 
 pub mod error {
-    use std::{path::PathBuf, sync::Arc};
+    use std::{io, panic::Location, path::PathBuf, sync::Arc};
 
     use crate::resolver::mapping_resolver::InvalidNodeId;
     use raphtory_api::core::{entities::properties::prop::PropError, utils::time::ParseTimeError};
@@ -90,8 +89,11 @@ pub mod error {
     pub enum StorageError {
         #[error("External Storage Error {0}")]
         External(#[from] Arc<dyn std::error::Error + Send + Sync>),
-        #[error("IO error: {0}")]
-        IO(#[from] std::io::Error),
+        #[error("{source} at {location}")]
+        IO {
+            source: io::Error,
+            location: &'static Location<'static>,
+        },
         #[error("Serde error: {0}")]
         Serde(#[from] serde_json::Error),
         #[error("Arrow-rs error: {0}")]
@@ -126,6 +128,14 @@ pub mod error {
     impl StorageError {
         pub fn from_external<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
             Self::External(Arc::new(error))
+        }
+    }
+
+    impl From<io::Error> for StorageError {
+        #[track_caller]
+        fn from(source: io::Error) -> Self {
+            let location = Location::caller();
+            StorageError::IO { source, location }
         }
     }
 }

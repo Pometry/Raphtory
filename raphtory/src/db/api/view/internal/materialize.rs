@@ -265,7 +265,7 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_core_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.unfiltered_num_nodes(), 0);
+        assert_eq!(mg.unfiltered_num_nodes(&LayerIds::All), 0);
     }
 
     #[test]

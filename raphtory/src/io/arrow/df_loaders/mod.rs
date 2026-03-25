@@ -1,11 +1,9 @@
 use crate::{
-    core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError},
     io::arrow::{
         dataframe::{DFChunk, DFView, SecondaryIndexCol},
         df_loaders::edges::ColumnNames,
-        layer_col::LayerCol,
         node_col::NodeCol,
         prop_handler::*,
     },
@@ -27,7 +25,7 @@ use std::{
 pub mod edge_props;
 pub mod edges;
 pub mod nodes;
-#[cfg(feature = "python")]
+#[cfg(feature = "progress")]
 fn build_progress_bar(des: String, num_rows: Option<usize>) -> Result<Bar, GraphError> {
     if let Some(num_rows) = num_rows {
         BarBuilder::default()
@@ -229,7 +227,6 @@ pub(crate) fn load_graph_props_from_df<
     Ok(())
 }
 
-#[inline(never)]
 pub(crate) fn extract_secondary_index_col<G: InternalAdditionOps + AdditionOps>(
     secondary_index_index: Option<usize>,
     session: &<G as InternalAdditionOps>::WS<'_>,
@@ -254,79 +251,52 @@ pub(crate) fn extract_secondary_index_col<G: InternalAdditionOps + AdditionOps>(
     Ok(secondary_index_col)
 }
 
-#[inline(never)]
 fn resolve_nodes_with_cache<'a, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps>(
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
     resolved_cols: &[&mut [AtomicUsize]],
-) -> Result<FxDashMap<GidKey<'a>, (GID, MaybeNew<VID>)>, GraphError> {
-    let node_type_col = vec![None; cols_to_resolve.len()];
+) -> Result<FxDashMap<GidRef<'a>, VID>, GraphError> {
     resolve_nodes_with_cache_generic(
         cols_to_resolve,
-        &node_type_col,
-        |v: &(GID, MaybeNew<VID>), idx, col_idx| {
-            let (_, vid) = v;
-            resolved_cols[col_idx][idx].store(vid.inner().0, Ordering::Relaxed);
+        |vid: &VID, idx, col_idx| {
+            resolved_cols[col_idx][idx].store(vid.0, Ordering::Relaxed);
         },
-        |gid, _idx| {
-            let GidKey { gid, .. } = gid;
-            let vid = graph
-                .resolve_node(gid.as_node_ref())
-                .map_err(into_graph_err)?;
-            Ok((GID::from(gid), vid))
+        |gid, _, _| {
+            let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+            Ok(vid)
         },
     )
 }
 
-#[inline(never)]
 fn resolve_nodes_and_type_with_cache<
     'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
 >(
     graph: &G,
     cols_to_resolve: &[&'a NodeCol],
+    node_types: &[&'a [usize]],
     resolved_cols: &[&mut [AtomicUsize]],
-    node_type_col: LayerCol<'a>,
-) -> Result<FxDashMap<GidKey<'a>, (VID, usize)>, GraphError> {
-    let node_type_cols = vec![Some(node_type_col); cols_to_resolve.len()];
+) -> Result<FxDashMap<GidRef<'a>, (VID, usize)>, GraphError> {
     resolve_nodes_with_cache_generic(
         cols_to_resolve,
-        &node_type_cols,
-        |v: &(VID, usize), row, col_idx| {
-            let (vid, _) = v;
+        |vid: &(VID, usize), row, col_idx| {
+            let (vid, _) = vid;
             resolved_cols[col_idx][row].store(vid.index(), Ordering::Relaxed);
         },
-        |gid, _| {
-            let GidKey { gid, node_type } = gid;
-            let (vid, node_type) = graph
-                .resolve_node_and_type(gid.as_node_ref(), node_type)
-                .map_err(into_graph_err)?;
+        |gid, row, col_idx| {
+            let vid = unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? };
+            let node_type = node_types[col_idx][row];
             Ok((vid, node_type))
         },
     )
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
-pub struct GidKey<'a> {
-    gid: GidRef<'a>,
-    node_type: Option<&'a str>,
-}
-
-impl<'a> GidKey<'a> {
-    pub fn new(gid: GidRef<'a>, node_type: Option<&'a str>) -> Self {
-        Self { gid, node_type }
-    }
-}
-
-#[inline(always)]
 fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
     cols_to_resolve: &[&'a NodeCol],
-    node_type_cols: &[Option<LayerCol<'a>>],
     update_fn: impl Fn(&V, usize, usize) + Send + Sync,
-    new_fn: impl Fn(GidKey<'a>, usize) -> Result<V, GraphError> + Send + Sync,
-) -> Result<FxDashMap<GidKey<'a>, V>, GraphError> {
-    assert_eq!(cols_to_resolve.len(), node_type_cols.len());
-    let gid_str_cache: dashmap::DashMap<GidKey<'_>, V, _> = FxDashMap::default();
+    new_fn: impl Fn(GidRef<'a>, usize, usize) -> Result<V, GraphError> + Send + Sync,
+) -> Result<FxDashMap<GidRef<'a>, V>, GraphError> {
+    let gid_str_cache: dashmap::DashMap<GidRef<'_>, V, _> = FxDashMap::default();
     let hasher_factory = gid_str_cache.hasher().clone();
     gid_str_cache
         .shards()
@@ -338,18 +308,14 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
             use std::hash::BuildHasher;
 
             // Create hasher function for this shard
-            let hash_key = |key: &GidKey<'_>| -> u64 { hasher_factory.hash_one(key) };
+            let hash_key = |key: &GidRef<'_>| -> u64 { hasher_factory.hash_one(key) };
 
             let hasher_fn =
-                |tuple: &(GidKey<'_>, SharedValue<V>)| -> u64 { hasher_factory.hash_one(tuple.0) };
+                |tuple: &(GidRef<'_>, SharedValue<V>)| -> u64 { hasher_factory.hash_one(tuple.0) };
 
-            for (col_id, (node_col, layer_col)) in
-                cols_to_resolve.iter().zip(node_type_cols).enumerate()
-            {
+            for (col_id, node_col) in cols_to_resolve.iter().enumerate() {
                 // Process src_col sequentially for this shard
-                for (idx, gid) in node_col.iter().enumerate() {
-                    let node_type = layer_col.as_ref().and_then(|lc| lc.get(idx));
-                    let gid = GidKey::new(gid, node_type);
+                for (row, gid) in node_col.iter().enumerate() {
                     // Check if this key belongs to this shard
                     if gid_str_cache.determine_map(&gid) != shard_idx {
                         continue; // Skip, not our shard
@@ -360,11 +326,11 @@ fn resolve_nodes_with_cache_generic<'a, V: Send + Sync>(
                     // Check if exists in this shard
                     if let Some((_, value)) = shard_guard.get(hash, |(g, _)| g == &gid) {
                         let v = value.get();
-                        update_fn(&v, idx, col_id);
+                        update_fn(v, row, col_id);
                     } else {
-                        let v = new_fn(gid, idx)?;
+                        let v = new_fn(gid, row, col_id)?;
 
-                        update_fn(&v, idx, col_id);
+                        update_fn(&v, row, col_id);
                         let data = (gid, SharedValue::new(v));
                         shard_guard.insert(hash, data, hasher_fn);
                     }

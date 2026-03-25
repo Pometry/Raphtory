@@ -198,7 +198,7 @@ def test_graph_edge_property_filter_less_than_or_equal(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -347,7 +347,7 @@ def test_graph_edge_property_filter_is_some(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -375,7 +375,7 @@ def test_graph_edge_property_filter_is_in(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -463,7 +463,7 @@ def test_graph_edge_property_filter_is_not_in_empty_list(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -518,7 +518,7 @@ def test_graph_edge_not_property_filter(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -550,7 +550,7 @@ def test_edges_property_filter_starts_with(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -582,7 +582,7 @@ def test_edges_property_filter_ends_with(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 EVENT_GRAPH = init_graph2(Graph())
@@ -612,7 +612,7 @@ def test_edges_selection(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 # The inner edges filter has no effect on the list of edges returned from selection filter
@@ -645,7 +645,7 @@ def test_edges_selection_edges_filter_paired(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
@@ -1070,4 +1070,4 @@ def test_edges_graph_filter_gql(graph):
             }
         }
     }
-    run_graphql_test(query, expected, graph)
+    run_graphql_test(query, expected, graph, sort_output=True)

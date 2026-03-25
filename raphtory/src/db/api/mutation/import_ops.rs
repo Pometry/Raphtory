@@ -21,8 +21,7 @@ use raphtory_api::core::{
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
 use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
-    property_addition_ops::InternalPropertyAdditionOps,
+    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
 };
 use std::{borrow::Borrow, fmt::Debug};
 
@@ -383,11 +382,7 @@ fn import_edge_internal<
 }
 
 fn check_existing_nodes<
-    G: StaticGraphViewOps
-        + InternalAdditionOps
-        + InternalDeletionOps
-        + InternalPropertyAdditionOps
-        + InternalMaterialize,
+    G: StaticGraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalMaterialize,
     V: AsNodeRef,
 >(
     graph: &G,
@@ -409,11 +404,7 @@ fn check_existing_nodes<
 }
 
 fn check_existing_edges<
-    G: StaticGraphViewOps
-        + InternalAdditionOps
-        + InternalDeletionOps
-        + InternalPropertyAdditionOps
-        + InternalMaterialize,
+    G: StaticGraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalMaterialize,
     V: AsNodeRef + Clone + Debug,
 >(
     graph: &G,

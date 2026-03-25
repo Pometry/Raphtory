@@ -55,7 +55,9 @@ fn test_properties() {
         let v1_w = graph.window(0, 1).node(1).unwrap();
         assert_eq!(
             v1.properties().as_map(),
-            [(ArcStr::from("test"), Prop::str("test"))].into()
+            [(ArcStr::from("test"), Prop::str("test"))]
+                .into_iter()
+                .collect::<HashMap<_, _>>()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
     });
@@ -72,8 +74,8 @@ fn test_property_additions() {
         v1.properties().as_map(),
         props
             .into_iter()
-            .map(|(k, v)| (k.into(), v.into_prop()))
-            .collect()
+            .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
+            .collect::<HashMap<_, _>>()
     );
     assert_eq!(v1_w.properties().as_map(), HashMap::default())
 }
@@ -199,30 +201,28 @@ fn test_edge_timestamps_with_layers() {
     graph.add_edge(30, 2, 1, NO_PROPS, Some("layer1")).unwrap();
     graph.add_edge(5, 1, 3, NO_PROPS, Some("layer2")).unwrap();
 
-    test_graph(&graph, |graph| {
-        // Test all layers
-        let node1 = graph.node(1).unwrap();
-        let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![5, 10, 20, 30]);
-        assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
-        assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
+    // Test all layers
+    let node1 = graph.node(1).unwrap();
+    let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+    assert_eq!(history, vec![5, 10, 20, 30]);
+    assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
+    assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
 
-        // Test layer1 only
-        let layer1_graph = graph.layers(vec!["layer1"]).unwrap();
-        let node1_layer1 = layer1_graph.node(1).unwrap();
-        let history: Vec<_> = node1_layer1.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![10, 30]);
-        assert_eq!(node1_layer1.earliest_edge_time().unwrap().t(), 10);
-        assert_eq!(node1_layer1.latest_edge_time().unwrap().t(), 30);
+    // Test layer1 only
+    let layer1_graph = graph.layers(vec!["layer1"]).unwrap();
+    let node1_layer1 = layer1_graph.node(1).unwrap();
+    let history: Vec<_> = node1_layer1.edge_history().map(|(t, _)| t.t()).collect();
+    assert_eq!(history, vec![10, 30]);
+    assert_eq!(node1_layer1.earliest_edge_time().unwrap().t(), 10);
+    assert_eq!(node1_layer1.latest_edge_time().unwrap().t(), 30);
 
-        // Test layer2 only
-        let layer2_graph = graph.layers(vec!["layer2"]).unwrap();
-        let node1_layer2 = layer2_graph.node(1).unwrap();
-        let history: Vec<_> = node1_layer2.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![5, 20]);
-        assert_eq!(node1_layer2.earliest_edge_time().unwrap().t(), 5);
-        assert_eq!(node1_layer2.latest_edge_time().unwrap().t(), 20);
-    });
+    // Test layer2 only
+    let layer2_graph = graph.layers(vec!["layer2"]).unwrap();
+    let node1_layer2 = layer2_graph.node(1).unwrap();
+    let history: Vec<_> = node1_layer2.edge_history().map(|(t, _)| t.t()).collect();
+    assert_eq!(history, vec![5, 20]);
+    assert_eq!(node1_layer2.earliest_edge_time().unwrap().t(), 5);
+    assert_eq!(node1_layer2.latest_edge_time().unwrap().t(), 20);
 }
 
 #[test]

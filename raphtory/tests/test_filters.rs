@@ -1735,7 +1735,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_in() {
-        let filter = NodeFilter::name().is_in(vec!["1".into()]);
+        let filter = NodeFilter::name().is_in(vec!["1"]);
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1752,7 +1752,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_in(vec!["".into()]);
+        let filter = NodeFilter::name().is_in(vec![""]);
         let expected_results = Vec::<&str>::new();
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1769,7 +1769,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_in(vec!["2".into(), "3".into()]);
+        let filter = NodeFilter::name().is_in(vec!["2", "3"]);
         let expected_results = vec!["2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1789,7 +1789,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_not_in() {
-        let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
+        let filter = NodeFilter::name().is_not_in(vec!["1"]);
         let expected_results = vec!["2", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1806,7 +1806,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_not_in(vec!["".into()]);
+        let filter = NodeFilter::name().is_not_in(vec![""]);
         let expected_results = vec!["1", "2", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1866,7 +1866,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_in() {
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
+        let filter = NodeFilter::node_type().is_in(vec!["fire_nation"]);
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1883,7 +1883,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomads".into()]);
+        let filter = NodeFilter::node_type().is_in(vec!["fire_nation", "air_nomads"]);
         let expected_results = vec!["1", "2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1903,7 +1903,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_not_in() {
-        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
+        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]);
         let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2070,9 +2070,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_not_node_type() {
-        let filter = NodeFilter::node_type()
-            .is_not_in(vec!["fire_nation".into()])
-            .not();
+        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]).not();
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -8663,7 +8661,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_src_in() {
-        let filter = EdgeFilter::src().name().is_in(vec!["1".into()]);
+        let filter = EdgeFilter::src().name().is_in(vec!["1"]);
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8680,7 +8678,7 @@ mod test_edge_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter::src().name().is_in(vec!["1".into(), "2".into()]);
+        let filter = EdgeFilter::src().name().is_in(vec!["1", "2"]);
         let expected_results = vec!["1->2", "2->1", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8700,7 +8698,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_src_not_in() {
-        let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]);
+        let filter = EdgeFilter::src().name().is_not_in(vec!["1"]);
         let expected_results = vec![
             "2->1",
             "2->3",
@@ -8772,7 +8770,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_dst_in() {
-        let filter = EdgeFilter::dst().name().is_in(vec!["2".into()]);
+        let filter = EdgeFilter::dst().name().is_in(vec!["2"]);
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8789,7 +8787,7 @@ mod test_edge_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter::dst().name().is_in(vec!["2".into(), "3".into()]);
+        let filter = EdgeFilter::dst().name().is_in(vec!["2", "3"]);
         let expected_results = vec!["1->2", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8809,7 +8807,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_dst_not_in() {
-        let filter = EdgeFilter::dst().name().is_not_in(vec!["1".into()]);
+        let filter = EdgeFilter::dst().name().is_not_in(vec!["1"]);
         let expected_results = vec![
             "1->2",
             "2->3",
@@ -9050,7 +9048,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_not_src() {
-        let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]).not();
+        let filter = EdgeFilter::src().name().is_not_in(vec!["1"]).not();
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,

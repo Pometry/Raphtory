@@ -6,6 +6,7 @@ use crate::{
     rayon::blocking_compute,
 };
 use async_graphql::{Error, Name, Value as GqlValue};
+use bigdecimal::BigDecimal;
 use dynamic_graphql::{
     InputObject, OneOfInput, ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue,
 };
@@ -20,8 +21,11 @@ use raphtory::{
 };
 use raphtory_api::core::{
     entities::properties::prop::{IntoPropMap, Prop},
-    storage::{arc_str::ArcStr, timeindex::EventTime},
-    utils::time::IntoTime,
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{AsTime, EventTime},
+    },
+    utils::time::{IntoTime, TryIntoTime},
 };
 use rustc_hash::FxHashMap;
 use serde_json::Number;
@@ -30,6 +34,7 @@ use std::{
     convert::TryFrom,
     fmt,
     fmt::{Display, Formatter},
+    str::FromStr,
     sync::Arc,
 };
 
@@ -67,6 +72,12 @@ pub enum Value {
     List(Vec<Value>),
     /// Object.
     Object(Vec<ObjectEntry>),
+    /// Timezone-aware datetime.
+    DTime(String),
+    /// Naive datetime (no timezone).
+    NDTime(String),
+    /// BigDecimal number (string representation, e.g. "3.14159" or "123e-5").
+    Decimal(String),
 }
 
 impl Display for Value {
@@ -93,6 +104,9 @@ impl Display for Value {
                     .join(", ");
                 write!(f, "Object({{{}}})", inner)
             }
+            Value::DTime(v) => write!(f, "DTime({})", v),
+            Value::NDTime(v) => write!(f, "NDTime({})", v),
+            Value::Decimal(v) => write!(f, "Decimal({})", v),
         }
     }
 }
@@ -130,6 +144,24 @@ fn value_to_prop(value: Value) -> Result<Prop, GraphError> {
                 .map(|oe| Ok::<_, GraphError>((ArcStr::from(oe.key), value_to_prop(oe.value)?)))
                 .collect::<Result<FxHashMap<_, _>, _>>()?;
             Ok(Prop::Map(Arc::new(prop_map)))
+        }
+        Value::DTime(s) => {
+            let t = s.try_into_time().map_err(GraphError::from)?;
+            t.dt().map(|dt| Prop::DTime(dt)).map_err(GraphError::from)
+        }
+        Value::NDTime(s) => {
+            let t = s.try_into_time().map_err(GraphError::from)?;
+            t.dt()
+                .map(|dt| Prop::NDTime(dt.naive_utc()))
+                .map_err(GraphError::from)
+        }
+        Value::Decimal(s) => {
+            let bd = BigDecimal::from_str(&s).map_err(|e| GraphError::InvalidProperty {
+                reason: format!("Invalid Decimal: {e}"),
+            })?;
+            Prop::try_from_bd(bd).map_err(|e| GraphError::InvalidProperty {
+                reason: format!("Decimal too large: {e}"),
+            })
         }
     }
 }

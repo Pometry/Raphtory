@@ -389,11 +389,11 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = match batch_size {
-        None => chunks.with_batch_size(100_000),
+        None => chunks.with_batch_size(500_000),
         Some(batch_size) => chunks.with_batch_size(batch_size),
     };
 
-    let chunks = chunks.build()?.into_iter().map(move |result| match result {
+    let chunks = chunks.build()?.map(move |result| match result {
         Ok(r) => {
             let casted_batch = if let Some(schema) = schema.as_deref() {
                 cast_columns(r, schema)?

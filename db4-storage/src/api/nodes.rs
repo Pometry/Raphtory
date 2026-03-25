@@ -114,9 +114,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn flush(&self) -> Result<(), StorageError>;
 
-    fn est_size(&self) -> usize;
-
-    fn increment_est_size(&self, size: usize) -> usize;
+    fn is_dirty(&self) -> bool;
 
     fn vacuum(
         &self,
@@ -157,7 +155,7 @@ pub trait LockedNSSegment: Debug + Send + Sync {
 
     fn par_iter_entries<'a>(
         &'a self,
-    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
+    ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + Sync + 'a {
         let num_nodes = self.num_nodes();
         (0..num_nodes)
             .into_par_iter()

@@ -1,4 +1,4 @@
-use crate::{error::StorageError, segments::graph_prop::segment::MemGraphPropSegment};
+use crate::{error::StorageError, segments::graph_prop::segment::MemGraphPropSegment, wal::LSN};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
 use std::{fmt::Debug, path::Path, sync::Arc};
@@ -30,6 +30,9 @@ where
     fn est_size(&self) -> usize;
 
     fn set_dirty(&self, dirty: bool);
+
+    /// Returns the latest lsn for the immutable part of this segment.
+    fn immut_lsn(&self) -> LSN;
 
     fn notify_write(
         &self,

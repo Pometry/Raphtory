@@ -2,8 +2,7 @@ use crate::{
     core_ops::CoreGraphOps,
     graph::graph::Immutable,
     mutation::{
-        addition_ops::InheritAdditionOps, deletion_ops::InheritDeletionOps,
-        property_addition_ops::InheritPropertyAdditionOps,
+        addition_ops::InheritAdditionOps, property_addition_ops::InheritPropertyAdditionOps,
     },
 };
 use parking_lot::RwLockWriteGuard;
@@ -21,21 +20,24 @@ use raphtory_core::entities::{
 use std::sync::Arc;
 use storage::{
     error::StorageError,
-    pages::{edge_page::writer::EdgeWriter, node_page::writer::NodeWriter},
+    pages::{
+        edge_page::writer::EdgeWriter, graph_prop_page::writer::GraphPropWriter,
+        node_page::writer::NodeWriter,
+    },
     resolver::mapping_resolver::InvalidNodeId,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
-    Extension, ES, NS,
+    Extension, ES, GS, NS,
 };
 use thiserror::Error;
 
 pub mod addition_ops;
 pub mod addition_ops_ext;
-pub mod deletion_ops;
 pub mod durability_ops;
 pub mod property_addition_ops;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
 pub type EdgeWriterT<'a> = EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES<Extension>>;
+pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 
 #[derive(Error, Debug)]
 pub enum MutationError {
@@ -71,6 +73,4 @@ pub trait InheritMutationOps: Base {}
 
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
 impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}
-impl<G: InheritMutationOps> InheritDeletionOps for G {}
-
 impl<T: CoreGraphOps + ?Sized> InheritMutationOps for Arc<T> {}

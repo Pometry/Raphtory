@@ -452,21 +452,7 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     ];
 
     // lazy_node_state returns an iterator of history objects, not ordered
-    let expected_history_all_unordered = [
-        EventTime::new(1, 0),
-        EventTime::new(3, 2),
-        EventTime::new(4, 5),
-        EventTime::new(5, 7),
-        EventTime::new(2, 1),
-        EventTime::new(3, 2),
-        EventTime::new(4, 4),
-        EventTime::new(5, 6),
-        EventTime::new(4, 3),
-        EventTime::new(4, 4),
-        EventTime::new(4, 5),
-        EventTime::new(5, 6),
-        EventTime::new(5, 7),
-    ];
+    let expected_history_all_unordered = [vec![4, 4, 4, 5, 5], vec![1, 3, 4, 5], vec![2, 3, 4, 5]];
 
     // Test that the merged history contains all timestamps from all nodes
     // Each operation adds a timestamp, so we should have timestamps from node additions and edge additions
@@ -492,20 +478,25 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     assert_eq!(individual_histories, nodes_history_as_history.collect());
 
     // Test timestamp conversion
-    let timestamps: Vec<_> = all_nodes_history
+    let timestamps: Vec<Vec<_>> = all_nodes_history
         .t()
-        .iter_values()
-        .flat_map(|ts| ts.collect())
+        .iter()
+        .sorted_by_key(|(n, _)| n.id())
+        .map(|(_, ts)| ts.collect())
         .collect();
     assert!(!timestamps.is_empty());
-    assert_eq!(timestamps, expected_history_all_unordered.map(|t| t.t()));
+    assert_eq!(timestamps, expected_history_all_unordered);
 
     // Test intervals
-    let intervals: Vec<_> = all_nodes_history.intervals().collect();
+    let intervals = all_nodes_history.intervals();
     assert_eq!(intervals.len(), 3); // One per node
     assert_eq!(
-        intervals.iter().map(|i| i.collect()).collect::<Vec<_>>(),
-        vec!(vec![2, 1, 1], vec![1, 1, 1], vec![0, 0, 1, 0])
+        intervals
+            .iter()
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.collect())
+            .collect::<Vec<_>>(),
+        vec!(vec![0, 0, 1, 0], vec![2, 1, 1], vec![1, 1, 1])
     );
 
     // Test windowed operations
@@ -574,22 +565,27 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     // These return LazyNodeState with different operations
     assert_eq!(
         earliest_times
-            .iter_values()
-            .map(|t| t.unwrap())
+            .iter()
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, t)| t.unwrap())
             .collect_vec(),
         [
+            EventTime::new(4, 3),
             EventTime::new(1, 0),
-            EventTime::new(2, 1),
-            EventTime::new(4, 3)
+            EventTime::new(2, 1)
         ]
     );
 
     assert_eq!(
-        latest_times.iter_values().map(|t| t.unwrap()).collect_vec(),
+        latest_times
+            .iter()
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, t)| t.unwrap())
+            .collect_vec(),
         [
             EventTime::new(5, 7),
-            EventTime::new(5, 6),
-            EventTime::new(5, 7)
+            EventTime::new(5, 7),
+            EventTime::new(5, 6)
         ]
     );
 
@@ -605,11 +601,12 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     // Test event id access
     let event_ids_lazy: Vec<_> = all_nodes_history
         .event_id()
-        .iter_values()
-        .flat_map(|s| s.collect())
+        .iter()
+        .sorted_by_key(|(n, _)| n.id())
+        .flat_map(|(_, s)| s.collect())
         .collect();
     let event_ids_normal: Vec<_> = nodes_history_as_history.event_id().collect();
-    assert_eq!(event_ids_lazy, [0, 2, 5, 7, 1, 2, 4, 6, 3, 4, 5, 6, 7]); // unordered
+    assert_eq!(event_ids_lazy, [3, 4, 5, 6, 7, 0, 2, 5, 7, 1, 2, 4, 6,]); // unordered
     assert_eq!(event_ids_normal, [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7]); // ordered
 
     // Test combined window and layer filtering

@@ -4,7 +4,7 @@ use crate::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
         Base, InheritViewOps,
     },
-    errors::GraphError,
+    errors::{into_graph_err, GraphError},
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -23,10 +23,10 @@ use raphtory_storage::{
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
-        addition_ops_ext::{AtomicAddEdge, UnlockedSession},
-        deletion_ops::InternalDeletionOps,
+        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
-        EdgeWriterT, NodeWriterT,
+        EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
 };
 use std::{
@@ -58,6 +58,9 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
+
+// Re-export for raphtory dependencies to use when creating graphs.
+pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[derive(Debug, Default)]
 pub struct Storage {
@@ -562,6 +565,10 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
     }
 
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        Ok(self.graph.bulk_load_resolve_node(id)?)
+    }
+
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
         self.graph.atomic_add_node(node).map_err(into_graph_err)
     }
@@ -574,22 +581,22 @@ impl InternalPropertyAdditionOps for Storage {
         &self,
         t: EventTime,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_properties(t, props)?;
-
-        Ok(())
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_properties(t, props)?)
     }
 
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_add_metadata(props)?;
-
-        Ok(())
+    fn internal_add_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_metadata(props)?)
     }
 
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_update_metadata(props)?;
-
-        Ok(())
+    fn internal_update_metadata(
+        &self,
+        props: &[(usize, Prop)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_update_metadata(props)?)
     }
 
     fn internal_add_node_metadata(
@@ -662,29 +669,5 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_index_mut(|index| index.update_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
-    }
-}
-
-impl InternalDeletionOps for Storage {
-    type Error = GraphError;
-    fn internal_delete_edge(
-        &self,
-        t: EventTime,
-        src: VID,
-        dst: VID,
-        layer: LayerId,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: EventTime,
-        eid: EID,
-        layer: LayerId,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_delete_existing_edge(t, eid, layer)?;
-
-        Ok(())
     }
 }

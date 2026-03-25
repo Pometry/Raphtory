@@ -17,7 +17,8 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GraphPropEntry,
+    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GIDResolver,
+    GraphPropEntry,
 };
 use thiserror::Error;
 
@@ -56,8 +57,8 @@ impl std::fmt::Display for GraphStorage {
         write!(
             f,
             "Graph(num_nodes={}, num_edges={})",
-            self.unfiltered_num_nodes(),
-            self.unfiltered_num_edges(),
+            self.unfiltered_num_nodes(&LayerIds::All),
+            self.unfiltered_num_edges(&LayerIds::All),
         )
     }
 }
@@ -118,6 +119,13 @@ impl GraphStorage {
         }
     }
 
+    pub fn logical_to_physical(&self) -> &GIDResolver {
+        match self {
+            GraphStorage::Mem(graph) => &graph.graph.logical_to_physical,
+            GraphStorage::Unlocked(graph) => &graph.logical_to_physical,
+        }
+    }
+
     #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {
@@ -125,6 +133,20 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 NodesStorageEntry::Unlocked(storage.storage().nodes().locked())
             }
+        }
+    }
+
+    pub fn num_node_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().nodes().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().nodes().num_segments(),
+        }
+    }
+
+    pub fn num_edge_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
         }
     }
 
@@ -140,18 +162,18 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn unfiltered_num_nodes(&self) -> usize {
+    pub fn unfiltered_num_nodes(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.internal_num_nodes(),
-            GraphStorage::Unlocked(storage) => storage.internal_num_nodes(),
+            GraphStorage::Mem(storage) => storage.graph.internal_num_nodes(layer_ids),
+            GraphStorage::Unlocked(storage) => storage.internal_num_nodes(layer_ids),
         }
     }
 
     #[inline(always)]
-    pub fn unfiltered_num_edges(&self) -> usize {
+    pub fn unfiltered_num_edges(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.internal_num_edges(),
-            GraphStorage::Unlocked(storage) => storage.internal_num_edges(),
+            GraphStorage::Mem(storage) => storage.graph.internal_num_edges(layer_ids),
+            GraphStorage::Unlocked(storage) => storage.internal_num_edges(layer_ids),
         }
     }
 

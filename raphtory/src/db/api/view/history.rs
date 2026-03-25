@@ -486,7 +486,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistor
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_history(node.as_ref(), &self.graph)
+                .node_history(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -497,7 +497,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistor
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_history_rev(node.as_ref(), &self.graph)
+                .node_history_rev(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -722,7 +722,7 @@ impl<G: GraphViewOps<'static>> IntoArcDynHistoryOps for PathFromNode<'static, G>
 
 impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromGraph<'graph, G> {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
-        self.iter()
+        self.iter_values()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter(item))
             })
@@ -731,7 +731,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromGraph<'grap
     }
 
     fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
-        self.iter()
+        self.iter_values()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter_rev(item))
             })
@@ -740,13 +740,13 @@ impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromGraph<'grap
     }
 
     fn earliest_time(&self) -> Option<EventTime> {
-        self.iter()
+        self.iter_values()
             .filter_map(|path_from_node| InternalHistoryOps::earliest_time(&path_from_node))
             .min()
     }
 
     fn latest_time(&self) -> Option<EventTime> {
-        self.iter()
+        self.iter_values()
             .filter_map(|path_from_node| InternalHistoryOps::latest_time(&path_from_node))
             .max()
     }

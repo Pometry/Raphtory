@@ -1,8 +1,8 @@
 import json
 import os
 import tempfile
-
 import pytest
+from utils import sort_by_gql_name_or_id
 from raphtory import Graph, graph_loader
 from raphtory.graphql import (
     GraphServer,
@@ -707,7 +707,7 @@ def test_edge_id():
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {edges {list {id}}}}"""
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "edges": {
                     "list": [
@@ -741,7 +741,7 @@ def test_graph_persistence_across_restarts():
         query_nodes = """{graph(path: "persistent_graph") {nodes {list {name}}}}"""
         query_edges = """{graph(path: "persistent_graph") {edges {list {id}}}}"""
 
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "nodes": {
                     "list": [{"name": "node1"}, {"name": "node2"}, {"name": "node3"}]
@@ -749,7 +749,7 @@ def test_graph_persistence_across_restarts():
             }
         }
 
-        assert client.query(query_edges) == {
+        assert sort_by_gql_name_or_id(client.query(query_edges)) == {
             "graph": {
                 "edges": {
                     "list": [
@@ -829,6 +829,43 @@ def test_graph_persistence_across_restarts():
                 }
             }
         }
+
+
+# tests for https://github.com/Pometry/Raphtory/issues/2487
+def test_float_is_stable_on_roundtrip():
+    tmp_work_dir = tempfile.mkdtemp()
+    float_examples = [
+        -1.5186248156922167e66,
+        -1.7177476606208664e199,
+        -1.048551606005279e71,
+    ]
+    prop_key = "p"
+
+    with GraphServer(tmp_work_dir).start(port=1738):
+        client = RaphtoryClient("http://localhost:1738")
+        client.new_graph(path="g", graph_type="EVENT")
+        remote_graph = client.remote_graph(path="g")
+
+        for i, num in enumerate(float_examples):
+            remote_graph.add_node(timestamp=i, id=i, properties={prop_key: num})
+            query = f"""
+                query {{
+                  graph(path: "g") {{
+                    node(name: "{i}") {{
+                      at(time: {i}) {{
+                        properties {{
+                          get(key: "p") {{
+                            value
+                          }}
+                        }}
+                      }}
+                    }}
+                  }}
+                }}
+            """
+            resp = client.query(query)
+            retrieved_float = resp["graph"]["node"]["at"]["properties"]["get"]["value"]
+            assert retrieved_float == num
 
 
 # def test_disk_graph_name():

@@ -179,7 +179,8 @@ fn test_node_property_filter_path() {
         filtered_nodes
             .out_neighbours()
             .id()
-            .map(|i| i.collect_vec())
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.sorted().collect_vec())
             .collect_vec(),
         vec![vec![GID::U64(1), GID::U64(3)], vec![]]
     );
@@ -188,7 +189,8 @@ fn test_node_property_filter_path() {
         filtered_nodes
             .out_neighbours()
             .degree()
-            .map(|i| i.collect_vec())
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.collect_vec())
             .collect_vec(),
         vec![vec![2, 2], vec![]]
     );
@@ -202,7 +204,8 @@ fn test_node_property_filter_path() {
         filtered_nodes_p
             .out_neighbours()
             .id()
-            .map(|i| i.collect_vec())
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.sorted().collect_vec())
             .collect_vec(),
         vec![vec![GID::U64(1), GID::U64(3)], vec![]]
     );

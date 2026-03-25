@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
@@ -111,6 +112,7 @@ fn test_exclude_nodes() {
             .nodes()
             .name()
             .iter_values()
+            .sorted()
             .collect::<Vec<String>>(),
         vec!["1", "2", "3"]
     );

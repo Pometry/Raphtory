@@ -1,5 +1,5 @@
 [package]
-name = "fast_merge"
+name = "raphtory-itertools"
 version.workspace = true
 documentation.workspace = true
 repository.workspace = true

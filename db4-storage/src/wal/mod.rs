@@ -33,7 +33,7 @@ pub trait WalOps {
     fn flush(&self, lsn: LSN) -> Result<(), StorageError>;
 
     /// Rotates the underlying WAL file.
-    /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
+    /// All records with LSN > `cutoff_lsn` are copied to the new WAL file.
     fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
 
     /// Returns an iterator over the entries in the wal.
@@ -41,6 +41,9 @@ pub trait WalOps {
 
     /// Returns true if there are entries in the WAL file on disk.
     fn has_entries(&self) -> Result<bool, StorageError>;
+
+    /// Returns the LSN that will be assigned to the next appended record.
+    fn next_lsn(&self) -> LSN;
 }
 
 #[derive(Debug)]
@@ -94,6 +97,27 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
+    fn log_add_edge_metadata(
+        &self,
+        transaction_id: TransactionID,
+        eid: EID,
+        layer_id: usize,
+        props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError>;
+
+    fn log_delete_edge(
+        &self,
+        transaction_id: TransactionID,
+        t: EventTime,
+        src_name: Option<GidRef<'_>>,
+        src_id: VID,
+        dst_name: Option<GidRef<'_>>,
+        dst_id: VID,
+        eid: EID,
+        layer_name: Option<&str>,
+        layer_id: usize,
+    ) -> Result<LSN, StorageError>;
+
     fn log_add_node(
         &self,
         transaction_id: TransactionID,
@@ -103,6 +127,34 @@ pub trait GraphWalOps {
         node_type_and_id: Option<(&str, usize)>,
         props: Vec<(&str, usize, Prop)>,
         layer_id: LayerId,
+    ) -> Result<LSN, StorageError>;
+
+    fn log_add_node_metadata(
+        &self,
+        transaction_id: TransactionID,
+        vid: VID,
+        props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError>;
+
+    fn log_set_node_type(
+        &self,
+        transaction_id: TransactionID,
+        vid: VID,
+        node_type: &str,
+        node_type_id: usize,
+    ) -> Result<LSN, StorageError>;
+
+    fn log_add_graph_props(
+        &self,
+        transaction_id: TransactionID,
+        t: EventTime,
+        props: Vec<(&str, usize, Prop)>,
+    ) -> Result<LSN, StorageError>;
+
+    fn log_add_graph_metadata(
+        &self,
+        transaction_id: TransactionID,
+        props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
     /// Logs a checkpoint record, indicating that all Wal operations upto and including
@@ -134,6 +186,29 @@ pub trait GraphReplay {
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 
+    fn replay_add_edge_metadata(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        eid: EID,
+        layer_id: usize,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError>;
+
+    fn replay_delete_edge(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        t: EventTime,
+        src_name: Option<GID>,
+        src_id: VID,
+        dst_name: Option<GID>,
+        dst_id: VID,
+        eid: EID,
+        layer_name: Option<String>,
+        layer_id: usize,
+    ) -> Result<(), StorageError>;
+
     fn replay_add_node(
         &mut self,
         lsn: LSN,
@@ -142,6 +217,38 @@ pub trait GraphReplay {
         node_name: Option<GID>,
         node_id: VID,
         node_type_and_id: Option<(String, usize)>,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError>;
+
+    fn replay_add_node_metadata(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        vid: VID,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError>;
+
+    fn replay_set_node_type(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        vid: VID,
+        node_type: String,
+        node_type_id: usize,
+    ) -> Result<(), StorageError>;
+
+    fn replay_add_graph_props(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
+        t: EventTime,
+        props: Vec<(String, usize, Prop)>,
+    ) -> Result<(), StorageError>;
+
+    fn replay_add_graph_metadata(
+        &mut self,
+        lsn: LSN,
+        transaction_id: TransactionID,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 }

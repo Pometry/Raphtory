@@ -18,7 +18,7 @@ mod io_tests {
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::LayerIds, storage::arc_str::ArcStr};
     use raphtory_core::storage::timeindex::EventTime;
     use raphtory_storage::{
         core_ops::CoreGraphOps,
@@ -161,6 +161,37 @@ mod io_tests {
         }
     }
 
+    fn build_nodes_df(
+        chunk_size: usize,
+        nodes: &[(u64, i64, &str)],
+    ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>>> {
+        let chunks = nodes.iter().chunks(chunk_size);
+        let mut node_id_col = UInt64Builder::new();
+        let mut time_col = Int64Builder::new();
+        let mut node_type_col = StringViewBuilder::new();
+        let chunks = chunks
+            .into_iter()
+            .map(|chunk| {
+                for (node_id, time, node_type) in chunk {
+                    node_id_col.append_value(*node_id);
+                    time_col.append_value(*time);
+                    node_type_col.append_value(node_type);
+                }
+                let chunk = vec![
+                    ArrayBuilder::finish(&mut node_id_col),
+                    ArrayBuilder::finish(&mut time_col),
+                    ArrayBuilder::finish(&mut node_type_col),
+                ];
+                Ok(DFChunk { chunk })
+            })
+            .collect_vec();
+        DFView {
+            names: vec!["id".to_owned(), "time".to_owned(), "node_type".to_owned()],
+            chunks: chunks.into_iter(),
+            num_rows: Some(nodes.len()),
+        }
+    }
+
     fn build_nodes_df_with_secondary_index(
         chunk_size: usize,
         nodes: &[(u64, i64, u64, &str, i64, &str)],
@@ -230,9 +261,9 @@ mod io_tests {
                 assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
             }
 
-            let count_edges = g.core_edges().iter(&raphtory_core::entities::LayerIds::All).count();
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            let count_edges = g.core_edges().iter(&LayerIds::All).count();
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_eq!(count_edges, distinct_edges);
             assert_graph_equal(&g, &g2);
         })
@@ -389,8 +420,8 @@ mod io_tests {
             assert_eq!(edge.properties().get("str_prop").unwrap_str(), str_prop);
             assert_eq!(edge.properties().get("int_prop").unwrap_i64(), int_prop);
         }
-        assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-        assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+        assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+        assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
         assert_graph_equal(&g, &g2);
     }
 
@@ -409,8 +440,8 @@ mod io_tests {
                 g2.add_edge(time, &src, &dst, [("str_prop", str_prop.clone().into_prop()), ("int_prop", int_prop.into_prop())], None).unwrap();
             }
 
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_graph_equal(&g, &g2);
         })
     }
@@ -556,8 +587,8 @@ mod io_tests {
                 max_secondary_index = max_secondary_index.max(secondary_index_val as usize);
             }
 
-            assert_eq!(g.unfiltered_num_edges(), distinct_edges);
-            assert_eq!(g2.unfiltered_num_edges(), distinct_edges);
+            assert_eq!(g.unfiltered_num_edges(&LayerIds::All), distinct_edges);
+            assert_eq!(g2.unfiltered_num_edges(&LayerIds::All), distinct_edges);
             assert_graph_equal(&g, &g2);
 
             // Both graphs should have the same event_id / secondary_index
@@ -694,6 +725,52 @@ mod io_tests {
         ];
         assert_eq!(act_node_types, exp_node_types);
     }
+
+    #[test]
+    fn test_load_node_type_only() {
+        // (node_id, time, node_type)
+        let nodes: Vec<(u64, i64, &str)> = vec![
+            (1, 1, "P1"),
+            (2, 2, "P2"),
+            (3, 3, "P3"),
+            (4, 4, "P4"),
+            (5, 5, "P5"),
+            (6, 6, "P6"),
+        ];
+
+        // CHECK ALL NODE FUNCTIONS ON GRAPH FAIL WITH BOTH node_type AND node_type_col
+        let g = Graph::new();
+        load_nodes_from_df(
+            build_nodes_df(50, &nodes),
+            "time",
+            None,
+            "id",
+            &[],
+            &[],
+            None,
+            None,              // node_type (constant name)
+            Some("node_type"), // node_type_col (column name) — conflict!
+            &g,
+            true,
+        )
+        .unwrap();
+        let mut result = g
+            .nodes()
+            .into_iter()
+            .map(|node| (node.id(), node.node_type()))
+            .collect::<Vec<_>>();
+
+        result.sort();
+        let expected: Vec<(GID, Option<ArcStr>)> = vec![
+            (1u64.into(), Some(ArcStr::from("P1"))),
+            (2u64.into(), Some(ArcStr::from("P2"))),
+            (3u64.into(), Some(ArcStr::from("P3"))),
+            (4u64.into(), Some(ArcStr::from("P4"))),
+            (5u64.into(), Some(ArcStr::from("P5"))),
+            (6u64.into(), Some(ArcStr::from("P6"))),
+        ];
+        assert_eq!(result, expected);
+    }
 }
 
 #[cfg(test)]
@@ -714,6 +791,7 @@ mod parquet_tests {
             NodeFixture, NodeUpdatesFixture, PropUpdatesFixture,
         },
     };
+    use serde_json::json;
     use std::{io::Cursor, str::FromStr};
     use storage::Config;
     use zip::{ZipArchive, ZipWriter};
@@ -1190,6 +1268,24 @@ mod parquet_tests {
         proptest!(|(edges in build_edge_list_dyn(0..=10, 0..=10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
+    }
+
+    #[test]
+    fn write_edges_any_props_failure() {
+        let edges: EdgeFixture = serde_json::from_value(json!([[[5,9,"b"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[5,9,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]])).unwrap();
+        let temp_dir = tempfile::tempdir().unwrap();
+        let graph_f = edges.into();
+        let g = Graph::from(build_graph(&graph_f));
+        dbg!(&g);
+        g.encode_parquet(&temp_dir).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
+        dbg!(&g2);
+        assert_eq!(g2.valid_layers("b").count_edges(), 1);
+        assert_eq!(g2.valid_layers("a").count_edges(), 1);
+
+        assert_eq!(g.valid_layers("b").count_edges(), 1);
+
+        assert_graph_equal_timestamps(&g, &g2);
     }
 
     #[test]

@@ -1,13 +1,12 @@
-use minijinja::{Environment, Value};
+use crate::client::{inner_collection, ClientError};
 use pyo3::{exceptions::PyValueError, prelude::*, pyclass, pymethods};
-use raphtory::errors::GraphError;
 use raphtory_api::{
     core::{
         entities::{properties::prop::Prop, GID},
         storage::timeindex::EventTime,
         utils::time::IntoTime,
     },
-    python::timeindex::PyEventTime,
+    python::{error::adapt_err_value, timeindex::PyEventTime},
 };
 use serde::{ser::SerializeStruct, Serialize, Serializer};
 use serde_json::json;
@@ -232,96 +231,6 @@ impl PyEdgeAddition {
     }
 }
 
-fn inner_collection(value: &Prop) -> String {
-    match value {
-        Prop::Str(value) => format!("{{ str: \"{}\" }}", value),
-        Prop::U8(value) => format!("{{ u64: {} }}", value),
-        Prop::U16(value) => format!("{{ u64: {} }}", value),
-        Prop::I32(value) => format!("{{ i64: {} }}", value),
-        Prop::I64(value) => format!("{{ i64: {} }}", value),
-        Prop::U32(value) => format!("{{ u64: {} }}", value),
-        Prop::U64(value) => format!("{{ u64: {} }}", value),
-        Prop::F32(value) => format!("{{ f64: {} }}", value),
-        Prop::F64(value) => format!("{{ f64: {} }}", value),
-        Prop::Bool(value) => format!("{{ bool: {} }}", value),
-        Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
-            format!("{{ list: [{}] }}", vec.join(", "))
-        }
-        Prop::Map(value) => {
-            let properties_array: Vec<String> = value
-                .iter()
-                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
-                .collect();
-            format!("{{ object: [{}] }}", properties_array.join(", "))
-        }
-        Prop::DTime(value) => format!("{{ str: \"{}\" }}", value),
-        Prop::NDTime(value) => format!("{{ str: \"{}\" }}", value),
-        Prop::Decimal(value) => format!("{{ decimal: {} }}", value),
-    }
-}
-
-fn to_graphql_valid(key: &String, value: &Prop) -> String {
-    match value {
-        Prop::Str(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
-        Prop::U8(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::U16(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::I32(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
-        Prop::I64(value) => format!("{{ key: \"{}\", value: {{ i64: {} }} }}", key, value),
-        Prop::U32(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::U64(value) => format!("{{ key: \"{}\", value: {{ u64: {} }} }}", key, value),
-        Prop::F32(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
-        Prop::F64(value) => format!("{{ key: \"{}\", value: {{ f64: {} }} }}", key, value),
-        Prop::Bool(value) => format!("{{ key: \"{}\", value: {{ bool: {} }} }}", key, value),
-        Prop::List(value) => {
-            let vec: Vec<String> = value.iter().map(|p| inner_collection(&p)).collect();
-            format!(
-                "{{ key: \"{}\", value: {{ list: [{}] }} }}",
-                key,
-                vec.join(", ")
-            )
-        }
-        Prop::Map(value) => {
-            let properties_array: Vec<String> = value
-                .iter()
-                .map(|(k, v)| format!("{{ key: \"{}\", value: {} }}", k, inner_collection(v)))
-                .collect();
-            format!(
-                "{{ key: \"{}\", value: {{ object: [{}] }} }}",
-                key,
-                properties_array.join(", ")
-            )
-        }
-        Prop::DTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
-        Prop::NDTime(value) => format!("{{ key: \"{}\", value: {{ str: \"{}\" }} }}", key, value),
-        Prop::Decimal(value) => format!(
-            "{{ key: \"{}\", value: {{ decimal: \"{}\" }} }}",
-            key, value
-        ),
-    }
-}
-
-pub(crate) fn build_property_string(properties: HashMap<String, Prop>) -> String {
-    let properties_array: Vec<String> = properties
-        .iter()
-        .map(|(k, v)| to_graphql_valid(k, v))
-        .collect();
-
-    format!("[{}]", properties_array.join(", "))
-}
-
-pub(crate) fn build_query(template: &str, context: Value) -> Result<String, GraphError> {
-    let mut env = Environment::new();
-    env.add_template("template", template)
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?;
-    let query = env
-        .get_template("template")
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?
-        .render(context)
-        .map_err(|e| GraphError::JinjaError(e.to_string()))?;
-    Ok(query)
-}
-
 /// Specifies that **all** properties should be included when creating an index.
 /// Use one of the predefined variants: ALL , ALL_METADATA , or ALL_TEMPORAL .
 #[derive(Clone, Serialize, PartialEq)]
@@ -422,5 +331,12 @@ impl PyRemoteIndexSpec {
             node_props,
             edge_props,
         }
+    }
+}
+
+// Takes care of the ClientError -> PyException conversion
+impl From<ClientError> for PyErr {
+    fn from(err: ClientError) -> Self {
+        adapt_err_value(&err)
     }
 }

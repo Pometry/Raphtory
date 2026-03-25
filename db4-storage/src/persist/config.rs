@@ -14,13 +14,13 @@ pub const CONFIG_FILE: &str = "config.json";
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn max_node_page_len(&self) -> u32;
 
-    fn with_max_node_page_len(self, page_len: u32) -> Self;
-
     fn max_edge_page_len(&self) -> u32;
 
-    fn with_max_edge_page_len(self, page_len: u32) -> Self;
-
     fn node_types(&self) -> &[String];
+
+    fn with_max_node_page_len(self, page_len: u32) -> Self;
+
+    fn with_max_edge_page_len(self, page_len: u32) -> Self;
 
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 
@@ -46,6 +46,7 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
 pub struct BaseConfig {
     #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_NODES, env="RAPHTORY_MAX_NODE_PAGE_LEN")]
     max_node_page_len: u32,
+
     #[arg(long, default_value_t=DEFAULT_MAX_PAGE_LEN_EDGES, env="RAPHTORY_MAX_EDGE_PAGE_LEN")]
     max_edge_page_len: u32,
 }
@@ -116,13 +117,13 @@ impl ConfigOps for BaseConfig {
         self.max_node_page_len
     }
 
+    fn max_edge_page_len(&self) -> u32 {
+        self.max_edge_page_len
+    }
+
     fn with_max_node_page_len(mut self, page_len: u32) -> Self {
         self.max_node_page_len = page_len;
         self
-    }
-
-    fn max_edge_page_len(&self) -> u32 {
-        self.max_edge_page_len
     }
 
     fn with_max_edge_page_len(mut self, page_len: u32) -> Self {
@@ -148,7 +149,6 @@ mod tests {
     use crate::persist::config::{
         BaseConfig, DEFAULT_MAX_PAGE_LEN_EDGES, DEFAULT_MAX_PAGE_LEN_NODES,
     };
-    use std::env;
 
     #[test_log::test]
     fn test_default() {
