@@ -327,11 +327,10 @@ impl MemEdgeSegment {
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
-    pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
+    pub fn has_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
         self.layers
             .get(layer_id)
-            .filter(|layer| layer.has_item(edge_pos))
-            .is_some()
+            .is_some_and(|layer| layer.has_item(edge_pos))
     }
 
     pub fn latest(&self) -> Option<EventTime> {
@@ -554,7 +553,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         layer_id: usize,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool {
-        locked_head.contains_edge(edge_pos, layer_id)
+        locked_head.has_edge(edge_pos, layer_id)
     }
 
     fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: usize) -> bool {
@@ -663,9 +662,9 @@ mod test {
         );
 
         // Verify edges exist
-        assert!(segment.contains_edge(LocalPOS(0), 0));
-        assert!(segment.contains_edge(LocalPOS(1), 0));
-        assert!(segment.contains_edge(LocalPOS(2), 0));
+        assert!(segment.has_edge(LocalPOS(0), 0));
+        assert!(segment.has_edge(LocalPOS(1), 0));
+        assert!(segment.has_edge(LocalPOS(2), 0));
 
         // Verify edge data
         assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
