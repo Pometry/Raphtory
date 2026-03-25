@@ -4638,6 +4638,7 @@ name = "raphtory-api"
 version = "0.17.0"
 dependencies = [
  "arrow-array",
+ "arrow-buffer",
  "arrow-ipc",
  "arrow-schema",
  "bigdecimal",
@@ -4703,6 +4704,9 @@ name = "raphtory-core"
 version = "0.17.0"
 dependencies = [
  "arrow-array",
+ "arrow-buffer",
+ "arrow-data",
+ "arrow-schema",
  "bigdecimal",
  "chrono",
  "dashmap",

@@ -95,7 +95,7 @@ def test_add_metadata():
 
         with pytest.raises(Exception) as excinfo:
             rg.edge("ben", "hamza").add_metadata({"prop_float": 3.0})
-        assert "Attempted to change value of metadata" in str(excinfo.value)
+        assert "Cannot set previous value" in str(excinfo.value)
 
 
 def test_update_metadata():
