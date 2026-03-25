@@ -166,7 +166,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         })
     }
 
-    pub fn segments_count(&self) -> usize {
+    pub fn num_segments(&self) -> usize {
         self.segments.count()
     }
 

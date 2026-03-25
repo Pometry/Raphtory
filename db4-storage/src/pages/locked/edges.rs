@@ -62,6 +62,10 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
     pub fn ensure_layer(&mut self, layer_id: usize) {
         self.lock.get_or_create_layer(layer_id);
     }
+
+    pub fn page(&self) -> &ES {
+        &self.page
+    }
 }
 #[derive(Debug)]
 pub struct WriteLockedEdgePages<'a, ES> {
@@ -113,13 +117,10 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
             return false;
         };
         let (page_id, pos) = resolve_pos(elid.edge, max_page_len);
-        self.writers
-            .get(page_id)
-            .and_then(|page| {
-                let locked_head = page.lock.deref();
-                page.page.get_edge(pos, elid.layer(), locked_head)
-            })
-            .is_some()
+        self.writers.get(page_id).is_some_and(|page| {
+            let locked_head = page.lock.deref();
+            page.page.has_edge(pos, elid.layer(), locked_head)
+        })
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {

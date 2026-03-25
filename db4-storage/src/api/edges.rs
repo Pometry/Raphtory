@@ -66,6 +66,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn set_dirty(&self, dirty: bool);
 
+    fn is_dirty(&self) -> bool;
+
     /// notify that an edge was added (might need to write to disk)
     fn notify_write(
         &self,

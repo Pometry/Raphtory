@@ -331,6 +331,23 @@ impl InternalAdditionOps for TemporalGraph {
         Ok((vid, node_type_id))
     }
 
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        let vid = match self.logical_to_physical.get(id) {
+            Some(vid) => vid,
+            None => {
+                let (seg, pos) = self
+                    .storage()
+                    .nodes()
+                    .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
+                let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
+                self.logical_to_physical.set(id, new_vid)?;
+                new_vid
+            }
+        };
+
+        Ok(vid)
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
@@ -350,20 +367,41 @@ impl InternalAdditionOps for TemporalGraph {
         e_id: Option<EID>,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
         let nodes = self.storage().nodes();
-        let src_init = match src {
-            NodeRef::Internal(vid) => MaybeInit::VID(vid),
-            NodeRef::External(gid) => self.logical_to_physical.get_or_init(gid)?,
+
+        let (src_init, dst_init) = match (src, dst) {
+            (NodeRef::Internal(src_id), NodeRef::Internal(dst_id)) => {
+                (MaybeInit::VID(src_id), Some(MaybeInit::VID(dst_id)))
+            }
+            (NodeRef::Internal(src_id), NodeRef::External(dst_gid)) => (
+                MaybeInit::VID(src_id),
+                Some(self.logical_to_physical.get_or_init(dst_gid)?),
+            ),
+            (NodeRef::External(src_gid), NodeRef::Internal(dst_id)) => (
+                self.logical_to_physical.get_or_init(src_gid)?,
+                Some(MaybeInit::VID(dst_id)),
+            ),
+            (NodeRef::External(src_gid), NodeRef::External(dst_gid)) => {
+                match src_gid.cmp(&dst_gid) {
+                    std::cmp::Ordering::Less => (
+                        self.logical_to_physical.get_or_init(src_gid)?,
+                        Some(self.logical_to_physical.get_or_init(dst_gid)?),
+                    ),
+                    std::cmp::Ordering::Equal => {
+                        (self.logical_to_physical.get_or_init(src_gid)?, None)
+                    }
+                    std::cmp::Ordering::Greater => {
+                        // resolve the smaller id first to avoid deadlocks when adding the same edge in both directions
+                        let dst_init = self.logical_to_physical.get_or_init(dst_gid)?;
+                        (
+                            self.logical_to_physical.get_or_init(src_gid)?,
+                            Some(dst_init),
+                        )
+                    }
+                }
+            }
         };
 
-        let dst_init = if src == dst {
-            None
-        } else {
-            match dst {
-                NodeRef::Internal(vid) => Some(MaybeInit::VID(vid)),
-                NodeRef::External(gid) => Some(self.logical_to_physical.get_or_init(gid)?),
-            }
-        }
-        .filter(|dst_init| dst_init != &src_init);
+        let dst_init = dst_init.filter(|dst_init| dst_init != &src_init);
 
         let (mut node_writers, src_id, dst_id) = match (src_init, dst_init) {
             (src_init, None) => {

@@ -175,6 +175,7 @@ arrow-csv = { version = "57.2.0" }
 arrow-array = { version = "57.2.0", features = ["chrono-tz"] }
 arrow-cast = { version = "57.2.0" }
 arrow-ipc = { version = "57.2.0" }
+arrow-data = { version = "57.2.0" }
 serde_arrow = { version = "0.13.6", features = ["arrow-57"] }
 moka = { version = "0.12.7", features = ["future"] }
 indexmap = { version = "2.7.0", features = ["rayon"] }

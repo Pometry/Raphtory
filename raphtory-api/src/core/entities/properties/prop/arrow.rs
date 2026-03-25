@@ -18,25 +18,6 @@ pub struct ArrowRow<'a> {
     index: usize,
 }
 
-impl<'a> PartialEq for ArrowRow<'a> {
-    // this has the downside of returning false for rows with same fields but different order of columns
-    fn eq(&self, other: &Self) -> bool {
-        if self.array.num_columns() != other.array.num_columns() {
-            return false;
-        }
-
-        //FIXME: it could be that the fields don't match in order but the values are the same
-        for col in 0..self.array.num_columns() {
-            let self_prop = self.prop_ref(col);
-            let other_prop = other.prop_ref(col);
-            if self_prop != other_prop {
-                return false;
-            }
-        }
-        true
-    }
-}
-
 impl<'a> Serialize for ArrowRow<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

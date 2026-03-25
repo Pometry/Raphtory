@@ -265,12 +265,24 @@ def assert_set_eq(left, right):
 
 def assert_has_properties(entity, props):
     for k, v in props.items():
-        assert entity.properties.get(k) == v
+        actual = entity.properties.get(k)
+        # Convert PyArrow arrays and other array-like objects to lists for comparison
+        if hasattr(actual, "to_pylist"):
+            actual = actual.to_pylist()
+        elif hasattr(actual, "tolist"):
+            actual = actual.tolist()
+        assert actual == v
 
 
 def assert_has_metadata(entity, props):
     for k, v in props.items():
-        assert entity.metadata.get(k) == v
+        actual = entity.metadata.get(k)
+        # Convert PyArrow arrays and other array-like objects to lists for comparison
+        if hasattr(actual, "to_pylist"):
+            actual = actual.to_pylist()
+        elif hasattr(actual, "tolist"):
+            actual = actual.tolist()
+        assert actual == v, f"Expected metadata {k!r} to be {v!r}, but got {actual!r}"
 
 
 def expect_unify_error(fn):

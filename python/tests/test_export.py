@@ -107,7 +107,7 @@ def test_graph_timestamp_list_properties():
         ],
     )
 
-    assert g.node("a")["array_column"] == [1, 2, 3]
+    assert g.node("a")["array_column"].tolist() == [1, 2, 3]
 
     assert g.node("a")["date_column_ms"] == df["date_column_ms"][0]
     assert g.node("a")["date_column_us"] == df["date_column_us"][0]

@@ -45,7 +45,7 @@ pub enum NameSortKey<'a> {
     Edge(&'a str, &'a str),
 }
 
-fn name_sort_key(value: &Value) -> Option<NameSortKey> {
+fn name_sort_key(value: &Value) -> Option<NameSortKey<'_>> {
     match value {
         Value::Object(inner) => inner
             .get("name")

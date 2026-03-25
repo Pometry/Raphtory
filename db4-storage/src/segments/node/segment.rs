@@ -16,7 +16,10 @@ use raphtory_api::core::{
     Direction,
     entities::{
         EID, VID,
-        properties::{meta::Meta, prop::Prop},
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop, PropRef},
+        },
     },
 };
 use raphtory_core::{
@@ -313,12 +316,12 @@ impl MemNodeSegment {
         layer_est_size - est_size
     }
 
-    pub fn add_props<T: AsTime>(
+    pub fn add_props<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         node_pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
@@ -332,11 +335,11 @@ impl MemNodeSegment {
         (is_new, layer_est_size - est_size)
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         node_pos: LocalPOS,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(layer_id) {
             layer.check_metadata(node_pos, props)?;
@@ -344,11 +347,11 @@ impl MemNodeSegment {
         Ok(())
     }
 
-    pub fn update_metadata(
+    pub fn update_metadata<P: AsPropRef>(
         &mut self,
         node_pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let segment_container = self.get_or_create_layer(layer_id);
         let est_size = segment_container.est_size();
@@ -400,7 +403,7 @@ pub struct NodeSegmentView<EXT> {
     inner: Arc<RwLock<MemNodeSegment>>,
     segment_id: usize,
     max_num_node: AtomicU32,
-    ext: EXT,
+    _ext: EXT,
 }
 
 #[derive(Debug)]
@@ -484,13 +487,17 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         Self {
             inner,
             segment_id,
-            ext: ext,
+            _ext: ext,
             max_num_node: AtomicU32::new(0),
         }
     }
 
     fn segment_id(&self) -> usize {
         self.segment_id
+    }
+
+    fn is_dirty(&self) -> bool {
+        true
     }
 
     #[inline(always)]

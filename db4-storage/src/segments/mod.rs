@@ -1,7 +1,10 @@
 use super::properties::{PropEntry, Properties};
 use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
-    entities::properties::{meta::Meta, prop::Prop},
+    entities::properties::{
+        meta::Meta,
+        prop::{AsPropRef, Prop, PropRef},
+    },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
@@ -251,17 +254,17 @@ impl<T: HasRow> SegmentContainer<T> {
         &mut self.properties
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         local_pos: LocalPOS,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         if let Some(item) = self.get(local_pos) {
             let local_row = item.row();
             let prop_entry = self.properties().get_entry(local_row);
 
             for (prop_id, prop_val) in props {
-                prop_entry.check_metadata(*prop_id, prop_val)?;
+                prop_entry.check_metadata(*prop_id, prop_val.as_prop_ref())?;
             }
         }
 
