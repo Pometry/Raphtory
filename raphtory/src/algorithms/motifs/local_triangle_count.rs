@@ -37,9 +37,11 @@
 //! println!("local_triangle_count: {:?}", result);
 //! ```
 
-use crate::{core::entities::nodes::node_ref::AsNodeRef, db::api::view::*};
+use crate::{
+    core::entities::nodes::node_ref::AsNodeRef,
+    db::api::view::{internal::GraphView, *},
+};
 use itertools::Itertools;
-use crate::db::api::view::internal::GraphView;
 
 /// Local triangle count - calculates the number of triangles (a cycle of length 3) a node participates in.
 ///
