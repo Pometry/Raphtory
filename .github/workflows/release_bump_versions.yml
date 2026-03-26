@@ -73,7 +73,7 @@ jobs:
           echo CRATE_VERSION=$(cat Cargo.toml | grep version | head -n1 | cut -d '"' -f2) >> $GITHUB_ENV
           echo "Crate version is $CRATE_VERSION"
       - name: "Make a PR to bump version"
-        uses: peter-evans/create-pull-request@v5
+        uses: peter-evans/create-pull-request@v8
         with:
           base: ${{ inputs.base }}
           author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
