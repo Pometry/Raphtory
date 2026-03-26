@@ -10,7 +10,7 @@ use raphtory_api::core::entities::{
     EID, GID, VID,
     properties::{
         meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::Prop,
+        prop::{AsPropRef, Prop, PropRef},
     },
 };
 use raphtory_core::{
@@ -145,12 +145,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
     }
 
-    pub fn add_props<T: AsTime>(
+    pub fn add_props<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         self.l_counter.update_time(t.t());
         let (is_new_node, add) = self.mut_segment.add_props(t, pos, layer_id, props);
@@ -160,20 +160,20 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         }
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         pos: LocalPOS,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         self.mut_segment.check_metadata(pos, layer_id, props)
     }
 
-    pub fn update_c_props(
+    pub fn update_c_props<P: AsPropRef>(
         &mut self,
         pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
         self.mut_segment.increment_est_size(add);

@@ -156,6 +156,25 @@ fn test_multithreaded_add_edge() {
 }
 
 #[test]
+fn test_multithreaded_add_edge_both_directions() {
+    proptest!(|(edges: Vec<(u64, u64)>)| {
+        let g = Graph::new();
+        let mut self_loop_count = 0;
+        for (src, dst) in edges.iter() {
+            if src == dst {
+                self_loop_count += 1;
+            }
+            // try to maximise the chance that both directions of the edge are added in parallel
+            join(|| {
+                g.add_edge(0, *src, *dst, NO_PROPS, None).unwrap();
+            }, || {g.add_edge(0, *dst, *src, NO_PROPS, None).unwrap();});
+        }
+
+        prop_assert!(edges.iter().all(|(i, j)| g.has_edge(*i, *j) && g.has_edge(*j, *i)) && g.count_temporal_edges() == 2*edges.len()-self_loop_count);
+    });
+}
+
+#[test]
 fn add_node_grows_graph_len() {
     proptest!(|(vs: Vec<(i64, u64)>)| {
         let g = Graph::new();

@@ -8,7 +8,10 @@ use crate::{
 };
 use raphtory_api::core::entities::{
     EID, VID,
-    properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+    properties::{
+        meta::STATIC_GRAPH_LAYER_ID,
+        prop::{AsPropRef, Prop, PropRef},
+    },
 };
 use raphtory_core::storage::timeindex::{AsTime, EventTime};
 use std::ops::DerefMut;
@@ -108,7 +111,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         edge_pos
     }
 
-    pub fn bulk_add_edge(
+    pub fn bulk_add_edge<P: AsPropRef>(
         &mut self,
         t: EventTime,
         edge_pos: LocalPOS,
@@ -116,8 +119,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         dst: VID,
         edge_exists: bool,
         layer_id: usize,
-        c_props: impl IntoIterator<Item = (usize, Prop)>,
-        t_props: impl IntoIterator<Item = (usize, Prop)>,
+        c_props: impl IntoIterator<Item = (usize, P)>,
+        t_props: impl IntoIterator<Item = (usize, P)>,
     ) {
         if !edge_exists {
             if self
@@ -186,22 +189,22 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.writer.set_lsn(lsn);
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         edge_pos: LocalPOS,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         self.writer.check_metadata(edge_pos, layer_id, props)
     }
 
-    pub fn update_c_props(
+    pub fn update_c_props<P: AsPropRef>(
         &mut self,
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         let existing_edge = self.page.has_edge(edge_pos, layer_id, self.writer.deref());
 
