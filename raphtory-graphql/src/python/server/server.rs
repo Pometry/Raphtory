@@ -37,7 +37,7 @@ use std::{path::PathBuf, sync::Arc, thread};
 ///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
 ///     config_path (str | PathLike, optional): Path to the config file
 ///     auth_public_key:
-///     auth_enabled_for_reads:
+///     require_auth_for_reads:
 ///     create_index:
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(pub Option<GraphServer>);
@@ -87,7 +87,7 @@ impl PyGraphServer {
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, tracing_level=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None, permissions_store_path = None)
+        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, tracing_level=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, require_auth_for_reads=None, config_path = None, create_index = None, permissions_store_path = None)
     )]
     fn py_new(
         work_dir: PathBuf,
@@ -100,7 +100,7 @@ impl PyGraphServer {
         otlp_agent_port: Option<String>,
         otlp_tracing_service_name: Option<String>,
         auth_public_key: Option<String>,
-        auth_enabled_for_reads: Option<bool>,
+        require_auth_for_reads: Option<bool>,
         config_path: Option<PathBuf>,
         create_index: Option<bool>,
         permissions_store_path: Option<PathBuf>,
@@ -141,9 +141,9 @@ impl PyGraphServer {
         app_config_builder = app_config_builder
             .with_auth_public_key(auth_public_key)
             .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
-        if let Some(auth_enabled_for_reads) = auth_enabled_for_reads {
+        if let Some(require_auth_for_reads) = require_auth_for_reads {
             app_config_builder =
-                app_config_builder.with_auth_enabled_for_reads(auth_enabled_for_reads);
+                app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
         }
         #[cfg(feature = "search")]
         if let Some(create_index) = create_index {

@@ -4,7 +4,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use spki::SubjectPublicKeyInfoRef;
 use std::fmt::Debug;
 
-pub const DEFAULT_AUTH_ENABLED_FOR_READS: bool = true;
+pub const DEFAULT_REQUIRE_AUTH_FOR_READS: bool = true;
 pub const PUBLIC_KEY_DECODING_ERR_MSG: &str = "Could not successfully decode the public key. Make sure you use the standard alphabet with padding";
 
 #[derive(Clone)]
@@ -69,14 +69,14 @@ impl Debug for PublicKey {
 #[derive(Debug, Deserialize, Clone, Serialize, PartialEq)]
 pub struct AuthConfig {
     pub public_key: Option<PublicKey>,
-    pub enabled_for_reads: bool,
+    pub require_auth_for_reads: bool,
 }
 
 impl Default for AuthConfig {
     fn default() -> Self {
         Self {
             public_key: None,
-            enabled_for_reads: DEFAULT_AUTH_ENABLED_FOR_READS,
+            require_auth_for_reads: DEFAULT_REQUIRE_AUTH_FOR_READS,
         }
     }
 }

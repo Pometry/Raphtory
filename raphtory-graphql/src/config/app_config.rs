@@ -106,8 +106,8 @@ impl AppConfigBuilder {
         Ok(self)
     }
 
-    pub fn with_auth_enabled_for_reads(mut self, enabled_for_reads: bool) -> Self {
-        self.auth.enabled_for_reads = enabled_for_reads;
+    pub fn with_require_auth_for_reads(mut self, require_auth_for_reads: bool) -> Self {
+        self.auth.require_auth_for_reads = require_auth_for_reads;
         self
     }
 
@@ -195,8 +195,8 @@ pub fn load_config(
             .with_auth_public_key(public_key)
             .map_err(|_| ConfigError::Message(PUBLIC_KEY_DECODING_ERR_MSG.to_owned()))?;
     }
-    if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {
-        app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
+    if let Ok(require_auth_for_reads) = settings.get::<bool>("auth.require_auth_for_reads") {
+        app_config_builder = app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
     }
 
     if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {

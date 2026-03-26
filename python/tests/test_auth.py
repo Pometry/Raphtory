@@ -94,7 +94,7 @@ def test_default_read_access(query):
 def test_disabled_read_access(query):
     work_dir = tempfile.mkdtemp()
     with GraphServer(
-        work_dir, auth_public_key=PUB_KEY, auth_enabled_for_reads=False
+        work_dir, auth_public_key=PUB_KEY, require_auth_for_reads=False
     ).start():
         add_test_graph()
         data = json.dumps({"query": query})

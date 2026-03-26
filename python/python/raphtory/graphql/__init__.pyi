@@ -62,7 +62,7 @@ class GraphServer(object):
         otlp_tracing_service_name (str, optional): The OTLP tracing service name
         config_path (str | PathLike, optional): Path to the config file
         auth_public_key:
-        auth_enabled_for_reads:
+        require_auth_for_reads:
         create_index:
     """
 
@@ -78,7 +78,7 @@ class GraphServer(object):
         otlp_agent_port: Optional[str] = None,
         otlp_tracing_service_name: Optional[str] = None,
         auth_public_key: Any = None,
-        auth_enabled_for_reads: Any = None,
+        require_auth_for_reads: Any = None,
         config_path: Optional[str | PathLike] = None,
         create_index: Any = None,
         permissions_store_path=None,

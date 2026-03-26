@@ -3,7 +3,7 @@ use crate::config::index_config::DEFAULT_CREATE_INDEX;
 use crate::{
     config::{
         app_config::AppConfigBuilder,
-        auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
+        auth_config::{DEFAULT_REQUIRE_AUTH_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
         cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
@@ -75,8 +75,8 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_AUTH_PUBLIC_KEY", default_value = None, help = "Public key for auth")]
     auth_public_key: Option<String>,
 
-    #[arg(long, env = "RAPHTORY_AUTH_ENABLED_FOR_READS", default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS, help = "Enable auth for reads")]
-    auth_enabled_for_reads: bool,
+    #[arg(long, env = "RAPHTORY_REQUIRE_AUTH_FOR_READS", default_value_t = DEFAULT_REQUIRE_AUTH_FOR_READS, help = "Require JWT authentication for read requests (default: true)")]
+    require_auth_for_reads: bool,
 
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None, help = "Public directory path")]
     public_dir: Option<PathBuf>,
@@ -117,7 +117,7 @@ where
                 .with_auth_public_key(server_args.auth_public_key)
                 .expect(PUBLIC_KEY_DECODING_ERR_MSG)
                 .with_public_dir(server_args.public_dir)
-                .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads);
+                .with_require_auth_for_reads(server_args.require_auth_for_reads);
 
             #[cfg(feature = "search")]
             {

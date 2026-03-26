@@ -35,9 +35,13 @@ NO_ROLE_HEADERS = {"Authorization": f"Bearer {NO_ROLE_JWT}"}
 QUERY_JIRA = """query { graph(path: "jira") { path } }"""
 QUERY_ADMIN = """query { graph(path: "admin") { path } }"""
 QUERY_NS_GRAPHS = """query { root { graphs { list { path } } } }"""
+QUERY_NS_CHILDREN = """query { root { children { list { path } } } }"""
 QUERY_META_JIRA = """query { graphMetadata(path: "jira") { path nodeCount } }"""
 CREATE_JIRA = """mutation { newGraph(path:"jira", graphType:EVENT) }"""
 CREATE_ADMIN = """mutation { newGraph(path:"admin", graphType:EVENT) }"""
+CREATE_TEAM_JIRA = """mutation { newGraph(path:"team/jira", graphType:EVENT) }"""
+QUERY_TEAM_JIRA = """query { graph(path: "team/jira") { path } }"""
+QUERY_TEAM_GRAPHS = """query { namespace(path: "team") { graphs { list { path } } } }"""
 
 
 def gql(query: str, headers=None) -> dict:
@@ -130,6 +134,24 @@ def test_no_role_is_denied_when_policy_is_active():
         assert "Access denied" in response["errors"][0]["message"]
 
 
+def test_unknown_role_is_denied_when_policy_is_active():
+    """JWT has a role claim but that role does not exist in the store → Denied.
+
+    Distinct from test_no_role_is_denied_when_policy_is_active: here the JWT
+    does carry a role claim ('analyst'), but 'analyst' was never created in the
+    store. Both paths deny, but via different branches of the policy flowchart.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        # Make the store non-empty with a different role — but never create "analyst"
+        create_role("other_team")
+
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)  # JWT says role="analyst"
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
+
+
 def test_empty_store_gives_full_access():
     """With an empty permissions store (no roles configured), authenticated users see everything."""
     work_dir = tempfile.mkdtemp()
@@ -141,21 +163,21 @@ def test_empty_store_gives_full_access():
 
 
 def test_introspection_allowed_with_introspect_permission():
-    """INTROSPECT-only role sees graph in namespace listing but is denied by graph()."""
+    """Namespace INTROSPECT makes graphs visible in listings but graph() is denied."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
-        gql(CREATE_JIRA)
+        gql(CREATE_TEAM_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", "INTROSPECT")
+        grant_namespace("analyst", "team", "INTROSPECT")
 
-        # Namespace listing is allowed
-        response = gql(QUERY_NS_GRAPHS, headers=ANALYST_HEADERS)
+        # Namespace listing shows the graph as MetaGraph
+        response = gql(QUERY_TEAM_GRAPHS, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
-        paths = [g["path"] for g in response["data"]["root"]["graphs"]["list"]]
-        assert "jira" in paths
+        paths = [g["path"] for g in response["data"]["namespace"]["graphs"]["list"]]
+        assert "team/jira" in paths
 
-        # graph() resolver is denied
-        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        # graph() resolver is denied (only INTROSPECT, not READ)
+        response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert response["data"] is None
         assert "Access denied" in response["errors"][0]["message"]
 
@@ -345,14 +367,14 @@ def test_analyst_cannot_get_role():
 
 
 def test_introspect_only_cannot_access_graph_data():
-    """INTROSPECT-only role is denied by graph() — graph data is not accessible at all."""
+    """Namespace INTROSPECT is denied by graph() — READ is required to access graph data."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
-        gql(CREATE_JIRA)
+        gql(CREATE_TEAM_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", "INTROSPECT")  # no READ
+        grant_namespace("analyst", "team", "INTROSPECT")  # no READ
 
-        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert response["data"] is None
         assert "Access denied" in response["errors"][0]["message"]
 
@@ -377,19 +399,39 @@ def test_no_grant_hidden_from_namespace_and_graph():
         assert "jira" not in paths
 
 
-def test_graph_metadata_allowed_with_introspect():
-    """graphMetadata is accessible with INTROSPECT (no full graph load required)."""
+def test_grantgraph_introspect_rejected():
+    """grantGraph with INTROSPECT permission is rejected — INTROSPECT is namespace-only."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", "INTROSPECT")
 
-        response = gql(QUERY_META_JIRA, headers=ANALYST_HEADERS)
+        response = gql(
+            'mutation { permissions { grantGraph(role: "analyst", path: "jira", permission: INTROSPECT) { success } } }'
+        )
+        assert "errors" in response
+        assert "INTROSPECT cannot be granted on a graph" in response["errors"][0]["message"]
+
+
+def test_graph_metadata_allowed_with_introspect():
+    """graphMetadata is accessible with INTROSPECT permission (namespace grant)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_namespace("analyst", "team", "INTROSPECT")
+
+        response = gql(
+            'query { graphMetadata(path: "team/jira") { path nodeCount } }',
+            headers=ANALYST_HEADERS,
+        )
         assert "errors" not in response, response
-        meta = response["data"]["graphMetadata"]
-        assert meta["path"] == "jira"
-        assert isinstance(meta["nodeCount"], int)
+        assert response["data"]["graphMetadata"]["path"] == "team/jira"
+
+        # graph() is still denied — INTROSPECT does not grant data access
+        response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_graph_metadata_allowed_with_read():
@@ -616,25 +658,25 @@ def test_raphtory_client_analyst_write_denied_without_write_grant():
 
 
 def test_receive_graph_requires_read():
-    """receive_graph (graph download) requires at least READ; INTROSPECT is not enough."""
+    """receive_graph (graph download) requires at least READ; namespace INTROSPECT is not enough."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
-        gql(CREATE_JIRA)
+        gql(CREATE_TEAM_JIRA)
         create_role("analyst")
 
         # No grant — denied
         client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
         with pytest.raises(Exception, match="Access denied"):
-            client.receive_graph("jira")
+            client.receive_graph("team/jira")
 
-        # INTROSPECT only — also denied
-        grant_graph("analyst", "jira", "INTROSPECT")
+        # Namespace INTROSPECT only — also denied for receive_graph
+        grant_namespace("analyst", "team", "INTROSPECT")
         with pytest.raises(Exception, match="Access denied"):
-            client.receive_graph("jira")
+            client.receive_graph("team/jira")
 
         # READ — allowed
-        grant_graph("analyst", "jira", "READ")
-        g = client.receive_graph("jira")
+        grant_namespace("analyst", "team", "READ")
+        g = client.receive_graph("team/jira")
         assert g is not None
 
 
@@ -691,3 +733,148 @@ def test_analyst_sees_only_graph_filter_window():
             "middle",
             "late",
         }, f"expected all nodes for admin, got {admin_names}"
+
+
+# --- Namespace permission tests ---
+
+
+def test_namespace_introspect_shows_graphs_in_listing():
+    """grantNamespace INTROSPECT: graphs appear in namespace listing but graph() is denied."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_namespace("analyst", "team", "INTROSPECT")
+
+        # Graphs visible as MetaGraph in namespace listing
+        response = gql(QUERY_TEAM_GRAPHS, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        paths = [g["path"] for g in response["data"]["namespace"]["graphs"]["list"]]
+        assert "team/jira" in paths
+
+        # Direct graph access is denied
+        response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
+
+
+def test_namespace_read_exposes_graphs():
+    """grantNamespace READ: graphs in the namespace are fully accessible via graph()."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_namespace("analyst", "team", "READ")
+
+        response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["graph"]["path"] == "team/jira"
+
+
+def test_discover_derivation():
+    """grantGraph READ on a namespaced graph → ancestor namespace gets DISCOVER (visible in children)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "team/jira", "READ")  # no explicit namespace grant
+
+        # "team" namespace appears in root children due to DISCOVER derivation
+        response = gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        paths = [n["path"] for n in response["data"]["root"]["children"]["list"]]
+        assert "team" in paths
+
+
+def test_no_namespace_grant_hidden_from_children():
+    """No grants at all → namespace is hidden from root children listing."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        # analyst has no grants at all
+
+        response = gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        paths = [n["path"] for n in response["data"]["root"]["children"]["list"]]
+        assert "team" not in paths
+
+
+# --- deleteGraph / sendGraph policy delegation ---
+
+DELETE_JIRA = """mutation { deleteGraph(path: "jira") }"""
+DELETE_TEAM_JIRA = """mutation { deleteGraph(path: "team/jira") }"""
+
+
+def test_analyst_can_delete_with_write_grant():
+    """'a':'ro' user with WRITE grant on a graph can delete it."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "WRITE")
+
+        response = gql(DELETE_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["deleteGraph"] is True
+
+
+def test_analyst_cannot_delete_with_read_grant():
+    """'a':'ro' user with READ-only grant is denied by deleteGraph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "READ")
+
+        response = gql(DELETE_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
+def test_analyst_can_delete_with_namespace_write():
+    """'a':'ro' user with namespace WRITE (cascades to graph WRITE) can delete a graph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_namespace("analyst", "team", "WRITE")
+
+        response = gql(DELETE_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["deleteGraph"] is True
+
+
+def test_analyst_cannot_send_graph_without_namespace_write():
+    """'a':'ro' user without namespace WRITE is denied by sendGraph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "team", "READ")  # READ, not WRITE
+
+        response = gql(
+            'mutation { sendGraph(path: "team/new", graph: "dummydata", overwrite: false) }',
+            headers=ANALYST_HEADERS,
+        )
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
+def test_analyst_send_graph_passes_auth_with_namespace_write():
+    """'a':'ro' user with namespace WRITE passes the auth gate in sendGraph.
+
+    The request fails on graph decoding (invalid data), not on access control —
+    proving the namespace WRITE check is honoured.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "team", "WRITE")
+
+        response = gql(
+            'mutation { sendGraph(path: "team/new", graph: "not_valid_base64", overwrite: false) }',
+            headers=ANALYST_HEADERS,
+        )
+        # Auth passed — error is about graph decoding, not access
+        assert "errors" in response
+        assert "Access denied" not in response["errors"][0]["message"]

@@ -1,5 +1,6 @@
 use crate::{
     auth::Access,
+    auth_policy::NamespacePermission,
     data::{get_relative_path, Data},
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
@@ -189,7 +190,11 @@ impl Namespace {
         }
     }
 
-    async fn children(&self) -> GqlCollection<Namespace> {
+    async fn children(&self, ctx: &Context<'_>) -> GqlCollection<Namespace> {
+        let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role: Option<String> = ctx.data::<Option<String>>().ok().and_then(|r| r.clone());
+        let policy = data.auth_policy.clone();
         let self_clone = self.clone();
         blocking_compute(move || {
             GqlCollection::new(
@@ -197,7 +202,22 @@ impl Namespace {
                     .get_children()
                     .filter_map(|item| match item {
                         NamespacedItem::MetaGraph(_) => None,
-                        NamespacedItem::Namespace(n) => Some(n),
+                        NamespacedItem::Namespace(n) => {
+                            if let Some(ref policy) = policy {
+                                let perm = policy.namespace_permissions(
+                                    is_admin,
+                                    role.as_deref(),
+                                    &n.relative_path,
+                                );
+                                if perm >= NamespacePermission::Discover {
+                                    Some(n)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                Some(n)
+                            }
+                        }
                     })
                     .sorted()
                     .collect(),
@@ -230,7 +250,22 @@ impl Namespace {
                                 Some(item)
                             }
                         }
-                        NamespacedItem::Namespace(_) => Some(item),
+                        NamespacedItem::Namespace(ref n) => {
+                            if let Some(ref policy) = policy {
+                                let perm = policy.namespace_permissions(
+                                    is_admin,
+                                    role.as_deref(),
+                                    &n.relative_path,
+                                );
+                                if perm >= NamespacePermission::Discover {
+                                    Some(item)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                Some(item)
+                            }
+                        }
                     })
                     .sorted()
                     .collect(),

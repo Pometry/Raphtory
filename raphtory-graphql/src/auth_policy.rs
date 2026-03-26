@@ -12,6 +12,22 @@ pub enum GraphPermission {
     Write,
 }
 
+/// The effective permission level a principal has on a namespace.
+/// Variants are ordered lowest to highest so that `PartialOrd`/`Ord` reflect the hierarchy.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum NamespacePermission {
+    /// No access — namespace is invisible.
+    Denied,
+    /// Namespace is visible in parent `children()` listings but cannot be browsed.
+    Discover,
+    /// Namespace is browseable; graphs inside are visible as MetaGraph in `graphs()`.
+    Introspect,
+    /// All descendant graphs are fully readable.
+    Read,
+    /// All descendants are writable; `newGraph` is allowed.
+    Write,
+}
+
 pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Resolves the effective permission level for a principal on a graph.
     /// Returns `Err(denial message)` only when access is entirely denied (not even introspect).
@@ -24,6 +40,17 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         role: Option<&str>,
         path: &str,
     ) -> Result<GraphPermission, String>;
+
+    /// Resolves the effective namespace permission for a principal.
+    /// Admin bypass always yields `Write`.
+    /// Empty store yields `Read` (fail open, consistent with graph_permissions).
+    /// Missing role yields `Denied`.
+    fn namespace_permissions(
+        &self,
+        is_admin: bool,
+        role: Option<&str>,
+        path: &str,
+    ) -> NamespacePermission;
 }
 
 /// A no-op policy that grants full access to everyone.
@@ -38,5 +65,9 @@ impl AuthorizationPolicy for NoopPolicy {
         _: &str,
     ) -> Result<GraphPermission, String> {
         Ok(GraphPermission::Write)
+    }
+
+    fn namespace_permissions(&self, _: bool, _: Option<&str>, _: &str) -> NamespacePermission {
+        NamespacePermission::Write
     }
 }

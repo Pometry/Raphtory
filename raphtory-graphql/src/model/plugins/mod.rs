@@ -26,7 +26,7 @@ where
 }
 
 /// Register an operation into the `PermissionsQueryPlugin` entry point (query root).
-/// Ops registered here must call `require_write_access_dynamic` themselves since they
+/// Ops registered here must call `require_jwt_write_access_dynamic` themselves since they
 /// are not covered by the `MutationAuth` extension.
 pub fn register_permissions_query<O>(name: &'static str)
 where

@@ -1,5 +1,5 @@
 pub use crate::{
-    auth::require_write_access_dynamic, model::graph::filtering::GraphAccessFilter,
+    auth::require_jwt_write_access_dynamic, model::graph::filtering::GraphAccessFilter,
     server::GraphServer,
 };
 use crate::{data::InsertionError, paths::PathValidationError};

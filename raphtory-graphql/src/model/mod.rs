@@ -1,6 +1,6 @@
 use crate::{
     auth::{Access, AuthError, ContextValidation},
-    auth_policy::GraphPermission,
+    auth_policy::{GraphPermission, NamespacePermission},
     data::Data,
     model::{
         graph::{
@@ -118,7 +118,7 @@ fn require_at_least_read(
         if matches!(perms, GraphPermission::Introspect) {
             return Err(async_graphql::Error::new(format!(
                 "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                 use namespace listings for graph metadata",
+                 use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
                 role.unwrap_or("<no role>")
             )));
         }
@@ -175,6 +175,12 @@ async fn apply_graph_filter(
     Ok(graph)
 }
 
+/// Returns the namespace portion of a graph path: everything before the last `/`.
+/// For top-level graphs (no `/`), returns `""` (the root namespace).
+fn parent_namespace(path: &str) -> &str {
+    path.rfind('/').map(|i| &path[..i]).unwrap_or("")
+}
+
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub(crate) struct QueryRoot;
@@ -206,7 +212,7 @@ impl QueryRoot {
             if matches!(perms, GraphPermission::Introspect) {
                 return Err(async_graphql::Error::new(format!(
                     "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                     use namespace listings for graph metadata",
+                     READ is required to access graph data; use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
                     role.unwrap_or("<no role>")
                 )));
             }
@@ -268,7 +274,7 @@ impl QueryRoot {
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
         if !is_admin {
             match &data.auth_policy {
-                None => ctx.require_write_access()?,
+                None => ctx.require_jwt_write_access()?,
                 Some(policy) => {
                     let perms = policy
                         .graph_permissions(false, role, &path)
@@ -396,8 +402,28 @@ impl Mut {
     /// Delete graph from a path on the server.
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
-        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
+            match &data.auth_policy {
+                None => ctx.require_jwt_write_access()?,
+                Some(policy) => {
+                    let perm = policy
+                        .graph_permissions(false, role, &path)
+                        .map_err(|msg| async_graphql::Error::new(msg))?;
+                    if !matches!(perm, GraphPermission::Write) {
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: WRITE required on graph '{path}' to delete it"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
+                    }
+                }
+            }
+        }
         data.delete_graph(&path).await?;
         Ok(true)
     }
@@ -413,7 +439,7 @@ impl Mut {
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
         if !is_admin {
             match &data.auth_policy {
-                None => ctx.require_write_access()?,
+                None => ctx.require_jwt_write_access()?,
                 Some(policy) => {
                     let perms = policy
                         .graph_permissions(false, role, &path)
@@ -459,9 +485,28 @@ impl Mut {
         new_path: &str,
         overwrite: Option<bool>,
     ) -> Result<bool> {
-        ctx.require_write_access()?;
-        Self::copy_graph(ctx, path, new_path, overwrite).await?;
         let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
+            if let Some(policy) = &data.auth_policy {
+                // src: require WRITE (moving = deleting source)
+                let src_perm = policy
+                    .graph_permissions(false, role, path)
+                    .map_err(|msg| async_graphql::Error::new(msg))?;
+                if !matches!(src_perm, GraphPermission::Write) {
+                    return if let Some(role) = role {
+                        Err(async_graphql::Error::new(format!(
+                            "Access denied: WRITE required on source graph '{path}' to move it"
+                        )))
+                    } else {
+                        Err(AuthError::RequireWrite.into())
+                    };
+                }
+            }
+        }
+        // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
+        Self::copy_graph(ctx, path, new_path, overwrite).await?;
         data.delete_graph(path).await?;
         Ok(true)
     }
@@ -473,12 +518,45 @@ impl Mut {
         new_path: &str,
         overwrite: Option<bool>,
     ) -> Result<bool> {
-        ctx.require_write_access()?;
+        let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
+            match &data.auth_policy {
+                None => ctx.require_jwt_write_access()?,
+                Some(policy) => {
+                    // src: require at least READ
+                    let src_perm = policy
+                        .graph_permissions(false, role, path)
+                        .map_err(|msg| async_graphql::Error::new(msg))?;
+                    if matches!(src_perm, GraphPermission::Introspect) {
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: READ required on source graph '{path}' to copy it"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
+                    }
+                    // dst namespace: require WRITE
+                    let dst_ns = parent_namespace(new_path);
+                    let ns_perm = policy.namespace_permissions(false, role, dst_ns);
+                    if ns_perm < NamespacePermission::Write {
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: WRITE required on namespace '{dst_ns}' to create graph '{new_path}'"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
+                    }
+                }
+            }
+        }
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let overwrite = overwrite.unwrap_or(false);
-        let data = ctx.data_unchecked::<Data>();
         let graph = data.get_graph(path).await?.graph;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, graph).await?;
@@ -496,8 +574,27 @@ impl Mut {
         graph: Upload,
         overwrite: bool,
     ) -> Result<String> {
-        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
+            match &data.auth_policy {
+                None => ctx.require_jwt_write_access()?,
+                Some(policy) => {
+                    let dst_ns = parent_namespace(&path);
+                    let ns_perm = policy.namespace_permissions(false, role, dst_ns);
+                    if ns_perm < NamespacePermission::Write {
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: WRITE required on namespace '{dst_ns}' to upload graph '{path}'"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
+                    }
+                }
+            }
+        }
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
@@ -515,8 +612,27 @@ impl Mut {
         graph: String,
         overwrite: bool,
     ) -> Result<String> {
-        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
+            match &data.auth_policy {
+                None => ctx.require_jwt_write_access()?,
+                Some(policy) => {
+                    let dst_ns = parent_namespace(path);
+                    let ns_perm = policy.namespace_permissions(false, role, dst_ns);
+                    if ns_perm < NamespacePermission::Write {
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: WRITE required on namespace '{dst_ns}' to send graph '{path}'"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
+                    }
+                }
+            }
+        }
         let folder = if overwrite {
             ValidWriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
         } else {
@@ -543,8 +659,41 @@ impl Mut {
         new_path: String,
         overwrite: bool,
     ) -> Result<String> {
-        ctx.require_write_access()?;
         let data = ctx.data_unchecked::<Data>();
+        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+        if !is_admin {
+            match &data.auth_policy {
+                None => ctx.require_jwt_write_access()?,
+                Some(policy) => {
+                    // parent: require at least READ
+                    let parent_perm = policy
+                        .graph_permissions(false, role, parent_path)
+                        .map_err(|msg| async_graphql::Error::new(msg))?;
+                    if matches!(parent_perm, GraphPermission::Introspect) {
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: READ required on source graph '{parent_path}' to create a subgraph"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
+                    }
+                    // dst namespace: require WRITE
+                    let dst_ns = parent_namespace(&new_path);
+                    let ns_perm = policy.namespace_permissions(false, role, dst_ns);
+                    if ns_perm < NamespacePermission::Write {
+                        return if let Some(role) = role {
+                            Err(async_graphql::Error::new(format!(
+                                "Access denied: WRITE required on namespace '{dst_ns}' to create graph '{new_path}'"
+                            )))
+                        } else {
+                            Err(AuthError::RequireWrite.into())
+                        };
+                    }
+                }
+            }
+        }
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
         let parent_graph = data.get_graph(parent_path).await?.graph;
         let folder_clone = folder.clone();
@@ -569,7 +718,7 @@ impl Mut {
         index_spec: Option<IndexSpecInput>,
         in_ram: bool,
     ) -> Result<bool> {
-        ctx.require_write_access()?;
+        ctx.require_jwt_write_access()?;
         #[cfg(feature = "search")]
         {
             let data = ctx.data_unchecked::<Data>();

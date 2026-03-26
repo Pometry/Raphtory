@@ -138,11 +138,11 @@ where
                         (claims.access, claims.role)
                     }
                     None => {
-                        if self.config.enabled_for_reads {
-                            warn!("Request missing valid JWT — rejecting (auth_enabled_for_reads=true)");
+                        if self.config.require_auth_for_reads {
+                            warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
-                            debug!("No valid JWT but auth_enabled_for_reads=false — granting read access");
+                            debug!("No valid JWT but require_auth_for_reads=false — granting read access");
                             (Access::Ro, None)
                         }
                     }
@@ -228,13 +228,13 @@ fn extract_claims_from_header(header: &str, public_key: &PublicKey) -> Option<To
 }
 
 pub(crate) trait ContextValidation {
-    fn require_write_access(&self) -> Result<(), AuthError>;
+    fn require_jwt_write_access(&self) -> Result<(), AuthError>;
 }
 
 /// Check that the request carries a write-access JWT (`"access": "rw"`).
 /// For use in dynamic resolver ops that run under `query { ... }` and are
 /// therefore not covered by the `MutationAuth` extension.
-pub fn require_write_access_dynamic(
+pub fn require_jwt_write_access_dynamic(
     ctx: &async_graphql::dynamic::ResolverContext,
 ) -> Result<(), async_graphql::Error> {
     if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
@@ -247,7 +247,7 @@ pub fn require_write_access_dynamic(
 }
 
 impl<'a> ContextValidation for &Context<'a> {
-    fn require_write_access(&self) -> Result<(), AuthError> {
+    fn require_jwt_write_access(&self) -> Result<(), AuthError> {
         match self.data::<Access>() {
             Ok(access) if access == &Access::Rw => Ok(()),
             Err(_) => Ok(()), // no auth context (e.g. tests) — unrestricted
