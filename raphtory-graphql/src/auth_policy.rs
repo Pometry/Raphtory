@@ -52,22 +52,3 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         path: &str,
     ) -> NamespacePermission;
 }
-
-/// A no-op policy that grants full access to everyone.
-/// Used when no auth policy has been configured on the server.
-pub struct NoopPolicy;
-
-impl AuthorizationPolicy for NoopPolicy {
-    fn graph_permissions(
-        &self,
-        _: bool,
-        _: Option<&str>,
-        _: &str,
-    ) -> Result<GraphPermission, String> {
-        Ok(GraphPermission::Write)
-    }
-
-    fn namespace_permissions(&self, _: bool, _: Option<&str>, _: &str) -> NamespacePermission {
-        NamespacePermission::Write
-    }
-}
