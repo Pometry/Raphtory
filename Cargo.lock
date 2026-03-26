@@ -4566,6 +4566,7 @@ dependencies = [
  "bytemuck",
  "bzip2 0.4.4",
  "chrono",
+ "crossbeam-channel",
  "csv",
  "dashmap",
  "db4-graph",

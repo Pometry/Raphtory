@@ -1,5 +1,3 @@
-#[cfg(feature = "io")]
-use crate::serialise::GraphPaths;
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
@@ -20,11 +18,17 @@ use crate::{
         },
     },
     errors::GraphError,
-    io::arrow::dataframe::{DFChunk, DFView},
     prelude::*,
-    serialise::parquet::{
-        encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
-        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink,
+};
+#[cfg(feature = "io")]
+use crate::{
+    io::arrow::dataframe::{DFChunk, DFView},
+    serialise::{
+        parquet::{
+            encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
+            encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink,
+        },
+        GraphPaths,
     },
 };
 use ahash::HashSet;
@@ -249,17 +253,20 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
     }
 }
 
+#[cfg(feature = "io")]
 #[derive(Clone)]
 struct RecordBatchChannelSink {
     tx: crossbeam_channel::Sender<RecordBatch>,
 }
 
+#[cfg(feature = "io")]
 impl RecordBatchChannelSink {
     fn new(tx: crossbeam_channel::Sender<RecordBatch>) -> Self {
         Self { tx }
     }
 }
 
+#[cfg(feature = "io")]
 impl RecordBatchSink for RecordBatchChannelSink {
     fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
         self.tx
@@ -272,6 +279,7 @@ impl RecordBatchSink for RecordBatchChannelSink {
     }
 }
 
+#[cfg(feature = "io")]
 fn record_batch_field_names(batch: &RecordBatch) -> Vec<String> {
     batch
         .schema()
@@ -281,6 +289,7 @@ fn record_batch_field_names(batch: &RecordBatch) -> Vec<String> {
         .collect()
 }
 
+#[cfg(feature = "io")]
 fn df_view_from_record_batches(
     rx: crossbeam_channel::Receiver<RecordBatch>,
 ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send> {
@@ -299,7 +308,9 @@ fn df_view_from_record_batches(
     DFView::new(names, chunks, None)
 }
 
-fn materialize_using_recordbatches(
+#[cfg(feature = "io")]
+#[doc(hidden)]
+pub fn materialize_using_recordbatches(
     graph: &impl GraphView,
     path: Option<&Path>,
     config: Config,

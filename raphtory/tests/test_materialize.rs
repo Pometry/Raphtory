@@ -1,7 +1,12 @@
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
+#[cfg(feature = "io")]
+use raphtory::db::api::view::materialize_using_recordbatches;
 use raphtory::{
-    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+    db::{
+        api::storage::storage::PersistenceStrategy,
+        graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+    },
     prelude::*,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -73,6 +78,30 @@ fn materialize_prop_test() {
             assert_graph_equal_timestamps(&gw, &gmw);
         });
     })
+}
+
+#[cfg(feature = "io")]
+#[test]
+#[ignore = "materialize_using_recordbatches is still under construction"]
+fn test_materialize_using_recordbatches_matches_materialize() {
+    let g = Graph::new();
+    g.add_node(0, "A", [("node_meta", "alpha")], Some("TypeA"))
+        .unwrap();
+    g.add_node(1, "B", [("node_meta", "beta")], None).unwrap();
+    g.add_edge(2, "A", "B", [("weight", 1)], Some("layer1"))
+        .unwrap();
+    g.add_edge(3, "A", "B", [("weight", 2)], Some("layer2"))
+        .unwrap();
+    g.delete_edge(4, "A", "B", Some("layer1")).unwrap();
+    g.add_properties(5, [("graph_prop", "present")]).unwrap();
+    g.add_metadata([("graph_meta", "constant")]).unwrap();
+
+    let expected = g.materialize().unwrap();
+    let actual =
+        materialize_using_recordbatches(&g, None, g.core_graph().extension().config().clone())
+            .unwrap();
+
+    assert_graph_equal_timestamps(&expected, &actual);
 }
 
 #[test]
