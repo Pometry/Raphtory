@@ -225,7 +225,7 @@ jobs:
           skip_existing: true
           verify_metadata: false
       - name: Deleting artifacts
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v6
         with:
           failOnError: false
           name: |
