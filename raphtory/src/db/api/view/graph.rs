@@ -51,7 +51,7 @@ use raphtory_api::{
             properties::meta::{Meta, PropMapper, STATIC_GRAPH_LAYER_ID},
             EID,
         },
-        storage::{arc_str::ArcStr, timeindex::EventTime},
+        storage::{arc_str::ArcStr, dict_mapper::DictMapper, timeindex::EventTime},
         Direction,
     },
     GraphType,
@@ -330,6 +330,18 @@ fn df_columns_except(names: &[String], exclude: &[&str]) -> Vec<String> {
         .collect()
 }
 
+/// Needed because the materialize step was deadlocking, layer_mapper.deep_clone() (which is DictMapper::deep_clone()),
+/// uses the same lock in map instead of creating a new lock.
+/// We try to lock it twice in load_edges_from_df's resolve_layer().
+#[cfg(feature = "io")]
+fn clone_layer_mapper(mapper: &DictMapper) -> DictMapper {
+    let clone = DictMapper::new_layer_mapper();
+    for (id, name) in mapper.read().iter_ids() {
+        clone.set_id(name.clone(), id);
+    }
+    clone
+}
+
 #[cfg(feature = "io")]
 #[doc(hidden)]
 pub fn materialize_using_recordbatches(
@@ -349,9 +361,9 @@ pub fn materialize_using_recordbatches(
     graph_props_meta
         .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
 
-    let layer_meta = graph.edge_meta().layer_meta().deep_clone();
-    edge_meta.set_layer_mapper(layer_meta.deep_clone());
-    node_meta.set_layer_mapper(layer_meta);
+    let layer_meta = graph.edge_meta().layer_meta();
+    edge_meta.set_layer_mapper(clone_layer_mapper(layer_meta));
+    node_meta.set_layer_mapper(clone_layer_mapper(layer_meta));
 
     let node_type_meta = graph.node_meta().node_type_meta();
     for (id, name) in node_type_meta.ids().zip(node_type_meta.all_keys().iter()) {
@@ -475,7 +487,6 @@ pub fn materialize_using_recordbatches(
     let graph_t_props_refs = graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
     let graph_c_props_refs = graph_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-    println!("Reached load node props");
     load_node_props_from_df(
         nodes_c_df,
         "rap_node_id",
@@ -488,7 +499,6 @@ pub fn materialize_using_recordbatches(
         &materialized,
     )?;
 
-    println!("Reached load nodes");
     load_nodes_from_df(
         nodes_t_df,
         "rap_time",
@@ -503,7 +513,12 @@ pub fn materialize_using_recordbatches(
         false,
     )?;
 
-    println!("Reached load edges");
+    // The parquet edge loaders assume imported edge ids already map onto existing edge segments.
+    if let Some(max_eid) = graph.edges().iter().map(|edge| edge.edge.pid().0).max() {
+        let mut write_locked_graph = materialized.write_lock()?;
+        write_locked_graph.resize_segments_to_eid(EID(max_eid));
+    }
+
     load_edges_from_df(
         edges_t_df,
         ColumnNames::new(
@@ -524,7 +539,6 @@ pub fn materialize_using_recordbatches(
         false,
     )?;
 
-    println!("Reached load edge props");
     load_edge_props_from_df(
         edges_c_df,
         ColumnNames::new("", None, "rap_src_id", "rap_dst_id", Some("rap_layer")),
@@ -535,7 +549,6 @@ pub fn materialize_using_recordbatches(
         &materialized,
     )?;
 
-    println!("Reached load edge deletions");
     load_edge_deletions_from_df(
         edges_d_df,
         ColumnNames::new(
@@ -552,7 +565,6 @@ pub fn materialize_using_recordbatches(
         &materialized,
     )?;
 
-    println!("Reached load graph t props");
     load_graph_props_from_df(
         graph_t_df,
         "rap_time",
@@ -562,7 +574,6 @@ pub fn materialize_using_recordbatches(
         &materialized,
     )?;
 
-    println!("Reached load graph c props");
     load_graph_props_from_df(
         graph_c_df,
         "rap_time",
