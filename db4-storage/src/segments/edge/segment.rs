@@ -15,10 +15,7 @@ use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::{
     entities::{
         VID,
-        properties::{
-            meta::Meta,
-            prop::{AsPropRef, Prop, PropRef},
-        },
+        properties::{meta::Meta, prop::AsPropRef},
     },
     storage::dict_mapper::MaybeNew,
 };
@@ -620,7 +617,7 @@ mod test {
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},
-        prop::PropType,
+        prop::{Prop, PropType},
     };
     use raphtory_core::storage::timeindex::EventTime;
 

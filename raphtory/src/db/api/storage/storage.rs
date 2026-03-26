@@ -11,7 +11,7 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::Meta,
-            prop::{Prop, PropType},
+            prop::{AsPropRef, Prop, PropType},
         },
         GidRef, EID, VID,
     },
@@ -36,7 +36,6 @@ use std::{
 };
 use storage::wal::{GraphWalOps, WalOps, LSN};
 
-use raphtory_api::core::entities::properties::prop::{AsPropRef, IntoProp};
 #[cfg(feature = "search")]
 use {
     crate::{

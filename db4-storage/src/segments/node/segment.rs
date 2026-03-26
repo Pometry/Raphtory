@@ -18,7 +18,7 @@ use raphtory_api::core::{
         EID, VID,
         properties::{
             meta::Meta,
-            prop::{AsPropRef, Prop, PropRef},
+            prop::{AsPropRef, Prop},
         },
     },
 };

@@ -22,10 +22,7 @@ use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
-    core::entities::{
-        properties::prop::{AsPropRef, PropRef},
-        EID,
-    },
+    core::entities::{properties::prop::AsPropRef, EID},
 };
 use raphtory_core::entities::VID;
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;

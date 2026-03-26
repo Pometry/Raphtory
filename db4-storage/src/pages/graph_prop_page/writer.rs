@@ -3,7 +3,7 @@ use crate::{
     segments::graph_prop::segment::MemGraphPropSegment, wal::LSN,
 };
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::properties::prop::{AsPropRef, Prop, PropRef};
+use raphtory_api::core::entities::properties::prop::AsPropRef;
 use raphtory_core::storage::timeindex::AsTime;
 
 /// Provides mutable access to a graph segment. Holds an exclusive write lock
