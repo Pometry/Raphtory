@@ -1,5 +1,7 @@
-use storage::persist::control_file::{ControlFileOps, DBState, LAST_CHECKPOINT_INIT};
-use storage::wal::{GraphWalOps, WalOps};
+use storage::{
+    persist::control_file::{ControlFileOps, DBState, LAST_CHECKPOINT_INIT},
+    wal::{GraphWalOps, WalOps},
+};
 
 use crate::{
     durability_ops::DurabilityOps,
