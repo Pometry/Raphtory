@@ -405,31 +405,31 @@ pub fn materialize_using_recordbatches(
 
     encode_edge_tprop(graph, {
         let tx = edges_t_tx.clone();
-        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+        move |_, _, _| Ok(RecordBatchChannelSink::new(tx.clone()))
     })?;
     encode_edge_cprop(graph, {
         let tx = edges_c_tx.clone();
-        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+        move |_, _, _| Ok(RecordBatchChannelSink::new(tx.clone()))
     })?;
     encode_edge_deletions(graph, {
         let tx = edges_d_tx.clone();
-        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+        move |_, _, _| Ok(RecordBatchChannelSink::new(tx.clone()))
     })?;
     encode_nodes_tprop(graph, {
         let tx = nodes_t_tx.clone();
-        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+        move |_, _, _| Ok(RecordBatchChannelSink::new(tx.clone()))
     })?;
     encode_nodes_cprop(graph, {
         let tx = nodes_c_tx.clone();
-        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+        move |_, _, _| Ok(RecordBatchChannelSink::new(tx.clone()))
     })?;
     encode_graph_tprop(graph, {
         let tx = graph_t_tx.clone();
-        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+        move |_, _, _| Ok(RecordBatchChannelSink::new(tx.clone()))
     })?;
     encode_graph_cprop(graph, {
         let tx = graph_c_tx.clone();
-        move |_schema, _chunk, _num_digits| Ok(RecordBatchChannelSink::new(tx.clone()))
+        move |_, _, _| Ok(RecordBatchChannelSink::new(tx.clone()))
     })?;
 
     drop(edges_t_tx);
