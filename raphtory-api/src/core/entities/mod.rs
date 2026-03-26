@@ -454,13 +454,13 @@ impl<'a> GidRef<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::core::entities::Multiple;
+    use crate::core::entities::{LayerId, Multiple};
 
     #[test]
     fn empty_bit_multiple() {
         let bm = super::Multiple::default();
         let actual = bm.into_iter().collect::<Vec<_>>();
-        let expected: Vec<usize> = vec![];
+        let expected: Vec<LayerId> = vec![];
         assert_eq!(actual, expected);
     }
 
@@ -481,21 +481,6 @@ mod test {
 }
 
 impl LayerIds {
-    pub fn find(&self, layer_id: usize) -> Option<usize> {
-        match self {
-            LayerIds::All => Some(layer_id),
-            LayerIds::One(id) => {
-                if *id == layer_id {
-                    Some(layer_id)
-                } else {
-                    None
-                }
-            }
-            LayerIds::Multiple(ids) => ids.contains(layer_id).then_some(layer_id),
-            LayerIds::None => None,
-        }
-    }
-
     pub fn intersect(&self, other: &LayerIds) -> LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
@@ -510,7 +495,7 @@ impl LayerIds {
                 }
             }
             (LayerIds::Multiple(ids), other) => {
-                let ids: Vec<usize> = ids.iter().filter(|id| other.contains(id)).collect();
+                let ids: Vec<_> = ids.iter().filter(|id| other.contains(id)).collect();
                 match ids.len() {
                     0 => LayerIds::None,
                     1 => LayerIds::One(ids[0]),
@@ -520,8 +505,13 @@ impl LayerIds {
         }
     }
 
-    pub fn contains(&self, layer_id: &usize) -> bool {
-        self.find(*layer_id).is_some()
+    pub fn contains(&self, layer_id: &LayerId) -> bool {
+        match self {
+            LayerIds::All => true,
+            LayerIds::One(id) => id == layer_id,
+            LayerIds::Multiple(ids) => ids.contains(*layer_id),
+            LayerIds::None => false,
+        }
     }
 
     pub fn is_none(&self) -> bool {
@@ -536,19 +526,19 @@ impl LayerIds {
         matches!(self, LayerIds::All)
     }
 
-    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> + use<'_> {
+    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = LayerId> + use<'_> {
         match self {
             LayerIds::None => iter::empty().into_dyn_boxed(),
-            LayerIds::All => (0..num_layers).into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).map(LayerId).into_dyn_boxed(),
             LayerIds::One(id) => iter::once(*id).into_dyn_boxed(),
             LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
         }
     }
 
-    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> {
+    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = LayerId> {
         match self {
             LayerIds::None => iter::empty().into_dyn_boxed(),
-            LayerIds::All => (0..num_layers).into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).map(LayerId).into_dyn_boxed(),
             LayerIds::One(id) => iter::once(id).into_dyn_boxed(),
             LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
         }
@@ -557,6 +547,16 @@ impl LayerIds {
 
 impl From<Vec<usize>> for LayerIds {
     fn from(v: Vec<usize>) -> Self {
+        match v.len() {
+            0 => LayerIds::All,
+            1 => LayerIds::One(LayerId(v[0])),
+            _ => LayerIds::Multiple(v.into()),
+        }
+    }
+}
+
+impl From<Vec<LayerId>> for LayerIds {
+    fn from(v: Vec<LayerId>) -> Self {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
@@ -569,6 +569,16 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
     fn from(v: [usize; N]) -> Self {
         match v.len() {
             0 => LayerIds::All,
+            1 => LayerIds::One(LayerId(v[0])),
+            _ => LayerIds::Multiple(v.into_iter().collect()),
+        }
+    }
+}
+
+impl<const N: usize> From<[LayerId; N]> for LayerIds {
+    fn from(v: [LayerId; N]) -> Self {
+        match v.len() {
+            0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
             _ => LayerIds::Multiple(v.into_iter().collect()),
         }
@@ -577,6 +587,12 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
 
 impl From<usize> for LayerIds {
     fn from(id: usize) -> Self {
+        LayerIds::One(LayerId(id))
+    }
+}
+
+impl From<LayerId> for LayerIds {
+    fn from(id: LayerId) -> Self {
         LayerIds::One(id)
     }
 }

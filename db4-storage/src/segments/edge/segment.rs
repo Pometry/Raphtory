@@ -373,7 +373,7 @@ pub struct ArcLockedSegmentView {
 impl ArcLockedSegmentView {
     fn edge_iter_layer<'a>(
         &'a self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl Iterator<Item = MemEdgeRef<'a>> + Send + Sync + 'a {
         self.inner
             .layers
@@ -385,7 +385,7 @@ impl ArcLockedSegmentView {
 
     fn edge_par_iter_layer<'a>(
         &'a self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + 'a {
         self.inner
             .layers
@@ -470,7 +470,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.head().layers.len()
     }
 
-    fn layer_count(&self, layer_id: usize) -> u32 {
+    fn layer_count(&self, layer_id: LayerId) -> u32 {
         self.head()
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
@@ -558,7 +558,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         locked_head.has_edge(edge_pos, layer_id)
     }
 
-    fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: usize) -> bool {
+    fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: LayerId) -> bool {
         false
     }
 

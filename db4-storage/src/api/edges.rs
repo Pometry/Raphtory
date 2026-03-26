@@ -1,4 +1,7 @@
-use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
+use crate::{
+    LocalPOS, error::StorageError, persist::strategy::PersistenceStrategy,
+    segments::edge::segment::MemEdgeSegment, wal::LSN,
+};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::{
     LayerId,
@@ -85,7 +88,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
 
-    fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool;
+    fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool;
 
     fn get_edge(
         &self,
