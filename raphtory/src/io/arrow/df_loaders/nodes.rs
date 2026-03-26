@@ -9,7 +9,7 @@ use crate::{
                 extract_secondary_index_col, process_shared_properties,
                 resolve_nodes_and_type_with_cache,
             },
-            layer_col::{lift_node_type_col, LayerCol},
+            layer_col::{lift_layer_col, lift_node_type_col, LayerCol},
             node_col::NodeCol,
             prop_handler::*,
         },
@@ -21,7 +21,13 @@ use arrow::{array::AsArray, datatypes::UInt64Type};
 use itertools::izip;
 use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
-    core::{entities::properties::meta::STATIC_GRAPH_LAYER_ID, storage::timeindex::EventTime},
+    core::{
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
+            LayerId,
+        },
+        storage::timeindex::EventTime,
+    },
 };
 use raphtory_core::{
     entities::{GidRef, VID},
@@ -41,10 +47,9 @@ use storage::{
 
 #[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
-use crate::io::arrow::layer_col::lift_layer_col;
+
 #[cfg(feature = "progress")]
 use kdam::BarExt;
-use raphtory_api::core::entities::LayerId;
 
 #[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
@@ -209,9 +214,11 @@ pub fn load_nodes_from_df<
                             update_time(t);
 
                             let t_props = prop_cols.iter_row(row);
-                            let c_props = metadata_cols
-                                .iter_row(row)
-                                .chain(shared_metadata.iter().cloned());
+                            let c_props = metadata_cols.iter_row(row).chain(
+                                shared_metadata
+                                    .iter()
+                                    .map(|(id, prop)| (*id, prop.as_prop_ref())),
+                            );
 
                             writer.add_props(t, mut_node, layer_id, t_props);
                             writer.update_c_props(mut_node, layer_id, c_props);
@@ -350,7 +357,7 @@ pub fn load_node_props_from_df<
 
                         c_props.clear();
                         c_props.extend(metadata_cols.iter_row(idx));
-                        c_props.extend_from_slice(&shared_metadata);
+                        c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
                             writer.update_c_props(

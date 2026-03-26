@@ -5,7 +5,10 @@ use crate::{
 };
 use raphtory_api::core::entities::{
     LayerId,
-    properties::{meta::Meta, prop::Prop},
+    properties::{
+        meta::Meta,
+        prop::{AsPropRef, Prop, PropRef},
+    },
 };
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
@@ -103,10 +106,10 @@ impl MemGraphPropSegment {
         self.lsn = lsn;
     }
 
-    pub fn add_properties<T: AsTime>(
+    pub fn add_properties<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> usize {
         let layer = self.get_or_create_layer(Self::DEFAULT_LAYER);
         let est_size = layer.est_size();
@@ -120,7 +123,7 @@ impl MemGraphPropSegment {
         layer_est_size - est_size
     }
 
-    pub fn check_metadata(&self, props: &[(usize, Prop)]) -> Result<(), StorageError> {
+    pub fn check_metadata<P: AsPropRef>(&self, props: &[(usize, P)]) -> Result<(), StorageError> {
         if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER.0) {
             layer.check_metadata(Self::DEFAULT_ROW.into(), props)?;
         }
@@ -128,7 +131,10 @@ impl MemGraphPropSegment {
         Ok(())
     }
 
-    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) -> usize {
+    pub fn update_metadata<P: AsPropRef>(
+        &mut self,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) -> usize {
         let segment_container = self.get_or_create_layer(Self::DEFAULT_LAYER);
         let est_size = segment_container.est_size();
 

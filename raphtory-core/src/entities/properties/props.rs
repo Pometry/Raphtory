@@ -9,9 +9,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum TPropError {
     #[error(transparent)]
-    IllegalSet(#[from] IllegalSet<TProp>),
-    #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
+    ColumnError(#[from] TPropColumnError),
 }
 
 #[derive(Error, Debug)]
@@ -21,6 +19,9 @@ pub enum MetadataError {
 
     #[error(transparent)]
     IllegalPropType(#[from] IllegalPropType),
+
+    #[error(transparent)]
+    ColumnError(#[from] TPropColumnError),
 }
 
 impl From<IllegalSet<Option<Prop>>> for MetadataError {
@@ -28,19 +29,6 @@ impl From<IllegalSet<Option<Prop>>> for MetadataError {
         let old = value.previous_value.unwrap_or(Prop::str("NONE"));
         let new = value.new_value.unwrap_or(Prop::str("NONE"));
         MetadataError::IllegalUpdate { old, new }
-    }
-}
-
-impl From<TPropColumnError> for MetadataError {
-    fn from(value: TPropColumnError) -> Self {
-        match value {
-            TPropColumnError::IllegalSet(inner) => {
-                let old = inner.previous_value;
-                let new = inner.new_value;
-                MetadataError::IllegalUpdate { old, new }
-            }
-            TPropColumnError::IllegalType(inner) => MetadataError::IllegalPropType(inner),
-        }
     }
 }
 

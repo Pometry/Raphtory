@@ -928,7 +928,7 @@ def test_loading_list_as_properties():
         properties=["marbles"],
     )
 
-    assert g.edge(1, 2).properties["marbles"] == ["red"]
+    assert g.edge(1, 2).properties["marbles"].tolist() == ["red"]
 
     df = pd.DataFrame(
         {
@@ -946,7 +946,7 @@ def test_loading_list_as_properties():
         properties=["marbles"],
     )
 
-    assert g.node(2).properties["marbles"] == ["blue"]
+    assert g.node(2).properties["marbles"].tolist() == ["blue"]
 
 
 def test_unparsable_props():

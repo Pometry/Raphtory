@@ -29,7 +29,10 @@ use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
-        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, EID},
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
+            EID,
+        },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
 };
@@ -538,8 +541,8 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (&'a VID, &'a VID, i64, usize, &'a EID, &'a usize, bool)>,
     delete: bool,
 ) {
-    let mut t_props: Vec<(usize, Prop)> = vec![];
-    let mut c_props: Vec<(usize, Prop)> = vec![];
+    let mut t_props = vec![];
+    let mut c_props = vec![];
     let mut writer = shard.writer();
 
     for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
@@ -551,7 +554,11 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
 
             c_props.clear();
             c_props.extend(metadata_cols.iter_row(row));
-            c_props.extend_from_slice(shared_metadata);
+            c_props.extend(
+                shared_metadata
+                    .iter()
+                    .map(|(id, prop)| (*id, prop.as_prop_ref())),
+            );
 
             if !delete {
                 writer.bulk_add_edge(

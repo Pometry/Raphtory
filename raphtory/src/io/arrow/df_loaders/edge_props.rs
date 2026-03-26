@@ -22,7 +22,10 @@ use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
-    core::entities::{LayerId, EID},
+    core::entities::{
+        properties::prop::{AsPropRef, PropRef},
+        LayerId, EID,
+    },
 };
 use raphtory_core::entities::VID;
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
@@ -242,13 +245,17 @@ fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     shard: &mut LockedEdgePage<'_, ES>,
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
-    let mut c_props: Vec<(usize, Prop)> = Vec::new();
+    let mut c_props = Vec::new();
     let mut writer = shard.writer();
     for (row, (src, dst, eid, layer)) in zip.enumerate() {
         if let Some(eid_pos) = writer.resolve_pos(*eid) {
             c_props.clear();
             c_props.extend(metadata_cols.iter_row(row));
-            c_props.extend_from_slice(shared_metadata);
+            c_props.extend(
+                shared_metadata
+                    .iter()
+                    .map(|(id, prop)| (*id, prop.as_prop_ref())),
+            );
 
             writer.update_c_props(eid_pos, *src, *dst, LayerId(*layer), c_props.drain(..));
         }
