@@ -1,6 +1,6 @@
 use crate::{
     auth::Access,
-    auth_policy::NamespacePermission,
+    auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{get_relative_path, Data},
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
@@ -11,7 +11,7 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use walkdir::WalkDir;
 
 #[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
@@ -138,6 +138,28 @@ impl Namespace {
     }
 }
 
+fn is_graph_visible(
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    is_admin: bool,
+    role: Option<&str>,
+    g: &MetaGraph,
+) -> bool {
+    policy.as_ref().map_or(true, |p| {
+        p.graph_permissions(is_admin, role, &g.local_path()).is_ok()
+    })
+}
+
+fn is_namespace_visible(
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    is_admin: bool,
+    role: Option<&str>,
+    n: &Namespace,
+) -> bool {
+    policy.as_ref().map_or(true, |p| {
+        p.namespace_permissions(is_admin, role, &n.relative_path) >= NamespacePermission::Discover
+    })
+}
+
 #[ResolvedObjectFields]
 impl Namespace {
     async fn graphs(&self, ctx: &Context<'_>) -> GqlCollection<MetaGraph> {
@@ -151,18 +173,12 @@ impl Namespace {
                 self_clone
                     .get_children()
                     .filter_map(|g| match g {
-                        NamespacedItem::MetaGraph(g) => {
-                            if let Some(ref policy) = policy {
-                                let path = g.local_path();
-                                match policy.graph_permissions(is_admin, role.as_deref(), &path) {
-                                    Ok(_) => Some(g),
-                                    Err(_) => None,
-                                }
-                            } else {
-                                Some(g)
-                            }
+                        NamespacedItem::MetaGraph(g)
+                            if is_graph_visible(&policy, is_admin, role.as_deref(), &g) =>
+                        {
+                            Some(g)
                         }
-                        NamespacedItem::Namespace(_) => None,
+                        _ => None,
                     })
                     .sorted()
                     .collect(),
@@ -201,23 +217,12 @@ impl Namespace {
                 self_clone
                     .get_children()
                     .filter_map(|item| match item {
-                        NamespacedItem::MetaGraph(_) => None,
-                        NamespacedItem::Namespace(n) => {
-                            if let Some(ref policy) = policy {
-                                let perm = policy.namespace_permissions(
-                                    is_admin,
-                                    role.as_deref(),
-                                    &n.relative_path,
-                                );
-                                if perm >= NamespacePermission::Discover {
-                                    Some(n)
-                                } else {
-                                    None
-                                }
-                            } else {
-                                Some(n)
-                            }
+                        NamespacedItem::Namespace(n)
+                            if is_namespace_visible(&policy, is_admin, role.as_deref(), &n) =>
+                        {
+                            Some(n)
                         }
+                        _ => None,
                     })
                     .sorted()
                     .collect(),
@@ -238,33 +243,12 @@ impl Namespace {
             GqlCollection::new(
                 self_clone
                     .get_children()
-                    .filter_map(|item| match item {
-                        NamespacedItem::MetaGraph(ref g) => {
-                            if let Some(ref policy) = policy {
-                                let path = g.local_path();
-                                match policy.graph_permissions(is_admin, role.as_deref(), &path) {
-                                    Ok(_) => Some(item),
-                                    Err(_) => None,
-                                }
-                            } else {
-                                Some(item)
-                            }
+                    .filter(|item| match item {
+                        NamespacedItem::MetaGraph(g) => {
+                            is_graph_visible(&policy, is_admin, role.as_deref(), g)
                         }
-                        NamespacedItem::Namespace(ref n) => {
-                            if let Some(ref policy) = policy {
-                                let perm = policy.namespace_permissions(
-                                    is_admin,
-                                    role.as_deref(),
-                                    &n.relative_path,
-                                );
-                                if perm >= NamespacePermission::Discover {
-                                    Some(item)
-                                } else {
-                                    None
-                                }
-                            } else {
-                                Some(item)
-                            }
+                        NamespacedItem::Namespace(n) => {
+                            is_namespace_visible(&policy, is_admin, role.as_deref(), n)
                         }
                     })
                     .sorted()
