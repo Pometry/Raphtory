@@ -1,12 +1,11 @@
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 #[cfg(feature = "io")]
+use raphtory::db::api::storage::storage::PersistenceStrategy;
+#[cfg(feature = "io")]
 use raphtory::db::api::view::materialize_using_recordbatches;
 use raphtory::{
-    db::{
-        api::storage::storage::PersistenceStrategy,
-        graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
-    },
+    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
     prelude::*,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -82,7 +81,6 @@ fn materialize_prop_test() {
 
 #[cfg(feature = "io")]
 #[test]
-#[ignore = "materialize_using_recordbatches is still under construction"]
 fn test_materialize_using_recordbatches_matches_materialize() {
     let g = Graph::new();
     g.add_node(0, "A", [("node_meta", "alpha")], Some("TypeA"))

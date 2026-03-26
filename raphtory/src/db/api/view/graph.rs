@@ -22,7 +22,15 @@ use crate::{
 };
 #[cfg(feature = "io")]
 use crate::{
-    io::arrow::dataframe::{DFChunk, DFView},
+    io::arrow::{
+        dataframe::{DFChunk, DFView},
+        df_loaders::{
+            edge_props::load_edges_from_df as load_edge_props_from_df,
+            edges::{load_edges_from_df, ColumnNames},
+            load_edge_deletions_from_df, load_graph_props_from_df,
+            nodes::{load_node_props_from_df, load_nodes_from_df},
+        },
+    },
     serialise::{
         parquet::{
             encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
@@ -32,6 +40,7 @@ use crate::{
     },
 };
 use ahash::HashSet;
+#[cfg(feature = "io")]
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
@@ -45,6 +54,7 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
     },
+    GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
@@ -305,7 +315,19 @@ fn df_view_from_record_batches(
         Ok(DFChunk::new(columns))
     });
 
-    DFView::new(names, chunks, None)
+    let num_rows = if names.is_empty() { Some(0) } else { None };
+
+    DFView::new(names, chunks, num_rows)
+}
+
+#[cfg(feature = "io")]
+fn df_columns_except(names: &[String], exclude: &[&str]) -> Vec<String> {
+    names
+        .iter()
+        .map(|name| name.as_str())
+        .filter(|name| !exclude.contains(name))
+        .map(str::to_string)
+        .collect()
 }
 
 #[cfg(feature = "io")]
@@ -357,7 +379,8 @@ pub fn materialize_using_recordbatches(
         .storage()
         .set_event_id(graph.core_graph().lock().read_event_id());
 
-    let _graph_storage = GraphStorage::from(Arc::new(temporal_graph));
+    let graph_storage = GraphStorage::from(Arc::new(temporal_graph));
+    let materialized = graph.new_base_graph(graph_storage);
 
     // TODO: switch these to bounded channels once the loaders consume concurrently with encoding.
     let (edges_t_tx, edges_t_rx) = crossbeam_channel::unbounded();
@@ -405,15 +428,151 @@ pub fn materialize_using_recordbatches(
     drop(graph_t_tx);
     drop(graph_c_tx);
 
-    let _edges_t_df = df_view_from_record_batches(edges_t_rx);
-    let _edges_c_df = df_view_from_record_batches(edges_c_rx);
-    let _edges_d_df = df_view_from_record_batches(edges_d_rx);
-    let _nodes_t_df = df_view_from_record_batches(nodes_t_rx);
-    let _nodes_c_df = df_view_from_record_batches(nodes_c_rx);
-    let _graph_t_df = df_view_from_record_batches(graph_t_rx);
-    let _graph_c_df = df_view_from_record_batches(graph_c_rx);
+    let nodes_c_df = df_view_from_record_batches(nodes_c_rx);
+    let nodes_t_df = df_view_from_record_batches(nodes_t_rx);
+    let edges_t_df = df_view_from_record_batches(edges_t_rx);
+    let edges_c_df = df_view_from_record_batches(edges_c_rx);
+    let edges_d_df = df_view_from_record_batches(edges_d_rx);
+    let graph_t_df = df_view_from_record_batches(graph_t_rx);
+    let graph_c_df = df_view_from_record_batches(graph_c_rx);
 
-    todo!("load RecordBatches into graph storage using df_loaders")
+    let node_c_props = df_columns_except(
+        &nodes_c_df.names,
+        &[
+            "rap_node_id",
+            "rap_node_vid",
+            "rap_node_type",
+            "rap_node_type_id",
+        ],
+    );
+    let node_t_props = df_columns_except(
+        &nodes_t_df.names,
+        &["rap_node_vid", "rap_time", "rap_secondary_index"],
+    );
+    let edge_t_props = df_columns_except(
+        &edges_t_df.names,
+        &[
+            "rap_time",
+            "rap_secondary_index",
+            "rap_src_id",
+            "rap_dst_id",
+            "rap_edge_id",
+            "rap_layer",
+            "rap_layer_id",
+        ],
+    );
+    let edge_c_props = df_columns_except(
+        &edges_c_df.names,
+        &["rap_src_id", "rap_dst_id", "rap_edge_id", "rap_layer"],
+    );
+    let graph_t_props = df_columns_except(&graph_t_df.names, &["rap_time", "rap_secondary_index"]);
+    let graph_c_props = df_columns_except(&graph_c_df.names, &["rap_time"]);
+
+    let node_c_props_refs = node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
+    let node_t_props_refs = node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+    let edge_t_props_refs = edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+    let edge_c_props_refs = edge_c_props.iter().map(String::as_str).collect::<Vec<_>>();
+    let graph_t_props_refs = graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+    let graph_c_props_refs = graph_c_props.iter().map(String::as_str).collect::<Vec<_>>();
+
+    println!("Reached load node props");
+    load_node_props_from_df(
+        nodes_c_df,
+        "rap_node_id",
+        None,
+        Some("rap_node_type"),
+        Some("rap_node_vid"),
+        Some("rap_node_type_id"),
+        &node_c_props_refs,
+        None,
+        &materialized,
+    )?;
+
+    println!("Reached load nodes");
+    load_nodes_from_df(
+        nodes_t_df,
+        "rap_time",
+        Some("rap_secondary_index"),
+        "rap_node_vid",
+        &node_t_props_refs,
+        &[],
+        None,
+        None,
+        None,
+        &materialized,
+        false,
+    )?;
+
+    println!("Reached load edges");
+    load_edges_from_df(
+        edges_t_df,
+        ColumnNames::new(
+            "rap_time",
+            Some("rap_secondary_index"),
+            "rap_src_id",
+            "rap_dst_id",
+            Some("rap_layer"),
+        )
+        .with_layer_id_col("rap_layer_id")
+        .with_edge_id_col("rap_edge_id"),
+        false,
+        &edge_t_props_refs,
+        &[],
+        None,
+        None,
+        &materialized,
+        false,
+    )?;
+
+    println!("Reached load edge props");
+    load_edge_props_from_df(
+        edges_c_df,
+        ColumnNames::new("", None, "rap_src_id", "rap_dst_id", Some("rap_layer")),
+        false,
+        &edge_c_props_refs,
+        None,
+        None,
+        &materialized,
+    )?;
+
+    println!("Reached load edge deletions");
+    load_edge_deletions_from_df(
+        edges_d_df,
+        ColumnNames::new(
+            "rap_time",
+            Some("rap_secondary_index"),
+            "rap_src_id",
+            "rap_dst_id",
+            Some("rap_layer"),
+        )
+        .with_layer_id_col("rap_layer_id")
+        .with_edge_id_col("rap_edge_id"),
+        false,
+        None,
+        &materialized,
+    )?;
+
+    println!("Reached load graph t props");
+    load_graph_props_from_df(
+        graph_t_df,
+        "rap_time",
+        Some("rap_secondary_index"),
+        Some(&graph_t_props_refs),
+        None,
+        &materialized,
+    )?;
+
+    println!("Reached load graph c props");
+    load_graph_props_from_df(
+        graph_c_df,
+        "rap_time",
+        None,
+        None,
+        Some(&graph_c_props_refs),
+        &materialized,
+    )?;
+
+    Ok(materialized)
 }
 
 fn materialize_impl(
