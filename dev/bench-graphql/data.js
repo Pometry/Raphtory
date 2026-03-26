@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1774353330054,
+  "lastUpdate": 1774546751029,
   "repoUrl": "https://github.com/Pometry/Raphtory",
   "entries": {
     "GraphQL Benchmark": [
@@ -4643,6 +4643,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "readAndWriteNodeProperties",
             "value": 1307,
+            "unit": "req/s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "b.a.steer@qmul.ac.uk",
+            "name": "Ben Steer",
+            "username": "miratepuffin"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9823ef78e9620ef1221c0137003a7796e098956f",
+          "message": "Create dependabot.yml",
+          "timestamp": "2026-03-26T16:57:46Z",
+          "tree_id": "08e9881183cd959b809afeebc2c01a64081d3f3a",
+          "url": "https://github.com/Pometry/Raphtory/commit/9823ef78e9620ef1221c0137003a7796e098956f"
+        },
+        "date": 1774546747481,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "addNode",
+            "value": 0,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomNodePage",
+            "value": 199,
+            "unit": "req/s"
+          },
+          {
+            "name": "randomEdgePage",
+            "value": 119,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodePropsByName",
+            "value": 1018,
+            "unit": "req/s"
+          },
+          {
+            "name": "nodeNeighboursByName",
+            "value": 880,
+            "unit": "req/s"
+          },
+          {
+            "name": "readAndWriteNodeProperties",
+            "value": 1096,
             "unit": "req/s"
           }
         ]
