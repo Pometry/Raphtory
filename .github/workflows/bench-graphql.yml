@@ -32,7 +32,7 @@ jobs:
       - name: Build raphtory
         run: make install-python
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: 9
       - uses: grafana/setup-k6-action@v1

@@ -4,7 +4,12 @@ from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
 from numpy.testing import assert_equal as check_arr
-from utils import assert_set_eq, assert_has_metadata, assert_has_properties, truncate_dt_to_ms
+from utils import (
+    assert_set_eq,
+    assert_has_metadata,
+    assert_has_properties,
+    truncate_dt_to_ms,
+)
 
 
 def make_props():
@@ -46,7 +51,7 @@ def test_add_metadata():
 
         with pytest.raises(Exception) as excinfo:
             rg.add_metadata({"prop_float": 3.0})
-        assert "Attempted to change value of metadata" in str(excinfo.value)
+        assert "Cannot set previous value" in str(excinfo.value)
 
 
 def test_update_metadata():

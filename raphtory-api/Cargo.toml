@@ -36,6 +36,7 @@ tracing-subscriber = { workspace = true }
 tracing = { workspace = true }
 sorted_vector_map = { workspace = true }
 arrow-array = { workspace = true }
+arrow-buffer = { workspace = true }
 arrow-ipc = { workspace = true }
 arrow-schema = { workspace = true }
 serde_arrow = { workspace = true }

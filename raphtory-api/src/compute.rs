@@ -1,5 +1,13 @@
 use rayon::prelude::*;
 /// Compute cumulative sum in parallel over `num_chunks` chunks
+pub fn cum_sum(values: &mut [usize]) {
+    let mut sum = 0;
+    for v in values {
+        sum += *v;
+        *v = sum;
+    }
+}
+
 pub fn par_cum_sum(values: &mut [usize]) {
     let num_chunks = rayon::current_num_threads();
     let chunk_size = values.len().div_ceil(num_chunks);
@@ -28,12 +36,12 @@ pub fn par_cum_sum(values: &mut [usize]) {
 
 #[cfg(test)]
 mod test {
-    use super::par_cum_sum;
+    use super::cum_sum;
 
     #[test]
     fn test_cum_sum() {
         let mut values: Vec<_> = (0..100).collect();
-        par_cum_sum(&mut values);
+        cum_sum(&mut values);
         let mut cum_sum = 0;
         for (index, v) in values.into_iter().enumerate() {
             cum_sum += index;

@@ -11,7 +11,6 @@ use crate::{
     },
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::node::segment::MemNodeSegment,
-    wal::LSN,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{GidType, properties::meta::Meta};
@@ -24,11 +23,11 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, atomic::AtomicU32},
+    sync::{Arc, LazyLock, atomic::AtomicU32},
 };
 
 // graph // (nodes|edges) // graph segments // layers // chunks
-pub const N: usize = 32;
+pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
 
 #[derive(Debug)]
 pub struct NodeStorageInner<NS, EXT> {
@@ -36,7 +35,7 @@ pub struct NodeStorageInner<NS, EXT> {
     stats: Arc<GraphStats>,
 
     /// Contains ids of segments that can accomodate new nodes.
-    free_segments: Box<[RwLock<usize>; N]>,
+    free_segments: Box<[RwLock<usize>]>,
 
     nodes_path: Option<PathBuf>,
     node_meta: Arc<Meta>,
@@ -50,7 +49,9 @@ pub struct ReadLockedNodeStorage<NS: NodeSegmentOps<Extension = EXT>, EXT> {
     locked_segments: Box<[NS::ArcLockedSegment]>,
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNodeStorage<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
+    ReadLockedNodeStorage<NS, EXT>
+{
     pub fn node_ref(
         &self,
         node: impl Into<VID>,
@@ -133,7 +134,9 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedNo
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
+    NodeStorageInner<NS, EXT>
+{
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.node_meta
     }
@@ -163,7 +166,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         })
     }
 
-    pub fn segments_count(&self) -> usize {
+    pub fn num_segments(&self) -> usize {
         self.segments.count()
     }
 
@@ -188,14 +191,16 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 }
 
-impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageInner<NS, EXT> {
+impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
+    NodeStorageInner<NS, EXT>
+{
     pub fn new_with_meta(
         nodes_path: Option<PathBuf>,
         node_meta: Arc<Meta>,
         edge_meta: Arc<Meta>,
         ext: EXT,
     ) -> Self {
-        let free_segments = (0..N).map(RwLock::new).collect::<Box<[_]>>();
+        let free_segments = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
             stats: GraphStats::new().into(),
@@ -258,7 +263,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
     }
 
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
-        let slot_idx = row % N;
+        let slot_idx = row % *N;
         let maybe_free_page = {
             let page_id = *self.free_segments[slot_idx].read_recursive();
             let page = self.segments.get(page_id);
@@ -287,6 +292,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
 
     /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
+    ///
+    /// # Deadlock Safety: do not hold any node segment locks when calling this function!
     pub fn reserve_and_lock_segment(
         &self,
         row: usize,
@@ -295,44 +302,25 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
         LocalPOS,
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
     ) {
-        let mut slot_idx = row % N;
-        let mut segment_id = *self.free_segments[slot_idx].read_recursive();
+        let mut slot_idx = row % *N;
+        // No point in multiple threads getting past here as they would just content on the writer lock
+        let mut slot = self.free_segments[slot_idx].write();
+        let mut segment_id = *slot;
 
-        // Iterate through `free_segments` until we can acquire a write lock on a free segment.
-        // With the write lock, try reserving `num_rows` in that segment.
-        // If the candidate segment is full, create or retrieve a new free segment from the slot
-        // and try again.
-        loop {
-            match self.try_writer(segment_id) {
-                None => {
-                    // The current segment is being written to, round-robin to the next slot.
-                    slot_idx = (slot_idx + 1) % N;
-                    let slot = self.free_segments[slot_idx].read_recursive();
-                    segment_id = *slot;
-                }
-                Some(writer) => {
-                    match self.reserve_segment_rows(writer.page, num_rows) {
-                        None => {
-                            // The current segment is full, drop its lock and
-                            // check if a new free segment has been added to the slot or create a new one.
-                            drop(writer);
-
-                            let mut slot = self.free_segments[slot_idx].write();
-
-                            // Check our slot to see if some other thread has pushed a new free segment.
-                            if *slot == segment_id {
-                                // The segment is still the same, so we need to create a new one.
-                                segment_id = self.push_new_segment();
-                                *slot = segment_id;
-                            } else {
-                                // There is another free segment in the slot, retry using it.
-                                segment_id = *slot;
-                            }
-                        }
-                        Some(local_pos) => return (LocalPOS(local_pos), writer),
-                    }
-                }
+        let writer = self.writer(segment_id);
+        match self.reserve_segment_rows(writer.page, num_rows) {
+            None => {
+                // The current segment is full, drop its lock and push a new free segment
+                drop(writer);
+                segment_id = self.push_new_segment();
+                *slot = segment_id;
+                let writer = self.writer(segment_id);
+                let local_pos = self
+                    .reserve_segment_rows(writer.page, num_rows)
+                    .expect("new segment should never be full");
+                (LocalPOS(local_pos), writer)
             }
+            Some(local_pos) => (LocalPOS(local_pos), writer),
         }
     }
 
@@ -530,7 +518,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> NodeStorageI
             .map(|last| last + 1)
             .unwrap_or_else(|| pages.count());
 
-        free_pages.resize_with(N, || {
+        free_pages.resize_with(*N, || {
             let lock = RwLock::new(next_free_page);
             next_free_page += 1;
             lock

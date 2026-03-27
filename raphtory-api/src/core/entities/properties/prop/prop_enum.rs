@@ -386,17 +386,12 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
     }
 }
 
-pub fn validate_prop(prop: Prop) -> Result<Prop, InvalidBigDecimal> {
-    match prop {
-        Prop::Decimal(ref bd) => {
-            let (bint, scale) = bd.as_bigint_and_exponent();
-            if bint <= BigInt::from(DECIMAL_MAX) && scale <= 38 {
-                Ok(prop)
-            } else {
-                Err(InvalidBigDecimal(bd.clone()))
-            }
-        }
-        _ => Ok(prop),
+pub fn validate_bd(bd: &BigDecimal) -> Result<(), InvalidBigDecimal> {
+    let (bint, scale) = bd.as_bigint_and_exponent();
+    if bint <= BigInt::from(DECIMAL_MAX) && scale <= 38 {
+        Ok(())
+    } else {
+        Err(InvalidBigDecimal(bd.clone()))
     }
 }
 
@@ -434,8 +429,8 @@ impl Prop {
     }
 
     pub fn try_from_bd(bd: BigDecimal) -> Result<Prop, InvalidBigDecimal> {
-        let prop = Prop::Decimal(bd);
-        validate_prop(prop)
+        validate_bd(&bd)?;
+        Ok(Prop::Decimal(bd))
     }
 
     pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, impl Into<Prop>)>) -> Self {

@@ -5,7 +5,7 @@ use crate::{
     },
     errors::GraphError,
     io::{
-        arrow::{df_loaders::edges::ColumnNames, prop_handler::lift_property_col},
+        arrow::df_loaders::edges::ColumnNames,
         parquet_loaders::{
             get_parquet_file_paths, load_edge_deletions_from_parquet,
             load_edge_metadata_from_parquet, load_edges_from_parquet,
@@ -36,7 +36,10 @@ use parquet::{
 };
 use raphtory_api::{
     core::entities::{
-        properties::{meta::PropMapper, prop::arrow_dtype_from_prop_type},
+        properties::{
+            meta::PropMapper,
+            prop::{arrow_dtype_from_prop_type, prop_col::lift_property_col},
+        },
         GidType,
     },
     GraphType,

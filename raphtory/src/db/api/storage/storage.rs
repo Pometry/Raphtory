@@ -11,7 +11,7 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::Meta,
-            prop::{Prop, PropType},
+            prop::{AsPropRef, Prop, PropType},
         },
         GidRef, EID, VID,
     },
@@ -25,6 +25,7 @@ use raphtory_storage::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         deletion_ops::InternalDeletionOps,
+        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
@@ -49,6 +50,7 @@ use {
     },
     either::Either,
     parking_lot::RwLock,
+    raphtory_api::core::entities::properties::prop::IntoProp,
     raphtory_core::entities::nodes::node_ref::AsNodeRef,
     raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
     std::{
@@ -563,6 +565,10 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
     }
 
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        Ok(self.graph.bulk_load_resolve_node(id)?)
+    }
+
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
         self.graph.atomic_add_node(node).map_err(into_graph_err)
     }
@@ -571,17 +577,17 @@ impl InternalAdditionOps for Storage {
 impl InternalPropertyAdditionOps for Storage {
     type Error = GraphError;
 
-    fn internal_add_properties(
+    fn internal_add_properties<P: AsPropRef>(
         &self,
         t: EventTime,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<GraphPropWriterT<'_>, GraphError> {
         Ok(self.graph.internal_add_properties(t, props)?)
     }
 
-    fn internal_add_metadata(
+    fn internal_add_metadata<P: AsPropRef>(
         &self,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<GraphPropWriterT<'_>, GraphError> {
         Ok(self.graph.internal_add_metadata(props)?)
     }
@@ -593,13 +599,16 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(self.graph.internal_update_metadata(props)?)
     }
 
-    fn internal_add_node_metadata(
+    fn internal_add_node_metadata<P: AsPropRef>(
         &self,
         vid: VID,
-        props: Vec<(usize, Prop)>,
+        props: Vec<(usize, P)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
-        let props_for_index = props.clone();
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
 
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
@@ -625,16 +634,19 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(lock)
     }
 
-    fn internal_add_edge_metadata(
+    fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
         layer: usize,
-        props: Vec<(usize, Prop)>,
+        props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
 
         #[cfg(feature = "search")]
-        let props_for_index = props.clone();
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
 
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 
@@ -663,29 +675,5 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_index_mut(|index| index.update_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
-    }
-}
-
-impl InternalDeletionOps for Storage {
-    type Error = GraphError;
-    fn internal_delete_edge(
-        &self,
-        t: EventTime,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: EventTime,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_delete_existing_edge(t, eid, layer)?;
-
-        Ok(())
     }
 }

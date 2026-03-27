@@ -4,7 +4,7 @@ mod lcc;
 mod out_components;
 mod scc;
 
-pub use connected_components::weakly_connected_components;
+pub use connected_components::{weakly_connected_components, weakly_connected_components_ds};
 pub use in_components::{
     in_component, in_component_filtered, in_components, in_components_filtered,
 };

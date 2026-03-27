@@ -142,7 +142,7 @@ impl PropType {
 
     // This is the best guess for the size of one row of properties
     pub fn est_size(&self) -> usize {
-        const CONTAINER_SIZE: usize = 8;
+        const CONTAINER_SIZE: usize = 64;
         match self {
             PropType::Str => CONTAINER_SIZE,
             PropType::U8 | PropType::Bool => 1,

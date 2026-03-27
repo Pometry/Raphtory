@@ -13,7 +13,7 @@ TEST_PROPS = {
 
 def test_map_props():
     work_dir = tempfile.mkdtemp()
-    server = server = GraphServer(work_dir)
+    server = GraphServer(work_dir)
     with server.start():
         temp_dir = tempfile.mkdtemp()
         client = RaphtoryClient("http://localhost:1736")
@@ -27,7 +27,7 @@ def test_map_props():
         check_test_prop(client)
 
     work_dir = tempfile.mkdtemp()
-    server = server = GraphServer(work_dir)
+    server = GraphServer(work_dir)
     with server.start():
         client.new_graph("test", "EVENT")
         rg = client.remote_graph("test")

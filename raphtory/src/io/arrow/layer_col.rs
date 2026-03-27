@@ -9,6 +9,7 @@ use arrow::array::{Array, AsArray, LargeStringArray, StringArray, StringViewArra
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, IndexedParallelIterator, Iterator, ParallelIterator,
 };
+use raphtory_api::core::entities::properties::meta::DEFAULT_NODE_TYPE_ID;
 use rayon::prelude::*;
 
 #[derive(Copy, Clone, Debug)]
@@ -86,6 +87,45 @@ impl<'a> LayerCol<'a> {
                 } else {
                     None
                 }
+            }
+        }
+    }
+
+    pub fn resolve_node_type<'b>(
+        self,
+        graph: &(impl AdditionOps + Send + Sync),
+    ) -> Result<Cow<'b, [usize]>, GraphError> {
+        match self {
+            LayerCol::Name { name, len } => {
+                let node_type_id = if let Some(name) = name {
+                    let nt = graph.node_meta().get_or_create_node_type_id(name);
+                    nt.inner()
+                } else {
+                    DEFAULT_NODE_TYPE_ID
+                };
+                Ok(Cow::Owned(vec![node_type_id; len]))
+            }
+            col => {
+                let mut res = vec![0usize; col.len()];
+                let node_type_mapper = graph.node_meta().node_type_meta();
+                let mut locked_node_type_mapper = node_type_mapper.write();
+                let mut last = None;
+                let mut last_id = DEFAULT_NODE_TYPE_ID;
+                for (row, name) in col.iter().enumerate() {
+                    let node_type_id = if let Some(name) = name {
+                        if last != Some(name) {
+                            locked_node_type_mapper.get_or_create_id(name).inner()
+                        } else {
+                            last_id
+                        }
+                    } else {
+                        DEFAULT_NODE_TYPE_ID
+                    };
+                    res[row] = node_type_id;
+                    last = name;
+                    last_id = node_type_id;
+                }
+                Ok(Cow::Owned(res))
             }
         }
     }
@@ -195,9 +235,9 @@ pub(crate) fn lift_node_type_col<'a>(
         }),
         (None, Some(layer_index)) => {
             let col = &df.chunk[layer_index];
-            if let Some(col) = col.as_string_opt() {
+            if let Some(col) = col.as_string_opt::<i32>() {
                 Ok(LayerCol::Utf8 { col })
-            } else if let Some(col) = col.as_string_opt() {
+            } else if let Some(col) = col.as_string_opt::<i64>() {
                 Ok(LayerCol::LargeUtf8 { col })
             } else if let Some(col) = col.as_string_view_opt() {
                 Ok(LayerCol::Utf8View { col })

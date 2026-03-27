@@ -270,6 +270,8 @@ impl<V: From<usize> + Into<usize>, I: Borrow<StateIndex<V>>> Iterator for StateI
         let current = index.offsets[self.current_chunk] + self.current_local;
         let target = current.saturating_add(n);
         if &target >= index.offsets.last()? {
+            // need to set this so that future calls actually return None!
+            self.current_chunk = index.num_chunks();
             return None;
         }
         // find the first offset > target, then substract 1 to get the last chunk starting at <= target
@@ -855,13 +857,21 @@ mod tests {
     fn test_iter_skip() {
         let index: StateIndex<usize> = StateIndex::new(vec![10, 1, 5], 10);
 
-        let expected = (0..10).chain(10..11).chain(20..25);
+        let expected: Vec<_> = (0..10).chain(10..11).chain(20..25).collect();
         // check all skips
-        for (i, v) in expected.enumerate() {
+        for (i, v) in expected.iter().copied().enumerate() {
             assert_eq!(index.iter().nth(i), Some(v));
         }
 
         assert_eq!(index.iter().nth(100), None);
-        assert_eq!(index.iter().nth(16), None);
+
+        // check that iterator is correctly exhausted after calling nth
+        let mut iter = index.iter();
+        assert_eq!(iter.nth(16), None);
+        assert!(iter.next().is_none());
+
+        let mut iter = index.iter();
+        assert_eq!(iter.nth(15), Some(expected[15]));
+        assert!(iter.next().is_none());
     }
 }
