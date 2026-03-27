@@ -51,7 +51,7 @@ use raphtory_api::{
             properties::meta::{Meta, PropMapper, STATIC_GRAPH_LAYER_ID},
             EID,
         },
-        storage::{arc_str::ArcStr, dict_mapper::DictMapper, timeindex::EventTime},
+        storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
     },
     GraphType,
@@ -330,19 +330,6 @@ fn df_columns_except(names: &[String], exclude: &[&str]) -> Vec<String> {
         .collect()
 }
 
-/// Needed because the materialize step was deadlocking, layer_mapper.deep_clone() (which is DictMapper::deep_clone()),
-/// uses the same lock in map instead of creating a new lock.
-/// We try to lock it twice in load_edges_from_df's resolve_layer().
-#[cfg(feature = "io")]
-fn clone_layer_mapper(mapper: &DictMapper) -> DictMapper {
-    let clone = DictMapper::new_layer_mapper();
-    for (id, name) in mapper.read().iter_ids() {
-        clone.set_id(name.clone(), id);
-    }
-    clone
-}
-
-#[cfg(feature = "io")]
 #[doc(hidden)]
 pub fn materialize_using_recordbatches(
     graph: &impl GraphView,
@@ -361,9 +348,9 @@ pub fn materialize_using_recordbatches(
     graph_props_meta
         .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
 
-    let layer_meta = graph.edge_meta().layer_meta();
-    edge_meta.set_layer_mapper(clone_layer_mapper(layer_meta));
-    node_meta.set_layer_mapper(clone_layer_mapper(layer_meta));
+    let layer_meta = graph.edge_meta().layer_meta().deep_clone();
+    edge_meta.set_layer_mapper(layer_meta.deep_clone());
+    node_meta.set_layer_mapper(layer_meta);
 
     let node_type_meta = graph.node_meta().node_type_meta();
     for (id, name) in node_type_meta.ids().zip(node_type_meta.all_keys().iter()) {
