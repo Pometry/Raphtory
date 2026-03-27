@@ -34,8 +34,6 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
                     wal.read_checkpoint(checkpoint_lsn)?
                 };
 
-                println!("redo_lsn: {redo_lsn}");
-
                 // Set db state to indicate that recovery is in progress.
                 control_file.set_db_state(DBState::CrashRecovery);
                 control_file.save()?;
