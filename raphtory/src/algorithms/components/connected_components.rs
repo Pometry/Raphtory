@@ -8,6 +8,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use disjoint_sets::AUnionFind;
 use raphtory_api::core::entities::VID;
 use raphtory_core::entities::LayerIds;
 use rayon::prelude::*;
@@ -16,7 +17,6 @@ use std::{
     mem,
     sync::atomic::{AtomicUsize, Ordering},
 };
-use disjoint_sets::AUnionFind;
 
 /// Keeps track of node assignments to weakly-connected components
 ///
