@@ -1844,6 +1844,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "disjoint-sets"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ccbbca7d6a247007ca2535c616d4bb4a5fcad176ef0218671f96b88c52c3d34"
+
+[[package]]
 name = "display-error-chain"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4909,6 +4915,7 @@ dependencies = [
  "dashmap",
  "db4-graph",
  "db4-storage",
+ "disjoint-sets",
  "display-error-chain",
  "dotenv",
  "either",
