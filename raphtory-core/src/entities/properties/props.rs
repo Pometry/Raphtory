@@ -1,5 +1,5 @@
 use crate::{
-    entities::properties::tprop::{IllegalPropType, TProp},
+    entities::properties::tprop::IllegalPropType,
     storage::{lazy_vec::IllegalSet, TPropColumnError},
 };
 use raphtory_api::core::entities::properties::prop::Prop;

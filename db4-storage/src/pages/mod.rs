@@ -5,6 +5,7 @@ use crate::{
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    state::StateIndex,
     wal::{GraphWalOps, WalOps},
 };
 use edge_page::writer::EdgeWriter;
@@ -13,17 +14,9 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{
-    entities::properties::meta::Meta,
-    utils::time::{InputTime, TryIntoInputTime},
-};
+use raphtory_api::core::{entities::properties::meta::Meta, utils::time::TryIntoInputTime};
+use raphtory_core::entities::{EID, VID};
 use rayon::prelude::*;
-
-use crate::state::StateIndex;
-use raphtory_core::{
-    entities::{EID, VID},
-    storage::timeindex::EventTime,
-};
 use std::{
     path::{Path, PathBuf},
     sync::{
@@ -247,18 +240,6 @@ impl<
 
     pub fn edge_segment_counts(&self) -> SegmentCounts<EID> {
         self.edges.segment_counts()
-    }
-
-    fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<EventTime, StorageError> {
-        let input_time = t.try_into_input_time()?;
-        let t = match input_time {
-            InputTime::Indexed(t, i) => EventTime::new(t, i),
-            InputTime::Simple(t) => {
-                let i = self.event_id.fetch_add(1, atomic::Ordering::Relaxed);
-                EventTime::new(t, i)
-            }
-        };
-        Ok(t)
     }
 
     pub fn read_event_id(&self) -> usize {
