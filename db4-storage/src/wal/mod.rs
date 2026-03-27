@@ -40,16 +40,16 @@ pub struct ReplayRecord {
 
     data: Vec<u8>,
 
-    /// The raw bytes of the WAL entry stored on disk, including CRC data.
-    raw_bytes: Vec<u8>,
+    /// LSN immediately after this record in the WAL stream.
+    next_lsn: LSN,
 }
 
 impl ReplayRecord {
-    pub fn new(lsn: LSN, data: Vec<u8>, raw_bytes: Vec<u8>) -> Self {
+    pub fn new(lsn: LSN, data: Vec<u8>, next_lsn: LSN) -> Self {
         Self {
             lsn,
             data,
-            raw_bytes,
+            next_lsn,
         }
     }
 
@@ -59,15 +59,11 @@ impl ReplayRecord {
 
     /// Returns the LSN immediately following this record in the WAL stream.
     pub fn next_lsn(&self) -> LSN {
-        self.lsn + self.raw_bytes.len() as LSN
+        self.next_lsn
     }
 
     pub fn data(&self) -> &[u8] {
         &self.data
-    }
-
-    pub fn raw_bytes(&self) -> &[u8] {
-        &self.raw_bytes
     }
 }
 
