@@ -24,8 +24,6 @@ use raphtory_storage::{
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
-        deletion_ops::InternalDeletionOps,
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
@@ -36,10 +34,7 @@ use std::{
     path::Path,
     sync::Arc,
 };
-use storage::{
-    persist::control_file::{ControlFileOps, DBState},
-    wal::{GraphWalOps, WalOps, LSN},
-};
+use storage::wal::LSN;
 
 #[cfg(feature = "search")]
 use {

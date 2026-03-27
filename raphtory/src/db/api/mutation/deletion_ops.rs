@@ -11,12 +11,8 @@ use crate::{
 };
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
 use raphtory_storage::{
-    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps},
     durability_ops::DurabilityOps,
-    mutation::{
-        addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        deletion_ops::InternalDeletionOps,
-    },
+    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps},
 };
 use storage::wal::{GraphWalOps, WalOps};
 

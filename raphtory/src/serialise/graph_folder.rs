@@ -268,12 +268,19 @@ pub trait GraphPaths {
         } else {
             fs::create_dir_all(self.root())?
         }
-        let meta_path = self.relative_data_path()?;
-        fs::create_dir(self.root().join(&meta_path))?;
+
+        // Create the data folder and have the root metadata file point to it.
+        let data_path = self.relative_data_path()?;
+        fs::create_dir(self.root().join(&data_path))?;
         fs::write(
             self.root_meta_path(),
-            serde_json::to_string(&RelativePath { path: meta_path })?,
+            serde_json::to_string(&RelativePath { path: data_path })?,
         )?;
+
+        // Create the graph folder inside the data folder.
+        let graph_path = self.graph_path()?;
+        fs::create_dir(&graph_path)?;
+
         Ok(())
     }
 }

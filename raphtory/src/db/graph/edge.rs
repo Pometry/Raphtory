@@ -45,8 +45,6 @@ use raphtory_storage::{
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        deletion_ops::InternalDeletionOps,
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };
