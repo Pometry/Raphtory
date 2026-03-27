@@ -37,16 +37,17 @@ where
     ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a {
         match layers.borrow() {
             LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::One(layer_id) => Iter4::J(self.into_t_props(LayerId(*layer_id), prop_id)),
+            LayerIds::One(layer_id) => Iter4::J(self.into_t_props(*layer_id, prop_id)),
             LayerIds::All => Iter4::K(
                 (0..self.num_layers())
-                    .flat_map(move |layer_id| self.into_t_props(LayerId(layer_id), prop_id)),
+                    .map(LayerId)
+                    .flat_map(move |layer_id| self.into_t_props(layer_id, prop_id)),
             ),
             LayerIds::Multiple(layers) => Iter4::L(
                 layers
                     .clone()
                     .into_iter()
-                    .flat_map(move |layer_id| self.into_t_props(LayerId(layer_id), prop_id)),
+                    .flat_map(move |layer_id| self.into_t_props(layer_id, prop_id)),
             ),
         }
     }

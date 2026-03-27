@@ -225,10 +225,10 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.layered_mask.iter().any(filter_fn),
-            LayerIds::One(id) => self.layered_mask.get(*id).is_some_and(filter_fn),
+            LayerIds::One(id) => self.layered_mask.get(id.0).is_some_and(filter_fn),
             LayerIds::Multiple(multiple) => multiple
                 .iter()
-                .any(|id| self.layered_mask.get(id).is_some_and(filter_fn)),
+                .any(|id| self.layered_mask.get(id.0).is_some_and(filter_fn)),
         }
     }
 
@@ -264,12 +264,12 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
             LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
-                .get(*id)
+                .get(id.0)
                 .map(|(nodes, _, _)| nodes.contains(node.vid().as_u64()))
                 .unwrap_or(false),
             LayerIds::Multiple(multiple) => multiple.iter().any(|id| {
                 self.layered_mask
-                    .get(id)
+                    .get(id.0)
                     .map(|(nodes, _, _)| nodes.contains(node.vid().as_u64()))
                     .unwrap_or(false)
             }),

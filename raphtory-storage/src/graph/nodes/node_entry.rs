@@ -115,7 +115,7 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 

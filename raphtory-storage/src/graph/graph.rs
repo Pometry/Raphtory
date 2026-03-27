@@ -258,10 +258,10 @@ impl GraphStorage {
         }
     }
 
-    pub fn layer_ids_iter(&self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> {
+    pub fn layer_ids_iter(&self, layer_ids: &LayerIds) -> impl Iterator<Item = LayerId> {
         match layer_ids {
             LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => LayerVariants::All(1..=self.unfiltered_num_layers()),
+            LayerIds::All => LayerVariants::All((1..=self.unfiltered_num_layers()).map(LayerId)),
             LayerIds::One(id) => LayerVariants::One(iter::once(*id)),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(ids.clone().into_iter()),
         }

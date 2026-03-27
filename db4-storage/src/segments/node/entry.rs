@@ -10,7 +10,10 @@ use raphtory_api::core::{
     Direction,
     entities::{
         EID, LayerId, VID,
-        properties::{meta::Meta, prop::Prop},
+        properties::{
+            meta::{Meta, STATIC_GRAPH_LAYER_ID},
+            prop::Prop,
+        },
     },
 };
 use raphtory_core::{
@@ -72,12 +75,12 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
 
     fn t_props_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.ns
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .map(|seg| MemAdditions::Props(seg.times_from_props(self.pos)))
             .into_iter()
             .map(move |t_cell| {
@@ -89,12 +92,12 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
 
     fn additions_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.ns
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .map(|seg| MemAdditions::Edges(seg.additions(self.pos)))
             .into_iter()
             .map(move |t_cell| {
@@ -106,12 +109,12 @@ impl<'a> WithTimeCells<'a> for MemNodeRef<'a> {
 
     fn deletions_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.ns
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .map(|seg| MemAdditions::Edges(seg.deletions(self.pos)))
             .into_iter()
             .map(move |t_cell| {
@@ -200,8 +203,8 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize {
         match layers {
-            LayerIds::One(layer_id) => self.ns.degree(self.pos, LayerId(*layer_id), dir),
-            LayerIds::All => self.ns.degree(self.pos, LayerId(0), dir),
+            LayerIds::One(layer_id) => self.ns.degree(self.pos, *layer_id, dir),
+            LayerIds::All => self.ns.degree(self.pos, STATIC_GRAPH_LAYER_ID, dir),
             LayerIds::None => 0,
             LayerIds::Multiple(ids) => match dir {
                 Direction::OUT => ids
@@ -232,11 +235,11 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
 
     fn find_edge(&self, dst: VID, layers: &LayerIds) -> Option<EdgeRef> {
         let eid = match layers {
-            LayerIds::One(layer_id) => self.ns.get_out_edge(self.pos, dst, LayerId(*layer_id)),
-            LayerIds::All => self.ns.get_out_edge(self.pos, dst, LayerId(0)),
+            LayerIds::One(layer_id) => self.ns.get_out_edge(self.pos, dst, *layer_id),
+            LayerIds::All => self.ns.get_out_edge(self.pos, dst, STATIC_GRAPH_LAYER_ID),
             LayerIds::Multiple(layers) => layers
                 .iter()
-                .find_map(|layer_id| self.ns.get_out_edge(self.pos, dst, LayerId(layer_id))),
+                .find_map(|layer_id| self.ns.get_out_edge(self.pos, dst, layer_id)),
             LayerIds::None => None,
         };
 
@@ -252,10 +255,10 @@ impl<'a> NodeRefOps<'a> for MemNodeRef<'a> {
         self.ns.as_ref().len()
     }
 
-    fn has_layer_inner(self, layer_id: usize) -> bool {
+    fn has_layer_inner(self, layer_id: LayerId) -> bool {
         self.ns
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .is_some_and(|layer| layer.has_item(self.pos))
     }
 }

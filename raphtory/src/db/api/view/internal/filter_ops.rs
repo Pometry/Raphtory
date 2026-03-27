@@ -96,7 +96,7 @@ impl<G: GraphView> InnerFilterOps for G {
     }
 
     fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
-        self.layer_ids().contains(&layer.0)
+        self.layer_ids().contains(&layer)
             && self.internal_filter_edge_layer(edge, layer)
             && (self.edge_layer_filter_includes_edge_filter()
                 || self.internal_filter_edge(edge, self.layer_ids()))
@@ -105,7 +105,7 @@ impl<G: GraphView> InnerFilterOps for G {
     }
 
     fn filter_exploded_edge_inner(&self, eid: ELID, t: EventTime) -> bool {
-        self.layer_ids().contains(&eid.layer().0)
+        self.layer_ids().contains(&eid.layer())
             && self.internal_filter_exploded_edge(eid, t, self.layer_ids())
             && (self.exploded_filter_independent() || {
                 let edge = self.core_edge(eid.edge);

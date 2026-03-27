@@ -66,7 +66,7 @@ impl<'a> MemEdgeRef<'a> {
         layer_ids.iter().any(|layer_id| {
             self.es
                 .as_ref()
-                .get(layer_id)
+                .get(layer_id.0)
                 .is_some_and(|layer| layer.has_item(self.pos))
         })
     }
@@ -77,12 +77,12 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
 
     fn t_props_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.es
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .map(|layer| MemAdditions::Props(layer.times_from_props(self.pos)))
             .into_iter()
             .map(move |t_props| {
@@ -94,7 +94,7 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
 
     fn additions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -102,13 +102,13 @@ impl<'a> WithTimeCells<'a> for MemEdgeRef<'a> {
 
     fn deletions_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         let deletions = self
             .es
             .as_ref()
-            .get(layer_id)
+            .get(layer_id.0)
             .map(|layer| layer.deletions(self.pos))
             .unwrap_or(&TCell::Empty);
         let t_cell = MemAdditions::Edges(deletions);

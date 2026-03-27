@@ -68,7 +68,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for IsDeletedGr
 
     fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         let time_semantics = self.graph.edge_time_semantics();
-        time_semantics.edge_is_deleted(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer.0)))
+        time_semantics.edge_is_deleted(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer)))
             && self.graph.internal_filter_edge_layer(edge, layer)
     }
 }

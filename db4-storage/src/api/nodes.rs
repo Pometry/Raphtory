@@ -37,7 +37,7 @@ use crate::{
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
 use rayon::prelude::*;
 
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
@@ -250,12 +250,12 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         Self: Sized,
     {
         match layers_ids {
-            LayerIds::One(layer_id) => Iter4::I(self.edges_dir(LayerId(*layer_id), dir)),
-            LayerIds::All => Iter4::J(self.edges_dir(LayerId(0), dir)),
+            LayerIds::One(layer_id) => Iter4::I(self.edges_dir(*layer_id, dir)),
+            LayerIds::All => Iter4::J(self.edges_dir(STATIC_GRAPH_LAYER_ID, dir)),
             LayerIds::Multiple(layers) => Iter4::K(
                 layers
                     .into_iter()
-                    .map(|layer_id| self.edges_dir(LayerId(layer_id), dir))
+                    .map(|layer_id| self.edges_dir(layer_id, dir))
                     .kmerge_by(|e1, e2| e1.remote() < e2.remote())
                     .dedup_by(|l, r| l.pid() == r.pid()),
             ),
@@ -386,5 +386,5 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn internal_num_layers(&self) -> usize;
 
-    fn has_layer_inner(self, layer_id: usize) -> bool;
+    fn has_layer_inner(self, layer_id: LayerId) -> bool;
 }

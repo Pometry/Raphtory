@@ -283,10 +283,10 @@ fn materialize_impl(
         }
         LayerIds::One(l_id) => {
             let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-            let layer_name = storage.edge_meta().get_layer_name_by_id(LayerId(*l_id));
+            let layer_name = storage.edge_meta().get_layer_name_by_id(*l_id);
             let new_id = layer_meta.get_or_create_id(&layer_name).inner();
 
-            layer_map[*l_id] = new_id;
+            layer_map[l_id.0] = new_id;
             layer_map
         }
         LayerIds::Multiple(ids) => {
@@ -294,9 +294,9 @@ fn materialize_impl(
             let layers = storage.edge_meta().layer_meta().all_keys();
 
             for id in ids {
-                let layer_name = &layers[id];
+                let layer_name = &layers[id.0];
                 let new_id = layer_meta.get_or_create_id(layer_name).inner();
-                layer_map[id] = new_id;
+                layer_map[id.0] = new_id;
             }
 
             layer_map

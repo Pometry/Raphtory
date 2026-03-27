@@ -140,7 +140,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for AdditionCellsRef<'a,
 
     fn deletions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -171,7 +171,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for DeletionCellsRef<'a,
 
     fn t_props_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -179,7 +179,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for DeletionCellsRef<'a,
 
     fn additions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -218,7 +218,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef
 
     fn t_props_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -234,7 +234,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef
 
     fn deletions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -273,7 +273,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef
 
     fn additions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -281,7 +281,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef
 
     fn deletions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -388,6 +388,6 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     }
 
     fn is_empty(&self) -> bool {
-        self.time_cells().all(|t_cell| t_cell.is_empty())
+        self.clone().time_cells().all(|t_cell| t_cell.is_empty())
     }
 }

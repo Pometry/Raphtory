@@ -269,7 +269,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         None => time_semantics.edge_is_valid(edge.as_ref(), g),
                         Some(layer) => time_semantics.edge_is_valid(
                             edge.as_ref(),
-                            LayeredGraph::new(g, LayerIds::One(layer.0)),
+                            LayeredGraph::new(g, LayerIds::One(layer)),
                         ),
                     },
                     Some(t) => {
@@ -295,7 +295,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         None => time_semantics.edge_is_deleted(edge.as_ref(), g),
                         Some(layer) => time_semantics.edge_is_deleted(
                             edge.as_ref(),
-                            LayeredGraph::new(g, LayerIds::One(layer.0)),
+                            LayeredGraph::new(g, LayerIds::One(layer)),
                         ),
                     },
                     Some(t) => {
@@ -367,7 +367,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         None => time_semantics.edge_is_active(edge.as_ref(), g),
                         Some(layer_id) => time_semantics.edge_is_active(
                             edge.as_ref(),
-                            LayeredGraph::new(g, LayerIds::One(layer_id.0)),
+                            LayeredGraph::new(g, LayerIds::One(layer_id)),
                         ),
                     },
                     Some(t) => time_semantics.edge_is_active_exploded(
@@ -398,7 +398,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         match e.layer() {
                             None => exploded(view, e),
                             Some(layer) => {
-                                exploded(LayeredGraph::new(view, LayerIds::One(layer.0)), e)
+                                exploded(LayeredGraph::new(view, LayerIds::One(layer)), e)
                             }
                         }
                     }
@@ -435,7 +435,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         None => time_semantics.edge_earliest_time(g.core_edge(e.pid()).as_ref(), g),
                         Some(layer) => time_semantics.edge_earliest_time(
                             g.core_edge(e.pid()).as_ref(),
-                            LayeredGraph::new(g, LayerIds::One(layer.0)),
+                            LayeredGraph::new(g, LayerIds::One(layer)),
                         ),
                     },
 
@@ -463,7 +463,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
 
                         Some(layer) => time_semantics.edge_latest_time(
                             g.core_edge(e.pid()).as_ref(),
-                            LayeredGraph::new(g, LayerIds::One(layer.0)),
+                            LayeredGraph::new(g, LayerIds::One(layer)),
                         ),
                     },
                     Some(t) => time_semantics.edge_exploded_latest_time(

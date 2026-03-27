@@ -16,7 +16,7 @@ use raphtory_api::core::{
     entities::{
         LayerId, VID,
         properties::{
-            meta::Meta,
+            meta::{Meta, STATIC_GRAPH_LAYER_ID},
             prop::{AsPropRef, Prop, PropRef},
         },
     },
@@ -377,7 +377,7 @@ impl ArcLockedSegmentView {
     ) -> impl Iterator<Item = MemEdgeRef<'a>> + Send + Sync + 'a {
         self.inner
             .layers
-            .get(layer_id)
+            .get(layer_id.0)
             .into_iter()
             .flat_map(|layer| layer.filled_positions())
             .map(move |pos| MemEdgeRef::new(pos, &self.inner))
@@ -389,7 +389,7 @@ impl ArcLockedSegmentView {
     ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + 'a {
         self.inner
             .layers
-            .get(layer_id)
+            .get(layer_id.0)
             .into_par_iter()
             .flat_map(|layer| layer.filled_positions_par())
             .map(move |pos| MemEdgeRef::new(pos, &self.inner))
@@ -414,10 +414,10 @@ impl LockedESegment for ArcLockedSegmentView {
     ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::All => Iter4::J(self.edge_iter_layer(0)),
+            LayerIds::All => Iter4::J(self.edge_iter_layer(STATIC_GRAPH_LAYER_ID)),
             LayerIds::One(layer_id) => Iter4::K(self.edge_iter_layer(*layer_id)),
             LayerIds::Multiple(multiple) => Iter4::L(
-                self.edge_iter_layer(0)
+                self.edge_iter_layer(STATIC_GRAPH_LAYER_ID)
                     .filter(|pos| pos.has_layers(multiple)),
             ),
         }
@@ -429,10 +429,10 @@ impl LockedESegment for ArcLockedSegmentView {
     ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(rayon::iter::empty()),
-            LayerIds::All => Iter4::J(self.edge_par_iter_layer(0)),
+            LayerIds::All => Iter4::J(self.edge_par_iter_layer(STATIC_GRAPH_LAYER_ID)),
             LayerIds::One(layer_id) => Iter4::K(self.edge_par_iter_layer(*layer_id)),
             LayerIds::Multiple(multiple) => Iter4::L(
-                self.edge_par_iter_layer(0)
+                self.edge_par_iter_layer(STATIC_GRAPH_LAYER_ID)
                     .filter(|pos| pos.has_layers(multiple)),
             ),
         }

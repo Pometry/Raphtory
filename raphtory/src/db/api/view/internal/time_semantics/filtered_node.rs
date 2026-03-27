@@ -192,7 +192,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     /// Note that this is an internal API that does not apply the window filtering!
     fn history<G: GraphView + 'a>(self, view: G, layer_ids: &'a LayerIds) -> NodeHistory<'a, G> {
         // FIXME: new storage supports multiple layers, we can be specific about the layers here once NodeStorageOps is updated
-        let additions = self.node_additions(ALL_LAYERS);
+        let additions = self.node_additions(ALL_LAYERS.clone());
         let edge_history = self.node_edge_additions(layer_ids);
         NodeHistory {
             edge_history,

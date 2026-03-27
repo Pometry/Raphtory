@@ -1,4 +1,4 @@
-use raphtory_api::core::entities::LayerId;
+use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::entities::{LayerIds, EID};
 use rayon::prelude::*;
@@ -33,7 +33,7 @@ impl<'a> UnlockedEdges<'a> {
         match layer_ids {
             LayerIds::None => Iter4::I(std::iter::empty()),
             LayerIds::All => Iter4::J(self.iter_layer(LayerId(0))),
-            LayerIds::One(layer_id) => Iter4::K(self.iter_layer(LayerId(*layer_id))),
+            LayerIds::One(layer_id) => Iter4::K(self.iter_layer(*layer_id)),
             LayerIds::Multiple(multiple) => Iter4::L(
                 self.iter_layer(LayerId(0))
                     .filter(|edge| edge.as_ref().has_layers(multiple)),
@@ -57,10 +57,10 @@ impl<'a> UnlockedEdges<'a> {
     ) -> impl ParallelIterator<Item = EdgeStorageEntry<'a>> + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(rayon::iter::empty()),
-            LayerIds::All => Iter4::J(self.par_iter_layer(LayerId(0))),
-            LayerIds::One(layer_id) => Iter4::K(self.par_iter_layer(LayerId(*layer_id))),
+            LayerIds::All => Iter4::J(self.par_iter_layer(STATIC_GRAPH_LAYER_ID)),
+            LayerIds::One(layer_id) => Iter4::K(self.par_iter_layer(*layer_id)),
             LayerIds::Multiple(multiple) => Iter4::L(
-                self.par_iter_layer(LayerId(0))
+                self.par_iter_layer(STATIC_GRAPH_LAYER_ID)
                     .filter(|edge| edge.as_ref().has_layers(multiple)),
             ),
         }

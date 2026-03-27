@@ -752,6 +752,8 @@ mod io_tests {
             Some("node_type"), // node_type_col (column name) — conflict!
             &g,
             true,
+            None,
+            None,
         )
         .unwrap();
         let mut result = g

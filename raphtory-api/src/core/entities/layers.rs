@@ -260,7 +260,7 @@ impl From<Vec<LayerId>> for Multiple {
 }
 
 impl From<Vec<usize>> for Multiple {
-    fn from(mut v: Vec<usize>) -> Self {
+    fn from(v: Vec<usize>) -> Self {
         let mut v: Vec<_> = v.into_iter().map(LayerId).collect();
         v.sort();
         v.dedup();

@@ -173,10 +173,10 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
             LayerIds::All => self
                 .additions_iter(&LayerIds::All)
                 .any(|(_, t_index)| t_index.active_t(w.clone())),
-            LayerIds::One(l_id) => self.layer_additions(LayerId(*l_id)).active_t(w),
+            LayerIds::One(l_id) => self.layer_additions(*l_id).active_t(w),
             LayerIds::Multiple(layers) => layers
                 .iter()
-                .any(|l_id| self.added(&LayerIds::One(l_id), w.clone())),
+                .any(|l_id| self.layer_additions(l_id).active_t(w.clone())),
         }
     }
 
@@ -184,7 +184,7 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.edge(LayerId(0)).is_some(),
-            LayerIds::One(id) => self.edge(LayerId(*id)).is_some(),
+            LayerIds::One(id) => self.edge(*id).is_some(),
             LayerIds::Multiple(ids) => self.has_layers(ids),
         }
     }
@@ -219,16 +219,12 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
                     .map(LayerId)
                     .filter(move |&l| self.has_layer_inner(l)),
             ),
-            LayerIds::One(id) => LayerVariants::One(
-                self.has_layer_inner(LayerId(*id))
-                    .then_some(LayerId(*id))
-                    .into_iter(),
-            ),
-            LayerIds::Multiple(ids) => LayerVariants::Multiple(
-                ids.iter()
-                    .map(LayerId)
-                    .filter(move |&id| self.has_layer_inner(id)),
-            ),
+            LayerIds::One(id) => {
+                LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
+            }
+            LayerIds::Multiple(ids) => {
+                LayerVariants::Multiple(ids.iter().filter(move |&id| self.has_layer_inner(id)))
+            }
         }
     }
 

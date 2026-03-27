@@ -1,8 +1,8 @@
 use crate::core::{
     entities::properties::prop::{
         prop_col::{MapCol, PropCol},
-        validate_bd, ArrowRow, InvalidBigDecimal, Prop, PropArray, PropType, PropUnwrap,
-        SerdeArrowList, SerdeArrowMap,
+        validate_bd, ArrowRow, InvalidBigDecimal, Prop, PropArray, PropUnwrap, SerdeArrowList,
+        SerdeArrowMap,
     },
     storage::arc_str::ArcStr,
 };

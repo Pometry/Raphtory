@@ -31,7 +31,7 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a;
 
     fn has_layers(self, layer_ids: &'a LayerIds) -> bool {
         !self.additions().is_empty() || self.layer_ids_iter(layer_ids).next().is_some()
@@ -52,9 +52,9 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, storage::NodeTProps<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
-            .map(move |id| (id, self.temporal_prop_layer(LayerId(id), prop_id)))
+            .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
@@ -65,9 +65,9 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, Prop)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
         self.layer_ids_iter(layer_ids)
-            .filter_map(move |id| Some((id, self.constant_prop_layer(LayerId(id), prop_id)?)))
+            .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
     }
 
     fn temp_prop_rows_range(
@@ -112,11 +112,13 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => LayerVariants::All(
-                (0..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
+                (0..self.internal_num_layers())
+                    .map(LayerId)
+                    .filter(move |&l| self.has_layer_inner(l)),
             ),
             LayerIds::One(id) => {
                 LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())

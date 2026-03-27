@@ -517,7 +517,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         let layer = eid.layer();
         // any update for an edge that is globally filtered (i.e., filtered via edge filter, edge layer filter, or node filter) should still be removed
         // updates filtered via exploded edge filter need to be changed to deletions
-        if view.layer_ids().contains(&layer.0)
+        if view.layer_ids().contains(&layer)
             && ((!view.internal_nodes_filtered()
                 && !view.internal_edge_filtered()
                 && !view.internal_edge_layer_filtered())

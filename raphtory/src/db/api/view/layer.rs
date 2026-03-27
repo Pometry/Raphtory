@@ -49,8 +49,8 @@ impl<'graph, V: InternalFilter<'graph> + 'graph + Clone> LayerOps<'graph> for V 
         let layers = match self.base_graph().get_default_layer_id() {
             None => LayerIds::None,
             Some(layer) => {
-                if self.base_graph().layer_ids().contains(&layer.0) {
-                    LayerIds::One(layer.0)
+                if self.base_graph().layer_ids().contains(&layer) {
+                    LayerIds::One(layer)
                 } else {
                     LayerIds::None
                 }
@@ -126,7 +126,7 @@ pub fn diff<'a>(left: &LayerIds, graph: impl GraphViewOps<'a>, other: &LayerIds)
             }
         }
         (LayerIds::Multiple(ids), other) => {
-            let ids: Vec<usize> = ids.iter().filter(|id| !other.contains(id)).collect();
+            let ids: Vec<_> = ids.iter().filter(|id| !other.contains(id)).collect();
             match ids.len() {
                 0 => LayerIds::None,
                 1 => LayerIds::One(ids[0]),
@@ -134,9 +134,9 @@ pub fn diff<'a>(left: &LayerIds, graph: impl GraphViewOps<'a>, other: &LayerIds)
             }
         }
         (LayerIds::All, other) => {
-            let all_layer_ids: Vec<usize> = graph
+            let all_layer_ids: Vec<_> = graph
                 .unique_layers()
-                .map(|name| graph.get_layer_id(name.as_ref()).unwrap().0)
+                .map(|name| graph.get_layer_id(name.as_ref()).unwrap())
                 .filter(|id| !other.contains(&id))
                 .collect();
             match all_layer_ids.len() {

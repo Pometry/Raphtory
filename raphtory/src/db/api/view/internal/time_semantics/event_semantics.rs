@@ -284,7 +284,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     }
 
     fn include_exploded_edge<G: GraphView>(&self, eid: ELID, t: EventTime, view: G) -> bool {
-        view.layer_ids().contains(&eid.layer().0)
+        view.layer_ids().contains(&eid.layer())
             && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
             && (view.exploded_filter_independent() || {
                 let edge = view.core_edge(eid.edge);

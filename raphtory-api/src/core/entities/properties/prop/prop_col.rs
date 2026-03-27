@@ -331,7 +331,7 @@ impl PropCol for EmptyCol {
         None
     }
 
-    fn get_ref(&self, i: usize) -> Option<PropRef<'_>> {
+    fn get_ref(&self, _i: usize) -> Option<PropRef<'_>> {
         None
     }
 

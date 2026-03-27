@@ -29,9 +29,9 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::{LayerId,
+    entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
-        ELID,
+        LayerId, ELID,
     },
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
@@ -551,6 +551,11 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
+        let layer_id = self
+            .graph
+            .resolve_layer(layer)
+            .map_err(into_graph_err)?
+            .inner();
 
         let t = time_from_input_session(&session, time)?;
         let vid = self.node;
@@ -568,7 +573,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             })
             .collect::<Vec<_>>();
 
-        writer.internal_add_update(t, STATIC_GRAPH_LAYER_ID, props);
+        writer.internal_add_update(t, layer_id, props);
 
         let props_for_wal = props_with_status
             .iter()
@@ -579,7 +584,16 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             .collect::<Vec<_>>();
 
         let lsn = wal
-            .log_add_node(transaction_id, t, None, vid, None, props_for_wal)
+            .log_add_node(
+                transaction_id,
+                t,
+                None,
+                vid,
+                None,
+                props_for_wal,
+                layer,
+                layer_id,
+            )
             .map_err(into_graph_err)?;
 
         writer.set_lsn(lsn);

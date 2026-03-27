@@ -411,6 +411,7 @@ fn add_node_impl<
         node_id,
         node_type_and_id,
         props_for_wal,
+        layer,
         layer_id,
     )?;
 
