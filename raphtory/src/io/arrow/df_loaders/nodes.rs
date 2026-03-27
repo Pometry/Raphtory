@@ -31,7 +31,10 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc,
+    },
 };
 use storage::{
     api::nodes::NodeSegmentOps,
@@ -46,10 +49,71 @@ use kdam::BarExt;
 use raphtory_api::core::entities::properties::prop::AsPropRef;
 
 #[allow(clippy::too_many_arguments)]
-pub fn load_nodes_from_df<
+pub fn load_nodes_from_df_prefetch<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
     df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
+    time: &str,
+    secondary_index: Option<&str>,
+    node_id: &str,
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    node_type: Option<&str>,
+    node_type_col: Option<&str>,
+    graph: &G,
+    resolve_nodes: bool,
+) -> Result<(), GraphError> {
+    let DFView {
+        names,
+        chunks,
+        num_rows,
+    } = df_view;
+
+    LOAD_POOL.install(|| {
+        rayon::scope(|s| {
+            let (tx, rx) = mpsc::sync_channel(2);
+
+            s.spawn(move |_| {
+                let sender = tx;
+                for chunk in chunks {
+                    if let Err(e) = sender.send(chunk) {
+                        eprintln!("Error sending chunk to loader: {}", e);
+                        break;
+                    }
+                }
+            });
+
+            let df_view_prefetch = DFView {
+                names,
+                chunks: rx,
+                num_rows,
+            };
+
+            load_nodes_from_df(
+                df_view_prefetch,
+                time,
+                secondary_index,
+                node_id,
+                properties,
+                metadata,
+                shared_metadata,
+                node_type,
+                node_type_col,
+                graph,
+                resolve_nodes,
+            )?;
+            Ok::<(), GraphError>(())
+        })?;
+        Ok(())
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn load_nodes_from_df<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
+>(
+    df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>> + Send>,
     time: &str,
     secondary_index: Option<&str>,
     node_id: &str,

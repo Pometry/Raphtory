@@ -293,6 +293,7 @@ where
         }
     }
 
+    #[inline(always)]
     pub fn get(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(default, tuples) => tuples
@@ -305,6 +306,7 @@ where
         }
     }
 
+    #[inline(always)]
     pub fn get_opt(&self, id: usize) -> Option<&A> {
         match self {
             LazyVec::LazyVec1(_, tuples) => tuples.get(id),
@@ -313,6 +315,7 @@ where
         }
     }
 
+    #[inline(always)]
     pub(crate) fn get_mut(&mut self, id: usize) -> Option<&mut A> {
         match self {
             LazyVec::LazyVec1(_, tuples) => tuples.get_mut(id),

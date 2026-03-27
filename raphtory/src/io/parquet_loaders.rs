@@ -5,7 +5,7 @@ use crate::{
         dataframe::*,
         df_loaders::{
             edges::{load_edges_from_df_prefetch, ColumnNames},
-            nodes::{load_node_props_from_df, load_nodes_from_df},
+            nodes::{load_node_props_from_df, load_nodes_from_df, load_nodes_from_df_prefetch},
             *,
         },
     },
@@ -79,7 +79,7 @@ pub fn load_nodes_from_parquet<
             schema.clone(),
         )?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_nodes_from_df(
+        load_nodes_from_df_prefetch(
             df_view,
             time,
             secondary_index,

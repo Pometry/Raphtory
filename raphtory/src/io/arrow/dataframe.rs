@@ -82,6 +82,12 @@ impl TimeCol {
             return Err(LoadError::MissingTimeError);
         }
         match arr.data_type() {
+            DataType::Int32 => {
+                let arr = cast(arr, &DataType::Int64)?
+                    .as_primitive::<Int64Type>()
+                    .clone();
+                Ok(Self(arr))
+            }
             DataType::Int64 => Ok(Self(arr.as_primitive::<Int64Type>().clone())),
             DataType::Date32 => {
                 let arr = cast(arr, &DataType::Date64)?

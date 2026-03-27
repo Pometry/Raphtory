@@ -11,6 +11,14 @@ fn pq(parquet_dir: &Path, name: &str) -> PathBuf {
     parquet_dir.join(format!("{}.parquet", name))
 }
 
+fn pq_large(parquet_dir: &Path, name: &str) -> PathBuf {
+    parquet_dir
+        .parent()
+        .unwrap()
+        .join("parquet_large_edges/")
+        .join(format!("{}.parquet", name))
+}
+
 #[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
 
@@ -23,295 +31,286 @@ static GLOBAL: Jemalloc = Jemalloc;
 fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
     // ── Static Nodes ──────────────────────────────────────────────────────
 
-    // println!("Loading Places...");
-    // load_nodes_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "place"),
-    //     "_time",
-    //     None,
-    //     "_node_id",
-    //     None,
-    //     Some("type"),
-    //     &["name", "url", "id"],
-    //     &[],
-    //     None,
-    //     None,
-    //     true,
-    //     None,
-    // )?;
-    // println!("  ✓ places");
+    println!("Loading Places...");
+    load_nodes_from_parquet(
+        graph,
+        &pq(parquet_dir, "place"),
+        "_time",
+        None,
+        "_node_id",
+        None,
+        Some("type"),
+        &["name", "url", "id"],
+        &[],
+        None,
+        None,
+        true,
+        None,
+    )?;
+    println!("  ✓ places");
 
-    // let fp = pq(parquet_dir, "place_IS_PART_OF_place");
-    // if fp.exists() {
-    //     load_edges_from_parquet(
-    //         graph,
-    //         &fp,
-    //         ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //         true,
-    //         &[],
-    //         &[],
-    //         None,
-    //         Some("IS_PART_OF"),
-    //         None,
-    //         None,
-    //     )?;
-    //     graph.flush()?;
-    //     println!("  ✓ IS_PART_OF edges");
-    // }
+    let fp = pq(parquet_dir, "place_IS_PART_OF_place");
+    if fp.exists() {
+        load_edges_from_parquet(
+            graph,
+            &fp,
+            ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+            true,
+            &[],
+            &[],
+            None,
+            Some("IS_PART_OF"),
+            None,
+            None,
+        )?;
+        println!("  ✓ IS_PART_OF edges");
+    }
 
-    // println!("Loading Organisations...");
-    // load_nodes_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "organisation"),
-    //     "_time",
-    //     None,
-    //     "_node_id",
-    //     None,
-    //     Some("type"),
-    //     &["name", "url", "id"],
-    //     &[],
-    //     None,
-    //     None,
-    //     true,
-    //     None,
-    // )?;
-    // println!("  ✓ organisations");
+    println!("Loading Organisations...");
+    load_nodes_from_parquet(
+        graph,
+        &pq(parquet_dir, "organisation"),
+        "_time",
+        None,
+        "_node_id",
+        None,
+        Some("type"),
+        &["name", "url", "id"],
+        &[],
+        None,
+        None,
+        true,
+        None,
+    )?;
+    println!("  ✓ organisations");
 
-    // load_edges_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "organisation_IS_LOCATED_IN_place"),
-    //     ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //     true,
-    //     &[],
-    //     &[],
-    //     None,
-    //     Some("IS_LOCATED_IN"),
-    //     None,
-    //     None,
-    // )?;
-    // graph.flush()?;
-    // println!("  ✓ Organisation IS_LOCATED_IN edges");
+    load_edges_from_parquet(
+        graph,
+        &pq(parquet_dir, "organisation_IS_LOCATED_IN_place"),
+        ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+        true,
+        &[],
+        &[],
+        None,
+        Some("IS_LOCATED_IN"),
+        None,
+        None,
+    )?;
+    println!("  ✓ Organisation IS_LOCATED_IN edges");
 
-    // println!("Loading Tags...");
-    // load_nodes_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "tag"),
-    //     "_time",
-    //     None,
-    //     "_node_id",
-    //     Some("Tag"),
-    //     None,
-    //     &["name", "url", "id"],
-    //     &[],
-    //     None,
-    //     None,
-    //     true,
-    //     None,
-    // )?;
-    // println!("  ✓ tags");
+    println!("Loading Tags...");
+    load_nodes_from_parquet(
+        graph,
+        &pq(parquet_dir, "tag"),
+        "_time",
+        None,
+        "_node_id",
+        Some("Tag"),
+        None,
+        &["name", "url", "id"],
+        &[],
+        None,
+        None,
+        true,
+        None,
+    )?;
+    println!("  ✓ tags");
 
-    // let fp = pq(parquet_dir, "tagclass");
-    // if fp.exists() {
-    //     println!("Loading TagClasses...");
-    //     load_nodes_from_parquet(
-    //         graph,
-    //         &fp,
-    //         "_time",
-    //         None,
-    //         "_node_id",
-    //         Some("TagClass"),
-    //         None,
-    //         &["name", "url", "id"],
-    //         &[],
-    //         None,
-    //         None,
-    //         true,
-    //         None,
-    //     )?;
-    //     println!("  ✓ tag classes");
-    // }
+    let fp = pq(parquet_dir, "tagclass");
+    if fp.exists() {
+        println!("Loading TagClasses...");
+        load_nodes_from_parquet(
+            graph,
+            &fp,
+            "_time",
+            None,
+            "_node_id",
+            Some("TagClass"),
+            None,
+            &["name", "url", "id"],
+            &[],
+            None,
+            None,
+            true,
+            None,
+        )?;
+        println!("  ✓ tag classes");
+    }
 
-    // let fp = pq(parquet_dir, "tag_HAS_TYPE_tagclass");
-    // if fp.exists() {
-    //     load_edges_from_parquet(
-    //         graph,
-    //         &fp,
-    //         ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //         true,
-    //         &[],
-    //         &[],
-    //         None,
-    //         Some("HAS_TYPE"),
-    //         None,
-    //         None,
-    //     )?;
-    //     graph.flush()?;
-    //     println!("  ✓ HAS_TYPE edges");
-    // }
+    let fp = pq(parquet_dir, "tag_HAS_TYPE_tagclass");
+    if fp.exists() {
+        load_edges_from_parquet(
+            graph,
+            &fp,
+            ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+            true,
+            &[],
+            &[],
+            None,
+            Some("HAS_TYPE"),
+            None,
+            None,
+        )?;
+        println!("  ✓ HAS_TYPE edges");
+    }
 
-    // let fp = pq(parquet_dir, "tagclass_IS_SUBCLASS_OF_tagclass");
-    // if fp.exists() {
-    //     load_edges_from_parquet(
-    //         graph,
-    //         &fp,
-    //         ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //         true,
-    //         &[],
-    //         &[],
-    //         None,
-    //         Some("IS_SUBCLASS_OF"),
-    //         None,
-    //         None,
-    //     )?;
-    //     graph.flush()?;
-    //     println!("  ✓ IS_SUBCLASS_OF edges");
-    // }
+    let fp = pq(parquet_dir, "tagclass_IS_SUBCLASS_OF_tagclass");
+    if fp.exists() {
+        load_edges_from_parquet(
+            graph,
+            &fp,
+            ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+            true,
+            &[],
+            &[],
+            None,
+            Some("IS_SUBCLASS_OF"),
+            None,
+            None,
+        )?;
+        println!("  ✓ IS_SUBCLASS_OF edges");
+    }
 
-    // // ── Dynamic Nodes ─────────────────────────────────────────────────────
+    // ── Dynamic Nodes ─────────────────────────────────────────────────────
 
-    // println!("Loading Persons...");
-    // load_nodes_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "person"),
-    //     "creationDate",
-    //     None,
-    //     "_node_id",
-    //     Some("Person"),
-    //     None,
-    //     &[
-    //         "firstName",
-    //         "lastName",
-    //         "gender",
-    //         "birthday",
-    //         "locationIP",
-    //         "browserUsed",
-    //         "language",
-    //         "email",
-    //         "id",
-    //         "creationDate",
-    //     ],
-    //     &[],
-    //     None,
-    //     None,
-    //     true,
-    //     None,
-    // )?;
-    // println!("  ✓ persons");
+    println!("Loading Persons...");
+    load_nodes_from_parquet(
+        graph,
+        &pq(parquet_dir, "person"),
+        "creationDate",
+        None,
+        "_node_id",
+        Some("Person"),
+        None,
+        &[
+            "firstName",
+            "lastName",
+            "gender",
+            "birthday",
+            "locationIP",
+            "browserUsed",
+            "language",
+            "email",
+            "id",
+            "creationDate",
+        ],
+        &[],
+        None,
+        None,
+        true,
+        None,
+    )?;
+    println!("  ✓ persons");
 
-    // load_edges_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "person_IS_LOCATED_IN_place"),
-    //     ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //     true,
-    //     &[],
-    //     &[],
-    //     None,
-    //     Some("IS_LOCATED_IN"),
-    //     None,
-    //     None,
-    // )?;
-    // graph.flush()?;
+    load_edges_from_parquet(
+        graph,
+        &pq(parquet_dir, "person_IS_LOCATED_IN_place"),
+        ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+        true,
+        &[],
+        &[],
+        None,
+        Some("IS_LOCATED_IN"),
+        None,
+        None,
+    )?;
 
-    // println!("Loading Forums...");
-    // load_nodes_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "forum"),
-    //     "creationDate",
-    //     None,
-    //     "_node_id",
-    //     Some("Forum"),
-    //     None,
-    //     &["title", "id", "creationDate"],
-    //     &[],
-    //     None,
-    //     None,
-    //     true,
-    //     None,
-    // )?;
-    // println!("  ✓ forums");
+    println!("Loading Forums...");
+    load_nodes_from_parquet(
+        graph,
+        &pq(parquet_dir, "forum"),
+        "creationDate",
+        None,
+        "_node_id",
+        Some("Forum"),
+        None,
+        &["title", "id", "creationDate"],
+        &[],
+        None,
+        None,
+        true,
+        None,
+    )?;
+    println!("  ✓ forums");
 
-    // load_edges_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "forum_HAS_MODERATOR_person"),
-    //     ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //     true,
-    //     &[],
-    //     &[],
-    //     None,
-    //     Some("HAS_MODERATOR"),
-    //     None,
-    //     None,
-    // )?;
-    // graph.flush()?;
+    load_edges_from_parquet(
+        graph,
+        &pq(parquet_dir, "forum_HAS_MODERATOR_person"),
+        ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+        true,
+        &[],
+        &[],
+        None,
+        Some("HAS_MODERATOR"),
+        None,
+        None,
+    )?;
 
-    // println!("Loading Posts...");
-    // load_nodes_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "post"),
-    //     "creationDate",
-    //     None,
-    //     "_node_id",
-    //     Some("Post"),
-    //     None,
-    //     &[
-    //         "imageFile",
-    //         "locationIP",
-    //         "browserUsed",
-    //         "language",
-    //         "content",
-    //         "length",
-    //         "id",
-    //         "creationDate",
-    //     ],
-    //     &[],
-    //     None,
-    //     None,
-    //     true,
-    //     None,
-    // )?;
-    // println!("  ✓ posts");
+    println!("Loading Posts...");
+    load_nodes_from_parquet(
+        graph,
+        &pq(parquet_dir, "post"),
+        "creationDate",
+        None,
+        "_node_id",
+        Some("Post"),
+        None,
+        &[
+            "imageFile",
+            "locationIP",
+            "browserUsed",
+            "language",
+            "content",
+            "length",
+            "id",
+            "creationDate",
+        ],
+        &[],
+        None,
+        None,
+        true,
+        None,
+    )?;
+    println!("  ✓ posts");
 
-    // load_edges_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "post_HAS_CREATOR_person"),
-    //     ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //     true,
-    //     &[],
-    //     &[],
-    //     None,
-    //     Some("HAS_CREATOR"),
-    //     None,
-    //     None,
-    // )?;
-    // graph.flush()?;
+    load_edges_from_parquet(
+        graph,
+        &pq(parquet_dir, "post_HAS_CREATOR_person"),
+        ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+        true,
+        &[],
+        &[],
+        None,
+        Some("HAS_CREATOR"),
+        None,
+        None,
+    )?;
 
-    // load_edges_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "post_IS_LOCATED_IN_place"),
-    //     ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //     true,
-    //     &[],
-    //     &[],
-    //     None,
-    //     Some("IS_LOCATED_IN"),
-    //     None,
-    //     None,
-    // )?;
-    // graph.flush()?;
+    load_edges_from_parquet(
+        graph,
+        &pq(parquet_dir, "post_IS_LOCATED_IN_place"),
+        ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+        true,
+        &[],
+        &[],
+        None,
+        Some("IS_LOCATED_IN"),
+        None,
+        None,
+    )?;
 
-    // load_edges_from_parquet(
-    //     graph,
-    //     &pq(parquet_dir, "forum_CONTAINER_OF_post"),
-    //     ColumnNames::new("_time", None, "START_ID", "END_ID", None),
-    //     true,
-    //     &[],
-    //     &[],
-    //     None,
-    //     Some("CONTAINER_OF"),
-    //     None,
-    //     None,
-    // )?;
-    // graph.flush()?;
+    load_edges_from_parquet(
+        graph,
+        &pq(parquet_dir, "forum_CONTAINER_OF_post"),
+        ColumnNames::new("_time", None, "START_ID", "END_ID", None),
+        true,
+        &[],
+        &[],
+        None,
+        Some("CONTAINER_OF"),
+        None,
+        None,
+    )?;
 
     println!("Loading Comments...");
     load_nodes_from_parquet(
@@ -337,7 +336,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
     )?;
     println!("  ✓ comments");
-    // graph.flush()?;
 
     load_edges_from_parquet(
         graph,
@@ -351,7 +349,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    // graph.flush()?;
 
     load_edges_from_parquet(
         graph,
@@ -365,7 +362,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    // graph.flush()?;
 
     load_edges_from_parquet(
         graph,
@@ -392,7 +388,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    // graph.flush()?;
 
     // ── Edge-only relationships ───────────────────────────────────────────
 
@@ -409,7 +404,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ KNOWS edges");
 
     println!("Loading LIKES edges...");
@@ -425,7 +419,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ LIKES (Post) edges");
 
     load_edges_from_parquet(
@@ -440,7 +433,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ LIKES (Comment) edges");
 
     println!("Loading HAS_MEMBER edges...");
@@ -456,7 +448,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ HAS_MEMBER edges");
 
     println!("Loading STUDY_AT edges...");
@@ -472,7 +463,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ STUDY_AT edges");
 
     println!("Loading WORK_AT edges...");
@@ -488,7 +478,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ WORK_AT edges");
 
     println!("Loading HAS_TAG edges...");
@@ -504,7 +493,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
 
     load_edges_from_parquet(
         graph,
@@ -518,7 +506,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
 
     load_edges_from_parquet(
         graph,
@@ -532,7 +519,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ HAS_TAG edges");
 
     println!("Loading HAS_INTEREST edges...");
@@ -548,7 +534,6 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         None,
         None,
     )?;
-    graph.flush()?;
     println!("  ✓ HAS_INTEREST edges");
 
     println!(
