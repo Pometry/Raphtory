@@ -21,7 +21,7 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
 
                 // LSN after the shutdown checkpoint points to the end of WAL stream.
                 // Set this as the next LSN for future writes.
-                wal.set_next_lsn(end_of_wal_lsn);
+                wal.set_position(end_of_wal_lsn)?;
             }
             DBState::Running | DBState::CrashRecovery => {
                 let checkpoint_lsn = control_file.last_checkpoint();
@@ -44,14 +44,12 @@ pub trait RecoveryOps: DurabilityOps + InternalAdditionOps<Error = MutationError
                 let end_of_wal_lsn = wal.replay_to_graph(&mut write_locked_graph, redo_lsn)?;
 
                 // Set the next LSN for future writes to the end of the WAL stream.
-                wal.set_next_lsn(end_of_wal_lsn);
+                wal.set_position(end_of_wal_lsn)?;
             }
             DBState::NotSupported => {
                 // Recovery is not supported, skip.
             }
         }
-
-        println!("next_lsn: {}", wal.next_lsn());
 
         // Always set db state to Running after recovery completes.
         control_file.set_db_state(DBState::Running);

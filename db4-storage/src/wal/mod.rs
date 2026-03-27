@@ -27,11 +27,11 @@ pub trait WalOps {
     /// Returns an iterator over the entries in the wal, starting from the given LSN.
     fn replay(&self, start: LSN) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
-    /// Returns the LSN that will be assigned to the next appended record.
-    fn next_lsn(&self) -> LSN;
+    /// Returns the current position in the WAL stream.
+    fn position(&self) -> LSN;
 
-    /// Sets the next LSN to be assigned to a record.
-    fn set_next_lsn(&self, lsn: LSN);
+    /// Sets the position in the WAL stream.
+    fn set_position(&self, lsn: LSN) -> Result<(), StorageError>;
 }
 
 #[derive(Debug)]

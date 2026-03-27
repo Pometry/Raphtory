@@ -568,7 +568,7 @@ impl<
         // Since we are in a Drop, no more writes can occur.
         // Thus, next_lsn == end of the WAL stream.
         // So we can safely set this as the redo LSN for the checkpoint (i.e. nothing to redo).
-        let redo_lsn = wal.next_lsn();
+        let redo_lsn = wal.position();
 
         match self.flush() {
             Ok(_) => {
@@ -582,7 +582,7 @@ impl<
                     .expect("Failed to log checkpoint in drop");
 
                 // Flush up to the end of the WAL stream.
-                let flush_lsn = wal.next_lsn();
+                let flush_lsn = wal.position();
                 wal.flush(flush_lsn)
                     .expect("Failed to flush checkpoint record in drop");
 

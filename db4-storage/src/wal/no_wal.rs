@@ -28,11 +28,13 @@ impl WalOps for NoWal {
         ))
     }
 
-    fn next_lsn(&self) -> LSN {
+    fn position(&self) -> LSN {
         0
     }
 
-    fn set_next_lsn(&self, _lsn: LSN) {
-        panic!("set_next_lsn is not supported for NoWAL");
+    fn set_position(&self, _lsn: LSN) -> Result<(), StorageError> {
+        Err(StorageError::GenericFailure(
+            "set_position is not supported for NoWAL".to_string(),
+        ))
     }
 }
