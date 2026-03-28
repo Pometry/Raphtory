@@ -14,7 +14,7 @@ use raphtory_graphql::python::pymodule::base_graphql_module;
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     auth::init();
-    let _ = add_raphtory_classes(m);
+    add_raphtory_classes(m)?;
 
     let graphql_module = base_graphql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;
