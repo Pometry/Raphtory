@@ -10,7 +10,6 @@ use raphtory_api::core::{
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
-use serde::Serialize;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
@@ -386,7 +385,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::F32(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::F64(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            PropColumn::Str(col) => col.get_opt(index).map(|prop| prop.clone().into()),
+            PropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
             PropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),

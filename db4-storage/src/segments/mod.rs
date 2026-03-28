@@ -3,7 +3,7 @@ use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
     entities::properties::{
         meta::Meta,
-        prop::{AsPropRef, Prop, PropRef},
+        prop::{AsPropRef, Prop},
     },
     storage::dict_mapper::MaybeNew,
 };

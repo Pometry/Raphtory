@@ -1,13 +1,6 @@
 use crate::storage::lazy_vec::IllegalSet;
-use arrow_array::{
-    builder::{ArrayBuilder, StringLikeArrayBuilder, StringViewBuilder},
-    types::StringViewType,
-    GenericByteViewArray,
-};
-use arrow_buffer::{
-    bit_util::{get_bit, set_bit},
-    Buffer, NullBufferBuilder,
-};
+use arrow_array::{types::StringViewType, GenericByteViewArray};
+use arrow_buffer::{bit_util::set_bit, Buffer, NullBufferBuilder};
 use arrow_data::{ByteView, MAX_INLINE_VIEW_LEN};
 use arrow_schema::ArrowError;
 
@@ -173,9 +166,6 @@ impl StringColBuilder {
     #[inline]
     pub fn try_append_value(&mut self, value: &str) -> Result<(), ArrowError> {
         let v: &[u8] = value.as_ref();
-        let length: u32 = v.len().try_into().map_err(|_| {
-            ArrowError::InvalidArgumentError(format!("String length {} exceeds u32::MAX", v.len()))
-        })?;
 
         if let Some(view) = inline_view(v) {
             self.views_buffer.push(view);

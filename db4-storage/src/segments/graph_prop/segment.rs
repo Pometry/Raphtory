@@ -5,7 +5,7 @@ use crate::{
 };
 use raphtory_api::core::entities::properties::{
     meta::Meta,
-    prop::{AsPropRef, Prop, PropRef},
+    prop::{AsPropRef, Prop},
 };
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
