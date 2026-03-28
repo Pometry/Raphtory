@@ -771,6 +771,47 @@ def test_namespace_read_exposes_graphs():
         assert response["data"]["graph"]["path"] == "team/jira"
 
 
+def test_child_namespace_restriction_overrides_parent():
+    """More-specific child namespace grant overrides a broader parent grant.
+
+    team       → READ  (parent)
+    team/restricted → INTROSPECT  (child — more specific, should win)
+
+    Graphs under team/jira are reachable via READ (only parent matches).
+    Graphs under team/restricted/ are only introspectable — the child INTROSPECT
+    entry overrides the parent READ, so graph() is denied there.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        gql("""mutation { newGraph(path:"team/restricted/secret", graphType:EVENT) }""")
+        create_role("analyst")
+        grant_namespace("analyst", "team", "READ")
+        grant_namespace("analyst", "team/restricted", "INTROSPECT")
+
+        # team/jira: only matched by "team" → READ — direct access allowed
+        response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["graph"]["path"] == "team/jira"
+
+        # team/restricted/secret: "team/restricted" is the most specific match → INTROSPECT only
+        response = gql(
+            """query { graph(path: "team/restricted/secret") { path } }""",
+            headers=ANALYST_HEADERS,
+        )
+        assert response["data"] is None
+        assert "Access denied" in response["errors"][0]["message"]
+
+        # But team/restricted/secret should still appear in the namespace listing
+        response = gql(
+            """query { namespace(path: "team/restricted") { graphs { list { path } } } }""",
+            headers=ANALYST_HEADERS,
+        )
+        assert "errors" not in response, response
+        paths = [g["path"] for g in response["data"]["namespace"]["graphs"]["list"]]
+        assert "team/restricted/secret" in paths
+
+
 def test_discover_derivation():
     """grantGraph READ on a namespaced graph → ancestor namespace gets DISCOVER (visible in children)."""
     work_dir = tempfile.mkdtemp()
