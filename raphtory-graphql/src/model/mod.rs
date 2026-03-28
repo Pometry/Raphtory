@@ -106,7 +106,7 @@ fn require_at_least_read(
 ) -> async_graphql::Result<()> {
     if let Some(policy) = policy {
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-        let perms = policy
+        policy
             .graph_permissions(ctx, path)
             .map_err(|msg| {
                 warn!(
@@ -115,14 +115,13 @@ fn require_at_least_read(
                     "Access denied by auth policy"
                 );
                 async_graphql::Error::new(msg)
-            })?;
-        if !perms.is_at_least_read() {
-            return Err(async_graphql::Error::new(format!(
+            })?
+            .at_least_read()
+            .ok_or_else(|| async_graphql::Error::new(format!(
                 "Access denied: role '{}' has introspect-only access to graph '{path}' — \
                  use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
                 role.unwrap_or("<no role>")
-            )));
-        }
+            )))?;
     }
     Ok(())
 }
@@ -198,15 +197,13 @@ fn require_graph_write(
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            let perms = p
-                .graph_permissions(ctx, path)
-                .map_err(|msg| async_graphql::Error::new(msg))?;
-            if !perms.is_write() {
-                return Err(write_denied(
+            p.graph_permissions(ctx, path)
+                .map_err(|msg| async_graphql::Error::new(msg))?
+                .at_least_write()
+                .ok_or_else(|| write_denied(
                     role,
                     format!("Access denied: WRITE permission required for graph '{path}'"),
-                ));
-            }
+                ))?;
             Ok(())
         }
     }
@@ -244,15 +241,13 @@ fn require_graph_read_src(
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            let perms = p
-                .graph_permissions(ctx, path)
-                .map_err(|msg| async_graphql::Error::new(msg))?;
-            if !perms.is_at_least_read() {
-                return Err(write_denied(
+            p.graph_permissions(ctx, path)
+                .map_err(|msg| async_graphql::Error::new(msg))?
+                .at_least_read()
+                .ok_or_else(|| write_denied(
                     role,
                     format!("Access denied: READ required on source graph '{path}' to {operation}"),
-                ));
-            }
+                ))?;
             Ok(())
         }
     }
@@ -275,7 +270,7 @@ impl QueryRoot {
 
         let perms = if let Some(policy) = &data.auth_policy {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            let perms = policy
+            policy
                 .graph_permissions(ctx, path)
                 .map_err(|msg| {
                     warn!(
@@ -284,15 +279,13 @@ impl QueryRoot {
                         "Access denied by auth policy"
                     );
                     async_graphql::Error::new(msg)
-                })?;
-            if !perms.is_at_least_read() {
-                return Err(async_graphql::Error::new(format!(
+                })?
+                .at_least_read()
+                .ok_or_else(|| async_graphql::Error::new(format!(
                     "Access denied: role '{}' has introspect-only access to graph '{path}' — \
                      READ is required to access graph data; use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
                     role.unwrap_or("<no role>")
-                )));
-            }
-            perms
+                )))?
         } else {
             GraphPermission::Write // no policy: unrestricted
         };

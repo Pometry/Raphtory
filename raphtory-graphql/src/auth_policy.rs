@@ -1,7 +1,8 @@
 use crate::model::graph::filtering::GraphAccessFilter;
 
 /// The effective permission level a principal has on a specific graph.
-/// Variants are ordered by the hierarchy: `Write` > `Read` > `Introspect`.
+/// Variants are ordered by the hierarchy: `Write` > `Read{filter:None}` > `Read{filter:Some}` > `Introspect`.
+/// A filtered `Read` is less powerful than an unfiltered `Read` because it sees a restricted view.
 #[derive(Clone)]
 pub enum GraphPermission {
     /// May query graph metadata (counts, schema) but not read data.
@@ -13,14 +14,55 @@ pub enum GraphPermission {
 }
 
 impl GraphPermission {
-    /// Returns `true` if the permission level is `Read` or higher (`Write`).
+    /// Numeric level used for ordering: `Introspect`=0, `Read{Some}`=1, `Read{None}`=2, `Write`=3.
+    fn level(&self) -> u8 {
+        match self {
+            GraphPermission::Introspect => 0,
+            GraphPermission::Read { filter: Some(_) } => 1,
+            GraphPermission::Read { filter: None } => 2,
+            GraphPermission::Write => 3,
+        }
+    }
+
+    /// Returns `true` if the permission level is `Read` or higher.
     pub fn is_at_least_read(&self) -> bool {
-        matches!(self, GraphPermission::Read { .. } | GraphPermission::Write)
+        self.level() >= 1
     }
 
     /// Returns `true` only for `Write` permission.
     pub fn is_write(&self) -> bool {
-        matches!(self, GraphPermission::Write)
+        self.level() >= 3
+    }
+
+    /// Returns `Some(self)` if at least `Read` (filtered or not), `None` otherwise.
+    /// Use with `?` to gate access and preserve the permission value for filter extraction.
+    pub fn at_least_read(self) -> Option<Self> {
+        self.is_at_least_read().then_some(self)
+    }
+
+    /// Returns `Some(self)` if `Write`, `None` otherwise.
+    pub fn at_least_write(self) -> Option<Self> {
+        self.is_write().then_some(self)
+    }
+}
+
+impl PartialEq for GraphPermission {
+    fn eq(&self, other: &Self) -> bool {
+        self.level() == other.level()
+    }
+}
+
+impl Eq for GraphPermission {}
+
+impl PartialOrd for GraphPermission {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for GraphPermission {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.level().cmp(&other.level())
     }
 }
 
