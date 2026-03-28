@@ -982,6 +982,73 @@ def test_analyst_cannot_move_with_read_grant():
         assert "Access denied" in response["errors"][0]["message"]
 
 
+# --- newGraph namespace write enforcement ---
+
+
+def test_analyst_can_create_root_graph_with_wildcard_namespace_write():
+    """'a':'ro' user with namespace WRITE on '*' can create a graph at the root level."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "*", "WRITE")
+
+        response = gql(CREATE_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["newGraph"] is True
+
+
+def test_analyst_cannot_create_root_graph_with_read_only():
+    """'a':'ro' user with namespace READ (not WRITE) is denied by newGraph."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "*", "READ")
+
+        response = gql(CREATE_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
+# --- permissions entry point admin gate ---
+
+
+def test_analyst_cannot_access_permissions_query_entry_point():
+    """'a':'ro' user is denied at the permissions query entry point, not just the individual ops.
+
+    This verifies the entry-point-level admin check added to query { permissions { ... } }.
+    Even with full namespace WRITE, a non-admin JWT cannot reach the permissions resolver.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "*", "WRITE")  # full write, still not admin
+
+        response = gql(
+            "query { permissions { listRoles } }",
+            headers=ANALYST_HEADERS,
+        )
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
+def test_analyst_cannot_access_permissions_mutation_entry_point():
+    """'a':'ro' user is denied at the mutation { permissions { ... } } entry point.
+
+    Even with full namespace WRITE, a non-admin JWT is blocked before reaching any op.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        create_role("analyst")
+        grant_namespace("analyst", "*", "WRITE")  # full write, still not admin
+
+        response = gql(
+            'mutation { permissions { createRole(name: "hacker") { success } } }',
+            headers=ANALYST_HEADERS,
+        )
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
 # --- createIndex policy ---
 
 

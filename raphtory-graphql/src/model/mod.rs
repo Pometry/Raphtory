@@ -418,8 +418,10 @@ impl QueryRoot {
     }
 
     /// Returns the permissions namespace for inspecting roles and access policies (admin only).
-    async fn permissions<'a>(_ctx: &Context<'a>) -> PermissionsQueryPlugin {
-        PermissionsQueryPlugin::default()
+    async fn permissions<'a>(ctx: &Context<'a>) -> Result<PermissionsQueryPlugin> {
+        ctx.require_jwt_write_access()
+            .map_err(|_| async_graphql::Error::new("Access denied: write access required"))?;
+        Ok(PermissionsQueryPlugin::default())
     }
 }
 
@@ -437,8 +439,10 @@ impl Mut {
     }
 
     /// Returns the permissions namespace for managing roles and access policies.
-    async fn permissions<'a>(_ctx: &Context<'a>) -> PermissionsPlugin {
-        PermissionsPlugin::default()
+    async fn permissions<'a>(ctx: &Context<'a>) -> Result<PermissionsPlugin> {
+        ctx.require_jwt_write_access()
+            .map_err(|_| async_graphql::Error::new("Access denied: write access required"))?;
+        Ok(PermissionsPlugin::default())
     }
 
     /// Delete graph from a path on the server.
