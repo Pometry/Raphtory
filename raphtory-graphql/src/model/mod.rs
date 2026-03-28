@@ -459,7 +459,8 @@ impl Mut {
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        require_graph_write(ctx, &data.auth_policy, &path)?;
+        let ns = parent_namespace(&path);
+        require_namespace_write(ctx, &data.auth_policy, ns, &path, "create")?;
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
