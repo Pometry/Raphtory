@@ -113,9 +113,9 @@ impl GqlGraph {
     ////////////////////////
 
     /// Returns the names of all layers in the graphview.
-    async fn unique_layers(&self) -> Result<Vec<String>> {
+    async fn unique_layers(&self) -> Vec<String> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await)
+        blocking_compute(move || self_clone.graph.unique_layers().map_into().collect()).await
     }
 
     /// Returns a view containing only the default layer.
@@ -363,23 +363,23 @@ impl GqlGraph {
     ///
     /// Returns:
     ///     int:
-    async fn count_edges(&self) -> Result<usize> {
+    async fn count_edges(&self) -> usize {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.graph.count_edges()).await)
+        blocking_compute(move || self_clone.graph.count_edges()).await
     }
 
     /// Returns the number of temporal edges in the graph.
-    async fn count_temporal_edges(&self) -> Result<usize> {
+    async fn count_temporal_edges(&self) -> usize {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.graph.count_temporal_edges()).await)
+        blocking_compute(move || self_clone.graph.count_temporal_edges()).await
     }
 
     /// Returns the number of nodes in the graph.
     ///
     /// Optionally takes a list of node ids to return a subset.
-    async fn count_nodes(&self) -> Result<usize> {
+    async fn count_nodes(&self) -> usize {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.graph.count_nodes()).await)
+        blocking_compute(move || self_clone.graph.count_nodes()).await
     }
 
     ////////////////////////
