@@ -806,8 +806,22 @@ DELETE_JIRA = """mutation { deleteGraph(path: "jira") }"""
 DELETE_TEAM_JIRA = """mutation { deleteGraph(path: "team/jira") }"""
 
 
-def test_analyst_can_delete_with_write_grant():
-    """'a':'ro' user with WRITE grant on a graph can delete it."""
+def test_analyst_can_delete_with_graph_and_namespace_write():
+    """deleteGraph requires WRITE on both the graph and its parent namespace."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "WRITE")
+        grant_namespace("analyst", "*", "WRITE")
+
+        response = gql(DELETE_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["deleteGraph"] is True
+
+
+def test_analyst_cannot_delete_with_graph_write_only():
+    """Graph WRITE alone is insufficient for deleteGraph — namespace WRITE is also required."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
@@ -815,8 +829,8 @@ def test_analyst_can_delete_with_write_grant():
         grant_graph("analyst", "jira", "WRITE")
 
         response = gql(DELETE_JIRA, headers=ANALYST_HEADERS)
-        assert "errors" not in response, response
-        assert response["data"]["deleteGraph"] is True
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_analyst_cannot_delete_with_read_grant():
@@ -878,3 +892,86 @@ def test_analyst_send_graph_passes_auth_with_namespace_write():
         # Auth passed — error is about graph decoding, not access
         assert "errors" in response
         assert "Access denied" not in response["errors"][0]["message"]
+
+
+# --- moveGraph policy ---
+
+MOVE_TEAM_JIRA = """mutation { moveGraph(path: "team/jira", newPath: "team/jira-moved", overwrite: false) }"""
+
+
+def test_analyst_can_move_with_graph_write_and_namespace_write():
+    """moveGraph requires WRITE on the source graph and its parent namespace, plus WRITE on the destination namespace."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "team/jira", "WRITE")
+        grant_namespace("analyst", "team", "WRITE")
+
+        response = gql(MOVE_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["moveGraph"] is True
+
+
+def test_analyst_cannot_move_with_graph_write_only():
+    """Graph WRITE alone is insufficient for moveGraph — namespace WRITE on source is also required."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "team/jira", "WRITE")
+        # no namespace grant → namespace WRITE check fails
+
+        response = gql(MOVE_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
+def test_analyst_cannot_move_with_read_grant():
+    """READ on source graph is insufficient for moveGraph — WRITE is required."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "team/jira", "READ")
+        grant_namespace("analyst", "team", "WRITE")
+
+        response = gql(MOVE_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
+# --- createIndex policy ---
+
+
+def test_analyst_can_create_index_with_graph_write():
+    """A user with WRITE on a graph can call createIndex (not admin-only)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "WRITE")
+
+        response = gql(
+            'mutation { createIndex(path: "jira", inRam: true) }',
+            headers=ANALYST_HEADERS,
+        )
+        # Auth passed — success or a feature-not-compiled error, not an access denial
+        if "errors" in response:
+            assert "Access denied" not in response["errors"][0]["message"]
+
+
+def test_analyst_cannot_create_index_with_read_grant():
+    """READ on a graph is insufficient for createIndex — WRITE is required."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "READ")
+
+        response = gql(
+            'mutation { createIndex(path: "jira", inRam: true) }',
+            headers=ANALYST_HEADERS,
+        )
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]

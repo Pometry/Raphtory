@@ -475,6 +475,8 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         let (is_admin, role) = auth_context(ctx);
         require_graph_write(ctx, &data.auth_policy, is_admin, role, &path)?;
+        let src_ns = parent_namespace(&path);
+        require_namespace_write(ctx, &data.auth_policy, is_admin, role, src_ns, &path, "delete")?;
         data.delete_graph(&path).await?;
         Ok(true)
     }
@@ -517,22 +519,11 @@ impl Mut {
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         let (is_admin, role) = auth_context(ctx);
-        if !is_admin {
-            if let Some(p) = &data.auth_policy {
-                // src: require WRITE (moving = deleting source)
-                let src_perm = p
-                    .graph_permissions(false, role, path)
-                    .map_err(|msg| async_graphql::Error::new(msg))?;
-                if !matches!(src_perm, GraphPermission::Write) {
-                    return Err(write_denied(
-                        role,
-                        format!(
-                            "Access denied: WRITE required on source graph '{path}' to move it"
-                        ),
-                    ));
-                }
-            }
-        }
+        // src: require WRITE on graph (moving = deleting source)
+        require_graph_write(ctx, &data.auth_policy, is_admin, role, path)?;
+        // src: require WRITE on parent namespace (removing graph from namespace)
+        let src_ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, is_admin, role, src_ns, path, "move")?;
         // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
         Self::copy_graph(ctx, path, new_path, overwrite).await?;
         data.delete_graph(path).await?;
@@ -683,10 +674,11 @@ impl Mut {
         index_spec: Option<IndexSpecInput>,
         in_ram: bool,
     ) -> Result<bool> {
-        ctx.require_jwt_write_access()?;
+        let data = ctx.data_unchecked::<Data>();
+        let (is_admin, role) = auth_context(ctx);
+        require_graph_write(ctx, &data.auth_policy, is_admin, role, path)?;
         #[cfg(feature = "search")]
         {
-            let data = ctx.data_unchecked::<Data>();
             let graph = data.get_graph(path).await?.graph;
             match index_spec {
                 Some(index_spec) => {
