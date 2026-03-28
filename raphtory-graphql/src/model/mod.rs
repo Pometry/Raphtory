@@ -116,7 +116,7 @@ fn require_at_least_read(
                 );
                 async_graphql::Error::new(msg)
             })?;
-        if matches!(perms, GraphPermission::Introspect) {
+        if !perms.is_at_least_read() {
             return Err(async_graphql::Error::new(format!(
                 "Access denied: role '{}' has introspect-only access to graph '{path}' — \
                  use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
@@ -201,7 +201,7 @@ fn require_graph_write(
             let perms = p
                 .graph_permissions(ctx, path)
                 .map_err(|msg| async_graphql::Error::new(msg))?;
-            if !matches!(perms, GraphPermission::Write) {
+            if !perms.is_write() {
                 return Err(write_denied(
                     role,
                     format!("Access denied: WRITE permission required for graph '{path}'"),
@@ -247,7 +247,7 @@ fn require_graph_read_src(
             let perms = p
                 .graph_permissions(ctx, path)
                 .map_err(|msg| async_graphql::Error::new(msg))?;
-            if matches!(perms, GraphPermission::Introspect) {
+            if !perms.is_at_least_read() {
                 return Err(write_denied(
                     role,
                     format!("Access denied: READ required on source graph '{path}' to {operation}"),
@@ -285,7 +285,7 @@ impl QueryRoot {
                     );
                     async_graphql::Error::new(msg)
                 })?;
-            if matches!(perms, GraphPermission::Introspect) {
+            if !perms.is_at_least_read() {
                 return Err(async_graphql::Error::new(format!(
                     "Access denied: role '{}' has introspect-only access to graph '{path}' — \
                      READ is required to access graph data; use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",

@@ -12,6 +12,18 @@ pub enum GraphPermission {
     Write,
 }
 
+impl GraphPermission {
+    /// Returns `true` if the permission level is `Read` or higher (`Write`).
+    pub fn is_at_least_read(&self) -> bool {
+        matches!(self, GraphPermission::Read { .. } | GraphPermission::Write)
+    }
+
+    /// Returns `true` only for `Write` permission.
+    pub fn is_write(&self) -> bool {
+        matches!(self, GraphPermission::Write)
+    }
+}
+
 /// The effective permission level a principal has on a namespace.
 /// Variants are ordered lowest to highest so that `PartialOrd`/`Ord` reflect the hierarchy.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
