@@ -40,8 +40,11 @@ QUERY_META_JIRA = """query { graphMetadata(path: "jira") { path nodeCount } }"""
 CREATE_JIRA = """mutation { newGraph(path:"jira", graphType:EVENT) }"""
 CREATE_ADMIN = """mutation { newGraph(path:"admin", graphType:EVENT) }"""
 CREATE_TEAM_JIRA = """mutation { newGraph(path:"team/jira", graphType:EVENT) }"""
+CREATE_TEAM_CONFLUENCE = """mutation { newGraph(path:"team/confluence", graphType:EVENT) }"""
+CREATE_DEEP = """mutation { newGraph(path:"a/b/c", graphType:EVENT) }"""
 QUERY_TEAM_JIRA = """query { graph(path: "team/jira") { path } }"""
 QUERY_TEAM_GRAPHS = """query { namespace(path: "team") { graphs { list { path } } } }"""
+QUERY_A_CHILDREN = """query { namespace(path: "a") { children { list { path } } } }"""
 
 
 def gql(query: str, headers=None) -> dict:
@@ -62,6 +65,12 @@ def grant_graph(role: str, path: str, permission: str) -> None:
 def grant_namespace(role: str, path: str, permission: str) -> None:
     gql(
         f'mutation {{ permissions {{ grantNamespace(role: "{role}", path: "{path}", permission: {permission}) {{ success }} }} }}'
+    )
+
+
+def revoke_graph(role: str, path: str) -> None:
+    gql(
+        f'mutation {{ permissions {{ revokeGraph(role: "{role}", path: "{path}") {{ success }} }} }}'
     )
 
 
@@ -825,6 +834,80 @@ def test_discover_derivation():
         assert "errors" not in response, response
         paths = [n["path"] for n in response["data"]["root"]["children"]["list"]]
         assert "team" in paths
+
+
+def test_discover_revoked_when_only_child_revoked():
+    """Revoking the only child READ grant removes DISCOVER from the parent namespace."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "team/jira", "READ")
+
+        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        assert "team" in paths  # baseline: DISCOVER present
+
+        revoke_graph("analyst", "team/jira")
+
+        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        assert "team" not in paths  # DISCOVER gone
+
+
+def test_discover_stays_when_one_of_two_children_revoked():
+    """DISCOVER persists while at least one child grant remains; clears only when all are revoked."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        gql(CREATE_TEAM_CONFLUENCE)
+        create_role("analyst")
+        grant_graph("analyst", "team/jira", "READ")
+        grant_graph("analyst", "team/confluence", "READ")
+
+        revoke_graph("analyst", "team/jira")
+        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        assert "team" in paths  # still visible via team/confluence
+
+        revoke_graph("analyst", "team/confluence")
+        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        assert "team" not in paths  # now gone
+
+
+def test_discover_stays_when_parent_has_explicit_namespace_read():
+    """Revoking a child graph READ does not remove an explicit namespace READ on the parent."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "team/jira", "READ")
+        grant_namespace("analyst", "team", "READ")  # explicit, higher than DISCOVER
+
+        revoke_graph("analyst", "team/jira")
+
+        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        assert "team" in paths  # still visible via explicit namespace READ
+
+
+def test_discover_revoked_for_nested_namespaces():
+    """Revoking the only deep grant removes DISCOVER from all ancestor namespaces."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_DEEP)
+        create_role("analyst")
+        grant_graph("analyst", "a/b/c", "READ")  # "a" and "a/b" both get DISCOVER
+
+        root_paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        assert "a" in root_paths
+
+        a_paths = [n["path"] for n in gql(QUERY_A_CHILDREN, headers=ANALYST_HEADERS)["data"]["namespace"]["children"]["list"]]
+        assert "a/b" in a_paths
+
+        revoke_graph("analyst", "a/b/c")
+
+        root_paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        assert "a" not in root_paths
+
+        a_paths = [n["path"] for n in gql(QUERY_A_CHILDREN, headers=ANALYST_HEADERS)["data"]["namespace"]["children"]["list"]]
+        assert "a/b" not in a_paths
 
 
 def test_no_namespace_grant_hidden_from_children():
