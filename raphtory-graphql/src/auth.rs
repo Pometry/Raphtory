@@ -21,7 +21,7 @@ use tracing::{debug, warn};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum Access {
+pub enum Access {
     Ro,
     Rw,
 }

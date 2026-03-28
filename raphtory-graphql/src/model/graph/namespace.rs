@@ -1,5 +1,4 @@
 use crate::{
-    auth::Access,
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{get_relative_path, Data},
     model::graph::{
@@ -139,24 +138,22 @@ impl Namespace {
 }
 
 fn is_graph_visible(
+    ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    is_admin: bool,
-    role: Option<&str>,
     g: &MetaGraph,
 ) -> bool {
     policy.as_ref().map_or(true, |p| {
-        p.graph_permissions(is_admin, role, &g.local_path()).is_ok()
+        p.graph_permissions(ctx, &g.local_path()).is_ok()
     })
 }
 
 fn is_namespace_visible(
+    ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    is_admin: bool,
-    role: Option<&str>,
     n: &Namespace,
 ) -> bool {
     policy.as_ref().map_or(true, |p| {
-        p.namespace_permissions(is_admin, role, &n.relative_path) >= NamespacePermission::Discover
+        p.namespace_permissions(ctx, &n.relative_path) >= NamespacePermission::Discover
     })
 }
 
@@ -164,27 +161,22 @@ fn is_namespace_visible(
 impl Namespace {
     async fn graphs(&self, ctx: &Context<'_>) -> GqlCollection<MetaGraph> {
         let data = ctx.data_unchecked::<Data>();
-        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
-        let role: Option<String> = ctx.data::<Option<String>>().ok().and_then(|r| r.clone());
-        let policy = data.auth_policy.clone();
         let self_clone = self.clone();
-        blocking_compute(move || {
-            GqlCollection::new(
-                self_clone
-                    .get_children()
-                    .filter_map(|g| match g {
-                        NamespacedItem::MetaGraph(g)
-                            if is_graph_visible(&policy, is_admin, role.as_deref(), &g) =>
-                        {
-                            Some(g)
-                        }
-                        _ => None,
-                    })
-                    .sorted()
-                    .collect(),
-            )
-        })
-        .await
+        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        GqlCollection::new(
+            items
+                .into_iter()
+                .filter_map(|item| match item {
+                    NamespacedItem::MetaGraph(g)
+                        if is_graph_visible(ctx, &data.auth_policy, &g) =>
+                    {
+                        Some(g)
+                    }
+                    _ => None,
+                })
+                .sorted()
+                .collect(),
+        )
     }
     async fn path(&self) -> String {
         self.relative_path.clone()
@@ -208,53 +200,39 @@ impl Namespace {
 
     async fn children(&self, ctx: &Context<'_>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
-        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
-        let role: Option<String> = ctx.data::<Option<String>>().ok().and_then(|r| r.clone());
-        let policy = data.auth_policy.clone();
         let self_clone = self.clone();
-        blocking_compute(move || {
-            GqlCollection::new(
-                self_clone
-                    .get_children()
-                    .filter_map(|item| match item {
-                        NamespacedItem::Namespace(n)
-                            if is_namespace_visible(&policy, is_admin, role.as_deref(), &n) =>
-                        {
-                            Some(n)
-                        }
-                        _ => None,
-                    })
-                    .sorted()
-                    .collect(),
-            )
-        })
-        .await
+        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        GqlCollection::new(
+            items
+                .into_iter()
+                .filter_map(|item| match item {
+                    NamespacedItem::Namespace(n)
+                        if is_namespace_visible(ctx, &data.auth_policy, &n) =>
+                    {
+                        Some(n)
+                    }
+                    _ => None,
+                })
+                .sorted()
+                .collect(),
+        )
     }
 
     // Fetch the collection of namespaces/graphs in this namespace.
     // Namespaces will be listed before graphs.
     async fn items(&self, ctx: &Context<'_>) -> GqlCollection<NamespacedItem> {
         let data = ctx.data_unchecked::<Data>();
-        let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
-        let role: Option<String> = ctx.data::<Option<String>>().ok().and_then(|r| r.clone());
-        let policy = data.auth_policy.clone();
         let self_clone = self.clone();
-        blocking_compute(move || {
-            GqlCollection::new(
-                self_clone
-                    .get_children()
-                    .filter(|item| match item {
-                        NamespacedItem::MetaGraph(g) => {
-                            is_graph_visible(&policy, is_admin, role.as_deref(), g)
-                        }
-                        NamespacedItem::Namespace(n) => {
-                            is_namespace_visible(&policy, is_admin, role.as_deref(), n)
-                        }
-                    })
-                    .sorted()
-                    .collect(),
-            )
-        })
-        .await
+        let all_items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        GqlCollection::new(
+            all_items
+                .into_iter()
+                .filter(|item| match item {
+                    NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g),
+                    NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n),
+                })
+                .sorted()
+                .collect(),
+        )
     }
 }

@@ -31,24 +31,24 @@ pub enum NamespacePermission {
 pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Resolves the effective permission level for a principal on a graph.
     /// Returns `Err(denial message)` only when access is entirely denied (not even introspect).
-    /// Admin bypass (`is_admin = true`) always yields `Write`.
-    /// Empty store (no roles configured) yields `Read` for non-admins — fail open for reads,
+    /// Admin principals (`"access": "rw"` JWT) always yield `Write`.
+    /// Empty store (no roles configured) yields `Read` — fail open for reads,
     /// but write still requires an explicit `Write` grant.
+    /// The implementation is responsible for extracting principal identity from `ctx`.
     fn graph_permissions(
         &self,
-        is_admin: bool,
-        role: Option<&str>,
+        ctx: &async_graphql::Context<'_>,
         path: &str,
     ) -> Result<GraphPermission, String>;
 
     /// Resolves the effective namespace permission for a principal.
-    /// Admin bypass always yields `Write`.
+    /// Admin principals always yield `Write`.
     /// Empty store yields `Read` (fail open, consistent with graph_permissions).
     /// Missing role yields `Denied`.
+    /// The implementation is responsible for extracting principal identity from `ctx`.
     fn namespace_permissions(
         &self,
-        is_admin: bool,
-        role: Option<&str>,
+        ctx: &async_graphql::Context<'_>,
         path: &str,
     ) -> NamespacePermission;
 }

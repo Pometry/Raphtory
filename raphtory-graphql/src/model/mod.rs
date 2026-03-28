@@ -1,5 +1,5 @@
 use crate::{
-    auth::{Access, AuthError, ContextValidation},
+    auth::{AuthError, ContextValidation},
     auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission},
     data::Data,
     model::{
@@ -100,14 +100,14 @@ pub enum GqlGraphType {
 /// Checks that the caller has at least READ permission for the graph at `path`.
 /// Returns `Err` if denied or if only INTROSPECT was granted.
 fn require_at_least_read(
+    ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    is_admin: bool,
-    role: Option<&str>,
     path: &str,
 ) -> async_graphql::Result<()> {
     if let Some(policy) = policy {
+        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
         let perms = policy
-            .graph_permissions(is_admin, role, path)
+            .graph_permissions(ctx, path)
             .map_err(|msg| {
                 warn!(
                     role = role.unwrap_or("<no role>"),
@@ -182,12 +182,6 @@ fn parent_namespace(path: &str) -> &str {
     path.rfind('/').map(|i| &path[..i]).unwrap_or("")
 }
 
-fn auth_context<'a>(ctx: &'a Context<'_>) -> (bool, Option<&'a str>) {
-    let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
-    let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-    (is_admin, role)
-}
-
 fn write_denied(role: Option<&str>, msg: impl std::fmt::Display) -> async_graphql::Error {
     match role {
         Some(_) => async_graphql::Error::new(msg.to_string()),
@@ -198,18 +192,14 @@ fn write_denied(role: Option<&str>, msg: impl std::fmt::Display) -> async_graphq
 fn require_graph_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    is_admin: bool,
-    role: Option<&str>,
     path: &str,
 ) -> async_graphql::Result<()> {
-    if is_admin {
-        return Ok(());
-    }
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
+            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             let perms = p
-                .graph_permissions(false, role, path)
+                .graph_permissions(ctx, path)
                 .map_err(|msg| async_graphql::Error::new(msg))?;
             if !matches!(perms, GraphPermission::Write) {
                 return Err(write_denied(
@@ -225,19 +215,15 @@ fn require_graph_write(
 fn require_namespace_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    is_admin: bool,
-    role: Option<&str>,
     ns_path: &str,
     new_path: &str,
     operation: &str,
 ) -> async_graphql::Result<()> {
-    if is_admin {
-        return Ok(());
-    }
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            if p.namespace_permissions(false, role, ns_path) < NamespacePermission::Write {
+            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+            if p.namespace_permissions(ctx, ns_path) < NamespacePermission::Write {
                 return Err(write_denied(
                     role,
                     format!("Access denied: WRITE required on namespace '{ns_path}' to {operation} graph '{new_path}'"),
@@ -251,19 +237,15 @@ fn require_namespace_write(
 fn require_graph_read_src(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    is_admin: bool,
-    role: Option<&str>,
     path: &str,
     operation: &str,
 ) -> async_graphql::Result<()> {
-    if is_admin {
-        return Ok(());
-    }
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
+            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             let perms = p
-                .graph_permissions(false, role, path)
+                .graph_permissions(ctx, path)
                 .map_err(|msg| async_graphql::Error::new(msg))?;
             if matches!(perms, GraphPermission::Introspect) {
                 return Err(write_denied(
@@ -290,11 +272,11 @@ impl QueryRoot {
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
 
         let perms = if let Some(policy) = &data.auth_policy {
+            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             let perms = policy
-                .graph_permissions(is_admin, role, path)
+                .graph_permissions(ctx, path)
                 .map_err(|msg| {
                     warn!(
                         role = role.unwrap_or("<no role>"),
@@ -338,11 +320,11 @@ impl QueryRoot {
     /// Requires at least INTROSPECT permission.
     async fn graph_metadata<'a>(ctx: &Context<'a>, path: String) -> Result<MetaGraph> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
 
         if let Some(policy) = &data.auth_policy {
+            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             policy
-                .graph_permissions(is_admin, role, &path)
+                .graph_permissions(ctx, &path)
                 .map_err(|msg| {
                     warn!(
                         role = role.unwrap_or("<no role>"),
@@ -363,8 +345,7 @@ impl QueryRoot {
     /// Returns:: GqlMutableGraph
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_graph_write(ctx, &data.auth_policy, is_admin, role, &path)?;
+        require_graph_write(ctx, &data.auth_policy, &path)?;
 
         let graph = data.get_graph(path.as_ref()).await?.into();
 
@@ -379,8 +360,7 @@ impl QueryRoot {
         path: &str,
     ) -> Result<Option<GqlVectorisedGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_at_least_read(&data.auth_policy, is_admin, role, path)?;
+        require_at_least_read(ctx, &data.auth_policy, path)?;
         Ok(data
             .get_graph(path)
             .await
@@ -434,8 +414,7 @@ impl QueryRoot {
     /// Returns:: Base64 url safe encoded string
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_at_least_read(&data.auth_policy, is_admin, role, &path)?;
+        require_at_least_read(ctx, &data.auth_policy, &path)?;
         let g = data.get_graph(&path).await?.graph.clone();
         let res = url_encode_graph(g)?;
         Ok(res)
@@ -473,10 +452,9 @@ impl Mut {
     // If namespace is not provided, it will be set to the current working directory.
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_graph_write(ctx, &data.auth_policy, is_admin, role, &path)?;
+        require_graph_write(ctx, &data.auth_policy, &path)?;
         let src_ns = parent_namespace(&path);
-        require_namespace_write(ctx, &data.auth_policy, is_admin, role, src_ns, &path, "delete")?;
+        require_namespace_write(ctx, &data.auth_policy, src_ns, &path, "delete")?;
         data.delete_graph(&path).await?;
         Ok(true)
     }
@@ -488,8 +466,7 @@ impl Mut {
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_graph_write(ctx, &data.auth_policy, is_admin, role, &path)?;
+        require_graph_write(ctx, &data.auth_policy, &path)?;
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
@@ -518,12 +495,11 @@ impl Mut {
         overwrite: Option<bool>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
         // src: require WRITE on graph (moving = deleting source)
-        require_graph_write(ctx, &data.auth_policy, is_admin, role, path)?;
+        require_graph_write(ctx, &data.auth_policy, path)?;
         // src: require WRITE on parent namespace (removing graph from namespace)
         let src_ns = parent_namespace(path);
-        require_namespace_write(ctx, &data.auth_policy, is_admin, role, src_ns, path, "move")?;
+        require_namespace_write(ctx, &data.auth_policy, src_ns, path, "move")?;
         // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
         Self::copy_graph(ctx, path, new_path, overwrite).await?;
         data.delete_graph(path).await?;
@@ -538,18 +514,9 @@ impl Mut {
         overwrite: Option<bool>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_graph_read_src(ctx, &data.auth_policy, is_admin, role, path, "copy it")?;
+        require_graph_read_src(ctx, &data.auth_policy, path, "copy it")?;
         let dst_ns = parent_namespace(new_path);
-        require_namespace_write(
-            ctx,
-            &data.auth_policy,
-            is_admin,
-            role,
-            dst_ns,
-            new_path,
-            "create",
-        )?;
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, new_path, "create")?;
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
@@ -572,17 +539,8 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
         let dst_ns = parent_namespace(&path);
-        require_namespace_write(
-            ctx,
-            &data.auth_policy,
-            is_admin,
-            role,
-            dst_ns,
-            &path,
-            "upload",
-        )?;
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, &path, "upload")?;
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
@@ -601,9 +559,8 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
         let dst_ns = parent_namespace(path);
-        require_namespace_write(ctx, &data.auth_policy, is_admin, role, dst_ns, path, "send")?;
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, path, "send")?;
         let folder = if overwrite {
             ValidWriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
         } else {
@@ -631,25 +588,9 @@ impl Mut {
         overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_graph_read_src(
-            ctx,
-            &data.auth_policy,
-            is_admin,
-            role,
-            parent_path,
-            "create a subgraph",
-        )?;
+        require_graph_read_src(ctx, &data.auth_policy, parent_path, "create a subgraph")?;
         let dst_ns = parent_namespace(&new_path);
-        require_namespace_write(
-            ctx,
-            &data.auth_policy,
-            is_admin,
-            role,
-            dst_ns,
-            &new_path,
-            "create",
-        )?;
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
         let parent_graph = data.get_graph(parent_path).await?.graph;
         let folder_clone = folder.clone();
@@ -675,8 +616,7 @@ impl Mut {
         in_ram: bool,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let (is_admin, role) = auth_context(ctx);
-        require_graph_write(ctx, &data.auth_policy, is_admin, role, path)?;
+        require_graph_write(ctx, &data.auth_policy, path)?;
         #[cfg(feature = "search")]
         {
             let graph = data.get_graph(path).await?.graph;
