@@ -151,7 +151,9 @@ pub fn weakly_connected_components(graph: &PyGraphView) -> NodeState<'static, us
 ///     NodeStateUsize: Mapping of nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (graph))]
-pub fn weakly_connected_components_ds(graph: &PyGraphView) -> NodeState<'static, usize, DynamicGraph> {
+pub fn weakly_connected_components_ds(
+    graph: &PyGraphView,
+) -> NodeState<'static, usize, DynamicGraph> {
     components::weakly_connected_components_ds(&graph.graph)
 }
 
