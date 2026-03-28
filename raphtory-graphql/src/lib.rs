@@ -46,6 +46,7 @@ mod graphql_test {
     #[cfg(feature = "search")]
     use crate::config::app_config::AppConfigBuilder;
     use crate::{
+        auth::Access,
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
@@ -89,7 +90,7 @@ mod graphql_test {
             )
         }"#;
 
-        let req = Request::new(query);
+        let req = Request::new(query).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
     }

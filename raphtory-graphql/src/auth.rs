@@ -250,7 +250,6 @@ impl<'a> ContextValidation for &Context<'a> {
     fn require_jwt_write_access(&self) -> Result<(), AuthError> {
         match self.data::<Access>() {
             Ok(access) if access == &Access::Rw => Ok(()),
-            Err(_) => Ok(()), // no auth context (e.g. tests) — unrestricted
             _ => Err(AuthError::RequireWrite),
         }
     }
