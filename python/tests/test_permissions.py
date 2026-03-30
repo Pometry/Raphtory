@@ -733,6 +733,48 @@ def test_receive_graph_without_introspect_hides_existence():
         assert "Access denied" not in str(exc_missing.value)
 
 
+def test_receive_graph_with_filtered_access():
+    """receive_graph with grantGraphFilteredReadOnly returns a materialized view of the filtered graph.
+
+    The downloaded graph should only contain nodes/edges that pass the stored filter,
+    not the full unfiltered graph.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region in [
+            ("alice", "us-west"),
+            ("bob", "us-east"),
+            ("carol", "us-west"),
+        ]:
+            resp = gql(
+                f"""query {{
+                    updateGraph(path: "jira") {{
+                        addNode(
+                            time: 1,
+                            name: "{name}",
+                            properties: [{{ key: "region", value: {{ str: "{region}" }} }}]
+                        ) {{ success }}
+                    }}
+                }}"""
+            )
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }',
+        )
+
+        client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
+        received = client.receive_graph("jira")
+
+        names = {n.name for n in received.nodes}
+        assert names == {"alice", "carol"}, f"Expected only us-west nodes, got: {names}"
+        assert "bob" not in names
+
+
 def test_analyst_sees_only_graph_filter_window():
     """grantGraphFilteredReadOnly with a graph-level window filter restricts the temporal view.
 

@@ -98,14 +98,14 @@ pub enum GqlGraphType {
 }
 
 /// Checks that the caller has at least READ permission for the graph at `path`.
-/// Returns `Err` if denied or if only INTROSPECT was granted.
+/// Returns the effective `GraphPermission` (including any stored filter) on success.
 /// When denied and the caller has no INTROSPECT on the parent namespace, returns a
 /// "Graph does not exist" error to avoid leaking that the graph is present.
 fn require_at_least_read(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
-) -> async_graphql::Result<()> {
+) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
         match policy.graph_permissions(ctx, path) {
@@ -124,17 +124,17 @@ fn require_at_least_read(
                 }
             }
             Ok(perm) => {
-                perm.at_least_read().ok_or_else(|| {
+                return Ok(perm.at_least_read().ok_or_else(|| {
                     async_graphql::Error::new(format!(
                         "Access denied: role '{}' has introspect-only access to graph '{path}' — \
                          use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
                         role.unwrap_or("<no role>")
                     ))
-                })?;
+                })?);
             }
         }
     }
-    Ok(())
+    Ok(GraphPermission::Write)
 }
 
 /// Applies a stored data filter (serialised as `serde_json::Value` with optional `node`, `edge`,
@@ -425,14 +425,26 @@ impl QueryRoot {
         QueryPlugin::default()
     }
 
-    /// Encodes graph and returns as string
+    /// Encodes graph and returns as string.
+    /// If the caller has filtered access, the returned graph is a materialized view of the filter.
     ///
     /// Returns:: Base64 url safe encoded string
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        require_at_least_read(ctx, &data.auth_policy, &path)?;
-        let g = data.get_graph(&path).await?.graph.clone();
-        let res = url_encode_graph(g)?;
+        let perm = require_at_least_read(ctx, &data.auth_policy, &path)?;
+        let raw = data.get_graph(&path).await?.graph;
+        let res = if let GraphPermission::Read {
+            filter: Some(ref f),
+        } = perm
+        {
+            let filtered = apply_graph_filter(raw.into_dynamic(), f.clone()).await?;
+            let materialized = blocking_compute(move || filtered.materialize())
+                .await
+                .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+            url_encode_graph(materialized)?
+        } else {
+            url_encode_graph(raw)?
+        };
         Ok(res)
     }
 
