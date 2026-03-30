@@ -692,12 +692,12 @@ def test_receive_graph_requires_read():
         gql(CREATE_TEAM_JIRA)
         create_role("analyst")
 
-        # No grant — denied
+        # No grant — looks like the graph doesn't exist (no information leakage)
         client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
-        with pytest.raises(Exception, match="Access denied"):
+        with pytest.raises(Exception, match="does not exist"):
             client.receive_graph("team/jira")
 
-        # Namespace INTROSPECT only — also denied for receive_graph
+        # Namespace INTROSPECT only — also denied for receive_graph, but now reveals access denied
         grant_namespace("analyst", "team", "INTROSPECT")
         with pytest.raises(Exception, match="Access denied"):
             client.receive_graph("team/jira")
@@ -706,6 +706,31 @@ def test_receive_graph_requires_read():
         grant_namespace("analyst", "team", "READ")
         g = client.receive_graph("team/jira")
         assert g is not None
+
+
+def test_receive_graph_without_introspect_hides_existence():
+    """Without namespace INTROSPECT, receive_graph acts as if the graph does not exist.
+
+    This prevents information leakage: a role without any grants cannot distinguish
+    between 'graph does not exist' and 'graph exists but you are denied'.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_TEAM_JIRA)
+        create_role("analyst")
+
+        client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
+
+        # No grants at all — error must be indistinguishable from a missing graph
+        with pytest.raises(Exception, match="does not exist") as exc_no_grant:
+            client.receive_graph("team/jira")
+
+        # Compare with a truly non-existent graph — error should look the same
+        with pytest.raises(Exception, match="does not exist") as exc_missing:
+            client.receive_graph("team/nonexistent")
+
+        assert "Access denied" not in str(exc_no_grant.value)
+        assert "Access denied" not in str(exc_missing.value)
 
 
 def test_analyst_sees_only_graph_filter_window():

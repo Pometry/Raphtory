@@ -99,6 +99,8 @@ pub enum GqlGraphType {
 
 /// Checks that the caller has at least READ permission for the graph at `path`.
 /// Returns `Err` if denied or if only INTROSPECT was granted.
+/// When denied and the caller has no INTROSPECT on the parent namespace, returns a
+/// "Graph does not exist" error to avoid leaking that the graph is present.
 fn require_at_least_read(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -106,22 +108,31 @@ fn require_at_least_read(
 ) -> async_graphql::Result<()> {
     if let Some(policy) = policy {
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-        policy
-            .graph_permissions(ctx, path)
-            .map_err(|msg| {
-                warn!(
-                    role = role.unwrap_or("<no role>"),
-                    graph = path,
-                    "Access denied by auth policy"
-                );
-                async_graphql::Error::new(msg)
-            })?
-            .at_least_read()
-            .ok_or_else(|| async_graphql::Error::new(format!(
-                "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                 use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
-                role.unwrap_or("<no role>")
-            )))?;
+        match policy.graph_permissions(ctx, path) {
+            Err(msg) => {
+                let ns = parent_namespace(path);
+                if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
+                    warn!(
+                        role = role.unwrap_or("<no role>"),
+                        graph = path,
+                        "Access denied by auth policy"
+                    );
+                    return Err(async_graphql::Error::new(msg));
+                } else {
+                    // Don't leak graph existence — act as if it doesn't exist.
+                    return Err(async_graphql::Error::new(MissingGraph.to_string()));
+                }
+            }
+            Ok(perm) => {
+                perm.at_least_read().ok_or_else(|| {
+                    async_graphql::Error::new(format!(
+                        "Access denied: role '{}' has introspect-only access to graph '{path}' — \
+                         use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
+                        role.unwrap_or("<no role>")
+                    ))
+                })?;
+            }
+        }
     }
     Ok(())
 }
