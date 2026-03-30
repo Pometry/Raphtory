@@ -54,6 +54,7 @@ __all__ = [
     "local_clustering_coefficient",
     "local_clustering_coefficient_batch",
     "weakly_connected_components",
+    "weakly_connected_components_ds",
     "strongly_connected_components",
     "in_components",
     "in_component",
@@ -414,6 +415,20 @@ def local_clustering_coefficient_batch(graph: Any, v: Any):
 def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
+
+    This function assigns a component id to each node such that nodes with the same component id are mutually reachable
+    by an undirected path.
+
+    Arguments:
+        graph (GraphView): Raphtory graph
+
+    Returns:
+        NodeStateUsize: Mapping of nodes to their component ids.
+    """
+
+def weakly_connected_components_ds(graph: GraphView) -> NodeStateUsize:
+    """
+    Weakly connected components (Disjoint Set Union) -- partitions the graph into node sets which are mutually reachable by an undirected path
 
     This function assigns a component id to each node such that nodes with the same component id are mutually reachable
     by an undirected path.
