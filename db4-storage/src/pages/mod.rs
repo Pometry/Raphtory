@@ -358,21 +358,14 @@ impl<
         let wal = self.ext.wal();
         let control_file = self.ext.control_file();
 
-        // Since we are in a Drop, no more writes can occur.
-        // Thus, next_lsn == end of the WAL stream.
-        // So we can safely set this as the redo LSN for the checkpoint (i.e. nothing to redo).
-        let redo_lsn = wal.position();
-
         match self.flush() {
             Ok(_) => {
                 // Log a checkpoint record in the WAL, indicating that the DB was shutdown
                 // with all the segments flushed to disk.
-                // Now, redo_lsn points to this checkpoint record.
                 // On startup, recovery is skipped since there are no pending writes to replay.
-                let is_shutdown = true;
                 let checkpoint_lsn = wal
-                    .log_checkpoint(redo_lsn, is_shutdown)
-                    .expect("Failed to log checkpoint in drop");
+                    .log_shutdown_checkpoint()
+                    .expect("Failed to log shutdown checkpoint in drop");
 
                 // Flush up to the end of the WAL stream.
                 let flush_lsn = wal.position();

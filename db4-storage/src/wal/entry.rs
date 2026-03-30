@@ -101,7 +101,11 @@ impl GraphWalOps for NoWal {
         Ok(0)
     }
 
-    fn log_checkpoint(&self, _redo: LSN, _is_shutdown: bool) -> Result<LSN, StorageError> {
+    fn log_checkpoint(&self, _redo: LSN) -> Result<LSN, StorageError> {
+        Ok(0)
+    }
+
+    fn log_shutdown_checkpoint(&self) -> Result<LSN, StorageError> {
         Ok(0)
     }
 
