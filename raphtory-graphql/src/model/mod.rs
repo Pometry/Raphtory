@@ -282,29 +282,22 @@ impl QueryRoot {
         let perms = if let Some(policy) = &data.auth_policy {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             match policy.graph_permissions(ctx, path) {
-                Err(msg) => {
-                    // Only surface the denial if the role already has INTROSPECT (or higher)
-                    // on the parent namespace — they already know graphs exist there.
-                    // Otherwise return null, indistinguishable from "graph not found".
-                    let ns = parent_namespace(path);
-                    if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
-                        warn!(
-                            role = role.unwrap_or("<no role>"),
-                            graph = path,
-                            "Access denied by auth policy"
-                        );
-                        return Err(async_graphql::Error::new(msg));
-                    } else {
-                        return Ok(None);
-                    }
+                Err(_) => {
+                    // No permission at all — return null, indistinguishable from "graph not found".
+                    warn!(
+                        role = role.unwrap_or("<no role>"),
+                        graph = path,
+                        "Access denied by auth policy"
+                    );
+                    return Ok(None);
                 }
-                Ok(perm) => perm
-                    .at_least_read()
-                    .ok_or_else(|| async_graphql::Error::new(format!(
-                        "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                         READ is required to access graph data; use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
-                        role.unwrap_or("<no role>")
-                    )))?,
+                Ok(perm) => match perm.at_least_read() {
+                    // INTROSPECT-only — also return null. async-graphql makes `data` null
+                    // when a nullable field resolver returns Err, so we always use Ok(None)
+                    // to keep `data: {"graph": null}` consistent across all denied cases.
+                    None => return Ok(None),
+                    Some(p) => p,
+                },
             }
         } else {
             GraphPermission::Write // no policy: unrestricted

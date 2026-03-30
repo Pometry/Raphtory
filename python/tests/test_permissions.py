@@ -195,10 +195,10 @@ def test_introspection_allowed_with_introspect_permission():
         paths = [g["path"] for g in response["data"]["namespace"]["graphs"]["list"]]
         assert "team/jira" in paths
 
-        # graph() resolver is denied (only INTROSPECT, not READ)
+        # graph() resolver returns null — INTROSPECT does not grant data access
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
         assert response["data"]["graph"] is None
-        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_read_implies_introspect():
@@ -222,9 +222,10 @@ def test_permissions_update_via_mutation():
         gql(CREATE_JIRA)
         create_role("analyst")
 
-        # No grants yet — denied
+        # No grants yet — graph returns null (indistinguishable from "graph not found")
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
-        assert "Access denied" in response["errors"][0]["message"]
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None
 
         # Grant via mutation
         grant_graph("analyst", "jira", "READ")
@@ -258,7 +259,7 @@ CREATE_JIRA_NS = """mutation { newGraph(path:"team/jira", graphType:EVENT) }"""
 
 
 def test_admin_bypasses_policy_for_reads():
-    """'a':'rw' admin can read any graph even without a role entry in the store."""
+    """'access':'rw' admin can read any graph even without a role entry in the store."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
@@ -272,7 +273,7 @@ def test_admin_bypasses_policy_for_reads():
 
 
 def test_analyst_can_write_with_write_grant():
-    """'a':'ro' user with WRITE grant on a specific graph can call updateGraph."""
+    """'access':'ro' user with WRITE grant on a specific graph can call updateGraph."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
@@ -284,7 +285,7 @@ def test_analyst_can_write_with_write_grant():
 
 
 def test_analyst_cannot_write_without_write_grant():
-    """'a':'ro' user with READ-only grant cannot call updateGraph."""
+    """'access':'ro' user with READ-only grant cannot call updateGraph."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
@@ -298,7 +299,7 @@ def test_analyst_cannot_write_without_write_grant():
 
 
 def test_analyst_can_create_graph_in_namespace():
-    """'a':'ro' user with namespace WRITE grant can create a new graph in that namespace."""
+    """'access':'ro' user with namespace WRITE grant can create a new graph in that namespace."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -309,7 +310,7 @@ def test_analyst_can_create_graph_in_namespace():
 
 
 def test_analyst_cannot_create_graph_outside_namespace():
-    """'a':'ro' user with namespace WRITE grant cannot create a graph outside that namespace."""
+    """'access':'ro' user with namespace WRITE grant cannot create a graph outside that namespace."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -321,7 +322,7 @@ def test_analyst_cannot_create_graph_outside_namespace():
 
 
 def test_analyst_cannot_call_permissions_mutations():
-    """'a':'ro' user with WRITE grant on a graph cannot manage roles/permissions."""
+    """'access':'ro' user with WRITE grant on a graph cannot manage roles/permissions."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -336,7 +337,7 @@ def test_analyst_cannot_call_permissions_mutations():
 
 
 def test_admin_can_list_roles():
-    """'a':'rw' admin can query permissions { listRoles }."""
+    """'access':'rw' admin can query permissions { listRoles }."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -347,7 +348,7 @@ def test_admin_can_list_roles():
 
 
 def test_analyst_cannot_list_roles():
-    """'a':'ro' user cannot query permissions { listRoles }."""
+    """'access':'ro' user cannot query permissions { listRoles }."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -358,7 +359,7 @@ def test_analyst_cannot_list_roles():
 
 
 def test_admin_can_get_role():
-    """'a':'rw' admin can query permissions { getRole(...) }."""
+    """'access':'rw' admin can query permissions { getRole(...) }."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -376,7 +377,7 @@ def test_admin_can_get_role():
 
 
 def test_analyst_cannot_get_role():
-    """'a':'ro' user cannot query permissions { getRole(...) }."""
+    """'access':'ro' user cannot query permissions { getRole(...) }."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -398,8 +399,8 @@ def test_introspect_only_cannot_access_graph_data():
         grant_namespace("analyst", "team", "INTROSPECT")  # no READ
 
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None
-        assert "Access denied" in response["errors"][0]["message"]
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None
 
 
 def test_no_grant_hidden_from_namespace_and_graph():
@@ -456,10 +457,10 @@ def test_graph_metadata_allowed_with_introspect():
         assert "errors" not in response, response
         assert response["data"]["graphMetadata"]["path"] == "team/jira"
 
-        # graph() is still denied — INTROSPECT does not grant data access
+        # graph() returns null — INTROSPECT does not grant data access
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
         assert response["data"]["graph"] is None
-        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_graph_metadata_allowed_with_read():
@@ -644,16 +645,16 @@ def test_raphtory_client_analyst_can_query_permitted_graph():
 
 
 def test_raphtory_client_analyst_denied_unpermitted_graph():
-    """RaphtoryClient with analyst role is denied access to a graph it has no grant for."""
+    """RaphtoryClient with analyst role gets null for a graph it has no grant for."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        # No grant on jira
+        # No grant on jira — graph returns null (indistinguishable from "graph not found")
 
         client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
-        with pytest.raises(Exception, match="Access denied"):
-            client.query(QUERY_JIRA)
+        response = client.query(QUERY_JIRA)
+        assert response["graph"] is None
 
 
 def test_raphtory_client_analyst_write_with_write_grant():
@@ -847,11 +848,10 @@ def test_namespace_introspect_shows_graphs_in_listing():
         paths = [g["path"] for g in response["data"]["namespace"]["graphs"]["list"]]
         assert "team/jira" in paths
 
-        # Direct graph access is denied — role has INTROSPECT so the graph name is
-        # already visible in listings; "Access denied" doesn't leak new information.
+        # Direct graph access returns null — INTROSPECT does not grant data access.
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
         assert response["data"]["graph"] is None
-        assert "Access denied" in response["errors"][0]["message"]
 
 
 def test_namespace_read_exposes_graphs():
@@ -895,8 +895,8 @@ def test_child_namespace_restriction_overrides_parent():
             """query { graph(path: "team/restricted/secret") { path } }""",
             headers=ANALYST_HEADERS,
         )
+        assert "errors" not in response, response
         assert response["data"]["graph"] is None
-        assert "Access denied" in response["errors"][0]["message"]
 
         # But team/restricted/secret should still appear in the namespace listing
         response = gql(
@@ -1045,7 +1045,7 @@ def test_analyst_cannot_delete_with_graph_write_only():
 
 
 def test_analyst_cannot_delete_with_read_grant():
-    """'a':'ro' user with READ-only grant is denied by deleteGraph."""
+    """'access':'ro' user with READ-only grant is denied by deleteGraph."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
@@ -1058,7 +1058,7 @@ def test_analyst_cannot_delete_with_read_grant():
 
 
 def test_analyst_can_delete_with_namespace_write():
-    """'a':'ro' user with namespace WRITE (cascades to graph WRITE) can delete a graph."""
+    """'access':'ro' user with namespace WRITE (cascades to graph WRITE) can delete a graph."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_TEAM_JIRA)
@@ -1071,7 +1071,7 @@ def test_analyst_can_delete_with_namespace_write():
 
 
 def test_analyst_cannot_send_graph_without_namespace_write():
-    """'a':'ro' user without namespace WRITE is denied by sendGraph."""
+    """'access':'ro' user without namespace WRITE is denied by sendGraph."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -1086,7 +1086,7 @@ def test_analyst_cannot_send_graph_without_namespace_write():
 
 
 def test_analyst_send_graph_passes_auth_with_namespace_write():
-    """'a':'ro' user with namespace WRITE passes the auth gate in sendGraph.
+    """'access':'ro' user with namespace WRITE passes the auth gate in sendGraph.
 
     The request fails on graph decoding (invalid data), not on access control —
     proving the namespace WRITE check is honoured.
@@ -1103,6 +1103,44 @@ def test_analyst_send_graph_passes_auth_with_namespace_write():
         # Auth passed — error is about graph decoding, not access
         assert "errors" in response
         assert "Access denied" not in response["errors"][0]["message"]
+
+
+def test_analyst_send_graph_valid_data_with_namespace_write():
+    """'access':'ro' user with namespace WRITE can successfully send a valid graph via sendGraph.
+
+    Admin creates a graph and downloads it; analyst with WRITE sends it to a new path.
+    The graph appears at the new path and its data matches the original.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        # Add a node so the graph has content to verify after the roundtrip
+        gql(
+            """query {
+                updateGraph(path: "jira") {
+                    addNode(time: 1, name: "alice", properties: []) { success }
+                }
+            }"""
+        )
+
+        # Admin downloads the graph as valid base64
+        encoded = gql('query { receiveGraph(path: "jira") }')["data"]["receiveGraph"]
+
+        create_role("analyst")
+        grant_namespace("analyst", "team", "WRITE")
+
+        # Analyst sends the encoded graph to a new path
+        response = gql(
+            f'mutation {{ sendGraph(path: "team/copy", graph: "{encoded}", overwrite: false) }}',
+            headers=ANALYST_HEADERS,
+        )
+        assert "errors" not in response, response
+        assert response["data"]["sendGraph"] == "team/copy"
+
+        # Verify the copy exists and contains the expected node
+        check = gql('query { graph(path: "team/copy") { nodes { list { name } } } }')
+        names = [n["name"] for n in check["data"]["graph"]["nodes"]["list"]]
+        assert "alice" in names
 
 
 # --- moveGraph policy ---
@@ -1156,7 +1194,7 @@ def test_analyst_cannot_move_with_read_grant():
 
 
 def test_analyst_can_create_namespaced_graph_with_namespace_write():
-    """'a':'ro' user with namespace WRITE can create a graph inside that namespace."""
+    """'access':'ro' user with namespace WRITE can create a graph inside that namespace."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -1168,7 +1206,7 @@ def test_analyst_can_create_namespaced_graph_with_namespace_write():
 
 
 def test_analyst_cannot_create_graph_with_namespace_read_only():
-    """'a':'ro' user with namespace READ (not WRITE) is denied by newGraph."""
+    """'access':'ro' user with namespace READ (not WRITE) is denied by newGraph."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
@@ -1183,7 +1221,7 @@ def test_analyst_cannot_create_graph_with_namespace_read_only():
 
 
 def test_analyst_cannot_access_permissions_query_entry_point():
-    """'a':'ro' user is denied at the permissions query entry point, not just the individual ops.
+    """'access':'ro' user is denied at the permissions query entry point, not just the individual ops.
 
     This verifies the entry-point-level admin check added to query { permissions { ... } }.
     Even with full namespace WRITE, a non-admin JWT cannot reach the permissions resolver.
@@ -1202,7 +1240,7 @@ def test_analyst_cannot_access_permissions_query_entry_point():
 
 
 def test_analyst_cannot_access_permissions_mutation_entry_point():
-    """'a':'ro' user is denied at the mutation { permissions { ... } } entry point.
+    """'access':'ro' user is denied at the mutation { permissions { ... } } entry point.
 
     Even with full namespace WRITE, a non-admin JWT is blocked before reaching any op.
     """
