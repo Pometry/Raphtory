@@ -250,16 +250,30 @@ pub(crate) struct RecordBatchMessage {
     kind: RecordBatchKind,
 }
 
+impl RecordBatchMessage {
+    pub(crate) fn kind(&self) -> RecordBatchKind {
+        self.kind
+    }
+
+    pub(crate) fn into_batch(self) -> RecordBatch {
+        self.batch
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct ChannelRecordBatchSink {
     tx: RecordBatchTx,
     kind: RecordBatchKind,
-    schema: SchemaRef,
+    _schema: SchemaRef,
 }
 
 impl ChannelRecordBatchSink {
-    fn new(tx: RecordBatchTx, kind: RecordBatchKind, schema: SchemaRef) -> Self {
-        Self { tx, kind, schema }
+    pub(crate) fn new(tx: RecordBatchTx, kind: RecordBatchKind, schema: SchemaRef) -> Self {
+        Self {
+            tx,
+            kind,
+            _schema: schema,
+        }
     }
 }
 
