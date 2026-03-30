@@ -1748,12 +1748,19 @@ impl TryFrom<GqlGraphFilter> for DynView {
 /// Combined filter input covering all three filter levels (node, edge, graph-level).
 /// Used by `grantGraphFilteredReadOnly` to express a data-access restriction
 /// that is transparently applied whenever the role queries the graph.
-#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
-pub struct GraphAccessFilter {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub node: Option<GqlNodeFilter>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub edge: Option<GqlEdgeFilter>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub graph: Option<GqlGraphFilter>,
+/// Use `and` / `or` to compose multiple sub-filters.
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GraphAccessFilter {
+    /// Filter by node properties, fields, or temporal state.
+    Node(GqlNodeFilter),
+    /// Filter by edge properties, source/destination, or temporal state.
+    Edge(GqlEdgeFilter),
+    /// Apply a graph-level view (window, snapshot, layer restriction, …).
+    Graph(GqlGraphFilter),
+    /// All sub-filters must pass (intersection).
+    And(Vec<GraphAccessFilter>),
+    /// At least one sub-filter must pass (union within each filter type;
+    /// cross-type sub-filters are applied as independent restrictions).
+    Or(Vec<GraphAccessFilter>),
 }
