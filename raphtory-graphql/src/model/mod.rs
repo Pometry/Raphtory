@@ -265,27 +265,36 @@ impl QueryRoot {
     }
 
     /// Returns a graph
-    async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
+    async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
         let perms = if let Some(policy) = &data.auth_policy {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            policy
-                .graph_permissions(ctx, path)
-                .map_err(|msg| {
-                    warn!(
-                        role = role.unwrap_or("<no role>"),
-                        graph = path,
-                        "Access denied by auth policy"
-                    );
-                    async_graphql::Error::new(msg)
-                })?
-                .at_least_read()
-                .ok_or_else(|| async_graphql::Error::new(format!(
-                    "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                     READ is required to access graph data; use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
-                    role.unwrap_or("<no role>")
-                )))?
+            match policy.graph_permissions(ctx, path) {
+                Err(msg) => {
+                    // Only surface the denial if the role already has INTROSPECT (or higher)
+                    // on the parent namespace — they already know graphs exist there.
+                    // Otherwise return null, indistinguishable from "graph not found".
+                    let ns = parent_namespace(path);
+                    if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
+                        warn!(
+                            role = role.unwrap_or("<no role>"),
+                            graph = path,
+                            "Access denied by auth policy"
+                        );
+                        return Err(async_graphql::Error::new(msg));
+                    } else {
+                        return Ok(None);
+                    }
+                }
+                Ok(perm) => perm
+                    .at_least_read()
+                    .ok_or_else(|| async_graphql::Error::new(format!(
+                        "Access denied: role '{}' has introspect-only access to graph '{path}' — \
+                         READ is required to access graph data; use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
+                        role.unwrap_or("<no role>")
+                    )))?,
+            }
         } else {
             GraphPermission::Write // no policy: unrestricted
         };
@@ -302,35 +311,38 @@ impl QueryRoot {
             graph
         };
 
-        Ok(GqlGraph::new_with_permissions(
+        Ok(Some(GqlGraph::new_with_permissions(
             graph_with_vecs.folder,
             graph,
             perms,
-        ))
+        )))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
     /// Requires at least INTROSPECT permission.
-    async fn graph_metadata<'a>(ctx: &Context<'a>, path: String) -> Result<MetaGraph> {
+    async fn graph_metadata<'a>(ctx: &Context<'a>, path: String) -> Result<Option<MetaGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
         if let Some(policy) = &data.auth_policy {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            policy
-                .graph_permissions(ctx, &path)
-                .map_err(|msg| {
+            if let Err(msg) = policy.graph_permissions(ctx, &path) {
+                let ns = parent_namespace(&path);
+                if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
                     warn!(
                         role = role.unwrap_or("<no role>"),
                         graph = path.as_str(),
                         "Access denied by auth policy"
                     );
-                    async_graphql::Error::new(msg)
-                })?;
+                    return Err(async_graphql::Error::new(msg));
+                } else {
+                    return Ok(None);
+                }
+            }
         }
 
         let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-        Ok(MetaGraph::new(folder))
+        Ok(Some(MetaGraph::new(folder)))
     }
 
     /// Update graph query, has side effects to update graph state

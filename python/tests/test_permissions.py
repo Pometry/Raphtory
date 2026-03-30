@@ -111,9 +111,11 @@ def test_analyst_cannot_access_denied_graph():
         create_role("analyst")
         grant_graph("analyst", "jira", "READ")  # only jira, not admin
 
+        # "admin" graph is silently null — analyst has no namespace INTROSPECT, so
+        # existence of "admin" is not revealed.
         response = gql(QUERY_ADMIN, headers=ANALYST_HEADERS)
-        assert response["data"] is None
-        assert "Access denied" in response["errors"][0]["message"]
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None
 
 
 def test_admin_can_access_all_graphs():
@@ -135,8 +137,8 @@ def test_no_role_is_denied_when_policy_is_active():
         grant_graph("analyst", "jira", "READ")
 
         response = gql(QUERY_JIRA, headers=NO_ROLE_HEADERS)
-        assert response["data"] is None
-        assert "Access denied" in response["errors"][0]["message"]
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None
 
 
 def test_unknown_role_is_denied_when_policy_is_active():
@@ -153,8 +155,8 @@ def test_unknown_role_is_denied_when_policy_is_active():
         create_role("other_team")
 
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)  # JWT says role="analyst"
-        assert response["data"] is None
-        assert "Access denied" in response["errors"][0]["message"]
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None
 
 
 def test_empty_store_denies_non_admin():
@@ -164,8 +166,8 @@ def test_empty_store_denies_non_admin():
         gql(CREATE_JIRA)
 
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None
-        assert "errors" in response
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None
 
 
 def test_empty_store_allows_admin():
@@ -195,7 +197,7 @@ def test_introspection_allowed_with_introspect_permission():
 
         # graph() resolver is denied (only INTROSPECT, not READ)
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None
+        assert response["data"]["graph"] is None
         assert "Access denied" in response["errors"][0]["message"]
 
 
@@ -245,7 +247,8 @@ def test_namespace_grant_does_not_cover_root_level_graphs():
         assert "errors" not in response, response
 
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None  # root-level graph not covered by namespace grant
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None  # root-level graph not covered by namespace grant
 
 
 # --- WRITE permission enforcement ---
@@ -400,17 +403,22 @@ def test_introspect_only_cannot_access_graph_data():
 
 
 def test_no_grant_hidden_from_namespace_and_graph():
-    """A role with no permissions on a graph sees it neither in listings nor via graph()."""
+    """A role with no namespace INTROSPECT sees graph() as null, not an 'Access denied' error.
+
+    Returning an error would leak that the graph exists. Null is indistinguishable from
+    'graph not found'. An error is only appropriate when the role already has INTROSPECT
+    on the namespace (and therefore can list the graph name anyway).
+    """
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         create_role("analyst")
-        # analyst has no grant on jira at all
+        # analyst has no grant at all
 
-        # graph() denied
+        # graph() returns null silently — does not reveal the graph exists
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None
-        assert "Access denied" in response["errors"][0]["message"]
+        assert "errors" not in response, response
+        assert response["data"]["graph"] is None
 
         # namespace listing hides it
         response = gql(QUERY_NS_GRAPHS, headers=ANALYST_HEADERS)
@@ -450,7 +458,7 @@ def test_graph_metadata_allowed_with_introspect():
 
         # graph() is still denied — INTROSPECT does not grant data access
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None
+        assert response["data"]["graph"] is None
         assert "Access denied" in response["errors"][0]["message"]
 
 
@@ -476,8 +484,8 @@ def test_graph_metadata_denied_without_grant():
         # no grant on jira
 
         response = gql(QUERY_META_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None
-        assert "Access denied" in response["errors"][0]["message"]
+        assert "errors" not in response, response
+        assert response["data"]["graphMetadata"] is None
 
 
 def test_analyst_sees_only_filtered_nodes():
@@ -772,9 +780,10 @@ def test_namespace_introspect_shows_graphs_in_listing():
         paths = [g["path"] for g in response["data"]["namespace"]["graphs"]["list"]]
         assert "team/jira" in paths
 
-        # Direct graph access is denied
+        # Direct graph access is denied — role has INTROSPECT so the graph name is
+        # already visible in listings; "Access denied" doesn't leak new information.
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
-        assert response["data"] is None
+        assert response["data"]["graph"] is None
         assert "Access denied" in response["errors"][0]["message"]
 
 
@@ -819,7 +828,7 @@ def test_child_namespace_restriction_overrides_parent():
             """query { graph(path: "team/restricted/secret") { path } }""",
             headers=ANALYST_HEADERS,
         )
-        assert response["data"] is None
+        assert response["data"]["graph"] is None
         assert "Access denied" in response["errors"][0]["message"]
 
         # But team/restricted/secret should still appear in the namespace listing
