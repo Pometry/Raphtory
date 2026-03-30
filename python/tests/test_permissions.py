@@ -161,14 +161,26 @@ def test_unknown_role_is_denied_when_policy_is_active():
         assert "Access denied" in response["errors"][0]["message"]
 
 
-def test_empty_store_gives_full_access():
-    """With an empty permissions store (no roles configured), authenticated users see everything."""
+def test_empty_store_denies_non_admin():
+    """With an empty permissions store (no roles configured), non-admin users are denied."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
 
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert response["data"] is None
+        assert "errors" in response
+
+
+def test_empty_store_allows_admin():
+    """With an empty permissions store, admin (rw JWT) still gets full access."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+
+        response = gql(QUERY_JIRA, headers=ADMIN_HEADERS)
         assert "errors" not in response, response
+        assert response["data"]["graph"]["path"] == "jira"
 
 
 def test_introspection_allowed_with_introspect_permission():
