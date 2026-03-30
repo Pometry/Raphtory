@@ -97,9 +97,7 @@ def test_analyst_can_access_permitted_graph():
         gql(CREATE_JIRA)
         gql(CREATE_ADMIN)
         create_role("analyst")
-        create_role("admin")
         grant_graph("analyst", "jira", "READ")
-        grant_namespace("admin", "*", "READ")
 
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
@@ -123,8 +121,6 @@ def test_admin_can_access_all_graphs():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         gql(CREATE_ADMIN)
-        create_role("admin")
-        grant_namespace("admin", "*", "READ")
 
         for query in [QUERY_JIRA, QUERY_ADMIN]:
             response = gql(query, headers=ADMIN_HEADERS)
@@ -236,17 +232,20 @@ def test_permissions_update_via_mutation():
         assert response["data"]["graph"]["path"] == "jira"
 
 
-def test_namespace_wildcard_grants_access_to_all_graphs():
+def test_namespace_grant_does_not_cover_root_level_graphs():
+    """Namespace grants only apply to graphs within that namespace; root-level graphs require explicit graph grants."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
-        gql(CREATE_ADMIN)
+        gql(CREATE_TEAM_JIRA)
         create_role("analyst")
-        grant_namespace("analyst", "*", "READ")
+        grant_namespace("analyst", "team", "READ")  # covers team/jira but not root-level jira
 
-        for query in [QUERY_JIRA, QUERY_ADMIN]:
-            response = gql(query, headers=ANALYST_HEADERS)
-            assert "errors" not in response, response
+        response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+
+        response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
+        assert response["data"] is None  # root-level graph not covered by namespace grant
 
 
 # --- WRITE permission enforcement ---
@@ -323,7 +322,7 @@ def test_analyst_cannot_call_permissions_mutations():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "*", "WRITE")
+        grant_namespace("analyst", "team", "WRITE")
 
         response = gql(
             'mutation { permissions { createRole(name: "hacker") { success } } }',
@@ -946,12 +945,12 @@ def test_analyst_can_delete_with_graph_and_namespace_write():
     """deleteGraph requires WRITE on both the graph and its parent namespace."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
-        gql(CREATE_JIRA)
+        gql(CREATE_TEAM_JIRA)
         create_role("analyst")
-        grant_graph("analyst", "jira", "WRITE")
-        grant_namespace("analyst", "*", "WRITE")
+        grant_graph("analyst", "team/jira", "WRITE")
+        grant_namespace("analyst", "team", "WRITE")
 
-        response = gql(DELETE_JIRA, headers=ANALYST_HEADERS)
+        response = gql(DELETE_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
         assert response["data"]["deleteGraph"] is True
 
@@ -1080,26 +1079,26 @@ def test_analyst_cannot_move_with_read_grant():
 # --- newGraph namespace write enforcement ---
 
 
-def test_analyst_can_create_root_graph_with_wildcard_namespace_write():
-    """'a':'ro' user with namespace WRITE on '*' can create a graph at the root level."""
+def test_analyst_can_create_namespaced_graph_with_namespace_write():
+    """'a':'ro' user with namespace WRITE can create a graph inside that namespace."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "*", "WRITE")
+        grant_namespace("analyst", "team", "WRITE")
 
-        response = gql(CREATE_JIRA, headers=ANALYST_HEADERS)
+        response = gql(CREATE_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
         assert response["data"]["newGraph"] is True
 
 
-def test_analyst_cannot_create_root_graph_with_read_only():
+def test_analyst_cannot_create_graph_with_namespace_read_only():
     """'a':'ro' user with namespace READ (not WRITE) is denied by newGraph."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "*", "READ")
+        grant_namespace("analyst", "team", "READ")
 
-        response = gql(CREATE_JIRA, headers=ANALYST_HEADERS)
+        response = gql(CREATE_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
 
@@ -1116,7 +1115,7 @@ def test_analyst_cannot_access_permissions_query_entry_point():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "*", "WRITE")  # full write, still not admin
+        grant_namespace("analyst", "team", "WRITE")  # full write, still not admin
 
         response = gql(
             "query { permissions { listRoles } }",
@@ -1134,7 +1133,7 @@ def test_analyst_cannot_access_permissions_mutation_entry_point():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         create_role("analyst")
-        grant_namespace("analyst", "*", "WRITE")  # full write, still not admin
+        grant_namespace("analyst", "team", "WRITE")  # full write, still not admin
 
         response = gql(
             'mutation { permissions { createRole(name: "hacker") { success } } }',
