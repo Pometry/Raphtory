@@ -10,7 +10,6 @@ use crate::{
 };
 use disjoint_sets::AUnionFind;
 use raphtory_api::core::entities::VID;
-use raphtory_core::entities::LayerIds;
 use rayon::prelude::*;
 use std::{
     fmt::{Debug, Formatter},
@@ -236,12 +235,14 @@ pub fn weakly_connected_components_ds<G>(g: &G) -> NodeState<'static, usize, G>
 where
     G: StaticGraphViewOps,
 {
-    let dss = AUnionFind::new(g.unfiltered_num_nodes(&LayerIds::All));
+    let index = Index::for_graph(g.clone());
+    let dss = AUnionFind::new(index.len());
     g.nodes().par_iter().for_each(|node| {
+        let src_node: usize = index.index(&node.node).unwrap();
         node.out_neighbours().iter().for_each(|nbor| {
-            dss.union(node.node.0, nbor.node.0);
+            dss.union(src_node, index.index(&nbor.node).unwrap());
         })
     });
-    let result = NodeState::new_from_eval(g.clone(), dss.to_vec());
+    let result = NodeState::new_from_eval_with_index(g.clone(), dss.to_vec(), index);
     result
 }
