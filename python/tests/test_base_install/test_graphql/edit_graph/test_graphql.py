@@ -1,8 +1,8 @@
 import json
 import os
 import tempfile
-
 import pytest
+from utils import sort_by_gql_name_or_id
 from raphtory import Graph, graph_loader
 from raphtory.graphql import (
     GraphServer,
@@ -707,7 +707,7 @@ def test_edge_id():
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {edges {list {id}}}}"""
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "edges": {
                     "list": [
@@ -741,7 +741,7 @@ def test_graph_persistence_across_restarts():
         query_nodes = """{graph(path: "persistent_graph") {nodes {list {name}}}}"""
         query_edges = """{graph(path: "persistent_graph") {edges {list {id}}}}"""
 
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "nodes": {
                     "list": [{"name": "node1"}, {"name": "node2"}, {"name": "node3"}]
@@ -749,7 +749,7 @@ def test_graph_persistence_across_restarts():
             }
         }
 
-        assert client.query(query_edges) == {
+        assert sort_by_gql_name_or_id(client.query(query_edges)) == {
             "graph": {
                 "edges": {
                     "list": [

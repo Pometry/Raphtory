@@ -55,7 +55,7 @@ jobs:
       - name: Create python venv for Maturin
         run: python -m venv .venv
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
       - name: Build raphtory-python

@@ -1,12 +1,17 @@
 use crate::{
-    LocalPOS, api::nodes::NodeSegmentOps, error::StorageError, pages::layer_counter::GraphStats,
-    segments::node::segment::MemNodeSegment, wal::LSN,
+    LocalPOS,
+    api::nodes::NodeSegmentOps,
+    error::StorageError,
+    pages::{layer_counter::GraphStats, resolve_pos},
+    segments::node::segment::MemNodeSegment,
+    wal::LSN,
 };
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::{
     EID, GID, VID,
     properties::{
         meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::Prop,
+        prop::{AsPropRef, Prop},
     },
 };
 use raphtory_core::{
@@ -20,14 +25,27 @@ pub struct NodeWriter<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSe
     pub page: &'a NS,
     pub mut_segment: MP,
     pub l_counter: &'a GraphStats,
+    pub old_est_size: usize,
 }
 
 impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWriter<'a, MP, NS> {
     pub fn new(page: &'a NS, global_num_nodes: &'a GraphStats, writer: MP) -> Self {
+        let old_est_size = writer.est_size();
         Self {
             page,
             mut_segment: writer,
             l_counter: global_num_nodes,
+            old_est_size,
+        }
+    }
+    #[inline(always)]
+    pub fn resolve_pos(&self, node_id: VID) -> Option<LocalPOS> {
+        let (page, pos) = resolve_pos(node_id, self.mut_segment.max_page_len());
+
+        if page == self.mut_segment.segment_id() {
+            Some(pos)
+        } else {
+            None
         }
     }
 
@@ -72,7 +90,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         let e_id = e_id.into();
         let layer_id = e_id.layer();
         let (is_new_node, add) = self.mut_segment.add_outbound_edge(t, src_pos, dst, e_id);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
 
         if is_new_node && !self.page.has_node(src_pos, layer_id) {
             self.l_counter.increment(layer_id);
@@ -120,45 +138,45 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         let dst_pos = dst_pos.into();
         let (is_new_node, add) = self.mut_segment.add_inbound_edge(t, dst_pos, src, e_id);
 
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
 
         if is_new_node && !self.page.has_node(dst_pos, layer) {
             self.l_counter.increment(layer);
         }
     }
 
-    pub fn add_props<T: AsTime>(
+    pub fn add_props<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         self.l_counter.update_time(t.t());
         let (is_new_node, add) = self.mut_segment.add_props(t, pos, layer_id, props);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
         if is_new_node && !self.page.has_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         pos: LocalPOS,
         layer_id: usize,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         self.mut_segment.check_metadata(pos, layer_id, props)
     }
 
-    pub fn update_c_props(
+    pub fn update_c_props<P: AsPropRef>(
         &mut self,
         pos: LocalPOS,
         layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
         if is_new_node && !self.page.has_node(pos, layer_id) {
             self.l_counter.increment(layer_id);
         }
@@ -171,10 +189,9 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     pub fn update_timestamp<T: AsTime>(&mut self, t: T, pos: LocalPOS, e_id: ELID) {
         self.l_counter.update_time(t.t());
         let add = self.mut_segment.update_timestamp(t, pos, e_id);
-        self.page.increment_est_size(add);
+        self.mut_segment.increment_est_size(add);
     }
 
-    #[inline(always)]
     pub fn get_out_edge(&self, pos: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
         self.page
             .get_out_edge(pos, dst, layer_id, self.mut_segment.deref())
@@ -228,6 +245,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
     }
 }
 
+impl<'a, NS: NodeSegmentOps> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+    pub fn unlocked<R>(&mut self, op: impl FnOnce() -> R) -> R {
+        RwLockWriteGuard::unlocked(&mut self.mut_segment, op)
+    }
+}
+
 pub fn node_info_as_props(
     gid: Option<GidRef>,
     node_type: Option<usize>,
@@ -243,6 +266,8 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> Drop
     for NodeWriter<'a, MP, NS>
 {
     fn drop(&mut self) {
+        self.mut_segment
+            .increment_global_est_size(self.mut_segment.est_size() - self.old_est_size);
         self.page
             .notify_write(self.mut_segment.deref_mut())
             .expect("Failed to persist node page");

@@ -9,7 +9,15 @@ use crate::{
     },
     wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
-use std::{fmt::Debug, ops::DerefMut, path::Path};
+use std::{
+    fmt::Debug,
+    ops::DerefMut,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
 pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
@@ -30,6 +38,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn wal(&self) -> &Self::Wal;
 
+    /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_segment: &Self::NS,
@@ -37,6 +46,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     ) where
         Self: Sized;
 
+    /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         edge_segment: &Self::ES,
@@ -53,23 +63,39 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
+
+    /// Estimated global memory used
+    fn memory_tracker(&self) -> &Arc<AtomicUsize>;
+
+    fn estimated_size(&self) -> usize {
+        self.memory_tracker().load(Ordering::Relaxed)
+    }
+
+    /// Called by bulk loaders to decide if a global flush should be triggered
+    fn should_flush(&self) -> bool;
+    fn should_pause(&self) -> bool;
 }
 
 #[derive(Debug, Clone)]
 pub struct NoOpStrategy {
     config: BaseConfig,
+    memory_tracker: Arc<AtomicUsize>,
     wal: NoWal,
 }
 
 impl PersistenceStrategy for NoOpStrategy {
-    type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
+    type ES = EdgeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
-        Ok(Self { config, wal: NoWal })
+        Ok(Self {
+            config,
+            memory_tracker: Arc::new(AtomicUsize::new(0)),
+            wal: NoWal,
+        })
     }
 
     fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
@@ -117,6 +143,18 @@ impl PersistenceStrategy for NoOpStrategy {
     }
 
     fn disk_storage_enabled() -> bool {
+        false
+    }
+
+    fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.memory_tracker
+    }
+
+    fn should_flush(&self) -> bool {
+        false
+    }
+
+    fn should_pause(&self) -> bool {
         false
     }
 }

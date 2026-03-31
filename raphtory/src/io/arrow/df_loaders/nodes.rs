@@ -2,15 +2,18 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
-    io::arrow::{
-        dataframe::{DFChunk, DFView},
-        df_loaders::{
-            extract_secondary_index_col, process_shared_properties,
-            resolve_nodes_and_type_with_cache, GidKey,
+    io::{
+        arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::{
+                extract_secondary_index_col, process_shared_properties,
+                resolve_nodes_and_type_with_cache,
+            },
+            layer_col::{lift_node_type_col, LayerCol},
+            node_col::NodeCol,
+            prop_handler::*,
         },
-        layer_col::{lift_node_type_col, LayerCol},
-        node_col::NodeCol,
-        prop_handler::*,
+        LOAD_POOL,
     },
     prelude::*,
 };
@@ -18,26 +21,35 @@ use arrow::{array::AsArray, datatypes::UInt64Type};
 use itertools::izip;
 use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
-    core::{
-        entities::properties::meta::STATIC_GRAPH_LAYER_ID,
-        storage::{timeindex::EventTime, FxDashMap},
-    },
+    core::{entities::properties::meta::STATIC_GRAPH_LAYER_ID, storage::timeindex::EventTime},
 };
-use raphtory_core::{entities::VID, storage::timeindex::AsTime};
+use raphtory_core::{
+    entities::{GidRef, VID},
+    storage::timeindex::AsTime,
+};
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use rayon::prelude::*;
-use std::collections::HashMap;
-use storage::{api::nodes::NodeSegmentOps, pages::locked::nodes::LockedNodePage, Extension};
+use std::{
+    collections::HashMap,
+    sync::atomic::{AtomicBool, Ordering},
+};
+use storage::{
+    api::nodes::NodeSegmentOps,
+    pages::{locked::nodes::LockedNodePage, resolve_pos},
+    Extension,
+};
 
 #[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
 #[cfg(feature = "progress")]
 use kdam::BarExt;
+use raphtory_api::core::entities::properties::prop::AsPropRef;
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
 >(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
+    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
     time: &str,
     secondary_index: Option<&str>,
     node_id: &str,
@@ -52,120 +64,168 @@ pub fn load_nodes_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
-    let properties_indices = properties
-        .iter()
-        .map(|name| df_view.get_index(name))
-        .collect::<Result<Vec<_>, GraphError>>()?;
-    let metadata_indices = metadata
-        .iter()
-        .map(|name| df_view.get_index(name))
-        .collect::<Result<Vec<_>, GraphError>>()?;
+    graph.flush().map_err(into_graph_err)?;
 
-    let node_type_index =
-        node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
-    let node_type_index = node_type_index.transpose()?;
+    LOAD_POOL.install(move || {
+        let properties_indices = properties
+            .iter()
+            .map(|name| df_view.get_index(name))
+            .collect::<Result<Vec<_>, GraphError>>()?;
+        let metadata_indices = metadata
+            .iter()
+            .map(|name| df_view.get_index(name))
+            .collect::<Result<Vec<_>, GraphError>>()?;
 
-    let node_id_index = df_view.get_index(node_id)?;
-    let time_index = df_view.get_index(time)?;
-    let secondary_index_index = secondary_index
-        .map(|col| df_view.get_index(col))
-        .transpose()?;
+        let node_type_index =
+            node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
+        let node_type_index = node_type_index.transpose()?;
 
-    let session = graph.write_session().map_err(into_graph_err)?;
-    let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
-        session
-            .resolve_node_property(key, dtype, true)
-            .map_err(into_graph_err)
-    })?;
+        let node_id_index = df_view.get_index(node_id)?;
+        let time_index = df_view.get_index(time)?;
+        let secondary_index_index = secondary_index
+            .map(|col| df_view.get_index(col))
+            .transpose()?;
 
-    #[cfg(feature = "progress")]
-    let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
-
-    let mut node_col_resolved = vec![];
-
-    for chunk in df_view.chunks {
-        let df = chunk?;
-        let prop_cols =
-            combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
-                session
-                    .resolve_node_property(key, dtype, false)
-                    .map_err(into_graph_err)
-            })?;
-        let metadata_cols =
-            combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
-                session
-                    .resolve_node_property(key, dtype, true)
-                    .map_err(into_graph_err)
-            })?;
-        let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
-
-        let time_col = df.time_col(time_index)?;
-        let node_col = df.node_col(node_id_index)?;
-
-        // Load the secondary index column if it exists, otherwise generate from start_id.
-        let secondary_index_col =
-            extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
-        node_col_resolved.resize_with(df.len(), Default::default);
-
-        let (src_vids, gid_str_cache) = get_or_resolve_node_vids::<G>(
-            graph,
-            node_id_index,
-            &mut node_col_resolved,
-            resolve_nodes,
-            &df,
-            &node_col,
-            node_type_col,
-        )?;
-
-        let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-        let node_stats = write_locked_graph.node_stats().clone();
-        let update_time = |time: EventTime| {
-            let time = time.t();
-            node_stats.update_time(time);
-        };
-
-        write_locked_graph
-            .nodes
-            .par_iter_mut()
-            .try_for_each(|shard| {
-                // Zip all columns for iteration.
-                let zip = izip!(src_vids.iter(), time_col.iter(), secondary_index_col.iter(),);
-
-                // resolve_nodes=false
-                // assumes we are loading our own graph, via the parquet loaders,
-                // so previous calls have already stored the node ids and types
-                if resolve_nodes {
-                    store_node_ids_and_type(&gid_str_cache, shard);
-                }
-
-                for (row, (vid, time, secondary_index)) in zip.enumerate() {
-                    if let Some(mut_node) = shard.resolve_pos(*vid) {
-                        let mut writer = shard.writer();
-                        let t = EventTime(time, secondary_index);
-                        let layer_id = STATIC_GRAPH_LAYER_ID;
-
-                        update_time(t);
-
-                        let t_props = prop_cols.iter_row(row);
-                        let c_props = metadata_cols
-                            .iter_row(row)
-                            .chain(shared_metadata.iter().cloned());
-
-                        writer.add_props(t, mut_node, layer_id, t_props);
-                        writer.update_c_props(mut_node, layer_id, c_props);
-                    };
-                }
-
-                Ok::<_, GraphError>(())
-            })?;
+        let session = graph.write_session().map_err(into_graph_err)?;
+        let shared_metadata = process_shared_properties(shared_metadata, |key, dtype| {
+            session
+                .resolve_node_property(key, dtype, true)
+                .map_err(into_graph_err)
+        })?;
 
         #[cfg(feature = "progress")]
-        let _ = pb.update(df.len());
-    }
+        let mut pb = build_progress_bar("Loading nodes".to_string(), df_view.num_rows)?;
+
+        let mut node_col_resolved = vec![];
+
+        let mut node_segments_touched = (0..graph.core_graph().num_node_segments())
+            .map(|_| AtomicBool::new(false))
+            .collect::<Vec<_>>();
+
+        for chunk in df_view.chunks {
+            let df = chunk?;
+            let prop_cols =
+                combine_properties_arrow(properties, &properties_indices, &df, |key, dtype| {
+                    session
+                        .resolve_node_property(key, dtype, false)
+                        .map_err(into_graph_err)
+                })?;
+            let metadata_cols =
+                combine_properties_arrow(metadata, &metadata_indices, &df, |key, dtype| {
+                    session
+                        .resolve_node_property(key, dtype, true)
+                        .map_err(into_graph_err)
+                })?;
+            let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
+            let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
+
+            let time_col = df.time_col(time_index)?;
+            let node_col = df.node_col(node_id_index)?;
+
+            // Load the secondary index column if it exists, otherwise generate from start_id.
+            let secondary_index_col =
+                extract_secondary_index_col::<G>(secondary_index_index, &session, &df)?;
+            node_col_resolved.resize_with(df.len(), Default::default);
+
+            let (src_vids, gid_str_cache) = get_or_resolve_node_vids::<G>(
+                graph,
+                node_id_index,
+                &mut node_col_resolved,
+                &node_type_col_resolved,
+                resolve_nodes,
+                &df,
+                &node_col,
+            )?;
+
+            let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
+            node_segments_touched
+                .resize_with(write_locked_graph.nodes.len(), || AtomicBool::new(true));
+
+            let max_node_segment_len = write_locked_graph
+                .graph()
+                .storage()
+                .nodes()
+                .max_segment_len() as usize;
+
+            if !gid_str_cache.is_empty() {
+                for (_, (vid, _)) in &gid_str_cache {
+                    let (node_segment, _) = resolve_pos(vid.index(), max_node_segment_len as u32);
+                    node_segments_touched[node_segment].store(true, Ordering::Relaxed);
+                }
+            } else {
+                let mut last_vid = VID::default();
+                for vid in src_vids {
+                    if *vid != last_vid {
+                        let (node_segment, _) =
+                            resolve_pos(vid.index(), max_node_segment_len as u32);
+                        node_segments_touched[node_segment].store(true, Ordering::Relaxed);
+                    }
+                    last_vid = *vid
+                }
+            }
+
+            let node_stats = write_locked_graph.node_stats().clone();
+            let update_time = |time: EventTime| {
+                let time = time.t();
+                node_stats.update_time(time);
+            };
+
+            write_locked_graph
+                .nodes
+                .par_iter_mut()
+                .enumerate()
+                .try_for_each(|(segment_id, shard)| {
+                    if !node_segments_touched[segment_id].load(Ordering::Relaxed) {
+                        // we need to graph a writer nevertheless as it may have old data that needs to flush
+                        if shard.segment().is_dirty() {
+                            let mut _writer = shard.writer();
+                        }
+                        return Ok::<_, GraphError>(());
+                    }
+                    // Zip all columns for iteration.
+                    let zip = izip!(src_vids.iter(), time_col.iter(), secondary_index_col.iter(),);
+
+                    // resolve_nodes=false
+                    // assumes we are loading our own graph, via the parquet loaders,
+                    // so previous calls have already stored the node ids and types
+                    if resolve_nodes {
+                        store_node_ids_and_type(&gid_str_cache, shard);
+                    }
+                    let mut writer = shard.writer();
+
+                    for (row, (vid, time, secondary_index)) in zip.enumerate() {
+                        if let Some(mut_node) = writer.resolve_pos(*vid) {
+                            let t = EventTime(time, secondary_index);
+                            let layer_id = STATIC_GRAPH_LAYER_ID;
+
+                            update_time(t);
+
+                            let t_props = prop_cols.iter_row(row);
+                            let c_props = metadata_cols.iter_row(row).chain(
+                                shared_metadata
+                                    .iter()
+                                    .map(|(id, prop)| (*id, prop.as_prop_ref())),
+                            );
+
+                            writer.add_props(t, mut_node, layer_id, t_props);
+                            writer.update_c_props(mut_node, layer_id, c_props);
+                        };
+                    }
+
+                    node_segments_touched[segment_id].store(false, Ordering::Relaxed);
+                    Ok::<_, GraphError>(())
+                })?;
+
+            #[cfg(feature = "progress")]
+            let _ = pb.update(df.len());
+        }
+        Ok::<_, GraphError>(())
+    })?;
 
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn load_node_props_from_df<
     'a,
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -183,6 +243,7 @@ pub fn load_node_props_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
+    graph.flush().map_err(into_graph_err)?;
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
@@ -245,6 +306,7 @@ pub fn load_node_props_from_df<
         // We assume this is fast enough
         let max_vid = node_col_resolved
             .iter()
+            .filter(|vid| vid.is_initialised())
             .map(|vid| vid.index())
             .max()
             .map(VID)
@@ -252,41 +314,50 @@ pub fn load_node_props_from_df<
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
         write_locked_graph.resize_segments_to_vid(max_vid);
 
-        write_locked_graph.nodes.iter_mut().try_for_each(|shard| {
-            let mut c_props = vec![];
+        write_locked_graph
+            .nodes
+            .par_iter_mut()
+            .try_for_each(|shard| {
+                let mut c_props = vec![];
 
-            for (idx, ((vid, node_type), gid)) in node_col_resolved
-                .iter()
-                .zip(node_type_col_resolved.iter())
-                .zip(node_col.iter())
-                .enumerate()
-            {
-                if let Some(mut_node) = shard.resolve_pos(*vid) {
-                    let mut writer = shard.writer();
-                    writer.store_node_id_and_node_type(
-                        mut_node,
-                        STATIC_GRAPH_LAYER_ID,
-                        gid,
-                        *node_type,
-                    );
+                let mut writer = shard.writer();
+                for (idx, ((vid, node_type), gid)) in node_col_resolved
+                    .iter()
+                    .zip(node_type_col_resolved.iter())
+                    .zip(node_col.iter())
+                    .enumerate()
+                    .filter(|(_, ((vid, _), _))| vid.is_initialised())
+                // filter out unresolved vids
+                {
+                    if let Some(mut_node) = writer.resolve_pos(*vid) {
+                        writer.store_node_id_and_node_type(
+                            mut_node,
+                            STATIC_GRAPH_LAYER_ID,
+                            gid,
+                            *node_type,
+                        );
 
-                    if resolve_nodes {
-                        // because we don't call resolve_node above
-                        writer.increment_seg_num_nodes()
-                    }
+                        if resolve_nodes {
+                            // because we don't call resolve_node above
+                            writer.increment_seg_num_nodes()
+                        }
 
-                    c_props.clear();
-                    c_props.extend(metadata_cols.iter_row(idx));
-                    c_props.extend_from_slice(&shared_metadata);
+                        c_props.clear();
+                        c_props.extend(metadata_cols.iter_row(idx));
+                        c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
-                    if !c_props.is_empty() {
-                        writer.update_c_props(mut_node, STATIC_GRAPH_LAYER_ID, c_props.drain(..));
-                    }
-                };
-            }
+                        if !c_props.is_empty() {
+                            writer.update_c_props(
+                                mut_node,
+                                STATIC_GRAPH_LAYER_ID,
+                                c_props.drain(..),
+                            );
+                        }
+                    };
+                }
 
-            Ok::<_, GraphError>(())
-        })?;
+                Ok::<_, GraphError>(())
+            })?;
 
         #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
@@ -294,6 +365,7 @@ pub fn load_node_props_from_df<
     Ok(())
 }
 
+type Resolved<'a> = (GidRef<'a>, (VID, usize));
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn get_or_resolve_node_vids<
     'a: 'c,
@@ -304,11 +376,11 @@ fn get_or_resolve_node_vids<
     graph: &G,
     src_index: usize,
     src_col_resolved: &'a mut Vec<VID>,
+    node_type_resolved: &'a [usize],
     resolve_nodes: bool,
     df: &'b DFChunk,
     src_col: &'a NodeCol,
-    node_type_col: LayerCol<'a>,
-) -> Result<(&'c [VID], FxDashMap<GidKey<'a>, (VID, usize)>), GraphError> {
+) -> Result<(&'c [VID], Vec<Resolved<'a>>), GraphError> {
     let (src_vids, gid_str_cache) = if resolve_nodes {
         src_col_resolved.resize_with(df.len(), Default::default);
 
@@ -317,17 +389,20 @@ fn get_or_resolve_node_vids<
         let gid_str_cache = resolve_nodes_and_type_with_cache::<G>(
             graph,
             [src_col].as_ref(),
+            [node_type_resolved].as_ref(),
             [atomic_src_col].as_ref(),
-            node_type_col,
         )?;
-        (src_col_resolved.as_slice(), gid_str_cache)
+        (
+            src_col_resolved.as_slice(),
+            gid_str_cache.into_iter().collect(),
+        )
     } else {
         let srcs = df.chunk[src_index]
             .as_primitive_opt::<UInt64Type>()
             .ok_or_else(|| LoadError::InvalidNodeIdType(df.chunk[src_index].data_type().clone()))?
             .values()
             .as_ref();
-        (bytemuck::cast_slice(srcs), FxDashMap::default())
+        (bytemuck::cast_slice(srcs), vec![])
     };
     Ok((src_vids, gid_str_cache))
 }
@@ -412,9 +487,9 @@ fn resolve_node_and_meta_for_node_col<
         }
 
         let res_vid = graph
-            .resolve_node(gid.as_node_ref())
-            .map_err(into_graph_err)?;
-        *vid = res_vid.inner();
+            .internalise_node(gid.as_node_ref())
+            .unwrap_or_default();
+        *vid = res_vid;
         last_node_type = node_type;
     }
 
@@ -472,15 +547,12 @@ fn set_meta_for_pre_resolved_nodes_and_node_ids<
 
 #[inline(never)]
 fn store_node_ids_and_type<NS: NodeSegmentOps<Extension = Extension>>(
-    gid_str_cache: &FxDashMap<GidKey<'_>, (VID, usize)>,
+    gid_str_cache: &[Resolved<'_>],
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
-    for entry in gid_str_cache.iter() {
-        let (vid, node_type) = entry.value();
-        let GidKey { gid, .. } = entry.key();
-
-        if let Some(src_pos) = locked_page.resolve_pos(*vid) {
-            let mut writer = locked_page.writer();
+    let mut writer = locked_page.writer();
+    for (gid, (vid, node_type)) in gid_str_cache.iter() {
+        if let Some(src_pos) = writer.resolve_pos(*vid) {
             writer.store_node_id_and_node_type(src_pos, STATIC_GRAPH_LAYER_ID, *gid, *node_type);
         }
     }

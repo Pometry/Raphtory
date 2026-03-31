@@ -2,42 +2,46 @@ use crate::{
     entities::properties::{props::TPropError, tprop::IllegalPropType},
     storage::lazy_vec::IllegalSet,
 };
-use bigdecimal::BigDecimal;
+use arrow_schema::ArrowError;
+use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use lazy_vec::LazyVec;
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropRef, PropType},
+    entities::properties::prop::{prop_col::PropCol, AsPropRef, Prop, PropRef, PropType},
     storage::arc_str::ArcStr,
 };
 use rustc_hash::FxHashMap;
-use serde::Serialize;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, sync::Arc};
 use thiserror::Error;
 
-use raphtory_api::core::entities::properties::prop::PropArray;
+use crate::storage::string_col::StringCol;
+use raphtory_api::core::entities::properties::prop::{
+    IntoProp, PropArray, PropMapRef, PropNum, PropUnwrap,
+};
 
 pub mod lazy_vec;
 pub mod locked_view;
+mod string_col;
 pub mod timeindex;
 
-#[derive(Debug, Serialize, PartialEq, Default)]
+#[derive(Debug, Default)]
 pub struct TColumns {
     t_props_log: Vec<PropColumn>,
     num_rows: usize,
 }
 
 impl TColumns {
-    pub fn push(
+    pub fn push<P: AsPropRef>(
         &mut self,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> Result<Option<usize>, TPropError> {
         let id = self.num_rows;
         let mut has_props = false;
 
         for (prop_id, prop) in props {
             match self.t_props_log.get_mut(prop_id) {
-                Some(col) => col.push(prop)?,
+                Some(col) => col.push(prop.as_prop_ref())?,
                 None => {
-                    let col = PropColumn::new(self.num_rows, prop);
+                    let col = PropColumn::new(self.num_rows, prop.as_prop_ref());
 
                     self.t_props_log
                         .resize_with(prop_id + 1, || PropColumn::Empty(id));
@@ -118,7 +122,7 @@ impl TColumns {
     }
 }
 
-#[derive(Debug, Serialize, PartialEq)]
+#[derive(Debug)]
 pub enum PropColumn {
     Empty(usize),
     Bool(LazyVec<bool>),
@@ -130,7 +134,7 @@ pub enum PropColumn {
     I64(LazyVec<i64>),
     F32(LazyVec<f32>),
     F64(LazyVec<f64>),
-    Str(LazyVec<ArcStr>),
+    Str(StringCol),
     List(LazyVec<PropArray>),
     Map(LazyVec<Arc<FxHashMap<ArcStr, Prop>>>),
     NDTime(LazyVec<chrono::NaiveDateTime>),
@@ -144,6 +148,8 @@ pub enum TPropColumnError {
     IllegalSet(IllegalSet<Prop>),
     #[error(transparent)]
     IllegalType(#[from] IllegalPropType),
+    #[error(transparent)]
+    Arrow(#[from] ArrowError),
 }
 
 impl<A: Into<Prop> + Debug> From<IllegalSet<A>> for TPropColumnError {
@@ -165,7 +171,7 @@ impl Default for PropColumn {
 }
 
 impl PropColumn {
-    pub(crate) fn new(idx: usize, prop: Prop) -> Self {
+    pub(crate) fn new(idx: usize, prop: PropRef<'_>) -> Self {
         let mut col = PropColumn::default();
         col.upsert(idx, prop).unwrap();
         col
@@ -198,133 +204,148 @@ impl PropColumn {
         }
     }
 
-    fn init_from_prop_type(&mut self, prop_type: impl Into<PropType>) {
-        if let PropColumn::Empty(len) = self {
-            match prop_type.into() {
-                PropType::Bool => *self = PropColumn::Bool(LazyVec::with_len(*len)),
-                PropType::I64 => *self = PropColumn::I64(LazyVec::with_len(*len)),
-                PropType::U32 => *self = PropColumn::U32(LazyVec::with_len(*len)),
-                PropType::U64 => *self = PropColumn::U64(LazyVec::with_len(*len)),
-                PropType::F32 => *self = PropColumn::F32(LazyVec::with_len(*len)),
-                PropType::F64 => *self = PropColumn::F64(LazyVec::with_len(*len)),
-                PropType::Str => *self = PropColumn::Str(LazyVec::with_len(*len)),
-                PropType::U8 => *self = PropColumn::U8(LazyVec::with_len(*len)),
-                PropType::U16 => *self = PropColumn::U16(LazyVec::with_len(*len)),
-                PropType::I32 => *self = PropColumn::I32(LazyVec::with_len(*len)),
-                PropType::List(_) => *self = PropColumn::List(LazyVec::with_len(*len)),
-                PropType::Map(_) => *self = PropColumn::Map(LazyVec::with_len(*len)),
-                PropType::NDTime => *self = PropColumn::NDTime(LazyVec::with_len(*len)),
-                PropType::DTime => *self = PropColumn::DTime(LazyVec::with_len(*len)),
-                PropType::Decimal { .. } => *self = PropColumn::Decimal(LazyVec::with_len(*len)),
-                PropType::Empty => {
-                    panic!("Cannot initialize PropColumn from Empty PropType")
-                }
-            }
-        }
-    }
-
-    pub fn upsert(&mut self, index: usize, prop: Prop) -> Result<(), TPropColumnError> {
+    pub fn upsert(&mut self, index: usize, prop: PropRef<'_>) -> Result<(), TPropColumnError> {
         self.init_empty_col(&prop);
         match (self, prop) {
-            (PropColumn::Bool(col), Prop::Bool(v)) => col.upsert(index, v),
-            (PropColumn::I64(col), Prop::I64(v)) => col.upsert(index, v),
-            (PropColumn::U32(col), Prop::U32(v)) => col.upsert(index, v),
-            (PropColumn::U64(col), Prop::U64(v)) => col.upsert(index, v),
-            (PropColumn::F32(col), Prop::F32(v)) => col.upsert(index, v),
-            (PropColumn::F64(col), Prop::F64(v)) => col.upsert(index, v),
-            (PropColumn::Str(col), Prop::Str(v)) => col.upsert(index, v),
-            (PropColumn::U8(col), Prop::U8(v)) => col.upsert(index, v),
-            (PropColumn::U16(col), Prop::U16(v)) => col.upsert(index, v),
-            (PropColumn::I32(col), Prop::I32(v)) => col.upsert(index, v),
-            (PropColumn::List(col), Prop::List(v)) => col.upsert(index, v),
-            (PropColumn::Map(col), Prop::Map(v)) => col.upsert(index, v),
-            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.upsert(index, v),
-            (PropColumn::DTime(col), Prop::DTime(v)) => col.upsert(index, v),
-            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.upsert(index, v),
+            (PropColumn::Bool(col), PropRef::Bool(v)) => col.upsert(index, v),
+            (PropColumn::I64(col), PropRef::Num(PropNum::I64(v))) => col.upsert(index, v),
+            (PropColumn::U32(col), PropRef::Num(PropNum::U32(v))) => col.upsert(index, v),
+            (PropColumn::U64(col), PropRef::Num(PropNum::U64(v))) => col.upsert(index, v),
+            (PropColumn::F32(col), PropRef::Num(PropNum::F32(v))) => col.upsert(index, v),
+            (PropColumn::F64(col), PropRef::Num(PropNum::F64(v))) => col.upsert(index, v),
+            (PropColumn::Str(col), PropRef::Str(v)) => col.upsert(index, v)?,
+            (PropColumn::U8(col), PropRef::Num(PropNum::U8(v))) => col.upsert(index, v),
+            (PropColumn::U16(col), PropRef::Num(PropNum::U16(v))) => col.upsert(index, v),
+            (PropColumn::I32(col), PropRef::Num(PropNum::I32(v))) => col.upsert(index, v),
+            (PropColumn::List(col), PropRef::List(v)) => col.upsert(index, v.into_owned()),
+            (PropColumn::Map(col), PropRef::Map(v)) => match v {
+                PropMapRef::Mem(map) => col.upsert(index, map.clone()),
+                PropMapRef::PropCol { map, i } => {
+                    if let Some(entry) = map.get(i).and_then(|prop| prop.into_map()) {
+                        col.upsert(index, entry);
+                    }
+                }
+                PropMapRef::Arrow(arc_map) => {
+                    if let Some(prop) = arc_map.into_prop() {
+                        if let Some(map_ref) = prop.as_prop_ref().as_map_ref() {
+                            if let Some(map) = map_ref.as_map() {
+                                col.upsert(index, map.clone());
+                            }
+                        }
+                    }
+                }
+            },
+            (PropColumn::NDTime(col), PropRef::NDTime(v)) => col.upsert(index, v),
+            (PropColumn::DTime(col), PropRef::DTime(v)) => col.upsert(index, v),
+            (PropColumn::Decimal(col), PropRef::Decimal { num, scale }) => {
+                col.upsert(index, BigDecimal::from_bigint(num.into(), scale as i64))
+            }
             (col, prop) => {
                 Err(IllegalPropType {
                     expected: col.dtype(),
-                    actual: prop.dtype(),
+                    actual: prop.into_prop().dtype(),
                 })?;
             }
         }
         Ok(())
     }
 
-    pub fn check(&self, index: usize, prop: &Prop) -> Result<(), TPropColumnError> {
+    pub fn check(&self, index: usize, prop: &PropRef<'_>) -> Result<(), TPropColumnError> {
         match (self, prop) {
             (PropColumn::Empty(_), _) => {}
-            (PropColumn::Bool(col), Prop::Bool(v)) => col.check(index, v)?,
-            (PropColumn::I64(col), Prop::I64(v)) => col.check(index, v)?,
-            (PropColumn::U32(col), Prop::U32(v)) => col.check(index, v)?,
-            (PropColumn::U64(col), Prop::U64(v)) => col.check(index, v)?,
-            (PropColumn::F32(col), Prop::F32(v)) => col.check(index, v)?,
-            (PropColumn::F64(col), Prop::F64(v)) => col.check(index, v)?,
-            (PropColumn::Str(col), Prop::Str(v)) => col.check(index, v)?,
-            (PropColumn::U8(col), Prop::U8(v)) => col.check(index, v)?,
-            (PropColumn::U16(col), Prop::U16(v)) => col.check(index, v)?,
-            (PropColumn::I32(col), Prop::I32(v)) => col.check(index, v)?,
-            (PropColumn::List(col), Prop::List(v)) => col.check(index, v)?,
-            (PropColumn::Map(col), Prop::Map(v)) => col.check(index, v)?,
-            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.check(index, v)?,
-            (PropColumn::DTime(col), Prop::DTime(v)) => col.check(index, v)?,
-            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.check(index, v)?,
+            (PropColumn::Bool(col), PropRef::Bool(v)) => col.check(index, v)?,
+            (PropColumn::I64(col), PropRef::Num(PropNum::I64(v))) => col.check(index, v)?,
+            (PropColumn::U32(col), PropRef::Num(PropNum::U32(v))) => col.check(index, v)?,
+            (PropColumn::U64(col), PropRef::Num(PropNum::U64(v))) => col.check(index, v)?,
+            (PropColumn::F32(col), PropRef::Num(PropNum::F32(v))) => col.check(index, v)?,
+            (PropColumn::F64(col), PropRef::Num(PropNum::F64(v))) => col.check(index, v)?,
+            (PropColumn::Str(col), PropRef::Str(v)) => col.check(index, v)?,
+            (PropColumn::U8(col), PropRef::Num(PropNum::U8(v))) => col.check(index, v)?,
+            (PropColumn::U16(col), PropRef::Num(PropNum::U16(v))) => col.check(index, v)?,
+            (PropColumn::I32(col), PropRef::Num(PropNum::I32(v))) => col.check(index, v)?,
+            (PropColumn::List(col), PropRef::List(v)) => col.check(index, v)?,
+            (PropColumn::Map(col), PropRef::Map(v)) => col.check(index, &v.as_mem())?,
+            (PropColumn::NDTime(col), PropRef::NDTime(v)) => col.check(index, v)?,
+            (PropColumn::DTime(col), PropRef::DTime(v)) => col.check(index, v)?,
+            (PropColumn::Decimal(col), PropRef::Decimal { num, scale }) => col.check(
+                index,
+                &BigDecimal::from_bigint(BigInt::from(*num), *scale as i64),
+            )?,
             (col, prop) => {
                 Err(IllegalPropType {
                     expected: col.dtype(),
-                    actual: prop.dtype(),
+                    actual: prop.clone().into_prop().dtype(),
                 })?;
             }
         }
         Ok(())
     }
 
-    pub(crate) fn push(&mut self, prop: Prop) -> Result<(), IllegalPropType> {
+    pub(crate) fn push(&mut self, prop: PropRef<'_>) -> Result<(), TPropColumnError> {
         self.init_empty_col(&prop);
         match (self, prop) {
-            (PropColumn::Bool(col), Prop::Bool(v)) => col.push(Some(v)),
-            (PropColumn::U8(col), Prop::U8(v)) => col.push(Some(v)),
-            (PropColumn::I64(col), Prop::I64(v)) => col.push(Some(v)),
-            (PropColumn::U32(col), Prop::U32(v)) => col.push(Some(v)),
-            (PropColumn::U64(col), Prop::U64(v)) => col.push(Some(v)),
-            (PropColumn::F32(col), Prop::F32(v)) => col.push(Some(v)),
-            (PropColumn::F64(col), Prop::F64(v)) => col.push(Some(v)),
-            (PropColumn::Str(col), Prop::Str(v)) => col.push(Some(v)),
-            (PropColumn::U16(col), Prop::U16(v)) => col.push(Some(v)),
-            (PropColumn::I32(col), Prop::I32(v)) => col.push(Some(v)),
-            (PropColumn::List(col), Prop::List(v)) => col.push(Some(v)),
-            (PropColumn::Map(col), Prop::Map(v)) => col.push(Some(v)),
-            (PropColumn::NDTime(col), Prop::NDTime(v)) => col.push(Some(v)),
-            (PropColumn::DTime(col), Prop::DTime(v)) => col.push(Some(v)),
-            (PropColumn::Decimal(col), Prop::Decimal(v)) => col.push(Some(v)),
+            (PropColumn::Bool(col), PropRef::Bool(v)) => col.push(Some(v)),
+            (PropColumn::U8(col), PropRef::Num(PropNum::U8(v))) => col.push(Some(v)),
+            (PropColumn::I64(col), PropRef::Num(PropNum::I64(v))) => col.push(Some(v)),
+            (PropColumn::U32(col), PropRef::Num(PropNum::U32(v))) => col.push(Some(v)),
+            (PropColumn::U64(col), PropRef::Num(PropNum::U64(v))) => col.push(Some(v)),
+            (PropColumn::F32(col), PropRef::Num(PropNum::F32(v))) => col.push(Some(v)),
+            (PropColumn::F64(col), PropRef::Num(PropNum::F64(v))) => col.push(Some(v)),
+            (PropColumn::Str(col), PropRef::Str(v)) => col.push_value(v)?,
+            (PropColumn::U16(col), PropRef::Num(PropNum::U16(v))) => col.push(Some(v)),
+            (PropColumn::I32(col), PropRef::Num(PropNum::I32(v))) => col.push(Some(v)),
+            (PropColumn::List(col), PropRef::List(v)) => col.push(Some(v.into_owned())),
+            (PropColumn::Map(col), PropRef::Map(v)) => {
+                // FIXME: if we start bulk loading complex structs this won't do
+                match v {
+                    PropMapRef::Mem(map) => col.push(Some(map.clone())),
+                    PropMapRef::PropCol { map, i } => {
+                        col.push(map.get(i).and_then(|prop| prop.into_map()))
+                    }
+                    PropMapRef::Arrow(arc_map) => {
+                        if let Some(prop) = arc_map.into_prop() {
+                            if let Some(map_ref) = prop.as_prop_ref().as_map_ref() {
+                                if let Some(map) = map_ref.as_map() {
+                                    col.push(Some(map.clone()));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            (PropColumn::NDTime(col), PropRef::NDTime(v)) => col.push(Some(v)),
+            (PropColumn::DTime(col), PropRef::DTime(v)) => col.push(Some(v)),
+            (PropColumn::Decimal(col), PropRef::Decimal { num, scale }) => {
+                col.push(Some(BigDecimal::from_bigint(num.into(), scale as i64)))
+            }
             (col, prop) => {
-                return Err(IllegalPropType {
+                Err(IllegalPropType {
                     expected: col.dtype(),
-                    actual: prop.dtype(),
-                })
+                    actual: prop.into_prop().dtype(),
+                })?;
             }
         }
         Ok(())
     }
 
-    fn init_empty_col(&mut self, prop: &Prop) {
+    fn init_empty_col(&mut self, prop: &PropRef<'_>) {
         if let PropColumn::Empty(len) = self {
             match prop {
-                Prop::Bool(_) => *self = PropColumn::Bool(LazyVec::with_len(*len)),
-                Prop::I64(_) => *self = PropColumn::I64(LazyVec::with_len(*len)),
-                Prop::U32(_) => *self = PropColumn::U32(LazyVec::with_len(*len)),
-                Prop::U64(_) => *self = PropColumn::U64(LazyVec::with_len(*len)),
-                Prop::F32(_) => *self = PropColumn::F32(LazyVec::with_len(*len)),
-                Prop::F64(_) => *self = PropColumn::F64(LazyVec::with_len(*len)),
-                Prop::Str(_) => *self = PropColumn::Str(LazyVec::with_len(*len)),
-                Prop::U8(_) => *self = PropColumn::U8(LazyVec::with_len(*len)),
-                Prop::U16(_) => *self = PropColumn::U16(LazyVec::with_len(*len)),
-                Prop::I32(_) => *self = PropColumn::I32(LazyVec::with_len(*len)),
-                Prop::List(_) => *self = PropColumn::List(LazyVec::with_len(*len)),
-                Prop::Map(_) => *self = PropColumn::Map(LazyVec::with_len(*len)),
-                Prop::NDTime(_) => *self = PropColumn::NDTime(LazyVec::with_len(*len)),
-                Prop::DTime(_) => *self = PropColumn::DTime(LazyVec::with_len(*len)),
-                Prop::Decimal(_) => *self = PropColumn::Decimal(LazyVec::with_len(*len)),
+                PropRef::Bool(_) => *self = PropColumn::Bool(LazyVec::with_len(*len)),
+                PropRef::Num(PropNum::I64(_)) => *self = PropColumn::I64(LazyVec::with_len(*len)),
+                PropRef::Num(PropNum::U32(_)) => *self = PropColumn::U32(LazyVec::with_len(*len)),
+                PropRef::Num(PropNum::U64(_)) => *self = PropColumn::U64(LazyVec::with_len(*len)),
+                PropRef::Num(PropNum::F32(_)) => *self = PropColumn::F32(LazyVec::with_len(*len)),
+                PropRef::Num(PropNum::F64(_)) => *self = PropColumn::F64(LazyVec::with_len(*len)),
+                PropRef::Str(_) => *self = PropColumn::Str(StringCol::with_len(*len)),
+                PropRef::Num(PropNum::U8(_)) => *self = PropColumn::U8(LazyVec::with_len(*len)),
+                PropRef::Num(PropNum::U16(_)) => *self = PropColumn::U16(LazyVec::with_len(*len)),
+                PropRef::Num(PropNum::I32(_)) => *self = PropColumn::I32(LazyVec::with_len(*len)),
+                PropRef::List(_) => *self = PropColumn::List(LazyVec::with_len(*len)),
+                PropRef::Map(_) => *self = PropColumn::Map(LazyVec::with_len(*len)),
+                PropRef::NDTime(_) => *self = PropColumn::NDTime(LazyVec::with_len(*len)),
+                PropRef::DTime(_) => *self = PropColumn::DTime(LazyVec::with_len(*len)),
+                PropRef::Decimal { .. } => *self = PropColumn::Decimal(LazyVec::with_len(*len)),
             }
         }
     }
@@ -341,7 +362,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.push(None),
             PropColumn::F32(col) => col.push(None),
             PropColumn::F64(col) => col.push(None),
-            PropColumn::Str(col) => col.push(None),
+            PropColumn::Str(col) => col.push_null(),
             PropColumn::U8(col) => col.push(None),
             PropColumn::U16(col) => col.push(None),
             PropColumn::I32(col) => col.push(None),
@@ -364,7 +385,7 @@ impl PropColumn {
             PropColumn::U64(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::F32(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::F64(col) => col.get_opt(index).map(|prop| (*prop).into()),
-            PropColumn::Str(col) => col.get_opt(index).map(|prop| prop.clone().into()),
+            PropColumn::Str(col) => col.get_opt(index).map(|prop| prop.into()),
             PropColumn::U8(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::U16(col) => col.get_opt(index).map(|prop| (*prop).into()),
             PropColumn::I32(col) => col.get_opt(index).map(|prop| (*prop).into()),

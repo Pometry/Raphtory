@@ -599,3 +599,8 @@ impl_node_state!(
     "NodeStateF64StringI64",
     "Tuple[float, str, int]"
 );
+impl_node_state!(
+    NodeStateF64F64StringI64<(f64, f64, String, i64)>,
+    "NodeStateF64StringI64",
+    "Tuple[float, str, int]"
+);

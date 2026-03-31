@@ -42,7 +42,7 @@ def test_filter_edges_with_str_ids_for_node_id_eq_gql(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 EVENT_GRAPH = init_graph2(Graph())
@@ -153,7 +153,7 @@ def test_edges_filter_window_is_active(graph):
             }
         }
     }
-    run_graphql_test(query, expected_output, graph)
+    run_graphql_test(query, expected_output, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])

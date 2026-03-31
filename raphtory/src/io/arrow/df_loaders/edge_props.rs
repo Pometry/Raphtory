@@ -1,5 +1,6 @@
-#[cfg(feature = "python")]
+#[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
+
 use crate::{
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
@@ -19,7 +20,10 @@ use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
 use kdam::BarExt;
-use raphtory_api::{atomic_extra::atomic_usize_from_mut_slice, core::entities::EID};
+use raphtory_api::{
+    atomic_extra::atomic_usize_from_mut_slice,
+    core::entities::{properties::prop::AsPropRef, EID},
+};
 use raphtory_core::entities::VID;
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
 use rayon::prelude::*;
@@ -75,7 +79,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .map_err(into_graph_err)
     })?;
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading edges metadata".to_string(), df_view.num_rows)?;
 
     let mut src_col_resolved: Vec<VID> = vec![];
@@ -155,7 +159,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             update_edge_metadata(&shared_metadata, &metadata_cols, shard, zip);
         });
 
-        #[cfg(feature = "python")]
+        #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
     Ok::<_, GraphError>(())
@@ -216,9 +220,9 @@ fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>
     locked_page: &mut LockedNodePage<'_, NS>,
     zip: impl Iterator<Item = (&'a VID, &'a VID)>,
 ) -> Result<(), LoadError> {
+    let writer = locked_page.writer();
     for (row, (src, dst)) in zip.enumerate() {
-        if let Some(src_pos) = locked_page.resolve_pos(*src) {
-            let writer = locked_page.writer();
+        if let Some(src_pos) = writer.resolve_pos(*src) {
             // find the original EID in the static graph if it exists
             // otherwise create a new one
             if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
@@ -238,14 +242,17 @@ fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
     shard: &mut LockedEdgePage<'_, ES>,
     zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, &'a usize)>,
 ) {
-    let mut c_props: Vec<(usize, Prop)> = Vec::new();
+    let mut c_props = Vec::new();
+    let mut writer = shard.writer();
     for (row, (src, dst, eid, layer)) in zip.enumerate() {
-        if let Some(eid_pos) = shard.resolve_pos(*eid) {
-            let mut writer = shard.writer();
-
+        if let Some(eid_pos) = writer.resolve_pos(*eid) {
             c_props.clear();
             c_props.extend(metadata_cols.iter_row(row));
-            c_props.extend_from_slice(shared_metadata);
+            c_props.extend(
+                shared_metadata
+                    .iter()
+                    .map(|(id, prop)| (*id, prop.as_prop_ref())),
+            );
 
             writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
         }
