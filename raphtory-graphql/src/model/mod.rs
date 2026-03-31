@@ -1,6 +1,6 @@
 use crate::{
     auth::{AuthError, ContextValidation},
-    auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission},
+    auth_policy::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission},
     data::Data,
     model::{
         graph::{
@@ -118,7 +118,7 @@ fn require_at_least_read(
                         graph = path,
                         "Access denied by auth policy"
                     );
-                    return Err(async_graphql::Error::new(msg));
+                    return Err(msg.into());
                 } else {
                     // Don't leak graph existence — act as if it doesn't exist.
                     return Err(async_graphql::Error::new(MissingGraph.to_string()));
@@ -272,7 +272,7 @@ fn require_graph_write(
         Some(p) => {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             p.graph_permissions(ctx, path)
-                .map_err(|msg| async_graphql::Error::new(msg))?
+                .map_err(async_graphql::Error::from)?
                 .at_least_write()
                 .ok_or_else(|| {
                     write_denied(
@@ -318,7 +318,7 @@ fn require_graph_read_src(
         Some(p) => {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             p.graph_permissions(ctx, path)
-                .map_err(|msg| async_graphql::Error::new(msg))?
+                .map_err(async_graphql::Error::from)?
                 .at_least_read()
                 .ok_or_else(|| {
                     write_denied(

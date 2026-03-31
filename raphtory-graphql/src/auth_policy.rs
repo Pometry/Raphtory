@@ -1,5 +1,25 @@
 use crate::model::graph::filtering::GraphAccessFilter;
 
+/// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
+/// denied. The message is intended for logging only; callers must not surface it to end users.
+#[derive(Debug)]
+pub struct AuthPolicyError(String);
+
+impl AuthPolicyError {
+    pub fn new(msg: impl Into<String>) -> Self {
+        Self(msg.into())
+    }
+}
+
+impl std::fmt::Display for AuthPolicyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+// async_graphql's blanket `impl<T: Display + Send + Sync + 'static> From<T> for Error` covers
+// AuthPolicyError automatically via its Display impl.
+
 /// The effective permission level a principal has on a specific graph.
 /// Variants are ordered by the hierarchy: `Write` > `Read{filter:None}` > `Read{filter:Some}` > `Introspect`.
 /// A filtered `Read` is less powerful than an unfiltered `Read` because it sees a restricted view.
@@ -93,7 +113,7 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         &self,
         ctx: &async_graphql::Context<'_>,
         path: &str,
-    ) -> Result<GraphPermission, String>;
+    ) -> Result<GraphPermission, AuthPolicyError>;
 
     /// Resolves the effective namespace permission for a principal.
     /// Admin principals always yield `Write`.
