@@ -126,13 +126,20 @@ fn require_at_least_read(
                 }
             }
             Ok(perm) => {
-                return Ok(perm.at_least_read().ok_or_else(|| {
-                    async_graphql::Error::new(format!(
+                if let Some(p) = perm.at_least_read() {
+                    return Ok(p);
+                } else {
+                    warn!(
+                        role = role.unwrap_or("<no role>"),
+                        graph = path,
+                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                    );
+                    return Err(async_graphql::Error::new(format!(
                         "Access denied: role '{}' has introspect-only access to graph '{path}' — \
                          use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
                         role.unwrap_or("<no role>")
-                    ))
-                })?);
+                    )));
+                }
             }
         }
     }
@@ -321,28 +328,12 @@ impl QueryRoot {
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
-        let perms = if let Some(policy) = &data.auth_policy {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            match policy.graph_permissions(ctx, path) {
-                Err(_) => {
-                    // No permission at all — return null, indistinguishable from "graph not found".
-                    warn!(
-                        role = role.unwrap_or("<no role>"),
-                        graph = path,
-                        "Access denied by auth policy"
-                    );
-                    return Ok(None);
-                }
-                Ok(perm) => match perm.at_least_read() {
-                    // INTROSPECT-only — also return null. async-graphql makes `data` null
-                    // when a nullable field resolver returns Err, so we always use Ok(None)
-                    // to keep `data: {"graph": null}` consistent across all denied cases.
-                    None => return Ok(None),
-                    Some(p) => p,
-                },
-            }
-        } else {
-            GraphPermission::Write // no policy: unrestricted
+        // Permission check: Err (denied or introspect-only) is converted to Ok(None) so the
+        // user sees null — indistinguishable from "graph not found". Warnings are logged inside
+        // require_at_least_read for cases where the user has namespace INTROSPECT visibility.
+        let perms = match require_at_least_read(ctx, &data.auth_policy, path) {
+            Ok(p) => p,
+            Err(_) => return Ok(None),
         };
 
         let graph_with_vecs = data.get_graph(path).await?;
@@ -357,11 +348,7 @@ impl QueryRoot {
             graph
         };
 
-        Ok(Some(GqlGraph::new_with_permissions(
-            graph_with_vecs.folder,
-            graph,
-            perms,
-        )))
+        Ok(Some(GqlGraph::new(graph_with_vecs.folder, graph)))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
@@ -371,7 +358,7 @@ impl QueryRoot {
 
         if let Some(policy) = &data.auth_policy {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            if let Err(msg) = policy.graph_permissions(ctx, &path) {
+            if let Err(_) = policy.graph_permissions(ctx, &path) {
                 let ns = parent_namespace(&path);
                 if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
                     warn!(
@@ -379,10 +366,10 @@ impl QueryRoot {
                         graph = path.as_str(),
                         "Access denied by auth policy"
                     );
-                    return Err(async_graphql::Error::new(msg));
-                } else {
-                    return Ok(None);
                 }
+                // Always return null — permission denial is indistinguishable from "not found"
+                // from the user's perspective. The warning above is the only signal in the logs.
+                return Ok(None);
             }
         }
 

@@ -1,5 +1,4 @@
 use crate::{
-    auth_policy::GraphPermission,
     data::Data,
     graph::GraphWithVectors,
     model::{
@@ -63,7 +62,6 @@ use std::{
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
-    permission: GraphPermission,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -77,19 +75,6 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
-            permission: GraphPermission::Write,
-        }
-    }
-
-    pub fn new_with_permissions<G: StaticGraphViewOps + IntoDynamic>(
-        path: ExistingGraphFolder,
-        graph: G,
-        permission: GraphPermission,
-    ) -> Self {
-        Self {
-            path,
-            graph: graph.into_dynamic(),
-            permission,
         }
     }
 
@@ -101,7 +86,6 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
-            permission: self.permission.clone(),
         }
     }
 }
