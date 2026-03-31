@@ -307,6 +307,7 @@ def test_analyst_can_create_graph_in_namespace():
 
         response = gql(CREATE_JIRA_NS, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
+        assert response["data"]["newGraph"] is True
 
 
 def test_analyst_cannot_create_graph_outside_namespace():
@@ -319,6 +320,9 @@ def test_analyst_cannot_create_graph_outside_namespace():
         response = gql(CREATE_JIRA, headers=ANALYST_HEADERS)  # "jira" not under "team/"
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
+        # Verify "jira" was not created as a side effect
+        ns_graphs = gql(QUERY_NS_GRAPHS)["data"]["root"]["graphs"]["list"]
+        assert "jira" not in [g["path"] for g in ns_graphs]
 
 
 def test_analyst_cannot_call_permissions_mutations():
@@ -334,6 +338,9 @@ def test_analyst_cannot_call_permissions_mutations():
         )
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
+        # Verify "hacker" role was not created as a side effect
+        roles = gql("query { permissions { listRoles } }")["data"]["permissions"]["listRoles"]
+        assert "hacker" not in roles
 
 
 def test_admin_can_list_roles():
@@ -1370,6 +1377,9 @@ def test_analyst_cannot_delete_with_graph_write_only():
         response = gql(DELETE_JIRA, headers=ANALYST_HEADERS)
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
+        # Verify "jira" was not deleted as a side effect
+        check = gql(QUERY_JIRA)
+        assert check["data"]["graph"]["path"] == "jira"
 
 
 def test_analyst_cannot_delete_with_read_grant():
@@ -1383,6 +1393,9 @@ def test_analyst_cannot_delete_with_read_grant():
         response = gql(DELETE_JIRA, headers=ANALYST_HEADERS)
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
+        # Verify "jira" was not deleted as a side effect
+        check = gql(QUERY_JIRA)
+        assert check["data"]["graph"]["path"] == "jira"
 
 
 def test_analyst_can_delete_with_namespace_write():
@@ -1502,6 +1515,11 @@ def test_analyst_cannot_move_with_graph_write_only():
         response = gql(MOVE_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
+        # Verify "team/jira" still exists and "team/jira-moved" was not created
+        team_graphs = gql(QUERY_TEAM_GRAPHS)["data"]["namespace"]["graphs"]["list"]
+        paths = [g["path"] for g in team_graphs]
+        assert "team/jira" in paths
+        assert "team/jira-moved" not in paths
 
 
 def test_analyst_cannot_move_with_read_grant():
@@ -1516,6 +1534,11 @@ def test_analyst_cannot_move_with_read_grant():
         response = gql(MOVE_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
+        # Verify "team/jira" still exists and "team/jira-moved" was not created
+        team_graphs = gql(QUERY_TEAM_GRAPHS)["data"]["namespace"]["graphs"]["list"]
+        paths = [g["path"] for g in team_graphs]
+        assert "team/jira" in paths
+        assert "team/jira-moved" not in paths
 
 
 # --- newGraph namespace write enforcement ---
@@ -1543,6 +1566,9 @@ def test_analyst_cannot_create_graph_with_namespace_read_only():
         response = gql(CREATE_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
+        # Verify "team/jira" was not created as a side effect — "team" namespace should be absent
+        children = gql(QUERY_NS_CHILDREN)["data"]["root"]["children"]["list"]
+        assert "team" not in [c["path"] for c in children]
 
 
 # --- permissions entry point admin gate ---
