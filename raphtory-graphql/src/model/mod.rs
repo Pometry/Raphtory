@@ -48,7 +48,7 @@ use std::{
     pin::Pin,
     sync::Arc,
 };
-use tracing::warn;
+use tracing::{error, warn};
 
 pub mod graph;
 pub mod plugins;
@@ -159,38 +159,50 @@ fn apply_graph_filter(
         match filter {
             GraphAccessFilter::Node(gql_filter) => {
                 let raphtory_filter = CompositeNodeFilter::try_from(gql_filter).map_err(|e| {
-                    async_graphql::Error::new(format!("node filter conversion: {e}"))
+                    error!(error = %e, "node filter conversion failed");
+                    async_graphql::Error::new("internal error applying access filter")
                 })?;
                 graph = blocking_compute({
                     let g = graph.clone();
                     move || g.filter(raphtory_filter)
                 })
                 .await
-                .map_err(|e| async_graphql::Error::new(format!("node filter apply: {e}")))?
+                .map_err(|e| {
+                    error!(error = %e, "node filter apply failed");
+                    async_graphql::Error::new("internal error applying access filter")
+                })?
                 .into_dynamic();
             }
             GraphAccessFilter::Edge(gql_filter) => {
                 let raphtory_filter = CompositeEdgeFilter::try_from(gql_filter).map_err(|e| {
-                    async_graphql::Error::new(format!("edge filter conversion: {e}"))
+                    error!(error = %e, "edge filter conversion failed");
+                    async_graphql::Error::new("internal error applying access filter")
                 })?;
                 graph = blocking_compute({
                     let g = graph.clone();
                     move || g.filter(raphtory_filter)
                 })
                 .await
-                .map_err(|e| async_graphql::Error::new(format!("edge filter apply: {e}")))?
+                .map_err(|e| {
+                    error!(error = %e, "edge filter apply failed");
+                    async_graphql::Error::new("internal error applying access filter")
+                })?
                 .into_dynamic();
             }
             GraphAccessFilter::Graph(gql_filter) => {
                 let dyn_view = DynView::try_from(gql_filter).map_err(|e| {
-                    async_graphql::Error::new(format!("graph filter conversion: {e}"))
+                    error!(error = %e, "graph filter conversion failed");
+                    async_graphql::Error::new("internal error applying access filter")
                 })?;
                 graph = blocking_compute({
                     let g = graph.clone();
                     move || g.filter(dyn_view)
                 })
                 .await
-                .map_err(|e| async_graphql::Error::new(format!("graph filter apply: {e}")))?
+                .map_err(|e| {
+                    error!(error = %e, "graph filter apply failed");
+                    async_graphql::Error::new("internal error applying access filter")
+                })?
                 .into_dynamic();
             }
             GraphAccessFilter::And(filters) => {
