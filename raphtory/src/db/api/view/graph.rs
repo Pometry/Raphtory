@@ -348,10 +348,17 @@ pub fn materialize_using_recordbatches(
     let stream_capacity = 3;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
-    std::thread::scope(|scope| -> Result<(), GraphError> {
-        let producer = scope.spawn({
+    if let Some(max_eid) = graph.edges().iter().map(|edge| edge.edge.pid().0).max() {
+        let mut write_locked_graph = materialized.write_lock()?;
+        write_locked_graph.resize_segments_to_eid(EID(max_eid));
+    }
+
+    let mut scope_result = Ok(());
+    rayon::scope(|scope| {
+        let (producer_result_tx, producer_result_rx) = crossbeam_channel::bounded(1);
+        scope.spawn({
             let tx = tx.clone();
-            move || -> Result<(), GraphError> {
+            move |_| {
                 let make_sink = |kind| {
                     let tx = tx.clone();
                     move |schema: SchemaRef, _chunk: usize, _num_digits: usize| {
@@ -361,21 +368,23 @@ pub fn materialize_using_recordbatches(
 
                 // Keep encode order aligned with loader dependencies so the consumer can ingest
                 // batches immediately as they arrive
-                encode_nodes_cprop(graph, make_sink(RecordBatchKind::NodesC))?;
-                encode_nodes_tprop(graph, make_sink(RecordBatchKind::NodesT))?;
-                encode_edge_tprop(graph, make_sink(RecordBatchKind::EdgesT))?;
-                encode_edge_cprop(graph, make_sink(RecordBatchKind::EdgesC))?;
-                encode_edge_deletions(graph, make_sink(RecordBatchKind::EdgesD))?;
-                encode_graph_tprop(graph, make_sink(RecordBatchKind::GraphT))?;
-                encode_graph_cprop(graph, make_sink(RecordBatchKind::GraphC))?;
+                let result = (|| -> Result<(), GraphError> {
+                    encode_nodes_cprop(graph, make_sink(RecordBatchKind::NodesC))?;
+                    encode_nodes_tprop(graph, make_sink(RecordBatchKind::NodesT))?;
+                    encode_edge_tprop(graph, make_sink(RecordBatchKind::EdgesT))?;
+                    encode_edge_cprop(graph, make_sink(RecordBatchKind::EdgesC))?;
+                    encode_edge_deletions(graph, make_sink(RecordBatchKind::EdgesD))?;
+                    encode_graph_tprop(graph, make_sink(RecordBatchKind::GraphT))?;
+                    encode_graph_cprop(graph, make_sink(RecordBatchKind::GraphC))?;
+                    Ok(())
+                })();
 
-                Ok(())
+                let _ = producer_result_tx.send(result);
             }
         });
 
         drop(tx);
 
-        let mut edge_segments_sized = false;
         let consumer_result = loop {
             let message = match rx.recv() {
                 Ok(message) => message,
@@ -434,16 +443,6 @@ pub fn materialize_using_recordbatches(
                     )
                 }
                 RecordBatchKind::EdgesT => {
-                    if !edge_segments_sized {
-                        if let Some(max_eid) =
-                            graph.edges().iter().map(|edge| edge.edge.pid().0).max()
-                        {
-                            let mut write_locked_graph = materialized.write_lock()?;
-                            write_locked_graph.resize_segments_to_eid(EID(max_eid));
-                        }
-                        edge_segments_sized = true;
-                    }
-
                     let edge_t_props = df_columns_except(
                         &df_view.names,
                         &[
@@ -550,16 +549,15 @@ pub fn materialize_using_recordbatches(
 
         drop(rx);
 
-        let producer_result = match producer.join() {
-            Ok(result) => result,
-            Err(_) => Err(GraphError::IOErrorMsg(
-                "record batch producer thread panicked".to_string(),
-            )),
-        };
+        let producer_result = producer_result_rx.recv().unwrap_or_else(|_| {
+            Err(GraphError::IOErrorMsg(
+                "record batch producer scope exited without reporting a result".to_string(),
+            ))
+        });
 
-        consumer_result?;
-        producer_result
-    })?;
+        scope_result = consumer_result.and(producer_result);
+    });
+    scope_result?;
 
     Ok(materialized)
 }
