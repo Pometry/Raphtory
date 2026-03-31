@@ -87,7 +87,6 @@ impl IntoTime for GqlTimeInput {
     }
 }
 
-
 pub fn dt_format_str_is_valid(fmt_str: &str) -> bool {
     !StrftimeItems::new(fmt_str).any(|it| matches!(it, Item::Error))
 }

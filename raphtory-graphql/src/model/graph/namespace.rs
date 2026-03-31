@@ -142,9 +142,9 @@ fn is_graph_visible(
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     g: &MetaGraph,
 ) -> bool {
-    policy.as_ref().map_or(true, |p| {
-        p.graph_permissions(ctx, &g.local_path()).is_ok()
-    })
+    policy
+        .as_ref()
+        .map_or(true, |p| p.graph_permissions(ctx, &g.local_path()).is_ok())
 }
 
 fn is_namespace_visible(
@@ -223,7 +223,8 @@ impl Namespace {
     async fn items(&self, ctx: &Context<'_>) -> GqlCollection<NamespacedItem> {
         let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
-        let all_items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        let all_items =
+            blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
         GqlCollection::new(
             all_items
                 .into_iter()

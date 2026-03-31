@@ -15,9 +15,8 @@ use crate::{
             vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{
-            mutation_plugin::MutationPlugin,
-            query_plugin::QueryPlugin,
-            PermissionsEntrypointMut, PermissionsEntrypointQuery,
+            mutation_plugin::MutationPlugin, query_plugin::QueryPlugin, PermissionsEntrypointMut,
+            PermissionsEntrypointQuery,
         },
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
@@ -159,8 +158,9 @@ fn apply_graph_filter(
 
         match filter {
             GraphAccessFilter::Node(gql_filter) => {
-                let raphtory_filter = CompositeNodeFilter::try_from(gql_filter)
-                    .map_err(|e| async_graphql::Error::new(format!("node filter conversion: {e}")))?;
+                let raphtory_filter = CompositeNodeFilter::try_from(gql_filter).map_err(|e| {
+                    async_graphql::Error::new(format!("node filter conversion: {e}"))
+                })?;
                 graph = blocking_compute({
                     let g = graph.clone();
                     move || g.filter(raphtory_filter)
@@ -170,8 +170,9 @@ fn apply_graph_filter(
                 .into_dynamic();
             }
             GraphAccessFilter::Edge(gql_filter) => {
-                let raphtory_filter = CompositeEdgeFilter::try_from(gql_filter)
-                    .map_err(|e| async_graphql::Error::new(format!("edge filter conversion: {e}")))?;
+                let raphtory_filter = CompositeEdgeFilter::try_from(gql_filter).map_err(|e| {
+                    async_graphql::Error::new(format!("edge filter conversion: {e}"))
+                })?;
                 graph = blocking_compute({
                     let g = graph.clone();
                     move || g.filter(raphtory_filter)
@@ -181,8 +182,9 @@ fn apply_graph_filter(
                 .into_dynamic();
             }
             GraphAccessFilter::Graph(gql_filter) => {
-                let dyn_view = DynView::try_from(gql_filter)
-                    .map_err(|e| async_graphql::Error::new(format!("graph filter conversion: {e}")))?;
+                let dyn_view = DynView::try_from(gql_filter).map_err(|e| {
+                    async_graphql::Error::new(format!("graph filter conversion: {e}"))
+                })?;
                 graph = blocking_compute({
                     let g = graph.clone();
                     move || g.filter(dyn_view)
@@ -260,10 +262,12 @@ fn require_graph_write(
             p.graph_permissions(ctx, path)
                 .map_err(|msg| async_graphql::Error::new(msg))?
                 .at_least_write()
-                .ok_or_else(|| write_denied(
-                    role,
-                    format!("Access denied: WRITE permission required for graph '{path}'"),
-                ))?;
+                .ok_or_else(|| {
+                    write_denied(
+                        role,
+                        format!("Access denied: WRITE permission required for graph '{path}'"),
+                    )
+                })?;
             Ok(())
         }
     }
@@ -304,10 +308,14 @@ fn require_graph_read_src(
             p.graph_permissions(ctx, path)
                 .map_err(|msg| async_graphql::Error::new(msg))?
                 .at_least_read()
-                .ok_or_else(|| write_denied(
-                    role,
-                    format!("Access denied: READ required on source graph '{path}' to {operation}"),
-                ))?;
+                .ok_or_else(|| {
+                    write_denied(
+                        role,
+                        format!(
+                            "Access denied: READ required on source graph '{path}' to {operation}"
+                        ),
+                    )
+                })?;
             Ok(())
         }
     }
@@ -473,7 +481,6 @@ impl QueryRoot {
     async fn version<'a>(_ctx: &Context<'a>) -> String {
         String::from(version())
     }
-
 }
 
 #[derive(MutationRoot)]
@@ -690,4 +697,10 @@ impl Mut {
 }
 
 #[derive(App)]
-pub struct App(QueryRoot, MutRoot, Mut, PermissionsEntrypointMut, PermissionsEntrypointQuery);
+pub struct App(
+    QueryRoot,
+    MutRoot,
+    Mut,
+    PermissionsEntrypointMut,
+    PermissionsEntrypointQuery,
+);

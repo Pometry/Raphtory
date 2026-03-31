@@ -1,5 +1,5 @@
 pub use crate::{
-    auth::{Access, require_jwt_write_access_dynamic},
+    auth::{require_jwt_write_access_dynamic, Access},
     model::graph::filtering::GraphAccessFilter,
     server::GraphServer,
 };

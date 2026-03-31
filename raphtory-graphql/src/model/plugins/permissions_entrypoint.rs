@@ -50,7 +50,9 @@ impl Register for PermissionsEntrypointQuery {
                 |ctx| {
                     FieldFuture::new(async move {
                         require_jwt_write_access_dynamic(&ctx)?;
-                        Ok(Some(FieldValue::owned_any(PermissionsQueryPlugin::default())))
+                        Ok(Some(FieldValue::owned_any(
+                            PermissionsQueryPlugin::default(),
+                        )))
                     })
                 },
             ))
