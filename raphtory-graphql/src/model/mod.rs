@@ -16,8 +16,8 @@ use crate::{
         },
         plugins::{
             mutation_plugin::MutationPlugin,
-            permissions_plugin::{PermissionsPlugin, PermissionsQueryPlugin},
             query_plugin::QueryPlugin,
+            PermissionsEntrypointMut, PermissionsEntrypointQuery,
         },
     },
     paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
@@ -487,12 +487,6 @@ impl QueryRoot {
         String::from(version())
     }
 
-    /// Returns the permissions namespace for inspecting roles and access policies (admin only).
-    async fn permissions<'a>(ctx: &Context<'a>) -> Result<PermissionsQueryPlugin> {
-        ctx.require_jwt_write_access()
-            .map_err(|_| async_graphql::Error::new("Access denied: write access required"))?;
-        Ok(PermissionsQueryPlugin::default())
-    }
 }
 
 #[derive(MutationRoot)]
@@ -506,13 +500,6 @@ impl Mut {
     /// Returns a collection of mutation plugins.
     async fn plugins<'a>(_ctx: &Context<'a>) -> MutationPlugin {
         MutationPlugin::default()
-    }
-
-    /// Returns the permissions namespace for managing roles and access policies.
-    async fn permissions<'a>(ctx: &Context<'a>) -> Result<PermissionsPlugin> {
-        ctx.require_jwt_write_access()
-            .map_err(|_| async_graphql::Error::new("Access denied: write access required"))?;
-        Ok(PermissionsPlugin::default())
     }
 
     /// Delete graph from a path on the server.
@@ -716,4 +703,4 @@ impl Mut {
 }
 
 #[derive(App)]
-pub struct App(QueryRoot, MutRoot, Mut);
+pub struct App(QueryRoot, MutRoot, Mut, PermissionsEntrypointMut, PermissionsEntrypointQuery);

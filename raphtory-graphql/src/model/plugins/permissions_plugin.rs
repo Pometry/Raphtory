@@ -1,15 +1,26 @@
-use super::{
-    operation::{NoOpPermissions, NoOpPermissionsQuery, Operation},
-    RegisterFunction,
-};
+use super::RegisterFunction;
 use crate::model::plugins::entry_point::EntryPoint;
 use async_graphql::{dynamic::FieldValue, indexmap::IndexMap, Context};
 use dynamic_graphql::internal::{OutputTypeName, Register, Registry, ResolveOwned, TypeName};
 use once_cell::sync::Lazy;
 use std::{
     borrow::Cow,
-    sync::{Mutex, MutexGuard},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex, MutexGuard,
+    },
 };
+
+pub(crate) static PERMISSIONS_MUT_ENTRYPOINT: AtomicBool = AtomicBool::new(false);
+pub(crate) static PERMISSIONS_QRY_ENTRYPOINT: AtomicBool = AtomicBool::new(false);
+
+pub fn register_permissions_entrypoint() {
+    PERMISSIONS_MUT_ENTRYPOINT.store(true, Ordering::SeqCst);
+}
+
+pub fn register_permissions_query_entrypoint() {
+    PERMISSIONS_QRY_ENTRYPOINT.store(true, Ordering::SeqCst);
+}
 
 pub static PERMISSIONS_MUTATIONS: Lazy<Mutex<IndexMap<String, RegisterFunction>>> =
     Lazy::new(|| Mutex::new(IndexMap::new()));
@@ -22,10 +33,7 @@ pub struct PermissionsPlugin;
 
 impl<'a> EntryPoint<'a> for PermissionsPlugin {
     fn predefined_operations() -> IndexMap<&'static str, RegisterFunction> {
-        IndexMap::from([(
-            "NoOps",
-            Box::new(NoOpPermissions::register_operation) as RegisterFunction,
-        )])
+        IndexMap::new()
     }
 
     fn lock_plugins() -> MutexGuard<'static, IndexMap<String, RegisterFunction>> {
@@ -59,10 +67,7 @@ pub struct PermissionsQueryPlugin;
 
 impl<'a> EntryPoint<'a> for PermissionsQueryPlugin {
     fn predefined_operations() -> IndexMap<&'static str, RegisterFunction> {
-        IndexMap::from([(
-            "NoOps",
-            Box::new(NoOpPermissionsQuery::register_operation) as RegisterFunction,
-        )])
+        IndexMap::new()
     }
 
     fn lock_plugins() -> MutexGuard<'static, IndexMap<String, RegisterFunction>> {

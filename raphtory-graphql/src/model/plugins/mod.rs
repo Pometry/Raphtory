@@ -7,9 +7,12 @@ pub mod graph_algorithm_plugin;
 pub mod mutation_entry_point;
 pub mod mutation_plugin;
 pub mod operation;
+pub mod permissions_entrypoint;
 pub mod permissions_plugin;
 pub mod query_entry_point;
 pub mod query_plugin;
+
+pub use permissions_entrypoint::{PermissionsEntrypointMut, PermissionsEntrypointQuery};
 
 pub type RegisterFunction = Box<dyn FnOnce(&str, Registry, Object) -> (Registry, Object) + Send>;
 

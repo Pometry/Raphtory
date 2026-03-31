@@ -831,6 +831,334 @@ def test_analyst_sees_only_graph_filter_window():
         }, f"expected all nodes for admin, got {admin_names}"
 
 
+# --- Filter composition (And / Or) tests ---
+
+
+def test_filter_and_node_node():
+    """And([node, node]): both node predicates must match (intersection)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region, role in [
+            ("alice", "us-west", "admin"),
+            ("bob", "us-east", "admin"),
+            ("carol", "us-west", "user"),
+        ]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(
+                        time: 1, name: "{name}",
+                        properties: [
+                            {{ key: "region", value: {{ str: "{region}" }} }},
+                            {{ key: "role", value: {{ str: "{role}" }} }}
+                        ]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        # region=us-west AND role=admin → only alice
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ and: ['
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
+            '{ node: { property: { name: "role", where: { eq: { str: "admin" } } } } }'
+            '] }',
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+        analyst_names = {
+            n["name"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+        }
+        assert analyst_names == {"alice"}, f"expected only alice, got {analyst_names}"
+
+
+def test_filter_and_edge_edge():
+    """And([edge, edge]): both edge predicates must match (intersection)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for src, dst, weight, kind in [
+            ("a", "b", 3, "follows"),
+            ("b", "c", 7, "mentions"),
+            ("a", "c", 9, "follows"),
+        ]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addEdge(
+                        time: 1, src: "{src}", dst: "{dst}",
+                        properties: [
+                            {{ key: "weight", value: {{ i64: {weight} }} }},
+                            {{ key: "kind", value: {{ str: "{kind}" }} }}
+                        ]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
+
+        create_role("analyst")
+        # weight >= 5 AND kind=follows → only (a,c) weight=9 follows
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ and: ['
+            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } },'
+            '{ edge: { property: { name: "kind", where: { eq: { str: "follows" } } } } }'
+            '] }',
+        )
+
+        QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
+        analyst_edges = {
+            (e["src"]["name"], e["dst"]["name"])
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+        }
+        assert analyst_edges == {("a", "c")}, f"expected only (a,c), got {analyst_edges}"
+
+
+def test_filter_and_graph_graph():
+    """And([graph, graph]): two graph-level views intersect (sequential narrowing)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, t in [("early", 1), ("middle", 10), ("late", 20)]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(time: {t}, name: "{name}") {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        # window [1,15) ∩ window [5,25) → effective [5,15) → only middle (t=10)
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ and: ['
+            '{ graph: { window: { start: 1, end: 15 } } },'
+            '{ graph: { window: { start: 5, end: 25 } } }'
+            '] }',
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+        analyst_names = {
+            n["name"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+        }
+        assert analyst_names == {"middle"}, f"expected only middle, got {analyst_names}"
+
+
+def test_filter_and_node_edge():
+    """And([node, edge]): node filter applied first restricts nodes (and their edges), then edge filter further restricts."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region in [("alice", "us-west"), ("bob", "us-east"), ("carol", "us-west")]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(
+                        time: 1, name: "{name}",
+                        properties: [{{ key: "region", value: {{ str: "{region}" }} }}]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        for src, dst, weight in [("alice", "bob", 3), ("alice", "carol", 7), ("bob", "carol", 9)]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addEdge(
+                        time: 1, src: "{src}", dst: "{dst}",
+                        properties: [{{ key: "weight", value: {{ i64: {weight} }} }}]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
+
+        create_role("analyst")
+        # Node(us-west) applied first: bob hidden, bob's edges hidden.
+        # Then Edge(weight≥5): of remaining edges (alice→carol weight=7), only alice→carol passes.
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ and: ['
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
+            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
+            '] }',
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+        QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
+
+        analyst_names = {
+            n["name"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+        }
+        assert analyst_names == {"alice", "carol"}, f"expected us-west nodes, got {analyst_names}"
+
+        analyst_edges = {
+            (e["src"]["name"], e["dst"]["name"])
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+        }
+        # Sequential And: Node(us-west) hides bob and bob's edges, then Edge(weight≥5) keeps alice→carol (7).
+        assert analyst_edges == {
+            ("alice", "carol"),
+        }, f"expected only (alice,carol), got {analyst_edges}"
+
+
+def test_filter_and_node_graph():
+    """And([node, graph]): node property filter combined with a graph window."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region, t in [
+            ("alice", "us-west", 1),
+            ("bob", "us-west", 10),
+            ("carol", "us-east", 10),
+        ]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(
+                        time: {t}, name: "{name}",
+                        properties: [{{ key: "region", value: {{ str: "{region}" }} }}]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        # window [5,15): bob(t=10) + carol(t=10); then node us-west → only bob
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ and: ['
+            '{ graph: { window: { start: 5, end: 15 } } },'
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }'
+            '] }',
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+        analyst_names = {
+            n["name"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+        }
+        assert analyst_names == {"bob"}, f"expected only bob, got {analyst_names}"
+
+
+def test_filter_and_edge_graph():
+    """And([edge, graph]): edge property filter combined with a graph window."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for src, dst, weight, t in [
+            ("a", "b", 3, 1),
+            ("b", "c", 7, 10),
+            ("a", "c", 9, 20),
+        ]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addEdge(
+                        time: {t}, src: "{src}", dst: "{dst}",
+                        properties: [{{ key: "weight", value: {{ i64: {weight} }} }}]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
+
+        create_role("analyst")
+        # window [5,15): b→c(t=10); then edge weight≥5 → b→c(weight=7) passes
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ and: ['
+            '{ graph: { window: { start: 5, end: 15 } } },'
+            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
+            '] }',
+        )
+
+        QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
+        analyst_edges = {
+            (e["src"]["name"], e["dst"]["name"])
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+        }
+        assert analyst_edges == {("b", "c")}, f"expected only (b,c), got {analyst_edges}"
+
+
+def test_filter_or_node_node():
+    """Or([node, node]): nodes matching either predicate are visible (union)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region in [("alice", "us-west"), ("bob", "us-east"), ("carol", "eu")]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(
+                        time: 1, name: "{name}",
+                        properties: [{{ key: "region", value: {{ str: "{region}" }} }}]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        # us-west OR us-east → alice + bob; carol(eu) filtered out
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ or: ['
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
+            '{ node: { property: { name: "region", where: { eq: { str: "us-east" } } } } }'
+            '] }',
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+        analyst_names = {
+            n["name"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+        }
+        assert analyst_names == {"alice", "bob"}, f"expected alice+bob, got {analyst_names}"
+
+
+def test_filter_or_edge_edge():
+    """Or([edge, edge]): edges matching either predicate are visible (union)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for src, dst, weight in [("a", "b", 3), ("b", "c", 7), ("a", "c", 9)]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addEdge(
+                        time: 1, src: "{src}", dst: "{dst}",
+                        properties: [{{ key: "weight", value: {{ i64: {weight} }} }}]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
+
+        create_role("analyst")
+        # weight=3 OR weight=9 → (a,b) + (a,c); (b,c) weight=7 filtered out
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ or: ['
+            '{ edge: { property: { name: "weight", where: { eq: { i64: 3 } } } } },'
+            '{ edge: { property: { name: "weight", where: { eq: { i64: 9 } } } } }'
+            '] }',
+        )
+
+        QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
+        analyst_edges = {
+            (e["src"]["name"], e["dst"]["name"])
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+        }
+        assert analyst_edges == {
+            ("a", "b"),
+            ("a", "c"),
+        }, f"expected (a,b)+(a,c), got {analyst_edges}"
+
+
 # --- Namespace permission tests ---
 
 
