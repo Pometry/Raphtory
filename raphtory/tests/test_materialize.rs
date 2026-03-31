@@ -12,7 +12,36 @@ use raphtory::{
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::ops::Range;
+use std::{ops::Range, path::PathBuf, time::Instant};
+
+#[cfg(feature = "io")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct GraphSummary {
+    nodes: usize,
+    edges: usize,
+    temporal_edges: usize,
+    earliest_time: Option<raphtory_api::core::storage::timeindex::EventTime>,
+    latest_time: Option<raphtory_api::core::storage::timeindex::EventTime>,
+    layers: Vec<String>,
+}
+
+#[cfg(feature = "io")]
+fn summarize_graph<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> GraphSummary {
+    GraphSummary {
+        nodes: graph.count_nodes(),
+        edges: graph.count_edges(),
+        temporal_edges: graph.count_temporal_edges(),
+        earliest_time: graph.earliest_time(),
+        latest_time: graph.latest_time(),
+        layers: graph.unique_layers().map(|layer| layer.to_string()).sorted().collect(),
+    }
+}
+
+#[cfg(feature = "io")]
+fn default_snb_sf10_graph_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../ldbc/data/social_network-sf10-CsvComposite-LongDateFormatter/graph")
+}
 
 #[test]
 fn test_materialize() {
@@ -100,6 +129,76 @@ fn test_materialize_using_recordbatches_matches_materialize() {
             .unwrap();
 
     assert_graph_equal_timestamps(&expected, &actual);
+}
+
+#[cfg(feature = "io")]
+#[test]
+#[ignore = "requires a locally persisted SNB SF10 graph produced by ldbc/load_snb_sf10.py"]
+fn test_materialize_snb_sf10_timings() {
+    let graph_path = std::env::var_os("RAPHTORY_SNB_SF10_GRAPH")
+        .map(PathBuf::from)
+        .unwrap_or_else(default_snb_sf10_graph_path);
+
+    if !graph_path.exists() {
+        eprintln!("SNB SF10 graph not found at {}", graph_path.display());
+        eprintln!(
+            "Set RAPHTORY_SNB_SF10_GRAPH or load the dataset into the default location first."
+        );
+        return;
+    }
+
+    println!("Loading SNB SF10 graph from {}...", graph_path.display());
+    let load_start = Instant::now();
+    let g = Graph::load(&graph_path).unwrap();
+    let load_elapsed = load_start.elapsed();
+    let source_summary = summarize_graph(&g);
+    println!(
+        "Loaded source graph in {:?}: {} nodes, {} edges, {} temporal edges",
+        load_elapsed, source_summary.nodes, source_summary.edges, source_summary.temporal_edges
+    );
+
+    let impl_start = Instant::now();
+    let materialize_impl_graph = g.materialize().unwrap();
+    let impl_elapsed = impl_start.elapsed();
+    let impl_summary = summarize_graph(&materialize_impl_graph);
+    drop(materialize_impl_graph);
+
+    let recordbatch_start = Instant::now();
+    let recordbatch_graph =
+        materialize_using_recordbatches(&g, None, g.core_graph().extension().config().clone())
+            .unwrap();
+    let recordbatch_elapsed = recordbatch_start.elapsed();
+    let recordbatch_summary = summarize_graph(&recordbatch_graph);
+    drop(recordbatch_graph);
+
+    assert_eq!(impl_summary, source_summary);
+    assert_eq!(recordbatch_summary, source_summary);
+
+    let impl_secs = impl_elapsed.as_secs_f64();
+    let recordbatch_secs = recordbatch_elapsed.as_secs_f64();
+    let faster = if impl_secs < recordbatch_secs {
+        "materialize_impl"
+    } else if recordbatch_secs < impl_secs {
+        "materialize_using_recordbatches"
+    } else {
+        "tie"
+    };
+    let ratio = if impl_secs > 0.0 && recordbatch_secs > 0.0 {
+        if impl_secs > recordbatch_secs {
+            impl_secs / recordbatch_secs
+        } else {
+            recordbatch_secs / impl_secs
+        }
+    } else {
+        1.0
+    };
+
+    println!("materialize_impl via g.materialize(): {:?}", impl_elapsed);
+    println!(
+        "materialize_using_recordbatches(...): {:?}",
+        recordbatch_elapsed
+    );
+    println!("Faster path: {faster} ({ratio:.2}x)");
 }
 
 #[test]
