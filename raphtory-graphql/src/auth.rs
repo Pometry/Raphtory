@@ -211,7 +211,8 @@ fn is_query_heavy(query: &str) -> bool {
 fn extract_claims_from_header(header: &str, public_key: &PublicKey) -> Option<TokenClaims> {
     if header.starts_with("Bearer ") {
         let jwt = header.replace("Bearer ", "");
-        let mut validation = Validation::new(Algorithm::EdDSA);
+        let mut validation = Validation::new(public_key.algorithms[0]);
+        validation.algorithms = public_key.algorithms.clone();
         validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
         let decoded = decode::<TokenClaims>(&jwt, &public_key.decoding_key, &validation);
         match decoded {
