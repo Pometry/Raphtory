@@ -47,7 +47,9 @@ fn test_properties() {
         let v1_w = graph.window(0, 1).node(1).unwrap();
         assert_eq!(
             v1.properties().as_map(),
-            [(ArcStr::from("test"), Prop::str("test"))].into()
+            [(ArcStr::from("test"), Prop::str("test"))]
+                .into_iter()
+                .collect::<HashMap<_, _>>()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
     });
@@ -64,8 +66,8 @@ fn test_property_additions() {
         v1.properties().as_map(),
         props
             .into_iter()
-            .map(|(k, v)| (k.into(), v.into_prop()))
-            .collect()
+            .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
+            .collect::<HashMap<_, _>>()
     );
     assert_eq!(v1_w.properties().as_map(), HashMap::default())
 }

@@ -97,8 +97,8 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// (assuming the storage feature is enabled). Sets a new config.
     ///
     /// # Arguments
-    ///     * path: The path for the new graph.
-    ///     * config: The new config.
+    ///     path: The path for the new graph.
+    ///     config: The new config.
     #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
@@ -340,7 +340,7 @@ fn materialize_impl(
         let mut node_map = vec![VID::default(); index.len()];
         let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
 
-        index.par_iter().for_each(|(pos, vid)| {
+        index.par_iter().for_each(|(_, vid)| {
             if let Some(pos) = index.index(&vid) {
                 let new_vid = temporal_graph.storage().nodes().reserve_vid(pos);
                 node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
@@ -835,7 +835,7 @@ pub struct IndexSpec {
 
 /// (Experimental) IndexSpec data structure.
 impl IndexSpec {
-    pub(crate) fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
+    pub fn diff(existing: &IndexSpec, requested: &IndexSpec) -> Option<IndexSpec> {
         fn diff_props(existing: &HashSet<usize>, requested: &HashSet<usize>) -> HashSet<usize> {
             requested.difference(existing).copied().collect()
         }
@@ -861,7 +861,7 @@ impl IndexSpec {
         }
     }
 
-    pub(crate) fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
+    pub fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
         fn union_props(a: &HashSet<usize>, b: &HashSet<usize>) -> HashSet<usize> {
             a.union(b).copied().collect()
         }

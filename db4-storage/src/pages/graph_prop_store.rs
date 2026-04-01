@@ -1,5 +1,3 @@
-use raphtory_api::core::entities::properties::meta::Meta;
-
 use crate::{
     api::graph_props::GraphPropSegmentOps,
     error::StorageError,
@@ -8,9 +6,8 @@ use crate::{
         locked::graph_props::{LockedGraphPropPage, WriteLockedGraphPropPages},
     },
     persist::strategy::PersistenceStrategy,
-    wal::LSN,
 };
-
+use raphtory_api::core::entities::properties::meta::Meta;
 use std::{
     path::{Path, PathBuf},
     sync::Arc,

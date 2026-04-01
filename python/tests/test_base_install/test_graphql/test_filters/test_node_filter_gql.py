@@ -140,7 +140,7 @@ def test_nodes_filter_windowed_is_active(graph):
             }
         }
     }
-    run_graphql_test(query, expected, graph)
+    run_graphql_test(query, expected, graph, sort_output=True)
 
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])

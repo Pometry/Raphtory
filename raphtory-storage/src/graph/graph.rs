@@ -15,7 +15,8 @@ use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVarian
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GraphPropEntry,
+    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GIDResolver,
+    GraphPropEntry,
 };
 use thiserror::Error;
 
@@ -116,6 +117,13 @@ impl GraphStorage {
         }
     }
 
+    pub fn logical_to_physical(&self) -> &GIDResolver {
+        match self {
+            GraphStorage::Mem(graph) => &graph.graph.logical_to_physical,
+            GraphStorage::Unlocked(graph) => &graph.logical_to_physical,
+        }
+    }
+
     #[inline(always)]
     pub fn nodes(&self) -> NodesStorageEntry<'_> {
         match self {
@@ -123,6 +131,20 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 NodesStorageEntry::Unlocked(storage.storage().nodes().locked())
             }
+        }
+    }
+
+    pub fn num_node_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().nodes().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().nodes().num_segments(),
+        }
+    }
+
+    pub fn num_edge_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
         }
     }
 

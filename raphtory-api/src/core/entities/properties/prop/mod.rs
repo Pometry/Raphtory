@@ -1,6 +1,6 @@
 pub mod arrow;
-
 pub mod prop_array;
+pub mod prop_col;
 mod prop_enum;
 mod prop_ref_enum;
 mod prop_type;

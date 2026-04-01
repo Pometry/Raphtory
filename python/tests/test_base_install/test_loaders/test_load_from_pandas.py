@@ -272,6 +272,14 @@ def test_load_from_pandas_with_types():
         }
     )
 
+    nodes_meta_df = pd.DataFrame(
+        {
+            "id": [3, 4, 666, 6],
+            "name": ["Carol", "Dave", "Bowser", "Frank"],
+            "coins": [100, 150, 9999, 200],
+        }
+    )
+
     def assertions1(g):
         assert g.nodes.node_type == [
             "Person",
@@ -300,6 +308,19 @@ def test_load_from_pandas_with_types():
         shared_metadata={"tag": "test_tag"},
     )
     assertions1(g)
+
+    assert g.node(666) is None
+    assert g.node(3) is not None
+    g.load_node_metadata(
+        nodes_meta_df,
+        "id",
+        metadata=["name", "coins"],
+    )
+
+    assert g.node(666) is None
+    assert g.node(3) is not None
+    assert g.node(3).metadata.get("name") == "Carol"
+    assert g.node(3).metadata.get("coins") == 100
 
     g = PersistentGraph()
     g.load_nodes(
@@ -907,7 +928,7 @@ def test_loading_list_as_properties():
         properties=["marbles"],
     )
 
-    assert g.edge(1, 2).properties["marbles"] == ["red"]
+    assert g.edge(1, 2).properties["marbles"].tolist() == ["red"]
 
     df = pd.DataFrame(
         {
@@ -925,7 +946,7 @@ def test_loading_list_as_properties():
         properties=["marbles"],
     )
 
-    assert g.node(2).properties["marbles"] == ["blue"]
+    assert g.node(2).properties["marbles"].tolist() == ["blue"]
 
 
 def test_unparsable_props():

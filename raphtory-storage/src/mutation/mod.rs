@@ -2,8 +2,7 @@ use crate::{
     core_ops::CoreGraphOps,
     graph::graph::Immutable,
     mutation::{
-        addition_ops::InheritAdditionOps, deletion_ops::InheritDeletionOps,
-        property_addition_ops::InheritPropertyAdditionOps,
+        addition_ops::InheritAdditionOps, property_addition_ops::InheritPropertyAdditionOps,
     },
 };
 use parking_lot::RwLockWriteGuard;
@@ -33,7 +32,6 @@ use thiserror::Error;
 
 pub mod addition_ops;
 pub mod addition_ops_ext;
-pub mod deletion_ops;
 pub mod durability_ops;
 pub mod property_addition_ops;
 
@@ -75,6 +73,4 @@ pub trait InheritMutationOps: Base {}
 
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
 impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}
-impl<G: InheritMutationOps> InheritDeletionOps for G {}
-
 impl<T: CoreGraphOps + ?Sized> InheritMutationOps for Arc<T> {}

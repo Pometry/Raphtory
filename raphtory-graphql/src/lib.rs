@@ -54,6 +54,7 @@ mod graphql_test {
     };
     use async_graphql::UploadValue;
     use dynamic_graphql::{Request, Variables};
+    use itertools::Itertools;
     use raphtory::{
         db::{
             api::{
@@ -64,6 +65,7 @@ mod graphql_test {
         },
         prelude::*,
         serialise::GraphFolder,
+        test_utils::json_sort_by_name,
     };
     use raphtory_api::core::storage::arc_str::ArcStr;
     use serde_json::{json, Value};
@@ -1204,7 +1206,7 @@ mod graphql_test {
 
         let req = Request::new(req);
         let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
+        let data = json_sort_by_name(res.data.into_json().unwrap());
         assert_eq!(
             data,
             json!({
@@ -1231,6 +1233,7 @@ mod graphql_test {
             nodes {
               typeFilter(nodeTypes: ["a"]) {
                 list {
+                  name
                   neighbours {
                     list {
                       name
@@ -1245,7 +1248,7 @@ mod graphql_test {
 
         let req = Request::new(req);
         let res = schema.execute(req).await;
-        let data = res.data.into_json().unwrap();
+        let data = json_sort_by_name(res.data.into_json().unwrap());
         assert_eq!(
             data,
             json!({
@@ -1254,7 +1257,8 @@ mod graphql_test {
                     "typeFilter": {
                       "list": [
                         {
-                          "neighbours": {
+                            "name": "1",
+                            "neighbours": {
                             "list": [
                               {
                                 "name": "2"
@@ -1263,7 +1267,8 @@ mod graphql_test {
                           }
                         },
                         {
-                          "neighbours": {
+                            "name": "4",
+                            "neighbours": {
                             "list": [
                               {
                                 "name": "2"
@@ -1299,6 +1304,33 @@ mod graphql_test {
         graph1.add_edge(2, 4, 6, NO_PROPS, Some("a")).unwrap();
         graph1.add_edge(2, 5, 6, NO_PROPS, Some("a")).unwrap();
         graph1.add_edge(2, 3, 6, NO_PROPS, Some("a")).unwrap();
+
+        let all_nodes: Vec<_> = graph1.nodes().name().into_iter_values().collect();
+
+        // make sure we have the correct nodes
+        assert_eq!(
+            all_nodes.iter().sorted().collect_vec(),
+            ["1", "2", "3", "4", "5", "6"]
+        );
+        let all_edges: Vec<_> = graph1
+            .edges()
+            .id()
+            .map(|(src, dst)| (src.to_string(), dst.to_string()))
+            .collect();
+
+        // make sure we have the correct edges
+        assert_eq!(
+            all_edges.iter().cloned().sorted().collect_vec(),
+            [
+                ("1".to_string(), "2".to_string()),
+                ("2".to_string(), "4".to_string()),
+                ("3".to_string(), "2".to_string()),
+                ("3".to_string(), "6".to_string()),
+                ("4".to_string(), "5".to_string()),
+                ("4".to_string(), "6".to_string()),
+                ("5".to_string(), "6".to_string()),
+            ]
+        );
         let graph2 = Graph::new();
         graph2.add_metadata([("name", "graph2")]).unwrap();
         graph2.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
@@ -1343,22 +1375,16 @@ mod graphql_test {
         let req = Request::new(req);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        let expected_page: Vec<_> = all_nodes[1..4]
+            .iter()
+            .map(|node| json!({"name": node}))
+            .collect();
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "nodes": {
-                        "page": [
-                            {
-                                "name": "2"
-                            },
-                            {
-                                "name": "3"
-                            },
-                            {
-                                "name": "4"
-                            }
-                        ]
+                        "page": expected_page
                     }
                 }
             }),
@@ -1405,19 +1431,16 @@ mod graphql_test {
         let req = Request::new(req);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        let expected_page: Vec<_> = all_nodes[2..4]
+            .iter()
+            .map(|node| json!({"name": node}))
+            .collect();
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "nodes": {
-                        "page": [
-                            {
-                                "name": "3"
-                            },
-                            {
-                                "name": "4"
-                            }
-                        ]
+                        "page": expected_page
                     }
                 }
             }),
@@ -1438,19 +1461,16 @@ mod graphql_test {
         let req = Request::new(req);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        let expected_page: Vec<_> = all_edges[5..7]
+            .iter()
+            .map(|edge| json!({"id": edge}))
+            .collect();
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "edges": {
-                        "page": [
-                            {
-                                "id": ["5", "6"]
-                            },
-                            {
-                                "id": ["3", "6"]
-                            }
-                        ]
+                        "page": expected_page
                     }
                 }
             }),
@@ -1471,16 +1491,16 @@ mod graphql_test {
         let req = Request::new(req);
         let res = schema.execute(req).await;
         let data = res.data.into_json().unwrap();
+        let expected_page: Vec<_> = all_edges[6..]
+            .iter()
+            .map(|edge| json!({"id": edge}))
+            .collect();
         assert_eq!(
             data,
             json!({
                 "graph": {
                     "edges": {
-                        "page": [
-                            {
-                                "id": ["3", "6"]
-                            },
-                        ]
+                        "page": expected_page
                     }
                 }
             }),
