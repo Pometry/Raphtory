@@ -37,8 +37,8 @@ jobs:
         env:
           RUST_BACKTRACE: 1
         run: |
-          cargo build --package raphtory-graphql --bin raphtory-graphql --profile=build-fast
-          ./target/build-fast/raphtory-graphql server --work-dir graphs &
+          cargo build --package raphtory-server --bin raphtory-server --profile=build-fast
+          ./target/build-fast/raphtory-server server --work-dir graphs &
           cd graphql-bench
           make stress-test
       - name: Upload k6 report
