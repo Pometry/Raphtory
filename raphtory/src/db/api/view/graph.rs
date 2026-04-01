@@ -34,14 +34,12 @@ use crate::{
     serialise::{
         parquet::{
             encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
-            encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, ChannelRecordBatchSink,
-            RecordBatchKind, RecordBatchMessage,
+            encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink,
         },
         GraphPaths,
     },
 };
 use ahash::HashSet;
-#[cfg(feature = "io")]
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
@@ -55,7 +53,6 @@ use raphtory_api::{
         storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
     },
-    GraphType,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
@@ -294,6 +291,75 @@ fn df_columns_except(names: &[String], exclude: &[&str]) -> Vec<String> {
         .collect()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RecordBatchKind {
+    EdgesT,
+    EdgesC,
+    EdgesD,
+    NodesT,
+    NodesC,
+    GraphT,
+    GraphC,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct RecordBatchMessage {
+    batch: RecordBatch,
+    kind: RecordBatchKind,
+}
+
+impl RecordBatchMessage {
+    pub(crate) fn kind(&self) -> RecordBatchKind {
+        self.kind
+    }
+
+    pub(crate) fn into_batch(self) -> RecordBatch {
+        self.batch
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ChannelRecordBatchSink {
+    tx: crossbeam_channel::Sender<RecordBatchMessage>,
+    kind: RecordBatchKind,
+    _schema: SchemaRef,
+}
+
+impl ChannelRecordBatchSink {
+    pub(crate) fn new(
+        tx: crossbeam_channel::Sender<RecordBatchMessage>,
+        kind: RecordBatchKind,
+        schema: SchemaRef,
+    ) -> Self {
+        Self {
+            tx,
+            kind,
+            _schema: schema,
+        }
+    }
+}
+
+#[cfg(feature = "io")]
+impl RecordBatchSink for ChannelRecordBatchSink {
+    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
+        // sinks propagate their record batch kind to their messages
+        let record_batch_message = RecordBatchMessage {
+            batch,
+            kind: self.kind,
+        };
+
+        self.tx
+            .send(record_batch_message)
+            .map_err(|e| GraphError::IOErrorMsg(format!("RecordBatch receiver was dropped: {e}")))
+    }
+
+    fn finish(self) -> Result<(), GraphError> {
+        // implicitly drops self, so the transmitter (tx) is dropped as well
+        Ok(())
+    }
+}
+
+#[cfg(feature = "io")]
 #[doc(hidden)]
 pub fn materialize_using_recordbatches(
     graph: &impl GraphView,
@@ -396,6 +462,7 @@ pub fn materialize_using_recordbatches(
 
             let result = match kind {
                 RecordBatchKind::NodesC => {
+                    println!("Ingesting NodesC");
                     let node_c_props = df_columns_except(
                         &df_view.names,
                         &[
@@ -408,7 +475,7 @@ pub fn materialize_using_recordbatches(
                     let node_c_props_refs =
                         node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    load_node_props_from_df(
+                    let x = load_node_props_from_df(
                         df_view,
                         "rap_node_id",
                         None,
@@ -418,9 +485,12 @@ pub fn materialize_using_recordbatches(
                         &node_c_props_refs,
                         None,
                         &materialized,
-                    )
+                    );
+                    println!("Done ingesting NodesC");
+                    x
                 }
                 RecordBatchKind::NodesT => {
+                    println!("Ingesting NodesT");
                     let node_t_props = df_columns_except(
                         &df_view.names,
                         &["rap_node_vid", "rap_time", "rap_secondary_index"],
@@ -428,7 +498,7 @@ pub fn materialize_using_recordbatches(
                     let node_t_props_refs =
                         node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    load_nodes_from_df(
+                    let x = load_nodes_from_df(
                         df_view,
                         "rap_time",
                         Some("rap_secondary_index"),
@@ -440,9 +510,12 @@ pub fn materialize_using_recordbatches(
                         None,
                         &materialized,
                         false,
-                    )
+                    );
+                    println!("Done ingesting NodesT");
+                    x
                 }
                 RecordBatchKind::EdgesT => {
+                    println!("Ingesting EdgesT");
                     let edge_t_props = df_columns_except(
                         &df_view.names,
                         &[
@@ -458,7 +531,7 @@ pub fn materialize_using_recordbatches(
                     let edge_t_props_refs =
                         edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    load_edges_from_df(
+                    let x = load_edges_from_df(
                         df_view,
                         ColumnNames::new(
                             "rap_time",
@@ -476,9 +549,12 @@ pub fn materialize_using_recordbatches(
                         None,
                         &materialized,
                         false,
-                    )
+                    );
+                    println!("Done ingesting EdgesT");
+                    x
                 }
                 RecordBatchKind::EdgesC => {
+                    println!("Ingesting EdgesC");
                     let edge_c_props = df_columns_except(
                         &df_view.names,
                         &["rap_src_id", "rap_dst_id", "rap_edge_id", "rap_layer"],
@@ -486,7 +562,7 @@ pub fn materialize_using_recordbatches(
                     let edge_c_props_refs =
                         edge_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    load_edge_props_from_df(
+                    let x = load_edge_props_from_df(
                         df_view,
                         ColumnNames::new("", None, "rap_src_id", "rap_dst_id", Some("rap_layer")),
                         false,
@@ -494,51 +570,64 @@ pub fn materialize_using_recordbatches(
                         None,
                         None,
                         &materialized,
-                    )
+                    );
+                    println!("Done ingesting EdgesC");
+                    x
                 }
-                RecordBatchKind::EdgesD => load_edge_deletions_from_df(
-                    df_view,
-                    ColumnNames::new(
-                        "rap_time",
-                        Some("rap_secondary_index"),
-                        "rap_src_id",
-                        "rap_dst_id",
-                        Some("rap_layer"),
-                    )
-                    .with_layer_id_col("rap_layer_id")
-                    .with_edge_id_col("rap_edge_id"),
-                    false,
-                    None,
-                    &materialized,
-                ),
+                RecordBatchKind::EdgesD => {
+                    println!("Ingesting EdgesD");
+                    let x = load_edge_deletions_from_df(
+                        df_view,
+                        ColumnNames::new(
+                            "rap_time",
+                            Some("rap_secondary_index"),
+                            "rap_src_id",
+                            "rap_dst_id",
+                            Some("rap_layer"),
+                        )
+                        .with_layer_id_col("rap_layer_id")
+                        .with_edge_id_col("rap_edge_id"),
+                        false,
+                        None,
+                        &materialized,
+                    );
+                    println!("Done ingesting EdgesD");
+                    x
+                }
                 RecordBatchKind::GraphT => {
+                    println!("Ingesting GraphT");
                     let graph_t_props =
                         df_columns_except(&df_view.names, &["rap_time", "rap_secondary_index"]);
                     let graph_t_props_refs =
                         graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    load_graph_props_from_df(
+                    let x = load_graph_props_from_df(
                         df_view,
                         "rap_time",
                         Some("rap_secondary_index"),
                         Some(&graph_t_props_refs),
                         None,
                         &materialized,
-                    )
+                    );
+                    println!("Done ingesting GraphT");
+                    x
                 }
                 RecordBatchKind::GraphC => {
+                    println!("Ingesting GraphC");
                     let graph_c_props = df_columns_except(&df_view.names, &["rap_time"]);
                     let graph_c_props_refs =
                         graph_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    load_graph_props_from_df(
+                    let x = load_graph_props_from_df(
                         df_view,
                         "rap_time",
                         None,
                         None,
                         Some(&graph_c_props_refs),
                         &materialized,
-                    )
+                    );
+                    println!("Done ingesting GraphC");
+                    x
                 }
             };
 

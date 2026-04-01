@@ -38,7 +38,7 @@ use raphtory_api::{
     },
     GraphType,
 };
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
+use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 use std::{
     fs::File,
@@ -227,71 +227,6 @@ where
 
     fn finish(self) -> Result<(), GraphError> {
         self.close()?;
-        Ok(())
-    }
-}
-
-type RecordBatchTx = crossbeam_channel::Sender<RecordBatchMessage>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum RecordBatchKind {
-    EdgesT,
-    EdgesC,
-    EdgesD,
-    NodesT,
-    NodesC,
-    GraphT,
-    GraphC,
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct RecordBatchMessage {
-    batch: RecordBatch,
-    kind: RecordBatchKind,
-}
-
-impl RecordBatchMessage {
-    pub(crate) fn kind(&self) -> RecordBatchKind {
-        self.kind
-    }
-
-    pub(crate) fn into_batch(self) -> RecordBatch {
-        self.batch
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct ChannelRecordBatchSink {
-    tx: RecordBatchTx,
-    kind: RecordBatchKind,
-    _schema: SchemaRef,
-}
-
-impl ChannelRecordBatchSink {
-    pub(crate) fn new(tx: RecordBatchTx, kind: RecordBatchKind, schema: SchemaRef) -> Self {
-        Self {
-            tx,
-            kind,
-            _schema: schema,
-        }
-    }
-}
-
-impl RecordBatchSink for ChannelRecordBatchSink {
-    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
-        // sinks propagate their record batch kind to their messages
-        let record_batch_message = RecordBatchMessage {
-            batch,
-            kind: self.kind,
-        };
-
-        self.tx
-            .send(record_batch_message)
-            .map_err(|e| GraphError::IOErrorMsg(format!("RecordBatch receiver was dropped: {e}")))
-    }
-
-    fn finish(self) -> Result<(), GraphError> {
-        // implicitly drops self, so the transmitter (tx) is dropped as well
         Ok(())
     }
 }

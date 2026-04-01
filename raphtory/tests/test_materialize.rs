@@ -33,7 +33,11 @@ fn summarize_graph<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> GraphSu
         temporal_edges: graph.count_temporal_edges(),
         earliest_time: graph.earliest_time(),
         latest_time: graph.latest_time(),
-        layers: graph.unique_layers().map(|layer| layer.to_string()).sorted().collect(),
+        layers: graph
+            .unique_layers()
+            .map(|layer| layer.to_string())
+            .sorted()
+            .collect(),
     }
 }
 
@@ -157,19 +161,23 @@ fn test_materialize_snb_sf10_timings() {
         load_elapsed, source_summary.nodes, source_summary.edges, source_summary.temporal_edges
     );
 
-    let impl_start = Instant::now();
-    let materialize_impl_graph = g.materialize().unwrap();
-    let impl_elapsed = impl_start.elapsed();
-    let impl_summary = summarize_graph(&materialize_impl_graph);
-    drop(materialize_impl_graph);
-
+    println!("Starting materialize using RecordBatches...");
     let recordbatch_start = Instant::now();
     let recordbatch_graph =
         materialize_using_recordbatches(&g, None, g.core_graph().extension().config().clone())
             .unwrap();
     let recordbatch_elapsed = recordbatch_start.elapsed();
+    println!("Finished materialize using RecordBatches, took {recordbatch_elapsed:?}");
     let recordbatch_summary = summarize_graph(&recordbatch_graph);
     drop(recordbatch_graph);
+
+    println!("Starting materialize impl (old)...");
+    let impl_start = Instant::now();
+    let materialize_impl_graph = g.materialize().unwrap();
+    let impl_elapsed = impl_start.elapsed();
+    println!("Finished materialize impl (old), took {impl_elapsed:?}");
+    let impl_summary = summarize_graph(&materialize_impl_graph);
+    drop(materialize_impl_graph);
 
     assert_eq!(impl_summary, source_summary);
     assert_eq!(recordbatch_summary, source_summary);
