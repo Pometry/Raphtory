@@ -1070,7 +1070,7 @@ mod graphql_test {
         "##;
 
         let variables = json!({ "file": null, "overwrite": false });
-        let mut req = Request::new(query).variables(Variables::from_json(variables));
+        let mut req = Request::new(query).variables(Variables::from_json(variables)).data(Access::Rw);
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
