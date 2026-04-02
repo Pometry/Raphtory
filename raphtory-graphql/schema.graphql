@@ -1754,10 +1754,6 @@ type MutRoot {
 	"""
 	plugins: MutationPlugin!
 	"""
-	Returns the permissions namespace for managing roles and access policies.
-	"""
-	permissions: PermissionsPlugin!
-	"""
 	Delete graph from a path on the server.
 	"""
 	deleteGraph(path: String!): Boolean!
@@ -2908,14 +2904,6 @@ type PathFromNodeWindowSet {
 	list: [PathFromNode!]!
 }
 
-type PermissionsPlugin {
-	NoOps: String!
-}
-
-type PermissionsQueryPlugin {
-	NoOps: String!
-}
-
 """
 Boolean expression over a property value.
 
@@ -3148,7 +3136,12 @@ type QueryRoot {
 	"""
 	Returns a graph
 	"""
-	graph(path: String!): Graph!
+	graph(path: String!): Graph
+	"""
+	Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+	Requires at least INTROSPECT permission.
+	"""
+	graphMetadata(path: String!): MetaGraph
 	"""
 	Update graph query, has side effects to update graph state
 	
@@ -3184,16 +3177,13 @@ type QueryRoot {
 	"""
 	plugins: QueryPlugin!
 	"""
-	Encodes graph and returns as string
+	Encodes graph and returns as string.
+	If the caller has filtered access, the returned graph is a materialized view of the filter.
 	
 	Returns:: Base64 url safe encoded string
 	"""
 	receiveGraph(path: String!): String!
 	version: String!
-	"""
-	Returns the permissions namespace for inspecting roles and access policies (admin only).
-	"""
-	permissions: PermissionsQueryPlugin!
 }
 
 type ShortestPathOutput {

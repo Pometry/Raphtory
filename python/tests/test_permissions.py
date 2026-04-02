@@ -40,7 +40,9 @@ QUERY_META_JIRA = """query { graphMetadata(path: "jira") { path nodeCount } }"""
 CREATE_JIRA = """mutation { newGraph(path:"jira", graphType:EVENT) }"""
 CREATE_ADMIN = """mutation { newGraph(path:"admin", graphType:EVENT) }"""
 CREATE_TEAM_JIRA = """mutation { newGraph(path:"team/jira", graphType:EVENT) }"""
-CREATE_TEAM_CONFLUENCE = """mutation { newGraph(path:"team/confluence", graphType:EVENT) }"""
+CREATE_TEAM_CONFLUENCE = (
+    """mutation { newGraph(path:"team/confluence", graphType:EVENT) }"""
+)
 CREATE_DEEP = """mutation { newGraph(path:"a/b/c", graphType:EVENT) }"""
 QUERY_TEAM_JIRA = """query { graph(path: "team/jira") { path } }"""
 QUERY_TEAM_GRAPHS = """query { namespace(path: "team") { graphs { list { path } } } }"""
@@ -242,14 +244,18 @@ def test_namespace_grant_does_not_cover_root_level_graphs():
         gql(CREATE_JIRA)
         gql(CREATE_TEAM_JIRA)
         create_role("analyst")
-        grant_namespace("analyst", "team", "READ")  # covers team/jira but not root-level jira
+        grant_namespace(
+            "analyst", "team", "READ"
+        )  # covers team/jira but not root-level jira
 
         response = gql(QUERY_TEAM_JIRA, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
 
         response = gql(QUERY_JIRA, headers=ANALYST_HEADERS)
         assert "errors" not in response, response
-        assert response["data"]["graph"] is None  # root-level graph not covered by namespace grant
+        assert (
+            response["data"]["graph"] is None
+        )  # root-level graph not covered by namespace grant
 
 
 # --- WRITE permission enforcement ---
@@ -339,7 +345,9 @@ def test_analyst_cannot_call_permissions_mutations():
         assert "errors" in response
         assert "Access denied" in response["errors"][0]["message"]
         # Verify "hacker" role was not created as a side effect
-        roles = gql("query { permissions { listRoles } }")["data"]["permissions"]["listRoles"]
+        roles = gql("query { permissions { listRoles } }")["data"]["permissions"][
+            "listRoles"
+        ]
         assert "hacker" not in roles
 
 
@@ -446,7 +454,10 @@ def test_grantgraph_introspect_rejected():
             'mutation { permissions { grantGraph(role: "analyst", path: "jira", permission: INTROSPECT) { success } } }'
         )
         assert "errors" in response
-        assert "INTROSPECT cannot be granted on a graph" in response["errors"][0]["message"]
+        assert (
+            "INTROSPECT cannot be granted on a graph"
+            in response["errors"][0]["message"]
+        )
 
 
 def test_graph_metadata_allowed_with_introspect():
@@ -755,8 +766,7 @@ def test_receive_graph_with_filtered_access():
             ("bob", "us-east"),
             ("carol", "us-west"),
         ]:
-            resp = gql(
-                f"""query {{
+            resp = gql(f"""query {{
                     updateGraph(path: "jira") {{
                         addNode(
                             time: 1,
@@ -764,8 +774,7 @@ def test_receive_graph_with_filtered_access():
                             properties: [{{ key: "region", value: {{ str: "{region}" }} }}]
                         ) {{ success }}
                     }}
-                }}"""
-            )
+                }}""")
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
         create_role("analyst")
@@ -869,16 +878,18 @@ def test_filter_and_node_node():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ and: ['
+            "{ and: ["
             '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
             '{ node: { property: { name: "role", where: { eq: { str: "admin" } } } } }'
-            '] }',
+            "] }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
         analyst_names = {
             n["name"]
-            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "nodes"
+            ]["list"]
         }
         assert analyst_names == {"alice"}, f"expected only alice, got {analyst_names}"
 
@@ -911,18 +922,22 @@ def test_filter_and_edge_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ and: ['
+            "{ and: ["
             '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } },'
             '{ edge: { property: { name: "kind", where: { eq: { str: "follows" } } } } }'
-            '] }',
+            "] }",
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
         analyst_edges = {
             (e["src"]["name"], e["dst"]["name"])
-            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "edges"
+            ]["list"]
         }
-        assert analyst_edges == {("a", "c")}, f"expected only (a,c), got {analyst_edges}"
+        assert analyst_edges == {
+            ("a", "c")
+        }, f"expected only (a,c), got {analyst_edges}"
 
 
 def test_filter_and_graph_graph():
@@ -943,16 +958,18 @@ def test_filter_and_graph_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ and: ['
-            '{ graph: { window: { start: 1, end: 15 } } },'
-            '{ graph: { window: { start: 5, end: 25 } } }'
-            '] }',
+            "{ and: ["
+            "{ graph: { window: { start: 1, end: 15 } } },"
+            "{ graph: { window: { start: 5, end: 25 } } }"
+            "] }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
         analyst_names = {
             n["name"]
-            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "nodes"
+            ]["list"]
         }
         assert analyst_names == {"middle"}, f"expected only middle, got {analyst_names}"
 
@@ -962,7 +979,11 @@ def test_filter_and_node_edge():
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
-        for name, region in [("alice", "us-west"), ("bob", "us-east"), ("carol", "us-west")]:
+        for name, region in [
+            ("alice", "us-west"),
+            ("bob", "us-east"),
+            ("carol", "us-west"),
+        ]:
             resp = gql(f"""query {{
                 updateGraph(path: "jira") {{
                     addNode(
@@ -973,7 +994,11 @@ def test_filter_and_node_edge():
             }}""")
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
-        for src, dst, weight in [("alice", "bob", 3), ("alice", "carol", 7), ("bob", "carol", 9)]:
+        for src, dst, weight in [
+            ("alice", "bob", 3),
+            ("alice", "carol", 7),
+            ("bob", "carol", 9),
+        ]:
             resp = gql(f"""query {{
                 updateGraph(path: "jira") {{
                     addEdge(
@@ -990,10 +1015,10 @@ def test_filter_and_node_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ and: ['
+            "{ and: ["
             '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
             '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
-            '] }',
+            "] }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1001,13 +1026,20 @@ def test_filter_and_node_edge():
 
         analyst_names = {
             n["name"]
-            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "nodes"
+            ]["list"]
         }
-        assert analyst_names == {"alice", "carol"}, f"expected us-west nodes, got {analyst_names}"
+        assert analyst_names == {
+            "alice",
+            "carol",
+        }, f"expected us-west nodes, got {analyst_names}"
 
         analyst_edges = {
             (e["src"]["name"], e["dst"]["name"])
-            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "edges"
+            ]["list"]
         }
         # Sequential And: Node(us-west) hides bob and bob's edges, then Edge(weight≥5) keeps alice→carol (7).
         assert analyst_edges == {
@@ -1040,16 +1072,18 @@ def test_filter_and_node_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ and: ['
-            '{ graph: { window: { start: 5, end: 15 } } },'
+            "{ and: ["
+            "{ graph: { window: { start: 5, end: 15 } } },"
             '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }'
-            '] }',
+            "] }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
         analyst_names = {
             n["name"]
-            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "nodes"
+            ]["list"]
         }
         assert analyst_names == {"bob"}, f"expected only bob, got {analyst_names}"
 
@@ -1079,18 +1113,22 @@ def test_filter_and_edge_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ and: ['
-            '{ graph: { window: { start: 5, end: 15 } } },'
+            "{ and: ["
+            "{ graph: { window: { start: 5, end: 15 } } },"
             '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
-            '] }',
+            "] }",
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
         analyst_edges = {
             (e["src"]["name"], e["dst"]["name"])
-            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "edges"
+            ]["list"]
         }
-        assert analyst_edges == {("b", "c")}, f"expected only (b,c), got {analyst_edges}"
+        assert analyst_edges == {
+            ("b", "c")
+        }, f"expected only (b,c), got {analyst_edges}"
 
 
 def test_filter_or_node_node():
@@ -1114,18 +1152,23 @@ def test_filter_or_node_node():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ or: ['
+            "{ or: ["
             '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
             '{ node: { property: { name: "region", where: { eq: { str: "us-east" } } } } }'
-            '] }',
+            "] }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
         analyst_names = {
             n["name"]
-            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"]["nodes"]["list"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "nodes"
+            ]["list"]
         }
-        assert analyst_names == {"alice", "bob"}, f"expected alice+bob, got {analyst_names}"
+        assert analyst_names == {
+            "alice",
+            "bob",
+        }, f"expected alice+bob, got {analyst_names}"
 
 
 def test_filter_or_edge_edge():
@@ -1149,16 +1192,18 @@ def test_filter_or_edge_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ or: ['
+            "{ or: ["
             '{ edge: { property: { name: "weight", where: { eq: { i64: 3 } } } } },'
             '{ edge: { property: { name: "weight", where: { eq: { i64: 9 } } } } }'
-            '] }',
+            "] }",
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
         analyst_edges = {
             (e["src"]["name"], e["dst"]["name"])
-            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"]["edges"]["list"]
+            for e in gql(QUERY_EDGES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "edges"
+            ]["list"]
         }
         assert analyst_edges == {
             ("a", "b"),
@@ -1266,12 +1311,22 @@ def test_discover_revoked_when_only_child_revoked():
         create_role("analyst")
         grant_graph("analyst", "team/jira", "READ")
 
-        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        paths = [
+            n["path"]
+            for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"][
+                "children"
+            ]["list"]
+        ]
         assert "team" in paths  # baseline: DISCOVER present
 
         revoke_graph("analyst", "team/jira")
 
-        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        paths = [
+            n["path"]
+            for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"][
+                "children"
+            ]["list"]
+        ]
         assert "team" not in paths  # DISCOVER gone
 
 
@@ -1286,11 +1341,21 @@ def test_discover_stays_when_one_of_two_children_revoked():
         grant_graph("analyst", "team/confluence", "READ")
 
         revoke_graph("analyst", "team/jira")
-        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        paths = [
+            n["path"]
+            for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"][
+                "children"
+            ]["list"]
+        ]
         assert "team" in paths  # still visible via team/confluence
 
         revoke_graph("analyst", "team/confluence")
-        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        paths = [
+            n["path"]
+            for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"][
+                "children"
+            ]["list"]
+        ]
         assert "team" not in paths  # now gone
 
 
@@ -1305,7 +1370,12 @@ def test_discover_stays_when_parent_has_explicit_namespace_read():
 
         revoke_graph("analyst", "team/jira")
 
-        paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        paths = [
+            n["path"]
+            for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"][
+                "children"
+            ]["list"]
+        ]
         assert "team" in paths  # still visible via explicit namespace READ
 
 
@@ -1317,18 +1387,38 @@ def test_discover_revoked_for_nested_namespaces():
         create_role("analyst")
         grant_graph("analyst", "a/b/c", "READ")  # "a" and "a/b" both get DISCOVER
 
-        root_paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        root_paths = [
+            n["path"]
+            for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"][
+                "children"
+            ]["list"]
+        ]
         assert "a" in root_paths
 
-        a_paths = [n["path"] for n in gql(QUERY_A_CHILDREN, headers=ANALYST_HEADERS)["data"]["namespace"]["children"]["list"]]
+        a_paths = [
+            n["path"]
+            for n in gql(QUERY_A_CHILDREN, headers=ANALYST_HEADERS)["data"][
+                "namespace"
+            ]["children"]["list"]
+        ]
         assert "a/b" in a_paths
 
         revoke_graph("analyst", "a/b/c")
 
-        root_paths = [n["path"] for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"]["children"]["list"]]
+        root_paths = [
+            n["path"]
+            for n in gql(QUERY_NS_CHILDREN, headers=ANALYST_HEADERS)["data"]["root"][
+                "children"
+            ]["list"]
+        ]
         assert "a" not in root_paths
 
-        a_paths = [n["path"] for n in gql(QUERY_A_CHILDREN, headers=ANALYST_HEADERS)["data"]["namespace"]["children"]["list"]]
+        a_paths = [
+            n["path"]
+            for n in gql(QUERY_A_CHILDREN, headers=ANALYST_HEADERS)["data"][
+                "namespace"
+            ]["children"]["list"]
+        ]
         assert "a/b" not in a_paths
 
 
@@ -1456,13 +1546,11 @@ def test_analyst_send_graph_valid_data_with_namespace_write():
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
         # Add a node so the graph has content to verify after the roundtrip
-        gql(
-            """query {
+        gql("""query {
                 updateGraph(path: "jira") {
                     addNode(time: 1, name: "alice", properties: []) { success }
                 }
-            }"""
-        )
+            }""")
 
         # Admin downloads the graph as valid base64
         encoded = gql('query { receiveGraph(path: "jira") }')["data"]["receiveGraph"]
