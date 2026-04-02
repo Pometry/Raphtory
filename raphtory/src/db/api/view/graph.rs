@@ -22,14 +22,17 @@ use crate::{
 };
 #[cfg(feature = "io")]
 use crate::{
-    io::arrow::{
-        dataframe::{DFChunk, DFView},
-        df_loaders::{
-            edge_props::load_edges_from_df as load_edge_props_from_df,
-            edges::{load_edges_from_df, ColumnNames},
-            load_edge_deletions_from_df, load_graph_props_from_df,
-            nodes::{load_node_props_from_df, load_nodes_from_df},
+    io::{
+        arrow::{
+            dataframe::{DFChunk, DFView},
+            df_loaders::{
+                edge_props::load_edges_from_df as load_edge_props_from_df,
+                edges::{load_edges_from_df, ColumnNames},
+                load_edge_deletions_from_df, load_graph_props_from_df,
+                nodes::{load_node_props_from_df, load_nodes_from_df},
+            },
         },
+        ENCODE_POOL, LOAD_POOL,
     },
     serialise::{
         parquet::{
@@ -420,11 +423,11 @@ pub fn materialize_using_recordbatches(
     }
 
     let mut scope_result = Ok(());
-    rayon::scope(|scope| {
+    std::thread::scope(|scope| {
         let (producer_result_tx, producer_result_rx) = crossbeam_channel::bounded(1);
         scope.spawn({
             let tx = tx.clone();
-            move |_| {
+            move || {
                 let make_sink = |kind| {
                     let tx = tx.clone();
                     move |schema: SchemaRef, _chunk: usize, _num_digits: usize| {
@@ -434,7 +437,7 @@ pub fn materialize_using_recordbatches(
 
                 // Keep encode order aligned with loader dependencies so the consumer can ingest
                 // batches immediately as they arrive
-                let result = (|| -> Result<(), GraphError> {
+                let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
                     encode_nodes_cprop(graph, make_sink(RecordBatchKind::NodesC))?;
                     encode_nodes_tprop(graph, make_sink(RecordBatchKind::NodesT))?;
                     encode_edge_tprop(graph, make_sink(RecordBatchKind::EdgesT))?;
@@ -443,7 +446,7 @@ pub fn materialize_using_recordbatches(
                     encode_graph_tprop(graph, make_sink(RecordBatchKind::GraphT))?;
                     encode_graph_cprop(graph, make_sink(RecordBatchKind::GraphC))?;
                     Ok(())
-                })();
+                });
 
                 let _ = producer_result_tx.send(result);
             }
@@ -475,17 +478,19 @@ pub fn materialize_using_recordbatches(
                     let node_c_props_refs =
                         node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = load_node_props_from_df(
-                        df_view,
-                        "rap_node_id",
-                        None,
-                        Some("rap_node_type"),
-                        Some("rap_node_vid"),
-                        Some("rap_node_type_id"),
-                        &node_c_props_refs,
-                        None,
-                        &materialized,
-                    );
+                    let x = LOAD_POOL.install(|| {
+                        load_node_props_from_df(
+                            df_view,
+                            "rap_node_id",
+                            None,
+                            Some("rap_node_type"),
+                            Some("rap_node_vid"),
+                            Some("rap_node_type_id"),
+                            &node_c_props_refs,
+                            None,
+                            &materialized,
+                        )
+                    });
                     println!("Done ingesting NodesC");
                     x
                 }
@@ -531,25 +536,27 @@ pub fn materialize_using_recordbatches(
                     let edge_t_props_refs =
                         edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = load_edges_from_df(
-                        df_view,
-                        ColumnNames::new(
-                            "rap_time",
-                            Some("rap_secondary_index"),
-                            "rap_src_id",
-                            "rap_dst_id",
-                            Some("rap_layer"),
+                    let x = LOAD_POOL.install(|| {
+                        load_edges_from_df(
+                            df_view,
+                            ColumnNames::new(
+                                "rap_time",
+                                Some("rap_secondary_index"),
+                                "rap_src_id",
+                                "rap_dst_id",
+                                Some("rap_layer"),
+                            )
+                            .with_layer_id_col("rap_layer_id")
+                            .with_edge_id_col("rap_edge_id"),
+                            false,
+                            &edge_t_props_refs,
+                            &[],
+                            None,
+                            None,
+                            &materialized,
+                            false,
                         )
-                        .with_layer_id_col("rap_layer_id")
-                        .with_edge_id_col("rap_edge_id"),
-                        false,
-                        &edge_t_props_refs,
-                        &[],
-                        None,
-                        None,
-                        &materialized,
-                        false,
-                    );
+                    });
                     println!("Done ingesting EdgesT");
                     x
                 }
@@ -562,35 +569,45 @@ pub fn materialize_using_recordbatches(
                     let edge_c_props_refs =
                         edge_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = load_edge_props_from_df(
-                        df_view,
-                        ColumnNames::new("", None, "rap_src_id", "rap_dst_id", Some("rap_layer")),
-                        false,
-                        &edge_c_props_refs,
-                        None,
-                        None,
-                        &materialized,
-                    );
+                    let x = LOAD_POOL.install(|| {
+                        load_edge_props_from_df(
+                            df_view,
+                            ColumnNames::new(
+                                "",
+                                None,
+                                "rap_src_id",
+                                "rap_dst_id",
+                                Some("rap_layer"),
+                            ),
+                            false,
+                            &edge_c_props_refs,
+                            None,
+                            None,
+                            &materialized,
+                        )
+                    });
                     println!("Done ingesting EdgesC");
                     x
                 }
                 RecordBatchKind::EdgesD => {
                     println!("Ingesting EdgesD");
-                    let x = load_edge_deletions_from_df(
-                        df_view,
-                        ColumnNames::new(
-                            "rap_time",
-                            Some("rap_secondary_index"),
-                            "rap_src_id",
-                            "rap_dst_id",
-                            Some("rap_layer"),
+                    let x = LOAD_POOL.install(|| {
+                        load_edge_deletions_from_df(
+                            df_view,
+                            ColumnNames::new(
+                                "rap_time",
+                                Some("rap_secondary_index"),
+                                "rap_src_id",
+                                "rap_dst_id",
+                                Some("rap_layer"),
+                            )
+                            .with_layer_id_col("rap_layer_id")
+                            .with_edge_id_col("rap_edge_id"),
+                            false,
+                            None,
+                            &materialized,
                         )
-                        .with_layer_id_col("rap_layer_id")
-                        .with_edge_id_col("rap_edge_id"),
-                        false,
-                        None,
-                        &materialized,
-                    );
+                    });
                     println!("Done ingesting EdgesD");
                     x
                 }
@@ -601,14 +618,16 @@ pub fn materialize_using_recordbatches(
                     let graph_t_props_refs =
                         graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = load_graph_props_from_df(
-                        df_view,
-                        "rap_time",
-                        Some("rap_secondary_index"),
-                        Some(&graph_t_props_refs),
-                        None,
-                        &materialized,
-                    );
+                    let x = LOAD_POOL.install(|| {
+                        load_graph_props_from_df(
+                            df_view,
+                            "rap_time",
+                            Some("rap_secondary_index"),
+                            Some(&graph_t_props_refs),
+                            None,
+                            &materialized,
+                        )
+                    });
                     println!("Done ingesting GraphT");
                     x
                 }
@@ -618,14 +637,16 @@ pub fn materialize_using_recordbatches(
                     let graph_c_props_refs =
                         graph_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = load_graph_props_from_df(
-                        df_view,
-                        "rap_time",
-                        None,
-                        None,
-                        Some(&graph_c_props_refs),
-                        &materialized,
-                    );
+                    let x = LOAD_POOL.install(|| {
+                        load_graph_props_from_df(
+                            df_view,
+                            "rap_time",
+                            None,
+                            None,
+                            Some(&graph_c_props_refs),
+                            &materialized,
+                        )
+                    });
                     println!("Done ingesting GraphC");
                     x
                 }
