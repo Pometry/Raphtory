@@ -1115,9 +1115,11 @@ mod graphql_test {
             sendGraph(path: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
-        let req = Request::new(query).variables(Variables::from_json(
-            json!({ "graph": graph_str, "overwrite": false }),
-        ));
+        let req = Request::new(query)
+            .variables(Variables::from_json(
+                json!({ "graph": graph_str, "overwrite": false }),
+            ))
+            .data(Access::Rw);
 
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
@@ -1630,7 +1632,7 @@ mod graphql_test {
           createSubgraph(parentPath: "graph", newPath: "graph2", nodes: ["1", "2"], overwrite: false)
         }
         "#;
-        let req = Request::new(req);
+        let req = Request::new(req).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
         let req = r#"
@@ -1638,7 +1640,7 @@ mod graphql_test {
           createSubgraph(parentPath: "graph", newPath: "namespace1/graph3", nodes: ["2", "3", "4"], overwrite: false)
         }
         "#;
-        let req = Request::new(req);
+        let req = Request::new(req).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
 
