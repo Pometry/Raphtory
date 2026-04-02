@@ -12,7 +12,12 @@ use raphtory::{
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{ops::Range, path::PathBuf, time::Instant};
+use std::{
+    fs, io,
+    ops::Range,
+    path::{Path, PathBuf},
+    time::Instant,
+};
 
 #[cfg(feature = "io")]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,9 +47,23 @@ fn summarize_graph<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> GraphSu
 }
 
 #[cfg(feature = "io")]
-fn default_snb_sf10_graph_path() -> PathBuf {
+fn default_sf10_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../ldbc/data/social_network-sf10-CsvComposite-LongDateFormatter/graph")
+}
+
+#[cfg(feature = "io")]
+fn default_sf10_materialized_graphs_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../ldbc/data/materialized-graphs")
+}
+
+#[cfg(feature = "io")]
+fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
+    match fs::remove_dir_all(path.as_ref()) {
+        Ok(()) => Ok(()),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(err) => Err(err),
+    }
 }
 
 #[test]
@@ -139,9 +158,15 @@ fn test_materialize_using_recordbatches_matches_materialize() {
 #[test]
 #[ignore = "requires a locally persisted SNB SF10 graph produced by ldbc/load_snb_sf10.py"]
 fn test_materialize_snb_sf10_timings() {
-    let graph_path = std::env::var_os("RAPHTORY_SNB_SF10_GRAPH")
-        .map(PathBuf::from)
-        .unwrap_or_else(default_snb_sf10_graph_path);
+    let graph_path = default_sf10_graph_path();
+    let old_materialize_graph_path =
+        default_sf10_materialized_graphs_path().join("old_materialize");
+    let rb_materialize_graph_path = default_sf10_materialized_graphs_path().join("rb_materialize");
+    // clear out the directories in case they had previous files in them
+    remove_dir_all_ignore_not_found(&old_materialize_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(&rb_materialize_graph_path).unwrap();
+    fs::create_dir_all(&old_materialize_graph_path).unwrap();
+    fs::create_dir_all(&rb_materialize_graph_path).unwrap();
 
     if !graph_path.exists() {
         eprintln!("SNB SF10 graph not found at {}", graph_path.display());
@@ -161,23 +186,26 @@ fn test_materialize_snb_sf10_timings() {
         load_elapsed, source_summary.nodes, source_summary.edges, source_summary.temporal_edges
     );
 
-    println!("Starting materialize using RecordBatches...");
-    let recordbatch_start = Instant::now();
-    let recordbatch_graph =
-        materialize_using_recordbatches(&g, None, g.core_graph().extension().config().clone())
-            .unwrap();
-    let recordbatch_elapsed = recordbatch_start.elapsed();
-    println!("Finished materialize using RecordBatches, took {recordbatch_elapsed:?}");
-    let recordbatch_summary = summarize_graph(&recordbatch_graph);
-    drop(recordbatch_graph);
-
     println!("Starting materialize impl (old)...");
     let impl_start = Instant::now();
-    let materialize_impl_graph = g.materialize().unwrap();
+    let materialize_impl_graph = g.materialize_at(&old_materialize_graph_path).unwrap();
     let impl_elapsed = impl_start.elapsed();
     println!("Finished materialize impl (old), took {impl_elapsed:?}");
     let impl_summary = summarize_graph(&materialize_impl_graph);
     drop(materialize_impl_graph);
+
+    println!("Starting materialize using RecordBatches...");
+    let recordbatch_start = Instant::now();
+    let recordbatch_graph = materialize_using_recordbatches(
+        &g,
+        Some(&rb_materialize_graph_path),
+        g.core_graph().extension().config().clone(),
+    )
+    .unwrap();
+    let recordbatch_elapsed = recordbatch_start.elapsed();
+    println!("Finished materialize using RecordBatches, took {recordbatch_elapsed:?}");
+    let recordbatch_summary = summarize_graph(&recordbatch_graph);
+    drop(recordbatch_graph);
 
     assert_eq!(impl_summary, source_summary);
     assert_eq!(recordbatch_summary, source_summary);
