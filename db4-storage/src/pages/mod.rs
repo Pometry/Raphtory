@@ -1,5 +1,5 @@
-use crate::VID;
 use crate::{
+    EID, LocalPOS, VID,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
@@ -7,7 +7,6 @@ use crate::{
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     state::StateIndex,
     wal::{GraphWalOps, WalOps},
-    LocalPOS,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -16,19 +15,18 @@ use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::{properties::meta::Meta, LayerId},
+    entities::{LayerId, properties::meta::Meta},
     utils::time::{InputTime, TryIntoInputTime},
 };
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
     sync::{
-        atomic::{self, AtomicUsize},
         Arc,
+        atomic::{self, AtomicUsize},
     },
 };
 use tinyvec::TinyVec;
-use crate::EID;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -61,11 +59,11 @@ pub struct GraphStore<
 }
 
 impl<
-        NS: NodeSegmentOps<Extension = EXT>,
-        ES: EdgeSegmentOps<Extension = EXT>,
-        GS: GraphPropSegmentOps<Extension = EXT>,
-        EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-    > GraphStore<NS, ES, GS, EXT>
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+> GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
@@ -96,11 +94,11 @@ pub struct ReadLockedGraphStore<
 }
 
 impl<
-        NS: NodeSegmentOps<Extension = EXT>,
-        ES: EdgeSegmentOps<Extension = EXT>,
-        GS: GraphPropSegmentOps<Extension = EXT>,
-        EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-    > GraphStore<NS, ES, GS, EXT>
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+> GraphStore<NS, ES, GS, EXT>
 {
     pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
         let node_meta = Meta::new_for_nodes();
@@ -347,11 +345,11 @@ impl<I: From<usize> + Send> SegmentCounts<I> {
 }
 
 impl<
-        NS: NodeSegmentOps<Extension = EXT>,
-        ES: EdgeSegmentOps<Extension = EXT>,
-        GS: GraphPropSegmentOps<Extension = EXT>,
-        EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-    > Drop for GraphStore<NS, ES, GS, EXT>
+    NS: NodeSegmentOps<Extension = EXT>,
+    ES: EdgeSegmentOps<Extension = EXT>,
+    GS: GraphPropSegmentOps<Extension = EXT>,
+    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+> Drop for GraphStore<NS, ES, GS, EXT>
 {
     fn drop(&mut self) {
         match self.flush() {

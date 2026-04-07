@@ -28,7 +28,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
-            EID,
+            LayerId, EID,
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
@@ -43,7 +43,6 @@ use std::{
         mpsc,
     },
 };
-use raphtory_api::core::entities::LayerId;
 use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::{
