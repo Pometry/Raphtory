@@ -18,7 +18,7 @@ use raphtory_api::core::{
         EID, LayerId, VID,
         properties::{
             meta::Meta,
-            prop::{AsPropRef, Prop, PropRef},
+            prop::{AsPropRef, Prop},
         },
     },
 };

@@ -6,11 +6,12 @@ use crate::{
     segments::node::segment::MemNodeSegment,
     wal::LSN,
 };
+use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::entities::{
     EID, GID, LayerId, VID,
     properties::{
         meta::{NODE_ID_IDX, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::{AsPropRef, Prop, PropRef},
+        prop::{AsPropRef, Prop},
     },
 };
 use raphtory_core::{
@@ -37,7 +38,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
             old_est_size,
         }
     }
-
     #[inline(always)]
     pub fn resolve_pos(&self, node_id: VID) -> Option<LocalPOS> {
         let (page, pos) = resolve_pos(node_id, self.mut_segment.max_page_len());
@@ -243,6 +243,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
 
     pub fn set_lsn(&mut self, lsn: LSN) {
         self.mut_segment.set_lsn(lsn);
+    }
+}
+
+impl<'a, NS: NodeSegmentOps> NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS> {
+    pub fn unlocked<R>(&mut self, op: impl FnOnce() -> R) -> R {
+        RwLockWriteGuard::unlocked(&mut self.mut_segment, op)
     }
 }
 

@@ -296,6 +296,8 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
 
     /// Select a segment using `row` as a hint and reserves `num_rows` in that segment.
     /// Returns the reserved position and a locked writer for that segment.
+    ///
+    /// # Deadlock Safety: do not hold any node segment locks when calling this function!
     pub fn reserve_and_lock_segment(
         &self,
         row: usize,
@@ -305,43 +307,24 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
     ) {
         let mut slot_idx = row % *N;
-        let mut segment_id = *self.free_segments[slot_idx].read_recursive();
+        // No point in multiple threads getting past here as they would just content on the writer lock
+        let mut slot = self.free_segments[slot_idx].write();
+        let mut segment_id = *slot;
 
-        // Iterate through `free_segments` until we can acquire a write lock on a free segment.
-        // With the write lock, try reserving `num_rows` in that segment.
-        // If the candidate segment is full, create or retrieve a new free segment from the slot
-        // and try again.
-        loop {
-            match self.try_writer(segment_id) {
-                None => {
-                    // The current segment is being written to, round-robin to the next slot.
-                    slot_idx = (slot_idx + 1) % *N;
-                    let slot = self.free_segments[slot_idx].read_recursive();
-                    segment_id = *slot;
-                }
-                Some(writer) => {
-                    match self.reserve_segment_rows(writer.page, num_rows) {
-                        None => {
-                            // The current segment is full, drop its lock and
-                            // check if a new free segment has been added to the slot or create a new one.
-                            drop(writer);
-
-                            let mut slot = self.free_segments[slot_idx].write();
-
-                            // Check our slot to see if some other thread has pushed a new free segment.
-                            if *slot == segment_id {
-                                // The segment is still the same, so we need to create a new one.
-                                segment_id = self.push_new_segment();
-                                *slot = segment_id;
-                            } else {
-                                // There is another free segment in the slot, retry using it.
-                                segment_id = *slot;
-                            }
-                        }
-                        Some(local_pos) => return (LocalPOS(local_pos), writer),
-                    }
-                }
+        let writer = self.writer(segment_id);
+        match self.reserve_segment_rows(writer.page, num_rows) {
+            None => {
+                // The current segment is full, drop its lock and push a new free segment
+                drop(writer);
+                segment_id = self.push_new_segment();
+                *slot = segment_id;
+                let writer = self.writer(segment_id);
+                let local_pos = self
+                    .reserve_segment_rows(writer.page, num_rows)
+                    .expect("new segment should never be full");
+                (LocalPOS(local_pos), writer)
             }
+            Some(local_pos) => (LocalPOS(local_pos), writer),
         }
     }
 

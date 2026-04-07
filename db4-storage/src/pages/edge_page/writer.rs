@@ -10,7 +10,7 @@ use raphtory_api::core::entities::{
     EID, LayerId, VID,
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
-        prop::{AsPropRef, Prop, PropRef},
+        prop::{AsPropRef, Prop},
     },
 };
 use raphtory_core::storage::timeindex::{AsTime, EventTime};

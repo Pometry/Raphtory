@@ -1,11 +1,13 @@
+use crate::VID;
 use crate::{
-    LocalPOS,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
+    state::StateIndex,
     wal::{GraphWalOps, WalOps},
+    LocalPOS,
 };
 use edge_page::writer::EdgeWriter;
 use edge_store::EdgeStorageInner;
@@ -14,24 +16,19 @@ use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
 use raphtory_api::core::{
-    entities::{LayerId, properties::meta::Meta},
+    entities::{properties::meta::Meta, LayerId},
     utils::time::{InputTime, TryIntoInputTime},
 };
 use rayon::prelude::*;
-
-use crate::state::StateIndex;
-use raphtory_core::{
-    entities::{EID, VID},
-    storage::timeindex::EventTime,
-};
 use std::{
     path::{Path, PathBuf},
     sync::{
-        Arc,
         atomic::{self, AtomicUsize},
+        Arc,
     },
 };
 use tinyvec::TinyVec;
+use crate::EID;
 
 pub mod edge_page;
 pub mod edge_store;
@@ -64,11 +61,11 @@ pub struct GraphStore<
 }
 
 impl<
-    NS: NodeSegmentOps<Extension = EXT>,
-    ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-> GraphStore<NS, ES, GS, EXT>
+        NS: NodeSegmentOps<Extension = EXT>,
+        ES: EdgeSegmentOps<Extension = EXT>,
+        GS: GraphPropSegmentOps<Extension = EXT>,
+        EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+    > GraphStore<NS, ES, GS, EXT>
 {
     pub fn flush(&self) -> Result<(), StorageError> {
         let node_types = self.nodes.prop_meta().get_all_node_types();
@@ -99,11 +96,11 @@ pub struct ReadLockedGraphStore<
 }
 
 impl<
-    NS: NodeSegmentOps<Extension = EXT>,
-    ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-> GraphStore<NS, ES, GS, EXT>
+        NS: NodeSegmentOps<Extension = EXT>,
+        ES: EdgeSegmentOps<Extension = EXT>,
+        GS: GraphPropSegmentOps<Extension = EXT>,
+        EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+    > GraphStore<NS, ES, GS, EXT>
 {
     pub fn new(graph_dir: Option<&Path>, ext: EXT) -> Self {
         let node_meta = Meta::new_for_nodes();
@@ -249,18 +246,6 @@ impl<
         self.edges.segment_counts()
     }
 
-    fn as_time_index_entry<T: TryIntoInputTime>(&self, t: T) -> Result<EventTime, StorageError> {
-        let input_time = t.try_into_input_time()?;
-        let t = match input_time {
-            InputTime::Indexed(t, i) => EventTime::new(t, i),
-            InputTime::Simple(t) => {
-                let i = self.event_id.fetch_add(1, atomic::Ordering::Relaxed);
-                EventTime::new(t, i)
-            }
-        };
-        Ok(t)
-    }
-
     pub fn read_event_id(&self) -> usize {
         self.event_id.load(atomic::Ordering::Relaxed)
     }
@@ -362,11 +347,11 @@ impl<I: From<usize> + Send> SegmentCounts<I> {
 }
 
 impl<
-    NS: NodeSegmentOps<Extension = EXT>,
-    ES: EdgeSegmentOps<Extension = EXT>,
-    GS: GraphPropSegmentOps<Extension = EXT>,
-    EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
-> Drop for GraphStore<NS, ES, GS, EXT>
+        NS: NodeSegmentOps<Extension = EXT>,
+        ES: EdgeSegmentOps<Extension = EXT>,
+        GS: GraphPropSegmentOps<Extension = EXT>,
+        EXT: PersistenceStrategy<NS = NS, ES = ES, GS = GS>,
+    > Drop for GraphStore<NS, ES, GS, EXT>
 {
     fn drop(&mut self) {
         match self.flush() {

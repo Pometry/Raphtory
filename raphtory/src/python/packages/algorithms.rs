@@ -139,6 +139,24 @@ pub fn weakly_connected_components(graph: &PyGraphView) -> NodeState<'static, us
     components::weakly_connected_components(&graph.graph)
 }
 
+/// Weakly connected components (Disjoint Set Union) -- partitions the graph into node sets which are mutually reachable by an undirected path
+///
+/// This function assigns a component id to each node such that nodes with the same component id are mutually reachable
+/// by an undirected path.
+///
+/// Arguments:
+///     graph (GraphView): Raphtory graph
+///
+/// Returns:
+///     NodeStateUsize: Mapping of nodes to their component ids.
+#[pyfunction]
+#[pyo3(signature = (graph))]
+pub fn weakly_connected_components_ds(
+    graph: &PyGraphView,
+) -> NodeState<'static, usize, DynamicGraph> {
+    components::weakly_connected_components_ds(&graph.graph)
+}
+
 /// Strongly connected components
 ///
 /// Partitions the graph into node sets which are mutually reachable by an directed path

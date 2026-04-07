@@ -18,10 +18,7 @@ use crate::{
     },
     prelude::*,
 };
-use arrow::{
-    array::{AsArray, NullBufferBuilder},
-    datatypes::UInt64Type,
-};
+use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;

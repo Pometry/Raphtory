@@ -43,6 +43,7 @@ use {
         search::graph_index::{GraphIndex, MutableGraphIndex},
         serialise::{GraphFolder, GraphPaths},
     },
+    either::Either,
     parking_lot::RwLock,
     raphtory_storage::core_ops::CoreGraphOps,
     std::{
@@ -52,6 +53,7 @@ use {
     tracing::info,
     zip::ZipWriter,
 };
+
 // Re-export for raphtory dependencies to use when creating graphs.
 pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
