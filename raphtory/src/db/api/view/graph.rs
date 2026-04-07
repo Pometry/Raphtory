@@ -27,9 +27,9 @@ use crate::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edge_props::load_edges_from_df as load_edge_props_from_df,
-                edges::{load_edges_from_df, ColumnNames},
+                edges::{load_edges_from_df_with_options, ColumnNames},
                 load_edge_deletions_from_df, load_graph_props_from_df,
-                nodes::{load_node_props_from_df, load_nodes_from_df},
+                nodes::{load_node_props_from_df_with_options, load_nodes_from_df_with_options},
             },
         },
         ENCODE_POOL, LOAD_POOL,
@@ -44,6 +44,7 @@ use crate::{
 };
 use ahash::HashSet;
 use arrow::{array::RecordBatch, datatypes::SchemaRef};
+use chrono::Local;
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
 use raphtory_api::{
@@ -414,7 +415,7 @@ pub fn materialize_using_recordbatches(
     let graph_storage = GraphStorage::from(Arc::new(temporal_graph));
     let materialized = graph.new_base_graph(graph_storage);
 
-    let stream_capacity = 3;
+    let stream_capacity = 10;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
     if let Some(max_eid) = graph.edges().iter().map(|edge| edge.edge.pid().0).max() {
@@ -439,12 +440,19 @@ pub fn materialize_using_recordbatches(
                 // batches immediately as they arrive
                 let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
                     encode_nodes_cprop(graph, make_sink(RecordBatchKind::NodesC))?;
+                    println!("NodesC done at {}", Local::now());
                     encode_nodes_tprop(graph, make_sink(RecordBatchKind::NodesT))?;
+                    println!("NodesT done at {}", Local::now());
                     encode_edge_tprop(graph, make_sink(RecordBatchKind::EdgesT))?;
+                    println!("EdgeT done at {}", Local::now());
                     encode_edge_cprop(graph, make_sink(RecordBatchKind::EdgesC))?;
+                    println!("EdgeC done at {}", Local::now());
                     encode_edge_deletions(graph, make_sink(RecordBatchKind::EdgesD))?;
+                    println!("EdgeD done at {}", Local::now());
                     encode_graph_tprop(graph, make_sink(RecordBatchKind::GraphT))?;
+                    println!("GraphT done at {}", Local::now());
                     encode_graph_cprop(graph, make_sink(RecordBatchKind::GraphC))?;
+                    println!("GraphC done at {}", Local::now());
                     Ok(())
                 });
 
@@ -465,7 +473,7 @@ pub fn materialize_using_recordbatches(
 
             let result = match kind {
                 RecordBatchKind::NodesC => {
-                    println!("Ingesting NodesC");
+                    // println!("Ingesting NodesC");
                     let node_c_props = df_columns_except(
                         &df_view.names,
                         &[
@@ -479,7 +487,7 @@ pub fn materialize_using_recordbatches(
                         node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
                     let x = LOAD_POOL.install(|| {
-                        load_node_props_from_df(
+                        load_node_props_from_df_with_options(
                             df_view,
                             "rap_node_id",
                             None,
@@ -489,13 +497,14 @@ pub fn materialize_using_recordbatches(
                             &node_c_props_refs,
                             None,
                             &materialized,
+                            false,
                         )
                     });
-                    println!("Done ingesting NodesC");
+                    // println!("Done ingesting NodesC");
                     x
                 }
                 RecordBatchKind::NodesT => {
-                    println!("Ingesting NodesT");
+                    // println!("Ingesting NodesT");
                     let node_t_props = df_columns_except(
                         &df_view.names,
                         &["rap_node_vid", "rap_time", "rap_secondary_index"],
@@ -503,7 +512,7 @@ pub fn materialize_using_recordbatches(
                     let node_t_props_refs =
                         node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = load_nodes_from_df(
+                    let x = load_nodes_from_df_with_options(
                         df_view,
                         "rap_time",
                         Some("rap_secondary_index"),
@@ -515,12 +524,13 @@ pub fn materialize_using_recordbatches(
                         None,
                         &materialized,
                         false,
+                        false,
                     );
-                    println!("Done ingesting NodesT");
+                    // println!("Done ingesting NodesT");
                     x
                 }
                 RecordBatchKind::EdgesT => {
-                    println!("Ingesting EdgesT");
+                    // println!("Ingesting EdgesT");
                     let edge_t_props = df_columns_except(
                         &df_view.names,
                         &[
@@ -537,7 +547,7 @@ pub fn materialize_using_recordbatches(
                         edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
                     let x = LOAD_POOL.install(|| {
-                        load_edges_from_df(
+                        load_edges_from_df_with_options(
                             df_view,
                             ColumnNames::new(
                                 "rap_time",
@@ -555,13 +565,14 @@ pub fn materialize_using_recordbatches(
                             None,
                             &materialized,
                             false,
+                            false,
                         )
                     });
-                    println!("Done ingesting EdgesT");
+                    // println!("Done ingesting EdgesT");
                     x
                 }
                 RecordBatchKind::EdgesC => {
-                    println!("Ingesting EdgesC");
+                    // println!("Ingesting EdgesC");
                     let edge_c_props = df_columns_except(
                         &df_view.names,
                         &["rap_src_id", "rap_dst_id", "rap_edge_id", "rap_layer"],
@@ -586,11 +597,11 @@ pub fn materialize_using_recordbatches(
                             &materialized,
                         )
                     });
-                    println!("Done ingesting EdgesC");
+                    // println!("Done ingesting EdgesC");
                     x
                 }
                 RecordBatchKind::EdgesD => {
-                    println!("Ingesting EdgesD");
+                    // println!("Ingesting EdgesD");
                     let x = LOAD_POOL.install(|| {
                         load_edge_deletions_from_df(
                             df_view,
@@ -608,11 +619,11 @@ pub fn materialize_using_recordbatches(
                             &materialized,
                         )
                     });
-                    println!("Done ingesting EdgesD");
+                    // println!("Done ingesting EdgesD");
                     x
                 }
                 RecordBatchKind::GraphT => {
-                    println!("Ingesting GraphT");
+                    // println!("Ingesting GraphT");
                     let graph_t_props =
                         df_columns_except(&df_view.names, &["rap_time", "rap_secondary_index"]);
                     let graph_t_props_refs =
@@ -628,11 +639,11 @@ pub fn materialize_using_recordbatches(
                             &materialized,
                         )
                     });
-                    println!("Done ingesting GraphT");
+                    // println!("Done ingesting GraphT");
                     x
                 }
                 RecordBatchKind::GraphC => {
-                    println!("Ingesting GraphC");
+                    // println!("Ingesting GraphC");
                     let graph_c_props = df_columns_except(&df_view.names, &["rap_time"]);
                     let graph_c_props_refs =
                         graph_c_props.iter().map(String::as_str).collect::<Vec<_>>();
@@ -647,7 +658,7 @@ pub fn materialize_using_recordbatches(
                             &materialized,
                         )
                     });
-                    println!("Done ingesting GraphC");
+                    // println!("Done ingesting GraphC");
                     x
                 }
             };
@@ -831,6 +842,7 @@ fn materialize_impl(
 
             Ok::<(), MutationError>(())
         })?;
+        println!("Nodes 1 done at {}", Local::now());
 
         let mut new_eids = vec![];
         let mut max_eid = 0usize;
@@ -906,6 +918,7 @@ fn materialize_impl(
             }
             Ok::<(), MutationError>(())
         })?;
+        println!("Edges 1 done at {}", Local::now());
 
         new_storage.nodes.par_iter_mut().try_for_each(|shard| {
             for (row, edge) in graph.edges().iter().enumerate() {
@@ -989,6 +1002,7 @@ fn materialize_impl(
 
             Ok::<(), MutationError>(())
         })?;
+        println!("Nodes 2 done at {}", Local::now());
 
         // Copy over graph properties
         {
@@ -1005,6 +1019,7 @@ fn materialize_impl(
                     graph_writer.add_properties(t, [(prop_id, prop_value)]);
                 }
             }
+            println!("Temporal graph props done at {}", Local::now());
 
             // Copy metadata (constant properties)
             let metadata_props: Vec<_> = graph
@@ -1023,6 +1038,7 @@ fn materialize_impl(
             if !metadata_props.is_empty() {
                 graph_writer.update_metadata(metadata_props);
             }
+            println!("Graph metadata done at {}", Local::now());
         }
     }
 

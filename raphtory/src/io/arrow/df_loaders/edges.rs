@@ -6,7 +6,7 @@ use crate::{
     errors::{into_graph_err, GraphError, LoadError},
     io::{
         arrow::{
-            dataframe::{DFChunk, DFView},
+            dataframe::{DFChunk, DFView, SecondaryIndexCol, TimeCol},
             df_loaders::{
                 extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
             },
@@ -139,7 +139,7 @@ pub fn load_edges_from_df_prefetch<
                 num_rows,
             };
 
-            load_edges_from_df(
+            load_edges_from_df_with_options(
                 df_view_prefetch,
                 column_names,
                 resolve_nodes,
@@ -149,6 +149,7 @@ pub fn load_edges_from_df_prefetch<
                 layer,
                 graph,
                 delete,
+                true,
             )?;
             Ok::<(), GraphError>(())
         })?;
@@ -168,10 +169,41 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     graph: &G,
     delete: bool, // whether to update edge deletions or additions
 ) -> Result<(), GraphError> {
+    load_edges_from_df_with_options(
+        df_view,
+        column_names,
+        resolve_nodes,
+        properties,
+        metadata,
+        shared_metadata,
+        layer,
+        graph,
+        delete,
+        true,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn load_edges_from_df_with_options<
+    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
+>(
+    df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>>>,
+    column_names: ColumnNames,
+    resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
+    properties: &[&str],
+    metadata: &[&str],
+    shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    graph: &G,
+    delete: bool, // whether to update edge deletions or additions
+    flush_before_load: bool,
+) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
     }
-    graph.flush().map_err(into_graph_err)?;
+    if flush_before_load {
+        graph.flush().map_err(into_graph_err)?;
+    }
 
     let ColumnNames {
         time,
@@ -227,15 +259,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     let mut eid_col_resolved: Vec<EID> = vec![];
     let mut eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
     let mut layer_eids_exist: Vec<AtomicBool> = vec![]; // exists or needs to be created
-
-    // I want to find out which of the segments are touched by every chunk
-    let mut edge_segments_touched = (0..graph.core_graph().num_edge_segments())
-        .map(|_| AtomicBool::new(false))
-        .collect::<Vec<_>>();
-
-    let mut node_segments_touched = (0..graph.core_graph().num_node_segments())
-        .map(|_| AtomicBool::new(false))
-        .collect::<Vec<_>>();
 
     for chunk in df_view.chunks.into_iter() {
         let df = chunk?;
@@ -293,25 +316,16 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .storage()
             .nodes()
             .max_segment_len() as usize;
-
-        node_segments_touched.resize_with(write_locked_graph.nodes.len(), || AtomicBool::new(true));
-
-        if !gid_str_cache.is_empty() {
-            for (_, vid) in &gid_str_cache {
-                let (node_segment, _) = resolve_pos(vid.index(), max_node_segment_len as u32);
-                node_segments_touched[node_segment].store(true, Ordering::Relaxed);
-            }
-        } else {
-            // loading from our own parquet files here
-            let mut last_segment = usize::MAX;
-            for vid in src_vids.iter().chain(dst_vids) {
-                let (segment, _) = resolve_pos(vid.0, max_node_segment_len as u32);
-                if segment != last_segment {
-                    node_segments_touched[segment].store(true, Ordering::Relaxed);
-                }
-                last_segment = segment;
-            }
-        }
+        let src_rows_by_segment = group_rows_by_vid_segment(
+            src_vids,
+            max_node_segment_len as u32,
+            write_locked_graph.nodes.len(),
+        );
+        let dst_rows_by_segment = group_rows_by_vid_segment(
+            dst_vids,
+            max_node_segment_len as u32,
+            write_locked_graph.nodes.len(),
+        );
 
         eid_col_resolved.resize_with(df.len(), Default::default);
         eids_exist.resize_with(df.len(), Default::default);
@@ -344,22 +358,15 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .par_iter_mut()
             .enumerate()
             .for_each(|(segment_id, locked_page)| {
-                if !node_segments_touched[segment_id].load(Ordering::Relaxed) {
+                let src_rows = &src_rows_by_segment[segment_id];
+                let dst_rows = &dst_rows_by_segment[segment_id];
+                if src_rows.is_empty() && (!resolve_nodes || dst_rows.is_empty()) {
                     // we still need the writer in case we need to flush
                     if locked_page.segment().is_dirty() {
                         let mut _writer = locked_page.writer();
                     }
                     return;
                 }
-
-                // Zip all columns for iteration.
-                let zip = izip!(
-                    src_vids.iter(),
-                    dst_vids.iter(),
-                    time_col.iter(),
-                    secondary_index_col.iter(),
-                    layer_col_resolved.iter()
-                );
 
                 // resolve_nodes=false
                 // assumes we are loading our own graph, via the parquet loaders,
@@ -368,17 +375,24 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     store_node_ids(&gid_str_cache, locked_page);
                 }
 
+                if src_rows.is_empty() {
+                    return;
+                }
+
                 if resolve_nodes {
                     add_and_resolve_outbound_edges(
                         &eids_exist,
                         &layer_eids_exist,
                         &eid_col_shared,
-                        &edge_segments_touched,
-                        max_edge_page_len,
+                        src_rows,
+                        src_vids,
+                        dst_vids,
+                        &time_col,
+                        &secondary_index_col,
+                        &layer_col_resolved,
                         next_edge_id,
                         edges,
                         locked_page,
-                        zip,
                         delete,
                     );
                 } else if let Some(edge_ids) = eids {
@@ -386,8 +400,12 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         &eids_exist,
                         &layer_eids_exist,
                         &eid_col_shared,
-                        &edge_segments_touched,
-                        max_edge_page_len,
+                        src_rows,
+                        src_vids,
+                        dst_vids,
+                        &time_col,
+                        &secondary_index_col,
+                        &layer_col_resolved,
                         |row| {
                             let eid = EID(edge_ids[row] as usize);
                             arc_edges.increment_edge_segment_count(eid);
@@ -395,7 +413,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                         },
                         edges,
                         locked_page,
-                        zip,
                         delete,
                     );
                 }
@@ -406,7 +423,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
             .par_iter_mut()
             .enumerate()
             .for_each(|(segment_id, shard)| {
-                if !node_segments_touched[segment_id].load(Ordering::Relaxed) {
+                let rows = &dst_rows_by_segment[segment_id];
+                if rows.is_empty() {
                     // we still need the writer in case we need to flush
                     if shard.segment().is_dirty() {
                         let mut _writer = shard.writer();
@@ -414,32 +432,36 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     return;
                 }
 
-                let zip = izip!(
-                    src_vids.iter(),
-                    dst_vids.iter(),
-                    eid_col_resolved.iter(),
-                    time_col.iter(),
-                    secondary_index_col.iter(),
-                    layer_col_resolved.iter(),
-                    layer_eids_exist.iter().map(|a| a.load(Ordering::Relaxed)),
-                    eids_exist.iter().map(|b| b.load(Ordering::Relaxed))
+                update_inbound_edges(
+                    shard,
+                    rows,
+                    src_vids,
+                    dst_vids,
+                    &eid_col_resolved,
+                    &time_col,
+                    &secondary_index_col,
+                    &layer_col_resolved,
+                    &layer_eids_exist,
+                    &eids_exist,
+                    delete,
                 );
-
-                update_inbound_edges(shard, zip, delete);
-                node_segments_touched[segment_id].store(false, Ordering::Relaxed)
             });
 
         drop(write_locked_graph);
         let mut write_locked_graph = graph.write_lock().map_err(into_graph_err)?;
-
-        edge_segments_touched.resize_with(write_locked_graph.edges.len(), || AtomicBool::new(true));
+        let edge_rows_by_segment = group_rows_by_eid_segment(
+            &eid_col_resolved,
+            max_edge_page_len,
+            write_locked_graph.edges.len(),
+        );
 
         write_locked_graph
             .edges
             .par_iter_mut()
             .enumerate()
             .for_each(|(segment_id, shard)| {
-                if !edge_segments_touched[segment_id].load(Ordering::Relaxed) {
+                let rows = &edge_rows_by_segment[segment_id];
+                if rows.is_empty() {
                     // we still need the writer in case we need to flush
                     if shard.page().is_dirty() {
                         let mut _writer = shard.writer();
@@ -447,26 +469,21 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     }
                 }
 
-                let zip = izip!(
-                    src_vids.iter(),
-                    dst_vids.iter(),
-                    time_col.iter(),
-                    secondary_index_col.iter(),
-                    eid_col_resolved.iter(),
-                    layer_col_resolved.iter(),
-                    eids_exist
-                        .iter()
-                        .map(|exists| exists.load(Ordering::Relaxed))
-                );
                 update_edge_properties(
                     &shared_metadata,
                     &prop_cols,
                     &metadata_cols,
                     shard,
-                    zip,
+                    rows,
+                    src_vids,
+                    dst_vids,
+                    &time_col,
+                    &secondary_index_col,
+                    &eid_col_resolved,
+                    &layer_col_resolved,
+                    &eids_exist,
                     delete,
                 );
-                edge_segments_touched[segment_id].store(false, Ordering::Relaxed)
             });
 
         #[cfg(feature = "progress")]
@@ -529,20 +546,32 @@ pub fn get_or_resolve_node_vids<
     Ok((src_vids, dst_vids, gid_str_cache))
 }
 
-fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
+fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
     shared_metadata: &[(usize, Prop)],
     prop_cols: &PropCols,
     metadata_cols: &PropCols,
     shard: &mut LockedEdgePage<'_, ES>,
-    zip: impl Iterator<Item = (&'a VID, &'a VID, i64, usize, &'a EID, &'a usize, bool)>,
+    rows: &[usize],
+    src_vids: &[VID],
+    dst_vids: &[VID],
+    time_col: &TimeCol,
+    secondary_index_col: &SecondaryIndexCol,
+    eid_col_resolved: &[EID],
+    layer_col_resolved: &[usize],
+    eids_exist: &[AtomicBool],
     delete: bool,
 ) {
     let mut t_props = vec![];
     let mut c_props = vec![];
     let mut writer = shard.writer();
 
-    for (row, (src, dst, time, secondary_index, eid, layer, exists)) in zip.enumerate() {
-        if let Some(eid_pos) = writer.resolve_pos(*eid) {
+    for &row in rows {
+        let src = src_vids[row];
+        let dst = dst_vids[row];
+        let eid = eid_col_resolved[row];
+        if let Some(eid_pos) = writer.resolve_pos(eid) {
+            let time = time_col[row];
+            let secondary_index = secondary_index_at(secondary_index_col, row);
             let t = EventTime(time, secondary_index);
 
             t_props.clear();
@@ -560,66 +589,79 @@ fn update_edge_properties<'a, ES: EdgeSegmentOps<Extension = Extension>>(
                 writer.bulk_add_edge(
                     t,
                     eid_pos,
-                    *src,
-                    *dst,
-                    exists,
-                    *layer,
+                    src,
+                    dst,
+                    eids_exist[row].load(Ordering::Relaxed),
+                    layer_col_resolved[row],
                     c_props.drain(..),
                     t_props.drain(..),
                 );
             } else {
-                writer.bulk_delete_edge(t, eid_pos, *src, *dst, exists, *layer);
+                writer.bulk_delete_edge(
+                    t,
+                    eid_pos,
+                    src,
+                    dst,
+                    eids_exist[row].load(Ordering::Relaxed),
+                    layer_col_resolved[row],
+                );
             }
         }
     }
 }
 
-fn update_inbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>(
+fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
     shard: &mut LockedNodePage<'_, NS>,
-    zip: impl Iterator<Item = (&'a VID, &'a VID, &'a EID, i64, usize, &'a usize, bool, bool)>,
+    rows: &[usize],
+    src_vids: &[VID],
+    dst_vids: &[VID],
+    eid_col_resolved: &[EID],
+    time_col: &TimeCol,
+    secondary_index_col: &SecondaryIndexCol,
+    layer_col_resolved: &[usize],
+    layer_eids_exist: &[AtomicBool],
+    eids_exist: &[AtomicBool],
     delete: bool,
 ) {
     let mut writer = shard.writer();
-    for (
-        src,
-        dst,
-        eid,
-        time,
-        secondary_index,
-        layer,
-        edge_exists_in_layer,
-        edge_exists_in_static_graph,
-    ) in zip
-    {
-        if let Some(dst_pos) = writer.resolve_pos(*dst) {
+    for &row in rows {
+        let src = src_vids[row];
+        let dst = dst_vids[row];
+        if let Some(dst_pos) = writer.resolve_pos(dst) {
+            let eid = eid_col_resolved[row];
+            let time = time_col[row];
+            let secondary_index = secondary_index_at(secondary_index_col, row);
             let t = EventTime(time, secondary_index);
+            let layer = layer_col_resolved[row];
+            let edge_exists_in_layer = layer_eids_exist[row].load(Ordering::Relaxed);
+            let edge_exists_in_static_graph = eids_exist[row].load(Ordering::Relaxed);
 
             if !edge_exists_in_static_graph {
-                writer.add_static_inbound_edge(dst_pos, *src, *eid);
+                writer.add_static_inbound_edge(dst_pos, src, eid);
             }
             let elid = if delete {
-                eid.with_layer_deletion(*layer)
+                eid.with_layer_deletion(layer)
             } else {
-                eid.with_layer(*layer)
+                eid.with_layer(layer)
             };
 
             if src != dst {
                 if edge_exists_in_layer {
                     writer.update_timestamp(t, dst_pos, elid);
                 } else {
-                    writer.add_inbound_edge(Some(t), dst_pos, *src, elid);
+                    writer.add_inbound_edge(Some(t), dst_pos, src, elid);
                 }
             } else {
                 // self-loop edge, only add once
                 if !edge_exists_in_layer {
-                    writer.add_inbound_edge::<i64>(None, dst_pos, *src, elid);
+                    writer.add_inbound_edge::<i64>(None, dst_pos, src, elid);
                 }
             }
         }
     }
 }
 
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn add_and_resolve_outbound_edges<
     'a,
     EXT: PersistenceStrategy<NS = NS, ES = ES>,
@@ -629,29 +671,36 @@ fn add_and_resolve_outbound_edges<
     eids_exist: &[AtomicBool],
     layer_eids_exist: &[AtomicBool],
     eid_col_shared: &&mut [AtomicUsize],
-    edge_touched_segments: &[AtomicBool],
-    max_edge_page_len: u32,
+    rows: &[usize],
+    src_vids: &[VID],
+    dst_vids: &[VID],
+    time_col: &TimeCol,
+    secondary_index_col: &SecondaryIndexCol,
+    layer_col_resolved: &[usize],
     next_edge_id: impl Fn(usize) -> EID,
     edges: &WriteLockedEdgePages<'_, ES>,
     locked_page: &mut LockedNodePage<'_, NS>,
-    zip: impl Iterator<Item = (&'a VID, &'a VID, i64, usize, &'a usize)>,
     delete: bool,
 ) {
     let mut writer = locked_page.writer();
-    let mut last_edge_segment = usize::MAX;
-    for (row, (src, dst, time, secondary_index, layer)) in zip.enumerate() {
-        if let Some(src_pos) = writer.resolve_pos(*src) {
+    for &row in rows {
+        let src = src_vids[row];
+        let dst = dst_vids[row];
+        if let Some(src_pos) = writer.resolve_pos(src) {
+            let time = time_col[row];
+            let secondary_index = secondary_index_at(secondary_index_col, row);
+            let layer = layer_col_resolved[row];
             let t = EventTime(time, secondary_index);
             // find the original EID in the static graph if it exists
             // otherwise create a new one
 
-            let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
+            let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, dst, 0) {
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                 eids_exist[row].store(true, Ordering::Relaxed);
                 MaybeNew::Existing(edge_id)
             } else {
                 let edge_id = next_edge_id(row);
-                writer.add_static_outbound_edge(src_pos, *dst, edge_id);
+                writer.add_static_outbound_edge(src_pos, dst, edge_id);
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                 eids_exist[row].store(false, Ordering::Relaxed);
                 MaybeNew::New(edge_id)
@@ -659,24 +708,16 @@ fn add_and_resolve_outbound_edges<
 
             let edge_id = edge_id.map(|eid| {
                 if delete {
-                    eid.with_layer_deletion(*layer)
+                    eid.with_layer_deletion(layer)
                 } else {
-                    eid.with_layer(*layer)
+                    eid.with_layer(layer)
                 }
             });
-
-            let (edge_segment, _) = resolve_pos(edge_id.inner().edge, max_edge_page_len);
-            if edge_segment != last_edge_segment {
-                if let Some(touched) = edge_touched_segments.get(edge_segment) {
-                    touched.store(true, Ordering::Relaxed);
-                }
-            }
-            last_edge_segment = edge_segment;
 
             let exists = !edge_id.is_new()
                 && (edges.exists(edge_id.inner())
                     || writer
-                        .get_out_edge(src_pos, *dst, edge_id.inner().layer())
+                        .get_out_edge(src_pos, dst, edge_id.inner().layer())
                         .is_some());
 
             layer_eids_exist[row].store(exists, Ordering::Relaxed);
@@ -684,9 +725,45 @@ fn add_and_resolve_outbound_edges<
             if exists {
                 writer.update_timestamp(t, src_pos, edge_id.inner());
             } else {
-                writer.add_outbound_edge(Some(t), src_pos, *dst, edge_id.inner());
+                writer.add_outbound_edge(Some(t), src_pos, dst, edge_id.inner());
             }
         }
+    }
+}
+
+fn group_rows_by_vid_segment(
+    vids: &[VID],
+    max_segment_len: u32,
+    num_segments: usize,
+) -> Vec<Vec<usize>> {
+    let mut rows_by_segment = vec![Vec::new(); num_segments];
+    for (row, vid) in vids.iter().enumerate() {
+        let (segment_id, _) = resolve_pos(vid.index(), max_segment_len);
+        let rows = rows_by_segment.get_mut(segment_id).expect("segment not found while grouping by vid");
+        rows.push(row);
+    }
+    rows_by_segment
+}
+
+fn group_rows_by_eid_segment(
+    eids: &[EID],
+    max_segment_len: u32,
+    num_segments: usize,
+) -> Vec<Vec<usize>> {
+    let mut rows_by_segment = vec![Vec::new(); num_segments];
+    for (row, eid) in eids.iter().enumerate() {
+        let (segment_id, _) = resolve_pos(*eid, max_segment_len);
+        let rows = rows_by_segment.get_mut(segment_id).expect("segment not found while grouping by eid");
+        rows.push(row);
+    }
+    rows_by_segment
+}
+
+#[inline(always)]
+fn secondary_index_at(col: &SecondaryIndexCol, row: usize) -> usize {
+    match col {
+        SecondaryIndexCol::DataFrame(arr) => arr.value(row) as usize,
+        SecondaryIndexCol::Range(range) => range.start + row,
     }
 }
 
