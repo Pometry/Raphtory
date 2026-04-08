@@ -43,8 +43,8 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     /// ```
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// let v = g.add_node(0, "Alice", NO_PROPS, None);
-    /// let v = g.add_node(0, 5, NO_PROPS, None);
+    /// let v = g.add_node(0, "Alice", NO_PROPS, None, None);
+    /// let v = g.add_node(0, 5, NO_PROPS, None, None);
     /// ```
     fn add_node<
         V: AsNodeRef,
@@ -113,8 +113,8 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new();
-    /// graph.add_node(1, "Alice", NO_PROPS, None).unwrap();
-    /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
+    /// graph.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
+    /// graph.add_node(2, "Bob", NO_PROPS, None, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```
     fn add_edge<
@@ -391,7 +391,10 @@ fn add_node_impl<
         })
         .collect::<Vec<_>>();
 
-    let layer_id = graph.resolve_layer(layer).map_err(into_graph_err)?.inner();
+    let layer_id = match layer {
+        None => STATIC_GRAPH_LAYER_ID,
+        Some(_) => graph.resolve_layer(layer).map_err(into_graph_err)?.inner(),
+    };
 
     writer.internal_add_update(ti, layer_id, props);
 

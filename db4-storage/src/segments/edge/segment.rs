@@ -17,7 +17,7 @@ use raphtory_api::core::{
         LayerId, VID,
         properties::{
             meta::{Meta, STATIC_GRAPH_LAYER_ID},
-            prop::{AsPropRef, Prop, PropRef},
+            prop::AsPropRef,
         },
     },
     storage::dict_mapper::MaybeNew,

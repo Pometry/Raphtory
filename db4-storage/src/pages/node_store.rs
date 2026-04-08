@@ -306,7 +306,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         LocalPOS,
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
     ) {
-        let mut slot_idx = row % *N;
+        let slot_idx = row % *N;
         // No point in multiple threads getting past here as they would just content on the writer lock
         let mut slot = self.free_segments[slot_idx].write();
         let mut segment_id = *slot;

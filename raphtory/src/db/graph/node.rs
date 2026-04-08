@@ -551,11 +551,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
-        let layer_id = self
-            .graph
-            .resolve_layer(layer)
-            .map_err(into_graph_err)?
-            .inner();
+        let layer_id = match layer {
+            None => STATIC_GRAPH_LAYER_ID,
+            Some(_) => self
+                .graph
+                .resolve_layer(layer)
+                .map_err(into_graph_err)?
+                .inner(),
+        };
 
         let t = time_from_input_session(&session, time)?;
         let vid = self.node;

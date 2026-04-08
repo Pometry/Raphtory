@@ -323,3 +323,112 @@ fn test_node_layers() {
 
     assert_eq!(ids, vec!["1", "2"]);
 }
+
+/// Nodes added without a layer (`layer=None`) go into STATIC_GRAPH_LAYER_ID and must be
+/// visible as active in every layer-restricted view.
+#[test]
+fn test_unlayered_node_visible_in_all_layer_views() {
+    let graph = Graph::new();
+    // Node 1 added without a layer — should appear in any layer view
+    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    // Node 2 added with "fire_nation" — should only appear in that view
+    graph
+        .add_node(0, 2, NO_PROPS, None, Some("fire_nation"))
+        .unwrap();
+
+    let fire_view = graph
+        .filter(NodeFilter.layer("fire_nation").is_active())
+        .unwrap();
+    let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
+    ids.sort();
+    // Both node 1 (unlayered/static) and node 2 (fire_nation) should be visible
+    assert_eq!(
+        ids,
+        vec!["1", "2"],
+        "unlayered node must appear in fire_nation view"
+    );
+}
+
+/// A node added with layer A must NOT appear in a filter restricted to layer B.
+#[test]
+fn test_layered_node_not_visible_in_other_layer_view() {
+    let graph = Graph::new();
+    graph
+        .add_node(0, 1, NO_PROPS, None, Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_node(0, 2, NO_PROPS, None, Some("air_nomads"))
+        .unwrap();
+
+    let fire_view = graph
+        .filter(NodeFilter.layer("fire_nation").is_active())
+        .unwrap();
+    let ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
+    assert_eq!(
+        ids,
+        vec!["1"],
+        "air_nomads node must not appear in fire_nation view"
+    );
+}
+
+/// Nodes added without a layer should appear in a windowed + layer-filtered view
+/// as long as they have activity within the window.
+#[test]
+fn test_unlayered_node_visible_in_windowed_layer_view() {
+    let graph = Graph::new();
+    graph.add_node(5, 1, NO_PROPS, None, None).unwrap(); // unlayered, t=5
+    graph
+        .add_node(5, 2, NO_PROPS, None, Some("fire_nation"))
+        .unwrap(); // layered, t=5
+    graph
+        .add_node(5, 3, NO_PROPS, None, Some("air_nomads"))
+        .unwrap();
+
+    // Window [0, 10) covers t=5; filter to fire_nation
+    let view = graph.window(0, 10);
+    let fire_view = view
+        .filter(NodeFilter.layer("fire_nation").is_active())
+        .unwrap();
+    let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
+    ids.sort();
+    assert_eq!(
+        ids,
+        vec!["1", "2"],
+        "unlayered node at t=5 must appear in windowed fire_nation view"
+    );
+
+    // Window [10, 20) does NOT cover t=5, so no nodes should be active
+    let view_out = graph.window(10, 20);
+    let fire_view_out = view_out
+        .filter(NodeFilter.layer("fire_nation").is_active())
+        .unwrap();
+    assert_eq!(
+        fire_view_out.count_nodes(),
+        0,
+        "no nodes should be active outside the window"
+    );
+}
+
+/// Node history (timestamps) should be scoped to the requested layer, not bleed
+/// across layers.
+#[test]
+fn test_node_history_scoped_to_layer() {
+    let graph = Graph::new();
+    // Node 1 exists in fire_nation at t=1 and air_nomads at t=2
+    graph
+        .add_node(1, 1, NO_PROPS, None, Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_node(2, 1, NO_PROPS, None, Some("air_nomads"))
+        .unwrap();
+
+    let fire_layer = graph.layers("fire_nation").unwrap();
+    let node = fire_layer.node(1).unwrap();
+    let history: Vec<i64> = node.history().t().collect();
+    // Only the fire_nation timestamp should be visible
+    assert_eq!(
+        history,
+        vec![1],
+        "history must not include timestamps from other layers"
+    );
+}
