@@ -5,8 +5,10 @@ use proptest::{arbitrary::any, proptest};
 use raphtory::db::api::storage::storage::PersistenceStrategy;
 #[cfg(feature = "io")]
 use raphtory::db::api::view::materialize_using_recordbatches;
+#[cfg(feature = "io")]
+use raphtory::db::api::view::MaterializedGraph;
 use raphtory::{
-    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
+    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps, graph_equal},
     prelude::*,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},
@@ -17,40 +19,20 @@ use std::{
     fs, io,
     ops::Range,
     path::{Path, PathBuf},
-    time::Instant,
+    time::{Duration, Instant},
 };
-
-#[cfg(feature = "io")]
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct GraphSummary {
-    nodes: usize,
-    edges: usize,
-    temporal_edges: usize,
-    earliest_time: Option<raphtory_api::core::storage::timeindex::EventTime>,
-    latest_time: Option<raphtory_api::core::storage::timeindex::EventTime>,
-    layers: Vec<String>,
-}
-
-#[cfg(feature = "io")]
-fn summarize_graph<'graph, G: GraphViewOps<'graph>>(graph: &'graph G) -> GraphSummary {
-    GraphSummary {
-        nodes: graph.count_nodes(),
-        edges: graph.count_edges(),
-        temporal_edges: graph.count_temporal_edges(),
-        earliest_time: graph.earliest_time(),
-        latest_time: graph.latest_time(),
-        layers: graph
-            .unique_layers()
-            .map(|layer| layer.to_string())
-            .sorted()
-            .collect(),
-    }
-}
 
 #[cfg(feature = "io")]
 fn default_sf10_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../ldbc/data/social_network-sf10-CsvComposite-LongDateFormatter/graph")
+}
+
+#[cfg(feature = "io")]
+fn default_sf10_parquet_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+        "../../ldbc/data/social_network-sf10-CsvComposite-LongDateFormatter/parquet/data0/graph0",
+    )
 }
 
 #[cfg(feature = "io")]
@@ -60,9 +42,23 @@ fn default_sf3_graph_path() -> PathBuf {
 }
 
 #[cfg(feature = "io")]
+fn default_sf3_parquet_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+        "../../ldbc/data/social_network-sf3-CsvComposite-LongDateFormatter/parquet/data0/graph0",
+    )
+}
+
+#[cfg(feature = "io")]
 fn default_sf1_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../ldbc/data/social_network-sf1-CsvComposite-LongDateFormatter/graph")
+}
+
+#[cfg(feature = "io")]
+fn default_sf1_parquet_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
+        "../../ldbc/data/social_network-sf1-CsvComposite-LongDateFormatter/parquet/data0/graph0",
+    )
 }
 
 #[cfg(feature = "io")]
@@ -185,14 +181,13 @@ fn test_materialize_snb_sf10_timings() {
         return;
     }
 
-    println!("Loading SNB graph from {}...", graph_path.display());
-    let load_start = Instant::now();
+    println!("Loading SNB graph from {}", graph_path.display());
     let g = Graph::load(&graph_path).unwrap();
-    let load_elapsed = load_start.elapsed();
-    let source_summary = summarize_graph(&g);
     println!(
-        "Loaded source graph in {:?}: {} nodes, {} edges, {} temporal edges",
-        load_elapsed, source_summary.nodes, source_summary.edges, source_summary.temporal_edges
+        "Loaded source graph: {} nodes, {} edges, {} temporal edges",
+        g.count_nodes(),
+        g.count_edges(),
+        g.count_temporal_edges()
     );
 
     println!(
@@ -211,8 +206,6 @@ fn test_materialize_snb_sf10_timings() {
         "Finished materialize using RecordBatches at {}\nTook {recordbatch_elapsed:?}",
         Local::now()
     );
-    let recordbatch_summary = summarize_graph(&recordbatch_graph);
-    // drop(recordbatch_graph);
 
     println!("Starting materialize impl (old) at {}", Local::now());
     let impl_start = Instant::now();
@@ -222,15 +215,9 @@ fn test_materialize_snb_sf10_timings() {
         "Finished materialize impl (old) at {}\nTook {impl_elapsed:?}",
         Local::now()
     );
-    let impl_summary = summarize_graph(&materialize_impl_graph);
-    // drop(materialize_impl_graph);
 
-    assert_eq!(impl_summary, source_summary);
-    assert_eq!(recordbatch_summary, source_summary);
-    let assert_equal_start = Instant::now();
-    assert_graph_equal_timestamps(&recordbatch_graph, &materialize_impl_graph);
-    let assert_eq_elapsed = assert_equal_start.elapsed();
-    println!("Graph equals assertion took {assert_eq_elapsed:?}");
+    assert!(graph_equal(&g, &materialize_impl_graph));
+    assert!(graph_equal(&g, &recordbatch_graph));
 
     let impl_secs = impl_elapsed.as_secs_f64();
     let recordbatch_secs = recordbatch_elapsed.as_secs_f64();
@@ -251,11 +238,130 @@ fn test_materialize_snb_sf10_timings() {
         1.0
     };
 
-    println!("materialize_impl via g.materialize(): {:?}", impl_elapsed);
+    println!("Faster path: {faster} ({ratio:.2}x)");
+}
+
+fn get_new_materialize_timing(graph_path: &Path, materialize_graph_path: &Path) -> Duration {
+    remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
+    fs::create_dir_all(&materialize_graph_path).unwrap();
+
+    if !graph_path.exists() {
+        panic!("SNB graph not found at {}", graph_path.display());
+    }
+
+    println!("Loading SF10 SNB graph from {}", graph_path.display());
+    let sf10_graph = Graph::load(&graph_path).unwrap();
     println!(
-        "materialize_using_recordbatches(...): {:?}",
-        recordbatch_elapsed
+        "Loaded SF10 source graph: {} nodes, {} edges, {} temporal edges",
+        sf10_graph.count_nodes(),
+        sf10_graph.count_edges(),
+        sf10_graph.count_temporal_edges()
     );
+
+    println!(
+        "Starting SF10 materialize using RecordBatches at {}",
+        Local::now()
+    );
+    let recordbatch_start = Instant::now();
+    let _recordbatch_graph = materialize_using_recordbatches(
+        &sf10_graph,
+        Some(&materialize_graph_path),
+        sf10_graph.core_graph().extension().config().clone(),
+    )
+    .unwrap();
+    let recordbatch_elapsed = recordbatch_start.elapsed();
+    println!(
+        "Finished SF10 materialize using RecordBatches at {}\nTook {recordbatch_elapsed:?}",
+        Local::now()
+    );
+    drop(_recordbatch_graph);
+    drop(sf10_graph);
+    // free up disk space for next test
+    remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
+    recordbatch_elapsed
+}
+
+fn get_parquet_decode_timing(
+    graph_path: &Path,
+    parquet_path: &Path,
+    decode_graph_path: &Path,
+) -> Duration {
+    remove_dir_all_ignore_not_found(&decode_graph_path).unwrap();
+    fs::create_dir_all(&decode_graph_path).unwrap();
+
+    if !graph_path.exists() {
+        panic!("SNB graph not found at {}", graph_path.display());
+    }
+    if !parquet_path.exists() {
+        panic!(
+            "SNB parquet directory not found at {}",
+            parquet_path.display()
+        );
+    }
+
+    println!("Loading SF10 SNB graph from {}", graph_path.display());
+    let sf10_graph = Graph::load(&graph_path).unwrap();
+    println!(
+        "Loaded SF10 source graph in: {} nodes, {} edges, {} temporal edges",
+        sf10_graph.count_nodes(),
+        sf10_graph.count_edges(),
+        sf10_graph.count_temporal_edges()
+    );
+    let sf10_extension_config = sf10_graph.core_graph().extension().config().clone();
+    drop(sf10_graph);
+
+    println!("Starting SF10 decode_parquet at {}", Local::now());
+    let parquet_decode_start = Instant::now();
+    let _parquet_graph = MaterializedGraph::decode_parquet(
+        &parquet_path,
+        Some(&decode_graph_path),
+        sf10_extension_config,
+    )
+    .unwrap();
+    let parquet_decode_elapsed = parquet_decode_start.elapsed();
+    println!(
+        "Finished SF10 decode_parquet at {}\nTook {parquet_decode_elapsed:?}",
+        Local::now()
+    );
+    drop(_parquet_graph);
+    // free up disk space for next test
+    remove_dir_all_ignore_not_found(&decode_graph_path).unwrap();
+    parquet_decode_elapsed
+}
+
+#[cfg(feature = "io")]
+#[test]
+#[ignore = "requires locally persisted SNB SF10 graphs and parquet export"]
+fn test_current() {
+    let graph_path = default_sf10_graph_path();
+    let parquet_path = default_sf10_parquet_path();
+    let parquet_decode_graph_path = default_materialized_graphs_path().join("parquet_decode_sf10");
+    let materialize_graph_path = default_materialized_graphs_path().join("rb_materialize_sf10");
+
+    let parquet_decode_duration =
+        get_parquet_decode_timing(&graph_path, &parquet_path, &parquet_decode_graph_path);
+
+    let materialize_duration = get_new_materialize_timing(&graph_path, &materialize_graph_path);
+
+    let materialize_secs = materialize_duration.as_secs_f64();
+    let parquet_decode_secs = parquet_decode_duration.as_secs_f64();
+    let faster = if materialize_secs < parquet_decode_secs {
+        "materialize_using_recordbatches"
+    } else if parquet_decode_secs < materialize_secs {
+        "decode_parquet"
+    } else {
+        "tie"
+    };
+    let ratio = if materialize_secs > 0.0 && parquet_decode_secs > 0.0 {
+        if materialize_secs > parquet_decode_secs {
+            materialize_secs / parquet_decode_secs
+        } else {
+            parquet_decode_secs / materialize_secs
+        }
+    } else {
+        1.0
+    };
+
     println!("Faster path: {faster} ({ratio:.2}x)");
 }
 
