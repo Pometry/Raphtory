@@ -1805,9 +1805,9 @@ def test_load_nodes_with_layer_col():
     """load_nodes(layer_col=...) assigns each node update to its row's layer."""
     nodes_df = pd.DataFrame(
         {
-            "id":    [1,         2,         3,         4,         5,         6        ],
-            "name":  ["Alice",   "Bob",     "Carol",   "Dave",    "Eve",     "Frank"  ],
-            "time":  [1,         2,         3,         4,         5,         6        ],
+            "id": [1, 2, 3, 4, 5, 6],
+            "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+            "time": [1, 2, 3, 4, 5, 6],
             "layer": ["layer A", "layer A", "layer B", "layer B", "layer C", "layer C"],
         }
     )
@@ -1844,14 +1844,14 @@ def test_load_nodes_layer_and_edges_layer_combined():
     """Nodes and edges can live in independent layers without cross-contamination."""
     edges_df = pd.DataFrame(
         {
-            "src":  [1, 2, 3],
-            "dst":  [2, 3, 4],
+            "src": [1, 2, 3],
+            "dst": [2, 3, 4],
             "time": [1, 2, 3],
         }
     )
     nodes_df = pd.DataFrame(
         {
-            "id":   [1, 2, 3, 4],
+            "id": [1, 2, 3, 4],
             "name": ["A", "B", "C", "D"],
             "time": [1, 2, 3, 4],
         }
@@ -1882,7 +1882,7 @@ def test_load_nodes_invalid_layer_reference():
     """Querying a layer that was never loaded raises an error."""
     nodes_df = pd.DataFrame(
         {
-            "id":   [1, 2],
+            "id": [1, 2],
             "time": [1, 2],
         }
     )

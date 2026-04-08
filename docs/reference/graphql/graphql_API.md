@@ -3708,6 +3708,11 @@ Add a new node or add updates to an existing node.
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="mutablegraph.createnode">createNode</strong></td>
 <td valign="top"><a href="#mutablenode">MutableNode</a>!</td>
 <td>
@@ -3733,6 +3738,11 @@ Create a new node or fail if it already exists.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodeType</td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
 <td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
@@ -3985,6 +3995,11 @@ Add temporal property updates to the node.
 <tr>
 <td colspan="2" align="right" valign="top">properties</td>
 <td valign="top">[<a href="#propertyinput">PropertyInput</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -7603,6 +7618,15 @@ Metadata.
 <td>
 
 Updates.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeaddition.layer">layer</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Layer.
 
 </td>
 </tr>
