@@ -739,7 +739,9 @@ fn group_rows_by_vid_segment(
     let mut rows_by_segment = vec![Vec::new(); num_segments];
     for (row, vid) in vids.iter().enumerate() {
         let (segment_id, _) = resolve_pos(vid.index(), max_segment_len);
-        let rows = rows_by_segment.get_mut(segment_id).expect("segment not found while grouping by vid");
+        let rows = rows_by_segment
+            .get_mut(segment_id)
+            .expect("segment not found while grouping by vid");
         rows.push(row);
     }
     rows_by_segment
@@ -753,7 +755,9 @@ fn group_rows_by_eid_segment(
     let mut rows_by_segment = vec![Vec::new(); num_segments];
     for (row, eid) in eids.iter().enumerate() {
         let (segment_id, _) = resolve_pos(*eid, max_segment_len);
-        let rows = rows_by_segment.get_mut(segment_id).expect("segment not found while grouping by eid");
+        let rows = rows_by_segment
+            .get_mut(segment_id)
+            .expect("segment not found while grouping by eid");
         rows.push(row);
     }
     rows_by_segment

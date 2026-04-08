@@ -563,7 +563,9 @@ pub fn assert_nodes_equal_layer<
     nodes1
         .into_par_iter()
         .zip_eq(nodes2.into_par_iter())
-        .for_each(|(n1, n2)| assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps));
+        .for_each(|(n1, n2)| {
+            assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps)
+        });
 }
 
 #[track_caller]
@@ -606,145 +608,145 @@ pub fn assert_edges_equal_layer<
         .into_par_iter()
         .zip_eq(edges2.into_par_iter())
         .for_each(|(e1, e2)| {
-        assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
-        if persistent || only_timestamps {
-            assert_eq!(
-                e1.earliest_time().map(|t| t.t()),
-                e2.earliest_time().map(|t| t.t()),
-                "mismatched earliest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-            assert_eq!(
-                e1.latest_time().map(|t| t.t()),
-                e2.latest_time().map(|t| t.t()),
-                "mismatched latest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        } else {
-            assert_eq!(
-                e1.earliest_time(),
-                e2.earliest_time(),
-                "mismatched earliest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-            assert_eq!(
-                e1.latest_time(),
-                e2.latest_time(),
-                "mismatched latest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        }
-        assert_eq!(
-            e1.metadata().as_map(),
-            e2.metadata().as_map(),
-            "mismatched metadata for edge {:?}{layer_tag}",
-            e1.id(),
-        );
-        if only_timestamps {
-            assert_eq!(
-                e1.properties()
-                    .temporal()
-                    .iter()
-                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
-                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
-                e2.properties()
-                    .temporal()
-                    .iter()
-                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
-                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
-                "mismatched temporal properties for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-
-            let mut e1_updates: Vec<_> = e1
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
-                .collect();
-            e1_updates.sort();
-
-            let mut e2_updates: Vec<_> = e2
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
-                .collect();
-            e2_updates.sort();
-            assert_eq!(
-                e1_updates,
-                e2_updates,
-                "mismatched updates for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        } else {
-            let left = normalise_temporal_map(&e1.properties().temporal().as_map());
-            let right = normalise_temporal_map(&e2.properties().temporal().as_map());
-
-            assert_eq!(
-                left,
-                right,
-                "mismatched temporal properties for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-
-            let mut e1_updates: Vec<_> = e1
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-                .collect();
-            e1_updates.sort();
-
-            let mut e2_updates: Vec<_> = e2
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-                .collect();
-            e2_updates.sort();
-            assert_eq!(
-                e1_updates,
-                e2_updates,
-                "mismatched updates for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        }
-        assert_eq!(
-            e1.is_valid(),
-            e2.is_valid(),
-            "mismatched is_valid for edge {:?}{layer_tag}",
-            e1.id()
-        );
-        if persistent {
-            let earliest = e1.timeline_start();
-            match earliest {
-                None => {
-                    assert!(
-                        e2.timeline_start().is_none(),
-                        "expected empty timeline for edge {:?}{layer_tag}",
-                        e1.id()
-                    )
-                }
-                Some(earliest) => {
-                    assert_eq!(
-                        e1.after(earliest.t()).is_active(),
-                        e2.after(earliest.t()).is_active(),
-                        "mismatched is_active for edge {:?}{layer_tag}",
-                        e1.id()
-                    );
-                }
+            assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
+            if persistent || only_timestamps {
+                assert_eq!(
+                    e1.earliest_time().map(|t| t.t()),
+                    e2.earliest_time().map(|t| t.t()),
+                    "mismatched earliest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+                assert_eq!(
+                    e1.latest_time().map(|t| t.t()),
+                    e2.latest_time().map(|t| t.t()),
+                    "mismatched latest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            } else {
+                assert_eq!(
+                    e1.earliest_time(),
+                    e2.earliest_time(),
+                    "mismatched earliest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+                assert_eq!(
+                    e1.latest_time(),
+                    e2.latest_time(),
+                    "mismatched latest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
             }
-        } else {
             assert_eq!(
-                e1.is_active(),
-                e2.is_active(),
-                "mismatched is_active for edge {:?}{layer_tag}",
+                e1.metadata().as_map(),
+                e2.metadata().as_map(),
+                "mismatched metadata for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+            if only_timestamps {
+                assert_eq!(
+                    e1.properties()
+                        .temporal()
+                        .iter()
+                        .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                        .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                    e2.properties()
+                        .temporal()
+                        .iter()
+                        .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                        .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                    "mismatched temporal properties for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+
+                let mut e1_updates: Vec<_> = e1
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                    .collect();
+                e1_updates.sort();
+
+                let mut e2_updates: Vec<_> = e2
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                    .collect();
+                e2_updates.sort();
+                assert_eq!(
+                    e1_updates,
+                    e2_updates,
+                    "mismatched updates for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            } else {
+                let left = normalise_temporal_map(&e1.properties().temporal().as_map());
+                let right = normalise_temporal_map(&e2.properties().temporal().as_map());
+
+                assert_eq!(
+                    left,
+                    right,
+                    "mismatched temporal properties for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+
+                let mut e1_updates: Vec<_> = e1
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                    .collect();
+                e1_updates.sort();
+
+                let mut e2_updates: Vec<_> = e2
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                    .collect();
+                e2_updates.sort();
+                assert_eq!(
+                    e1_updates,
+                    e2_updates,
+                    "mismatched updates for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            }
+            assert_eq!(
+                e1.is_valid(),
+                e2.is_valid(),
+                "mismatched is_valid for edge {:?}{layer_tag}",
                 e1.id()
             );
-        }
-        assert_eq!(
-            e1.is_deleted(),
-            e2.is_deleted(),
-            "mismatched is_deleted for edge {:?}{layer_tag}",
-            e1.id()
-        );
+            if persistent {
+                let earliest = e1.timeline_start();
+                match earliest {
+                    None => {
+                        assert!(
+                            e2.timeline_start().is_none(),
+                            "expected empty timeline for edge {:?}{layer_tag}",
+                            e1.id()
+                        )
+                    }
+                    Some(earliest) => {
+                        assert_eq!(
+                            e1.after(earliest.t()).is_active(),
+                            e2.after(earliest.t()).is_active(),
+                            "mismatched is_active for edge {:?}{layer_tag}",
+                            e1.id()
+                        );
+                    }
+                }
+            } else {
+                assert_eq!(
+                    e1.is_active(),
+                    e2.is_active(),
+                    "mismatched is_active for edge {:?}{layer_tag}",
+                    e1.id()
+                );
+            }
+            assert_eq!(
+                e1.is_deleted(),
+                e2.is_deleted(),
+                "mismatched is_deleted for edge {:?}{layer_tag}",
+                e1.id()
+            );
         });
 }
 
