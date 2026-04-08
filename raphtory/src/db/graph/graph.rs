@@ -551,8 +551,8 @@ pub fn assert_nodes_equal_layer<
     let mut nodes1: Vec<_> = nodes1.collect();
     let mut nodes2: Vec<_> = nodes2.collect();
 
-    nodes1.sort();
-    nodes2.sort();
+    nodes1.par_sort_unstable();
+    nodes2.par_sort_unstable();
 
     assert_eq!(
         nodes1.len(),
@@ -560,9 +560,10 @@ pub fn assert_nodes_equal_layer<
         "mismatched number of nodes{layer_tag}",
     );
 
-    for (n1, n2) in nodes1.into_iter().zip(nodes2) {
-        assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps);
-    }
+    nodes1
+        .into_par_iter()
+        .zip_eq(nodes2.into_par_iter())
+        .for_each(|(n1, n2)| assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps));
 }
 
 #[track_caller]
@@ -598,10 +599,13 @@ pub fn assert_edges_equal_layer<
         edges2.len(),
         "mismatched number of edges{layer_tag}",
     );
-    edges1.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
-    edges2.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
+    edges1.par_sort_unstable_by(|e1, e2| e1.id().cmp(&e2.id()));
+    edges2.par_sort_unstable_by(|e1, e2| e1.id().cmp(&e2.id()));
 
-    for (e1, e2) in edges1.into_iter().zip(edges2) {
+    edges1
+        .into_par_iter()
+        .zip_eq(edges2.into_par_iter())
+        .for_each(|(e1, e2)| {
         assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
         if persistent || only_timestamps {
             assert_eq!(
@@ -741,7 +745,7 @@ pub fn assert_edges_equal_layer<
             "mismatched is_deleted for edge {:?}{layer_tag}",
             e1.id()
         );
-    }
+        });
 }
 
 #[track_caller]
@@ -844,17 +848,17 @@ fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
             left_layers, right_layers
         );
 
-        for layer in left_layers {
+        left_layers.par_iter().for_each(|layer| {
             assert_graph_equal_layer(
                 &g1.layers(layer.deref())
                     .unwrap_or_else(|_| panic!("Left graph missing layer {layer})")),
                 &g2.layers(layer.deref())
                     .unwrap_or_else(|_| panic!("Right graph missing layer {layer}")),
-                Some(&layer),
+                Some(layer),
                 persistent,
                 only_timestamps,
             );
-        }
+        });
     })
 }
 

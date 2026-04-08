@@ -171,7 +171,7 @@ fn test_materialize_using_recordbatches_matches_materialize() {
 #[test]
 #[ignore = "requires a locally persisted SNB SF10 graph produced by ldbc/load_snb_sf10.py"]
 fn test_materialize_snb_sf10_timings() {
-    let graph_path = default_sf3_graph_path();
+    let graph_path = default_sf1_graph_path();
     let old_materialize_graph_path = default_materialized_graphs_path().join("old_materialize");
     let rb_materialize_graph_path = default_materialized_graphs_path().join("rb_materialize");
     // clear out the directories in case they had previous files in them
@@ -225,9 +225,12 @@ fn test_materialize_snb_sf10_timings() {
     let impl_summary = summarize_graph(&materialize_impl_graph);
     // drop(materialize_impl_graph);
 
+    assert_eq!(impl_summary, source_summary);
+    assert_eq!(recordbatch_summary, source_summary);
+    let assert_equal_start = Instant::now();
     assert_graph_equal_timestamps(&recordbatch_graph, &materialize_impl_graph);
-    // assert_eq!(impl_summary, source_summary);
-    // assert_eq!(recordbatch_summary, source_summary);
+    let assert_eq_elapsed = assert_equal_start.elapsed();
+    println!("Graph equals assertion took {assert_eq_elapsed:?}");
 
     let impl_secs = impl_elapsed.as_secs_f64();
     let recordbatch_secs = recordbatch_elapsed.as_secs_f64();
