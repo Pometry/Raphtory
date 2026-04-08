@@ -209,10 +209,11 @@ impl DictMapper {
     }
 
     pub fn deep_clone(&self) -> Self {
+        let map = self.map.read_recursive().clone();
         let reverse_map = self.read_lock_reverse_map().clone();
 
         Self {
-            map: self.map.clone(),
+            map: Arc::new(RwLock::new(map)),
             reverse_map: Arc::new(RwLock::new(reverse_map)),
             num_private_fields: self.num_private_fields,
         }
