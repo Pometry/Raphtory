@@ -622,7 +622,7 @@ mod test {
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},
-        prop::PropType,
+        prop::{Prop, PropType},
     };
     use raphtory_core::storage::timeindex::EventTime;
 

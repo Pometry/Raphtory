@@ -129,8 +129,14 @@ pub fn load_nodes_from_df<
                 })?;
             let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
             let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
-            let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
-            let layer_col_resolved = layer_col.resolve_layer(None, graph)?;
+            // When no layer is specified, node properties go to STATIC_GRAPH_LAYER_ID.
+            // resolve_layer(None) would return "_default" (LayerId 1), which is wrong for nodes.
+            let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
+                let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
+                Some(layer_col.resolve_layer(None, graph)?)
+            } else {
+                None
+            };
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
@@ -209,7 +215,9 @@ pub fn load_nodes_from_df<
                     for (row, (vid, time, secondary_index)) in zip.enumerate() {
                         if let Some(mut_node) = writer.resolve_pos(*vid) {
                             let t = EventTime(time, secondary_index);
-                            let layer_id = LayerId(layer_col_resolved[row]);
+                            let layer_id = layer_col_resolved
+                                .as_ref()
+                                .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[row]));
 
                             update_time(t);
 
