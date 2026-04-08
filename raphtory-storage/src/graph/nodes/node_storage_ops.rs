@@ -59,6 +59,30 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
 
+    /// Number of layers in the underlying storage for this node.
+    fn num_layers(self) -> usize;
+
+    /// Iterate over `NodeTProps` for each layer specified by `layer_ids`.
+    ///
+    /// Unlike `temporal_prop_iter`, this method accepts a plain `&LayerIds`
+    /// without any lifetime constraint tied to the node's storage lifetime,
+    /// by pre-collecting the concrete layer IDs into an owned `Vec`.
+    fn tprop_iter_layers(
+        self,
+        layer_ids: &LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
+        let layers: Vec<LayerId> = match layer_ids {
+            LayerIds::None => vec![],
+            LayerIds::All => (0..self.num_layers()).map(LayerId).collect(),
+            LayerIds::One(id) => vec![*id],
+            LayerIds::Multiple(ids) => ids.into_iter().collect(),
+        };
+        layers
+            .into_iter()
+            .map(move |id| self.temporal_prop_layer(id, prop_id))
+    }
+
     fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
     fn constant_prop_iter(
@@ -149,6 +173,10 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
         NodeRefOps::temporal_prop_layer(self, LayerId(0), prop_id)
+    }
+
+    fn num_layers(self) -> usize {
+        NodeRefOps::internal_num_layers(&self)
     }
 
     fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {

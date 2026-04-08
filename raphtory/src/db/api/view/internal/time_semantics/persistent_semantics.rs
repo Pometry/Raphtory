@@ -433,74 +433,101 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_tprop_iter<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter()
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .map(|p| p.iter())
+            .kmerge_by(|(a, _), (b, _)| a <= b)
     }
 
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter_rev()
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .map(|p| p.iter_rev())
+            .kmerge_by(|(a, _), (b, _)| a >= b)
     }
 
     fn node_tprop_iter_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let prop = node.tprop(prop_id);
-        let first = if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
-            None
-        } else {
-            prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
-        };
-        first.into_iter().chain(prop.iter_window(w))
+        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let first = tprops
+            .iter()
+            .copied()
+            .filter_map(|prop| {
+                if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
+                    None
+                } else {
+                    prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
+                }
+            })
+            .max_by_key(|(t, _)| *t);
+        let window_iter = tprops
+            .into_iter()
+            .map(move |prop| prop.iter_window(w.clone()))
+            .kmerge_by(|(a, _), (b, _)| a <= b);
+        first.into_iter().chain(window_iter)
     }
 
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        let prop = node.tprop(prop_id);
-        let first = if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
-            None
-        } else {
-            prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
-        };
-        prop.iter_window_rev(w).chain(first)
+        let tprops: Vec<_> = node.tprop_iter_layers(view.layer_ids(), prop_id).collect();
+        let first = tprops
+            .iter()
+            .copied()
+            .filter_map(|prop| {
+                if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
+                    None
+                } else {
+                    prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
+                }
+            })
+            .max_by_key(|(t, _)| *t);
+        let window_iter_rev = tprops
+            .into_iter()
+            .map(move |prop| prop.iter_window_rev(w.clone()))
+            .kmerge_by(|(a, _), (b, _)| a >= b);
+        window_iter_rev.chain(first)
     }
+
     fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        let prop = node.tprop(prop_id);
-        prop.last_before(t.next())
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last_before(t.next()))
+            .max_by_key(|(t, _)| *t)
     }
 
     fn node_tprop_last_at_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         t: EventTime,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            let prop = node.tprop(prop_id);
-            prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v))
+            node.tprop_iter_layers(view.layer_ids(), prop_id)
+                .filter_map(|prop| prop.last_before(t.next()).map(|(t, v)| (t.max(w.start), v)))
+                .max_by_key(|(t, _)| *t)
         } else {
             None
         }

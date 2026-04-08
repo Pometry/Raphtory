@@ -194,63 +194,73 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_tprop_iter<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter()
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .map(|p| p.iter())
+            .kmerge_by(|(a, _), (b, _)| a <= b)
     }
 
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter_rev()
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .map(|p| p.iter_rev())
+            .kmerge_by(|(a, _), (b, _)| a >= b)
     }
 
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter_window(w)
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .map(move |p| p.iter_window(w.clone()))
+            .kmerge_by(|(a, _), (b, _)| a <= b)
     }
 
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
-        node.tprop(prop_id).iter_window_rev(w)
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .map(move |p| p.iter_window_rev(w.clone()))
+            .kmerge_by(|(a, _), (b, _)| a >= b)
     }
 
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         t: EventTime,
     ) -> Option<(EventTime, Prop)> {
-        let prop = node.tprop(prop_id);
-        prop.last_before(t.next())
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last_before(t.next()))
+            .max_by_key(|(t, _)| *t)
     }
 
     fn node_tprop_last_at_window<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         prop_id: usize,
         t: EventTime,
         w: Range<EventTime>,
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
-            let prop = node.tprop(prop_id);
-            prop.last_before(t.next()).filter(|(t, _)| w.contains(t))
+            node.tprop_iter_layers(view.layer_ids(), prop_id)
+                .filter_map(|prop| prop.last_before(t.next()).filter(|(t, _)| w.contains(t)))
+                .max_by_key(|(t, _)| *t)
         } else {
             None
         }

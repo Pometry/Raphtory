@@ -138,6 +138,10 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
         self.as_ref().tprop(prop_id)
     }
 
+    fn num_layers(self) -> usize {
+        self.as_ref().num_layers()
+    }
+
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a> {
         self.as_ref().node_additions(layer_id)
     }
