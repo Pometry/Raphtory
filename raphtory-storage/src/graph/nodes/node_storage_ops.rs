@@ -1,5 +1,9 @@
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerId, LayerIds, VID},
+    entities::{
+        edges::edge_ref::EdgeRef,
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+        GidRef, LayerId, LayerIds, VID,
+    },
     storage::timeindex::TimeIndexOps,
     Direction,
 };
@@ -62,21 +66,40 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     /// Number of layers in the underlying storage for this node.
     fn num_layers(self) -> usize;
 
-    /// Iterate over `NodeTProps` for each layer specified by `layer_ids`.
-    ///
-    /// Unlike `temporal_prop_iter`, this method accepts a plain `&LayerIds`
-    /// without any lifetime constraint tied to the node's storage lifetime,
-    /// by pre-collecting the concrete layer IDs into an owned `Vec`.
+    /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
+    /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
+    /// explicit layer name).  This mirrors the behaviour of `layer_ids_with_static`
+    /// used for node additions: unlayered nodes must be visible in every view.
     fn tprop_iter_layers(
         self,
         layer_ids: &LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
         let layers: Vec<LayerId> = match layer_ids {
-            LayerIds::None => vec![],
+            // No edge layers requested → still include STATIC so unlayered nodes show their props.
+            LayerIds::None => vec![STATIC_GRAPH_LAYER_ID],
+            // All layers already includes STATIC.
             LayerIds::All => (0..self.num_layers()).map(LayerId).collect(),
-            LayerIds::One(id) => vec![*id],
-            LayerIds::Multiple(ids) => ids.into_iter().collect(),
+            LayerIds::One(id) => {
+                if *id == STATIC_GRAPH_LAYER_ID {
+                    vec![*id]
+                } else {
+                    let mut v = vec![STATIC_GRAPH_LAYER_ID, *id];
+                    v.sort();
+                    v
+                }
+            }
+            LayerIds::Multiple(ids) => {
+                if ids.contains(STATIC_GRAPH_LAYER_ID) {
+                    ids.into_iter().collect()
+                } else {
+                    let mut v: Vec<LayerId> = std::iter::once(STATIC_GRAPH_LAYER_ID)
+                        .chain(ids.into_iter())
+                        .collect();
+                    v.sort();
+                    v
+                }
+            }
         };
         layers
             .into_iter()
