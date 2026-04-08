@@ -156,7 +156,7 @@ pub(crate) fn load_graph_props_from_df<
         .map(|col| df_view.get_index(col))
         .transpose()?;
 
-    #[cfg(feature = "python")]
+    #[cfg(feature = "progress")]
     let mut pb = build_progress_bar("Loading graph properties".to_string(), df_view.num_rows)?;
     let session = graph.write_session().map_err(into_graph_err)?;
 
@@ -220,7 +220,7 @@ pub(crate) fn load_graph_props_from_df<
                 Ok::<(), GraphError>(())
             })?;
 
-        #[cfg(feature = "python")]
+        #[cfg(feature = "progress")]
         let _ = pb.update(df.len());
     }
 
