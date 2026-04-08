@@ -19,30 +19,45 @@ use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAddit
 use rayon::prelude::*;
 use std::{
     collections::HashMap,
+    env,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 pub mod edge_props;
 pub mod edges;
 pub mod nodes;
+
+#[cfg(feature = "progress")]
+fn progress_bars_enabled() -> bool {
+    env::var("RAPHTORY_PROGRESS_BARS_ENABLED")
+        .ok()
+        .and_then(|value| {
+            let value = value.trim().to_ascii_lowercase();
+            match value.as_str() {
+                "false" | "0" => Some(false),
+                "true" | "1" => Some(true),
+                _ => None,
+            }
+        })
+        .unwrap_or(true)
+}
+
 #[cfg(feature = "progress")]
 fn build_progress_bar(des: String, num_rows: Option<usize>) -> Result<Bar, GraphError> {
+    let mut bar_builder = BarBuilder::default()
+        .desc(des)
+        .animation(kdam::Animation::FillUp)
+        .unit_scale(true);
+
     if let Some(num_rows) = num_rows {
-        BarBuilder::default()
-            .desc(des)
-            .animation(kdam::Animation::FillUp)
-            .total(num_rows)
-            .unit_scale(true)
-            .build()
-            .map_err(|_| GraphError::TqdmError)
-    } else {
-        BarBuilder::default()
-            .desc(des)
-            .animation(kdam::Animation::FillUp)
-            .unit_scale(true)
-            .build()
-            .map_err(|_| GraphError::TqdmError)
+        bar_builder = bar_builder.total(num_rows);
     }
+
+    if !progress_bars_enabled() {
+        bar_builder = bar_builder.disable(true);
+    }
+
+    bar_builder.build().map_err(|_| GraphError::TqdmError)
 }
 
 fn process_shared_properties(
