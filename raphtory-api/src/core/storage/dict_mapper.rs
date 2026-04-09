@@ -330,6 +330,93 @@ impl DictMapper {
     }
 }
 
+#[derive(Debug)]
+pub struct AllKeys<T> {
+    pub(crate) guard: ArcRwLockReadGuard<Vec<T>>,
+}
+
+impl<T> Deref for AllKeys<T> {
+    type Target = [T];
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.guard.deref().deref()
+    }
+}
+
+impl<T: Clone> IntoIterator for AllKeys<T> {
+    type Item = T;
+    type IntoIter = LockedIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let guard = self.guard;
+        let len = guard.len();
+        let pos = 0;
+        LockedIter { guard, pos, len }
+    }
+}
+
+pub struct PublicKeys<T> {
+    guard: ArcRwLockReadGuard<Vec<T>>,
+    num_private_fields: usize,
+}
+
+impl<T> PublicKeys<T> {
+    fn items(&self) -> &[T] {
+        &self.guard[self.num_private_fields..]
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
+        self.items().iter()
+    }
+
+    pub fn len(&self) -> usize {
+        self.items().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.items().is_empty()
+    }
+}
+
+impl<T: Clone> IntoIterator for PublicKeys<T> {
+    type Item = T;
+    type IntoIter = LockedIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let guard = self.guard;
+        let len = guard.len();
+        let pos = self.num_private_fields;
+        LockedIter { guard, pos, len }
+    }
+}
+
+pub struct LockedIter<T> {
+    guard: ArcRwLockReadGuard<Vec<T>>,
+    pos: usize,
+    len: usize,
+}
+
+impl<T: Clone> Iterator for LockedIter<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos < self.len {
+            let next_val = Some(self.guard[self.pos].clone());
+            self.pos += 1;
+            next_val
+        } else {
+            None
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len - self.pos;
+        (len, Some(len))
+    }
+}
+
+impl<T: Clone> ExactSizeIterator for LockedIter<T> {}
+
 #[cfg(test)]
 mod test {
     use crate::core::storage::dict_mapper::DictMapper;
@@ -462,90 +549,3 @@ mod test {
         assert_eq!(actual, vec![0, 1, 2, 3, 4]);
     }
 }
-
-#[derive(Debug)]
-pub struct AllKeys<T> {
-    pub(crate) guard: ArcRwLockReadGuard<Vec<T>>,
-}
-
-impl<T> Deref for AllKeys<T> {
-    type Target = [T];
-
-    #[inline]
-    fn deref(&self) -> &Self::Target {
-        self.guard.deref().deref()
-    }
-}
-
-impl<T: Clone> IntoIterator for AllKeys<T> {
-    type Item = T;
-    type IntoIter = LockedIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let guard = self.guard;
-        let len = guard.len();
-        let pos = 0;
-        LockedIter { guard, pos, len }
-    }
-}
-
-pub struct PublicKeys<T> {
-    guard: ArcRwLockReadGuard<Vec<T>>,
-    num_private_fields: usize,
-}
-
-impl<T> PublicKeys<T> {
-    fn items(&self) -> &[T] {
-        &self.guard[self.num_private_fields..]
-    }
-    pub fn iter(&self) -> impl Iterator<Item = &T> + '_ {
-        self.items().iter()
-    }
-
-    pub fn len(&self) -> usize {
-        self.items().len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.items().is_empty()
-    }
-}
-
-impl<T: Clone> IntoIterator for PublicKeys<T> {
-    type Item = T;
-    type IntoIter = LockedIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let guard = self.guard;
-        let len = guard.len();
-        let pos = self.num_private_fields;
-        LockedIter { guard, pos, len }
-    }
-}
-
-pub struct LockedIter<T> {
-    guard: ArcRwLockReadGuard<Vec<T>>,
-    pos: usize,
-    len: usize,
-}
-
-impl<T: Clone> Iterator for LockedIter<T> {
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos < self.len {
-            let next_val = Some(self.guard[self.pos].clone());
-            self.pos += 1;
-            next_val
-        } else {
-            None
-        }
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.len - self.pos;
-        (len, Some(len))
-    }
-}
-
-impl<T: Clone> ExactSizeIterator for LockedIter<T> {}
