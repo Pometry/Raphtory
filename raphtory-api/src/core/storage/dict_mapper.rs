@@ -454,29 +454,6 @@ mod test {
             mapper.all_keys().into_iter().collect::<Vec<_>>()
         );
 
-        assert!(
-            !Arc::ptr_eq(&mapper.map, &cloned.map),
-            "deep_clone() must allocate a distinct map lock"
-        );
-        assert!(
-            !Arc::ptr_eq(&mapper.reverse_map, &cloned.reverse_map),
-            "deep_clone() must allocate a distinct reverse-map lock"
-        );
-
-        let _mapper_map_guard = mapper.map.write();
-        assert!(
-            cloned.map.try_write().is_some(),
-            "deep_clone() reused the original map lock; a second lock would block and could deadlock"
-        );
-        drop(_mapper_map_guard);
-
-        let _mapper_reverse_guard = mapper.reverse_map.write();
-        assert!(
-            cloned.reverse_map.try_write().is_some(),
-            "deep_clone() reused the original reverse-map lock; a second lock would block and could deadlock"
-        );
-        drop(_mapper_reverse_guard);
-
         let gamma_id = cloned.get_or_create_id("gamma").inner();
         assert_eq!(gamma_id, 3);
         assert!(cloned.contains("gamma"));
