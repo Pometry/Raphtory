@@ -67,6 +67,17 @@ fn default_materialized_graphs_path() -> PathBuf {
 }
 
 #[cfg(feature = "io")]
+fn set_snb_env_vars() {
+    unsafe {
+        std::env::set_var("RAPHTORY_FSYNC_ON_FLUSH", "false");
+        std::env::set_var("RAPHTORY_MAX_NODE_PAGE_LEN", "500000");
+        std::env::set_var("RAPHTORY_MAX_EDGE_PAGE_LEN", "5000000");
+        std::env::set_var("RAPHTORY_MAX_MEMORY_BYTES", "12000000000");
+        std::env::set_var("RAPHTORY_MIN_FLUSH_BYTES", "128000000");
+    }
+}
+
+#[cfg(feature = "io")]
 fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
     match fs::remove_dir_all(path.as_ref()) {
         Ok(()) => Ok(()),
@@ -333,6 +344,7 @@ fn get_parquet_decode_timing(
 #[test]
 #[ignore = "requires locally persisted SNB SF10 graphs and parquet export"]
 fn test_current() {
+    set_snb_env_vars();
     let graph_path = default_sf10_graph_path();
     let parquet_path = default_sf10_parquet_path();
     let parquet_decode_graph_path = default_materialized_graphs_path().join("parquet_decode_sf10");
