@@ -336,7 +336,7 @@ mod test {
     use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
-    use std::collections::HashMap;
+    use std::{collections::HashMap, sync::Arc};
 
     #[test]
     fn test_dict_mapper() {
@@ -346,6 +346,59 @@ mod test {
         assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
         assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
         assert_eq!(mapper.get_or_create_id("test").inner(), 0);
+    }
+
+    #[test]
+    fn test_dict_mapper_deep_clone() {
+        let mapper = DictMapper::new_with_private_fields(["_private"]);
+        let alpha_id = mapper.get_or_create_id("alpha").inner();
+        let beta_id = mapper.get_or_create_id("beta").inner();
+
+        let cloned = mapper.deep_clone();
+
+        assert_eq!(cloned.num_private_fields(), mapper.num_private_fields());
+        assert_eq!(cloned.get_id("alpha"), Some(alpha_id));
+        assert_eq!(cloned.get_id("beta"), Some(beta_id));
+        assert_eq!(cloned.get_name(alpha_id).as_ref(), "alpha");
+        assert_eq!(cloned.get_name(beta_id).as_ref(), "beta");
+        assert_eq!(cloned.num_fields(), mapper.num_fields());
+        assert_eq!(
+            cloned.all_keys().into_iter().collect::<Vec<_>>(),
+            mapper.all_keys().into_iter().collect::<Vec<_>>()
+        );
+
+        assert!(
+            !Arc::ptr_eq(&mapper.map, &cloned.map),
+            "deep_clone() must allocate a distinct map lock"
+        );
+        assert!(
+            !Arc::ptr_eq(&mapper.reverse_map, &cloned.reverse_map),
+            "deep_clone() must allocate a distinct reverse-map lock"
+        );
+
+        let _mapper_map_guard = mapper.map.write();
+        assert!(
+            cloned.map.try_write().is_some(),
+            "deep_clone() reused the original map lock; a second lock would block and could deadlock"
+        );
+        drop(_mapper_map_guard);
+
+        let _mapper_reverse_guard = mapper.reverse_map.write();
+        assert!(
+            cloned.reverse_map.try_write().is_some(),
+            "deep_clone() reused the original reverse-map lock; a second lock would block and could deadlock"
+        );
+        drop(_mapper_reverse_guard);
+
+        let gamma_id = cloned.get_or_create_id("gamma").inner();
+        assert_eq!(gamma_id, 3);
+        assert!(cloned.contains("gamma"));
+        assert!(!mapper.contains("gamma"));
+
+        let delta_id = mapper.get_or_create_id("delta").inner();
+        assert_eq!(delta_id, 3);
+        assert!(mapper.contains("delta"));
+        assert!(!cloned.contains("delta"));
     }
 
     #[test]
