@@ -1,3 +1,16 @@
+#[cfg(feature = "io")]
+use crate::io::{
+    arrow::{
+        dataframe::{DFChunk, DFView},
+        df_loaders::{
+            edge_props::load_edges_from_df as load_edge_props_from_df,
+            edges::{load_edges_from_df_with_options, ColumnNames},
+            load_edge_deletions_from_df, load_graph_props_from_df,
+            nodes::{load_node_props_from_df_with_options, load_nodes_from_df_with_options},
+        },
+    },
+    ENCODE_POOL, LOAD_POOL,
+};
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
@@ -19,21 +32,6 @@ use crate::{
     },
     errors::GraphError,
     prelude::*,
-};
-#[cfg(feature = "io")]
-use crate::{
-    io::{
-        arrow::{
-            dataframe::{DFChunk, DFView},
-            df_loaders::{
-                edge_props::load_edges_from_df as load_edge_props_from_df,
-                edges::{load_edges_from_df_with_options, ColumnNames},
-                load_edge_deletions_from_df, load_graph_props_from_df,
-                nodes::{load_node_props_from_df_with_options, load_nodes_from_df_with_options},
-            },
-        },
-        ENCODE_POOL, LOAD_POOL,
-    },
     serialise::{
         parquet::{
             encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
@@ -82,6 +80,7 @@ use crate::{
     db::graph::views::filter::model::TryAsCompositeFilter,
     search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes},
 };
+use crate::serialise::parquet::{DST_COL_ID, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL, SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -265,27 +264,23 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
     }
 }
 
-#[cfg(feature = "io")]
-fn record_batch_field_names(batch: &RecordBatch) -> Vec<String> {
-    batch
-        .schema()
-        .fields()
-        .iter()
-        .map(|field| field.name().to_string())
-        .collect()
-}
-
-#[cfg(feature = "io")]
 fn df_view_from_record_batch(
     batch: RecordBatch,
 ) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send> {
-    let names = record_batch_field_names(&batch);
-    let num_rows = Some(batch.num_rows());
-    let (_, columns, _) = batch.into_parts();
-    DFView::new(names, std::iter::once(Ok(DFChunk::new(columns))), num_rows)
+    let (schema, columns, num_rows) = batch.into_parts();
+    let field_names = schema
+        .fields()
+        .iter()
+        .map(|field| field.name().to_string())
+        .collect();
+
+    DFView::new(
+        field_names,
+        std::iter::once(Ok(DFChunk::new(columns))),
+        Some(num_rows),
+    )
 }
 
-#[cfg(feature = "io")]
 fn df_columns_except(names: &[String], exclude: &[&str]) -> Vec<String> {
     names
         .iter()
@@ -322,23 +317,22 @@ impl RecordBatchMessage {
     }
 }
 
+/// This RecordBatchSink allows for RecordBatches to be sent from multithreaded contexts (such as the parquet serializer)
+/// to be consumed by the receiver.
 #[derive(Debug, Clone)]
 pub(crate) struct ChannelRecordBatchSink {
     tx: crossbeam_channel::Sender<RecordBatchMessage>,
     kind: RecordBatchKind,
-    _schema: SchemaRef,
 }
 
 impl ChannelRecordBatchSink {
     pub(crate) fn new(
         tx: crossbeam_channel::Sender<RecordBatchMessage>,
         kind: RecordBatchKind,
-        schema: SchemaRef,
     ) -> Self {
         Self {
             tx,
             kind,
-            _schema: schema,
         }
     }
 }
@@ -364,7 +358,6 @@ impl RecordBatchSink for ChannelRecordBatchSink {
 }
 
 #[cfg(feature = "io")]
-#[doc(hidden)]
 pub fn materialize_using_recordbatches(
     graph: &impl GraphView,
     path: Option<&Path>,
@@ -415,7 +408,7 @@ pub fn materialize_using_recordbatches(
     let graph_storage = GraphStorage::from(Arc::new(temporal_graph));
     let materialized = graph.new_base_graph(graph_storage);
 
-    let stream_capacity = 10;
+    let stream_capacity = 20;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
     if let Some(max_eid) = graph.edges().iter().map(|edge| edge.edge.pid().0).max() {
@@ -429,29 +422,28 @@ pub fn materialize_using_recordbatches(
         scope.spawn({
             let tx = tx.clone();
             move || {
-                let make_sink = |kind| {
+                let make_sink_factory = |kind| {
                     let tx = tx.clone();
-                    move |schema: SchemaRef, _chunk: usize, _num_digits: usize| {
-                        Ok(ChannelRecordBatchSink::new(tx.clone(), kind, schema))
+                    move |_, _, _| {
+                        Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
                     }
                 };
 
-                // Keep encode order aligned with loader dependencies so the consumer can ingest
-                // batches immediately as they arrive
+                // Keep encode order aligned with loader dependencies
                 let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
-                    encode_nodes_cprop(graph, make_sink(RecordBatchKind::NodesC))?;
+                    encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
                     println!("NodesC done at {}", Local::now());
-                    encode_nodes_tprop(graph, make_sink(RecordBatchKind::NodesT))?;
+                    encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
                     println!("NodesT done at {}", Local::now());
-                    encode_edge_tprop(graph, make_sink(RecordBatchKind::EdgesT))?;
+                    encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
                     println!("EdgeT done at {}", Local::now());
-                    encode_edge_cprop(graph, make_sink(RecordBatchKind::EdgesC))?;
+                    encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
                     println!("EdgeC done at {}", Local::now());
-                    encode_edge_deletions(graph, make_sink(RecordBatchKind::EdgesD))?;
+                    encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
                     println!("EdgeD done at {}", Local::now());
-                    encode_graph_tprop(graph, make_sink(RecordBatchKind::GraphT))?;
+                    encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
                     println!("GraphT done at {}", Local::now());
-                    encode_graph_cprop(graph, make_sink(RecordBatchKind::GraphC))?;
+                    encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
                     println!("GraphC done at {}", Local::now());
                     Ok(())
                 });
@@ -473,50 +465,46 @@ pub fn materialize_using_recordbatches(
 
             let result = match kind {
                 RecordBatchKind::NodesC => {
-                    // println!("Ingesting NodesC");
                     let node_c_props = df_columns_except(
                         &df_view.names,
                         &[
-                            "rap_node_id",
-                            "rap_node_vid",
-                            "rap_node_type",
-                            "rap_node_type_id",
+                            NODE_ID_COL,
+                            NODE_VID_COL,
+                            TYPE_COL,
+                            TYPE_ID_COL,
                         ],
                     );
                     let node_c_props_refs =
                         node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = LOAD_POOL.install(|| {
+                    LOAD_POOL.install(|| {
                         load_node_props_from_df_with_options(
                             df_view,
-                            "rap_node_id",
+                            NODE_ID_COL,
                             None,
-                            Some("rap_node_type"),
-                            Some("rap_node_vid"),
-                            Some("rap_node_type_id"),
+                            Some(TYPE_COL),
+                            Some(NODE_VID_COL),
+                            Some(TYPE_ID_COL),
                             &node_c_props_refs,
                             None,
                             &materialized,
                             false,
                         )
-                    });
-                    // println!("Done ingesting NodesC");
-                    x
+                    })
                 }
                 RecordBatchKind::NodesT => {
-                    // println!("Ingesting NodesT");
                     let node_t_props = df_columns_except(
                         &df_view.names,
-                        &["rap_node_vid", "rap_time", "rap_secondary_index"],
+                        &[NODE_VID_COL, TIME_COL, SECONDARY_INDEX_COL],
                     );
                     let node_t_props_refs =
                         node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = load_nodes_from_df_with_options(
+                    load_nodes_from_df_with_options(
                         df_view,
-                        "rap_time",
-                        Some("rap_secondary_index"),
-                        "rap_node_vid",
+                        TIME_COL,
+                        Some(SECONDARY_INDEX_COL),
+                        NODE_VID_COL,
                         &node_t_props_refs,
                         &[],
                         None,
@@ -525,39 +513,36 @@ pub fn materialize_using_recordbatches(
                         &materialized,
                         false,
                         false,
-                    );
-                    // println!("Done ingesting NodesT");
-                    x
+                    )
                 }
                 RecordBatchKind::EdgesT => {
-                    // println!("Ingesting EdgesT");
                     let edge_t_props = df_columns_except(
                         &df_view.names,
                         &[
-                            "rap_time",
-                            "rap_secondary_index",
-                            "rap_src_id",
-                            "rap_dst_id",
-                            "rap_edge_id",
-                            "rap_layer",
-                            "rap_layer_id",
+                            TIME_COL,
+                            SECONDARY_INDEX_COL,
+                            SRC_COL_ID,
+                            DST_COL_ID,
+                            EDGE_COL_ID,
+                            LAYER_COL,
+                            LAYER_ID_COL,
                         ],
                     );
                     let edge_t_props_refs =
                         edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = LOAD_POOL.install(|| {
+                    LOAD_POOL.install(|| {
                         load_edges_from_df_with_options(
                             df_view,
                             ColumnNames::new(
-                                "rap_time",
-                                Some("rap_secondary_index"),
-                                "rap_src_id",
-                                "rap_dst_id",
-                                Some("rap_layer"),
+                                TIME_COL,
+                                Some(SECONDARY_INDEX_COL),
+                                SRC_COL_ID,
+                                DST_COL_ID,
+                                Some(LAYER_COL),
                             )
-                            .with_layer_id_col("rap_layer_id")
-                            .with_edge_id_col("rap_edge_id"),
+                            .with_layer_id_col(LAYER_ID_COL)
+                            .with_edge_id_col(EDGE_COL_ID),
                             false,
                             &edge_t_props_refs,
                             &[],
@@ -567,28 +552,25 @@ pub fn materialize_using_recordbatches(
                             false,
                             false,
                         )
-                    });
-                    // println!("Done ingesting EdgesT");
-                    x
+                    })
                 }
                 RecordBatchKind::EdgesC => {
-                    // println!("Ingesting EdgesC");
                     let edge_c_props = df_columns_except(
                         &df_view.names,
-                        &["rap_src_id", "rap_dst_id", "rap_edge_id", "rap_layer"],
+                        &[SRC_COL_ID, DST_COL_ID, EDGE_COL_ID, LAYER_COL],
                     );
                     let edge_c_props_refs =
                         edge_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = LOAD_POOL.install(|| {
+                    LOAD_POOL.install(|| {
                         load_edge_props_from_df(
                             df_view,
                             ColumnNames::new(
                                 "",
                                 None,
-                                "rap_src_id",
-                                "rap_dst_id",
-                                Some("rap_layer"),
+                                SRC_COL_ID,
+                                DST_COL_ID,
+                                Some(LAYER_COL),
                             ),
                             false,
                             &edge_c_props_refs,
@@ -596,70 +578,59 @@ pub fn materialize_using_recordbatches(
                             None,
                             &materialized,
                         )
-                    });
-                    // println!("Done ingesting EdgesC");
-                    x
+                    })
                 }
                 RecordBatchKind::EdgesD => {
-                    // println!("Ingesting EdgesD");
-                    let x = LOAD_POOL.install(|| {
+                    LOAD_POOL.install(|| {
                         load_edge_deletions_from_df(
                             df_view,
                             ColumnNames::new(
-                                "rap_time",
-                                Some("rap_secondary_index"),
-                                "rap_src_id",
-                                "rap_dst_id",
-                                Some("rap_layer"),
+                                TIME_COL,
+                                Some(SECONDARY_INDEX_COL),
+                                SRC_COL_ID,
+                                DST_COL_ID,
+                                Some(LAYER_COL),
                             )
-                            .with_layer_id_col("rap_layer_id")
-                            .with_edge_id_col("rap_edge_id"),
+                            .with_layer_id_col(LAYER_ID_COL)
+                            .with_edge_id_col(EDGE_COL_ID),
                             false,
                             None,
                             &materialized,
                         )
-                    });
-                    // println!("Done ingesting EdgesD");
-                    x
+                    })
                 }
                 RecordBatchKind::GraphT => {
-                    // println!("Ingesting GraphT");
                     let graph_t_props =
-                        df_columns_except(&df_view.names, &["rap_time", "rap_secondary_index"]);
+                        df_columns_except(&df_view.names, &[TIME_COL, SECONDARY_INDEX_COL]);
                     let graph_t_props_refs =
                         graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = LOAD_POOL.install(|| {
+                    LOAD_POOL.install(|| {
                         load_graph_props_from_df(
                             df_view,
-                            "rap_time",
-                            Some("rap_secondary_index"),
+                            TIME_COL,
+                            Some(SECONDARY_INDEX_COL),
                             Some(&graph_t_props_refs),
                             None,
                             &materialized,
                         )
-                    });
-                    // println!("Done ingesting GraphT");
-                    x
+                    })
                 }
                 RecordBatchKind::GraphC => {
-                    // println!("Ingesting GraphC");
-                    let graph_c_props = df_columns_except(&df_view.names, &["rap_time"]);
+                    let graph_c_props = df_columns_except(&df_view.names, &[TIME_COL]);
                     let graph_c_props_refs =
                         graph_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    let x = LOAD_POOL.install(|| {
+                    LOAD_POOL.install(|| {
                         load_graph_props_from_df(
                             df_view,
-                            "rap_time",
+                            TIME_COL,
                             None,
                             None,
                             Some(&graph_c_props_refs),
                             &materialized,
                         )
-                    });
-                    // println!("Done ingesting GraphC");
-                    x
+                    })
                 }
             };
 

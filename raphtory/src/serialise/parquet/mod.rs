@@ -161,17 +161,17 @@ pub trait ParquetDecoder: Sized {
 }
 
 const ROW_GROUP_SIZE: usize = 100_000;
-const NODE_ID_COL: &str = "rap_node_id";
-const NODE_VID_COL: &str = "rap_node_vid";
-const TYPE_COL: &str = "rap_node_type";
-const TYPE_ID_COL: &str = "rap_node_type_id";
-const TIME_COL: &str = "rap_time";
-const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
-const SRC_COL_ID: &str = "rap_src_id";
-const DST_COL_ID: &str = "rap_dst_id";
-const EDGE_COL_ID: &str = "rap_edge_id";
-const LAYER_COL: &str = "rap_layer";
-const LAYER_ID_COL: &str = "rap_layer_id";
+pub(crate) const NODE_ID_COL: &str = "rap_node_id";
+pub(crate) const NODE_VID_COL: &str = "rap_node_vid";
+pub(crate) const TYPE_COL: &str = "rap_node_type";
+pub(crate) const TYPE_ID_COL: &str = "rap_node_type_id";
+pub(crate) const TIME_COL: &str = "rap_time";
+pub(crate) const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
+pub(crate) const SRC_COL_ID: &str = "rap_src_id";
+pub(crate) const DST_COL_ID: &str = "rap_dst_id";
+pub(crate) const EDGE_COL_ID: &str = "rap_edge_id";
+pub(crate) const LAYER_COL: &str = "rap_layer";
+pub(crate) const LAYER_ID_COL: &str = "rap_layer_id";
 const EDGES_T_PATH: &str = "edges_t";
 const EDGES_D_PATH: &str = "edges_d"; // deletions
 const EDGES_C_PATH: &str = "edges_c";
