@@ -10,6 +10,12 @@ use raphtory::python::{
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 /// Raphtory graph analytics library
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
