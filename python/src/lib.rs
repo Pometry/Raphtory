@@ -8,6 +8,7 @@ use raphtory::python::{
     },
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
+use clam_core::python::py_gql::base_gql_module;
 
 /// Raphtory graph analytics library
 #[pymodule]
@@ -15,6 +16,7 @@ fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     let _ = add_raphtory_classes(m);
 
     let graphql_module = base_graphql_module(py)?;
+    let gql_module = base_gql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;
     let graph_loader_module = base_graph_loader_module(py)?;
     let graph_gen_module = base_graph_gen_module(py)?;
@@ -23,6 +25,7 @@ fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     let filter_module = base_filter_module(py)?;
     let iterables = base_iterables_module(py)?;
     m.add_submodule(&graphql_module)?;
+    m.add_submodule(&gql_module)?;
     m.add_submodule(&algorithm_module)?;
     m.add_submodule(&graph_loader_module)?;
     m.add_submodule(&graph_gen_module)?;

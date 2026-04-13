@@ -26,6 +26,7 @@ raphtory = { workspace = true, features = [
 raphtory-graphql = { workspace = true, features = [
     "python",
 ] }
+clam-core = { workspace = true, features = ["python"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]
