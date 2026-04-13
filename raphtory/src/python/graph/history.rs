@@ -307,7 +307,7 @@ impl<'py> FromPyObject<'_, 'py> for History<'static, Arc<dyn InternalHistoryOps>
 #[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryTimestamp {
-    history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
+    pub history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
@@ -470,7 +470,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryTimestam
 #[pyclass(name = "HistoryDateTime", module = "raphtory", frozen)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryDateTime {
-    history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
+    pub history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
@@ -656,7 +656,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryDateTime
 #[pyclass(name = "HistoryEventId", module = "raphtory", frozen)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryEventId {
-    history_s: HistoryEventId<Arc<dyn InternalHistoryOps>>,
+    pub history_s: HistoryEventId<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
@@ -819,7 +819,7 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryEventId<
 #[pyclass(name = "Intervals", module = "raphtory", frozen)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyIntervals {
-    intervals: Intervals<Arc<dyn InternalHistoryOps>>,
+    pub intervals: Intervals<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]

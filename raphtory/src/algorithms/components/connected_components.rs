@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::{Index, NodeState},
+            state::{GenericNodeState, TypedNodeState},
             view::{internal::GraphView, NodeViewOps, StaticGraphViewOps},
         },
         graph::node::NodeView,
@@ -12,11 +12,17 @@ use disjoint_sets::AUnionFind;
 use indexmap::IndexSet;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Formatter},
     mem,
     sync::atomic::{AtomicUsize, Ordering},
 };
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default, Hash, Eq)]
+pub struct ConnectedComponent {
+    pub component_id: usize,
+}
 
 /// Keeps track of node assignments to weakly-connected components
 ///
@@ -221,7 +227,7 @@ impl<'graph, G: GraphView + 'graph> ComponentState<'graph, G> {
 ///
 /// An [NodeState] containing the mapping from each node to its component ID
 ///
-pub fn weakly_connected_components<G>(g: &G) -> NodeState<'static, usize, G>
+pub fn weakly_connected_components<G>(g: &G) -> TypedNodeState<'static, ConnectedComponent, G>
 where
     G: StaticGraphViewOps,
 {
@@ -229,7 +235,14 @@ where
     let _cg = g.core_graph().lock();
     let state = ComponentState::new(g);
     let result = state.run();
-    NodeState::new_from_eval(g.clone(), result)
+    TypedNodeState::new(GenericNodeState::new_from_eval_mapped(
+        g.clone(),
+        result,
+        |value| ConnectedComponent {
+            component_id: value,
+        },
+        None,
+    ))
 }
 
 pub fn weakly_connected_components_ds<G>(g: &G) -> NodeState<'static, usize, G>

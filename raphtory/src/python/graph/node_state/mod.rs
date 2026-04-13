@@ -4,6 +4,7 @@ mod node_state_earliest_time;
 mod node_state_history;
 mod node_state_intervals;
 mod node_state_latest_time;
+mod output_node_state;
 
 use crate::{
     add_classes,
@@ -29,6 +30,7 @@ use crate::{
     },
 };
 pub use node_state::*;
+pub use output_node_state::*;
 use pyo3::prelude::*;
 
 pub fn base_node_state_module(py: Python<'_>) -> PyResult<Bound<'_, PyModule>> {

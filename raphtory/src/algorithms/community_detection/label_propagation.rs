@@ -21,7 +21,7 @@ use crate::{
 pub fn label_propagation<G>(
     g: &G,
     seed: Option<[u8; 32]>,
-) -> Result<Vec<HashSet<NodeView<'static, G>>>, &'static str>
+) -> TypedNodeState<'static, LabelPropState, G>
 where
     G: StaticGraphViewOps,
 {

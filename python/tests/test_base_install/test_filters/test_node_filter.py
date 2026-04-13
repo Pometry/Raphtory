@@ -423,3 +423,34 @@ def test_filter_nodes_neighbours():
         assert result_ids == expected_ids
 
     return check
+
+
+def test_filter_nodes_by_column():
+    from raphtory import Graph
+    from raphtory.algorithms import alternating_mask
+
+    graph = Graph()
+    graph.add_node(1, 1, {})
+    graph.add_node(1, 2, {})
+    graph.add_node(1, 3, {})
+    graph.add_node(1, 4, {})
+    graph.add_node(1, 5, {})
+
+    actual = alternating_mask(graph)
+    expected = {
+        1: {"bool_col": False},
+        2: {"bool_col": True},
+        3: {"bool_col": False},
+        4: {"bool_col": True},
+        5: {"bool_col": False},
+    }
+    assert actual == expected
+
+    filter_expr = filter.Node.by_state_column(actual, "bool_col")
+    result_ids = sorted(graph.filter(filter_expr).nodes.id)
+    expected_ids = sorted([2, 4])
+    assert result_ids == expected_ids
+
+    result_ids = sorted(graph.nodes[filter_expr].id)
+    expected_ids = sorted([2, 4])
+    assert result_ids == expected_ids

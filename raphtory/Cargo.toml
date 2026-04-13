@@ -34,7 +34,7 @@ rayon = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 bigdecimal = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
 dashmap = { workspace = true }
@@ -56,6 +56,10 @@ arrow-json = { workspace = true }
 arrow-csv = { workspace = true }
 arrow = { workspace = true, features = ["chrono-tz"] }
 disjoint-sets = { workspace = true }
+datafusion-physical-expr-common = { workspace = true }
+datafusion-physical-expr = { workspace = true }
+datafusion-physical-plan = { workspace = true }
+datafusion-expr-common = { workspace = true }
 
 # io optional dependencies
 csv = { workspace = true, optional = true }
@@ -72,8 +76,6 @@ memmap2 = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
-
-
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
 
@@ -84,9 +86,10 @@ async-openai = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
-arroy = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true, features = ["future"] }
+lancedb = {workspace = true, optional = true }
+axum = "0.8.4" # TODO put this in the proper place and make optional
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -146,9 +149,10 @@ vectors = [
     "dep:minijinja",
     "dep:minijinja-contrib",
     "raphtory-api/template",
-    "dep:arroy",
     "dep:heed",
     "dep:moka",
+    "dep:lancedb",
+    "dep:tokio", # also used for the io feature
     "dep:tempfile", # also used for the storage feature
 ]
 

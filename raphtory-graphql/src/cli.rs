@@ -123,14 +123,10 @@ where
 
             let app_config = Some(builder.build());
 
-            GraphServer::new(
-                server_args.work_dir,
-                app_config,
-                None,
-                server_args.graph_config,
-            )?
-            .run_with_port(server_args.port)
-            .await?;
+            GraphServer::new(server_args.work_dir, app_config, None, server_args.graph_config)
+                .await?
+                .run_with_port(server_args.port)
+                .await?;
         }
     }
     Ok(())

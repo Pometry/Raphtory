@@ -2,14 +2,22 @@ use ahash::HashSet;
 use proptest::{prelude::Strategy, proptest, sample::Index};
 use raphtory::{
     algorithms::components::weakly_connected_components,
-    db::api::{mutation::AdditionOps, state::NodeState, view::internal::GraphView},
+    db::api::{
+        mutation::AdditionOps,
+        state::{NodeStateValue, TypedNodeState},
+        view::internal::GraphView,
+    },
     prelude::*,
     test_storage,
 };
 use std::collections::{BTreeSet, HashMap};
 
-fn assert_same_partition<G: GraphView, ID: Into<GID>>(
-    left: NodeState<usize, G>,
+fn assert_same_partition<
+    V: NodeStateValue + Hash + Eq + 'static,
+    G: GraphView + 'static,
+    ID: Into<GID>,
+>(
+    left: TypedNodeState<'static, V, G>, // NodeState<usize, G>,
     right: impl IntoIterator<Item = impl IntoIterator<Item = ID>>,
 ) {
     let left_groups: HashSet<BTreeSet<_>> = left
@@ -252,7 +260,7 @@ mod in_component_test {
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
         let mut results: Vec<_> = in_component(graph.node(node_id).unwrap())
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
         results.sort();
         correct.sort();
@@ -268,7 +276,7 @@ mod in_component_test {
         let mut results: Vec<_> = in_component_filtered(graph.node(node_id).unwrap(), filter)
             .unwrap()
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
 
         results.sort();
@@ -350,9 +358,9 @@ mod in_component_test {
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.in_components
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )
@@ -407,9 +415,9 @@ mod in_component_test {
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.in_components
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )
@@ -517,12 +525,13 @@ mod components_test {
         prelude::*,
         test_storage,
     };
+    use raphtory_api::core::entities::VID;
     use std::collections::HashMap;
 
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
         let mut results: Vec<_> = out_component(graph.node(node_id).unwrap())
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
         results.sort();
         correct.sort();
@@ -538,7 +547,7 @@ mod components_test {
         let mut results: Vec<_> = out_component_filtered(graph.node(node_id).unwrap(), filter)
             .unwrap()
             .iter()
-            .map(|(n, d)| (n.id().as_u64().unwrap(), *d))
+            .map(|(n, d)| (n.id().as_u64().unwrap(), d.distance))
             .collect();
         results.sort();
         correct.sort();
@@ -614,6 +623,7 @@ mod components_test {
 
         test_storage!(&graph, |graph| {
             let results = out_components(graph, None);
+
             let mut correct = HashMap::new();
             correct.insert("1".to_string(), vec![2, 3, 4, 5, 6, 7, 8]);
             correct.insert("2".to_string(), vec![4, 5, 6, 7, 8]);
@@ -624,13 +634,13 @@ mod components_test {
             correct.insert("7".to_string(), vec![]);
             correct.insert("8".to_string(), vec![]);
             let map: HashMap<String, Vec<u64>> = results
-                .into_iter()
+                .iter()
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.out_components
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )
@@ -708,9 +718,9 @@ mod components_test {
                 .map(|(k, v)| {
                     (
                         k.name(),
-                        v.id()
-                            .into_iter_values()
-                            .filter_map(|v| v.as_u64())
+                        v.out_components
+                            .into_iter()
+                            .map(|value| graph.node(value).unwrap().id().as_u64().unwrap())
                             .sorted()
                             .collect(),
                     )

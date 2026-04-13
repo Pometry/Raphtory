@@ -55,6 +55,7 @@ impl<'a> LayerCol<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn iter(self) -> impl Iterator<Item = Option<&'a str>> {
         match self {
             LayerCol::Name { name, len } => LayerColVariants::Name((0..len).map(move |_| name)),

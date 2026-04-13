@@ -514,23 +514,3 @@ impl<'graph, T: TimeOps<'graph> + Clone + 'graph> ExactSizeIterator for WindowSe
         count
     }
 }
-
-#[cfg(test)]
-mod time_tests {
-    use crate::{
-        db::api::{mutation::AdditionOps, view::time::internal::InternalTimeOps},
-        prelude::*,
-    };
-
-    // start inclusive, end exclusive
-    #[test]
-    fn graph_with_timeline() {
-        let g = Graph::new();
-        let start = 1;
-        let end = 3;
-        g.add_edge(start, 0, 1, NO_PROPS, None).unwrap();
-        g.add_edge(end - 1, 0, 1, NO_PROPS, None).unwrap();
-        assert_eq!(g.timeline_start().unwrap(), start);
-        assert_eq!(g.timeline_end().unwrap(), end);
-    }
-}

@@ -413,7 +413,7 @@ impl<'py> IntoPyObject<'py> for NumpyArray {
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub fn execute_async_task<T, F, O>(task: T) -> O
+pub(crate) fn execute_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,
@@ -433,4 +433,8 @@ pub fn get_runtime() -> &'static Runtime {
             .build()
             .expect("Failed to create Tokio runtime")
     })
+}
+
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    get_runtime().block_on(future)
 }

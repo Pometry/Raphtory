@@ -156,7 +156,10 @@ fn valid_component(component: Component<'_>) -> Result<&OsStr, InvalidPathReason
         Component::RootDir => Err(InvalidPathReason::RootNotAllowed),
         Component::CurDir => Err(InvalidPathReason::CurDirNotAllowed),
         Component::ParentDir => Err(InvalidPathReason::ParentDirNotAllowed),
-        Component::Normal(component) => Ok(component),
+        Component::Normal(component) => {
+                  if component.starts_with(".") {
+                    Err(InvalidPathReason::HiddenPathNotAllowed(user_facing_path))
+                } else {Ok(component)},
     }
 }
 

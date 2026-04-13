@@ -10,7 +10,7 @@ use crate::{
     },
     db::{
         api::{
-            state::ops::NodeOp,
+            state::ops::{ArrowNodeOp, NodeOp},
             view::{
                 internal::{GraphView, InternalFilter},
                 BaseNodeViewOps, BoxedLIter, IntoDynBoxed,
@@ -304,7 +304,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
     BaseNodeViewOps<'graph> for EvalPathFromNode<'graph, 'a, G, CS, S>
 {
     type Graph = G;
-    type ValueType<T: NodeOp + 'graph> = Box<dyn Iterator<Item = T::Output> + 'graph>;
+    type ValueType<T: ArrowNodeOp + 'graph> = Box<dyn Iterator<Item = T::Output> + 'graph>;
     type PropType = NodeView<'graph, G>;
     type PathType = EvalPathFromNode<'graph, 'a, G, CS, S>;
     type Edges = EvalEdges<'graph, 'a, G, CS, S>;
@@ -313,7 +313,7 @@ impl<'graph, 'a: 'graph, G: GraphViewOps<'graph>, S: 'static, CS: ComputeState +
         &self.eval_graph.base_graph
     }
 
-    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    fn map<F: ArrowNodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
     where
         <F as NodeOp>::Output: 'graph,
     {
@@ -428,7 +428,7 @@ impl<'graph, 'a: 'graph, G: GraphView + 'graph, S: 'static, CS: ComputeState + '
     BaseNodeViewOps<'graph> for EvalNodeView<'graph, 'a, G, S, CS>
 {
     type Graph = G;
-    type ValueType<T: NodeOp>
+    type ValueType<T: ArrowNodeOp>
         = T::Output
     where
         T: 'graph;
@@ -440,7 +440,7 @@ impl<'graph, 'a: 'graph, G: GraphView + 'graph, S: 'static, CS: ComputeState + '
         &self.eval_graph.base_graph
     }
 
-    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    fn map<F: ArrowNodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
     where
         <F as NodeOp>::Output: 'graph,
     {

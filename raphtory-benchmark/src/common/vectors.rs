@@ -4,8 +4,9 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use raphtory::{
     prelude::{AdditionOps, Graph, NO_PROPS},
     vectors::{
-        cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph, Embedding,
+        cache::VectorCache, embeddings::EmbeddingResult, storage::OpenAIEmbeddings,
+        template::DocumentTemplate, vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+        Embedding,
     },
 };
 use tokio::runtime::Runtime;
@@ -35,12 +36,16 @@ pub fn create_graph_for_vector_bench(size: usize) -> Graph {
 }
 
 pub async fn vectorise_graph_for_bench_async(graph: Graph) -> VectorisedGraph<Graph> {
-    let cache = VectorCache::in_memory(embedding_model);
+    let cache = VectorCache::in_memory();
+    let model = cache
+        .openai(OpenAIEmbeddings::new("whatever", "localhost://1783").into())
+        .await
+        .unwrap();
     let template = DocumentTemplate {
         node_template: Some("{{name}}".to_owned()),
         edge_template: None,
     };
-    graph.vectorise(cache, template, None, true).await.unwrap()
+    graph.vectorise(model, template, None, true).await.unwrap()
 }
 
 // TODO: remove this version

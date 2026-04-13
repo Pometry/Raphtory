@@ -1,7 +1,7 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::api::{
-        state::{Index, NodeState},
+        state::{GenericNodeState, TypedNodeState},
         view::StaticGraphViewOps,
     },
     prelude::*,
@@ -17,6 +17,7 @@ use raphtory_api::core::{
     storage::timeindex::AsTime,
     utils::time::{ParseTimeError, TryIntoTime},
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
@@ -35,7 +36,7 @@ impl Probability {
 
 pub struct Number(pub usize);
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Infected {
     pub infected: i64,
     pub active: i64,
@@ -193,7 +194,7 @@ pub fn temporal_SEIR<
     initial_infection: T,
     seeds: S,
     rng: &mut R,
-) -> Result<NodeState<'static, Infected, G>, SeedError>
+) -> Result<TypedNodeState<'static, Infected, G>, SeedError>
 where
     SeedError: From<P::Error>,
 {
@@ -247,8 +248,8 @@ where
             }
         }
     }
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
-    Ok(NodeState::new(
+    //let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
         g.clone(),
         values.into(),
         Index::Partial(index.into()),
