@@ -1,5 +1,5 @@
 use crate::core::{
-    entities::{EID, VID},
+    entities::{LayerId, EID, VID},
     storage::timeindex::{AsTime, EventTime},
 };
 use std::cmp::Ordering;
@@ -11,7 +11,7 @@ pub struct EdgeRef {
     dst_pid: VID,
     e_type: Dir,
     time: Option<EventTime>,
-    layer_id: Option<usize>,
+    layer_id: Option<LayerId>,
 }
 
 // This is used for merging iterators of EdgeRefs and only makes sense if the local node for both
@@ -66,7 +66,7 @@ impl EdgeRef {
     }
 
     #[inline(always)]
-    pub fn layer(&self) -> Option<usize> {
+    pub fn layer(&self) -> Option<LayerId> {
         self.layer_id
     }
 
@@ -124,7 +124,7 @@ impl EdgeRef {
     }
 
     #[inline]
-    pub fn at_layer(&self, layer: usize) -> Self {
+    pub fn at_layer(&self, layer: LayerId) -> Self {
         let mut e_ref = *self;
         e_ref.layer_id = Some(layer);
         e_ref

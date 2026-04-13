@@ -1758,3 +1758,136 @@ def test_load_edges_csv_c_engine_time_utf8(tmp_path):
     assert {
         v.id: v.properties["time"] for v in g.nodes if "time" in v.properties
     } == expected_node_time_props
+
+
+def test_load_nodes_with_fixed_layer():
+    """load_nodes(layer=...) assigns all node updates to the named layer."""
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6],
+            "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+            "time": [1, 2, 3, 4, 5, 6],
+        }
+    )
+
+    def assertions(g):
+        assert g.unique_layers == ["node_layer"]
+        assert set(g.layers(["node_layer"]).nodes.id) == {1, 2, 3, 4, 5, 6}
+        assert dict(
+            zip(
+                g.layers(["node_layer"]).nodes.id,
+                g.layers(["node_layer"]).nodes.properties.get("name"),
+            )
+        ) == {1: "Alice", 2: "Bob", 3: "Carol", 4: "Dave", 5: "Eve", 6: "Frank"}
+
+    g = Graph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer="node_layer",
+    )
+    assertions(g)
+
+    g = PersistentGraph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer="node_layer",
+    )
+    assertions(g)
+
+
+def test_load_nodes_with_layer_col():
+    """load_nodes(layer_col=...) assigns each node update to its row's layer."""
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6],
+            "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+            "time": [1, 2, 3, 4, 5, 6],
+            "layer": ["layer A", "layer A", "layer B", "layer B", "layer C", "layer C"],
+        }
+    )
+
+    def assertions(g):
+        assert set(g.unique_layers) == {"layer A", "layer B", "layer C"}
+        assert set(g.layers(["layer A"]).nodes.id) == {1, 2}
+        assert set(g.layers(["layer B"]).nodes.id) == {3, 4}
+        assert set(g.layers(["layer C"]).nodes.id) == {5, 6}
+        assert set(g.layers(["layer A", "layer B"]).nodes.id) == {1, 2, 3, 4}
+
+    g = Graph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer_col="layer",
+    )
+    assertions(g)
+
+    g = PersistentGraph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer_col="layer",
+    )
+    assertions(g)
+
+
+def test_load_nodes_layer_and_edges_layer_combined():
+    """Nodes and edges can live in independent layers without cross-contamination."""
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, 2, 3],
+            "dst": [2, 3, 4],
+            "time": [1, 2, 3],
+        }
+    )
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "name": ["A", "B", "C", "D"],
+            "time": [1, 2, 3, 4],
+        }
+    )
+
+    def assertions(g):
+        assert set(g.unique_layers) == {"node_layer", "edge_layer"}
+        assert set(g.layers(["node_layer"]).nodes.id) == {1, 2, 3, 4}
+        assert list(g.layers(["node_layer"]).edges.id) == []
+        assert set(g.layers(["edge_layer"]).edges.id) == {(1, 2), (2, 3), (3, 4)}
+
+    g = Graph()
+    g.load_nodes(
+        data=nodes_df, time="time", id="id", properties=["name"], layer="node_layer"
+    )
+    g.load_edges(edges_df, time="time", src="src", dst="dst", layer="edge_layer")
+    assertions(g)
+
+    g = PersistentGraph()
+    g.load_nodes(
+        data=nodes_df, time="time", id="id", properties=["name"], layer="node_layer"
+    )
+    g.load_edges(edges_df, time="time", src="src", dst="dst", layer="edge_layer")
+    assertions(g)
+
+
+def test_load_nodes_invalid_layer_reference():
+    """Querying a layer that was never loaded raises an error."""
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "time": [1, 2],
+        }
+    )
+    g = Graph()
+    g.load_nodes(data=nodes_df, time="time", id="id", layer="real_layer")
+
+    with pytest.raises(Exception, match="Invalid layer: nonexistent_layer"):
+        g.layers(["nonexistent_layer"])

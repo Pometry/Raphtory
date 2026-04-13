@@ -3,9 +3,12 @@ use crate::{
     segments::{HasRow, SegmentContainer},
     wal::LSN,
 };
-use raphtory_api::core::entities::properties::{
-    meta::Meta,
-    prop::{AsPropRef, Prop},
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{
+        meta::Meta,
+        prop::{AsPropRef, Prop},
+    },
 };
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
@@ -44,7 +47,7 @@ impl MemGraphPropSegment {
     pub const DEFAULT_ROW: usize = 0;
 
     /// Graph segments are currently only written to a single layer.
-    pub const DEFAULT_LAYER: usize = 0;
+    pub const DEFAULT_LAYER: LayerId = LayerId(0);
 
     pub fn new_with_meta(meta: Arc<Meta>) -> Self {
         // Technically, these aren't used since there is always only one graph segment.
@@ -57,7 +60,8 @@ impl MemGraphPropSegment {
         }
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<UnitEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<UnitEntry> {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -120,7 +124,7 @@ impl MemGraphPropSegment {
     }
 
     pub fn check_metadata<P: AsPropRef>(&self, props: &[(usize, P)]) -> Result<(), StorageError> {
-        if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER) {
+        if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER.0) {
             layer.check_metadata(Self::DEFAULT_ROW.into(), props)?;
         }
 
@@ -147,14 +151,12 @@ impl MemGraphPropSegment {
     }
 
     pub fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
-        let layer = &self.layers[Self::DEFAULT_LAYER];
-
+        let layer = &self.layers[Self::DEFAULT_LAYER.0];
         layer.t_prop(Self::DEFAULT_ROW, prop_id)
     }
 
     pub fn get_metadata(&self, prop_id: usize) -> Option<Prop> {
-        let layer = &self.layers[Self::DEFAULT_LAYER];
-
+        let layer = &self.layers[Self::DEFAULT_LAYER.0];
         layer.c_prop(Self::DEFAULT_ROW, prop_id)
     }
 }

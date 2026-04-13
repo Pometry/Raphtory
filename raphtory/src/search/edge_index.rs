@@ -10,7 +10,10 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::{entities::LayerIds, storage::dict_mapper::MaybeNew};
+use raphtory_api::core::{
+    entities::{LayerId, LayerIds},
+    storage::dict_mapper::MaybeNew,
+};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
@@ -239,7 +242,7 @@ impl EdgeIndex {
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
         t: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let eid_u64 = edge_id.inner().as_u64();
@@ -279,7 +282,7 @@ impl EdgeIndex {
     pub(crate) fn add_edge_metadata(
         &self,
         edge_id: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.entity_index.metadata_indexes.read_recursive();
@@ -298,7 +301,7 @@ impl EdgeIndex {
     pub(crate) fn update_edge_metadata(
         &self,
         edge_id: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.entity_index.metadata_indexes.read_recursive();

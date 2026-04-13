@@ -387,7 +387,7 @@ mod server_tests {
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();

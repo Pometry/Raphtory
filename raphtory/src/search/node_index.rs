@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::VID,
-        storage::timeindex::{AsTime, EventTime},
-    },
+    core::{entities::VID, storage::timeindex::EventTime},
     db::{api::view::IndexSpec, graph::node::NodeView},
     errors::GraphError,
     prelude::*,
@@ -13,7 +10,6 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
 use std::{

@@ -31,7 +31,7 @@ use crate::{
 use raphtory_api::core::{
     entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
-        ELID,
+        LayerId, ELID,
     },
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
@@ -294,7 +294,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
 }
 
 impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
-    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, Vec<(usize, Prop)>)>
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, LayerId, Vec<(usize, Prop)>)>
     where
         'graph: 'a,
     {
@@ -532,6 +532,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         &self,
         time: T,
         props: PII,
+        layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let transaction_manager = self
             .graph
@@ -550,6 +551,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
+        let layer_id = match layer {
+            None => STATIC_GRAPH_LAYER_ID,
+            Some(_) => self
+                .graph
+                .resolve_layer(layer)
+                .map_err(into_graph_err)?
+                .inner(),
+        };
 
         let t = time_from_input_session(&session, time)?;
         let vid = self.node;
@@ -567,7 +576,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             })
             .collect::<Vec<_>>();
 
-        writer.internal_add_update(t, STATIC_GRAPH_LAYER_ID, props);
+        writer.internal_add_update(t, layer_id, props);
 
         let props_for_wal = props_with_status
             .iter()
@@ -578,7 +587,16 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             .collect::<Vec<_>>();
 
         let lsn = wal
-            .log_add_node(transaction_id, t, None, vid, None, props_for_wal)
+            .log_add_node(
+                transaction_id,
+                t,
+                None,
+                vid,
+                None,
+                props_for_wal,
+                layer,
+                layer_id,
+            )
             .map_err(into_graph_err)?;
 
         writer.set_lsn(lsn);

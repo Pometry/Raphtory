@@ -11,7 +11,7 @@ use raphtory_api::{
                 meta::{Meta, STATIC_GRAPH_LAYER_ID},
                 prop::Prop,
             },
-            GidType, LayerIds, EID, GID, VID,
+            GidType, LayerId, LayerIds, EID, GID, VID,
         },
         storage::arc_str::ArcStr,
     },
@@ -73,12 +73,12 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     /// Return the id of the single layer if `layer_ids` reduces to a graph with a single layer, else None
-    fn single_layer(&self, layer_ids: &LayerIds) -> Option<usize> {
+    fn single_layer(&self, layer_ids: &LayerIds) -> Option<LayerId> {
         match layer_ids {
             LayerIds::None => None,
             LayerIds::All => {
                 if self.unfiltered_num_layers() == 1 {
-                    Some(0)
+                    Some(STATIC_GRAPH_LAYER_ID)
                 } else {
                     None
                 }
@@ -132,17 +132,17 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn get_layer_name(&self, layer_id: usize) -> ArcStr {
-        self.edge_meta().layer_meta().get_name(layer_id).clone()
+    fn get_layer_name(&self, layer_id: LayerId) -> ArcStr {
+        self.edge_meta().layer_meta().get_name(layer_id.0).clone()
     }
 
     #[inline]
-    fn get_layer_id(&self, name: &str) -> Option<usize> {
-        self.edge_meta().get_layer_id(name)
+    fn get_layer_id(&self, name: &str) -> Option<LayerId> {
+        self.edge_meta().get_layer_id(name).map(|id| id)
     }
 
     #[inline]
-    fn get_default_layer_id(&self) -> Option<usize> {
+    fn get_default_layer_id(&self) -> Option<LayerId> {
         self.edge_meta().get_default_layer_id()
     }
 
@@ -154,12 +154,12 @@ pub trait CoreGraphOps: Send + Sync {
             LayerIds::None => Box::new(iter::empty()),
             LayerIds::All => Box::new(self.edge_meta().layer_meta().keys().into_iter()), // first layer is static graph and private
             LayerIds::One(id) => {
-                let name = self.edge_meta().layer_meta().get_name(id).clone();
+                let name = self.edge_meta().layer_meta().get_name(id.0).clone();
                 Box::new(iter::once(name))
             }
             LayerIds::Multiple(ids) => {
                 let keys = self.edge_meta().layer_meta().all_keys();
-                Box::new(ids.into_iter().map(move |id| keys[id].clone()))
+                Box::new(ids.into_iter().map(move |id| keys[id.0].clone()))
             }
         }
     }

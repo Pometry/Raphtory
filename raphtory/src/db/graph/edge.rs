@@ -32,7 +32,7 @@ use crate::{
 };
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::properties::prop::PropType,
+    entities::{properties::prop::PropType, LayerId},
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
@@ -113,7 +113,7 @@ impl<G: GraphView> EdgeView<G> {
         Self { graph, edge }
     }
 
-    pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, usize)> {
+    pub fn deletions_hist(&self) -> BoxedLIter<'_, (EventTime, LayerId)> {
         let g = &self.graph;
         let e = self.edge;
         if edge_valid_layer(g, e) {
@@ -285,7 +285,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseEdgeViewOps<'graph> for EdgeView<G> {
 }
 
 impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
-    fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<usize, GraphError> {
+    fn resolve_layer(&self, layer: Option<&str>, create: bool) -> Result<LayerId, GraphError> {
         let layer_id = match layer {
             Some(name) => match self.edge.layer() {
                 Some(l_id) => self
@@ -331,7 +331,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
     fn resolve_and_check_layer_for_metadata(
         &self,
         layer: Option<&str>,
-    ) -> Result<usize, GraphError> {
+    ) -> Result<LayerId, GraphError> {
         let create = false;
         let layer_id = self.resolve_layer(layer, create)?;
 

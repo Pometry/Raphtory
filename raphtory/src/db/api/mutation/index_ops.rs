@@ -1,5 +1,5 @@
 use crate::{
-    db::api::view::{internal::InternalStorageOps, IndexSpec, IndexSpecBuilder},
+    db::api::view::{IndexSpec, IndexSpecBuilder},
     errors::GraphError,
     prelude::AdditionOps,
     serialise::{GraphFolder, GraphPaths},

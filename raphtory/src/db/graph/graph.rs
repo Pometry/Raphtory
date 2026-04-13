@@ -9,8 +9,8 @@
 //! ```rust
 //! use raphtory::prelude::*;
 //! let graph = Graph::new();
-//! graph.add_node(0, "Alice", NO_PROPS, None).unwrap();
-//! graph.add_node(1, "Bob", NO_PROPS, None).unwrap();
+//! graph.add_node(0, "Alice", NO_PROPS, None, None).unwrap();
+//! graph.add_node(1, "Bob", NO_PROPS, None, None).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", NO_PROPS, None).unwrap();
 //! graph.count_edges();
 //! ```

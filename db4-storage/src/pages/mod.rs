@@ -1,5 +1,5 @@
 use crate::{
-    LocalPOS,
+    EID, LocalPOS, VID,
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
@@ -14,8 +14,7 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{entities::properties::meta::Meta, utils::time::TryIntoInputTime};
-use raphtory_core::entities::{EID, VID};
+use raphtory_api::core::entities::properties::meta::Meta;
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},

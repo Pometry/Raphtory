@@ -19,7 +19,9 @@ use crate::{
 
 use crate::db::task::edge::eval_edges::EvalEdges;
 
-use crate::db::{api::properties::Metadata, task::eval_graph::EvalGraph};
+use crate::db::{
+    api::properties::Metadata, graph::views::layer_graph::LayeredGraph, task::eval_graph::EvalGraph,
+};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 

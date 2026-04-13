@@ -16,12 +16,16 @@ use raphtory::{
     core::utils::time::TryIntoInterval,
     db::{
         api::view::{DynamicGraph, EdgeViewOps, Filter, IntoDynamic, StaticGraphViewOps},
-        graph::{edge::EdgeView, views::filter::model::edge_filter::CompositeEdgeFilter},
+        graph::{
+            edge::EdgeView, edges::Edges, views::filter::model::edge_filter::CompositeEdgeFilter,
+        },
     },
     errors::GraphError,
     prelude::{LayerOps, TimeOps},
 };
-use raphtory_api::core::utils::time::IntoTime;
+use raphtory_api::{core::utils::time::IntoTime, iter::IntoDynBoxed};
+use raphtory_storage::layer_ops::InternalLayerOps;
+use std::sync::Arc;
 
 /// Raphtory graph edge.
 #[derive(ResolvedObject, Clone)]

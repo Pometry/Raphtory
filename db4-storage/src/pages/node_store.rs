@@ -13,7 +13,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::{RwLock, RwLockWriteGuard};
-use raphtory_api::core::entities::{GidType, properties::meta::Meta};
+use raphtory_api::core::entities::{GidType, LayerId, properties::meta::Meta};
 use raphtory_core::{
     entities::{EID, VID},
     storage::timeindex::AsTime,
@@ -146,12 +146,12 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     }
 
     pub fn num_nodes(&self) -> usize {
-        self.stats.get(0)
+        self.stats.get(LayerId(0))
     }
 
     // FIXME: this should be called by the high level APIs on layer filter
     pub fn layer_num_nodes(&self, layer_id: usize) -> usize {
-        self.stats.get(layer_id)
+        self.stats.get(LayerId(layer_id))
     }
 
     pub fn stats(&self) -> &Arc<GraphStats> {
@@ -169,6 +169,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
     pub fn num_segments(&self) -> usize {
         self.segments.count()
     }
+
+    // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
+    //     &self.segments
+    // }
 
     pub fn segments_par_iter(&self) -> impl ParallelIterator<Item = &NS> {
         let len = self.segments.count();
@@ -220,7 +224,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
             let segment = empty.get_or_create_segment(0);
             let mut head = segment.head_mut();
             if prop_mapper.num_fields() > 0 {
-                head.get_or_create_layer(0)
+                head.get_or_create_layer(LayerId(0))
                     .properties_mut()
                     .set_has_properties()
             }
@@ -302,7 +306,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         LocalPOS,
         NodeWriter<'_, RwLockWriteGuard<'_, MemNodeSegment>, NS>,
     ) {
-        let mut slot_idx = row % *N;
+        let slot_idx = row % *N;
         // No point in multiple threads getting past here as they would just content on the writer lock
         let mut slot = self.free_segments[slot_idx].write();
         let mut segment_id = *slot;
@@ -537,7 +541,7 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         })
     }
 
-    pub fn get_edge(&self, src: VID, dst: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_edge(&self, src: VID, dst: VID, layer_id: LayerId) -> Option<EID> {
         let (src_chunk, src_pos) = self.resolve_pos(src);
         if src_chunk >= self.segments.count() {
             return None;

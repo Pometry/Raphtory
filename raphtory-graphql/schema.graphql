@@ -1852,11 +1852,11 @@ type MutableGraph {
 	"""
 	Add a new node or add updates to an existing node.
 	"""
-	addNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String): MutableNode!
+	addNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String, layer: String): MutableNode!
 	"""
 	Create a new node or fail if it already exists.
 	"""
-	createNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String): MutableNode!
+	createNode(time: Int!, name: String!, properties: [PropertyInput!], nodeType: String, layer: String): MutableNode!
 	"""
 	Add a batch of nodes.
 	"""
@@ -1915,7 +1915,7 @@ type MutableNode {
 	"""
 	Add temporal property updates to the node.
 	"""
-	addUpdates(time: Int!, properties: [PropertyInput!]): Boolean!
+	addUpdates(time: Int!, properties: [PropertyInput!], layer: String): Boolean!
 }
 
 type MutationPlugin {
@@ -2133,6 +2133,10 @@ input NodeAddition {
 	Updates.
 	"""
 	updates: [TemporalPropertyInput!]
+	"""
+	Layer.
+	"""
+	layer: String
 }
 
 enum NodeField {
