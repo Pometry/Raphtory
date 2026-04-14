@@ -1677,7 +1677,10 @@ mod test_node_filter {
                 },
             },
         },
-        prelude::{AdditionOps, Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps, NO_PROPS},
+        prelude::{
+            AdditionOps, Graph, GraphViewOps, NodeFilter, NodeStateOps, NodeViewOps, TimeOps,
+            NO_PROPS,
+        },
     };
 
     #[test]
@@ -2481,6 +2484,13 @@ mod test_node_filter {
         graph.add_node(1, 5, NO_PROPS, None, None).unwrap();
 
         let mask = alternating_mask(&graph);
+        let expected_nodes: Vec<_> = graph
+            .nodes()
+            .name()
+            .iter_values()
+            .skip(1)
+            .step_by(2)
+            .collect();
 
         let filtered = graph
             .filter(NodeFilter::by_column(&mask, "bool_col").unwrap())
@@ -2492,7 +2502,7 @@ mod test_node_filter {
             .map(|n| n.id().to_string())
             .collect::<Vec<_>>();
 
-        assert_eq!(names, vec!["2", "4"]);
+        assert_eq!(names, expected_nodes);
 
         let filtered = graph
             .nodes()
@@ -2504,7 +2514,7 @@ mod test_node_filter {
             .map(|n| n.id().to_string())
             .collect::<Vec<_>>();
 
-        assert_eq!(names, vec!["2", "4"]);
+        assert_eq!(names, expected_nodes);
     }
 
     #[test]
