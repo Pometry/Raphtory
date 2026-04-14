@@ -1,15 +1,26 @@
 use chrono::Local;
 use itertools::Itertools;
-use proptest::{arbitrary::any, proptest};
 #[cfg(feature = "io")]
-use raphtory::db::api::storage::storage::PersistenceStrategy;
+use parquet::arrow::arrow_reader::ArrowReaderMetadata;
+use proptest::{arbitrary::any, proptest};
 #[cfg(feature = "io")]
 use raphtory::db::api::view::materialize_using_recordbatches;
 #[cfg(feature = "io")]
-use raphtory::db::api::view::MaterializedGraph;
+use raphtory::io::{
+    arrow::df_loaders::edges::ColumnNames,
+    parquet_loaders::{
+        get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
+        load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
+        load_nodes_from_parquet,
+    },
+};
 use raphtory::{
-    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps, graph_equal},
+    db::{
+        api::{storage::storage::PersistenceStrategy, view::MaterializedGraph},
+        graph::graph::{assert_graph_equal, assert_graph_equal_timestamps, graph_equal},
+    },
     prelude::*,
+    serialise::parquet::ParquetEncoder,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},
 };
@@ -252,7 +263,7 @@ fn test_materialize_snb_sf10_timings() {
     println!("Faster path: {faster} ({ratio:.2}x)");
 }
 
-fn get_new_materialize_timing(graph_path: &Path, materialize_graph_path: &Path) -> Duration {
+fn get_new_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Duration {
     remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
     fs::create_dir_all(&materialize_graph_path).unwrap();
 
@@ -292,7 +303,7 @@ fn get_new_materialize_timing(graph_path: &Path, materialize_graph_path: &Path) 
     recordbatch_elapsed
 }
 
-fn get_parquet_decode_timing(
+fn get_parquet_decode_time(
     graph_path: &Path,
     parquet_path: &Path,
     decode_graph_path: &Path,
@@ -340,6 +351,369 @@ fn get_parquet_decode_timing(
     parquet_decode_elapsed
 }
 
+// FIXME: Is there a way to safely import these from parquet/mod.rs?
+#[cfg(feature = "io")]
+const RAP_NODE_ID_COL: &str = "rap_node_id";
+#[cfg(feature = "io")]
+const RAP_NODE_VID_COL: &str = "rap_node_vid";
+#[cfg(feature = "io")]
+const RAP_NODE_TYPE_COL: &str = "rap_node_type";
+#[cfg(feature = "io")]
+const RAP_NODE_TYPE_ID_COL: &str = "rap_node_type_id";
+#[cfg(feature = "io")]
+const RAP_TIME_COL: &str = "rap_time";
+#[cfg(feature = "io")]
+const RAP_SECONDARY_INDEX_COL: &str = "rap_secondary_index";
+#[cfg(feature = "io")]
+const RAP_SRC_ID_COL: &str = "rap_src_id";
+#[cfg(feature = "io")]
+const RAP_DST_ID_COL: &str = "rap_dst_id";
+#[cfg(feature = "io")]
+const RAP_EDGE_ID_COL: &str = "rap_edge_id";
+#[cfg(feature = "io")]
+const RAP_LAYER_COL: &str = "rap_layer";
+#[cfg(feature = "io")]
+const RAP_LAYER_ID_COL: &str = "rap_layer_id";
+#[cfg(feature = "io")]
+const GRAPH_C_PARQUET_DIR: &str = "graph_c";
+#[cfg(feature = "io")]
+const GRAPH_T_PARQUET_DIR: &str = "graph_t";
+#[cfg(feature = "io")]
+const NODES_C_PARQUET_DIR: &str = "nodes_c";
+#[cfg(feature = "io")]
+const NODES_T_PARQUET_DIR: &str = "nodes_t";
+#[cfg(feature = "io")]
+const EDGES_T_PARQUET_DIR: &str = "edges_t";
+#[cfg(feature = "io")]
+const EDGES_D_PARQUET_DIR: &str = "edges_d";
+#[cfg(feature = "io")]
+const EDGES_C_PARQUET_DIR: &str = "edges_c";
+
+#[cfg(feature = "io")]
+fn parquet_prop_columns(path: &Path, exclude: &[&str]) -> Vec<String> {
+    get_parquet_file_paths(path)
+        .unwrap()
+        .into_iter()
+        .next()
+        .map(|file| {
+            ArrowReaderMetadata::load(&fs::File::open(file).unwrap(), Default::default())
+                .unwrap()
+                .schema()
+                .fields()
+                .iter()
+                .map(|field| field.name().to_string())
+                .filter(|name| !exclude.iter().any(|excluded| excluded == name))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(feature = "io")]
+fn get_parquet_encode_time(graph_path: &Path, parquet_graph_path: &Path) -> Duration {
+    remove_dir_all_ignore_not_found(&parquet_graph_path).unwrap();
+    fs::create_dir_all(&parquet_graph_path).unwrap();
+
+    if !graph_path.exists() {
+        panic!("SNB graph not found at {}", graph_path.display());
+    }
+
+    println!("Loading SF10 SNB graph from {}", graph_path.display());
+    let sf10_graph = Graph::load(&graph_path).unwrap();
+    println!(
+        "Loaded SF10 source graph: {} nodes, {} edges, {} temporal edges",
+        sf10_graph.count_nodes(),
+        sf10_graph.count_edges(),
+        sf10_graph.count_temporal_edges()
+    );
+
+    println!("Starting SF10 encode_parquet at {}", Local::now());
+    let parquet_dump_start = Instant::now();
+    sf10_graph.encode_parquet(parquet_graph_path).unwrap();
+    let parquet_dump_elapsed = parquet_dump_start.elapsed();
+    println!(
+        "Finished SF10 encode_parquet at {}\nTook {parquet_dump_elapsed:?}",
+        Local::now()
+    );
+
+    parquet_dump_elapsed
+}
+
+#[cfg(feature = "io")]
+fn get_parquet_df_loader_time(
+    graph_path: &Path,
+    parquet_path: &Path,
+    load_graph_path: &Path,
+) -> Duration {
+    remove_dir_all_ignore_not_found(&load_graph_path).unwrap();
+    fs::create_dir_all(&load_graph_path).unwrap();
+
+    if !graph_path.exists() {
+        panic!("SNB graph not found at {}", graph_path.display());
+    }
+    if !parquet_path.exists() {
+        panic!(
+            "SNB parquet graph directory not found at {}",
+            parquet_path.display()
+        );
+    }
+
+    println!("Loading SF10 SNB graph from {}", graph_path.display());
+    let sf10_graph = Graph::load(&graph_path).unwrap();
+    println!(
+        "Loaded SF10 source graph: {} nodes, {} edges, {} temporal edges",
+        sf10_graph.count_nodes(),
+        sf10_graph.count_edges(),
+        sf10_graph.count_temporal_edges()
+    );
+    let sf10_extension_config = sf10_graph.core_graph().extension().config().clone();
+    drop(sf10_graph);
+
+    let replay_graph =
+        Graph::new_at_path_with_config(load_graph_path, sf10_extension_config).unwrap();
+    println!("Starting SF10 parquet loader replay at {}", Local::now());
+    let parquet_load_start = Instant::now();
+
+    let c_graph_path = parquet_path.join(GRAPH_C_PARQUET_DIR);
+    if c_graph_path.exists() {
+        let graph_c_metadata = parquet_prop_columns(&c_graph_path, &[RAP_TIME_COL]);
+        let graph_c_metadata = graph_c_metadata
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let graph_c_start = Instant::now();
+        load_graph_props_from_parquet(
+            &replay_graph,
+            &c_graph_path,
+            RAP_TIME_COL,
+            None,
+            &[],
+            &graph_c_metadata,
+            None,
+            None,
+        )
+        .unwrap();
+        println!(
+            "GraphC loaded at {}\nTook {:?}",
+            Local::now(),
+            graph_c_start.elapsed()
+        );
+    }
+
+    let t_graph_path = parquet_path.join(GRAPH_T_PARQUET_DIR);
+    if t_graph_path.exists() {
+        let graph_t_props =
+            parquet_prop_columns(&t_graph_path, &[RAP_TIME_COL, RAP_SECONDARY_INDEX_COL]);
+        let graph_t_props = graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+        let graph_t_start = Instant::now();
+        load_graph_props_from_parquet(
+            &replay_graph,
+            &t_graph_path,
+            RAP_TIME_COL,
+            Some(RAP_SECONDARY_INDEX_COL),
+            &graph_t_props,
+            &[],
+            None,
+            None,
+        )
+        .unwrap();
+        println!(
+            "GraphT loaded at {}\nTook {:?}",
+            Local::now(),
+            graph_t_start.elapsed()
+        );
+    }
+
+    let c_node_path = parquet_path.join(NODES_C_PARQUET_DIR);
+    if c_node_path.exists() {
+        let node_c_metadata = parquet_prop_columns(
+            &c_node_path,
+            &[
+                RAP_NODE_ID_COL,
+                RAP_NODE_VID_COL,
+                RAP_NODE_TYPE_COL,
+                RAP_NODE_TYPE_ID_COL,
+            ],
+        );
+        let node_c_metadata = node_c_metadata
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let nodes_c_start = Instant::now();
+        load_node_metadata_from_parquet(
+            &replay_graph,
+            &c_node_path,
+            RAP_NODE_ID_COL,
+            None,
+            Some(RAP_NODE_TYPE_COL),
+            Some(RAP_NODE_VID_COL),
+            Some(RAP_NODE_TYPE_ID_COL),
+            &node_c_metadata,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        println!(
+            "NodesC loaded at {}\nTook {:?}",
+            Local::now(),
+            nodes_c_start.elapsed()
+        );
+    }
+
+    let t_node_path = parquet_path.join(NODES_T_PARQUET_DIR);
+    if t_node_path.exists() {
+        let node_t_props = parquet_prop_columns(
+            &t_node_path,
+            &[RAP_NODE_VID_COL, RAP_TIME_COL, RAP_SECONDARY_INDEX_COL],
+        );
+        let node_t_props = node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+        let nodes_t_start = Instant::now();
+        load_nodes_from_parquet(
+            &replay_graph,
+            &t_node_path,
+            RAP_TIME_COL,
+            Some(RAP_SECONDARY_INDEX_COL),
+            RAP_NODE_VID_COL,
+            None,
+            None,
+            &node_t_props,
+            &[],
+            None,
+            None,
+            false,
+            None,
+        )
+        .unwrap();
+        println!(
+            "NodesT loaded at {}\nTook {:?}",
+            Local::now(),
+            nodes_t_start.elapsed()
+        );
+    }
+
+    let t_edge_path = parquet_path.join(EDGES_T_PARQUET_DIR);
+    if t_edge_path.exists() {
+        let edge_t_props = parquet_prop_columns(
+            &t_edge_path,
+            &[
+                RAP_TIME_COL,
+                RAP_SECONDARY_INDEX_COL,
+                RAP_SRC_ID_COL,
+                RAP_DST_ID_COL,
+                RAP_LAYER_COL,
+                RAP_LAYER_ID_COL,
+                RAP_EDGE_ID_COL,
+            ],
+        );
+        let edge_t_props = edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+        let edges_t_start = Instant::now();
+        load_edges_from_parquet(
+            &replay_graph,
+            &t_edge_path,
+            ColumnNames::new(
+                RAP_TIME_COL,
+                Some(RAP_SECONDARY_INDEX_COL),
+                RAP_SRC_ID_COL,
+                RAP_DST_ID_COL,
+                Some(RAP_LAYER_COL),
+            )
+            .with_layer_id_col(RAP_LAYER_ID_COL)
+            .with_edge_id_col(RAP_EDGE_ID_COL),
+            false,
+            &edge_t_props,
+            &[],
+            None,
+            None,
+            None,
+            None,
+        )
+        .unwrap();
+        println!(
+            "EdgesT loaded at {}\nTook {:?}",
+            Local::now(),
+            edges_t_start.elapsed()
+        );
+    }
+
+    let d_edge_path = parquet_path.join(EDGES_D_PARQUET_DIR);
+    if d_edge_path.exists() {
+        let edges_d_start = Instant::now();
+        load_edge_deletions_from_parquet(
+            &replay_graph,
+            &d_edge_path,
+            ColumnNames::new(
+                RAP_TIME_COL,
+                Some(RAP_SECONDARY_INDEX_COL),
+                RAP_SRC_ID_COL,
+                RAP_DST_ID_COL,
+                Some(RAP_LAYER_COL),
+            )
+            .with_layer_id_col(RAP_LAYER_ID_COL)
+            .with_edge_id_col(RAP_EDGE_ID_COL),
+            None,
+            false,
+            None,
+            None,
+        )
+        .unwrap();
+        println!(
+            "EdgesD loaded at {}\nTook {:?}",
+            Local::now(),
+            edges_d_start.elapsed()
+        );
+    }
+
+    let c_edge_path = parquet_path.join(EDGES_C_PARQUET_DIR);
+    if c_edge_path.exists() {
+        let edge_c_metadata = parquet_prop_columns(
+            &c_edge_path,
+            &[
+                RAP_SRC_ID_COL,
+                RAP_DST_ID_COL,
+                RAP_LAYER_COL,
+                RAP_EDGE_ID_COL,
+            ],
+        );
+        let edge_c_metadata = edge_c_metadata
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>();
+        let edges_c_start = Instant::now();
+        load_edge_metadata_from_parquet(
+            &replay_graph,
+            &c_edge_path,
+            RAP_SRC_ID_COL,
+            RAP_DST_ID_COL,
+            &edge_c_metadata,
+            None,
+            None,
+            Some(RAP_LAYER_COL),
+            None,
+            None,
+            false,
+        )
+        .unwrap();
+        println!(
+            "EdgesC loaded at {}\nTook {:?}",
+            Local::now(),
+            edges_c_start.elapsed()
+        );
+    }
+
+    let parquet_load_elapsed = parquet_load_start.elapsed();
+    println!(
+        "Finished SF10 parquet loader replay at {}\nLoaded graph: {} nodes, {} edges, {} temporal edges\nTook {parquet_load_elapsed:?}",
+        Local::now(),
+        replay_graph.count_nodes(),
+        replay_graph.count_edges(),
+        replay_graph.count_temporal_edges(),
+    );
+    drop(replay_graph);
+    remove_dir_all_ignore_not_found(&load_graph_path).unwrap();
+
+    parquet_load_elapsed
+}
+
 #[cfg(feature = "io")]
 #[test]
 #[ignore = "requires locally persisted SNB SF10 graphs and parquet export"]
@@ -347,34 +721,48 @@ fn test_current() {
     set_snb_env_vars();
     let graph_path = default_sf10_graph_path();
     let parquet_path = default_sf10_parquet_path();
+    let parquet_loader_graph_path = default_materialized_graphs_path().join("parquet_loader_sf10");
     let parquet_decode_graph_path = default_materialized_graphs_path().join("parquet_decode_sf10");
     let materialize_graph_path = default_materialized_graphs_path().join("rb_materialize_sf10");
 
+    let parquet_dump_duration = get_parquet_encode_time(&graph_path, &parquet_path);
+
+    let parquet_loader_duration =
+        get_parquet_df_loader_time(&graph_path, &parquet_path, &parquet_loader_graph_path);
+
     let parquet_decode_duration =
-        get_parquet_decode_timing(&graph_path, &parquet_path, &parquet_decode_graph_path);
+        get_parquet_decode_time(&graph_path, &parquet_path, &parquet_decode_graph_path);
 
-    let materialize_duration = get_new_materialize_timing(&graph_path, &materialize_graph_path);
+    let materialize_duration = get_new_materialize_time(&graph_path, &materialize_graph_path);
 
-    let materialize_secs = materialize_duration.as_secs_f64();
-    let parquet_decode_secs = parquet_decode_duration.as_secs_f64();
-    let faster = if materialize_secs < parquet_decode_secs {
-        "materialize_using_recordbatches"
-    } else if parquet_decode_secs < materialize_secs {
-        "decode_parquet"
-    } else {
-        "tie"
-    };
-    let ratio = if materialize_secs > 0.0 && parquet_decode_secs > 0.0 {
-        if materialize_secs > parquet_decode_secs {
-            materialize_secs / parquet_decode_secs
-        } else {
-            parquet_decode_secs / materialize_secs
-        }
-    } else {
-        1.0
-    };
+    println!(
+        "Summary:\n  encode_parquet: {:?}\n  parquet loaders replay: {:?}\n  decode_parquet: {:?}\n  materialize_using_recordbatches: {:?}",
+        parquet_dump_duration,
+        parquet_loader_duration,
+        parquet_decode_duration,
+        materialize_duration
+    );
 
-    println!("Faster path: {faster} ({ratio:.2}x)");
+    // let materialize_secs = materialize_duration.as_secs_f64();
+    // let parquet_decode_secs = parquet_decode_duration.as_secs_f64();
+    // let faster = if materialize_secs < parquet_decode_secs {
+    //     "materialize_using_recordbatches"
+    // } else if parquet_decode_secs < materialize_secs {
+    //     "decode_parquet"
+    // } else {
+    //     "tie"
+    // };
+    // let ratio = if materialize_secs > 0.0 && parquet_decode_secs > 0.0 {
+    //     if materialize_secs > parquet_decode_secs {
+    //         materialize_secs / parquet_decode_secs
+    //     } else {
+    //         parquet_decode_secs / materialize_secs
+    //     }
+    // } else {
+    //     1.0
+    // };
+    //
+    // println!("Faster path: {faster} ({ratio:.2}x)");
 }
 
 #[test]

@@ -75,12 +75,15 @@ use std::{
 };
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
+use crate::serialise::parquet::{
+    DST_COL_ID, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
+    SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+};
 #[cfg(feature = "search")]
 use crate::{
     db::graph::views::filter::model::TryAsCompositeFilter,
     search::{fallback_filter_edges, fallback_filter_exploded_edges, fallback_filter_nodes},
 };
-use crate::serialise::parquet::{DST_COL_ID, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL, SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL};
 
 /// This trait GraphViewOps defines operations for accessing
 /// information about a graph. The trait has associated types
@@ -330,10 +333,7 @@ impl ChannelRecordBatchSink {
         tx: crossbeam_channel::Sender<RecordBatchMessage>,
         kind: RecordBatchKind,
     ) -> Self {
-        Self {
-            tx,
-            kind,
-        }
+        Self { tx, kind }
     }
 }
 
@@ -424,9 +424,7 @@ pub fn materialize_using_recordbatches(
             move || {
                 let make_sink_factory = |kind| {
                     let tx = tx.clone();
-                    move |_, _, _| {
-                        Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
-                    }
+                    move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
                 };
 
                 // Keep encode order aligned with loader dependencies
@@ -467,12 +465,7 @@ pub fn materialize_using_recordbatches(
                 RecordBatchKind::NodesC => {
                     let node_c_props = df_columns_except(
                         &df_view.names,
-                        &[
-                            NODE_ID_COL,
-                            NODE_VID_COL,
-                            TYPE_COL,
-                            TYPE_ID_COL,
-                        ],
+                        &[NODE_ID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL],
                     );
                     let node_c_props_refs =
                         node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
@@ -565,13 +558,7 @@ pub fn materialize_using_recordbatches(
                     LOAD_POOL.install(|| {
                         load_edge_props_from_df(
                             df_view,
-                            ColumnNames::new(
-                                "",
-                                None,
-                                SRC_COL_ID,
-                                DST_COL_ID,
-                                Some(LAYER_COL),
-                            ),
+                            ColumnNames::new("", None, SRC_COL_ID, DST_COL_ID, Some(LAYER_COL)),
                             false,
                             &edge_c_props_refs,
                             None,
@@ -580,25 +567,23 @@ pub fn materialize_using_recordbatches(
                         )
                     })
                 }
-                RecordBatchKind::EdgesD => {
-                    LOAD_POOL.install(|| {
-                        load_edge_deletions_from_df(
-                            df_view,
-                            ColumnNames::new(
-                                TIME_COL,
-                                Some(SECONDARY_INDEX_COL),
-                                SRC_COL_ID,
-                                DST_COL_ID,
-                                Some(LAYER_COL),
-                            )
-                            .with_layer_id_col(LAYER_ID_COL)
-                            .with_edge_id_col(EDGE_COL_ID),
-                            false,
-                            None,
-                            &materialized,
+                RecordBatchKind::EdgesD => LOAD_POOL.install(|| {
+                    load_edge_deletions_from_df(
+                        df_view,
+                        ColumnNames::new(
+                            TIME_COL,
+                            Some(SECONDARY_INDEX_COL),
+                            SRC_COL_ID,
+                            DST_COL_ID,
+                            Some(LAYER_COL),
                         )
-                    })
-                }
+                        .with_layer_id_col(LAYER_ID_COL)
+                        .with_edge_id_col(EDGE_COL_ID),
+                        false,
+                        None,
+                        &materialized,
+                    )
+                }),
                 RecordBatchKind::GraphT => {
                     let graph_t_props =
                         df_columns_except(&df_view.names, &[TIME_COL, SECONDARY_INDEX_COL]);
