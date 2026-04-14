@@ -21,7 +21,6 @@ use crate::{
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
-use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
@@ -43,6 +42,7 @@ use std::{
         mpsc,
     },
 };
+use itertools::izip;
 use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::{
@@ -379,17 +379,23 @@ pub(crate) fn load_edges_from_df_with_options<
                     return;
                 }
 
+                let zip = izip!(
+                        src_rows.iter().copied(),
+                        src_rows.iter().map(|&row| src_vids[row]),
+                        src_rows.iter().map(|&row| dst_vids[row]),
+                        src_rows.iter().map(|&row| time_col[row]),
+                        src_rows
+                            .iter()
+                            .map(|&row| secondary_index_at(&secondary_index_col, row)),
+                        src_rows.iter().map(|&row| layer_col_resolved[row])
+                    );
+
                 if resolve_nodes {
                     add_and_resolve_outbound_edges(
                         &eids_exist,
                         &layer_eids_exist,
                         &eid_col_shared,
-                        src_rows,
-                        src_vids,
-                        dst_vids,
-                        &time_col,
-                        &secondary_index_col,
-                        &layer_col_resolved,
+                        zip,
                         next_edge_id,
                         edges,
                         locked_page,
@@ -400,12 +406,7 @@ pub(crate) fn load_edges_from_df_with_options<
                         &eids_exist,
                         &layer_eids_exist,
                         &eid_col_shared,
-                        src_rows,
-                        src_vids,
-                        dst_vids,
-                        &time_col,
-                        &secondary_index_col,
-                        &layer_col_resolved,
+                        zip,
                         |row| {
                             let eid = EID(edge_ids[row] as usize);
                             arc_edges.increment_edge_segment_count(eid);
@@ -432,19 +433,20 @@ pub(crate) fn load_edges_from_df_with_options<
                     return;
                 }
 
-                update_inbound_edges(
-                    shard,
-                    rows,
-                    src_vids,
-                    dst_vids,
-                    &eid_col_resolved,
-                    &time_col,
-                    &secondary_index_col,
-                    &layer_col_resolved,
-                    &layer_eids_exist,
-                    &eids_exist,
-                    delete,
+                let zip = izip!(
+                    rows.iter().copied(),
+                    rows.iter().map(|&row| src_vids[row]),
+                    rows.iter().map(|&row| dst_vids[row]),
+                    rows.iter().map(|&row| eid_col_resolved[row]),
+                    rows.iter().map(|&row| time_col[row]),
+                    rows.iter()
+                        .map(|&row| secondary_index_at(&secondary_index_col, row)),
+                    rows.iter().map(|&row| layer_col_resolved[row]),
+                    rows.iter()
+                        .map(|&row| layer_eids_exist[row].load(Ordering::Relaxed)),
+                    rows.iter().map(|&row| eids_exist[row].load(Ordering::Relaxed))
                 );
+                update_inbound_edges(shard, zip, delete);
             });
 
         drop(write_locked_graph);
@@ -469,19 +471,23 @@ pub(crate) fn load_edges_from_df_with_options<
                     }
                 }
 
+                let zip = izip!(
+                    rows.iter().copied(),
+                    rows.iter().map(|&row| src_vids[row]),
+                    rows.iter().map(|&row| dst_vids[row]),
+                    rows.iter().map(|&row| time_col[row]),
+                    rows.iter()
+                        .map(|&row| secondary_index_at(&secondary_index_col, row)),
+                    rows.iter().map(|&row| eid_col_resolved[row]),
+                    rows.iter().map(|&row| layer_col_resolved[row]),
+                    rows.iter().map(|&row| eids_exist[row].load(Ordering::Relaxed))
+                );
                 update_edge_properties(
                     &shared_metadata,
                     &prop_cols,
                     &metadata_cols,
                     shard,
-                    rows,
-                    src_vids,
-                    dst_vids,
-                    &time_col,
-                    &secondary_index_col,
-                    &eid_col_resolved,
-                    &layer_col_resolved,
-                    &eids_exist,
+                    zip,
                     delete,
                 );
             });
@@ -551,27 +557,15 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
     prop_cols: &PropCols,
     metadata_cols: &PropCols,
     shard: &mut LockedEdgePage<'_, ES>,
-    rows: &[usize],
-    src_vids: &[VID],
-    dst_vids: &[VID],
-    time_col: &TimeCol,
-    secondary_index_col: &SecondaryIndexCol,
-    eid_col_resolved: &[EID],
-    layer_col_resolved: &[usize],
-    eids_exist: &[AtomicBool],
+    zip: impl Iterator<Item = (usize, VID, VID, i64, usize, EID, usize, bool)>,
     delete: bool,
 ) {
     let mut t_props = vec![];
     let mut c_props = vec![];
     let mut writer = shard.writer();
 
-    for &row in rows {
-        let src = src_vids[row];
-        let dst = dst_vids[row];
-        let eid = eid_col_resolved[row];
+    for (row, src, dst, time, secondary_index, eid, layer, exists) in zip {
         if let Some(eid_pos) = writer.resolve_pos(eid) {
-            let time = time_col[row];
-            let secondary_index = secondary_index_at(secondary_index_col, row);
             let t = EventTime(time, secondary_index);
 
             t_props.clear();
@@ -591,20 +585,13 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
                     eid_pos,
                     src,
                     dst,
-                    eids_exist[row].load(Ordering::Relaxed),
-                    layer_col_resolved[row],
+                    exists,
+                    layer,
                     c_props.drain(..),
                     t_props.drain(..),
                 );
             } else {
-                writer.bulk_delete_edge(
-                    t,
-                    eid_pos,
-                    src,
-                    dst,
-                    eids_exist[row].load(Ordering::Relaxed),
-                    layer_col_resolved[row],
-                );
+                writer.bulk_delete_edge(t, eid_pos, src, dst, exists, layer);
             }
         }
     }
@@ -612,29 +599,24 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
 
 fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
     shard: &mut LockedNodePage<'_, NS>,
-    rows: &[usize],
-    src_vids: &[VID],
-    dst_vids: &[VID],
-    eid_col_resolved: &[EID],
-    time_col: &TimeCol,
-    secondary_index_col: &SecondaryIndexCol,
-    layer_col_resolved: &[usize],
-    layer_eids_exist: &[AtomicBool],
-    eids_exist: &[AtomicBool],
+    zip: impl Iterator<Item = (usize, VID, VID, EID, i64, usize, usize, bool, bool)>,
     delete: bool,
 ) {
     let mut writer = shard.writer();
-    for &row in rows {
-        let src = src_vids[row];
-        let dst = dst_vids[row];
+    for (
+        _row,
+        src,
+        dst,
+        eid,
+        time,
+        secondary_index,
+        layer,
+        edge_exists_in_layer,
+        edge_exists_in_static_graph,
+    ) in zip
+    {
         if let Some(dst_pos) = writer.resolve_pos(dst) {
-            let eid = eid_col_resolved[row];
-            let time = time_col[row];
-            let secondary_index = secondary_index_at(secondary_index_col, row);
             let t = EventTime(time, secondary_index);
-            let layer = layer_col_resolved[row];
-            let edge_exists_in_layer = layer_eids_exist[row].load(Ordering::Relaxed);
-            let edge_exists_in_static_graph = eids_exist[row].load(Ordering::Relaxed);
 
             if !edge_exists_in_static_graph {
                 writer.add_static_inbound_edge(dst_pos, src, eid);
@@ -663,7 +645,6 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
 
 #[allow(clippy::too_many_arguments)]
 fn add_and_resolve_outbound_edges<
-    'a,
     EXT: PersistenceStrategy<NS = NS, ES = ES>,
     NS: NodeSegmentOps<Extension = EXT>,
     ES: EdgeSegmentOps<Extension = EXT>,
@@ -671,25 +652,15 @@ fn add_and_resolve_outbound_edges<
     eids_exist: &[AtomicBool],
     layer_eids_exist: &[AtomicBool],
     eid_col_shared: &&mut [AtomicUsize],
-    rows: &[usize],
-    src_vids: &[VID],
-    dst_vids: &[VID],
-    time_col: &TimeCol,
-    secondary_index_col: &SecondaryIndexCol,
-    layer_col_resolved: &[usize],
+    zip: impl Iterator<Item = (usize, VID, VID, i64, usize, usize)>,
     next_edge_id: impl Fn(usize) -> EID,
     edges: &WriteLockedEdgePages<'_, ES>,
     locked_page: &mut LockedNodePage<'_, NS>,
     delete: bool,
 ) {
     let mut writer = locked_page.writer();
-    for &row in rows {
-        let src = src_vids[row];
-        let dst = dst_vids[row];
+    for (row, src, dst, time, secondary_index, layer) in zip {
         if let Some(src_pos) = writer.resolve_pos(src) {
-            let time = time_col[row];
-            let secondary_index = secondary_index_at(secondary_index_col, row);
-            let layer = layer_col_resolved[row];
             let t = EventTime(time, secondary_index);
             // find the original EID in the static graph if it exists
             // otherwise create a new one
