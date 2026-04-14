@@ -4,9 +4,9 @@ use crate::io::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
             edge_props::load_edges_from_df as load_edge_props_from_df,
-            edges::{load_edges_from_df_with_options, ColumnNames},
+            edges::{load_edges_from_df, ColumnNames},
             load_edge_deletions_from_df, load_graph_props_from_df,
-            nodes::{load_node_props_from_df_with_options, load_nodes_from_df_with_options},
+            nodes::{load_node_props_from_df, load_nodes_from_df},
         },
     },
     ENCODE_POOL, LOAD_POOL,
@@ -430,19 +430,12 @@ pub fn materialize_using_recordbatches(
                 // Keep encode order aligned with loader dependencies
                 let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
                     encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
-                    println!("NodesC done at {}", Local::now());
                     encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
-                    println!("NodesT done at {}", Local::now());
                     encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
-                    println!("EdgeT done at {}", Local::now());
                     encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
-                    println!("EdgeC done at {}", Local::now());
                     encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
-                    println!("EdgeD done at {}", Local::now());
                     encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
-                    println!("GraphT done at {}", Local::now());
                     encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
-                    println!("GraphC done at {}", Local::now());
                     Ok(())
                 });
 
@@ -471,7 +464,7 @@ pub fn materialize_using_recordbatches(
                         node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
 
                     LOAD_POOL.install(|| {
-                        load_node_props_from_df_with_options(
+                        load_node_props_from_df(
                             df_view,
                             NODE_ID_COL,
                             None,
@@ -481,7 +474,6 @@ pub fn materialize_using_recordbatches(
                             &node_c_props_refs,
                             None,
                             &materialized,
-                            false,
                         )
                     })
                 }
@@ -493,7 +485,7 @@ pub fn materialize_using_recordbatches(
                     let node_t_props_refs =
                         node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
-                    load_nodes_from_df_with_options(
+                    load_nodes_from_df(
                         df_view,
                         TIME_COL,
                         Some(SECONDARY_INDEX_COL),
@@ -504,7 +496,6 @@ pub fn materialize_using_recordbatches(
                         None,
                         None,
                         &materialized,
-                        false,
                         false,
                     )
                 }
@@ -525,7 +516,7 @@ pub fn materialize_using_recordbatches(
                         edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
                     LOAD_POOL.install(|| {
-                        load_edges_from_df_with_options(
+                        load_edges_from_df(
                             df_view,
                             ColumnNames::new(
                                 TIME_COL,
@@ -542,7 +533,6 @@ pub fn materialize_using_recordbatches(
                             None,
                             None,
                             &materialized,
-                            false,
                             false,
                         )
                     })

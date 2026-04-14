@@ -118,7 +118,6 @@ pub(crate) struct ParquetDelEdge<'a, G: GraphView> {
     pub(crate) export_dst_vid: usize,
     pub(crate) export_eid: usize,
     pub(crate) export_layer_id: Option<usize>,
-    // pub(crate) export_layer_name: &'a str,
 }
 
 impl<'a, G: GraphView> Serialize for ParquetDelEdge<'a, G> {

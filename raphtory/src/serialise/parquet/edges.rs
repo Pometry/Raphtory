@@ -119,15 +119,6 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
             ]
         },
         |edges, g, decoder, sink| {
-            // let g = g.core_graph().lock();
-            // let g = &g;
-            // let g_edges = g.edges();
-            // let layers = g
-            //     .unique_layers()
-            //     .map(|s| s.to_string().to_owned())
-            //     .collect::<Vec<_>>();
-            // let layers = &layers;
-
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode_layers())

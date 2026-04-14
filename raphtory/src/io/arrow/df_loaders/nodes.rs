@@ -61,44 +61,8 @@ pub fn load_nodes_from_df<
     graph: &G,
     resolve_nodes: bool,
 ) -> Result<(), GraphError> {
-    load_nodes_from_df_with_options(
-        df_view,
-        time,
-        secondary_index,
-        node_id,
-        properties,
-        metadata,
-        shared_metadata,
-        node_type,
-        node_type_col,
-        graph,
-        resolve_nodes,
-        true,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn load_nodes_from_df_with_options<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
->(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send>,
-    time: &str,
-    secondary_index: Option<&str>,
-    node_id: &str,
-    properties: &[&str],
-    metadata: &[&str],
-    shared_metadata: Option<&HashMap<String, Prop>>,
-    node_type: Option<&str>,
-    node_type_col: Option<&str>,
-    graph: &G,
-    resolve_nodes: bool,
-    flush_before_load: bool,
-) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
-    }
-    if flush_before_load {
-        graph.flush().map_err(into_graph_err)?;
     }
 
     LOAD_POOL.install(move || {
@@ -275,41 +239,8 @@ pub fn load_node_props_from_df<
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
 ) -> Result<(), GraphError> {
-    load_node_props_from_df_with_options(
-        df_view,
-        node_id,
-        node_type,
-        node_type_col,
-        node_id_col,
-        node_type_id_col,
-        metadata,
-        shared_metadata,
-        graph,
-        true,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn load_node_props_from_df_with_options<
-    'a,
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
->(
-    df_view: DFView<impl Iterator<Item = Result<DFChunk, GraphError>>>,
-    node_id: &str,
-    node_type: Option<&str>,
-    node_type_col: Option<&str>,
-    node_id_col: Option<&str>,      // provided by our parquet encoder
-    node_type_id_col: Option<&str>, // provided by our parquet encoder
-    metadata: &[&str],
-    shared_metadata: Option<&HashMap<String, Prop>>,
-    graph: &G,
-    flush_before_load: bool,
-) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
-    }
-    if flush_before_load {
-        graph.flush().map_err(into_graph_err)?;
     }
     let metadata_indices = metadata
         .iter()

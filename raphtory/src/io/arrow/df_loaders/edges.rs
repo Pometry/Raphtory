@@ -21,6 +21,7 @@ use crate::{
 use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
+use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
@@ -42,7 +43,6 @@ use std::{
         mpsc,
     },
 };
-use itertools::izip;
 use storage::{
     api::{edges::EdgeSegmentOps, nodes::NodeSegmentOps},
     pages::{
@@ -139,7 +139,7 @@ pub fn load_edges_from_df_prefetch<
                 num_rows,
             };
 
-            load_edges_from_df_with_options(
+            load_edges_from_df(
                 df_view_prefetch,
                 column_names,
                 resolve_nodes,
@@ -149,7 +149,6 @@ pub fn load_edges_from_df_prefetch<
                 layer,
                 graph,
                 delete,
-                true,
             )?;
             Ok::<(), GraphError>(())
         })?;
@@ -169,40 +168,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     graph: &G,
     delete: bool, // whether to update edge deletions or additions
 ) -> Result<(), GraphError> {
-    load_edges_from_df_with_options(
-        df_view,
-        column_names,
-        resolve_nodes,
-        properties,
-        metadata,
-        shared_metadata,
-        layer,
-        graph,
-        delete,
-        true,
-    )
-}
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn load_edges_from_df_with_options<
-    G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps,
->(
-    df_view: DFView<impl IntoIterator<Item = Result<DFChunk, GraphError>>>,
-    column_names: ColumnNames,
-    resolve_nodes: bool, // this is reserved for internal parquet encoders, this cannot be exposed to users
-    properties: &[&str],
-    metadata: &[&str],
-    shared_metadata: Option<&HashMap<String, Prop>>,
-    layer: Option<&str>,
-    graph: &G,
-    delete: bool, // whether to update edge deletions or additions
-    flush_before_load: bool,
-) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
-    }
-    if flush_before_load {
-        graph.flush().map_err(into_graph_err)?;
     }
 
     let ColumnNames {
@@ -380,15 +347,15 @@ pub(crate) fn load_edges_from_df_with_options<
                 }
 
                 let zip = izip!(
-                        src_rows.iter().copied(),
-                        src_rows.iter().map(|&row| src_vids[row]),
-                        src_rows.iter().map(|&row| dst_vids[row]),
-                        src_rows.iter().map(|&row| time_col[row]),
-                        src_rows
-                            .iter()
-                            .map(|&row| secondary_index_at(&secondary_index_col, row)),
-                        src_rows.iter().map(|&row| layer_col_resolved[row])
-                    );
+                    src_rows.iter().copied(),
+                    src_rows.iter().map(|&row| src_vids[row]),
+                    src_rows.iter().map(|&row| dst_vids[row]),
+                    src_rows.iter().map(|&row| time_col[row]),
+                    src_rows
+                        .iter()
+                        .map(|&row| secondary_index_at(&secondary_index_col, row)),
+                    src_rows.iter().map(|&row| layer_col_resolved[row])
+                );
 
                 if resolve_nodes {
                     add_and_resolve_outbound_edges(
@@ -444,7 +411,8 @@ pub(crate) fn load_edges_from_df_with_options<
                     rows.iter().map(|&row| layer_col_resolved[row]),
                     rows.iter()
                         .map(|&row| layer_eids_exist[row].load(Ordering::Relaxed)),
-                    rows.iter().map(|&row| eids_exist[row].load(Ordering::Relaxed))
+                    rows.iter()
+                        .map(|&row| eids_exist[row].load(Ordering::Relaxed))
                 );
                 update_inbound_edges(shard, zip, delete);
             });
@@ -480,7 +448,8 @@ pub(crate) fn load_edges_from_df_with_options<
                         .map(|&row| secondary_index_at(&secondary_index_col, row)),
                     rows.iter().map(|&row| eid_col_resolved[row]),
                     rows.iter().map(|&row| layer_col_resolved[row]),
-                    rows.iter().map(|&row| eids_exist[row].load(Ordering::Relaxed))
+                    rows.iter()
+                        .map(|&row| eids_exist[row].load(Ordering::Relaxed))
                 );
                 update_edge_properties(
                     &shared_metadata,
