@@ -49,7 +49,7 @@ impl OutState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Some(Index::from_iter(value.out_components)),
+                Index::from_iter(value.out_components),
             ),
         }
     }
@@ -126,11 +126,12 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<OutState>| {
+        |_, _, _, local: Vec<OutState>, index| {
             TypedNodeState::new_mapped(
-                GenericNodeState::new_from_eval(
+                GenericNodeState::new_from_eval_with_index(
                     g.clone(),
                     local,
+                    index,
                     Some(HashMap::from([(
                         "out_components".to_string(),
                         (NodeStateOutputType::Nodes, None),
@@ -213,7 +214,8 @@ where
 
     Ok(TypedNodeState::new(GenericNodeState::new_from_map(
         node.graph.clone(),
-        distances.into(),
-        Some(Index::new(nodes)),
-    ))
+        out_components,
+        |distance| OutComponentState { distance },
+        None,
+    )))
 }

@@ -23,6 +23,7 @@ use crate::{
 use itertools::Itertools;
 use num_traits::Zero;
 use raphtory_api::core::entities::VID;
+use serde::{Deserialize, Serialize};
 use std::ops::Add;
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
@@ -188,7 +189,7 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
     }));
 
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
-    let (index, values) = runner.run(
+    runner.run(
         vec![Job::new(step1)],
         vec![Job::new(step2), step3],
         None,
@@ -199,20 +200,20 @@ pub fn temporally_reachable_nodes<G: StaticGraphViewOps, T: AsNodeRef>(
                     .map(|tmsg| (tmsg.event_time, tmsg.src_node))
                     .collect_vec();
                 hist.sort();
-                hist
+                ReachabilityState {
+                    reachable_nodes: hist,
+                }
             });
-            (index, data)
+            TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+                g.clone(),
+                data,
+                index,
+                None,
+            ))
         },
         threads,
         max_hops,
         None,
         None,
-    );
-    let result: FxHashMap<_, _> = result.into_iter().map(|(k, v)| (VID(k), v)).collect();
-    TypedNodeState::new(GenericNodeState::new_from_map(
-        g.clone(),
-        result,
-        |v| ReachabilityState { reachable_nodes: v },
-        None,
-    ))
+    )
 }

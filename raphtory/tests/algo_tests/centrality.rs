@@ -102,7 +102,7 @@ fn test_hits() {
         graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let results = hits(graph, 20, None).to_hashmap(|value| (value.hub_score, value.auth_score));
+        let results = hits(graph, 20, None);
 
         let expected = HashMap::from([
             ("1".to_string(), (0.0431365, 0.096625775)),
@@ -119,18 +119,18 @@ fn test_hits() {
         for (node, value) in results.iter() {
             let expected_value = expected.get(&node.name()).unwrap();
             assert!(
-                (value.0 - expected_value.0).abs() < 1e-6,
+                (value.hub_score - expected_value.0).abs() < 1e-6,
                 "mismatched hub score for node {}, expected {}, actual {}",
                 node.name(),
                 expected_value.0,
-                value.0
+                value.hub_score
             );
             assert!(
-                (value.1 - expected_value.1).abs() < 1e-6,
+                (value.auth_score - expected_value.1).abs() < 1e-6,
                 "mismatched authority score for node {}, expected {}, actual {}",
                 node.name(),
                 expected_value.1,
-                value.1
+                value.auth_score
             );
         }
     })

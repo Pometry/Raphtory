@@ -413,7 +413,7 @@ impl<'py> IntoPyObject<'py> for NumpyArray {
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub(crate) fn execute_async_task<T, F, O>(task: T) -> O
+pub fn execute_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,

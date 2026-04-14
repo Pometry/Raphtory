@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::{GenericNodeState, TypedNodeState},
+            state::{GenericNodeState, Index, TypedNodeState},
             view::{internal::GraphView, NodeViewOps, StaticGraphViewOps},
         },
         graph::node::NodeView,
@@ -9,7 +9,6 @@ use crate::{
     prelude::GraphViewOps,
 };
 use disjoint_sets::AUnionFind;
-use indexmap::IndexSet;
 use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -19,9 +18,15 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default, Hash, Eq)]
+#[derive(Copy, Clone, PartialEq, Serialize, Deserialize, Debug, Default, Hash, Eq)]
 pub struct ConnectedComponent {
     pub component_id: usize,
+}
+
+impl PartialEq<usize> for ConnectedComponent {
+    fn eq(&self, other: &usize) -> bool {
+        self.component_id == *other
+    }
 }
 
 /// Keeps track of node assignments to weakly-connected components
@@ -245,7 +250,7 @@ where
     ))
 }
 
-pub fn weakly_connected_components_ds<G>(g: &G) -> NodeState<'static, usize, G>
+pub fn weakly_connected_components_ds<G>(g: &G) -> TypedNodeState<'static, ConnectedComponent, G>
 where
     G: StaticGraphViewOps,
 {
@@ -257,6 +262,14 @@ where
             dss.union(src_node, index.index(&nbor.node).unwrap());
         })
     });
-    let result = NodeState::new_from_eval_with_index(g.clone(), dss.to_vec(), index);
+    let result = TypedNodeState::new(GenericNodeState::new_from_eval_with_index_mapped(
+        g.clone(),
+        dss.to_vec(),
+        index,
+        |value| ConnectedComponent {
+            component_id: value,
+        },
+        None,
+    ));
     result
 }

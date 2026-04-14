@@ -155,8 +155,8 @@ pub fn weakly_connected_components(
 #[pyo3(signature = (graph))]
 pub fn weakly_connected_components_ds(
     graph: &PyGraphView,
-) -> NodeState<'static, usize, DynamicGraph> {
-    components::weakly_connected_components_ds(&graph.graph)
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    components::weakly_connected_components_ds(&graph.graph).to_output_nodestate()
 }
 
 /// Strongly connected components

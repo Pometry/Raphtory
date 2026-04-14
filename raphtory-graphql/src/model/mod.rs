@@ -9,7 +9,7 @@ use crate::{
         },
         plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
     },
-    paths::{ValidGraphPaths, ValidWriteableGraphFolder},
+    paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::blocking_compute,
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
@@ -27,7 +27,7 @@ use raphtory::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::GraphError,
+    errors::{GraphError, GraphResult},
     prelude::*,
     vectors::{
         cache::CachedEmbeddingModel,

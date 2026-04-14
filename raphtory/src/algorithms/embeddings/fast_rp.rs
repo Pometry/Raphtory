@@ -98,8 +98,13 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _, local: Vec<FastRPState>| {
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+        |_, _, _, local: Vec<FastRPState>, index| {
+            TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+                g.clone(),
+                local,
+                index,
+                None,
+            ))
         },
         threads,
         num_iters,

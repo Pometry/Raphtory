@@ -52,7 +52,7 @@ impl InState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Some(Index::from_iter(value.in_components)),
+                Index::from_iter(value.in_components),
             ),
         }
     }
@@ -129,11 +129,12 @@ where
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<InState>| {
+        |_, _, _, local: Vec<InState>, index| {
             TypedNodeState::new_mapped(
-                GenericNodeState::new_from_eval(
+                GenericNodeState::new_from_eval_with_index(
                     g.clone(),
                     local,
+                    index,
                     Some(HashMap::from([(
                         "in_components".to_string(),
                         (NodeStateOutputType::Nodes, None),

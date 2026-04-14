@@ -1,7 +1,9 @@
 use ahash::HashSet;
 use proptest::{prelude::Strategy, proptest, sample::Index};
 use raphtory::{
-    algorithms::components::weakly_connected_components,
+    algorithms::components::{
+        weakly_connected_components, ConnectedComponent, LargestConnectedComponent,
+    },
     db::api::{
         mutation::AdditionOps,
         state::{NodeStateValue, TypedNodeState},
@@ -10,7 +12,10 @@ use raphtory::{
     prelude::*,
     test_storage,
 };
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    hash::Hash,
+};
 
 fn assert_same_partition<
     V: NodeStateValue + Hash + Eq + 'static,
@@ -174,18 +179,18 @@ fn layered_connected_components() {
     let g_layer_three_five = g.layers("THREE-FIVE").unwrap();
 
     let res_zero_two = weakly_connected_components(&g_layer_zero_two);
-    let c1 = *res_zero_two.get_by_node(1).unwrap();
-    let c2 = *res_zero_two.get_by_node(4).unwrap();
+    let c1 = res_zero_two.get_by_node(1).unwrap();
+    let c2 = res_zero_two.get_by_node(4).unwrap();
 
-    let expected_zero_two: HashMap<u64, usize> =
+    let expected_zero_two: HashMap<u64, ConnectedComponent> =
         [(1, c1), (2, c1), (3, c1), (4, c2), (5, c2)].into();
 
     assert_eq!(res_zero_two, expected_zero_two);
 
     let res_three_five = weakly_connected_components(&g_layer_three_five);
 
-    let c6 = *res_three_five.get_by_node(6).unwrap();
-    let c7 = *res_three_five.get_by_node(8).unwrap();
+    let c6 = res_three_five.get_by_node(6).unwrap().component_id;
+    let c7 = res_three_five.get_by_node(8).unwrap().component_id;
 
     let expected_three_five: HashMap<u64, usize> = [(6u64, c6), (7, c6), (8, c7), (9, c7)].into();
     assert_eq!(res_three_five, expected_three_five);

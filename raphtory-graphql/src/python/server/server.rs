@@ -11,7 +11,7 @@ use pyo3::{
     prelude::*,
 };
 use raphtory::{
-db::api::storage::storage::Config,
+    db::api::storage::storage::Config,
     python::{
         packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
         utils::block_on,
@@ -131,8 +131,13 @@ impl PyGraphServer {
         }
         let app_config = Some(app_config_builder.build());
 
-        let server = block_on(GraphServer::new(work_dir, app_config, config_path, Config::default()))?;
-        Ok(PyGraphServer::new(server))
+        let server = block_on(GraphServer::new(
+            work_dir,
+            app_config,
+            config_path,
+            Config::default(),
+        ))?;
+        Ok(PyGraphServer(server))
     }
 
     // TODO: remove this, should be config
@@ -161,7 +166,7 @@ impl PyGraphServer {
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
         // allow threads just in case the embedding server is using the same python runtime
-        py.allow_threads(|| {
+        py.detach(|| {
             block_on(async move {
                 self.0
                     .vectorise_graph(name, &template, embeddings.into())
@@ -189,7 +194,7 @@ impl PyGraphServer {
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
         // allow threads just in case the embedding server is using the same python runtime
-        py.allow_threads(|| {
+        py.detach(|| {
             block_on(async move {
                 self.0
                     .vectorise_all_graphs(&template, embeddings.into())

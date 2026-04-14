@@ -1,7 +1,10 @@
 use crate::{
     core::entities::VID,
     db::{
-        api::{state::NodeState, view::StaticGraphViewOps},
+        api::{
+            state::{GenericNodeState, Index, TypedNodeState},
+            view::StaticGraphViewOps,
+        },
         graph::node::NodeView,
     },
     prelude::*,
@@ -106,7 +109,7 @@ where
     for (id, group) in groups.into_iter().enumerate() {
         for vid in &group {
             let pos = index.index(vid).unwrap();
-            values[pos] = id;
+            values[pos] = SCCState { component_id: id };
         }
     }
 

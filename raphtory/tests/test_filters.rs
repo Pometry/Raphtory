@@ -5,7 +5,6 @@ use raphtory::{
 
 #[cfg(test)]
 mod test_composite_filters {
-
     use raphtory::{
         db::graph::views::filter::model::{
             edge_filter::EdgeFilter, filter::Filter, node_filter::NodeFilter,
@@ -1665,10 +1664,7 @@ mod test_node_filter {
     use raphtory::{
         algorithms::alternating_mask::alternating_mask,
         db::{
-            api::{
-                state::{GenericNodeState, TypedNodeState},
-                view::{filter_ops::NodeSelect, Filter},
-            },
+            api::view::{filter_ops::NodeSelect, Filter},
             graph::{
                 assertions::{
                     assert_filter_nodes_results, assert_search_nodes_results,
@@ -1676,15 +1672,13 @@ mod test_node_filter {
                 },
                 views::filter::model::{
                     node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
-                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
+                    ViewWrapOps,
                 },
             },
         },
         prelude::{AdditionOps, Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps, NO_PROPS},
     };
-    use raphtory_api::core::entities::VID;
-    use std::collections::HashMap;
 
     #[test]
     fn test_node_list_is_preserved() {
@@ -2480,11 +2474,11 @@ mod test_node_filter {
     #[test]
     fn test_filter_by_column() {
         let graph = Graph::new();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(1, 2, NO_PROPS, None).unwrap();
-        graph.add_node(1, 3, NO_PROPS, None).unwrap();
-        graph.add_node(1, 4, NO_PROPS, None).unwrap();
-        graph.add_node(1, 5, NO_PROPS, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 3, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 5, NO_PROPS, None, None).unwrap();
 
         let mask = alternating_mask(&graph);
 

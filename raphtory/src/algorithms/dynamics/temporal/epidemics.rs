@@ -6,7 +6,6 @@ use crate::{
     },
     prelude::*,
 };
-use indexmap::IndexSet;
 use rand::{
     distr::{Bernoulli, Distribution},
     seq::IteratorRandom,
@@ -251,9 +250,10 @@ where
     //let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
     Ok(TypedNodeState::new(GenericNodeState::new_from_map(
         g.clone(),
-        values.into(),
-        Index::Partial(index.into()),
-    ))
+        states,
+        |value| value,
+        None,
+    )))
 }
 
 #[cfg(test)]

@@ -161,10 +161,10 @@ pest = "2.8.6"
 pest_derive = "2.8.6"
 minijinja = "2.18.0"
 minijinja-contrib = { version = "2.18.0", features = ["datetime"] }
-datafusion = { version = "50.3.0" }
-lancedb = { version = "0.22.2", features = [] } # this is the latest and asks for chrono 0.4.41
+
+lancedb = { version = "0.27.2", features = [] }
 heed = "0.22.0"
-sqlparser = "0.58.0"
+sqlparser = "0.59.0"
 futures = "0.3"
 arrow = { version = "57.3.0" }
 parquet = { version = "57.3.0" }
@@ -190,10 +190,11 @@ strum_macros = "0.27.2"
 pythonize = { version = "0.27.0" }
 test-log = "0.2.19"
 disjoint-sets = "0.4.2"
-datafusion-physical-expr-common = "50.3.0"
-datafusion-physical-expr = "50.3.0"
-datafusion-physical-plan = "50.3.0"
-datafusion-expr-common = "50.3.0"
+datafusion = { version = "52.5.0" }
+datafusion-physical-expr-common = "52.5.0"
+datafusion-physical-expr = "52.5.0"
+datafusion-physical-plan = "52.5.0"
+datafusion-expr-common = "52.5.0"
 
 [workspace.dependencies.storage]
 package = "db4-storage"

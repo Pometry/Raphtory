@@ -1,6 +1,7 @@
-use crate::paths::{ExistingGraphFolder, ValidGraphPaths};
-#[cfg(feature = "search")]
-use raphtory::prelude::IndexMutationOps;
+use crate::{
+    paths::{ExistingGraphFolder, ValidGraphPaths},
+    rayon::blocking_compute,
+};
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -16,12 +17,9 @@ use raphtory::{
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, IndexMutationOps},
-    serialise::GraphFolder,
-    storage::core_ops::CoreGraphOps,
-    vectors::{
-        cache::VectorCache, storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph,
-    },
+    prelude::{EdgeViewOps, StableDecode},
+    serialise::GraphPaths,
+    vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
@@ -30,7 +28,9 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use tracing::info;
+
+#[cfg(feature = "search")]
+use raphtory::prelude::IndexMutationOps;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
@@ -92,18 +92,26 @@ impl GraphWithVectors {
         create_index: bool,
         config: Config,
     ) -> Result<Self, GraphError> {
+        let folder_clone = folder.clone();
         let graph_folder = folder.graph_folder();
         let graph = if graph_folder.read_metadata()?.is_diskgraph {
-            MaterializedGraph::load_with_config(graph_folder, config)?
+            blocking_compute(move || {
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
+            })
+            .await?
         } else {
-            MaterializedGraph::decode_with_config(graph_folder, config)?
+            blocking_compute(move || {
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
+            })
+            .await?
         };
         let vectors =
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache)
+            VectorisedGraph::read_from_path(&folder.vectors_path()?, graph.clone(), cache)
                 .await
                 .ok();
 
-        println!("Graph loaded = {}", folder.get_original_path_str());
+        println!("Graph loaded = {}", folder.local_path());
+        #[cfg(feature = "search")]
         if create_index {
             graph.create_index()?;
         }

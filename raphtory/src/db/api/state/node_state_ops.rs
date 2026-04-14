@@ -63,7 +63,10 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
         &'a self,
     ) -> impl ParallelIterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)>;
 
-    fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>>;
+    fn get_by_index(&'a self, index: usize)
+        -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)>;
+
+    fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value>;
 
     fn len(&self) -> usize;
 
@@ -107,7 +110,7 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
             .map(|(n1, v1)| (n1, v1.to_owned_value()))
             .unzip();
 
-        NodeState::new(self.graph().clone(), values.into(), Some(Index::new(keys)))
+        self.construct(base_graph.clone(), graph.clone(), keys, values)
     }
 
     /// Sorts the by its values in ascending or descending order.
@@ -160,7 +163,12 @@ pub trait NodeStateOps<'a, 'graph: 'a>:
             .map(|(n, v)| (n.node, v.to_owned_value()))
             .unzip();
 
-        NodeState::new(self.graph().clone(), values.into(), Some(Index::new(keys)))
+        self.construct(
+            self.base_graph().clone(),
+            self.graph().clone(),
+            keys,
+            values,
+        )
     }
 
     fn bottom_k_by<F: Fn(&Self::Value, &Self::Value) -> std::cmp::Ordering + Sync>(

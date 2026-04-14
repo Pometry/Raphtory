@@ -29,7 +29,10 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
-use raphtory_api::core::storage::timeindex::{AsTime, EventTime, TimeError};
+use raphtory_api::core::{
+    entities::VID,
+    storage::timeindex::{AsTime, EventTime, TimeError},
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
@@ -300,20 +303,21 @@ impl<
             GenericNodeState::new_from_eval_with_index(
                 self.nodes.base_graph.clone(),
                 values,
-                Some(Index::new(keys)),
+                Index::new(keys),
                 None,
             )
         } else {
             let storage = self.graph().core_graph().lock();
             let values = self
                 .nodes
-                .par_iter_refs()
+                .par_iter_refs(storage.clone())
                 .map(move |vid| self.op.arrow_apply(&storage, vid))
                 .collect();
+            let index = Index::for_graph(self.graph());
             GenericNodeState::new_from_eval_with_index(
                 self.nodes.base_graph.clone(),
                 values,
-                None,
+                index,
                 None,
             )
         }
@@ -677,7 +681,30 @@ impl<
             .map(move |node| (node, self.op.apply(&storage, node.node)))
     }
 
-    fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
+    fn get_by_index(
+        &'a self,
+        index: usize,
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
+        if self.graph().node_list_trusted() {
+            let vid = match self.nodes().node_list() {
+                NodeList::All => self
+                    .graph()
+                    .core_graph()
+                    .node_state_index()
+                    .global_index(index)?,
+                NodeList::List { elems } => elems.value(index)?,
+            };
+            let cg = self.graph().core_graph();
+            Some((
+                NodeView::new_internal(self.graph(), vid),
+                self.op.apply(cg, vid),
+            ))
+        } else {
+            self.iter().nth(index)
+        }
+    }
+
+    fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value> {
         let node = (&self.graph()).node(node);
         node.map(|node| self.op.apply(self.graph().core_graph(), node.node))
     }
@@ -697,7 +724,7 @@ impl<
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
     {
-        NodeState::new(graph, values.into(), Some(Index::new(keys)))
+        NodeState::new(graph, values.into(), Index::new(keys))
     }
 }
 

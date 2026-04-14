@@ -65,7 +65,6 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
         Self::Partial(Arc::new(IndexSet::from_iter(iter)))
     }
 }
-
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         if graph.node_list_trusted() {
@@ -113,6 +112,14 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     }
 
     #[inline]
+    pub fn value(&self, i: usize) -> Option<K> {
+        match self {
+            Index::Full(index) => index.global_index(i),
+            Index::Partial(index) => index.get_index(i).copied(),
+        }
+    }
+
+    #[inline]
     pub fn len(&self) -> usize {
         match self {
             Index::Full(index) => index.len(),
@@ -135,11 +142,9 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     pub fn par_iter(&self) -> impl ParallelIterator<Item = (usize, K)> + '_ {
         match self {
             Index::Full(index) => Either::Left(index.par_iter()),
-            Index::Partial(index) => Either::Right(
-                (0..index.len())
-                    .into_par_iter()
-                    .map(move |i| (i, *index.get_index(i).unwrap())),
-            ),
+            Index::Partial(index) => {
+                Either::Right(index.par_iter().enumerate().map(|(i, v)| (i, *v)))
+            }
         }
     }
 
@@ -149,6 +154,16 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             (Self::Partial(a), Self::Full(_)) => Self::Partial(a.clone()),
             (Self::Partial(a), Self::Partial(b)) => a.intersection(b).copied().collect(),
             _ => self.clone(),
+        }
+    }
+
+    pub fn union(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Full(index), Self::Partial(_)) | (Self::Partial(_), Self::Full(index)) => {
+                Self::Full(index.clone())
+            }
+            (Self::Full(left), Self::Full(right)) => Self::Full(Arc::new(left.union(right))),
+            (Self::Partial(left), Self::Partial(right)) => left.union(right).copied().collect(),
         }
     }
 }
@@ -506,6 +521,17 @@ impl<'a, 'graph: 'a, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>>
         })
     }
 
+    fn get_by_index(
+        &'a self,
+        index: usize,
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
+        let vid = self.keys.value(index)?;
+        Some((
+            NodeView::new_internal(&self.base_graph, vid),
+            &self.values[index],
+        ))
+    }
+
     fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value> {
         let id = self.base_graph.internalise_node(node.as_node_ref())?;
         self.keys.index(&id).map(|i| &self.values[i])
@@ -526,7 +552,7 @@ impl<'a, 'graph: 'a, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>>
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
     {
-        NodeState::new(base_graph, values.into(), Some(Index::new(keys)))
+        NodeState::new(base_graph, values.into(), Index::new(keys))
     }
 }
 

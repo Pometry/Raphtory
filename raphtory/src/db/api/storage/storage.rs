@@ -11,7 +11,7 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::Meta,
-            prop::{AsPropRef, IntoProp, Prop, PropType},
+            prop::{AsPropRef, Prop, PropType},
         },
         GidRef, LayerId, EID, VID,
     },

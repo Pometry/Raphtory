@@ -1203,7 +1203,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, l, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         let expected = vec![

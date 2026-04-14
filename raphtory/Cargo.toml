@@ -55,6 +55,10 @@ parquet = { workspace = true }
 arrow-json = { workspace = true }
 arrow-csv = { workspace = true }
 arrow = { workspace = true, features = ["chrono-tz"] }
+arrow-array.workspace = true
+arrow-schema.workspace = true
+arrow-select.workspace = true
+serde_arrow.workspace = true
 disjoint-sets = { workspace = true }
 datafusion-physical-expr-common = { workspace = true }
 datafusion-physical-expr = { workspace = true }
@@ -88,7 +92,7 @@ minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true, features = ["future"] }
-lancedb = {workspace = true, optional = true }
+lancedb = { workspace = true, optional = true }
 axum = "0.8.4" # TODO put this in the proper place and make optional
 
 # python binding optional dependencies

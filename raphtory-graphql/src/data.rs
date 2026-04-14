@@ -16,8 +16,11 @@ use raphtory::{
     errors::GraphError,
     serialise::GraphPaths,
     vectors::{
-        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
-        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
+        cache::{CachedEmbeddingModel, VectorCache},
+        storage::LazyDiskVectorCache,
+        template::DocumentTemplate,
+        vectorisable::Vectorisable,
+        vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
@@ -31,13 +34,6 @@ use tracing::{error, warn};
 use walkdir::WalkDir;
 
 pub const DIRTY_PATH: &'static str = ".dirty";
-
-#[derive(Clone)]
-pub struct EmbeddingConf {
-    pub(crate) cache: VectorCache,
-    pub(crate) global_template: Option<DocumentTemplate>,
-    pub(crate) individual_templates: HashMap<String, DocumentTemplate>,
-}
 
 #[derive(thiserror::Error, Debug)]
 pub enum MutationErrorInner {
@@ -130,6 +126,7 @@ pub(crate) fn get_relative_path(
     Ok(path_str)
 }
 
+#[derive(Clone)]
 pub struct Data {
     pub(crate) work_dir: PathBuf,
     pub(crate) cache: Cache<String, GraphWithVectors>,
@@ -238,9 +235,11 @@ impl Data {
     ) -> Result<(), InsertionError> {
         self.invalidate(folder.local_path()).await;
         let conf = self.graph_conf.clone();
-        blocking_io(move || {folder.write_graph_bytes(bytes, conf)?;
-        folder.finish()}
-        ).await?;
+        blocking_io(move || {
+            folder.write_graph_bytes(bytes, conf)?;
+            folder.finish()
+        })
+        .await?;
         Ok(())
     }
 
@@ -298,13 +297,14 @@ impl Data {
         folder: &ExistingGraphFolder,
         template: &DocumentTemplate,
         model: CachedEmbeddingModel,
-    ) -> GraphResult<()> {
-        let graph = self.read_graph_from_folder(folder.clone()).await?.graph;
-        self.vectorise_with_template(graph, folder, template, model)
+    ) -> Result<(), GQLError> {
+        let graph = match self.get_cached_graph(folder.local_path()).await {
+            None => self.read_graph_from_disk_inner(folder.clone()).await?,
+            Some(graph) => graph,
+        };
+        self.vectorise_with_template(graph.graph, folder, template, model)
             .await;
-        self.cache
-            .remove(&folder.get_original_path().to_path_buf())
-            .await;
+        self.cache.remove(folder.local_path()).await;
         Ok(())
     }
 
@@ -324,19 +324,16 @@ impl Data {
     async fn read_graph_from_disk_inner(
         &self,
         folder: ExistingGraphFolder,
-    ) -> Result<GraphWithVectors, GQLError> {
+    ) -> Result<GraphWithVectors, GraphError> {
         let create_index = self.create_index;
         let config = self.graph_conf.clone();
         let cache = self.vector_cache.clone();
-        Ok(blocking_io(move || {
-            GraphWithVectors::read_from_folder(&folder, &cache, create_index, config)
-        })
-        .await?)
+        GraphWithVectors::read_from_folder(&folder, &cache, create_index, config).await
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         let folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
-        self.read_graph_from_disk_inner(folder).await
+        Ok(self.read_graph_from_disk_inner(folder).await?)
     }
 }
 

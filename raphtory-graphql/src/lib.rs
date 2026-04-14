@@ -45,7 +45,6 @@ mod graphql_test {
         model::App,
         url_encode::{url_decode_graph_at, url_encode_graph},
     };
-    use arrow_array::types::UInt8Type;
     use async_graphql::{dynamic::Schema, UploadValue};
     use dynamic_graphql::{Request, Variables};
     use itertools::Itertools;
@@ -1874,7 +1873,7 @@ mod graphql_test {
     #[tokio::test]
     async fn test_new_graph_rejects_hidden_path_components() {
         let tmp_dir = tempdir().unwrap();
-        let data = Data::new(tmp_dir.path(), &AppConfig::default());
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         let schema = App::create_schema().data(data).finish().unwrap();
 
         // Valid paths

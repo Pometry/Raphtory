@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::entities::VID,
     db::{
-        api::state::{GenericNodeState, TypedNodeState},
+        api::state::{GenericNodeState, Index, TypedNodeState},
         graph::node::NodeView,
     },
     prelude::{GraphViewOps, NodeViewOps},

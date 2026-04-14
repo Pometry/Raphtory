@@ -10,6 +10,7 @@ use crate::{
     paths::ExistingGraphFolder,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
+    GQLError,
 };
 use config::ConfigError;
 use opentelemetry::trace::TracerProvider;
@@ -23,7 +24,6 @@ use poem::{
 };
 use raphtory::{
     db::api::storage::storage::Config,
-    errors::GraphResult,
     vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 use serde_json::json;
@@ -139,7 +139,7 @@ impl GraphServer {
         &self,
         template: &DocumentTemplate,
         embeddings: OpenAIEmbeddings,
-    ) -> GraphResult<()> {
+    ) -> Result<(), GQLError> {
         let vector_cache = self.data.vector_cache.resolve().await?;
         let model = vector_cache.openai(embeddings.into()).await?;
         for folder in self.data.get_all_graph_folders() {
@@ -160,7 +160,7 @@ impl GraphServer {
         path: &str,
         template: &DocumentTemplate,
         embeddings: OpenAIEmbeddings,
-    ) -> GraphResult<()> {
+    ) -> Result<(), GQLError> {
         let vetor_cache = self.data.vector_cache.resolve();
         let model = vetor_cache.await?.openai(embeddings.into()).await?;
         let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
@@ -350,10 +350,7 @@ mod server_tests {
     use raphtory::{
         db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{
-            embeddings::EmbeddingResult, storage::OpenAIEmbeddings, template::DocumentTemplate,
-            Embedding,
-        },
+        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;

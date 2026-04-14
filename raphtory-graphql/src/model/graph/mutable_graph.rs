@@ -666,16 +666,13 @@ impl GqlMutableEdge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{config::app_config::AppConfig, data::Data};
-    use itertools::Itertools;
+    use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};
     use raphtory::{
         db::api::{storage::storage::Config, view::MaterializedGraph},
         vectors::{
             custom::{serve_custom_embedding, EmbeddingServer},
-            embeddings::EmbeddingResult,
             storage::OpenAIEmbeddings,
             template::DocumentTemplate,
-            Embedding,
         },
     };
     use tempfile::tempdir;
@@ -696,7 +693,7 @@ mod tests {
         let tmp_dir = tempdir().unwrap();
 
         let config = AppConfig::default();
-        let mut data = Data::new(tmp_dir.path(), &config, Config::default());
+        let data = Data::new(tmp_dir.path(), &config, Config::default());
 
         let graph_name = "test_graph";
 
@@ -731,7 +728,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_nodes_empty_list() {
-        let (mutable_graph, _data, _tmp_dir, embediing_server) = create_mutable_graph(1745).await;
+        let (mutable_graph, _data, _tmp_dir, embedding_server) = create_mutable_graph(1745).await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;

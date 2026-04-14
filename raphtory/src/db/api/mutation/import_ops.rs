@@ -12,7 +12,7 @@ use crate::{
     },
     errors::{into_graph_err, GraphError},
     prelude::{
-        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, PropertiesOps,
+        AdditionOps, DeletionOps, EdgeViewOps, GraphViewOps, NodeViewOps, PropertiesOps,
         PropertyAdditionOps,
     },
 };

@@ -72,6 +72,17 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
         }
     }
 
+    /// Create a new StateIndex for mapping the union of both indexes
+    pub fn union(&self, other: &Self) -> Self {
+        let counts = self
+            .offsets
+            .iter()
+            .zip(other.offsets.iter())
+            .map(|(l, r)| *l.max(r));
+        let max_page_len = self.max_page_len.max(other.max_page_len);
+        Self::new(counts, max_page_len)
+    }
+
     /// Resolve a global index to a flat array index
     ///
     /// # Arguments
@@ -95,6 +106,10 @@ impl<I: From<usize> + Into<usize>> StateIndex<I> {
         } else {
             None
         }
+    }
+
+    pub fn global_index(&self, index: usize) -> Option<I> {
+        self.iter().nth(index)
     }
 
     /// Resolve a global index to a flat array index without bounds checking

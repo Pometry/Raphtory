@@ -106,10 +106,10 @@ impl PyVectorCache {
 
 impl EmbeddingFunction for Arc<Py<PyFunction>> {
     fn call(&self, text: &str) -> Vec<f32> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // TODO: remove unwraps?
             let any = self.call1(py, (text,)).unwrap();
-            let list = any.downcast_bound::<PyList>(py).unwrap();
+            let list = any.cast_bound::<PyList>(py).unwrap();
             list.iter().map(|value| value.extract().unwrap()).collect()
         })
     }
@@ -184,9 +184,9 @@ impl PyRunningEmbeddingServer {
     fn __exit__(
         &mut self,
         // py: Python,
-        _exc_type: PyObject,
-        _exc_val: PyObject,
-        _exc_tb: PyObject,
+        _exc_type: Py<PyAny>,
+        _exc_val: Py<PyAny>,
+        _exc_tb: Py<PyAny>,
     ) -> PyResult<()> {
         self.stop()
     }

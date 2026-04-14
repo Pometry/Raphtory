@@ -41,7 +41,7 @@ impl PathState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Some(Index::from_iter(value.path)),
+                Index::from_iter(value.path),
             ),
         }
     }

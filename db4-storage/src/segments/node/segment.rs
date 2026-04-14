@@ -614,12 +614,9 @@ mod test {
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
     };
-    use raphtory_api::core::entities::{
-        LayerId,
-        properties::{
-            meta::{Meta, STATIC_GRAPH_LAYER_ID},
-            prop::{Prop, PropType},
-        },
+    use raphtory_api::core::entities::properties::{
+        meta::{Meta, STATIC_GRAPH_LAYER_ID},
+        prop::{Prop, PropType},
     };
     use raphtory_core::entities::{EID, ELID, VID};
     use std::sync::Arc;

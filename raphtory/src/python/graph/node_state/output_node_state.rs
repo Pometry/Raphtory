@@ -27,7 +27,7 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     pyclass, pymethods,
     types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
-    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
+    Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
 use raphtory_api::core::entities::properties::prop::PropUntagged;
 
@@ -68,7 +68,7 @@ impl PyOutputNodeState {
         other: &Bound<'py, PyAny>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) = other.extract::<Vec<IndexMap<String, Option<Prop>>>>() {
@@ -76,8 +76,8 @@ impl PyOutputNodeState {
         } else if let Ok(other) =
             other.extract::<HashMap<PyNodeRef, HashMap<String, Option<Prop>>>>()
         {
-            self.inner.try_eq_hashmap(other).unwrap()
-        } else if let Ok(other) = other.downcast::<PyDict>() {
+            self.inner.try_eq_hashmap(other).unwrap_or(false)
+        } else if let Ok(other) = other.cast::<PyDict>() {
             self.inner.len() == other.len()
                 && other.items().try_iter().unwrap().all(|item| {
                     if let Ok((node_ref, value)) =
@@ -314,7 +314,7 @@ impl PyOutputNodeState {
             )
         }
 
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner.state.merge(
                 &other.inner.state,
@@ -355,9 +355,11 @@ impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
     }
 }
 
-impl<'py> FromPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        if let Ok(nodes) = ob.downcast::<PyNodes>() {
+impl<'a, 'py> FromPyObject<'a, 'py> for NodeStateOutput<'static, DynamicGraph> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        if let Ok(nodes) = obj.cast::<PyNodes>() {
             if nodes.get().nodes.predicate.is_filtered() {
                 return Err(PyTypeError::new_err(
                     "Trying to read filtered Nodes object.",
@@ -368,14 +370,14 @@ impl<'py> FromPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
             return Ok(NodeStateOutput::Nodes(nodes));
         }
 
-        if let Ok(node) = ob.downcast::<PyNode>() {
+        if let Ok(node) = obj.cast::<PyNode>() {
             return Ok(NodeStateOutput::Node(node.get().node.clone()));
         }
 
-        if let Ok(prop) = ob.extract::<Option<Prop>>() {
+        if let Ok(prop) = obj.extract::<Option<Prop>>() {
             return Ok(NodeStateOutput::Prop(prop.map(PropUntagged::from)));
         }
 
-        return Err(PyTypeError::new_err("Invalid type conversion"));
+        Err(PyTypeError::new_err("Invalid type conversion"))
     }
 }
