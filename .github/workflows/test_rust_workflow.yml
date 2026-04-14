@@ -1,5 +1,5 @@
 name: Run Rust test
-permissions: {}
+permissions: { }
 on:
   workflow_call:
     inputs:
@@ -23,11 +23,6 @@ jobs:
           - os: ubuntu-latest
           - os: windows-latest
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        name: Xcode version
-        if: "contains(matrix.os, 'macOS')"
-        with:
-          xcode-version: latest-stable
       - uses: actions/checkout@v5
         with:
           submodules: recursive
