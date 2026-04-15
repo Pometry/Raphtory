@@ -63,7 +63,8 @@ raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features =
 raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
 raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
-clam-core = { path = "clam-core" }
+clam-core = { version = "0.18.0", path = "clam-core" }
+optd-core = { version = "0.18.0", path = "optd/optd/core" }
 async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 bincode = { version = "2", features = ["serde"] }
 async-graphql-poem = "7.2.1"
