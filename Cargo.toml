@@ -133,7 +133,7 @@ proptest-derive = "0.6.0"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.15"
 base64 = "0.22.1"
-jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs", "rust_crypto"] }
+jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
 spki = "0.7.3"
 poem = { version = "3.1.12", features = ["compression", "embed", "static-files"] }
 rust-embed = { version = "8.11.0", features = ["interpolate-folder-path"] }
