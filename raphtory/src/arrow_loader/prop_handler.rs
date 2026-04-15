@@ -1,4 +1,4 @@
-use crate::{errors::GraphError, io::arrow::dataframe::DFChunk};
+use crate::{arrow_loader::dataframe::DFChunk, errors::GraphError};
 use arrow::array::{Array, ArrayRef};
 use raphtory_api::core::{
     entities::properties::prop::{

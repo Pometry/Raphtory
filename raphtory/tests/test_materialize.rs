@@ -4,15 +4,14 @@ use itertools::Itertools;
 use parquet::arrow::arrow_reader::ArrowReaderMetadata;
 use proptest::{arbitrary::any, proptest};
 #[cfg(feature = "io")]
+use raphtory::arrow_loader::df_loaders::edges::ColumnNames;
+#[cfg(feature = "io")]
 use raphtory::db::api::view::materialize_using_recordbatches;
 #[cfg(feature = "io")]
-use raphtory::io::{
-    arrow::df_loaders::edges::ColumnNames,
-    parquet_loaders::{
-        get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
-        load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
-        load_nodes_from_parquet,
-    },
+use raphtory::io::parquet_loaders::{
+    get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
+    load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
+    load_nodes_from_parquet,
 };
 use raphtory::{
     db::{

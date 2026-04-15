@@ -7,7 +7,7 @@ pub mod prop_handler;
 #[cfg(test)]
 mod test {
     use crate::{
-        io::arrow::{
+        arrow_loader::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edges::{load_edges_from_df_prefetch, ColumnNames},

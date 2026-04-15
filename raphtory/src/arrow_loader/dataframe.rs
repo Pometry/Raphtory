@@ -1,7 +1,7 @@
 use crate::{
     api::core::utils::time::TryIntoTime,
+    arrow_loader::node_col::{lift_node_col, NodeCol},
     errors::{into_load_err, GraphError, LoadError},
-    io::arrow::node_col::{lift_node_col, NodeCol},
 };
 use arrow::{
     array::{cast::AsArray, Array, ArrayRef, PrimitiveArray},

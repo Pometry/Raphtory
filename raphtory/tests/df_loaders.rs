@@ -6,15 +6,15 @@ mod io_tests {
     use itertools::Itertools;
     use proptest::proptest;
     use raphtory::{
-        db::graph::graph::assert_graph_equal,
-        errors::GraphError,
-        io::arrow::{
+        arrow_loader::{
             dataframe::{DFChunk, DFView},
             df_loaders::{
                 edges::{load_edges_from_df_prefetch, ColumnNames},
                 nodes::{load_node_props_from_df, load_nodes_from_df},
             },
         },
+        db::graph::graph::assert_graph_equal,
+        errors::GraphError,
         prelude::*,
         test_utils::{build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index},
     };

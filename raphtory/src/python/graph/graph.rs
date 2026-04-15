@@ -7,12 +7,13 @@
 use crate::python::graph::index::PyIndexSpec;
 use crate::{
     algorithms::components::LargestConnectedComponent,
+    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     errors::GraphError,
-    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
+    io::parquet_loaders::*,
     prelude::*,
     python::{
         config::PyConfig,

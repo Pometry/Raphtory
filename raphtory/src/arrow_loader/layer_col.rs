@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use crate::{
+    arrow_loader::dataframe::DFChunk,
     errors::{into_graph_err, GraphError, LoadError},
-    io::arrow::dataframe::DFChunk,
     prelude::AdditionOps,
 };
 use arrow::array::{Array, AsArray, LargeStringArray, StringArray, StringViewArray};

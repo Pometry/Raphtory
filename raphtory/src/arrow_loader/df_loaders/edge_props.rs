@@ -1,10 +1,8 @@
 #[cfg(feature = "progress")]
-use crate::io::arrow::df_loaders::build_progress_bar;
+use crate::arrow_loader::df_loaders::build_progress_bar;
 
 use crate::{
-    db::api::view::StaticGraphViewOps,
-    errors::{into_graph_err, GraphError, LoadError},
-    io::arrow::{
+    arrow_loader::{
         dataframe::{DFChunk, DFView},
         df_loaders::{
             edges::{get_or_resolve_node_vids, store_node_ids, ColumnNames},
@@ -13,6 +11,8 @@ use crate::{
         layer_col::lift_layer_col,
         prop_handler::*,
     },
+    db::api::view::StaticGraphViewOps,
+    errors::{into_graph_err, GraphError, LoadError},
     prelude::*,
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};

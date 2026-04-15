@@ -110,6 +110,7 @@ pub mod errors;
 pub mod serialise;
 pub mod storage;
 
+pub mod arrow_loader;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 

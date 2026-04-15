@@ -4,14 +4,10 @@ use crate::{
         graph::views::deletion_graph::PersistentGraph,
     },
     errors::GraphError,
-    io::{
-        arrow::df_loaders::edges::ColumnNames,
-        parquet_loaders::{
-            get_parquet_file_paths, load_edge_deletions_from_parquet,
-            load_edge_metadata_from_parquet, load_edges_from_parquet,
-            load_graph_props_from_parquet, load_node_metadata_from_parquet,
-            load_nodes_from_parquet, process_parquet_file_to_df,
-        },
+    io::parquet_loaders::{
+        get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
+        load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
+        load_nodes_from_parquet, process_parquet_file_to_df,
     },
     prelude::*,
     serialise::{parquet::model::get_id_type, GraphPaths},
@@ -57,6 +53,7 @@ mod nodes;
 
 mod graph;
 
+use crate::arrow_loader::df_loaders::edges::ColumnNames;
 pub(crate) use edges::{encode_edge_cprop, encode_edge_deletions, encode_edge_tprop};
 pub(crate) use graph::{encode_graph_cprop, encode_graph_tprop};
 pub(crate) use nodes::{encode_nodes_cprop, encode_nodes_tprop};

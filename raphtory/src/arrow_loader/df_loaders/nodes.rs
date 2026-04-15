@@ -2,19 +2,7 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
-    io::{
-        arrow::{
-            dataframe::{DFChunk, DFView},
-            df_loaders::{
-                extract_secondary_index_col, process_shared_properties,
-                resolve_nodes_and_type_with_cache,
-            },
-            layer_col::{lift_node_type_col, LayerCol},
-            node_col::NodeCol,
-            prop_handler::*,
-        },
-        LOAD_POOL,
-    },
+    io::LOAD_POOL,
     prelude::*,
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
@@ -40,7 +28,16 @@ use storage::{
 };
 
 #[cfg(feature = "progress")]
-use crate::io::arrow::df_loaders::build_progress_bar;
+use crate::arrow_loader::df_loaders::build_progress_bar;
+use crate::arrow_loader::{
+    dataframe::{DFChunk, DFView},
+    df_loaders::{
+        extract_secondary_index_col, process_shared_properties, resolve_nodes_and_type_with_cache,
+    },
+    layer_col::{lift_node_type_col, LayerCol},
+    node_col::NodeCol,
+    prop_handler::*,
+};
 #[cfg(feature = "progress")]
 use kdam::BarExt;
 use raphtory_api::core::entities::properties::prop::AsPropRef;

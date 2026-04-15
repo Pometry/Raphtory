@@ -1,12 +1,12 @@
 use crate::{
-    db::api::view::StaticGraphViewOps,
-    errors::{into_graph_err, GraphError},
-    io::arrow::{
+    arrow_loader::{
         dataframe::{DFChunk, DFView, SecondaryIndexCol},
         df_loaders::edges::ColumnNames,
         node_col::NodeCol,
         prop_handler::*,
     },
+    db::api::view::StaticGraphViewOps,
+    errors::{into_graph_err, GraphError},
     prelude::*,
 };
 use kdam::{Bar, BarBuilder, BarExt};

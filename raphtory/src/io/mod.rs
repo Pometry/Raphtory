@@ -2,7 +2,6 @@ use std::sync::LazyLock;
 
 use rayon::{ThreadPool, ThreadPoolBuilder};
 
-pub mod arrow;
 pub mod csv_loader;
 pub mod json_loader;
 pub mod neo4j_loader;

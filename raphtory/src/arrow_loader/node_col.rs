@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use crate::{errors::LoadError, io::arrow::dataframe::DFChunk, prelude::AdditionOps};
+use crate::{arrow_loader::dataframe::DFChunk, errors::LoadError, prelude::AdditionOps};
 use arrow::{
     array::{
         Array, AsArray, Int32Array, Int64Array, LargeStringArray, StringArray, StringViewArray,
