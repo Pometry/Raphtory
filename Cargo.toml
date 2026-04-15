@@ -50,6 +50,7 @@ debug = true
 inherits = "dev"
 debug = false
 incremental = false
+opt-level = 1 # much smaller files
 
 
 [workspace.dependencies]
