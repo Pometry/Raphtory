@@ -2,22 +2,14 @@ use crate::{
     db::api::state::ops::GraphView,
     errors::GraphError,
     prelude::{GraphViewOps, Prop, PropertiesOps},
-    serialise::parquet::{
-        create_arrow_writer_sink, run_encode, RecordBatchSink, EVENT_GRAPH_TYPE, GRAPH_C_PATH,
-        GRAPH_TYPE, GRAPH_T_PATH, PERSISTENT_GRAPH_TYPE, SECONDARY_INDEX_COL, TIME_COL,
-    },
+    serialise::parquet::{run_encode, RecordBatchSink, SECONDARY_INDEX_COL, TIME_COL},
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;
-use parquet::file::metadata::KeyValue;
-use raphtory_api::{
-    core::{entities::properties::prop::SerdeArrowProp, storage::arc_str::ArcStr},
-    GraphType,
-};
+use raphtory_api::core::{entities::properties::prop::SerdeArrowProp, storage::arc_str::ArcStr};
 use raphtory_core::storage::timeindex::EventTime;
-use raphtory_storage::graph::graph::GraphStorage;
 use serde::{ser::SerializeMap, Serialize};
-use std::{collections::HashMap, path::Path};
+use std::collections::HashMap;
 
 pub fn encode_graph_tprop<G: GraphView, S: RecordBatchSink>(
     g: &G,

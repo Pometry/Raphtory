@@ -10,9 +10,9 @@ use raphtory::python::{
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
 
-#[cfg(not(target_env = "msvc"))]
+#[cfg(target_os = "macos")]
 use tikv_jemallocator::Jemalloc;
-#[cfg(not(target_env = "msvc"))]
+#[cfg(target_os = "macos")]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
 

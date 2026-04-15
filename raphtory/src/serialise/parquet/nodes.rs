@@ -2,29 +2,21 @@ use crate::{
     core::utils::iter::GenLockedIter,
     db::{
         api::state::ops::{FilterOps, GraphView},
-        graph::{edge::EdgeView, node::NodeView},
+        graph::node::NodeView,
     },
     errors::GraphError,
-    prelude::{GraphViewOps, NodeViewOps},
+    prelude::NodeViewOps,
     serialise::parquet::{
-        create_arrow_writer_sink,
         model::{ParquetCNode, ParquetTNode},
-        run_encode_indexed, RecordBatchSink, NODES_C_PATH, NODES_T_PATH, NODE_ID_COL, NODE_VID_COL,
-        ROW_GROUP_SIZE, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        run_encode_indexed, RecordBatchSink, NODE_ID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
+        SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;
-use raphtory_api::{core::entities::edges::edge_ref::Dir, iter::IntoDynBoxed};
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-        nodes::nodes_ref::NodesStorageEntry,
-    },
-};
+use raphtory_api::iter::IntoDynBoxed;
+use raphtory_storage::graph::nodes::nodes_ref::NodesStorageEntry;
 use rayon::iter::ParallelIterator;
-use std::path::Path;
 
 fn get_nodes_par_iter<'a, G: GraphView>(
     g: &'a G,
@@ -119,7 +111,7 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
                 Field::new(TYPE_ID_COL, DataType::UInt64, true),
             ]
         },
-        |nodes, g, decoder, sink| {
+        |nodes, _g, decoder, sink| {
             for node_rows in nodes
                 .map(move |node| ParquetCNode {
                     node,

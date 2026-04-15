@@ -6,7 +6,7 @@ use crate::{
     errors::{into_graph_err, GraphError, LoadError},
     io::{
         arrow::{
-            dataframe::{DFChunk, DFView, SecondaryIndexCol, TimeCol},
+            dataframe::{DFChunk, DFView, SecondaryIndexCol},
             df_loaders::{
                 extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
             },

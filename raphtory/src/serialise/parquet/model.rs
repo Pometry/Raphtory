@@ -1,7 +1,7 @@
 use super::{Prop, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL};
 use crate::{
     db::{
-        api::view::{internal::GraphView, StaticGraphViewOps},
+        api::view::internal::GraphView,
         graph::{edge::EdgeView, node::NodeView},
     },
     prelude::*,
@@ -14,7 +14,6 @@ use raphtory_api::core::{
     entities::{properties::prop::SerdeArrowProp, GidType, EID},
     storage::{arc_str::ArcStr, timeindex::EventTime},
 };
-use raphtory_storage::graph::graph::GraphStorage;
 use serde::{
     ser::{Error, SerializeMap},
     Serialize,

@@ -5147,6 +5147,7 @@ dependencies = [
  "pyo3-build-config",
  "raphtory",
  "raphtory-graphql",
+ "tikv-jemallocator",
 ]
 
 [[package]]

@@ -1,6 +1,5 @@
 use super::*;
 use crate::{
-    core::utils::iter::GenLockedIter,
     db::{
         api::state::ops::{FilterOps, GraphView},
         graph::edge::EdgeView,
@@ -9,20 +8,8 @@ use crate::{
     serialise::parquet::model::ParquetDelEdge,
 };
 use arrow::datatypes::{DataType, Field};
-use either::Either;
 use model::ParquetCEdge;
-use raphtory_api::{
-    core::{
-        entities::{edges::edge_ref::Dir, EID},
-        storage::timeindex::TimeIndexOps,
-    },
-    iter::IntoDynBoxed,
-};
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorageRef},
-};
-use std::path::Path;
+use raphtory_storage::graph::edges::{edge_storage_ops::EdgeStorageOps, edges::EdgesStorageRef};
 
 fn get_edges_par_iter<'a, G: GraphView>(
     g: &'a G,
@@ -71,7 +58,7 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
                 Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
-        |edges, g, decoder, sink| {
+        |edges, _g, decoder, sink| {
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode())
@@ -118,7 +105,7 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
                 Field::new(LAYER_ID_COL, DataType::UInt64, true),
             ]
         },
-        |edges, g, decoder, sink| {
+        |edges, _g, decoder, sink| {
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode_layers())
@@ -167,7 +154,7 @@ pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
                 Field::new(LAYER_COL, DataType::Utf8, true),
             ]
         },
-        |edges, g, decoder, sink| {
+        |edges, _g, decoder, sink| {
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode_layers().into_iter())

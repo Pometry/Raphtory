@@ -41,7 +41,7 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use arrow::{array::RecordBatch, datatypes::SchemaRef};
+use arrow::array::RecordBatch;
 use chrono::Local;
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
@@ -417,11 +417,11 @@ pub fn materialize_using_recordbatches(
     }
 
     let mut scope_result = Ok(());
-    std::thread::scope(|scope| {
+    rayon::scope(|scope| {
         let (producer_result_tx, producer_result_rx) = crossbeam_channel::bounded(1);
         scope.spawn({
             let tx = tx.clone();
-            move || {
+            move |_| {
                 let make_sink_factory = |kind| {
                     let tx = tx.clone();
                     move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
