@@ -1,5 +1,3 @@
-#[cfg(feature = "io")]
-use crate::io::ENCODE_POOL;
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
@@ -25,6 +23,7 @@ use crate::{
         parquet::{
             encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
             encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink,
+            ENCODE_POOL,
         },
         GraphPaths,
     },

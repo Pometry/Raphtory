@@ -35,13 +35,13 @@ use raphtory_api::{
     GraphType,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
-use rayon::prelude::*;
+use rayon::{prelude::*, ThreadPool, ThreadPoolBuilder};
 use std::{
     fs::File,
     io::{Read, Seek, Write},
     ops::Range,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 use storage::Config;
 use walkdir::WalkDir;
@@ -767,3 +767,10 @@ impl ParquetDecoder for MaterializedGraph {
         }
     }
 }
+
+pub(crate) static ENCODE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .thread_name(|idx| format!("PS Encode Thread-{idx}"))
+        .build()
+        .unwrap()
+});
