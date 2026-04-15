@@ -2,7 +2,7 @@ import pytest
 from raphtory import Graph, algorithms, graph_loader
 from numpy.linalg import norm
 import math
-
+import numpy as np
 
 
 def gen_graph():
@@ -510,7 +510,7 @@ def test_hits_algorithm():
         "auth_score": 0.007476256228983402,
     }
     actual = algorithms.hits(g).get("Aldor")
-    assert all(math.isclose(acual[key], e, rel_tol=1e-6) for key, e in expected.items()))
+    assert all(math.isclose(actual[key], e, rel_tol=1e-6) for key, e in expected.items())
 
 
 def test_balance_algorithm():
