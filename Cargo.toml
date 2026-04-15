@@ -35,6 +35,7 @@ edition = "2021"
 [profile.dev]
 split-debuginfo = "unpacked"
 debug = 1
+opt-level = 1
 
 [profile.release-with-debug]
 inherits = "release"
