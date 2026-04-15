@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "clam-core"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "ahash",
  "arrow",
@@ -5306,7 +5306,7 @@ dependencies = [
 
 [[package]]
 name = "optd-core"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "anyhow",
  "bitvec",
