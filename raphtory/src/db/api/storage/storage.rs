@@ -45,6 +45,7 @@ use {
     },
     either::Either,
     parking_lot::RwLock,
+    raphtory_api::core::entities::properties::prop::IntoProp,
     raphtory_storage::core_ops::CoreGraphOps,
     std::{
         io::{Seek, Write},
