@@ -144,7 +144,7 @@ fn test_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(1), None, true, None);
+        let results = unweighted_page_rank(graph, Some(1000), Some(1), None, true, None, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.38694), 5);
         assert_eq_f64(results.get_by_node("2"), Some(&0.20195), 5);
@@ -188,7 +188,7 @@ fn motif_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
+        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None, None);
 
         assert_eq_f64(results.get_by_node("10"), Some(&0.072082), 5);
         assert_eq_f64(results.get_by_node("8"), Some(&0.136473), 5);
@@ -215,7 +215,7 @@ fn two_nodes_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, false, None);
+        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, false, None, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.5), 3);
         assert_eq_f64(results.get_by_node("2"), Some(&0.5), 3);
@@ -233,7 +233,7 @@ fn three_nodes_page_rank_one_dangling() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(10), Some(4), None, false, None);
+        let results = unweighted_page_rank(graph, Some(10), Some(4), None, false, None, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.303), 3);
         assert_eq_f64(results.get_by_node("2"), Some(&0.393), 3);
@@ -270,7 +270,7 @@ fn dangling_page_rank() {
         graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
+        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.055), 3);
         assert_eq_f64(results.get_by_node("2"), Some(&0.079), 3);
@@ -283,6 +283,70 @@ fn dangling_page_rank() {
         assert_eq_f64(results.get_by_node("9"), Some(&0.110), 3);
         assert_eq_f64(results.get_by_node("10"), Some(&0.117), 3);
         assert_eq_f64(results.get_by_node("11"), Some(&0.122), 3);
+    });
+}
+
+#[test]
+fn test_personalized_page_rank() {
+    let graph = Graph::new();
+    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
+    for (src, dst) in edges {
+        graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+    }
+
+    test_storage!(&graph, |graph| {
+        let mut personalization = HashMap::new();
+        personalization.insert(graph.node("1").unwrap().node, 1.0);
+        personalization.insert(graph.node("2").unwrap().node, 0.0);
+        personalization.insert(graph.node("3").unwrap().node, 0.0);
+        personalization.insert(graph.node("4").unwrap().node, 0.0);
+
+        let results = unweighted_page_rank(
+            graph,
+            Some(1000),
+            Some(1),
+            None,
+            true,
+            None,
+            Some(personalization),
+        );
+
+        // nx.pagerank(G, alpha=0.85, personalization={1:1.0, 2:0.0, 3:0.0, 4:0.0})
+        assert_eq_f64(results.get_by_node("1"), Some(&0.45223), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.19220), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.16337), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.19220), 5);
+    });
+}
+
+#[test]
+fn test_personalized_page_rank_partial() {
+    let graph = Graph::new();
+    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
+    for (src, dst) in edges {
+        graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+    }
+
+    test_storage!(&graph, |graph| {
+        let mut personalization = HashMap::new();
+        personalization.insert(graph.node("1").unwrap().node, 0.5);
+        personalization.insert(graph.node("3").unwrap().node, 0.5);
+
+        let results = unweighted_page_rank(
+            graph,
+            Some(1000),
+            Some(1),
+            Some(1e-10),
+            false,
+            None,
+            Some(personalization),
+        );
+
+        // nx.pagerank(G, alpha=0.85, personalization={1:0.5, 3:0.5})
+        assert_eq_f64(results.get_by_node("1"), Some(&0.41832), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.17778), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.22612), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.17778), 5);
     });
 }
 

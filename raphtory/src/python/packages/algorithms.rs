@@ -70,11 +70,12 @@ use crate::{
         utils::PyNodeRef,
     },
 };
+use crate::prelude::GraphViewOps;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -268,18 +269,29 @@ pub fn out_component(
 ///         is less than the max diff value given.
 ///     use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
 ///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
+///     personalization (Optional[dict[Node, float]]): A dictionary mapping nodes to personalization values.
+///         When provided, the random walk teleports to nodes proportionally to these values
+///         instead of uniformly. Values are normalized to sum to 1. Defaults to None (uniform).
 ///
 /// Returns:
 ///     NodeStateF64: Mapping of nodes to their pagerank value.
 #[pyfunction]
-#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
+#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85, personalization=None))]
 pub fn pagerank(
     graph: &PyGraphView,
     iter_count: usize,
     max_diff: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
+    personalization: Option<HashMap<PyNodeRef, f64>>,
 ) -> NodeState<'static, f64, DynamicGraph> {
+    let personalization = personalization.map(|p| {
+        p.into_iter()
+            .filter_map(|(node_ref, value)| {
+                graph.graph.node(node_ref).map(|n| (n.node, value))
+            })
+            .collect()
+    });
     unweighted_page_rank(
         &graph.graph,
         Some(iter_count),
@@ -287,6 +299,7 @@ pub fn pagerank(
         max_diff,
         use_l2_norm,
         damping_factor,
+        personalization,
     )
 }
 

@@ -14,6 +14,56 @@ use crate::{
     prelude::GraphViewOps,
 };
 use num_traits::abs;
+use raphtory_api::core::entities::VID;
+use std::collections::HashMap;
+use std::sync::Arc;
+
+trait Teleport: Clone + Send + Sync + 'static {
+    fn teleport_value(&self, vid_index: usize, damp: f64) -> f64;
+    fn sink_contribution(&self, prev_score: f64) -> f64;
+    fn distribute_sink(&self, total_sink: f64, vid_index: usize, damp: f64) -> f64;
+}
+
+#[derive(Clone)]
+struct Uniform {
+    teleport_prob: f64,
+    factor: f64,
+}
+
+impl Teleport for Uniform {
+    #[inline]
+    fn teleport_value(&self, _vid_index: usize, _damp: f64) -> f64 {
+        self.teleport_prob
+    }
+    #[inline]
+    fn sink_contribution(&self, prev_score: f64) -> f64 {
+        self.factor * prev_score
+    }
+    #[inline]
+    fn distribute_sink(&self, total_sink: f64, _vid_index: usize, _damp: f64) -> f64 {
+        total_sink
+    }
+}
+
+#[derive(Clone)]
+struct Personalized {
+    weights: Arc<Vec<f64>>,
+}
+
+impl Teleport for Personalized {
+    #[inline]
+    fn teleport_value(&self, vid_index: usize, damp: f64) -> f64 {
+        (1.0 - damp) * self.weights[vid_index]
+    }
+    #[inline]
+    fn sink_contribution(&self, prev_score: f64) -> f64 {
+        prev_score
+    }
+    #[inline]
+    fn distribute_sink(&self, total_sink: f64, vid_index: usize, damp: f64) -> f64 {
+        damp * total_sink * self.weights[vid_index]
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 struct PageRankState {
@@ -45,6 +95,9 @@ impl PageRankState {
 /// - `tol`: The tolerance value for convergence
 /// - `use_l2_norm`: Whether to use L2 norm for convergence
 /// - `damping_factor`: Probability of likelihood the spread will continue
+/// - `personalization`: Optional map from node VID to personalization weight.
+///     When provided, the random walk teleports proportionally to these weights
+///     instead of uniformly. Values are normalized to sum to 1.
 ///
 /// # Returns
 ///
@@ -57,16 +110,58 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
     tol: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
+    personalization: Option<HashMap<VID, f64>>,
+) -> NodeState<'static, f64, G> {
+    let n = g.count_nodes();
+    let damp = damping_factor.unwrap_or(0.85);
+
+    match personalization {
+        Some(p) => {
+            let total: f64 = p.values().sum();
+            let mut weights = vec![0.0f64; n];
+            for (&vid, &value) in &p {
+                weights[vid.index()] = value / total;
+            }
+            run_pagerank(
+                g,
+                iter_count,
+                threads,
+                tol,
+                use_l2_norm,
+                damp,
+                Personalized { weights: Arc::new(weights) },
+            )
+        }
+        None => run_pagerank(
+            g,
+            iter_count,
+            threads,
+            tol,
+            use_l2_norm,
+            damp,
+            Uniform {
+                teleport_prob: (1f64 - damp) / n as f64,
+                factor: damp / n as f64,
+            },
+        ),
+    }
+}
+
+fn run_pagerank<G: StaticGraphViewOps, T: Teleport>(
+    g: &G,
+    iter_count: Option<usize>,
+    threads: Option<usize>,
+    tol: Option<f64>,
+    use_l2_norm: bool,
+    damp: f64,
+    teleport: T,
 ) -> NodeState<'static, f64, G> {
     let n = g.count_nodes();
 
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let tol: f64 = tol.unwrap_or(0.000001f64);
-    let damp = damping_factor.unwrap_or(0.85);
     let iter_count = iter_count.unwrap_or(20);
-    let teleport_prob = (1f64 - damp) / n as f64;
-    let factor = damp / n as f64;
 
     let max_diff = accumulators::sum::<f64>(2);
 
@@ -83,35 +178,42 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         Step::Continue
     });
 
-    let step2: ATask<G, ComputeStateVec, PageRankState, _> = ATask::new(move |s| {
-        // reset score
-        {
-            let state: &mut PageRankState = s.get_mut();
-            state.reset();
+    let step2: ATask<G, ComputeStateVec, PageRankState, _> = ATask::new({
+        let teleport = teleport.clone();
+        move |s| {
+            {
+                let state: &mut PageRankState = s.get_mut();
+                state.reset();
+            }
+
+            for t in s.in_neighbours() {
+                let prev = t.prev();
+
+                s.get_mut().score += prev.score / prev.out_degree as f64;
+            }
+
+            s.get_mut().score *= damp;
+
+            s.get_mut().score += teleport.teleport_value(s.node.index(), damp);
+            Step::Continue
         }
-
-        for t in s.in_neighbours() {
-            let prev = t.prev();
-
-            s.get_mut().score += prev.score / prev.out_degree as f64;
-        }
-
-        s.get_mut().score *= damp;
-
-        s.get_mut().score += teleport_prob;
-        Step::Continue
     });
 
-    let step3 = ATask::new(move |s| {
-        let state: &mut PageRankState = s.get_mut();
+    let step3 = ATask::new({
+        let teleport = teleport.clone();
+        move |s| {
+            let state: &mut PageRankState = s.get_mut();
 
-        if state.out_degree == 0 {
-            let curr = s.prev().score;
+            if state.out_degree == 0 {
+                let curr = s.prev().score;
 
-            let ts_contrib = factor * curr;
-            s.global_update(&total_sink_contribution, ts_contrib);
+                s.global_update(
+                    &total_sink_contribution,
+                    teleport.sink_contribution(curr),
+                );
+            }
+            Step::Continue
         }
-        Step::Continue
     });
 
     let step4 = ATask::new(move |s| {
@@ -120,8 +222,10 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
             .read_global_state(&total_sink_contribution)
             .unwrap_or_default();
         // update local score with total sink contribution
+        let vid_index = s.node.index();
         let state: &mut PageRankState = s.get_mut();
-        state.score += total_sink_contribution;
+        state.score +=
+            teleport.distribute_sink(total_sink_contribution, vid_index, damp);
 
         // update global max diff
 
