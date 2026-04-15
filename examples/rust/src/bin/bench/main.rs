@@ -82,6 +82,6 @@ fn main() {
         g
     };
     info!("Data loaded\nPageRanking");
-    page_rank(&graph, None, Some(25), Some(8), None, true, None);
+    page_rank(&graph, None, Some(25), Some(8), None, true, None, None);
     info!("Done PR");
 }

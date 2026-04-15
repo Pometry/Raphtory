@@ -369,9 +369,9 @@ def test_weighted_page_rank():
         ("3", 0.42311),
         ("4", 0.07837),
     ]:
-        assert abs(actual[node]["pagerank_score"] - expected) < 1e-5, (
-            f"node {node}: {actual[node]} != {expected}"
-        )
+        assert (
+            abs(actual[node]["pagerank_score"] - expected) < 1e-5
+        ), f"node {node}: {actual[node]} != {expected}"
 
 
 def test_weighted_page_rank_none_matches_unweighted():
@@ -389,6 +389,49 @@ def test_weighted_page_rank_none_matches_unweighted():
             abs(unweighted[node]["pagerank_score"] - weighted[node]["pagerank_score"])
             < 1e-5
         ), f"node {node} differs"
+
+
+def test_personalized_page_rank():
+    g = Graph()
+    edges = [(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)]
+    for node, personalization in [(1, 1.0), (2, 0.0), (3, 0.0), (4, 0.0)]:
+        g.add_node(0, node, {"personalization": personalization})
+    for src, dst in edges:
+        g.add_edge(0, src, dst, {})
+
+    actual = algorithms.pagerank(g, iter_count=1000, personalization="personalization")
+    for node, expected in [
+        ("1", 0.45223),
+        ("2", 0.19220),
+        ("3", 0.16337),
+        ("4", 0.19220),
+    ]:
+        assert (
+            abs(actual[node]['pagerank_score'] - expected) < 1e-5
+        ), f"node {node}: {actual[node]} != {expected}"
+
+    g = Graph()
+    g.add_node(0, 1, {"personalization": 0.5})
+    g.add_node(0, 3, {"personalization": 0.5})
+    for src, dst in edges:
+        g.add_edge(0, src, dst, {})
+
+    actual = algorithms.pagerank(
+        g,
+        iter_count=1000,
+        max_diff=1e-10,
+        use_l2_norm=False,
+        personalization="personalization",
+    )
+    for node, expected in [
+        ("1", 0.41832),
+        ("2", 0.17778),
+        ("3", 0.22612),
+        ("4", 0.17778),
+    ]:
+        assert (
+            abs(actual[node]['pagerank_score'] - expected) < 1e-5
+        ), f"node {node}: {actual[node]} != {expected}"
 
 
 def test_temporal_reachability():

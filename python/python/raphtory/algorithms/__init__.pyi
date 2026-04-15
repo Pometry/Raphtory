@@ -305,6 +305,7 @@ def pagerank(
     use_l2_norm: bool = True,
     damping_factor: float = 0.85,
     weight: Optional[str] = None,
+    personalization: Optional[str] = None,
 ) -> OutputNodeState:
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
@@ -322,6 +323,9 @@ def pagerank(
         use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
         damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
         weight (Optional[str]): Edge property key to use as weight. If None, all edges have weight 1.0.
+        personalization (Optional[str]): Node property key to use as personalization weight.
+            When provided, the random walk teleports to nodes proportionally to these node property values
+            instead of uniformly. Values are normalized to sum to 1. Defaults to None (uniform).
 
     Returns:
         OutputNodeState: NodeState mapping nodes to their pagerank score.

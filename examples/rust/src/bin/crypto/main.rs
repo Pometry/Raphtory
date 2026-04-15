@@ -33,12 +33,12 @@ fn main() {
 
     info!("Pagerank");
     let now = Instant::now();
-    let _ = page_rank(&g, None, Some(20), None, None, true, None);
+    let _ = page_rank(&g, None, Some(20), None, None, true, None, None);
     info!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
 
-    let _ = page_rank(&g, None, Some(20), None, None, true, None);
+    let _ = page_rank(&g, None, Some(20), None, None, true, None, None);
     info!("Time taken: {} secs", now.elapsed().as_secs());
 
     let now = Instant::now();
@@ -49,6 +49,7 @@ fn main() {
         None,
         None,
         true,
+        None,
         None,
     );
     info!("Time taken: {} secs", now.elapsed().as_secs());

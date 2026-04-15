@@ -64,7 +64,7 @@ use crate::{
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::Graph,
+    prelude::{Graph, GraphViewOps},
     python::{
         filter::filter_expr::PyFilterExpr,
         graph::{node::PyNode, views::graph_view::PyGraphView},
@@ -75,6 +75,7 @@ use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
+use std::collections::{HashMap, HashSet};
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -257,11 +258,14 @@ pub fn out_component(
 ///     use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
 ///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 ///     weight (Optional[str]): Edge property key to use as weight. If None, all edges have weight 1.0.
+///     personalization (Optional[str]): Node property key to use as personalization weight.
+///         When provided, the random walk teleports to nodes proportionally to these node property values
+///         instead of uniformly. Values are normalized to sum to 1. Defaults to None (uniform).
 ///
 /// Returns:
 ///     OutputNodeState: NodeState mapping nodes to their pagerank score.
 #[pyfunction]
-#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85, weight=None))]
+#[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85, weight=None, personalization=None))]
 pub fn pagerank(
     graph: &PyGraphView,
     iter_count: usize,
@@ -269,6 +273,7 @@ pub fn pagerank(
     use_l2_norm: bool,
     damping_factor: Option<f64>,
     weight: Option<&str>,
+    personalization: Option<&str>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     page_rank(
         &graph.graph,
@@ -278,6 +283,7 @@ pub fn pagerank(
         max_diff,
         use_l2_norm,
         damping_factor,
+        personalization,
     )
     .to_output_nodestate()
 }

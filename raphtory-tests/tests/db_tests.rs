@@ -2933,7 +2933,7 @@ fn test_node_state_merge() {
 
     let sg = graph.subgraph(1..200);
     let degs = degree_centrality(&graph);
-    let pr = page_rank(&sg, None, None, None, None, false, None);
+    let pr = page_rank(&sg, None, None, None, None, false, None, None);
 
     let m1 = pr.state.merge(
         &degs.state,
