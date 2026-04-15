@@ -337,7 +337,6 @@ impl ChannelRecordBatchSink {
     }
 }
 
-#[cfg(feature = "io")]
 impl RecordBatchSink for ChannelRecordBatchSink {
     fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
         // sinks propagate their record batch kind to their messages
@@ -357,7 +356,6 @@ impl RecordBatchSink for ChannelRecordBatchSink {
     }
 }
 
-#[cfg(feature = "io")]
 pub fn materialize_using_recordbatches(
     graph: &impl GraphView,
     path: Option<&Path>,

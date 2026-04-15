@@ -1,12 +1,7 @@
 use chrono::Local;
 use itertools::Itertools;
-#[cfg(feature = "io")]
 use parquet::arrow::arrow_reader::ArrowReaderMetadata;
 use proptest::{arbitrary::any, proptest};
-#[cfg(feature = "io")]
-use raphtory::arrow_loader::df_loaders::edges::ColumnNames;
-#[cfg(feature = "io")]
-use raphtory::db::api::view::materialize_using_recordbatches;
 #[cfg(feature = "io")]
 use raphtory::io::parquet_loaders::{
     get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
@@ -14,8 +9,12 @@ use raphtory::io::parquet_loaders::{
     load_nodes_from_parquet,
 };
 use raphtory::{
+    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
-        api::{storage::storage::PersistenceStrategy, view::MaterializedGraph},
+        api::{
+            storage::storage::PersistenceStrategy,
+            view::{materialize_using_recordbatches, MaterializedGraph},
+        },
         graph::graph::{assert_graph_equal, assert_graph_equal_timestamps, graph_equal},
     },
     prelude::*,
@@ -32,7 +31,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[cfg(feature = "io")]
 fn default_sf10_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../ldbc/data/social_network-sf10-CsvComposite-LongDateFormatter/graph")
@@ -45,7 +43,6 @@ fn default_sf10_parquet_path() -> PathBuf {
     )
 }
 
-#[cfg(feature = "io")]
 fn default_sf3_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../ldbc/data/social_network-sf3-CsvComposite-LongDateFormatter/graph")
@@ -58,7 +55,6 @@ fn default_sf3_parquet_path() -> PathBuf {
     )
 }
 
-#[cfg(feature = "io")]
 fn default_sf1_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../ldbc/data/social_network-sf1-CsvComposite-LongDateFormatter/graph")
@@ -71,12 +67,10 @@ fn default_sf1_parquet_path() -> PathBuf {
     )
 }
 
-#[cfg(feature = "io")]
 fn default_materialized_graphs_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../ldbc/data/materialized-graphs")
 }
 
-#[cfg(feature = "io")]
 fn set_snb_env_vars() {
     unsafe {
         std::env::set_var("RAPHTORY_FSYNC_ON_FLUSH", "false");
@@ -87,7 +81,6 @@ fn set_snb_env_vars() {
     }
 }
 
-#[cfg(feature = "io")]
 fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
     match fs::remove_dir_all(path.as_ref()) {
         Ok(()) => Ok(()),
@@ -161,7 +154,6 @@ fn materialize_prop_test() {
     })
 }
 
-#[cfg(feature = "io")]
 #[test]
 fn test_materialize_using_recordbatches_matches_materialize() {
     let g = Graph::new();
@@ -184,7 +176,6 @@ fn test_materialize_using_recordbatches_matches_materialize() {
     assert_graph_equal_timestamps(&expected, &actual);
 }
 
-#[cfg(feature = "io")]
 #[test]
 #[ignore = "requires a locally persisted SNB SF10 graph produced by ldbc/load_snb_sf10.py"]
 fn test_materialize_snb_sf10_timings() {
@@ -351,27 +342,16 @@ fn get_parquet_decode_time(
 }
 
 // FIXME: Is there a way to safely import these from parquet/mod.rs?
-#[cfg(feature = "io")]
 const RAP_NODE_ID_COL: &str = "rap_node_id";
-#[cfg(feature = "io")]
 const RAP_NODE_VID_COL: &str = "rap_node_vid";
-#[cfg(feature = "io")]
 const RAP_NODE_TYPE_COL: &str = "rap_node_type";
-#[cfg(feature = "io")]
 const RAP_NODE_TYPE_ID_COL: &str = "rap_node_type_id";
-#[cfg(feature = "io")]
 const RAP_TIME_COL: &str = "rap_time";
-#[cfg(feature = "io")]
 const RAP_SECONDARY_INDEX_COL: &str = "rap_secondary_index";
-#[cfg(feature = "io")]
 const RAP_SRC_ID_COL: &str = "rap_src_id";
-#[cfg(feature = "io")]
 const RAP_DST_ID_COL: &str = "rap_dst_id";
-#[cfg(feature = "io")]
 const RAP_EDGE_ID_COL: &str = "rap_edge_id";
-#[cfg(feature = "io")]
 const RAP_LAYER_COL: &str = "rap_layer";
-#[cfg(feature = "io")]
 const RAP_LAYER_ID_COL: &str = "rap_layer_id";
 #[cfg(feature = "io")]
 const GRAPH_C_PARQUET_DIR: &str = "graph_c";
