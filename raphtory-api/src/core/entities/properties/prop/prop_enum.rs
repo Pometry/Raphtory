@@ -493,7 +493,7 @@ pub fn validate_bd(bd: &BigDecimal) -> Result<(), InvalidBigDecimal> {
 
 impl Prop {
     // auxiliary function to help with numerical conversion
-    fn cast_primitive<T>(self) -> Option<T>
+    pub fn cast_num<T>(self) -> Option<T>
     where
         T: FromPrimitive + Bounded,
     {
@@ -624,14 +624,14 @@ impl Prop {
             },
             _ => match prop_type {
                 // Numeric conversions using num_traits
-                PropType::U8 => self.cast_primitive::<u8>().map(Prop::U8),
-                PropType::U16 => self.cast_primitive::<u16>().map(Prop::U16),
-                PropType::I32 => self.cast_primitive::<i32>().map(Prop::I32),
-                PropType::I64 => self.cast_primitive::<i64>().map(Prop::I64),
-                PropType::U32 => self.cast_primitive::<u32>().map(Prop::U32),
-                PropType::U64 => self.cast_primitive::<u64>().map(Prop::U64),
-                PropType::F32 => self.cast_primitive::<f32>().map(Prop::F32),
-                PropType::F64 => self.cast_primitive::<f64>().map(Prop::F64),
+                PropType::U8 => self.cast_num::<u8>().map(Prop::U8),
+                PropType::U16 => self.cast_num::<u16>().map(Prop::U16),
+                PropType::I32 => self.cast_num::<i32>().map(Prop::I32),
+                PropType::I64 => self.cast_num::<i64>().map(Prop::I64),
+                PropType::U32 => self.cast_num::<u32>().map(Prop::U32),
+                PropType::U64 => self.cast_num::<u64>().map(Prop::U64),
+                PropType::F32 => self.cast_num::<f32>().map(Prop::F32),
+                PropType::F64 => self.cast_num::<f64>().map(Prop::F64),
                 _ => None,
             },
         }

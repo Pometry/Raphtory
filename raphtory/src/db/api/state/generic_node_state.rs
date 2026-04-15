@@ -42,7 +42,7 @@ use parquet::{
 use raphtory_api::core::entities::{
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
-        prop::{Prop, PropUntagged, PropUnwrap},
+        prop::{Prop, PropType, PropUntagged, PropUnwrap},
     },
     LayerIds,
 };
@@ -330,7 +330,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                         let base_graph = base_graph.as_ref().unwrap_or(&state.base_graph).clone();
                         let index: Index<_> = nodes
                             .iter()
-                            .map(|prop| VID(prop.unwrap_u64() as usize))
+                            .map(|prop| VID(prop.cast_num().unwrap()))
                             .collect();
                         (
                             key,
