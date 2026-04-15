@@ -141,7 +141,8 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
 
 impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromGraph<'graph, G> {
     type Graph = G;
-    type ValueType<T: ArrowNodeOp + 'graph> = BoxedLIter<'graph, (NodeView<'graph, G>, BoxedLIter<'graph, T::Output>)>;
+    type ValueType<T: ArrowNodeOp + 'graph> =
+        BoxedLIter<'graph, (NodeView<'graph, G>, BoxedLIter<'graph, T::Output>)>;
     type PropType = NodeView<'graph, G>;
     type PathType = PathFromGraph<'graph, G>;
     type Edges = NestedEdges<'graph, G>;
