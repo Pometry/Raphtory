@@ -281,7 +281,7 @@ pub struct SerdeRow<P: Serialize> {
 impl<'a> Serialize for SerdeArrowList<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         match &self.0 {
             PropArray::Vec(list) => {
@@ -299,7 +299,7 @@ impl<'a> Serialize for SerdeArrowList<'a> {
 impl<'a> Serialize for SerdeArrowMap<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         let mut state = serializer.serialize_map(Some(self.0.len()))?;
         for (k, v) in self.0.iter() {
@@ -312,7 +312,7 @@ impl<'a> Serialize for SerdeArrowMap<'a> {
 impl<'a> Serialize for SerdeArrowProp<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer,
+        S: Serializer,
     {
         match self.0 {
             Prop::I32(i) => serializer.serialize_i32(*i),
@@ -771,7 +771,7 @@ impl Prop {
     }
 }
 
-pub fn list_array_from_props<P: Serialize + std::fmt::Debug + Clone>(
+pub fn list_array_from_props<P: Serialize + fmt::Debug + Clone>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> Result<LargeListArray, serde_arrow::Error> {

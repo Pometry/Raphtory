@@ -136,7 +136,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn num_layers(&self) -> usize;
 
-    fn layer_count(&self, layer_id: usize) -> u32;
+    fn layer_count(&self, layer_id: LayerId) -> u32;
 }
 
 pub trait LockedNSSegment: Debug + Send + Sync {

@@ -146,8 +146,8 @@ impl MemNodeSegment {
         self.layers[0].meta()
     }
 
-    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<AdjEntry>> {
-        self.layers.get(layer_id)
+    pub fn get_layer(&self, layer_id: LayerId) -> Option<&SegmentContainer<AdjEntry>> {
+        self.layers.get(layer_id.0)
     }
 
     pub fn degree(&self, n: LocalPOS, layer_id: LayerId, dir: Direction) -> usize {
@@ -596,7 +596,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         self.head().layers.len()
     }
 
-    fn layer_count(&self, layer_id: usize) -> u32 {
+    fn layer_count(&self, layer_id: LayerId) -> u32 {
         self.head()
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())

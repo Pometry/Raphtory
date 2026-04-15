@@ -1,18 +1,23 @@
 use crate::core::storage::arc_str::ArcStr;
+use bytemuck::{Pod, Zeroable};
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
     ParallelExtend, ParallelIterator,
 };
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     iter::Copied,
+    slice::SliceIndex,
     sync::Arc,
 };
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize, Pod, Zeroable,
+)]
+#[repr(transparent)]
 pub struct LayerId(pub usize);
-
 impl PartialEq<usize> for LayerId {
     fn eq(&self, other: &usize) -> bool {
         self.0 == *other
@@ -25,17 +30,6 @@ impl PartialEq<LayerId> for usize {
     }
 }
 
-impl PartialEq<u64> for LayerId {
-    fn eq(&self, other: &u64) -> bool {
-        self.0 as u64 == *other
-    }
-}
-
-impl PartialEq<LayerId> for u64 {
-    fn eq(&self, other: &LayerId) -> bool {
-        *self == other.0 as u64
-    }
-}
 
 impl Display for LayerId {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
