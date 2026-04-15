@@ -30,10 +30,9 @@ impl PartialEq<LayerId> for usize {
     }
 }
 
-
 impl Display for LayerId {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "LayerId({})", self.0)
+        Display::fmt(&self.0, f)
     }
 }
 
