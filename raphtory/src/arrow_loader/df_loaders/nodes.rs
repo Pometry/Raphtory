@@ -2,7 +2,6 @@ use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::api::view::StaticGraphViewOps,
     errors::{into_graph_err, GraphError, LoadError},
-    io::LOAD_POOL,
     prelude::*,
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};
@@ -37,6 +36,7 @@ use crate::arrow_loader::{
     layer_col::{lift_node_type_col, LayerCol},
     node_col::NodeCol,
     prop_handler::*,
+    LOAD_POOL,
 };
 #[cfg(feature = "progress")]
 use kdam::BarExt;

@@ -8,13 +8,6 @@ pub mod neo4j_loader;
 
 pub mod parquet_loaders;
 
-pub(crate) static LOAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
-    ThreadPoolBuilder::new()
-        .thread_name(|idx| format!("PS Bulk Load Thread-{idx}"))
-        .build()
-        .unwrap()
-});
-
 pub(crate) static ENCODE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .thread_name(|idx| format!("PS Encode Thread-{idx}"))

@@ -10,10 +10,10 @@ use crate::{
         layer_col::lift_layer_col,
         node_col::NodeCol,
         prop_handler::*,
+        LOAD_POOL,
     },
     db::api::{storage::storage::PersistenceStrategy, view::StaticGraphViewOps},
     errors::{into_graph_err, GraphError, LoadError},
-    io::LOAD_POOL,
     prelude::*,
 };
 use arrow::{array::AsArray, datatypes::UInt64Type};

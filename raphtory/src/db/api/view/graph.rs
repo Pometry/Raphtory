@@ -1,5 +1,5 @@
 #[cfg(feature = "io")]
-use crate::io::{ENCODE_POOL, LOAD_POOL};
+use crate::io::ENCODE_POOL;
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
@@ -64,18 +64,21 @@ use std::{
 };
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-use crate::arrow_loader::{
-    dataframe::{DFChunk, DFView},
-    df_loaders::{
-        edge_props::load_edges_from_df as load_edge_props_from_df,
-        edges::{load_edges_from_df, ColumnNames},
-        load_edge_deletions_from_df, load_graph_props_from_df,
-        nodes::{load_node_props_from_df, load_nodes_from_df},
+use crate::{
+    arrow_loader::{
+        dataframe::{DFChunk, DFView},
+        df_loaders::{
+            edge_props::load_edges_from_df as load_edge_props_from_df,
+            edges::{load_edges_from_df, ColumnNames},
+            load_edge_deletions_from_df, load_graph_props_from_df,
+            nodes::{load_node_props_from_df, load_nodes_from_df},
+        },
+        LOAD_POOL,
     },
-};
-use crate::serialise::parquet::{
-    DST_COL_ID, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
-    SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+    serialise::parquet::{
+        DST_COL_ID, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+    },
 };
 #[cfg(feature = "search")]
 use crate::{
