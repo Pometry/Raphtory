@@ -41,7 +41,6 @@ pub struct PyNodeIdFilterBuilder(Arc<NodeIdFilterBuilder>);
 impl PyNodeIdFilterBuilder {
     /// Returns a filter expression that checks whether the node ID
     /// is equal to the given value.
-    ///pub(crate) pub(crate)
     /// Arguments:
     ///     value (int): Node ID to compare against.
     ///
