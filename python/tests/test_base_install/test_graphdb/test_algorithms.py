@@ -43,7 +43,6 @@ def test_local_clustering_coefficient():
     assert actual == expected
     expected = {k: {"lcc": v} for k, v in expected.items()}
     actual = algorithms.local_clustering_coefficient_batch(g, list(range(1, 9)))
-    # actual = {str(i): actual[i]["lcc"] for i in range(1, 9)}
     assert actual == expected
 
 
