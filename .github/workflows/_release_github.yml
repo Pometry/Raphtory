@@ -36,7 +36,7 @@ jobs:
           echo CRATE_VERSION=$(make print-version) >> $GITHUB_ENV
           echo "Crate version is $CRATE_VERSION"
       - name: "Releasing to Github"
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           draft: false
           prerelease: false
