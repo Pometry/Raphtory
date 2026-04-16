@@ -2,12 +2,6 @@ use chrono::Local;
 use itertools::Itertools;
 use parquet::arrow::arrow_reader::ArrowReaderMetadata;
 use proptest::{arbitrary::any, proptest};
-#[cfg(feature = "io")]
-use raphtory::io::parquet_loaders::{
-    get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
-    load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
-    load_nodes_from_parquet,
-};
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
@@ -18,9 +12,17 @@ use raphtory::{
         graph::graph::{assert_graph_equal, assert_graph_equal_timestamps, graph_equal},
     },
     prelude::*,
-    serialise::parquet::ParquetEncoder,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},
+};
+#[cfg(feature = "io")]
+use raphtory::{
+    io::parquet_loaders::{
+        get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
+        load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
+        load_nodes_from_parquet,
+    },
+    serialise::parquet::ParquetEncoder,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::core_ops::CoreGraphOps;
@@ -176,6 +178,7 @@ fn test_materialize_using_recordbatches_matches_materialize() {
     assert_graph_equal_timestamps(&expected, &actual);
 }
 
+#[cfg(feature = "io")]
 #[test]
 #[ignore = "requires a locally persisted SNB SF10 graph produced by ldbc/load_snb_sf10.py"]
 fn test_materialize_snb_sf10_timings() {
@@ -253,6 +256,7 @@ fn test_materialize_snb_sf10_timings() {
     println!("Faster path: {faster} ({ratio:.2}x)");
 }
 
+#[cfg(feature = "io")]
 fn get_new_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Duration {
     remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
     fs::create_dir_all(&materialize_graph_path).unwrap();
@@ -293,6 +297,7 @@ fn get_new_materialize_time(graph_path: &Path, materialize_graph_path: &Path) ->
     recordbatch_elapsed
 }
 
+#[cfg(feature = "io")]
 fn get_parquet_decode_time(
     graph_path: &Path,
     parquet_path: &Path,

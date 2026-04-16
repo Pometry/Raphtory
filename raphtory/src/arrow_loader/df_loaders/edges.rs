@@ -1,5 +1,7 @@
 #[cfg(feature = "progress")]
 use crate::arrow_loader::df_loaders::build_progress_bar;
+#[cfg(feature = "progress")]
+use kdam::BarExt;
 
 use crate::{
     arrow_loader::{
@@ -20,7 +22,6 @@ use arrow::{array::AsArray, datatypes::UInt64Type};
 use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use itertools::izip;
-use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{

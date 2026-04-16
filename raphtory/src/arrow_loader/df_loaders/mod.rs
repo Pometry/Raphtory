@@ -9,6 +9,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::*,
 };
+#[cfg(feature = "progress")]
 use kdam::{Bar, BarBuilder, BarExt};
 use raphtory_api::core::{
     entities::properties::prop::PropType,
