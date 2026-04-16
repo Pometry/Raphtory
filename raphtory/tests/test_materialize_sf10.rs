@@ -12,7 +12,7 @@ use raphtory::{
         load_nodes_from_parquet,
     },
     prelude::{
-        AdditionOps, DeletionOps, Graph, GraphViewOps, ParquetDecoder, ParquetEncoder,
+        AdditionOps, DeletionOps, Graph, GraphViewOps, LayerOps, ParquetDecoder, ParquetEncoder,
         PropertyAdditionOps,
     },
 };
@@ -183,6 +183,118 @@ fn test_materialize_snb_sf1_timings() {
     };
 
     println!("Faster path: {faster} ({ratio:.2}x)");
+}
+
+#[cfg(feature = "io")]
+#[test]
+#[ignore = "requires a locally persisted SNB SF1 graph produced by ldbc/load_snb_sf10.py"]
+fn test_materialize_filtered_sf1_matches() {
+    set_snb_env_vars();
+    let graph_path = default_sf1_graph_path();
+    let old_materialize_graph_path =
+        default_materialized_graphs_path().join("sf1_filtered_materialize_old");
+    let rb_materialize_graph_path =
+        default_materialized_graphs_path().join("sf1_filtered_materialize_rb");
+
+    remove_dir_all_ignore_not_found(&old_materialize_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(&rb_materialize_graph_path).unwrap();
+    fs::create_dir_all(&old_materialize_graph_path).unwrap();
+    fs::create_dir_all(&rb_materialize_graph_path).unwrap();
+
+    if !graph_path.exists() {
+        eprintln!("SNB graph not found at {}", graph_path.display());
+        return;
+    }
+
+    let selected_node_types = ["Person", "Forum", "Post", "Comment"];
+    let selected_layers = [
+        "KNOWS",
+        "LIKES",
+        "HAS_MEMBER",
+        "HAS_CREATOR",
+        "HAS_MODERATOR",
+        "CONTAINER_OF",
+        "REPLY_OF",
+    ];
+
+    println!(
+        "Loading filtered-view SF1 source graph from {}",
+        graph_path.display()
+    );
+    let g = Graph::load(&graph_path).unwrap();
+
+    let total_nodes = g.count_nodes();
+    let total_edges = g.count_edges();
+    let total_temporal_edges = g.count_temporal_edges();
+
+    let filtered = g
+        .subgraph_node_types(selected_node_types)
+        .layers(selected_layers)
+        .unwrap();
+
+    let selected_nodes = filtered.count_nodes();
+    let selected_edges = filtered.count_edges();
+    let selected_temporal_edges = filtered.count_temporal_edges();
+
+    println!(
+        "Filtered SF1 view uses node types {:?} and layers {:?}",
+        selected_node_types, selected_layers
+    );
+    let nodes_percent = (selected_nodes * 100).checked_div(total_nodes).unwrap_or(0);
+    let edges_percent = (selected_edges * 100).checked_div(total_edges).unwrap_or(0);
+    let temporal_edges_percent = (selected_temporal_edges * 100)
+        .checked_div(total_temporal_edges)
+        .unwrap_or(0);
+
+    println!(
+        "Selected {selected_nodes}/{total_nodes} nodes ({nodes_percent}%), \
+        {selected_edges}/{total_edges} edges ({edges_percent}%), \
+        {selected_temporal_edges}/{total_temporal_edges} temporal edges ({temporal_edges_percent}%)"
+    );
+
+    println!(
+        "Starting filtered SF1 materialize using RecordBatches at {}",
+        Local::now()
+    );
+    let recordbatch_start = Instant::now();
+    let recordbatch_graph = materialize_using_recordbatches(
+        &filtered,
+        Some(&rb_materialize_graph_path),
+        g.core_graph().extension().config().clone(),
+    )
+    .unwrap();
+    let recordbatch_elapsed = recordbatch_start.elapsed();
+    println!(
+        "Finished filtered SF1 materialize using RecordBatches at {}\nTook {recordbatch_elapsed:?}",
+        Local::now()
+    );
+
+    println!(
+        "Starting filtered SF1 materialize impl (old) at {}",
+        Local::now()
+    );
+    let impl_start = Instant::now();
+    let materialize_impl_graph = filtered
+        .materialize_at(&old_materialize_graph_path)
+        .unwrap();
+    let impl_elapsed = impl_start.elapsed();
+    println!(
+        "Finished filtered SF1 materialize impl (old) at {}\nTook {impl_elapsed:?}",
+        Local::now()
+    );
+
+    // println!("Checking RecordBatch materialized graph");
+    // assert_graph_equal_timestamps(&filtered, &recordbatch_graph);
+    println!("Checking RecordBatch vs old materialized graph");
+    assert_graph_equal_timestamps(&materialize_impl_graph, &recordbatch_graph);
+    println!("Passed!\nChecking old materialized graph");
+    assert_graph_equal_timestamps(&filtered, &materialize_impl_graph);
+    println!("Passed!");
+
+    println!(
+        "Filtered SF1 parity check passed.\n  materialize_using_recordbatches: {:?}\n  materialize_impl: {:?}",
+        recordbatch_elapsed, impl_elapsed
+    );
 }
 
 #[cfg(feature = "io")]
