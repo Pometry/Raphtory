@@ -312,6 +312,36 @@ def test_page_rank():
     assert actual == expected
 
 
+def test_weighted_page_rank():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"weight": 0.37})
+    g.add_edge(0, 1, 3, {"weight": 4.2})
+    g.add_edge(0, 2, 1, {"weight": 0.9})
+    g.add_edge(0, 2, 4, {"weight": 1.7})
+    g.add_edge(0, 3, 1, {"weight": 2.6})
+    g.add_edge(0, 3, 2, {"weight": 0.05})
+    g.add_edge(0, 4, 3, {"weight": 3.3})
+    g.add_edge(0, 4, 1, {"weight": 0.8})
+
+    actual = algorithms.pagerank(g, iter_count=1000, max_diff=1e-10, weight="weight")
+    for node, expected in [("1", 0.42499), ("2", 0.07353), ("3", 0.42311), ("4", 0.07837)]:
+        assert abs(actual[node] - expected) < 1e-5, f"node {node}: {actual[node]} != {expected}"
+
+
+def test_weighted_page_rank_none_matches_unweighted():
+    g = Graph()
+    g.add_edge(0, 1, 2, {"weight": 1.0})
+    g.add_edge(0, 1, 4, {"weight": 1.0})
+    g.add_edge(0, 2, 3, {"weight": 1.0})
+    g.add_edge(0, 3, 1, {"weight": 1.0})
+    g.add_edge(0, 4, 1, {"weight": 1.0})
+
+    unweighted = algorithms.pagerank(g, iter_count=1000)
+    weighted = algorithms.pagerank(g, iter_count=1000, weight="weight")
+    for node in ["1", "2", "3", "4"]:
+        assert abs(unweighted[node] - weighted[node]) < 1e-5, f"node {node} differs"
+
+
 def test_temporal_reachability():
     g = gen_graph()
 
