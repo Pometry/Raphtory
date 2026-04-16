@@ -102,7 +102,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: digests-${{ inputs.python }}-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*

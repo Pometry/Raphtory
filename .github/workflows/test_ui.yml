@@ -76,7 +76,7 @@ jobs:
           python test_server.py &
           UI_BASE_URL=http://localhost:1736 npm run test
       - name: Upload UI Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-with-py-${{ matrix.python }}
