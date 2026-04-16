@@ -7,7 +7,9 @@ use crate::{
                 ops::{filter::NO_FILTER, Const},
                 Index,
             },
-            view::{DynamicGraph, IntoDynBoxed, IntoDynamic},
+            view::{
+                internal::GraphView, BoxableGraphView, DynamicGraph, IntoDynBoxed, IntoDynamic,
+            },
         },
         graph::{
             node::NodeView, nodes::Nodes,
@@ -56,7 +58,7 @@ use serde_arrow::{
 use std::{
     cmp::{Ordering, PartialEq},
     collections::{BinaryHeap, HashMap},
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Formatter, Pointer},
     fs::File,
     hash::BuildHasher,
     marker::PhantomData,
@@ -124,8 +126,12 @@ where
 pub type TransformedPropMap<'graph, G> = IndexMap<String, NodeStateOutput<'graph, G>>;
 
 // Shorthand for a TypedNodeState which is ideal for usage in Python.
-pub type OutputTypedNodeState<'graph, G> =
-    TypedNodeState<'graph, PropMap, G, TransformedPropMap<'graph, G>>;
+pub type OutputTypedNodeState<'graph, G> = TypedNodeState<
+    'graph,
+    PropMap,
+    G,
+    TransformedPropMap<'graph, Arc<dyn BoxableGraphView + 'graph>>,
+>;
 
 pub trait NodeTransform {
     type Input;
@@ -183,15 +189,36 @@ impl Ord for HeapRow {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct GenericNodeState<'graph, G> {
     pub base_graph: G,
     values: RecordBatch,
     pub(crate) keys: Index<VID>,
     // Data structure mapping which columns are node-containing and, if so, which graph they belong to
     // note: maybe change that Option<G> to a Option<Box<dyn GraphViewOps>> or something
-    pub node_cols: HashMap<String, (NodeStateOutputType, Option<G>)>,
+    pub node_cols: HashMap<
+        String,
+        (
+            NodeStateOutputType,
+            Option<Arc<dyn BoxableGraphView + 'graph>>,
+        ),
+    >,
     _marker: PhantomData<&'graph ()>,
+}
+
+impl<'graph, G: Debug + 'graph> Debug for GenericNodeState<'graph, G> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let node_cols: HashMap<_, _> = self
+            .node_cols
+            .iter()
+            .map(|(col_name, (node_type, _))| (col_name, node_type))
+            .collect();
+        f.debug_struct("GenericNodeState")
+            .field("base_graph", &self.base_graph)
+            .field("values", &self.values)
+            .field("node_cols", &node_cols)
+            .finish()
+    }
 }
 
 impl<'graph, G> GenericNodeState<'graph, G> {
@@ -262,19 +289,13 @@ where
     }
 }
 
-impl<'graph, G: IntoDynamic> GenericNodeState<'graph, G> {
-    pub fn into_dyn(self) -> GenericNodeState<'graph, DynamicGraph> {
-        let node_cols = Some(
-            self.node_cols
-                .into_iter()
-                .map(|(k, (output_type, bg))| (k, (output_type, bg.map(|bg| bg.into_dynamic()))))
-                .collect(),
-        );
+impl<G: IntoDynamic> GenericNodeState<'static, G> {
+    pub fn into_dyn(self) -> GenericNodeState<'static, DynamicGraph> {
         GenericNodeState::new(
             self.base_graph.into_dynamic(),
             self.values,
             self.keys,
-            node_cols,
+            Some(self.node_cols),
         )
     }
 }
@@ -284,7 +305,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         base_graph: G,
         values: RecordBatch,
         keys: Index<VID>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
     ) -> Self {
         Self {
             base_graph,
@@ -301,7 +330,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn get_nodes(
         state: &GenericNodeState<'graph, G>,
         value_map: PropMap,
-    ) -> TransformedPropMap<'graph, G> {
+    ) -> TransformedPropMap<'graph, Arc<dyn BoxableGraphView + 'graph>> {
         // for column in aux data structure
         value_map
             .into_iter()
@@ -320,14 +349,18 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
                         (
                             key,
                             NodeStateOutput::Node(NodeView::new_internal(
-                                base_graph.as_ref().unwrap_or(&state.base_graph).clone(),
+                                base_graph
+                                    .clone()
+                                    .unwrap_or(Arc::new(state.base_graph.clone())),
                                 VID(vid as usize),
                             )),
                         )
                     }
                     NodeStateOutputType::Nodes => {
                         let nodes = value.0.unwrap_list();
-                        let base_graph = base_graph.as_ref().unwrap_or(&state.base_graph).clone();
+                        let base_graph = base_graph
+                            .clone()
+                            .unwrap_or(Arc::new(state.base_graph.clone()));
                         let index: Index<_> = nodes
                             .iter()
                             .map(|prop| VID(prop.cast_num().unwrap()))
@@ -559,22 +592,20 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     // Merge with another GenericNodeState. Produces a new GenericNodeState.
     // Options for merging index sets are exclusively use left or right, or to union the sets
     // Options for merging columns are to prioritize left or right, or exclude the column
-    pub fn merge(
+    pub fn merge<G2: GraphView + 'graph>(
         &self,
-        other: &GenericNodeState<'graph, G>,
+        other: &GenericNodeState<'graph, G2>,
         index_merge_priority: MergePriority, // Exclude = Union of index sets
         default_column_merge_priority: MergePriority,
         column_merge_priority_map: Option<HashMap<String, MergePriority>>,
     ) -> Self {
         // if any columns contain nodes, you need to preserve that information in the node_cols structure
-        let mut merge_node_cols: HashMap<String, (NodeStateOutputType, Option<G>)> =
-            HashMap::default();
-        let default_node_cols: &HashMap<String, (NodeStateOutputType, Option<G>)> =
-            if default_column_merge_priority == MergePriority::Left {
-                &self.node_cols
-            } else {
-                &other.node_cols
-            };
+        let mut merge_node_cols = HashMap::default();
+        let default_node_cols = if default_column_merge_priority == MergePriority::Left {
+            &self.node_cols
+        } else {
+            &other.node_cols
+        };
 
         let tgt_idx_set = match index_merge_priority {
             MergePriority::Left => self.keys_ref().clone(),
@@ -1136,7 +1167,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         values: Vec<V>,
         index: Index<VID>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
     ) -> Self {
         Self::new_from_eval_with_index_mapped(graph, values, index, |v| v, node_cols)
     }
@@ -1146,7 +1185,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         values: Vec<R>,
         index: Index<VID>,
         map: impl Fn(R) -> V,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
     ) -> Self {
         let values: Vec<V> = values.into_iter().map(map).collect();
         let fields = Vec::<Field>::from_type::<V>(TracingOptions::default()).unwrap();
@@ -1176,7 +1223,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn new_from_eval<V: NodeStateValue>(
         graph: G,
         values: Vec<V>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
     ) -> Self {
         Self::new_from_eval_mapped(graph, values, |v| v, node_cols)
     }
@@ -1191,7 +1246,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         values: Vec<R>,
         map: impl Fn(R) -> V,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
     ) -> Self {
         let index = Index::for_graph(graph.clone());
         Self::new_from_eval_with_index_mapped(graph.clone(), values, index, map, node_cols)
@@ -1202,7 +1265,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
     pub fn new_from_values(
         graph: G,
         values: impl Into<RecordBatch>,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
     ) -> Self {
         let index = Index::for_graph(&graph);
         Self::new(
@@ -1218,7 +1289,15 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
         graph: G,
         mut values: HashMap<VID, R, S>,
         map: impl Fn(R) -> V,
-        node_cols: Option<HashMap<String, (NodeStateOutputType, Option<G>)>>,
+        node_cols: Option<
+            HashMap<
+                String,
+                (
+                    NodeStateOutputType,
+                    Option<Arc<dyn BoxableGraphView + 'graph>>,
+                ),
+            >,
+        >,
     ) -> Self {
         let fields = Vec::<FieldRef>::from_type::<V>(TracingOptions::default()).unwrap();
         if values.len() == graph.count_nodes() {

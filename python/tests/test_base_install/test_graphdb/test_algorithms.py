@@ -636,7 +636,7 @@ def test_temporal_SEIR():
 
 
 ##########
-def test_nodestate_merge_test():
+def test_nodestate_merge():
     from raphtory.algorithms import degree_centrality, pagerank
 
     g = Graph()
