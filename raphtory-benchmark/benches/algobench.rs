@@ -87,7 +87,7 @@ pub fn graphgen_large_pagerank(c: &mut Criterion) {
         &graph,
         |b, graph| {
             b.iter(|| {
-                let result = unweighted_page_rank(graph, Some(100), None, None, true, None);
+                let result = unweighted_page_rank(graph, Some(100), None, None, true, None, None);
                 black_box(result);
             });
         },

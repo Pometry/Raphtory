@@ -312,6 +312,21 @@ def test_page_rank():
     assert actual == expected
 
 
+def test_personalized_page_rank():
+    g = Graph()
+    edges = [(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)]
+    for src, dst in edges:
+        g.add_edge(0, src, dst, {})
+
+    actual = algorithms.pagerank(g, iter_count=1000, personalization={"1": 1.0, "2": 0.0, "3": 0.0, "4": 0.0})
+    for node, expected in [("1", 0.45223), ("2", 0.19220), ("3", 0.16337), ("4", 0.19220)]:
+        assert abs(actual[node] - expected) < 1e-5, f"node {node}: {actual[node]} != {expected}"
+
+    actual = algorithms.pagerank(g, iter_count=1000, max_diff=1e-10, use_l2_norm=False, personalization={"1": 0.5, "3": 0.5})
+    for node, expected in [("1", 0.41832), ("2", 0.17778), ("3", 0.22612), ("4", 0.17778)]:
+        assert abs(actual[node] - expected) < 1e-5, f"node {node}: {actual[node]} != {expected}"
+
+
 def test_temporal_reachability():
     g = gen_graph()
 

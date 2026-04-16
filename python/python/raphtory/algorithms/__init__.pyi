@@ -289,6 +289,7 @@ def pagerank(
     max_diff: Optional[float] = None,
     use_l2_norm: bool = True,
     damping_factor: float = 0.85,
+    personalization: Optional[dict[NodeInput, float]] = None,
 ) -> NodeStateF64:
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
@@ -305,6 +306,9 @@ def pagerank(
             is less than the max diff value given.
         use_l2_norm (bool): Flag for choosing the norm to use for convergence checks, True for l2 norm, False for l1 norm. Defaults to True.
         damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
+        personalization (Optional[dict[NodeInput, float]]): A dictionary mapping nodes to personalization values.
+            When provided, the random walk teleports to nodes proportionally to these values
+            instead of uniformly. Values are normalized to sum to 1. Defaults to None (uniform).
 
     Returns:
         NodeStateF64: Mapping of nodes to their pagerank value.
