@@ -205,6 +205,8 @@ impl Base for DynamicGraph {
 
 impl Immutable for DynamicGraph {}
 
+impl<'graph> Immutable for Arc<dyn BoxableGraphView + 'graph> {}
+
 impl InheritViewOps for DynamicGraph {}
 
 impl InheritCoreGraphOps for DynamicGraph {}

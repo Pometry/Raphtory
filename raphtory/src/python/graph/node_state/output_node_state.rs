@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
@@ -8,7 +6,10 @@ use crate::{
                 convert_prop_map, ops::Const, GenericNodeState, MergePriority, NodeStateOutput,
                 OutputTypedNodeState, TransformedPropMap, TypedNodeState,
             },
-            view::DynamicGraph,
+            view::{
+                internal::IntoDynamicOrMutable, BoxableGraphView, DynamicGraph, IntoDynamic,
+                StaticGraphViewOps,
+            },
         },
         graph::nodes::Nodes,
     },
@@ -16,7 +17,7 @@ use crate::{
     python::{
         graph::{
             node::{PyNode, PyNodes},
-            node_state::NodeFilterOp,
+            node_state::{NodeFilterOp, NodeView},
         },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -30,6 +31,7 @@ use pyo3::{
     Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
 use raphtory_api::core::entities::properties::prop::PropUntagged;
+use std::{collections::HashMap, sync::Arc};
 
 #[pyclass(
     name = "OutputNodeState",
@@ -108,7 +110,10 @@ impl PyOutputNodeState {
         self.inner.repr()
     }
 
-    fn __getitem__(&self, node: PyNodeRef) -> PyResult<TransformedPropMap<'static, DynamicGraph>> {
+    fn __getitem__(
+        &self,
+        node: PyNodeRef,
+    ) -> PyResult<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>> {
         let node = node.as_node_ref();
         self.inner
             .get_by_node(node)
@@ -131,16 +136,16 @@ impl PyOutputNodeState {
     ///
     /// Arguments:
     ///     node (NodeInput): the node
-    ///     default (Optional[Dict]): the default value (dict of field name to value). Defaults to None.")]
+    ///     default (dict, optional): the default value (dict of field name to value). Defaults to None.
     ///
     /// Returns:
-    ///     Optional[Dict]: the value for the node or the default value")]
-    #[pyo3(signature = (node, default=None::<TransformedPropMap<'static, DynamicGraph>>))]
+    ///     Optional[dict]: the value for the node or the default value
+    #[pyo3(signature = (node, default=None::<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>>))]
     fn get(
         &self,
         node: PyNodeRef,
-        default: Option<TransformedPropMap<'static, DynamicGraph>>,
-    ) -> Option<TransformedPropMap<'static, DynamicGraph>> {
+        default: Option<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>>,
+    ) -> Option<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>> {
         self.inner
             .get_by_node(node)
             .map_or(default, |value| Some(self.inner.convert(value)))
@@ -222,7 +227,7 @@ impl PyOutputNodeState {
         &self,
         cols: Vec<String>,
     ) -> Vec<(
-        TransformedPropMap<'static, DynamicGraph>,
+        TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
         Nodes<'static, DynamicGraph>,
     )> {
         self.inner.get_groups(cols).unwrap()
@@ -341,7 +346,9 @@ impl<'py> IntoPyObject<'py> for OutputTypedNodeState<'static, DynamicGraph> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
+impl<'py, G: StaticGraphViewOps + IntoDynamicOrMutable> IntoPyObject<'py>
+    for NodeStateOutput<'static, G>
+{
     type Target = PyAny;
     type Output = Bound<'py, PyAny>;
     type Error = PyErr;
@@ -379,5 +386,25 @@ impl<'a, 'py> FromPyObject<'a, 'py> for NodeStateOutput<'static, DynamicGraph> {
         }
 
         Err(PyTypeError::new_err("Invalid type conversion"))
+    }
+}
+
+impl<'a, 'py> FromPyObject<'a, 'py> for NodeStateOutput<'static, Arc<dyn BoxableGraphView>> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let obj = NodeStateOutput::<'static, DynamicGraph>::extract(obj)?;
+        Ok(match obj {
+            NodeStateOutput::Node(node) => {
+                NodeStateOutput::Node(NodeView::new_internal(node.graph.0, node.node))
+            }
+            NodeStateOutput::Nodes(nodes) => NodeStateOutput::Nodes(Nodes::new_filtered(
+                nodes.base_graph.0,
+                nodes.graph.0,
+                nodes.predicate,
+                nodes.nodes,
+            )),
+            NodeStateOutput::Prop(prop) => NodeStateOutput::Prop(prop),
+        })
     }
 }
