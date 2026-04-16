@@ -89,7 +89,7 @@
        - name: Run python tests and collect coverage
          run: cd python/tests && pytest --cov=./ --cov-report=xml
        - name: Codecov
-         uses: codecov/codecov-action@v3.1.1
+         uses: codecov/codecov-action@v6.0.0
          with:
            verbose: true
            fail_ci_if_error: false
