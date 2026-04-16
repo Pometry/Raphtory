@@ -128,7 +128,8 @@ where
                 app_config,
                 None,
                 server_args.graph_config,
-            )?
+            )
+            .await?
             .run_with_port(server_args.port)
             .await?;
         }

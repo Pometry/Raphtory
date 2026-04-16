@@ -32,7 +32,7 @@ jobs:
           version: 9
       - uses: grafana/setup-k6-action@v1
         with:
-          k6-version: '1.0.0'
+          k6-version: "1.0.0"
       - name: Run stress test
         env:
           RUST_BACKTRACE: 1

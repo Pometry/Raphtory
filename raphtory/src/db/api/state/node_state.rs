@@ -2,7 +2,10 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::{
         api::{
-            state::{node_state_ops::NodeStateOps, ops::Const},
+            state::{
+                node_state_ops::{NodeStateOps, ToOwnedValue},
+                ops::Const,
+            },
             view::{
                 history::{
                     compose_history_from_items, CompositeHistory, History, HistoryDateTime,
@@ -21,7 +24,6 @@ use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator}
 use raphtory_api::core::storage::timeindex::EventTime;
 use rayon::{iter::Either, prelude::*};
 use std::{
-    borrow::Borrow,
     collections::HashMap,
     fmt::{Debug, Formatter},
     hash::{BuildHasher, Hash},
@@ -63,7 +65,6 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> FromIterator
         Self::Partial(Arc::new(IndexSet::from_iter(iter)))
     }
 }
-
 impl Index<VID> {
     pub fn for_graph<'graph>(graph: impl GraphViewOps<'graph>) -> Self {
         if graph.node_list_trusted() {
@@ -111,6 +112,14 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     }
 
     #[inline]
+    pub fn value(&self, i: usize) -> Option<K> {
+        match self {
+            Index::Full(index) => index.global_index(i),
+            Index::Partial(index) => index.get_index(i).copied(),
+        }
+    }
+
+    #[inline]
     pub fn len(&self) -> usize {
         match self {
             Index::Full(index) => index.len(),
@@ -133,11 +142,9 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
     pub fn par_iter(&self) -> impl ParallelIterator<Item = (usize, K)> + '_ {
         match self {
             Index::Full(index) => Either::Left(index.par_iter()),
-            Index::Partial(index) => Either::Right(
-                (0..index.len())
-                    .into_par_iter()
-                    .map(move |i| (i, *index.get_index(i).unwrap())),
-            ),
+            Index::Partial(index) => {
+                Either::Right(index.par_iter().enumerate().map(|(i, v)| (i, *v)))
+            }
         }
     }
 
@@ -147,6 +154,16 @@ impl<K: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> Index<K> {
             (Self::Partial(a), Self::Full(_)) => Self::Partial(a.clone()),
             (Self::Partial(a), Self::Partial(b)) => a.intersection(b).copied().collect(),
             _ => self.clone(),
+        }
+    }
+
+    pub fn union(&self, other: &Self) -> Self {
+        match (self, other) {
+            (Self::Full(index), Self::Partial(_)) | (Self::Partial(_), Self::Full(index)) => {
+                Self::Full(index.clone())
+            }
+            (Self::Full(left), Self::Full(right)) => Self::Full(Arc::new(left.union(right))),
+            (Self::Partial(left), Self::Partial(right)) => left.union(right).copied().collect(),
         }
     }
 }
@@ -251,19 +268,15 @@ impl<'graph, RHS: Send + Sync, V: PartialEq<RHS> + Send + Sync + Clone + 'graph,
     }
 }
 
-impl<
-        'graph,
-        V: Clone + Send + Sync + PartialEq + 'graph,
-        G: GraphViewOps<'graph>,
-        RHS: NodeStateOps<'graph, OwnedValue = V>,
-    > PartialEq<RHS> for NodeState<'graph, V, G>
+impl<'a, 'graph, V: Clone + Send + Sync + PartialEq + 'graph, G: GraphViewOps<'graph>>
+    PartialEq<NodeState<'graph, V, G>> for NodeState<'graph, V, G>
 {
-    fn eq(&self, other: &RHS) -> bool {
+    fn eq(&self, other: &NodeState<'graph, V, G>) -> bool {
         self.len() == other.len()
             && self.par_iter().all(|(node, value)| {
                 other
                     .get_by_node(node)
-                    .map(|v| v.borrow() == value)
+                    .map(|v| <&V as ToOwnedValue<V>>::to_owned_value(v) == value.clone())
                     .unwrap_or(false)
             })
     }
@@ -426,49 +439,51 @@ impl<'graph, V: Send + Sync + Clone + 'graph, G: GraphViewOps<'graph>> IntoItera
     }
 }
 
-impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeStateOps<'graph>
-    for NodeState<'graph, V, G>
+impl<'a, 'graph: 'a, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>>
+    NodeStateOps<'a, 'graph> for NodeState<'graph, V, G>
 {
-    type BaseGraph = G;
     type Graph = G;
+    type BaseGraph = G;
     type Select = Const<bool>;
-    type Value<'a>
-        = &'a V
-    where
-        'graph: 'a;
+    type Value = &'a V;
     type OwnedValue = V;
+    type OutputType = Self;
 
     fn graph(&self) -> &Self::Graph {
         &self.base_graph
     }
 
-    fn iter_values<'a>(&'a self) -> impl Iterator<Item = Self::Value<'a>> + 'a
+    fn base_graph(&self) -> &Self::BaseGraph {
+        &self.base_graph
+    }
+
+    fn iter_values(&'a self) -> impl Iterator<Item = Self::Value> + 'a
     where
         'graph: 'a,
     {
         self.values.iter()
     }
 
-    fn par_iter_values<'a>(&'a self) -> impl ParallelIterator<Item = Self::Value<'a>> + 'a
+    fn par_iter_values(&'a self) -> impl ParallelIterator<Item = Self::Value> + 'a
     where
         'graph: 'a,
     {
         self.values.par_iter()
     }
 
+    #[allow(refining_impl_trait)]
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + 'graph {
         (0..self.values.len()).map(move |i| self.values[i].clone())
     }
 
+    #[allow(refining_impl_trait)]
     fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         (0..self.values.len())
             .into_par_iter()
             .map(move |i| self.values[i].clone())
     }
 
-    fn iter<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value<'a>)> + 'a
+    fn iter(&'a self) -> impl Iterator<Item = (NodeView<'a, &'a Self::Graph>, Self::Value)> + 'a
     where
         'graph: 'a,
     {
@@ -478,7 +493,7 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
             .map(move |(n, v)| (NodeView::new_internal(&self.base_graph, n), v))
     }
 
-    fn nodes(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph, Self::Select> {
+    fn nodes<'g>(&self) -> Nodes<'graph, Self::BaseGraph, Self::Graph, Self::Select> {
         Nodes::new_filtered(
             self.base_graph.clone(),
             self.base_graph.clone(),
@@ -487,12 +502,12 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
         )
     }
 
-    fn par_iter<'a>(
+    fn par_iter(
         &'a self,
     ) -> impl ParallelIterator<
         Item = (
-            NodeView<'a, &'a <Self as NodeStateOps<'graph>>::Graph>,
-            <Self as NodeStateOps<'graph>>::Value<'a>,
+            NodeView<'a, &'a <Self as NodeStateOps<'a, 'graph>>::Graph>,
+            <Self as NodeStateOps<'a, 'graph>>::Value,
         ),
     >
     where
@@ -506,13 +521,38 @@ impl<'graph, V: Clone + Send + Sync + 'graph, G: GraphViewOps<'graph>> NodeState
         })
     }
 
-    fn get_by_node<N: AsNodeRef>(&self, node: N) -> Option<Self::Value<'_>> {
+    fn get_by_index(
+        &'a self,
+        index: usize,
+    ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
+        let vid = self.keys.value(index)?;
+        Some((
+            NodeView::new_internal(&self.base_graph, vid),
+            &self.values[index],
+        ))
+    }
+
+    fn get_by_node<N: AsNodeRef>(&'a self, node: N) -> Option<Self::Value> {
         let id = self.base_graph.internalise_node(node.as_node_ref())?;
         self.keys.index(&id).map(|i| &self.values[i])
     }
 
     fn len(&self) -> usize {
         self.values.len()
+    }
+
+    fn construct(
+        &self,
+        base_graph: Self::BaseGraph,
+        _graph: Self::Graph,
+        keys: IndexSet<VID, ahash::RandomState>,
+        values: Vec<Self::OwnedValue>,
+    ) -> Self
+    where
+        Self::BaseGraph: 'graph,
+        Self::Graph: 'graph,
+    {
+        NodeState::new(base_graph, values.into(), Index::new(keys))
     }
 }
 

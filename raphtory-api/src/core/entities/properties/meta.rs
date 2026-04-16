@@ -42,9 +42,10 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn all_layer_iter(&self) -> impl Iterator<Item = (usize, ArcStr)> + use<'_> {
+    pub fn all_layer_iter(&self) -> impl Iterator<Item = (LayerId, ArcStr)> + use<'_> {
         self.layer_mapper
             .all_ids()
+            .map(LayerId)
             .zip(self.layer_mapper.all_keys())
     }
 

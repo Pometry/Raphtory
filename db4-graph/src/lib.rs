@@ -2,7 +2,7 @@ use raphtory_api::core::{
     entities::{
         self,
         properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
-        GidType, LayerId,
+        GidType,
     },
     input::input_node::InputNode,
     storage::timeindex::TimeIndexOps,

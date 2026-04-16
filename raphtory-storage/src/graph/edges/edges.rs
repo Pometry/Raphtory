@@ -1,7 +1,5 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
-use raphtory_api::core::entities::{
-    properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, LayerIds, EID,
-};
+use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerIds, EID};
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 use storage::{utils::Iter2, EdgeEntryRef, Extension, ReadLockedEdges};

@@ -5,10 +5,14 @@ use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::su
 #[cfg(feature = "proto")]
 use raphtory::serialise::StableDecode;
 use raphtory::{
-    algorithms::components::weakly_connected_components,
+    algorithms::{
+        centrality::{degree_centrality::degree_centrality, pagerank::unweighted_page_rank},
+        components::weakly_connected_components,
+    },
     db::{
         api::{
             properties::internal::InternalMetadataOps,
+            state::MergePriority,
             view::{
                 internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
                 EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
@@ -1203,7 +1207,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, l, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -2917,6 +2921,40 @@ fn can_apply_algorithm_on_filtered_graph() {
         let wl = graph.window(0, 3).layers(vec!["1", "2"]).unwrap();
         assert_eq!(weakly_connected_components(&wl).groups().len(), 1);
     });
+}
+
+#[test]
+fn test_node_state_merge() {
+    let graph = Graph::new();
+    for i in 0..1_000 {
+        graph.add_edge(0, i, i + 1, NO_PROPS, None).unwrap();
+    }
+
+    let sg = graph.subgraph(1..200);
+    let degs = degree_centrality(&graph);
+    let pr = unweighted_page_rank(&sg, None, None, None, false, None);
+
+    let m1 = pr.state.merge(
+        &degs.state,
+        MergePriority::Left,
+        MergePriority::Left,
+        Some(HashMap::from([(
+            "degree_centrality".to_string(),
+            MergePriority::Right,
+        )])),
+    );
+    assert_eq!(m1.values().num_rows(), sg.count_nodes());
+
+    let m2 = degs.state.merge(
+        &pr.state,
+        MergePriority::Left,
+        MergePriority::Left,
+        Some(HashMap::from([(
+            "pagerank_score".to_string(),
+            MergePriority::Right,
+        )])),
+    );
+    assert_eq!(m2.values().num_rows(), graph.count_nodes());
 }
 
 #[test]

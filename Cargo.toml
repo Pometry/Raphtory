@@ -20,7 +20,7 @@ exclude = ["optd"]
 resolver = "2"
 
 [workspace.package]
-version = "0.17.0"
+version = "0.18.0"
 documentation = "https://raphtory.readthedocs.io/en/latest/"
 repository = "https://github.com/Raphtory/raphtory/"
 license = "GPL-3.0"
@@ -28,13 +28,14 @@ readme = "README.md"
 homepage = "https://github.com/Raphtory/raphtory/"
 keywords = ["graph", "temporal-graph", "temporal"]
 authors = ["Pometry"]
-rust-version = "1.89.0"
+rust-version = "1.91.1"
 edition = "2021"
 
 # debug symbols are using a lot of resources
 [profile.dev]
 split-debuginfo = "unpacked"
 debug = 1
+opt-level = 1
 
 [profile.release-with-debug]
 inherits = "release"
@@ -50,19 +51,21 @@ debug = true
 inherits = "dev"
 debug = false
 incremental = false
+opt-level = 1 # much smaller files
 
 
 [workspace.dependencies]
-db4-graph = { version = "0.17.0", path = "db4-graph", default-features = false }
-db4-storage = { version = "0.17.0", path = "db4-storage" }
-raphtory = { version = "0.17.0", path = "raphtory", default-features = false }
-raphtory-api = { version = "0.17.0", path = "raphtory-api", default-features = false }
-raphtory-api-macros = { version = "0.17.0", path = "raphtory-api-macros", default-features = false }
-raphtory-core = { version = "0.17.0", path = "raphtory-core", default-features = false }
-raphtory-graphql = { version = "0.17.0", path = "raphtory-graphql", default-features = false }
-raphtory-storage = { version = "0.17.0", path = "raphtory-storage", default-features = false }
-raphtory-itertools = { version = "0.17.0", path = "raphtory-itertools" }
-clam-core = { path = "clam-core" }
+db4-graph = { version = "0.18.0", path = "db4-graph", default-features = false }
+db4-storage = { version = "0.18.0", path = "db4-storage" }
+raphtory = { version = "0.18.0", path = "raphtory", default-features = false }
+raphtory-api = { version = "0.18.0", path = "raphtory-api", default-features = false }
+raphtory-api-macros = { version = "0.18.0", path = "raphtory-api-macros", default-features = false }
+raphtory-core = { version = "0.18.0", path = "raphtory-core", default-features = false }
+raphtory-graphql = { version = "0.18.0", path = "raphtory-graphql", default-features = false }
+raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-features = false }
+raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
+clam-core = { version = "0.18.0", path = "clam-core" }
+optd-core = { version = "0.18.0", path = "optd/optd/core" }
 async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 bincode = { version = "2", features = ["serde"] }
 async-graphql-poem = "7.2.1"
@@ -119,7 +122,7 @@ neo4rs = "0.8.0"
 bzip2 = "0.4.4"
 tantivy = "0.22.1"
 async-trait = "0.1.89"
-async-openai = "0.26.0"
+async-openai = "0.28.3"
 num = "0.4.3"
 display-error-chain = "0.2.2"
 bigdecimal = { version = "0.4.10", features = ["serde"] }
@@ -132,7 +135,7 @@ proptest-derive = "0.6.0"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.15"
 base64 = "0.22.1"
-jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }
+jsonwebtoken = { version = "10.3.0", features = ["aws_lc_rs"] }
 spki = "0.7.3"
 poem = { version = "3.1.12", features = ["compression", "embed", "static-files"] }
 rust-embed = { version = "8.11.0", features = ["interpolate-folder-path"] }
@@ -161,10 +164,10 @@ pest = "2.8.6"
 pest_derive = "2.8.6"
 minijinja = "2.18.0"
 minijinja-contrib = { version = "2.18.0", features = ["datetime"] }
-datafusion = { version = "50.3.0" }
-arroy = "0.6.3"
+
+lancedb = { version = "0.27.2", features = [] }
 heed = "0.22.0"
-sqlparser = "0.58.0"
+sqlparser = "0.59.0"
 futures = "0.3"
 arrow = { version = "57.3.0" }
 parquet = { version = "57.3.0" }
@@ -176,6 +179,7 @@ arrow-array = { version = "57.3.0", features = ["chrono-tz"] }
 arrow-cast = { version = "57.3.0" }
 arrow-ipc = { version = "57.3.0" }
 arrow-data = { version = "57.3.0" }
+arrow-select = { version = "57.3.0" }
 serde_arrow = { version = "0.13.7", features = ["arrow-57"] }
 moka = { version = "0.12.15", features = ["future"] }
 indexmap = { version = "2.13.0", features = ["rayon"] }
@@ -189,7 +193,13 @@ strum_macros = "0.27.2"
 pythonize = { version = "0.27.0" }
 test-log = "0.2.19"
 disjoint-sets = "0.4.2"
+datafusion = { version = "52.5.0" }
+datafusion-physical-expr-common = "52.5.0"
+datafusion-physical-expr = "52.5.0"
+datafusion-physical-plan = "52.5.0"
+datafusion-expr-common = "52.5.0"
 
 [workspace.dependencies.storage]
 package = "db4-storage"
 path = "db4-storage"
+
