@@ -281,8 +281,8 @@ def test_filter_nodes_with_str_ids_error():
     def check(graph):
         filter_expr = filter.Node.id() == 3
         with pytest.raises(
-                Exception,
-                match='Invalid filter: Filter value type does not match node ID type. Expected Str but got "U64"',
+            Exception,
+            match='Invalid filter: Filter value type does not match node ID type. Expected Str but got "U64"',
         ):
             graph.filter(filter_expr).nodes.id
 
@@ -294,8 +294,8 @@ def test_filter_nodes_with_num_ids_error():
     def check(graph):
         filter_expr = filter.Node.id() == "3"
         with pytest.raises(
-                Exception,
-                match='Invalid filter: Filter value type does not match node ID type. Expected U64 but got "Str"',
+            Exception,
+            match='Invalid filter: Filter value type does not match node ID type. Expected U64 but got "Str"',
         ):
             graph.filter(filter_expr).nodes.id
 
