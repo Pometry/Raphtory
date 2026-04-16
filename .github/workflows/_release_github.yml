@@ -24,7 +24,7 @@ jobs:
         include:
           - os: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
           token: '${{ secrets.PULL_TOKEN }}'

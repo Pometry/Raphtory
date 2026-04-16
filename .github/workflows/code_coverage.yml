@@ -18,7 +18,7 @@
        SCCACHE_DIR: /home/runner/.cache/sccache
        SCCACHE_PATH: /home/runner/.cache/sccache
      steps:
-       - uses: actions/checkout@v5
+       - uses: actions/checkout@v6
          name: Checkout
          with:
            ref: ${{ github.head_ref }}
