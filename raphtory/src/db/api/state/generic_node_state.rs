@@ -567,18 +567,21 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             (None, Some(r)) => r,
             (None, None) => unreachable!("at least one is guaranteed to be Some"),
         };
+
         for i in iter {
             if left_col.is_some() {
                 if let Some(idx) = lh.index(&i) {
-                    idx_builder.append_value(idx as u64)
+                    idx_builder.append_value(idx as u64);
+                    continue;
                 }
-            } else if right_col.is_some() {
-                if let Some(idx) = rh.index(&i) {
-                    idx_builder.append_value((left_len + idx) as u64)
-                }
-            } else {
-                idx_builder.append_null()
             }
+            if right_col.is_some() {
+                if let Some(idx) = rh.index(&i) {
+                    idx_builder.append_value((left_len + idx) as u64);
+                    continue;
+                }
+            }
+            idx_builder.append_null()
         }
         let take_idx: UInt64Array = idx_builder.finish();
         let field = lh_batch
