@@ -104,13 +104,14 @@ pub mod vectors;
 pub mod io;
 
 pub mod api;
+pub mod arrow_loader;
 pub mod core;
 pub mod errors;
+pub mod parquet;
 #[cfg(feature = "io")]
 pub mod serialise;
 pub mod storage;
 
-pub mod arrow_loader;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 

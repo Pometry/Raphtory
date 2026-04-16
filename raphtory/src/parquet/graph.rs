@@ -1,8 +1,8 @@
 use crate::{
     db::api::state::ops::GraphView,
     errors::GraphError,
+    parquet::{run_encode, RecordBatchSink, SECONDARY_INDEX_COL, TIME_COL},
     prelude::{GraphViewOps, Prop, PropertiesOps},
-    serialise::parquet::{run_encode, RecordBatchSink, SECONDARY_INDEX_COL, TIME_COL},
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;

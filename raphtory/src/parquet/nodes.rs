@@ -5,12 +5,12 @@ use crate::{
         graph::node::NodeView,
     },
     errors::GraphError,
-    prelude::NodeViewOps,
-    serialise::parquet::{
+    parquet::{
         model::{ParquetCNode, ParquetTNode},
         run_encode_indexed, RecordBatchSink, NODE_ID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
         SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
+    prelude::NodeViewOps,
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;

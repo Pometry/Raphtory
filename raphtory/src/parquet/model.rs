@@ -4,10 +4,8 @@ use crate::{
         api::view::internal::GraphView,
         graph::{edge::EdgeView, node::NodeView},
     },
+    parquet::{DST_COL_ID, EDGE_COL_ID, LAYER_ID_COL, NODE_VID_COL, SRC_COL_ID, TYPE_ID_COL},
     prelude::*,
-    serialise::parquet::{
-        DST_COL_ID, EDGE_COL_ID, LAYER_ID_COL, NODE_VID_COL, SRC_COL_ID, TYPE_ID_COL,
-    },
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{

@@ -1,4 +1,5 @@
 use crate::{
+    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::{state::ops::GraphView, storage::storage::Storage, view::MaterializedGraph},
         graph::views::deletion_graph::PersistentGraph,
@@ -9,54 +10,33 @@ use crate::{
         load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
         load_nodes_from_parquet, process_parquet_file_to_df,
     },
+    parquet::{
+        encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
+        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_COL_ID,
+        EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL, SECONDARY_INDEX_COL,
+        SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+    },
     prelude::*,
-    serialise::{parquet::model::get_id_type, GraphPaths},
+    serialise::GraphPaths,
 };
-use arrow::{
-    array::RecordBatch,
-    datatypes::{DataType, Field, Schema, SchemaRef},
-};
-use arrow_json::{reader::Decoder, ReaderBuilder};
+use arrow::{array::RecordBatch, datatypes::SchemaRef};
 use itertools::Itertools;
-use model::ParquetTEdge;
 use parquet::{
     arrow::{arrow_reader::ArrowReaderMetadata, ArrowWriter},
     basic::Compression,
     file::{metadata::KeyValue, properties::WriterProperties},
 };
-use raphtory_api::{
-    core::entities::{
-        properties::{
-            meta::PropMapper,
-            prop::{arrow_dtype_from_prop_type, prop_col::lift_property_col},
-        },
-        GidType,
-    },
-    GraphType,
-};
+use raphtory_api::{core::entities::properties::prop::prop_col::lift_property_col, GraphType};
 use raphtory_storage::core_ops::CoreGraphOps;
-use rayon::{prelude::*, ThreadPool, ThreadPoolBuilder};
 use std::{
     fs::File,
     io::{Read, Seek, Write},
-    ops::Range,
     path::{Path, PathBuf},
-    sync::{Arc, LazyLock},
+    sync::Arc,
 };
 use storage::Config;
 use walkdir::WalkDir;
 use zip::{write::FileOptions, ZipArchive, ZipWriter};
-
-mod edges;
-mod model;
-mod nodes;
-
-mod graph;
-
-use crate::arrow_loader::df_loaders::edges::ColumnNames;
-pub(crate) use edges::{encode_edge_cprop, encode_edge_deletions, encode_edge_tprop};
-pub(crate) use graph::{encode_graph_cprop, encode_graph_tprop};
-pub(crate) use nodes::{encode_nodes_cprop, encode_nodes_tprop};
 
 pub trait ParquetEncoder {
     /// Encode the graph as parquet data to the zip writer
@@ -142,7 +122,7 @@ pub trait ParquetDecoder: Sized {
                     if let Some(parent) = out_path.parent() {
                         std::fs::create_dir_all(parent)?;
                     }
-                    let mut out_file = std::fs::File::create(&out_path)?;
+                    let mut out_file = File::create(&out_path)?;
                     std::io::copy(&mut file, &mut out_file)?;
                 }
             }
@@ -156,29 +136,6 @@ pub trait ParquetDecoder: Sized {
         config: Config,
     ) -> Result<Self, GraphError>;
 }
-
-const ROW_GROUP_SIZE: usize = 100_000;
-pub(crate) const NODE_ID_COL: &str = "rap_node_id";
-pub(crate) const NODE_VID_COL: &str = "rap_node_vid";
-pub(crate) const TYPE_COL: &str = "rap_node_type";
-pub(crate) const TYPE_ID_COL: &str = "rap_node_type_id";
-pub(crate) const TIME_COL: &str = "rap_time";
-pub(crate) const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
-pub(crate) const SRC_COL_ID: &str = "rap_src_id";
-pub(crate) const DST_COL_ID: &str = "rap_dst_id";
-pub(crate) const EDGE_COL_ID: &str = "rap_edge_id";
-pub(crate) const LAYER_COL: &str = "rap_layer";
-pub(crate) const LAYER_ID_COL: &str = "rap_layer_id";
-const EDGES_T_PATH: &str = "edges_t";
-const EDGES_D_PATH: &str = "edges_d"; // deletions
-const EDGES_C_PATH: &str = "edges_c";
-const NODES_T_PATH: &str = "nodes_t";
-const NODES_C_PATH: &str = "nodes_c";
-const GRAPH_T_PATH: &str = "graph_t";
-const GRAPH_C_PATH: &str = "graph_c";
-const GRAPH_TYPE: &str = "graph_type";
-const EVENT_GRAPH_TYPE: &str = "rap_event_graph";
-const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
 
 impl ParquetEncoder for Graph {
     fn encode_parquet(&self, path: impl AsRef<Path>) -> Result<(), GraphError> {
@@ -205,12 +162,61 @@ impl ParquetEncoder for MaterializedGraph {
     }
 }
 
-pub trait RecordBatchSink {
-    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError>;
-    fn finish(self) -> Result<(), GraphError>
-    where
-        Self: Sized;
+impl ParquetDecoder for Graph {
+    fn decode_parquet(
+        path: impl AsRef<Path>,
+        path_for_decoded_graph: Option<&Path>,
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let batch_size = None;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
+        Ok(Graph::from_storage(storage))
+    }
 }
+
+impl ParquetDecoder for PersistentGraph {
+    fn decode_parquet(
+        path: impl AsRef<Path>,
+        path_for_decoded_graph: Option<&Path>,
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let batch_size = None;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
+        Ok(PersistentGraph(storage))
+    }
+}
+
+impl ParquetDecoder for MaterializedGraph {
+    fn decode_parquet(
+        path: impl AsRef<Path>,
+        path_for_decoded_graph: Option<&Path>,
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let batch_size = None;
+        let graph_type = decode_graph_type(&path)?;
+        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
+
+        match graph_type {
+            GraphType::EventGraph => {
+                Ok(MaterializedGraph::EventGraph(Graph::from_storage(storage)))
+            }
+            GraphType::PersistentGraph => {
+                Ok(MaterializedGraph::PersistentGraph(PersistentGraph(storage)))
+            }
+        }
+    }
+}
+
+const EDGES_T_PATH: &str = "edges_t";
+const EDGES_D_PATH: &str = "edges_d"; // deletions
+const EDGES_C_PATH: &str = "edges_c";
+const NODES_T_PATH: &str = "nodes_t";
+const NODES_C_PATH: &str = "nodes_c";
+const GRAPH_T_PATH: &str = "graph_t";
+const GRAPH_C_PATH: &str = "graph_c";
+const GRAPH_TYPE: &str = "graph_type";
+const EVENT_GRAPH_TYPE: &str = "rap_event_graph";
+const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
 
 impl<W> RecordBatchSink for ArrowWriter<W>
 where
@@ -228,7 +234,7 @@ where
     }
 }
 
-pub(crate) fn create_arrow_writer_sink(
+fn create_arrow_writer_sink(
     root_dir: &Path,
     schema: SchemaRef,
     chunk: usize,
@@ -330,206 +336,6 @@ fn encode_graph_storage_to_parquet<G: GraphView>(
         )
     })?;
     Ok(())
-}
-
-pub(crate) fn run_encode<G: GraphView, S: RecordBatchSink>(
-    g: &G,
-    meta: &PropMapper,
-    size: usize,
-    make_sink_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
-    default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
-    encode_fn: impl Fn(Range<usize>, &G, &mut Decoder, &mut S) -> Result<(), GraphError> + Sync,
-) -> Result<(), GraphError> {
-    let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
-
-    if size > 0 {
-        let chunk_size = (size / rayon::current_num_threads()).max(128);
-        let iter = (0..size).into_par_iter().step_by(chunk_size);
-
-        let num_digits = iter.len().to_string().len();
-
-        iter.enumerate().try_for_each(|(chunk, first)| {
-            let items = first..(first + chunk_size).min(size);
-
-            let mut sink = make_sink_fn(schema.clone(), chunk, num_digits)?;
-            let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
-
-            encode_fn(items, g, &mut decoder, &mut sink)?;
-
-            sink.finish()?;
-            Ok::<_, GraphError>(())
-        })?;
-    }
-    Ok(())
-}
-
-pub(crate) fn run_encode_indexed<
-    Index,
-    II: Iterator<Item = Index>,
-    G: GraphView,
-    S: RecordBatchSink,
->(
-    g: &G,
-    meta: &PropMapper,
-    items: impl ParallelIterator<Item = (usize, II)>,
-    make_sink_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
-    default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
-    encode_fn: impl Fn(II, &G, &mut Decoder, &mut S) -> Result<(), GraphError> + Sync,
-) -> Result<(), GraphError> {
-    let schema = derive_schema(meta, g.id_type(), default_fields_fn)?;
-    let num_digits = 8;
-
-    items.try_for_each(|(chunk, items)| {
-        let mut sink = make_sink_fn(schema.clone(), chunk, num_digits)?;
-        let mut decoder = ReaderBuilder::new(schema.clone()).build_decoder()?;
-
-        encode_fn(items, g, &mut decoder, &mut sink)?;
-
-        sink.finish()?;
-        Ok::<_, GraphError>(())
-    })?;
-
-    Ok(())
-}
-
-pub(crate) fn derive_schema(
-    prop_meta: &PropMapper,
-    id_type: Option<GidType>,
-    default_fields_fn: impl Fn(&DataType) -> Vec<Field>,
-) -> Result<SchemaRef, GraphError> {
-    let fields = arrow_fields(prop_meta);
-    let id_type = get_id_type(id_type);
-
-    let make_schema = |id_type: DataType, prop_columns: Vec<Field>| {
-        let default_fields = default_fields_fn(&id_type);
-
-        Schema::new(
-            default_fields
-                .into_iter()
-                .chain(prop_columns)
-                .collect::<Vec<_>>(),
-        )
-        .into()
-    };
-
-    let schema = if let Ok(id_type) = id_type {
-        make_schema(id_type, fields)
-    } else {
-        make_schema(DataType::UInt64, fields)
-    };
-
-    Ok(schema)
-}
-
-fn arrow_fields(meta: &PropMapper) -> Vec<Field> {
-    meta.keys()
-        .iter()
-        .zip(meta.ids())
-        .filter_map(|(name, prop_id)| {
-            meta.get_dtype(prop_id)
-                .map(move |prop_type| (name, prop_type))
-        })
-        .map(|(name, prop_type)| {
-            let d_type = arrow_dtype_from_prop_type(&prop_type);
-            Field::new(name, d_type, true)
-        })
-        .collect()
-}
-
-fn ls_parquet_files(dir: &Path) -> Result<impl Iterator<Item = PathBuf>, GraphError> {
-    Ok(std::fs::read_dir(dir)
-        .inspect_err(|err| {
-            eprintln!("Error reading directory {}: {}", dir.display(), err);
-        })? // print out the path if it's missing
-        .filter_map(Result::ok)
-        .map(|entry| entry.path())
-        .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "parquet")))
-}
-
-fn collect_prop_columns(
-    path: &Path,
-    exclude: &[&str],
-) -> Result<(Vec<String>, Option<GraphType>), GraphError> {
-    let prop_columns_fn =
-        |path: &Path, exclude: &[&str]| -> Result<(Vec<String>, Option<GraphType>), GraphError> {
-            let reader = ArrowReaderMetadata::load(&File::open(path)?, Default::default())?;
-            let cols = reader
-                .schema()
-                .fields()
-                .iter()
-                .map(|f| f.name().to_string())
-                .filter(|f_name| !exclude.iter().any(|ex| ex == f_name))
-                .collect_vec();
-            let graph_type = reader
-                .metadata()
-                .file_metadata()
-                .key_value_metadata()
-                .and_then(|meta| {
-                    meta.iter()
-                        .find(|kv| kv.key == GRAPH_TYPE)
-                        .and_then(|kv| kv.value.as_ref())
-                        .and_then(|v| match v.as_ref() {
-                            EVENT_GRAPH_TYPE => Some(GraphType::EventGraph),
-                            PERSISTENT_GRAPH_TYPE => Some(GraphType::PersistentGraph),
-                            _ => None,
-                        })
-                });
-            Ok((cols, graph_type))
-        };
-
-    let mut prop_columns = vec![];
-    let mut g_type: Option<GraphType> = None;
-
-    // Collect columns from just the first file
-    if let Some(path) = ls_parquet_files(path)?.next() {
-        let (columns, tpe) = prop_columns_fn(&path, exclude)?;
-
-        if g_type.is_none() {
-            g_type = tpe;
-        }
-
-        prop_columns.extend_from_slice(&columns);
-    }
-
-    Ok((prop_columns, g_type))
-}
-
-fn decode_graph_type(path: impl AsRef<Path>) -> Result<GraphType, GraphError> {
-    let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
-
-    // Assume event graph as default
-    if !std::fs::exists(&c_graph_path)? {
-        return Ok(GraphType::EventGraph);
-    }
-
-    let exclude = vec![TIME_COL];
-    let (_, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
-
-    g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))
-}
-
-pub fn decode_graph_metadata(
-    path: &impl GraphPaths,
-) -> Result<Vec<(String, Option<Prop>)>, GraphError> {
-    let c_graph_path = path.graph_path()?.join(GRAPH_C_PATH);
-    let exclude = vec![TIME_COL];
-    let (c_props, _) = collect_prop_columns(&c_graph_path, &exclude)?;
-    let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-    let mut result: Vec<(String, Option<Prop>)> =
-        c_props.iter().map(|s| (s.to_string(), None)).collect();
-
-    for path in get_parquet_file_paths(&c_graph_path)? {
-        let df_view = process_parquet_file_to_df(path.as_path(), Some(&c_props), None, None)?;
-        for chunk in df_view.chunks {
-            let chunk = chunk?;
-            for (col, res) in chunk.chunk.into_iter().zip(&mut result) {
-                if let Some(value) = lift_property_col(&col).get(0) {
-                    res.1 = Some(value);
-                }
-            }
-        }
-    }
-    Ok(result)
 }
 
 fn decode_graph_storage(
@@ -723,54 +529,98 @@ fn decode_graph_storage(
     Ok(graph)
 }
 
-impl ParquetDecoder for Graph {
-    fn decode_parquet(
-        path: impl AsRef<Path>,
-        path_for_decoded_graph: Option<&Path>,
-        config: Config,
-    ) -> Result<Self, GraphError> {
-        let batch_size = None;
-        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
-        Ok(Graph::from_storage(storage))
-    }
-}
+pub fn decode_graph_metadata(
+    path: &impl GraphPaths,
+) -> Result<Vec<(String, Option<Prop>)>, GraphError> {
+    let c_graph_path = path.graph_path()?.join(GRAPH_C_PATH);
+    let exclude = vec![TIME_COL];
+    let (c_props, _) = collect_prop_columns(&c_graph_path, &exclude)?;
+    let c_props = c_props.iter().map(|s| s.as_str()).collect::<Vec<_>>();
+    let mut result: Vec<(String, Option<Prop>)> =
+        c_props.iter().map(|s| (s.to_string(), None)).collect();
 
-impl ParquetDecoder for PersistentGraph {
-    fn decode_parquet(
-        path: impl AsRef<Path>,
-        path_for_decoded_graph: Option<&Path>,
-        config: Config,
-    ) -> Result<Self, GraphError> {
-        let batch_size = None;
-        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
-        Ok(PersistentGraph(storage))
-    }
-}
-
-impl ParquetDecoder for MaterializedGraph {
-    fn decode_parquet(
-        path: impl AsRef<Path>,
-        path_for_decoded_graph: Option<&Path>,
-        config: Config,
-    ) -> Result<Self, GraphError> {
-        let batch_size = None;
-        let graph_type = decode_graph_type(&path)?;
-        let storage = decode_graph_storage(&path, batch_size, path_for_decoded_graph, config)?;
-
-        match graph_type {
-            GraphType::EventGraph => {
-                Ok(MaterializedGraph::EventGraph(Graph::from_storage(storage)))
-            }
-            GraphType::PersistentGraph => {
-                Ok(MaterializedGraph::PersistentGraph(PersistentGraph(storage)))
+    for path in get_parquet_file_paths(&c_graph_path)? {
+        let df_view = process_parquet_file_to_df(path.as_path(), Some(&c_props), None, None)?;
+        for chunk in df_view.chunks {
+            let chunk = chunk?;
+            for (col, res) in chunk.chunk.into_iter().zip(&mut result) {
+                if let Some(value) = lift_property_col(&col).get(0) {
+                    res.1 = Some(value);
+                }
             }
         }
     }
+    Ok(result)
 }
 
-pub(crate) static ENCODE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
-    ThreadPoolBuilder::new()
-        .thread_name(|idx| format!("PS Encode Thread-{idx}"))
-        .build()
-        .unwrap()
-});
+fn decode_graph_type(path: impl AsRef<Path>) -> Result<GraphType, GraphError> {
+    let c_graph_path = path.as_ref().join(GRAPH_C_PATH);
+
+    // Assume event graph as default
+    if !std::fs::exists(&c_graph_path)? {
+        return Ok(GraphType::EventGraph);
+    }
+
+    let exclude = vec![TIME_COL];
+    let (_, g_type) = collect_prop_columns(&c_graph_path, &exclude)?;
+
+    g_type.ok_or_else(|| GraphError::LoadFailure("Graph type not found".to_string()))
+}
+
+fn collect_prop_columns(
+    path: &Path,
+    exclude: &[&str],
+) -> Result<(Vec<String>, Option<GraphType>), GraphError> {
+    let prop_columns_fn =
+        |path: &Path, exclude: &[&str]| -> Result<(Vec<String>, Option<GraphType>), GraphError> {
+            let reader = ArrowReaderMetadata::load(&File::open(path)?, Default::default())?;
+            let cols = reader
+                .schema()
+                .fields()
+                .iter()
+                .map(|f| f.name().to_string())
+                .filter(|f_name| !exclude.iter().any(|ex| ex == f_name))
+                .collect_vec();
+            let graph_type = reader
+                .metadata()
+                .file_metadata()
+                .key_value_metadata()
+                .and_then(|meta| {
+                    meta.iter()
+                        .find(|kv| kv.key == GRAPH_TYPE)
+                        .and_then(|kv| kv.value.as_ref())
+                        .and_then(|v| match v.as_ref() {
+                            EVENT_GRAPH_TYPE => Some(GraphType::EventGraph),
+                            PERSISTENT_GRAPH_TYPE => Some(GraphType::PersistentGraph),
+                            _ => None,
+                        })
+                });
+            Ok((cols, graph_type))
+        };
+
+    let mut prop_columns = vec![];
+    let mut g_type: Option<GraphType> = None;
+
+    // Collect columns from just the first file
+    if let Some(path) = ls_parquet_files(path)?.next() {
+        let (columns, tpe) = prop_columns_fn(&path, exclude)?;
+
+        if g_type.is_none() {
+            g_type = tpe;
+        }
+
+        prop_columns.extend_from_slice(&columns);
+    }
+
+    Ok((prop_columns, g_type))
+}
+
+fn ls_parquet_files(dir: &Path) -> Result<impl Iterator<Item = PathBuf>, GraphError> {
+    Ok(std::fs::read_dir(dir)
+        .inspect_err(|err| {
+            eprintln!("Error reading directory {}: {}", dir.display(), err);
+        })? // print out the path if it's missing
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .filter(|path| path.is_file() && path.extension().is_some_and(|ext| ext == "parquet")))
+}

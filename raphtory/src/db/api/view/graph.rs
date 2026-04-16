@@ -1,4 +1,16 @@
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
+    arrow_loader::{
+        dataframe::{DFChunk, DFView},
+        df_loaders::{
+            edge_props::load_edges_from_df as load_edge_props_from_df,
+            edges::{load_edges_from_df, ColumnNames},
+            load_edge_deletions_from_df, load_graph_props_from_df,
+            nodes::{load_node_props_from_df, load_nodes_from_df},
+        },
+        LOAD_POOL,
+    },
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
         api::{
@@ -18,15 +30,13 @@ use crate::{
         },
     },
     errors::GraphError,
-    prelude::*,
-    serialise::{
-        parquet::{
-            encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
-            encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink,
-            ENCODE_POOL,
-        },
-        GraphPaths,
+    parquet::{
+        encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
+        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_COL_ID,
+        EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
+    prelude::*,
 };
 use ahash::HashSet;
 use arrow::array::RecordBatch;
@@ -63,22 +73,6 @@ use std::{
 };
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
-use crate::{
-    arrow_loader::{
-        dataframe::{DFChunk, DFView},
-        df_loaders::{
-            edge_props::load_edges_from_df as load_edge_props_from_df,
-            edges::{load_edges_from_df, ColumnNames},
-            load_edge_deletions_from_df, load_graph_props_from_df,
-            nodes::{load_node_props_from_df, load_nodes_from_df},
-        },
-        LOAD_POOL,
-    },
-    serialise::parquet::{
-        DST_COL_ID, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
-        SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL,
-    },
-};
 #[cfg(feature = "search")]
 use crate::{
     db::graph::views::filter::model::TryAsCompositeFilter,
