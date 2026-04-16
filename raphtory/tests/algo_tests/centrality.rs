@@ -4,7 +4,7 @@ use itertools::Itertools;
 use raphtory::{
     algorithms::centrality::{
         betweenness::betweenness_centrality, degree_centrality::degree_centrality, hits::hits,
-        pagerank::unweighted_page_rank,
+        pagerank::page_rank,
     },
     prelude::*,
     test_storage,
@@ -144,7 +144,7 @@ fn test_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(1), None, true, None);
+        let results = page_rank(graph, None, Some(1000), Some(1), None, true, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.38694), 5);
         assert_eq_f64(results.get_by_node("2"), Some(&0.20195), 5);
@@ -188,7 +188,7 @@ fn motif_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
+        let results = page_rank(graph, None, Some(1000), Some(4), None, true, None);
 
         assert_eq_f64(results.get_by_node("10"), Some(&0.072082), 5);
         assert_eq_f64(results.get_by_node("8"), Some(&0.136473), 5);
@@ -215,7 +215,7 @@ fn two_nodes_page_rank() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, false, None);
+        let results = page_rank(graph, None, Some(1000), Some(4), None, false, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.5), 3);
         assert_eq_f64(results.get_by_node("2"), Some(&0.5), 3);
@@ -233,7 +233,7 @@ fn three_nodes_page_rank_one_dangling() {
     }
 
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(10), Some(4), None, false, None);
+        let results = page_rank(graph, None, Some(10), Some(4), None, false, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.303), 3);
         assert_eq_f64(results.get_by_node("2"), Some(&0.393), 3);
@@ -270,7 +270,7 @@ fn dangling_page_rank() {
         graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
     }
     test_storage!(&graph, |graph| {
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None);
+        let results = page_rank(graph, None, Some(1000), Some(4), None, true, None);
 
         assert_eq_f64(results.get_by_node("1"), Some(&0.055), 3);
         assert_eq_f64(results.get_by_node("2"), Some(&0.079), 3);
@@ -283,6 +283,124 @@ fn dangling_page_rank() {
         assert_eq_f64(results.get_by_node("9"), Some(&0.110), 3);
         assert_eq_f64(results.get_by_node("10"), Some(&0.117), 3);
         assert_eq_f64(results.get_by_node("11"), Some(&0.122), 3);
+    });
+}
+
+#[test]
+fn page_rank_non_uniform_weights() {
+    let graph = Graph::new();
+    graph
+        .add_edge(0, 1, 2, [("weight", Prop::F64(0.37))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 1, 3, [("weight", Prop::F64(4.2))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 2, 1, [("weight", Prop::F64(0.9))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 2, 4, [("weight", Prop::F64(1.7))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 1, [("weight", Prop::F64(2.6))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 2, [("weight", Prop::F64(0.05))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 4, 3, [("weight", Prop::F64(3.3))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 4, 1, [("weight", Prop::F64(0.8))], None)
+        .unwrap();
+
+    test_storage!(&graph, |graph| {
+        let results =
+            page_rank(graph, Some("weight"), Some(1000), Some(1), Some(1e-10), true, None);
+
+        assert_eq_f64(results.get_by_node("1"), Some(&0.42499), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.07353), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.42311), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.07837), 5);
+    });
+}
+
+#[test]
+fn page_rank_dangling_weighted() {
+    let graph = Graph::new();
+    graph
+        .add_edge(0, 1, 2, [("weight", Prop::F64(0.12))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 1, 3, [("weight", Prop::F64(7.1))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 2, 4, [("weight", Prop::F64(0.004))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 1, [("weight", Prop::F64(1.9))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 5, [("weight", Prop::F64(0.63))], None)
+        .unwrap();
+
+    test_storage!(&graph, |graph| {
+        let results =
+            page_rank(graph, Some("weight"), Some(1000), Some(1), Some(1e-10), true, None);
+
+        assert_eq_f64(results.get_by_node("1"), Some(&0.28736), 5);
+        assert_eq_f64(results.get_by_node("2"), Some(&0.08587), 5);
+        assert_eq_f64(results.get_by_node("3"), Some(&0.32201), 5);
+        assert_eq_f64(results.get_by_node("4"), Some(&0.15480), 5);
+        assert_eq_f64(results.get_by_node("5"), Some(&0.14997), 5);
+    });
+}
+
+#[test]
+fn page_rank_uniform_weights_match_unweighted() {
+    let graph = Graph::new();
+    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
+    for (src, dst) in edges {
+        graph
+            .add_edge(0, src, dst, [("weight", Prop::F64(1.0))], None)
+            .unwrap();
+    }
+
+    test_storage!(&graph, |graph| {
+        let unweighted = page_rank(graph, None, Some(1000), Some(1), None, true, None);
+        let weighted =
+            page_rank(graph, Some("weight"), Some(1000), Some(1), None, true, None);
+
+        for node in ["1", "2", "3", "4"] {
+            assert_eq_f64(
+                weighted.get_by_node(node),
+                unweighted.get_by_node(node),
+                5,
+            );
+        }
+    });
+}
+
+#[test]
+fn page_rank_missing_property_defaults_to_unweighted() {
+    let graph = Graph::new();
+    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
+    for (src, dst) in edges {
+        graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+    }
+
+    test_storage!(&graph, |graph| {
+        let unweighted = page_rank(graph, None, Some(1000), Some(1), None, true, None);
+        let weighted =
+            page_rank(graph, Some("weight"), Some(1000), Some(1), None, true, None);
+
+        for node in ["1", "2", "3", "4"] {
+            assert_eq_f64(
+                weighted.get_by_node(node),
+                unweighted.get_by_node(node),
+                5,
+            );
+        }
     });
 }
 

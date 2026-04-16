@@ -3,7 +3,7 @@ use crate::{
     db::{
         api::{
             state::NodeState,
-            view::{NodeViewOps, StaticGraphViewOps},
+            view::{EdgeViewOps, NodeViewOps, StaticGraphViewOps},
         },
         task::{
             context::Context,
@@ -11,21 +11,22 @@ use crate::{
             task_runner::TaskRunner,
         },
     },
-    prelude::GraphViewOps,
+    prelude::{GraphViewOps, PropertiesOps},
 };
 use num_traits::abs;
+use raphtory_api::core::entities::properties::prop::PropUnwrap;
 
 #[derive(Clone, Debug, Default)]
 struct PageRankState {
     score: f64,
-    out_degree: usize,
+    weighted_out_degree: f64,
 }
 
 impl PageRankState {
     fn new(num_nodes: usize) -> Self {
         Self {
             score: 1f64 / num_nodes as f64,
-            out_degree: 0,
+            weighted_out_degree: 0f64,
         }
     }
 
@@ -40,6 +41,7 @@ impl PageRankState {
 /// # Arguments
 ///
 /// - `g`: A GraphView object
+/// - `weight`: Edge property key to use as weight. If None, all edges have weight 1.0.
 /// - `iter_count`: Number of iterations to run the algorithm for
 /// - `threads`: Number of threads to use for parallel execution
 /// - `tol`: The tolerance value for convergence
@@ -50,8 +52,9 @@ impl PageRankState {
 ///
 /// An [AlgorithmResult] object containing the mapping from node ID to the PageRank score of the node
 ///
-pub fn unweighted_page_rank<G: StaticGraphViewOps>(
+pub fn page_rank<G: StaticGraphViewOps>(
     g: &G,
+    weight: Option<&str>,
     iter_count: Option<usize>,
     threads: Option<usize>,
     tol: Option<f64>,
@@ -76,38 +79,53 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
 
     ctx.global_agg_reset(total_sink_contribution);
 
-    let step1 = ATask::new(move |s| {
-        let out_degree = s.out_degree();
-        let state: &mut PageRankState = s.get_mut();
-        state.out_degree = out_degree;
-        Step::Continue
+    let weight_key: Option<String> = weight.map(|s| s.to_string());
+
+    let step1 = ATask::new({
+        let weight_key = weight_key.clone();
+        move |s| {
+            let weighted_out_degree = s.out_edges().iter().fold(0.0f64, |acc, edge| {
+                weight_key
+                    .as_ref()
+                    .and_then(|key| edge.properties().get(key))
+                    .and_then(|p| p.as_f64())
+                    .unwrap_or(1.0)
+                    + acc
+            });
+            let state: &mut PageRankState = s.get_mut();
+            state.weighted_out_degree = weighted_out_degree;
+            Step::Continue
+        }
     });
 
     let step2: ATask<G, ComputeStateVec, PageRankState, _> = ATask::new(move |s| {
-        // reset score
         {
             let state: &mut PageRankState = s.get_mut();
             state.reset();
         }
 
-        for t in s.in_neighbours() {
-            let prev = t.prev();
-
-            s.get_mut().score += prev.score / prev.out_degree as f64;
+        for edge in s.in_edges() {
+            let w = weight_key
+                .as_ref()
+                .and_then(|key| edge.properties().get(key))
+                .and_then(|p| p.as_f64())
+                .unwrap_or(1.0);
+            let nbr = edge.nbr();
+            let prev = nbr.prev();
+            if prev.weighted_out_degree > 0.0 {
+                s.get_mut().score += prev.score * w / prev.weighted_out_degree;
+            }
         }
 
         s.get_mut().score *= damp;
-
         s.get_mut().score += teleport_prob;
         Step::Continue
     });
 
     let step3 = ATask::new(move |s| {
         let state: &mut PageRankState = s.get_mut();
-
-        if state.out_degree == 0 {
+        if state.weighted_out_degree == 0.0 {
             let curr = s.prev().score;
-
             let ts_contrib = factor * curr;
             s.global_update(&total_sink_contribution, ts_contrib);
         }
