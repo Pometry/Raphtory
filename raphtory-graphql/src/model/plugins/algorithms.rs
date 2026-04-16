@@ -24,47 +24,10 @@ pub(crate) struct PagerankOutput {
     rank: f64,
 }
 
-impl From<(String, HashMap<String, Option<Prop>>)> for PagerankOutput {
-    fn from(_value: (String, HashMap<String, Option<Prop>>)) -> Self {
-        todo!()
-    }
-}
-
-impl From<(String, f64)> for PagerankOutput {
-    fn from((name, rank): (String, f64)) -> Self {
-        Self { name, rank }
-    }
-}
-
-impl From<(String, Option<f64>)> for PagerankOutput {
-    fn from((name, rank): (String, Option<f64>)) -> Self {
-        Self {
-            name,
-            rank: rank.unwrap_or_default(), // use 0.0 if rank is None
-        }
-    }
-}
-
-impl From<(String, OrderedFloat<f64>)> for PagerankOutput {
-    fn from((name, rank): (String, OrderedFloat<f64>)) -> Self {
-        let rank = rank.into_inner();
-        Self { name, rank }
-    }
-}
-
-impl From<(&String, &OrderedFloat<f64>)> for PagerankOutput {
-    fn from((name, rank): (&String, &OrderedFloat<f64>)) -> Self {
-        Self {
-            name: name.to_string(),
-            rank: rank.into_inner(),
-        }
-    }
-}
-
 impl From<(String, PageRankState)> for PagerankOutput {
     fn from((name, rank): (String, PageRankState)) -> Self {
         Self {
-            name: name.to_string(),
+            name,
             rank: rank.score,
         }
     }
