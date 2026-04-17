@@ -5,7 +5,7 @@ use crate::{
         app_config::AppConfigBuilder,
         auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
         cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
-        concurrency_config::DEFAULT_EXCLUSIVE_WRITES,
+        concurrency_config::{DEFAULT_DISABLE_BATCHING, DEFAULT_EXCLUSIVE_WRITES},
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
             TracingLevel, DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT,
@@ -98,6 +98,22 @@ struct ServerArgs {
 
     #[arg(
         long,
+        env = "RAPHTORY_DISABLE_BATCHING",
+        default_value_t = DEFAULT_DISABLE_BATCHING,
+        help = "Rejects batched GraphQL requests outright. Batching can otherwise be used to circumvent per-request depth and complexity limits."
+    )]
+    disable_batching: bool,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_BATCH_SIZE",
+        default_value = None,
+        help = "Caps the number of queries accepted in a single batched HTTP request. Requests whose batch exceeds this size are rejected."
+    )]
+    max_batch_size: Option<usize>,
+
+    #[arg(
+        long,
         env = "RAPHTORY_MAX_QUERY_DEPTH",
         default_value = None,
         help = "Limits how deeply nested a query can be."
@@ -175,6 +191,8 @@ where
                 .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads)
                 .with_heavy_query_limit(server_args.heavy_query_limit)
                 .with_exclusive_writes(server_args.exclusive_writes)
+                .with_disable_batching(server_args.disable_batching)
+                .with_max_batch_size(server_args.max_batch_size)
                 .with_max_query_depth(server_args.max_query_depth)
                 .with_max_query_complexity(server_args.max_query_complexity)
                 .with_max_recursive_depth(server_args.max_recursive_depth)

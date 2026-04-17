@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_EXCLUSIVE_WRITES: bool = false;
+pub const DEFAULT_DISABLE_BATCHING: bool = false;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
 #[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
@@ -15,4 +16,14 @@ pub struct ConcurrencyConfig {
     /// Ensures only one ingestion/write operation runs at a time and blocks reads until
     /// it completes.
     pub exclusive_writes: bool,
+
+    /// When true, query batching (sending multiple queries in a single HTTP request) is
+    /// rejected outright. Batching can otherwise be used to circumvent per-request depth
+    /// and complexity limits.
+    pub disable_batching: bool,
+
+    /// Caps the number of queries accepted in a single batched HTTP request. Requests
+    /// whose batch exceeds this size are rejected. `None` means unlimited (subject to
+    /// `disable_batching`).
+    pub max_batch_size: Option<usize>,
 }

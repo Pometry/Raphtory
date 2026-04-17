@@ -128,6 +128,16 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_disable_batching(mut self, disable_batching: bool) -> Self {
+        self.concurrency.disable_batching = disable_batching;
+        self
+    }
+
+    pub fn with_max_batch_size(mut self, max_batch_size: Option<usize>) -> Self {
+        self.concurrency.max_batch_size = max_batch_size;
+        self
+    }
+
     pub fn with_max_query_depth(mut self, max_query_depth: Option<usize>) -> Self {
         self.schema.max_query_depth = max_query_depth;
         self
@@ -251,6 +261,12 @@ pub fn load_config(
     }
     if let Ok(exclusive_writes) = settings.get::<bool>("concurrency.exclusive_writes") {
         app_config_builder = app_config_builder.with_exclusive_writes(exclusive_writes);
+    }
+    if let Ok(disable_batching) = settings.get::<bool>("concurrency.disable_batching") {
+        app_config_builder = app_config_builder.with_disable_batching(disable_batching);
+    }
+    if let Ok(max_batch_size) = settings.get::<Option<usize>>("concurrency.max_batch_size") {
+        app_config_builder = app_config_builder.with_max_batch_size(max_batch_size);
     }
 
     if let Ok(max_query_depth) = settings.get::<Option<usize>>("schema.max_query_depth") {

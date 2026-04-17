@@ -10,7 +10,7 @@ use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLReque
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, Validation};
 use poem::{
-    error::{TooManyRequests, Unauthorized},
+    error::{BadRequest, TooManyRequests, Unauthorized},
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
@@ -96,6 +96,10 @@ pub enum AuthError {
     RequireRead,
     #[error("The requested endpoint requires write access")]
     RequireWrite,
+    #[error("Query batching is disabled on this server")]
+    BatchingDisabled,
+    #[error("Batch size {actual} exceeds the maximum allowed {max}")]
+    BatchSizeExceeded { max: usize, actual: usize },
 }
 
 impl From<AuthError> for ServerError {
@@ -154,8 +158,21 @@ where
                 )))
         } else {
             let (req, mut body) = req.split();
-            let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access);
+            let batch_req = GraphQLBatchRequest::from_request(&req, &mut body).await?.0;
+
+            if let BatchRequest::Batch(requests) = &batch_req {
+                if self.config.concurrency.disable_batching {
+                    return Err(BadRequest(AuthError::BatchingDisabled));
+                }
+                if let Some(max) = self.config.concurrency.max_batch_size {
+                    let actual = requests.len();
+                    if actual > max {
+                        return Err(BadRequest(AuthError::BatchSizeExceeded { max, actual }));
+                    }
+                }
+            }
+
+            let req = batch_req.data(access);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => request.query.contains("updateGraph"),
