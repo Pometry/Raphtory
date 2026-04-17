@@ -1,5 +1,6 @@
 use crate::{
-    db::api::state::ops::GraphView, errors::GraphError, parquet::model::get_id_type, prelude::*,
+    db::api::state::ops::GraphView, errors::GraphError, parquet_encoder::model::get_id_type,
+    prelude::*,
 };
 use arrow::{
     array::RecordBatch,

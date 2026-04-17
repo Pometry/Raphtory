@@ -10,7 +10,7 @@ use crate::{
         load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
         load_nodes_from_parquet, process_parquet_file_to_df,
     },
-    parquet::{
+    parquet_encoder::{
         encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
         encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_COL_ID,
         EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL, SECONDARY_INDEX_COL,

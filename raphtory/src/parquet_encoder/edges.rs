@@ -5,7 +5,7 @@ use crate::{
         graph::edge::EdgeView,
     },
     errors::GraphError,
-    parquet::model::ParquetDelEdge,
+    parquet_encoder::model::ParquetDelEdge,
 };
 use arrow::datatypes::{DataType, Field};
 use model::ParquetCEdge;

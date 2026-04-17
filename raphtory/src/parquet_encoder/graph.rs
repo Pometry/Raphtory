@@ -1,7 +1,7 @@
 use crate::{
     db::api::state::ops::GraphView,
     errors::GraphError,
-    parquet::{run_encode, RecordBatchSink, SECONDARY_INDEX_COL, TIME_COL},
+    parquet_encoder::{run_encode, RecordBatchSink, SECONDARY_INDEX_COL, TIME_COL},
     prelude::{GraphViewOps, Prop, PropertiesOps},
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
