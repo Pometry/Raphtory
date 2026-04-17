@@ -6,6 +6,37 @@ use dynamic_graphql::{
 };
 use std::{borrow::Cow, sync::Arc};
 
+/// Returns an error when `concurrency.disable_lists` is set. Called from every `list`
+/// resolver on paginated collections.
+pub(crate) fn check_list_allowed(ctx: &Context<'_>) -> Result<()> {
+    if ctx
+        .data_opt::<ConcurrencyConfig>()
+        .map(|cfg| cfg.disable_lists)
+        .unwrap_or(false)
+    {
+        return Err(Error::new(
+            "Bulk list endpoints are disabled on this server. Use `page` instead.",
+        ));
+    }
+    Ok(())
+}
+
+/// Returns an error when `limit` exceeds `concurrency.max_page_size`. Called from every
+/// `page` resolver on paginated collections.
+pub(crate) fn check_page_limit(ctx: &Context<'_>, limit: usize) -> Result<()> {
+    if let Some(max) = ctx
+        .data_opt::<ConcurrencyConfig>()
+        .and_then(|cfg| cfg.max_page_size)
+    {
+        if limit > max {
+            return Err(Error::new(format!(
+                "page limit {limit} exceeds the maximum allowed page size {max}"
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Collection of items
 #[derive(ResolvedObject, Clone)]
 #[graphql(get_type_name = true)]
@@ -49,15 +80,7 @@ where
 {
     /// Returns a list of collection objects.
     async fn list(&self, ctx: &Context<'_>) -> Result<Vec<T>> {
-        if ctx
-            .data_opt::<ConcurrencyConfig>()
-            .map(|cfg| cfg.disable_lists)
-            .unwrap_or(false)
-        {
-            return Err(Error::new(
-                "Bulk list endpoints are disabled on this server. Use `page` instead.",
-            ));
-        }
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.items.to_vec()).await)
     }
@@ -73,16 +96,7 @@ where
         offset: Option<usize>,
         page_index: Option<usize>,
     ) -> Result<Vec<T>> {
-        if let Some(max) = ctx
-            .data_opt::<ConcurrencyConfig>()
-            .and_then(|cfg| cfg.max_page_size)
-        {
-            if limit > max {
-                return Err(Error::new(format!(
-                    "page limit {limit} exceeds the maximum allowed page size {max}"
-                )));
-            }
-        }
+        check_page_limit(ctx, limit)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
