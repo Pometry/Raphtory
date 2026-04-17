@@ -3,7 +3,10 @@ pub mod history;
 pub mod node;
 pub mod properties;
 
-use crate::db::api::state::ops::filter::{AndOp, NotOp, OrOp};
+use crate::db::api::{
+    state::ops::filter::{AndOp, NotOp, OrOp},
+    view::internal::NodeList,
+};
 pub use history::*;
 pub use node::*;
 pub use properties::*;
@@ -14,6 +17,11 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
+
+    /// The domain of validity for this node op
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
 
     fn const_value(&self) -> Option<Self::Output> {
         None

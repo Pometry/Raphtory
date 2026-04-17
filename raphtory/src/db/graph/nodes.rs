@@ -357,12 +357,17 @@ where
         &self,
         filter: Filter,
     ) -> Self::IterFiltered<Filter> {
+        let domain = filter.domain(self.graph.core_graph());
+        let nodes = match domain {
+            NodeList::All => self.nodes.clone(),
+            NodeList::List { elems } => self.nodes.intersection(&elems),
+        };
         let predicate = self.predicate.clone().and(filter);
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             predicate,
-            nodes: self.nodes.clone(),
+            nodes,
             _marker: Default::default(),
         }
     }
