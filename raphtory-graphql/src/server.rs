@@ -27,7 +27,14 @@ use raphtory::{
     vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 use serde_json::json;
-use std::{fs::create_dir_all, path::PathBuf};
+use std::{
+    fs::create_dir_all,
+    future::Future,
+    ops::Deref,
+    path::PathBuf,
+    pin::Pin,
+    task::{Context, Poll},
+};
 use thiserror::Error;
 use tokio::{
     io,
@@ -150,7 +157,7 @@ impl GraphServer {
         Ok(())
     }
 
-    /// Vectorise the graph 'name'in the server working directory.
+    /// Vectorise the graph 'name' in the server working directory.
     ///
     /// Arguments:
     ///   * path - the path of the graph to vectorise.
@@ -201,13 +208,13 @@ impl GraphServer {
 
         // Otherwise evictions are only triggered when the cache is actively touched
         let cache_clone = self.data.cache.clone();
-        tokio::spawn(async move {
+        let cache_task: AbortOnDrop<()> = AbortOnDrop(tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
             loop {
                 interval.tick().await;
                 cache_clone.run_pending_tasks().await;
             }
-        });
+        }));
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
@@ -227,11 +234,12 @@ impl GraphServer {
 
         let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
             .run_with_graceful_shutdown(app, server_termination(signal_receiver, tp), None);
-        let server_result = tokio::spawn(server_task);
+        let server_result = AbortOnDrop(tokio::spawn(server_task));
 
         Ok(RunningGraphServer {
             signal_sender,
             server_result,
+            cache_task,
         })
     }
 
@@ -278,24 +286,49 @@ impl GraphServer {
     }
 }
 
+#[derive(Debug)]
+pub struct AbortOnDrop<T>(pub JoinHandle<T>);
+
+impl<T> Drop for AbortOnDrop<T> {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+impl<T> Deref for AbortOnDrop<T> {
+    type Target = JoinHandle<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> Future for AbortOnDrop<T> {
+    type Output = <JoinHandle<T> as Future>::Output;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.0).poll(cx)
+    }
+}
+
 /// A Raphtory server handler
 #[derive(Debug)]
 pub struct RunningGraphServer {
     signal_sender: Sender<()>,
-    server_result: JoinHandle<IoResult<()>>,
+    server_result: AbortOnDrop<IoResult<()>>,
+    cache_task: AbortOnDrop<()>,
 }
 
 impl RunningGraphServer {
     /// Stop the server.
     pub async fn stop(&self) {
+        self.cache_task.abort();
         let _ignored = self.signal_sender.send(()).await;
     }
 
     /// Wait until server completion.
     pub async fn wait(self) -> IoResult<()> {
-        self.server_result
-            .await
-            .expect("Couldn't join tokio task for the server")
+        self.server_result.await.expect("Server panicked")
     }
 
     // TODO: make this optional with some python feature flag
