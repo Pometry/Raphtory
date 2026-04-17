@@ -250,6 +250,7 @@ impl GraphServer {
         let schema_cfg = &self.config.schema;
         let mut schema_builder = App::create_schema()
             .data(self.data.clone())
+            .data(self.config.concurrency.clone())
             .extension(MutationAuth);
         if let Some(depth) = schema_cfg.max_query_depth {
             schema_builder = schema_builder.limit_depth(depth);

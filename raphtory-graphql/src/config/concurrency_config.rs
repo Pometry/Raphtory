@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_EXCLUSIVE_WRITES: bool = false;
 pub const DEFAULT_DISABLE_BATCHING: bool = false;
+pub const DEFAULT_DISABLE_LISTS: bool = false;
 
 /// Controls how Raphtory schedules concurrent GraphQL work.
 #[derive(Debug, Default, Deserialize, PartialEq, Clone, Serialize)]
@@ -26,4 +27,14 @@ pub struct ConcurrencyConfig {
     /// whose batch exceeds this size are rejected. `None` means unlimited (subject to
     /// `disable_batching`).
     pub max_batch_size: Option<usize>,
+
+    /// When true, completely disables bulk list endpoints (e.g. `list` on a collection).
+    /// Essential for large graphs where unbounded list queries could return billions of
+    /// results and exhaust server resources. Clients should use `page` instead.
+    pub disable_lists: bool,
+
+    /// Maximum page size enforced on paged collection queries. Caps the `limit` argument
+    /// of `page` so clients can't circumvent `disable_lists` by requesting huge pages.
+    /// `None` means unlimited.
+    pub max_page_size: Option<usize>,
 }

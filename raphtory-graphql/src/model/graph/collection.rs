@@ -1,4 +1,5 @@
-use crate::rayon::blocking_compute;
+use crate::{config::concurrency_config::ConcurrencyConfig, rayon::blocking_compute};
+use async_graphql::{Context, Error, Result};
 use dynamic_graphql::{
     internal::{OutputTypeName, ResolveOwned, TypeName},
     ResolvedObject, ResolvedObjectFields,
@@ -47,18 +48,43 @@ where
     T: for<'a> ResolveOwned<'a>,
 {
     /// Returns a list of collection objects.
-    async fn list(&self) -> Vec<T> {
+    async fn list(&self, ctx: &Context<'_>) -> Result<Vec<T>> {
+        if ctx
+            .data_opt::<ConcurrencyConfig>()
+            .map(|cfg| cfg.disable_lists)
+            .unwrap_or(false)
+        {
+            return Err(Error::new(
+                "Bulk list endpoints are disabled on this server. Use `page` instead.",
+            ));
+        }
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.items.to_vec()).await
+        Ok(blocking_compute(move || self_clone.items.to_vec()).await)
     }
 
     /// Fetch one page with a number of items up to a specified limit, optionally offset by a specified amount. The page_index sets the number of pages to skip (defaults to 0).
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
-    async fn page(&self, limit: usize, offset: Option<usize>, page_index: Option<usize>) -> Vec<T> {
+    async fn page(
+        &self,
+        ctx: &Context<'_>,
+        limit: usize,
+        offset: Option<usize>,
+        page_index: Option<usize>,
+    ) -> Result<Vec<T>> {
+        if let Some(max) = ctx
+            .data_opt::<ConcurrencyConfig>()
+            .and_then(|cfg| cfg.max_page_size)
+        {
+            if limit > max {
+                return Err(Error::new(format!(
+                    "page limit {limit} exceeds the maximum allowed page size {max}"
+                )));
+            }
+        }
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .items
@@ -68,7 +94,7 @@ where
                 .cloned()
                 .collect()
         })
-        .await
+        .await)
     }
 
     /// Returns a count of collection objects.

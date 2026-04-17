@@ -138,6 +138,16 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_disable_lists(mut self, disable_lists: bool) -> Self {
+        self.concurrency.disable_lists = disable_lists;
+        self
+    }
+
+    pub fn with_max_page_size(mut self, max_page_size: Option<usize>) -> Self {
+        self.concurrency.max_page_size = max_page_size;
+        self
+    }
+
     pub fn with_max_query_depth(mut self, max_query_depth: Option<usize>) -> Self {
         self.schema.max_query_depth = max_query_depth;
         self
@@ -267,6 +277,12 @@ pub fn load_config(
     }
     if let Ok(max_batch_size) = settings.get::<Option<usize>>("concurrency.max_batch_size") {
         app_config_builder = app_config_builder.with_max_batch_size(max_batch_size);
+    }
+    if let Ok(disable_lists) = settings.get::<bool>("concurrency.disable_lists") {
+        app_config_builder = app_config_builder.with_disable_lists(disable_lists);
+    }
+    if let Ok(max_page_size) = settings.get::<Option<usize>>("concurrency.max_page_size") {
+        app_config_builder = app_config_builder.with_max_page_size(max_page_size);
     }
 
     if let Ok(max_query_depth) = settings.get::<Option<usize>>("schema.max_query_depth") {
