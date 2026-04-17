@@ -9,6 +9,7 @@ use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
 use raphtory_core::{
     entities::{
         EID, Multiple, VID,
+        edges::edge_ref::EdgeRef,
         properties::{tcell::TCell, tprop::TPropCell},
     },
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -18,14 +19,16 @@ use raphtory_core::{
 pub struct MemEdgeEntry<'a, MES> {
     pos: LocalPOS,
     es: MES,
+    edge_ref: Option<EdgeRef>,
     __marker: std::marker::PhantomData<&'a ()>,
 }
 
 impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment>> MemEdgeEntry<'a, MES> {
-    pub fn new(pos: LocalPOS, es: MES) -> Self {
+    pub fn new(pos: LocalPOS, es: MES, edge_ref: Option<EdgeRef>) -> Self {
         Self {
             pos,
             es,
+            edge_ref,
             __marker: std::marker::PhantomData,
         }
     }
@@ -47,6 +50,7 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
         MemEdgeRef {
             pos: self.pos,
             es: &self.es,
+            edge_ref: self.edge_ref,
         }
     }
 }
@@ -55,11 +59,12 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
 pub struct MemEdgeRef<'a> {
     pos: LocalPOS,
     es: &'a MemEdgeSegment,
+    edge_ref: Option<EdgeRef>,
 }
 
 impl<'a> MemEdgeRef<'a> {
-    pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment) -> Self {
-        Self { pos, es }
+    pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment, edge_ref: Option<EdgeRef>) -> Self {
+        Self { pos, es, edge_ref }
     }
 
     pub fn has_layers(&self, layer_ids: &Multiple) -> bool {
@@ -151,11 +156,13 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type TProps = EdgeTProps<'a>;
 
     fn edge(self, layer_id: LayerId) -> Option<(VID, VID)> {
-        self.es
-            .as_ref()
-            .get(layer_id.0)?
-            .get(self.pos)
-            .map(|entry| (entry.src, entry.dst))
+        self.edge_ref.map(|e| (e.src(), e.dst())).or_else(|| {
+            self.es
+                .as_ref()
+                .get(layer_id.0)?
+                .get(self.pos)
+                .map(|entry| (entry.src, entry.dst))
+        })
     }
 
     fn layer_additions(self, layer_id: LayerId) -> Self::Additions {
@@ -175,17 +182,31 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     }
 
     fn src(&self) -> Option<VID> {
-        self.es.as_ref()[0].get(self.pos).map(|entry| entry.src)
+        self.edge_ref.map(|e| e.src()).or_else(|| {
+            self.es
+                .as_ref()
+                .first()
+                .and_then(|layer| layer.get(self.pos))
+                .map(|entry| entry.src)
+        })
     }
 
     fn dst(&self) -> Option<VID> {
-        self.es.as_ref()[0].get(self.pos).map(|entry| entry.dst)
+        self.edge_ref.map(|e| e.dst()).or_else(|| {
+            self.es
+                .as_ref()
+                .first()
+                .and_then(|layer| layer.get(self.pos))
+                .map(|entry| entry.dst)
+        })
     }
 
     fn edge_id(&self) -> EID {
-        let segment_id = self.es.as_ref()[0].segment_id();
-        let max_page_len = self.es.as_ref()[0].max_page_len();
-        self.pos.as_eid(segment_id, max_page_len)
+        self.edge_ref.map(|e| e.pid()).unwrap_or_else(|| {
+            let segment_id = self.es.as_ref()[0].segment_id();
+            let max_page_len = self.es.as_ref()[0].max_page_len();
+            self.pos.as_eid(segment_id, max_page_len)
+        })
     }
 
     fn internal_num_layers(self) -> usize {

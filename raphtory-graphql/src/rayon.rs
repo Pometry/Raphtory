@@ -3,11 +3,12 @@ use std::sync::LazyLock;
 use tokio::sync::oneshot;
 
 static WRITE_POOL: LazyLock<ThreadPool> =
-    LazyLock::new(|| ThreadPoolBuilder::new().build().unwrap());
+    LazyLock::new(|| ThreadPoolBuilder::new().thread_name(|t| format!("RAP-write-{t}")).build().unwrap());
 
 static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
+        .thread_name(|t| format!("RAP-compute-{t}"))
         .build()
         .unwrap()
 });

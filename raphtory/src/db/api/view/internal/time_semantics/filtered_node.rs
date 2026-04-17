@@ -258,17 +258,17 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
                 let gs = view.core_graph();
-                view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                     && view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
-            FilterState::Nodes => FilterVariants::Nodes(iter.filter(move |e| {
+            FilterState::Nodes | FilterState::BothIndependent => FilterVariants::Nodes(iter.filter(move |e| {
                 let gs = view.core_graph();
                 view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
-            FilterState::Edges | FilterState::BothIndependent => {
+            FilterState::Edges => {
                 FilterVariants::Edges(iter.filter(move |e| {
                     let gs = view.core_graph();
-                    view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                    view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                 }))
             }
         }

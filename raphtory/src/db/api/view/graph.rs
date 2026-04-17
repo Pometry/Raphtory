@@ -24,6 +24,7 @@ use crate::{
 };
 use ahash::HashSet;
 use db4_graph::TemporalGraph;
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
@@ -51,7 +52,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     path::Path,
-    sync::{atomic::Ordering, Arc},
+    sync::{Arc, atomic::Ordering}, time::Instant,
 };
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
@@ -464,7 +465,7 @@ fn materialize_impl(
                     }
 
                     let time_semantics = graph.edge_time_semantics();
-                    let edge_entry = graph.core_edge(edge.edge.pid());
+                    let edge_entry = graph.core_edge(Either::Right(edge.edge));
                     for (t, layer) in time_semantics.edge_deletion_history(
                         edge_entry.as_ref(),
                         graph,
@@ -538,7 +539,7 @@ fn materialize_impl(
                 }
 
                 let edge_time_semantics = graph.edge_time_semantics();
-                let edge_entry = graph.core_edge(edge.edge.pid());
+                let edge_entry = graph.core_edge(Either::Right(edge.edge));
                 for (t, layer) in edge_time_semantics.edge_deletion_history(
                     edge_entry.as_ref(),
                     graph,
@@ -742,19 +743,22 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
         let edge_time_semantics = self.edge_time_semantics();
+        let now = Instant::now();
         if self.filtered() {
-            core_edges
+            let x = core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref()))
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum()
+                .sum();
+            println!("A Counting temporal edges with layer ids: {:?}, filtered: {}, elapsed: {:?}", layer_ids, self.filtered(), now.elapsed());
+            x
         } else {
-            core_edges
+            let x = core_edges
                 .as_ref()
-                .par_iter(layer_ids)
-                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum()
+                .count_temporal_edges(layer_ids);
+            println!("B Counting temporal edges with layer ids: {:?}, filtered: {}, elapsed: {:?}", layer_ids, self.filtered(), now.elapsed());
+            x
         }
     }
 
@@ -798,7 +802,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         match self.filter_state() {
             FilterState::Neither => {}
             FilterState::Both | FilterState::BothIndependent | FilterState::Edges => {
-                let edge = self.core_edge(edge_ref.pid());
+                let edge = self.core_edge(Either::Right(edge_ref));
                 if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }

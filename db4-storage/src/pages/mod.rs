@@ -14,7 +14,7 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::entities::properties::meta::Meta;
+use raphtory_api::core::{entities::properties::meta::{Meta, STATIC_GRAPH_LAYER_ID}, utils::time::TryIntoInputTime};
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
@@ -160,7 +160,7 @@ impl<
 
         let edge_storage = Arc::new(EdgeStorageInner::load(edges_path, ext.clone())?);
         let edge_meta = edge_storage.edge_meta().clone();
-        let node_storage = Arc::new(NodeStorageInner::load(nodes_path, edge_meta, ext.clone())?);
+        let node_storage: Arc<NodeStorageInner<NS, EXT>> = Arc::new(NodeStorageInner::load(nodes_path, edge_meta.clone(), ext.clone())?);
         let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata.
@@ -171,7 +171,7 @@ impl<
             node_meta.get_or_create_node_type_id(node_type);
         }
 
-        let t_len = edge_storage.t_len();
+        let t_len = edge_meta.all_layer_iter().map(|(layer_id, _)| edge_storage.t_len(layer_id.0)).sum::<usize>();
 
         Ok(Self {
             nodes: node_storage,

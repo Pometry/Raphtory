@@ -163,6 +163,11 @@ where
         self.logical_to_physical.flush()
     }
 
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        self.storage.vacuum()?;
+        Ok(())
+    }
+
     pub fn disk_storage_path(&self) -> Option<&Path> {
         self.graph_dir()
             .filter(|_| Extension::disk_storage_enabled())

@@ -297,7 +297,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view.layer_ids().contains(&eid.layer())
             && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
             && (view.exploded_filter_independent() || {
-                let edge = view.core_edge(eid.edge);
+                let edge = view.core_edge(Either::Left(eid.edge));
                 (view.exploded_edge_filter_includes_edge_layer_filter()
                     || view.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
                     && (view.exploded_edge_filter_includes_edge_filter()

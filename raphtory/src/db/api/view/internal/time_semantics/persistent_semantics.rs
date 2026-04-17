@@ -549,7 +549,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 && !view.internal_edge_filtered()
                 && !view.internal_edge_layer_filtered())
                 || {
-                    let edge = view.core_edge(eid.edge);
+                    let edge = view.core_edge(Either::Left(eid.edge));
                     view.internal_filter_edge_layer(edge.as_ref(), layer)
                         && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
                         && view.filter_edge_from_nodes(edge.as_ref())
@@ -557,7 +557,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         {
             if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
                 && (!view.internal_nodes_filtered() || {
-                    let edge = view.core_edge(eid.edge);
+                    let edge = view.core_edge(Either::Left(eid.edge));
                     view.internal_filter_node(view.core_node(edge.src()).as_ref(), view.layer_ids())
                         && view.internal_filter_node(
                             view.core_node(edge.dst()).as_ref(),
@@ -627,7 +627,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 return true;
             }
 
-            let edge = view.core_edge(elid.edge);
+            let edge = view.core_edge(Either::Left(elid.edge));
             let e = edge.as_ref();
             let layer = elid.layer();
             !e.filtered_deletions(layer, &view)

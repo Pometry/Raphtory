@@ -14,7 +14,8 @@ use db4_graph::TemporalGraph;
 use raphtory_api::core::entities::{
     properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
 };
-use raphtory_core::entities::nodes::node_ref::NodeRef;
+use itertools::Either;
+use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
     error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GIDResolver,
@@ -109,6 +110,13 @@ impl GraphStorage {
         match self {
             GraphStorage::Mem(graph) => graph.flush(),
             GraphStorage::Unlocked(graph) => graph.flush(),
+        }
+    }
+
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        match self {
+            GraphStorage::Mem(graph) => graph.vacuum(),
+            GraphStorage::Unlocked(graph) => graph.vacuum(),
         }
     }
 
@@ -240,7 +248,7 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn edge_entry(&self, eid: EID) -> EdgeStorageEntry<'_> {
+    pub fn edge_entry(&self, eid: Either<EID, EdgeRef>) -> EdgeStorageEntry<'_> {
         match self {
             GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.edge_ref(eid)),
             GraphStorage::Unlocked(storage) => {

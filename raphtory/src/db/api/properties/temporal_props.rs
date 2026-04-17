@@ -12,7 +12,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
+use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::{History, InternalHistoryOps}};
 use arrow::array::ArrayRef;
 use raphtory_api::{
     core::{

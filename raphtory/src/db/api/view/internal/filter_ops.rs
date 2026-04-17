@@ -1,4 +1,5 @@
 use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
+use either::Either;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
     ParallelIterator,
@@ -108,7 +109,7 @@ impl<G: GraphView> InnerFilterOps for G {
         self.layer_ids().contains(&eid.layer())
             && self.internal_filter_exploded_edge(eid, t, self.layer_ids())
             && (self.exploded_filter_independent() || {
-                let edge = self.core_edge(eid.edge);
+                let edge = self.core_edge(Either::Left(eid.edge));
                 (self.exploded_edge_filter_includes_edge_layer_filter()
                     || self.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
                     && (self.exploded_edge_filter_includes_edge_filter()

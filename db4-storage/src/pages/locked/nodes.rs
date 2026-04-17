@@ -124,9 +124,10 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {
-        for LockedNodePage { page, lock, .. } in &mut self.writers {
-            page.vacuum(lock.deref_mut())?;
-        }
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedNodePage { page, lock, .. } = writer;
+            page.vacuum(lock.deref_mut())
+        })?;
         Ok(())
     }
 }
