@@ -46,7 +46,7 @@ jobs:
           submodules: recursive
           token: '${{ secrets.PULL_TOKEN }}'
           ref: ${{ inputs.base }}
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
           python-version: |
             3.11
@@ -141,7 +141,7 @@ jobs:
           ref: ${{ inputs.base }}
           submodules: recursive
           token: '${{ secrets.PULL_TOKEN }}'
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
           python-version: |
             3.11
@@ -188,7 +188,7 @@ jobs:
           ref: ${{ inputs.base }}
           submodules: recursive
           token: '${{ secrets.PULL_TOKEN }}'
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         with:
           python-version: |
             3.11
