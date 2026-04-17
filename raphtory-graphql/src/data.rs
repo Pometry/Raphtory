@@ -27,6 +27,7 @@ use std::{
     collections::HashMap,
     fs, io,
     io::{Read, Seek},
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -126,13 +127,27 @@ pub(crate) fn get_relative_path(
     Ok(path_str)
 }
 
-#[derive(Clone)]
-pub struct Data {
+/// Inner struct with a drop implementation that cleans up the graphs
+pub struct DataInner {
     pub(crate) work_dir: PathBuf,
     pub(crate) cache: Cache<String, GraphWithVectors>,
-    pub(crate) create_index: bool,
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
+}
+
+/// Outer data struct that wraps the inner data to make sure it is only dropped once
+#[derive(Clone)]
+pub struct Data {
+    inner: Arc<DataInner>,
+    pub(crate) create_index: bool,
+}
+
+impl Deref for Data {
+    type Target = DataInner;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref()
+    }
 }
 
 impl Data {
@@ -167,11 +182,13 @@ impl Data {
         // TODO: make vector feature optional?
 
         Self {
-            work_dir: work_dir.to_path_buf(),
-            cache,
+            inner: Arc::new(DataInner {
+                work_dir: work_dir.to_path_buf(),
+                cache,
+                vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
+                graph_conf,
+            }),
             create_index,
-            vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
-            graph_conf,
         }
     }
 
@@ -337,7 +354,7 @@ impl Data {
     }
 }
 
-impl Drop for Data {
+impl Drop for DataInner {
     fn drop(&mut self) {
         // On drop, serialize graphs that don't have underlying storage.
         for (_, graph) in self.cache.iter() {

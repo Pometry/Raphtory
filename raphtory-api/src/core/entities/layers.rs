@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
     iter::Copied,
-    slice::SliceIndex,
     sync::Arc,
 };
 
