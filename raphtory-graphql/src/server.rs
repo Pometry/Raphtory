@@ -265,7 +265,7 @@ impl GraphServer {
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir.clone(),
-                    AuthenticatedGraphQL::new(schema, self.config.auth.clone()),
+                    AuthenticatedGraphQL::new(schema, self.config.clone()),
                 ),
             )
             .at("/health", get(health))

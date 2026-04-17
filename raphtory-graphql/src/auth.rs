@@ -1,4 +1,4 @@
-use crate::config::auth_config::{AuthConfig, PublicKey};
+use crate::config::{app_config::AppConfig, auth_config::PublicKey};
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -33,36 +33,29 @@ pub(crate) struct TokenClaims {
 // TODO: maybe this should be renamed as it doens't only take care of auth anymore
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
-    config: AuthConfig,
+    config: AppConfig,
     semaphore: Option<Semaphore>,
     lock: Option<RwLock<()>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint.
-    pub fn new(executor: E, config: AuthConfig) -> Self {
+    pub fn new(executor: E, config: AppConfig) -> Self {
+        let semaphore = config.concurrency.heavy_query_limit.map(|limit| {
+            println!("Server running with concurrency limited to {limit} for heavy queries");
+            Semaphore::new(limit)
+        });
+        let lock = if config.concurrency.exclusive_writes {
+            println!("Server running with exclusive writes");
+            Some(RwLock::new(()))
+        } else {
+            None
+        };
         Self {
             executor,
             config,
-            semaphore: std::env::var("RAPHTORY_CONCURRENCY_LIMIT")
-                .ok()
-                .and_then(|limit| {
-                    let limit = limit.parse::<usize>().ok()?;
-                    println!(
-                        "Server running with concurrency limited to {limit} for heavy queries"
-                    );
-                    Some(Semaphore::new(limit))
-                }),
-            lock: std::env::var("RAPHTORY_THREADSAFE")
-                .ok()
-                .and_then(|thread_safe| {
-                    if thread_safe == "1" {
-                        println!("Server running in threadsafe mode");
-                        Some(RwLock::new(()))
-                    } else {
-                        None
-                    }
-                }),
+            semaphore,
+            lock,
         }
     }
 }
@@ -124,7 +117,7 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let access = match &self.config.public_key {
+        let access = match &self.config.auth.public_key {
             Some(public_key) => {
                 let presented_access = req
                     .header(AUTHORIZATION)
@@ -132,7 +125,7 @@ where
                 match presented_access {
                     Some(access) => access,
                     None => {
-                        if self.config.enabled_for_reads {
+                        if self.config.auth.enabled_for_reads {
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
                             Access::Ro // if read access is not required, we give read access to all requests

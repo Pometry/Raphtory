@@ -1,6 +1,7 @@
 use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
 use crate::config::{
-    cache_config::CacheConfig, log_config::LoggingConfig, otlp_config::TracingConfig,
+    cache_config::CacheConfig, concurrency_config::ConcurrencyConfig, log_config::LoggingConfig,
+    otlp_config::TracingConfig,
 };
 use config::{Config, ConfigError, File};
 use serde::{Deserialize, Serialize};
@@ -16,6 +17,7 @@ pub struct AppConfig {
     pub cache: CacheConfig,
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
+    pub concurrency: ConcurrencyConfig,
     pub public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     pub index: IndexConfig,
@@ -26,6 +28,7 @@ pub struct AppConfigBuilder {
     cache: CacheConfig,
     tracing: TracingConfig,
     auth: AuthConfig,
+    concurrency: ConcurrencyConfig,
     public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     index: IndexConfig,
@@ -38,6 +41,7 @@ impl From<AppConfig> for AppConfigBuilder {
             cache: config.cache,
             tracing: config.tracing,
             auth: config.auth,
+            concurrency: config.concurrency,
             public_dir: config.public_dir,
             #[cfg(feature = "search")]
             index: config.index,
@@ -111,6 +115,16 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_heavy_query_limit(mut self, heavy_query_limit: Option<usize>) -> Self {
+        self.concurrency.heavy_query_limit = heavy_query_limit;
+        self
+    }
+
+    pub fn with_exclusive_writes(mut self, exclusive_writes: bool) -> Self {
+        self.concurrency.exclusive_writes = exclusive_writes;
+        self
+    }
+
     pub fn with_public_dir(mut self, public_dir: Option<PathBuf>) -> Self {
         self.public_dir = public_dir;
         self
@@ -128,6 +142,7 @@ impl AppConfigBuilder {
             cache: self.cache,
             tracing: self.tracing,
             auth: self.auth,
+            concurrency: self.concurrency,
             public_dir: self.public_dir,
             #[cfg(feature = "search")]
             index: self.index,
@@ -197,6 +212,15 @@ pub fn load_config(
     }
     if let Ok(enabled_for_reads) = settings.get::<bool>("auth.enabled_for_reads") {
         app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
+    }
+
+    if let Ok(heavy_query_limit) =
+        settings.get::<Option<usize>>("concurrency.heavy_query_limit")
+    {
+        app_config_builder = app_config_builder.with_heavy_query_limit(heavy_query_limit);
+    }
+    if let Ok(exclusive_writes) = settings.get::<bool>("concurrency.exclusive_writes") {
+        app_config_builder = app_config_builder.with_exclusive_writes(exclusive_writes);
     }
 
     if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {
