@@ -1,7 +1,7 @@
 use super::auth_config::{AuthConfig, PublicKeyError, PUBLIC_KEY_DECODING_ERR_MSG};
 use crate::config::{
     cache_config::CacheConfig, concurrency_config::ConcurrencyConfig, log_config::LoggingConfig,
-    otlp_config::TracingConfig,
+    otlp_config::TracingConfig, schema_config::SchemaConfig,
 };
 use config::{Config, ConfigError, File};
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,7 @@ pub struct AppConfig {
     pub tracing: TracingConfig,
     pub auth: AuthConfig,
     pub concurrency: ConcurrencyConfig,
+    pub schema: SchemaConfig,
     pub public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     pub index: IndexConfig,
@@ -29,6 +30,7 @@ pub struct AppConfigBuilder {
     tracing: TracingConfig,
     auth: AuthConfig,
     concurrency: ConcurrencyConfig,
+    schema: SchemaConfig,
     public_dir: Option<PathBuf>,
     #[cfg(feature = "search")]
     index: IndexConfig,
@@ -42,6 +44,7 @@ impl From<AppConfig> for AppConfigBuilder {
             tracing: config.tracing,
             auth: config.auth,
             concurrency: config.concurrency,
+            schema: config.schema,
             public_dir: config.public_dir,
             #[cfg(feature = "search")]
             index: config.index,
@@ -125,6 +128,34 @@ impl AppConfigBuilder {
         self
     }
 
+    pub fn with_max_query_depth(mut self, max_query_depth: Option<usize>) -> Self {
+        self.schema.max_query_depth = max_query_depth;
+        self
+    }
+
+    pub fn with_max_query_complexity(mut self, max_query_complexity: Option<usize>) -> Self {
+        self.schema.max_query_complexity = max_query_complexity;
+        self
+    }
+
+    pub fn with_max_recursive_depth(mut self, max_recursive_depth: Option<usize>) -> Self {
+        self.schema.max_recursive_depth = max_recursive_depth;
+        self
+    }
+
+    pub fn with_max_directives_per_field(
+        mut self,
+        max_directives_per_field: Option<usize>,
+    ) -> Self {
+        self.schema.max_directives_per_field = max_directives_per_field;
+        self
+    }
+
+    pub fn with_disable_introspection(mut self, disable_introspection: bool) -> Self {
+        self.schema.disable_introspection = disable_introspection;
+        self
+    }
+
     pub fn with_public_dir(mut self, public_dir: Option<PathBuf>) -> Self {
         self.public_dir = public_dir;
         self
@@ -143,6 +174,7 @@ impl AppConfigBuilder {
             tracing: self.tracing,
             auth: self.auth,
             concurrency: self.concurrency,
+            schema: self.schema,
             public_dir: self.public_dir,
             #[cfg(feature = "search")]
             index: self.index,
@@ -214,13 +246,30 @@ pub fn load_config(
         app_config_builder = app_config_builder.with_auth_enabled_for_reads(enabled_for_reads);
     }
 
-    if let Ok(heavy_query_limit) =
-        settings.get::<Option<usize>>("concurrency.heavy_query_limit")
-    {
+    if let Ok(heavy_query_limit) = settings.get::<Option<usize>>("concurrency.heavy_query_limit") {
         app_config_builder = app_config_builder.with_heavy_query_limit(heavy_query_limit);
     }
     if let Ok(exclusive_writes) = settings.get::<bool>("concurrency.exclusive_writes") {
         app_config_builder = app_config_builder.with_exclusive_writes(exclusive_writes);
+    }
+
+    if let Ok(max_query_depth) = settings.get::<Option<usize>>("schema.max_query_depth") {
+        app_config_builder = app_config_builder.with_max_query_depth(max_query_depth);
+    }
+    if let Ok(max_query_complexity) = settings.get::<Option<usize>>("schema.max_query_complexity") {
+        app_config_builder = app_config_builder.with_max_query_complexity(max_query_complexity);
+    }
+    if let Ok(max_recursive_depth) = settings.get::<Option<usize>>("schema.max_recursive_depth") {
+        app_config_builder = app_config_builder.with_max_recursive_depth(max_recursive_depth);
+    }
+    if let Ok(max_directives_per_field) =
+        settings.get::<Option<usize>>("schema.max_directives_per_field")
+    {
+        app_config_builder =
+            app_config_builder.with_max_directives_per_field(max_directives_per_field);
+    }
+    if let Ok(disable_introspection) = settings.get::<bool>("schema.disable_introspection") {
+        app_config_builder = app_config_builder.with_disable_introspection(disable_introspection);
     }
 
     if let Ok(public_dir) = settings.get::<Option<PathBuf>>("public_dir") {

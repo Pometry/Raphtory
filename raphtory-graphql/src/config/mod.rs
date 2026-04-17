@@ -6,6 +6,7 @@ pub mod concurrency_config;
 pub mod index_config;
 pub mod log_config;
 pub mod otlp_config;
+pub mod schema_config;
 
 #[cfg(test)]
 mod tests {

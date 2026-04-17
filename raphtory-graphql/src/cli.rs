@@ -11,6 +11,7 @@ use crate::{
             TracingLevel, DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT,
             DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
         },
+        schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
     model::App,
     server::DEFAULT_PORT,
@@ -95,6 +96,46 @@ struct ServerArgs {
     )]
     exclusive_writes: bool,
 
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_QUERY_DEPTH",
+        default_value = None,
+        help = "Limits how deeply nested a query can be."
+    )]
+    max_query_depth: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_QUERY_COMPLEXITY",
+        default_value = None,
+        help = "Limits the total estimated cost of a query based on the number of fields selected. Blocks queries that try to fetch too much data in one request."
+    )]
+    max_query_complexity: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_RECURSIVE_DEPTH",
+        default_value = None,
+        help = "Internal safety limit to prevent stack overflows from pathologically structured queries. Falls back to the async-graphql default of 32 if unset."
+    )]
+    max_recursive_depth: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_DIRECTIVES_PER_FIELD",
+        default_value = None,
+        help = "Limits the number of GraphQL directives on any single field. Directives are annotations prefixed with @ that modify how a field is executed (e.g. @skip, @include, @deprecated)."
+    )]
+    max_directives_per_field: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_INTROSPECTION",
+        default_value_t = DEFAULT_DISABLE_INTROSPECTION,
+        help = "Fully disable schema introspection, preventing clients from discovering the API's structure and available fields. Recommended for production."
+    )]
+    disable_introspection: bool,
+
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None, help = "Public directory path")]
     public_dir: Option<PathBuf>,
 
@@ -133,7 +174,12 @@ where
                 .with_public_dir(server_args.public_dir)
                 .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads)
                 .with_heavy_query_limit(server_args.heavy_query_limit)
-                .with_exclusive_writes(server_args.exclusive_writes);
+                .with_exclusive_writes(server_args.exclusive_writes)
+                .with_max_query_depth(server_args.max_query_depth)
+                .with_max_query_complexity(server_args.max_query_complexity)
+                .with_max_recursive_depth(server_args.max_recursive_depth)
+                .with_max_directives_per_field(server_args.max_directives_per_field)
+                .with_disable_introspection(server_args.disable_introspection);
 
             #[cfg(feature = "search")]
             {
