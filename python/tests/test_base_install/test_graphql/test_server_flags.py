@@ -120,6 +120,26 @@ LIST_QUERIES = [
         '{ graph(path: "g") { node(name: "ben") { history { intervals { list } } } } }',
     ),
     (
+        "GqlHistory.listRev",
+        '{ graph(path: "g") { node(name: "ben") { history { listRev { timestamp } } } } }',
+    ),
+    (
+        "GqlHistoryTimestamp.listRev",
+        '{ graph(path: "g") { node(name: "ben") { history { timestamps { listRev } } } } }',
+    ),
+    (
+        "GqlHistoryDateTime.listRev",
+        '{ graph(path: "g") { node(name: "ben") { history { datetimes { listRev } } } } }',
+    ),
+    (
+        "GqlHistoryEventId.listRev",
+        '{ graph(path: "g") { node(name: "ben") { history { eventId { listRev } } } } }',
+    ),
+    (
+        "GqlIntervals.listRev",
+        '{ graph(path: "g") { node(name: "ben") { history { intervals { listRev } } } } }',
+    ),
+    (
         "GqlGraphWindowSet",
         '{ graph(path: "g") { rolling(window: {epoch: 1}) { list { earliestTime { timestamp } } } } }',
     ),
@@ -177,6 +197,26 @@ PAGE_QUERIES = [
     (
         "GqlIntervals",
         '{ graph(path: "g") { node(name: "ben") { history { intervals { page(limit: 50) } } } } }',
+    ),
+    (
+        "GqlHistory.pageRev",
+        '{ graph(path: "g") { node(name: "ben") { history { pageRev(limit: 50) { timestamp } } } } }',
+    ),
+    (
+        "GqlHistoryTimestamp.pageRev",
+        '{ graph(path: "g") { node(name: "ben") { history { timestamps { pageRev(limit: 50) } } } } }',
+    ),
+    (
+        "GqlHistoryDateTime.pageRev",
+        '{ graph(path: "g") { node(name: "ben") { history { datetimes { pageRev(limit: 50) } } } } }',
+    ),
+    (
+        "GqlHistoryEventId.pageRev",
+        '{ graph(path: "g") { node(name: "ben") { history { eventId { pageRev(limit: 50) } } } } }',
+    ),
+    (
+        "GqlIntervals.pageRev",
+        '{ graph(path: "g") { node(name: "ben") { history { intervals { pageRev(limit: 50) } } } } }',
     ),
     (
         "GqlGraphWindowSet",
@@ -292,9 +332,7 @@ def test_max_recursive_depth():
         client.query('{ graph(path: "g") { created } }')
 
         with pytest.raises(Exception) as excinfo:
-            client.query(
-                '{ graph(path: "g") { nodes { page(limit: 1) { name } } } }'
-            )
+            client.query('{ graph(path: "g") { nodes { page(limit: 1) { name } } } }')
         assert "recursion depth of the query cannot be greater than `2`" in str(
             excinfo.value
         )
