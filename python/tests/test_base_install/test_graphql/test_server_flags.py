@@ -282,15 +282,57 @@ def test_max_batch_size():
         assert "Batch size 3 exceeds the maximum allowed 2" in str(body)
 
 
-def test_flags_smoke():
-    """Server accepts the remaining concurrency/schema knobs and still serves queries."""
+def test_max_recursive_depth():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir, max_recursive_depth=2).start():
+        client = RaphtoryClient(SERVER_URL)
+        make_graph(client)
+
+        # depth 2: { graph { created } } — root selection set is depth 0, graph{...} pushes to 1
+        client.query('{ graph(path: "g") { created } }')
+
+        with pytest.raises(Exception) as excinfo:
+            client.query(
+                '{ graph(path: "g") { nodes { page(limit: 1) { name } } } }'
+            )
+        assert "recursion depth of the query cannot be greater than `2`" in str(
+            excinfo.value
+        )
+
+
+def test_max_directives_per_field():
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir, max_directives_per_field=1).start():
+        client = RaphtoryClient(SERVER_URL)
+
+        # 1 directive — allowed
+        client.query("{ version @skip(if: false) }")
+
+        # 2 directives on one field — rejected
+        with pytest.raises(Exception) as excinfo:
+            client.query("{ version @skip(if: false) @include(if: true) }")
+        assert (
+            "number of directives on the field `version` cannot be greater than `1`"
+            in str(excinfo.value)
+        )
+
+
+# heavy_query_limit and exclusive_writes are concurrency knobs. Their effects only show
+# up under parallel load (semaphore-parked queries, write/read serialization), and
+# timing-based tests are flaky in CI. This smoke test at least verifies the flags are
+# accepted and normal queries still pass through.
+def test_concurrency_flags_smoke():
     work_dir = tempfile.mkdtemp()
     with GraphServer(
         work_dir,
         heavy_query_limit=4,
         exclusive_writes=True,
-        max_recursive_depth=64,
-        max_directives_per_field=2,
     ).start():
         client = RaphtoryClient(SERVER_URL)
-        assert client.query("{ version }")["version"]
+        make_graph(client)
+        # Read path: works under exclusive_writes's read lock.
+        assert client.query('{ graph(path: "g") { nodes { count } } }')
+        # Heavy traversal: goes through the semaphore.
+        assert client.query(
+            '{ graph(path: "g") { nodes { page(limit: 10) { neighbours { page(limit: 10) { name } } } } } }'
+        )
