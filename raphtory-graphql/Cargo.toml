@@ -31,6 +31,7 @@ once_cell = { workspace = true }
 poem = { workspace = true }
 tokio = { workspace = true }
 async-graphql = { workspace = true, features = ["apollo_tracing"] }
+async-graphql-value = { workspace = true }
 dynamic-graphql = { workspace = true }
 async-graphql-poem = { workspace = true }
 futures-util = { workspace = true }

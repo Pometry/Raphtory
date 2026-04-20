@@ -1,5 +1,6 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
+    collection_guard::CollectionGuard,
     config::app_config::{load_config, AppConfig},
     data::Data,
     model::{
@@ -250,8 +251,10 @@ impl GraphServer {
         let schema_cfg = &self.config.schema;
         let mut schema_builder = App::create_schema()
             .data(self.data.clone())
-            .data(self.config.concurrency.clone())
             .extension(MutationAuth);
+        if let Some(guard) = CollectionGuard::from_config(&self.config.concurrency) {
+            schema_builder = schema_builder.extension(guard);
+        }
         if let Some(depth) = schema_cfg.max_query_depth {
             schema_builder = schema_builder.limit_depth(depth);
         }

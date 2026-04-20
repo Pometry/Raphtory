@@ -6569,6 +6569,7 @@ dependencies = [
  "arrow-array",
  "async-graphql",
  "async-graphql-poem",
+ "async-graphql-value",
  "base64 0.22.1",
  "base64-compat",
  "bigdecimal",

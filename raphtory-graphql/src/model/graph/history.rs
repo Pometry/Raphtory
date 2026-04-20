@@ -1,11 +1,8 @@
 use crate::{
-    model::graph::{
-        collection::{check_list_allowed, check_page_limit},
-        timeindex::{dt_format_str_is_valid, GqlEventTime},
-    },
+    model::graph::timeindex::{dt_format_str_is_valid, GqlEventTime},
     rayon::blocking_compute,
 };
-use async_graphql::{Context, Error};
+use async_graphql::Error;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::db::api::view::history::{
     History, HistoryDateTime, HistoryEventId, HistoryTimestamp, InternalHistoryOps, Intervals,
@@ -53,20 +50,15 @@ impl GqlHistory {
     }
 
     /// List all time entries present in this history.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEventTime>> {
-        check_list_allowed(ctx)?;
+    async fn list(&self) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await)
+        blocking_compute(move || self_clone.history.iter().map(|t| t.into()).collect()).await
     }
 
     /// List all time entries present in this history in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEventTime>> {
-        check_list_allowed(ctx)?;
+    async fn list_rev(&self) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
-        Ok(
-            blocking_compute(move || self_clone.history.iter_rev().map(|t| t.into()).collect())
-                .await,
-        )
+        blocking_compute(move || self_clone.history.iter_rev().map(|t| t.into()).collect()).await
     }
 
     /// Fetch one page of EventTime entries with a number of items up to a specified limit,
@@ -76,14 +68,12 @@ impl GqlHistory {
     /// will be returned.
     async fn page(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<GqlEventTime>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .history
@@ -93,7 +83,7 @@ impl GqlHistory {
                 .map(|t| t.into())
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// Fetch one page of EventTime entries with a number of items up to a specified limit,
@@ -103,14 +93,12 @@ impl GqlHistory {
     /// will be returned.
     async fn page_rev(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<GqlEventTime>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<GqlEventTime> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .history
@@ -120,7 +108,7 @@ impl GqlHistory {
                 .map(|t| t.into())
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// Returns True if the history is empty.
@@ -188,17 +176,15 @@ pub struct GqlHistoryTimestamp {
 #[ResolvedObjectFields]
 impl GqlHistoryTimestamp {
     /// List all timestamps.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
-        check_list_allowed(ctx)?;
+    async fn list(&self) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.history_t.collect()).await)
+        blocking_compute(move || self_clone.history_t.collect()).await
     }
 
     /// List all timestamps in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
-        check_list_allowed(ctx)?;
+    async fn list_rev(&self) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.history_t.collect_rev()).await)
+        blocking_compute(move || self_clone.history_t.collect_rev()).await
     }
 
     /// Fetch one page of timestamps with a number of items up to a specified limit, optionally offset by a specified amount.
@@ -208,14 +194,12 @@ impl GqlHistoryTimestamp {
     /// will be returned.
     async fn page(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<i64>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .history_t
@@ -224,7 +208,7 @@ impl GqlHistoryTimestamp {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// Fetch one page of timestamps in reverse order with a number of items up to a specified limit,
@@ -234,14 +218,12 @@ impl GqlHistoryTimestamp {
     /// will be returned.
     async fn page_rev(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<i64>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .history_t
@@ -250,7 +232,7 @@ impl GqlHistoryTimestamp {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await
     }
 }
 
@@ -267,12 +249,7 @@ impl GqlHistoryDateTime {
     /// List all datetimes formatted as strings.
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
-    async fn list(
-        &self,
-        ctx: &Context<'_>,
-        filter_broken: Option<bool>,
-    ) -> Result<Vec<String>, Error> {
-        check_list_allowed(ctx)?;
+    async fn list(&self, filter_broken: Option<bool>) -> Result<Vec<String>, Error> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
@@ -303,12 +280,7 @@ impl GqlHistoryDateTime {
     /// List all datetimes formatted as strings in reverse chronological order.
     /// If filter_broken is set to True, time conversion errors will be ignored. If set to False, a TimeError
     /// will be raised on time conversion error. Defaults to False.
-    async fn list_rev(
-        &self,
-        ctx: &Context<'_>,
-        filter_broken: Option<bool>,
-    ) -> Result<Vec<String>, Error> {
-        check_list_allowed(ctx)?;
+    async fn list_rev(&self, filter_broken: Option<bool>) -> Result<Vec<String>, Error> {
         let self_clone = self.clone();
         blocking_compute(move || {
             let fmt_string = self_clone.format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
@@ -345,13 +317,11 @@ impl GqlHistoryDateTime {
     /// will be returned.
     async fn page(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
         filter_broken: Option<bool>,
     ) -> Result<Vec<String>, Error> {
-        check_page_limit(ctx, limit)?;
         let self_clone = self.clone();
         blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
@@ -392,13 +362,11 @@ impl GqlHistoryDateTime {
     /// will be returned.
     async fn page_rev(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
         filter_broken: Option<bool>,
     ) -> Result<Vec<String>, Error> {
-        check_page_limit(ctx, limit)?;
         let self_clone = self.clone();
         blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
@@ -441,31 +409,29 @@ pub struct GqlHistoryEventId {
 #[ResolvedObjectFields]
 impl GqlHistoryEventId {
     /// List event ids.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<u64>> {
-        check_list_allowed(ctx)?;
+    async fn list(&self) -> Vec<u64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             self_clone
                 .history_s
                 .iter()
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// List event ids in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<u64>> {
-        check_list_allowed(ctx)?;
+    async fn list_rev(&self) -> Vec<u64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             self_clone
                 .history_s
                 .iter_rev()
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// Fetch one page of event ids with a number of items up to a specified limit,
@@ -475,14 +441,12 @@ impl GqlHistoryEventId {
     /// will be returned.
     async fn page(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<u64>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<u64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .history_s
@@ -492,7 +456,7 @@ impl GqlHistoryEventId {
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// Fetch one page of event ids in reverse chronological order with a number of items up to a specified limit,
@@ -502,14 +466,12 @@ impl GqlHistoryEventId {
     /// will be returned.
     async fn page_rev(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<u64>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<u64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .history_s
@@ -519,7 +481,7 @@ impl GqlHistoryEventId {
                 .map(|s: usize| s as u64)
                 .collect()
         })
-        .await)
+        .await
     }
 }
 
@@ -533,17 +495,15 @@ pub struct GqlIntervals {
 #[ResolvedObjectFields]
 impl GqlIntervals {
     /// List time intervals between consecutive timestamps in milliseconds.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
-        check_list_allowed(ctx)?;
+    async fn list(&self) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.intervals.collect()).await)
+        blocking_compute(move || self_clone.intervals.collect()).await
     }
 
     /// List millisecond time intervals between consecutive timestamps in reverse order.
-    async fn list_rev(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<i64>> {
-        check_list_allowed(ctx)?;
+    async fn list_rev(&self) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.intervals.collect_rev()).await)
+        blocking_compute(move || self_clone.intervals.collect_rev()).await
     }
 
     /// Fetch one page of intervals between consecutive timestamps with a number of items up to a specified limit,
@@ -553,14 +513,12 @@ impl GqlIntervals {
     /// will be returned.
     async fn page(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<i64>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .intervals
@@ -569,7 +527,7 @@ impl GqlIntervals {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// Fetch one page of intervals between consecutive timestamps in reverse order with a number of items up to a specified limit,
@@ -579,14 +537,12 @@ impl GqlIntervals {
     /// will be returned.
     async fn page_rev(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<i64>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<i64> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone
                 .intervals
@@ -595,7 +551,7 @@ impl GqlIntervals {
                 .take(limit)
                 .collect()
         })
-        .await)
+        .await
     }
 
     /// Compute the mean interval between consecutive timestamps. Returns None if fewer than 1 timestamp.

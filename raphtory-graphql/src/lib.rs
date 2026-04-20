@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 mod auth;
 pub mod client;
+mod collection_guard;
 pub mod data;
 mod graph;
 pub mod model;

@@ -262,15 +262,18 @@ def test_disable_lists_all_resolvers():
 
 
 def test_disable_lists_page_still_works():
-    """Even with `disable_lists=True`, `page` queries still succeed."""
+    """Even with `disable_lists=True`, every `page` resolver still succeeds."""
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, disable_lists=True).start():
         client = RaphtoryClient(SERVER_URL)
         make_graph(client)
-        result = client.query(
-            '{ graph(path: "g") { nodes { page(limit: 10) { name } } } }'
-        )
-        assert len(result["graph"]["nodes"]["page"]) == 3
+        for name, query in PAGE_QUERIES:
+            try:
+                client.query(query)
+            except Exception as e:
+                raise AssertionError(
+                    f"{name} unexpectedly failed while lists are disabled: {e}"
+                )
 
 
 def test_max_page_size_all_resolvers():
@@ -289,15 +292,18 @@ def test_max_page_size_all_resolvers():
 
 
 def test_max_page_size_under_cap_works():
-    """Pages at or below max_page_size still succeed."""
+    """With max_page_size=51, the same PAGE_QUERIES (all using limit=50) all succeed."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_page_size=2).start():
+    with GraphServer(work_dir, max_page_size=51).start():
         client = RaphtoryClient(SERVER_URL)
         make_graph(client)
-        result = client.query(
-            '{ graph(path: "g") { nodes { page(limit: 2) { name } } } }'
-        )
-        assert len(result["graph"]["nodes"]["page"]) == 2
+        for name, query in PAGE_QUERIES:
+            try:
+                client.query(query)
+            except Exception as e:
+                raise AssertionError(
+                    f"{name} unexpectedly failed under max_page_size=51: {e}"
+                )
 
 
 def test_disable_batching():

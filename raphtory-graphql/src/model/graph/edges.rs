@@ -1,7 +1,6 @@
 use crate::{
     model::{
         graph::{
-            collection::{check_list_allowed, check_page_limit},
             edge::GqlEdge,
             filtering::EdgesViewCollection,
             timeindex::{GqlEventTime, GqlTimeInput},
@@ -12,7 +11,6 @@ use crate::{
     },
     rayon::blocking_compute,
 };
-use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
@@ -346,25 +344,22 @@ impl GqlEdges {
     /// will be returned.
     async fn page(
         &self,
-        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> async_graphql::Result<Vec<GqlEdge>> {
-        check_page_limit(ctx, limit)?;
+    ) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || {
+        blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone.iter().skip(start).take(limit).collect()
         })
-        .await)
+        .await
     }
 
     /// Returns a list of all objects in the current selection of the collection. You should filter the collection first then call list.
-    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdge>> {
-        check_list_allowed(ctx)?;
+    async fn list(&self) -> Vec<GqlEdge> {
         let self_clone = self.clone();
-        Ok(blocking_compute(move || self_clone.iter().collect()).await)
+        blocking_compute(move || self_clone.iter().collect()).await
     }
 
     /// Returns a filtered view that applies to list down the chain
