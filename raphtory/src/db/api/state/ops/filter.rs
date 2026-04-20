@@ -200,6 +200,29 @@ where
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) || self.right.apply(storage, node)
     }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.left.domain(storage).union(&self.right.domain(storage))
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(left), Some(right)) => Some(left || right),
+            _ => None,
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match (
+            self.left.const_value_in_domain(),
+            self.right.const_value_in_domain(),
+        ) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(left), Some(right)) => Some(left || right),
+            _ => None,
+        }
+    }
 }
 
 impl<L, R> IntoDynNodeOp for OrOp<L, R> where Self: NodeOp + 'static {}
@@ -219,6 +242,31 @@ where
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) && self.right.apply(storage, node)
+    }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.left
+            .domain(storage)
+            .intersection(&self.right.domain(storage))
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(left), Some(right)) => Some(left && right),
+            _ => None,
+        }
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match (
+            self.left.const_value_in_domain(),
+            self.right.const_value_in_domain(),
+        ) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(left), Some(right)) => Some(left && right),
+            _ => None,
+        }
     }
 }
 
