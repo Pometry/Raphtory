@@ -407,7 +407,7 @@ where
         WriteLockedGraph::new(self)
     }
 
-    pub fn update_time(&self, earliest: EventTime) {
+    pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
 }

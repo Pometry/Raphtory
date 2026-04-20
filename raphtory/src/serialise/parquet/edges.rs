@@ -11,6 +11,7 @@ use raphtory_storage::{
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
 };
 use std::path::Path;
+use either::Either;
 
 pub(crate) fn encode_edge_tprop(
     g: &GraphStorage,
@@ -41,7 +42,7 @@ pub(crate) fn encode_edge_tprop(
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|eid| {
-                    let edge_ref = g.core_edge(eid).out_ref();
+                    let edge_ref = g.core_edge(Either::Left(eid)).out_ref();
                     EdgeView::new(g, edge_ref).explode()
                 })
                 .map(ParquetTEdge)
@@ -152,7 +153,7 @@ pub(crate) fn encode_edge_cprop(
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|eid| {
-                    let edge_ref = g.core_edge(eid).out_ref();
+                    let edge_ref = g.core_edge(Either::Left(eid)).out_ref();
                     let edges_in_layers = EdgeView::new(g, edge_ref)
                         .explode_layers()
                         .into_iter()
