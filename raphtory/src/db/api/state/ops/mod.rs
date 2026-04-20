@@ -30,7 +30,7 @@ pub trait NodeOp: Send + Sync {
 
     /// Returns `Some(value)` if the node op has a constant value over the domain
     fn const_value_in_domain(&self) -> Option<Self::Output> {
-        None
+        self.const_value()
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
