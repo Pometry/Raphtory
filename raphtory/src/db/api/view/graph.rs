@@ -383,7 +383,7 @@ pub fn materialize_using_recordbatches(
     let graph_storage = GraphStorage::from(Arc::new(temporal_graph));
     let materialized = graph.new_base_graph(graph_storage);
 
-    let stream_capacity = 20;
+    let stream_capacity = 10;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
     if let Some(max_eid) = graph.edges().iter().map(|edge| edge.edge.pid().0).max() {

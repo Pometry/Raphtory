@@ -753,6 +753,8 @@ fn test_current() {
     let parquet_decode_graph_path = default_materialized_graphs_path().join("parquet_decode_sf10");
     let materialize_graph_path = default_materialized_graphs_path().join("rb_materialize_sf10");
 
+    let materialize_duration = get_new_materialize_time(&graph_path, &materialize_graph_path);
+
     let parquet_dump_duration = get_parquet_encode_time(&graph_path, &parquet_path);
 
     let parquet_loader_duration =
@@ -760,8 +762,6 @@ fn test_current() {
 
     let parquet_decode_duration =
         get_parquet_decode_time(&graph_path, &parquet_path, &parquet_decode_graph_path);
-
-    let materialize_duration = get_new_materialize_time(&graph_path, &materialize_graph_path);
 
     println!(
         "Summary:\n  encode_parquet: {:?}\n  parquet loaders replay: {:?}\n  decode_parquet: {:?}\n  materialize_using_recordbatches: {:?}",
