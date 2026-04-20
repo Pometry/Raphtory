@@ -202,7 +202,11 @@ where
     }
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {
-        self.left.domain(storage).union(&self.right.domain(storage))
+        if matches!(self.const_value_in_domain(), Some(false)) {
+            NodeList::empty()
+        } else {
+            self.left.domain(storage).union(&self.right.domain(storage))
+        }
     }
 
     fn const_value_in_domain(&self) -> Option<Self::Output> {
@@ -245,9 +249,13 @@ where
     }
 
     fn domain(&self, storage: &GraphStorage) -> NodeList {
-        self.left
-            .domain(storage)
-            .intersection(&self.right.domain(storage))
+        if matches!(self.const_value_in_domain(), Some(false)) {
+            NodeList::empty()
+        } else {
+            self.left
+                .domain(storage)
+                .intersection(&self.right.domain(storage))
+        }
     }
 
     fn const_value(&self) -> Option<Self::Output> {

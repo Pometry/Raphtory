@@ -75,6 +75,12 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
     pub fn unfiltered(&self) -> bool {
         matches!(self, List::All)
     }
+
+    pub fn empty() -> Self {
+        List::List {
+            elems: Index::default(),
+        }
+    }
 }
 
 impl List<VID> {
