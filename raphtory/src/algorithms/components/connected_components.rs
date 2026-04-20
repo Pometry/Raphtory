@@ -1,22 +1,14 @@
 use crate::{
-    db::{
-        api::{
-            state::{GenericNodeState, Index, TypedNodeState},
-            view::{internal::GraphView, NodeViewOps, StaticGraphViewOps},
-        },
-        graph::node::NodeView,
+    db::api::{
+        state::{GenericNodeState, Index, TypedNodeState},
+        view::{NodeViewOps, StaticGraphViewOps},
     },
     prelude::GraphViewOps,
 };
 use disjoint_sets::AUnionFind;
-use raphtory_api::core::entities::VID;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Debug, Formatter},
-    mem,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::fmt::Debug;
 
 #[derive(Copy, Clone, PartialEq, Serialize, Deserialize, Debug, Default, Hash, Eq)]
 pub struct ConnectedComponent {

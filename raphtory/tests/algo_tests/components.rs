@@ -530,7 +530,6 @@ mod components_test {
         prelude::*,
         test_storage,
     };
-    use raphtory_api::core::entities::VID;
     use std::collections::HashMap;
 
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
