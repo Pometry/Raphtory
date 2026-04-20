@@ -52,9 +52,11 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
         g.node_meta().temporal_prop_mapper(),
         get_nodes_par_iter(g, &nodes_locked),
         sink_factory_fn,
-        |_| {
+        |id_type| {
             vec![
+                Field::new(NODE_ID_COL, id_type.clone(), false),
                 Field::new(NODE_VID_COL, DataType::UInt64, false),
+                Field::new(TYPE_COL, DataType::Utf8, true),
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
             ]
@@ -70,7 +72,9 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                     GenLockedIter::from(node, |node| {
                         node.rows()
                             .map(|(t, props)| ParquetTNode {
+                                export_id: node.id(),
                                 export_vid: node.node.0,
+                                export_node_type: node.node_type(),
                                 cols,
                                 t,
                                 props,

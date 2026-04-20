@@ -47,12 +47,14 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
         g.edge_meta().temporal_prop_mapper(),
         get_edges_par_iter(g, &edges_locked),
         sink_factory_fn,
-        |_| {
+        |id_type| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(SRC_COL_ID, DataType::UInt64, false),
-                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(SRC_COL_VID, DataType::UInt64, false),
+                Field::new(SRC_COL_ID, id_type.clone(), false),
+                Field::new(DST_COL_VID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, id_type.clone(), false),
                 Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
                 Field::new(LAYER_ID_COL, DataType::UInt64, true),
@@ -62,12 +64,17 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode())
-                .map(|edge| ParquetTEdge {
-                    edge,
-                    export_src_vid: edge.src().node.0,
-                    export_dst_vid: edge.dst().node.0,
-                    export_eid: edge.edge.pid(),
-                    export_layer_id: edge.edge.layer(),
+                .map(|edge| {
+                    let (export_src_id, export_dst_id) = edge.id();
+                    ParquetTEdge {
+                        edge,
+                        export_src_vid: edge.src().node.0,
+                        export_src_id,
+                        export_dst_vid: edge.dst().node.0,
+                        export_dst_id,
+                        export_eid: edge.edge.pid(),
+                        export_layer_id: edge.edge.layer(),
+                    }
                 })
                 .chunks(ROW_GROUP_SIZE)
                 .into_iter()
@@ -94,12 +101,14 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
         g.edge_meta().temporal_prop_mapper(),
         get_edges_par_iter(g, &edges_locked),
         sink_factory_fn,
-        |_| {
+        |id_type| {
             vec![
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(SRC_COL_ID, DataType::UInt64, false),
-                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(SRC_COL_VID, DataType::UInt64, false),
+                Field::new(SRC_COL_ID, id_type.clone(), false),
+                Field::new(DST_COL_VID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, id_type.clone(), false),
                 Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
                 Field::new(LAYER_ID_COL, DataType::UInt64, true),
@@ -110,16 +119,19 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
                 .into_iter()
                 .flat_map(|e| e.explode_layers())
                 .flat_map(|edge| {
-                    edge.deletions()
-                        .into_iter()
-                        .map(move |deletion| ParquetDelEdge {
+                    edge.deletions().into_iter().map(move |deletion| {
+                        let (export_src_id, export_dst_id) = edge.id();
+                        ParquetDelEdge {
                             edge,
                             del: deletion,
                             export_src_vid: edge.src().node.0,
+                            export_src_id,
                             export_dst_vid: edge.dst().node.0,
+                            export_dst_id,
                             export_eid: edge.edge.pid().0,
                             export_layer_id: edge.edge.layer(),
-                        })
+                        }
+                    })
                 })
                 .chunks(ROW_GROUP_SIZE)
                 .into_iter()
@@ -146,10 +158,12 @@ pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
         g.edge_meta().metadata_mapper(),
         get_edges_par_iter(g, &edges_locked),
         sink_factory_fn,
-        |_| {
+        |id_type| {
             vec![
-                Field::new(SRC_COL_ID, DataType::UInt64, false),
-                Field::new(DST_COL_ID, DataType::UInt64, false),
+                Field::new(SRC_COL_VID, DataType::UInt64, false),
+                Field::new(SRC_COL_ID, id_type.clone(), false),
+                Field::new(DST_COL_VID, DataType::UInt64, false),
+                Field::new(DST_COL_ID, id_type.clone(), false),
                 Field::new(EDGE_COL_ID, DataType::UInt64, false),
                 Field::new(LAYER_COL, DataType::Utf8, true),
             ]
@@ -158,11 +172,16 @@ pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
             for edge_rows in edges
                 .into_iter()
                 .flat_map(|e| e.explode_layers().into_iter())
-                .map(|edge| ParquetCEdge {
-                    edge,
-                    export_src_vid: edge.src().node.0,
-                    export_dst_vid: edge.dst().node.0,
-                    export_eid: edge.edge.pid().0,
+                .map(|edge| {
+                    let (export_src_id, export_dst_id) = edge.id();
+                    ParquetCEdge {
+                        edge,
+                        export_src_vid: edge.src().node.0,
+                        export_src_id,
+                        export_dst_vid: edge.dst().node.0,
+                        export_dst_id,
+                        export_eid: edge.edge.pid().0,
+                    }
                 })
                 .chunks(ROW_GROUP_SIZE)
                 .into_iter()

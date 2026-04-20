@@ -33,8 +33,8 @@ use crate::{
     parquet_encoder::{
         encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
         encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_COL_ID,
-        EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
-        SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        DST_COL_VID, EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_COL_ID, SRC_COL_VID, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::*,
 };
@@ -355,26 +355,9 @@ pub fn materialize_using_recordbatches(
     path: Option<&Path>,
     config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
-    let mut node_meta = Meta::new_for_nodes();
-    let mut edge_meta = Meta::new_for_edges();
-    let mut graph_props_meta = Meta::new_for_graph_props();
-
-    node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
-    node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
-    edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
-    edge_meta.set_temporal_prop_mapper(graph.edge_meta().temporal_prop_mapper().deep_clone());
-    graph_props_meta.set_metadata_mapper(graph.graph_props_meta().metadata_mapper().deep_clone());
-    graph_props_meta
-        .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
-
-    let layer_meta = graph.edge_meta().layer_meta().deep_clone();
-    edge_meta.set_layer_mapper(layer_meta.deep_clone());
-    node_meta.set_layer_mapper(layer_meta);
-
-    let node_type_meta = graph.node_meta().node_type_meta();
-    for (id, name) in node_type_meta.ids().zip(node_type_meta.all_keys().iter()) {
-        node_meta.node_type_meta().set_id(name.clone(), id);
-    }
+    let node_meta = Meta::new_for_nodes();
+    let edge_meta = Meta::new_for_edges();
+    let graph_props_meta = Meta::new_for_graph_props();
 
     let ext = Extension::new(config, path)?;
     let temporal_graph = TemporalGraph::new_with_meta(
@@ -461,8 +444,8 @@ pub fn materialize_using_recordbatches(
                             NODE_ID_COL,
                             None,
                             Some(TYPE_COL),
-                            Some(NODE_VID_COL),
-                            Some(TYPE_ID_COL),
+                            None,
+                            None,
                             &node_c_props_refs,
                             None,
                             &materialized,
@@ -472,7 +455,13 @@ pub fn materialize_using_recordbatches(
                 RecordBatchKind::NodesT => {
                     let node_t_props = df_columns_except(
                         &df_view.names,
-                        &[NODE_VID_COL, TIME_COL, SECONDARY_INDEX_COL],
+                        &[
+                            NODE_ID_COL,
+                            NODE_VID_COL,
+                            TYPE_COL,
+                            TIME_COL,
+                            SECONDARY_INDEX_COL,
+                        ],
                     );
                     let node_t_props_refs =
                         node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
@@ -481,14 +470,14 @@ pub fn materialize_using_recordbatches(
                         df_view,
                         TIME_COL,
                         Some(SECONDARY_INDEX_COL),
-                        NODE_VID_COL,
+                        NODE_ID_COL,
                         &node_t_props_refs,
                         &[],
                         None,
                         None,
-                        None,
+                        Some(TYPE_COL),
                         &materialized,
-                        false,
+                        true,
                     )
                 }
                 RecordBatchKind::EdgesT => {
@@ -497,7 +486,9 @@ pub fn materialize_using_recordbatches(
                         &[
                             TIME_COL,
                             SECONDARY_INDEX_COL,
+                            SRC_COL_VID,
                             SRC_COL_ID,
+                            DST_COL_VID,
                             DST_COL_ID,
                             EDGE_COL_ID,
                             LAYER_COL,
@@ -516,10 +507,8 @@ pub fn materialize_using_recordbatches(
                                 SRC_COL_ID,
                                 DST_COL_ID,
                                 Some(LAYER_COL),
-                            )
-                            .with_layer_id_col(LAYER_ID_COL)
-                            .with_edge_id_col(EDGE_COL_ID),
-                            false,
+                            ),
+                            true,
                             &edge_t_props_refs,
                             &[],
                             None,
@@ -532,7 +521,14 @@ pub fn materialize_using_recordbatches(
                 RecordBatchKind::EdgesC => {
                     let edge_c_props = df_columns_except(
                         &df_view.names,
-                        &[SRC_COL_ID, DST_COL_ID, EDGE_COL_ID, LAYER_COL],
+                        &[
+                            SRC_COL_VID,
+                            SRC_COL_ID,
+                            DST_COL_VID,
+                            DST_COL_ID,
+                            EDGE_COL_ID,
+                            LAYER_COL,
+                        ],
                     );
                     let edge_c_props_refs =
                         edge_c_props.iter().map(String::as_str).collect::<Vec<_>>();
@@ -541,7 +537,7 @@ pub fn materialize_using_recordbatches(
                         load_edge_props_from_df(
                             df_view,
                             ColumnNames::new("", None, SRC_COL_ID, DST_COL_ID, Some(LAYER_COL)),
-                            false,
+                            true,
                             &edge_c_props_refs,
                             None,
                             None,
@@ -558,10 +554,8 @@ pub fn materialize_using_recordbatches(
                             SRC_COL_ID,
                             DST_COL_ID,
                             Some(LAYER_COL),
-                        )
-                        .with_layer_id_col(LAYER_ID_COL)
-                        .with_edge_id_col(EDGE_COL_ID),
-                        false,
+                        ),
+                        true,
                         None,
                         &materialized,
                     )

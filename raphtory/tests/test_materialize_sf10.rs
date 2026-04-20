@@ -283,10 +283,8 @@ fn test_materialize_filtered_sf1_matches() {
         Local::now()
     );
 
-    // println!("Checking RecordBatch materialized graph");
-    // assert_graph_equal_timestamps(&filtered, &recordbatch_graph);
-    println!("Checking RecordBatch vs old materialized graph");
-    assert_graph_equal_timestamps(&materialize_impl_graph, &recordbatch_graph);
+    println!("Checking RecordBatch materialized graph");
+    assert_graph_equal_timestamps(&filtered, &recordbatch_graph);
     println!("Passed!\nChecking old materialized graph");
     assert_graph_equal_timestamps(&filtered, &materialize_impl_graph);
     println!("Passed!");
@@ -396,6 +394,8 @@ const RAP_TIME_COL: &str = "rap_time";
 const RAP_SECONDARY_INDEX_COL: &str = "rap_secondary_index";
 const RAP_SRC_ID_COL: &str = "rap_src_id";
 const RAP_DST_ID_COL: &str = "rap_dst_id";
+const RAP_SRC_VID_COL: &str = "rap_src_vid";
+const RAP_DST_VID_COL: &str = "rap_dst_vid";
 const RAP_EDGE_ID_COL: &str = "rap_edge_id";
 const RAP_LAYER_COL: &str = "rap_layer";
 const RAP_LAYER_ID_COL: &str = "rap_layer_id";
@@ -582,7 +582,13 @@ fn get_parquet_df_loader_time(
     if t_node_path.exists() {
         let node_t_props = parquet_prop_columns(
             &t_node_path,
-            &[RAP_NODE_VID_COL, RAP_TIME_COL, RAP_SECONDARY_INDEX_COL],
+            &[
+                RAP_NODE_ID_COL,
+                RAP_NODE_VID_COL,
+                RAP_NODE_TYPE_COL,
+                RAP_TIME_COL,
+                RAP_SECONDARY_INDEX_COL,
+            ],
         );
         let node_t_props = node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
         let nodes_t_start = Instant::now();
@@ -616,7 +622,9 @@ fn get_parquet_df_loader_time(
             &[
                 RAP_TIME_COL,
                 RAP_SECONDARY_INDEX_COL,
+                RAP_SRC_VID_COL,
                 RAP_SRC_ID_COL,
+                RAP_DST_VID_COL,
                 RAP_DST_ID_COL,
                 RAP_LAYER_COL,
                 RAP_LAYER_ID_COL,
@@ -631,8 +639,8 @@ fn get_parquet_df_loader_time(
             ColumnNames::new(
                 RAP_TIME_COL,
                 Some(RAP_SECONDARY_INDEX_COL),
-                RAP_SRC_ID_COL,
-                RAP_DST_ID_COL,
+                RAP_SRC_VID_COL,
+                RAP_DST_VID_COL,
                 Some(RAP_LAYER_COL),
             )
             .with_layer_id_col(RAP_LAYER_ID_COL)
@@ -662,8 +670,8 @@ fn get_parquet_df_loader_time(
             ColumnNames::new(
                 RAP_TIME_COL,
                 Some(RAP_SECONDARY_INDEX_COL),
-                RAP_SRC_ID_COL,
-                RAP_DST_ID_COL,
+                RAP_SRC_VID_COL,
+                RAP_DST_VID_COL,
                 Some(RAP_LAYER_COL),
             )
             .with_layer_id_col(RAP_LAYER_ID_COL)
@@ -686,7 +694,9 @@ fn get_parquet_df_loader_time(
         let edge_c_metadata = parquet_prop_columns(
             &c_edge_path,
             &[
+                RAP_SRC_VID_COL,
                 RAP_SRC_ID_COL,
+                RAP_DST_VID_COL,
                 RAP_DST_ID_COL,
                 RAP_LAYER_COL,
                 RAP_EDGE_ID_COL,
@@ -700,8 +710,8 @@ fn get_parquet_df_loader_time(
         load_edge_metadata_from_parquet(
             &replay_graph,
             &c_edge_path,
-            RAP_SRC_ID_COL,
-            RAP_DST_ID_COL,
+            RAP_SRC_VID_COL,
+            RAP_DST_VID_COL,
             &edge_c_metadata,
             None,
             None,

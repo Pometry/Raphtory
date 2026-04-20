@@ -1,11 +1,13 @@
-use super::{Prop, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL};
+use super::{
+    Prop, DST_COL_ID, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL,
+};
 use crate::{
     db::{
         api::view::internal::GraphView,
         graph::{edge::EdgeView, node::NodeView},
     },
     parquet_encoder::{
-        DST_COL_ID, EDGE_COL_ID, LAYER_ID_COL, NODE_VID_COL, SRC_COL_ID, TYPE_ID_COL,
+        DST_COL_VID, EDGE_COL_ID, LAYER_ID_COL, NODE_VID_COL, SRC_COL_VID, TYPE_ID_COL,
     },
     prelude::*,
 };
@@ -20,14 +22,14 @@ use serde::{
 };
 
 #[derive(Debug)]
-struct ParquetGID(GID);
+struct ParquetGID<'a>(&'a GID);
 
-impl Serialize for ParquetGID {
+impl Serialize for ParquetGID<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        match &self.0 {
+        match self.0 {
             GID::U64(id) => serializer.serialize_u64(*id),
             GID::Str(id) => serializer.serialize_str(id),
         }
@@ -38,7 +40,9 @@ impl Serialize for ParquetGID {
 pub(crate) struct ParquetTEdge<'a, G: GraphView> {
     pub(crate) edge: EdgeView<&'a G>,
     pub(crate) export_src_vid: usize,
+    pub(crate) export_src_id: GID,
     pub(crate) export_dst_vid: usize,
+    pub(crate) export_dst_id: GID,
     pub(crate) export_eid: EID,
     pub(crate) export_layer_id: Option<usize>,
 }
@@ -64,8 +68,10 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
 
         state.serialize_entry(TIME_COL, &t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &t.1)?;
-        state.serialize_entry(SRC_COL_ID, &self.export_src_vid)?;
-        state.serialize_entry(DST_COL_ID, &self.export_dst_vid)?;
+        state.serialize_entry(SRC_COL_VID, &self.export_src_vid)?;
+        state.serialize_entry(SRC_COL_ID, &ParquetGID(&self.export_src_id))?;
+        state.serialize_entry(DST_COL_VID, &self.export_dst_vid)?;
+        state.serialize_entry(DST_COL_ID, &ParquetGID(&self.export_dst_id))?;
         state.serialize_entry(EDGE_COL_ID, &self.export_eid)?;
         state.serialize_entry(LAYER_COL, &layer)?;
         state.serialize_entry(LAYER_ID_COL, &layer_id)?;
@@ -82,7 +88,9 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
 pub(crate) struct ParquetCEdge<'a, G: GraphView> {
     pub(crate) edge: EdgeView<&'a G>,
     pub(crate) export_src_vid: usize,
+    pub(crate) export_src_id: GID,
     pub(crate) export_dst_vid: usize,
+    pub(crate) export_dst_id: GID,
     pub(crate) export_eid: usize,
 }
 
@@ -97,8 +105,10 @@ impl<'a, G: GraphView> Serialize for ParquetCEdge<'a, G> {
             .layer_name()
             .map_err(|_| S::Error::custom("Edge has no layer"))?;
 
-        state.serialize_entry(SRC_COL_ID, &self.export_src_vid)?;
-        state.serialize_entry(DST_COL_ID, &self.export_dst_vid)?;
+        state.serialize_entry(SRC_COL_VID, &self.export_src_vid)?;
+        state.serialize_entry(SRC_COL_ID, &ParquetGID(&self.export_src_id))?;
+        state.serialize_entry(DST_COL_VID, &self.export_dst_vid)?;
+        state.serialize_entry(DST_COL_ID, &ParquetGID(&self.export_dst_id))?;
         state.serialize_entry(EDGE_COL_ID, &self.export_eid)?;
         state.serialize_entry(LAYER_COL, &layer)?;
 
@@ -114,7 +124,9 @@ pub(crate) struct ParquetDelEdge<'a, G: GraphView> {
     pub(crate) edge: EdgeView<&'a G>,
     pub(crate) del: EventTime,
     pub(crate) export_src_vid: usize,
+    pub(crate) export_src_id: GID,
     pub(crate) export_dst_vid: usize,
+    pub(crate) export_dst_id: GID,
     pub(crate) export_eid: usize,
     pub(crate) export_layer_id: Option<usize>,
 }
@@ -136,8 +148,10 @@ impl<'a, G: GraphView> Serialize for ParquetDelEdge<'a, G> {
 
         state.serialize_entry(TIME_COL, &self.del.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.del.1)?;
-        state.serialize_entry(SRC_COL_ID, &self.export_src_vid)?;
-        state.serialize_entry(DST_COL_ID, &self.export_dst_vid)?;
+        state.serialize_entry(SRC_COL_VID, &self.export_src_vid)?;
+        state.serialize_entry(SRC_COL_ID, &ParquetGID(&self.export_src_id))?;
+        state.serialize_entry(DST_COL_VID, &self.export_dst_vid)?;
+        state.serialize_entry(DST_COL_ID, &ParquetGID(&self.export_dst_id))?;
         state.serialize_entry(EDGE_COL_ID, &self.export_eid)?;
         state.serialize_entry(LAYER_COL, &layer)?;
         state.serialize_entry(LAYER_ID_COL, &layer_id)?;
@@ -147,7 +161,9 @@ impl<'a, G: GraphView> Serialize for ParquetDelEdge<'a, G> {
 }
 
 pub(crate) struct ParquetTNode<'a> {
+    pub export_id: GID,
     pub export_vid: usize,
+    pub export_node_type: Option<ArcStr>,
     pub cols: &'a [ArcStr],
     pub t: EventTime,
     pub props: Vec<(usize, Prop)>,
@@ -160,7 +176,9 @@ impl<'a> Serialize for ParquetTNode<'a> {
     {
         let mut state = serializer.serialize_map(None)?;
 
+        state.serialize_entry(NODE_ID_COL, &ParquetGID(&self.export_id))?;
         state.serialize_entry(NODE_VID_COL, &self.export_vid)?;
+        state.serialize_entry(TYPE_COL, &self.export_node_type)?;
         state.serialize_entry(TIME_COL, &self.t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.t.1)?;
 
@@ -185,7 +203,7 @@ impl<'a, G: GraphView> Serialize for ParquetCNode<'a, G> {
     {
         let mut state = serializer.serialize_map(None)?;
 
-        state.serialize_entry(NODE_ID_COL, &ParquetGID(self.node.id()))?;
+        state.serialize_entry(NODE_ID_COL, &ParquetGID(&self.node.id()))?;
         state.serialize_entry(NODE_VID_COL, &self.export_vid)?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
         state.serialize_entry(TYPE_ID_COL, &self.export_node_type_id)?;
