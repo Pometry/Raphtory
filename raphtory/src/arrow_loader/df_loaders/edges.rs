@@ -559,7 +559,7 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
                     t_props.drain(..),
                 );
             } else {
-                writer.bulk_delete_edge(t, eid_pos, *src, *dst, exists, LayerId(layer));
+                writer.bulk_delete_edge(t, eid_pos, src, dst, exists, LayerId(layer));
             }
         }
     }

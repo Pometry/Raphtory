@@ -478,6 +478,8 @@ pub fn materialize_using_recordbatches(
                         Some(TYPE_COL),
                         &materialized,
                         true,
+                        None,
+                        None,
                     )
                 }
                 RecordBatchKind::EdgesT => {

@@ -71,7 +71,7 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         node.rows()
-                            .map(|(t, props)| ParquetTNode {
+                            .map(|(t, _, props)| ParquetTNode {
                                 export_id: node.id(),
                                 export_vid: node.node.0,
                                 export_node_type: node.node_type(),

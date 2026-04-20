@@ -73,7 +73,7 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
                         export_dst_vid: edge.dst().node.0,
                         export_dst_id,
                         export_eid: edge.edge.pid(),
-                        export_layer_id: edge.edge.layer(),
+                        export_layer_id: edge.edge.layer().map(|layer_id| layer_id.0),
                     }
                 })
                 .chunks(ROW_GROUP_SIZE)
@@ -129,7 +129,7 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
                             export_dst_vid: edge.dst().node.0,
                             export_dst_id,
                             export_eid: edge.edge.pid().0,
-                            export_layer_id: edge.edge.layer(),
+                            export_layer_id: edge.edge.layer().map(|layer_id| layer_id.0),
                         }
                     })
                 })
