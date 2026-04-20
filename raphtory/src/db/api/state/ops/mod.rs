@@ -3,7 +3,10 @@ pub mod history;
 pub mod node;
 pub mod properties;
 
-use crate::db::api::state::ops::filter::{AndOp, NotOp, OrOp};
+use crate::db::api::{
+    state::ops::filter::{AndOp, NotOp, OrOp},
+    view::internal::NodeList,
+};
 pub use history::*;
 pub use node::*;
 pub use properties::*;
@@ -15,8 +18,19 @@ use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
 
+    /// The domain of validity for this node op
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
+    /// Returns `Some(value)` if the node op has a constant global value
     fn const_value(&self) -> Option<Self::Output> {
         None
+    }
+
+    /// Returns `Some(value)` if the node op has a constant value over the domain
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        self.const_value()
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
@@ -59,6 +73,8 @@ pub type DynNodeOp<O> = Arc<dyn NodeOp<Output = O>>;
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;
 
+    fn is_domain_filtered(&self) -> bool;
+
     fn and<T>(self, other: T) -> AndOp<Self, T>;
 
     fn or<T>(self, other: T) -> OrOp<Self, T>;
@@ -70,6 +86,10 @@ impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
     fn is_filtered(&self) -> bool {
         // If there is a const true value, it is not filtered
         self.const_value().is_none_or(|v| !v)
+    }
+
+    fn is_domain_filtered(&self) -> bool {
+        self.const_value_in_domain().is_none_or(|v| !v)
     }
 
     fn and<T>(self, other: T) -> AndOp<Self, T> {

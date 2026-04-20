@@ -259,7 +259,7 @@ where
                 }
             }
             Index::Partial(nodes) => {
-                if self.is_filtered() {
+                if self.is_list_filtered() {
                     let g = self.locked_storage();
                     self.par_iter_refs(g).count()
                 } else {
@@ -320,7 +320,7 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_filtered()
+        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
     }
 
     pub fn is_filtered(&self) -> bool {
@@ -357,12 +357,17 @@ where
         &self,
         filter: Filter,
     ) -> Self::IterFiltered<Filter> {
+        let domain = filter.domain(self.graph.core_graph());
+        let nodes = match domain {
+            NodeList::All => self.nodes.clone(),
+            NodeList::List { elems } => self.nodes.intersection(&elems),
+        };
         let predicate = self.predicate.clone().and(filter);
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             predicate,
-            nodes: self.nodes.clone(),
+            nodes,
             _marker: Default::default(),
         }
     }
