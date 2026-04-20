@@ -1,5 +1,6 @@
 use crate::{
     model::graph::{
+        collection::{check_list_allowed, check_page_limit},
         filtering::{GqlNodeFilter, PathFromNodeViewCollection},
         node::GqlNode,
         timeindex::{GqlEventTime, GqlTimeInput},
@@ -8,6 +9,7 @@ use crate::{
     },
     rayon::blocking_compute,
 };
+use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use raphtory::{
     core::utils::time::TryIntoInterval,
@@ -205,21 +207,24 @@ impl GqlPathFromNode {
     /// will be returned.
     async fn page(
         &self,
+        ctx: &Context<'_>,
         limit: usize,
         offset: Option<usize>,
         page_index: Option<usize>,
-    ) -> Vec<GqlNode> {
+    ) -> async_graphql::Result<Vec<GqlNode>> {
+        check_page_limit(ctx, limit)?;
         let self_clone = self.clone();
-        blocking_compute(move || {
+        Ok(blocking_compute(move || {
             let start = page_index.unwrap_or(0) * limit + offset.unwrap_or(0);
             self_clone.iter().skip(start).take(limit).collect()
         })
-        .await
+        .await)
     }
 
-    async fn list(&self) -> Vec<GqlNode> {
+    async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNode>> {
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.iter().collect()).await
+        Ok(blocking_compute(move || self_clone.iter().collect()).await)
     }
 
     /// Returns the node ids.

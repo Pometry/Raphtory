@@ -247,9 +247,26 @@ impl GraphServer {
         &self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
-        let schema_builder = App::create_schema();
-        let schema_builder = schema_builder.data(self.data.clone());
-        let schema_builder = schema_builder.extension(MutationAuth);
+        let schema_cfg = &self.config.schema;
+        let mut schema_builder = App::create_schema()
+            .data(self.data.clone())
+            .data(self.config.concurrency.clone())
+            .extension(MutationAuth);
+        if let Some(depth) = schema_cfg.max_query_depth {
+            schema_builder = schema_builder.limit_depth(depth);
+        }
+        if let Some(complexity) = schema_cfg.max_query_complexity {
+            schema_builder = schema_builder.limit_complexity(complexity);
+        }
+        if let Some(recursive_depth) = schema_cfg.max_recursive_depth {
+            schema_builder = schema_builder.limit_recursive_depth(recursive_depth);
+        }
+        if let Some(max_directives) = schema_cfg.max_directives_per_field {
+            schema_builder = schema_builder.limit_directives(max_directives);
+        }
+        if schema_cfg.disable_introspection {
+            schema_builder = schema_builder.disable_introspection();
+        }
         let trace_level = self.config.tracing.tracing_level.clone();
         let schema = if let Some(t) = tracer {
             schema_builder
@@ -265,7 +282,7 @@ impl GraphServer {
                 "/",
                 PublicFilesEndpoint::new(
                     self.config.public_dir.clone(),
-                    AuthenticatedGraphQL::new(schema, self.config.auth.clone()),
+                    AuthenticatedGraphQL::new(schema, self.config.clone()),
                 ),
             )
             .at("/health", get(health))

@@ -171,7 +171,6 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     if df_view.is_empty() {
         return Ok(());
     }
-    graph.flush().map_err(into_graph_err)?;
 
     let ColumnNames {
         time,
