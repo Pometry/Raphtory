@@ -18,6 +18,7 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
+use pyo3::pyclass::boolean_struct::False;
 use raphtory_api::core::entities::VID;
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::{
@@ -141,6 +142,19 @@ impl NodeOp for NodeNameFilterOp {
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         let node_ref = storage.core_node(node);
         self.filter.matches(Some(&node_ref.name()))
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::IsSome => Some(true),
+            _ => None,
+        }
+    }
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::Eq | FilterOperator::IsIn | FilterOperator::IsNone => Some(true),
+            _ => None,
+        }
     }
 }
 

@@ -320,7 +320,7 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_filtered()
+        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
     }
 
     pub fn is_filtered(&self) -> bool {

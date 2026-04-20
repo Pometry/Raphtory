@@ -23,7 +23,13 @@ pub trait NodeOp: Send + Sync {
         NodeList::All
     }
 
+    /// Returns `Some(value)` if the node op has a constant global value
     fn const_value(&self) -> Option<Self::Output> {
+        None
+    }
+
+    /// Returns `Some(value)` if the node op has a constant value over the domain
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
         None
     }
 
@@ -67,6 +73,8 @@ pub type DynNodeOp<O> = Arc<dyn NodeOp<Output = O>>;
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;
 
+    fn is_domain_filtered(&self) -> bool;
+
     fn and<T>(self, other: T) -> AndOp<Self, T>;
 
     fn or<T>(self, other: T) -> OrOp<Self, T>;
@@ -78,6 +86,10 @@ impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
     fn is_filtered(&self) -> bool {
         // If there is a const true value, it is not filtered
         self.const_value().is_none_or(|v| !v)
+    }
+
+    fn is_domain_filtered(&self) -> bool {
+        self.const_value_in_domain().is_none_or(|v| !v)
     }
 
     fn and<T>(self, other: T) -> AndOp<Self, T> {
