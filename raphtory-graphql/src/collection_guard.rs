@@ -145,10 +145,7 @@ struct VariableResolver<'a> {
 }
 
 impl<'a> VariableResolver<'a> {
-    fn new(
-        definitions: &'a [Positioned<VariableDefinition>],
-        variables: &'a Variables,
-    ) -> Self {
+    fn new(definitions: &'a [Positioned<VariableDefinition>], variables: &'a Variables) -> Self {
         let defaults = definitions
             .iter()
             .filter_map(|def| {
@@ -158,7 +155,10 @@ impl<'a> VariableResolver<'a> {
                     .map(|v| (&def.node.name.node, &v.node))
             })
             .collect();
-        Self { variables, defaults }
+        Self {
+            variables,
+            defaults,
+        }
     }
 
     fn resolve(&self, name: &Name) -> Option<&ConstValue> {
@@ -204,13 +204,25 @@ mod tests {
 
     #[test]
     fn rejects_list_rev_when_disabled() {
-        let err = run(true, None, "{ foo { listRev { bar } } }", Variables::default()).unwrap_err();
+        let err = run(
+            true,
+            None,
+            "{ foo { listRev { bar } } }",
+            Variables::default(),
+        )
+        .unwrap_err();
         assert!(err.contains("Bulk list endpoints are disabled"));
     }
 
     #[test]
     fn allows_list_when_not_disabled() {
-        run(false, None, "{ foo { list { bar } } }", Variables::default()).unwrap();
+        run(
+            false,
+            None,
+            "{ foo { list { bar } } }",
+            Variables::default(),
+        )
+        .unwrap();
     }
 
     #[test]

@@ -1,10 +1,6 @@
 use crate::{
     model::graph::{
-        edge::GqlEdge,
-        edges::GqlEdges,
-        graph::GqlGraph,
-        node::GqlNode,
-        nodes::GqlNodes,
+        edge::GqlEdge, edges::GqlEdges, graph::GqlGraph, node::GqlNode, nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
     },
     paths::ExistingGraphFolder,
