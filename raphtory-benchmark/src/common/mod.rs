@@ -77,7 +77,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None),
+                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None, None),
                 BatchSize::SmallInput,
             )
         },
@@ -89,7 +89,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None),
+                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None, None),
                 BatchSize::SmallInput,
             )
         },

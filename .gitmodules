@@ -1,6 +1,3 @@
-[submodule "ui-tests"]
-        path = ui-tests
-        url = git@github.com:Pometry/ui-tests.git
 [submodule "optd"]
         path = optd
 	url = git@github.com:Pometry/optd.git

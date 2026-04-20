@@ -646,6 +646,8 @@ mod io_tests {
             None,
             &g,
             true,
+            None,
+            None,
         )
         .unwrap();
 
@@ -677,6 +679,7 @@ mod io_tests {
                     ("int_prop", int_prop.into_prop()),
                 ],
                 Some(node_type),
+                None,
             )
             .unwrap();
         }
@@ -749,6 +752,8 @@ mod io_tests {
             Some("node_type"), // node_type_col (column name) — conflict!
             &g,
             true,
+            None,
+            None,
         )
         .unwrap();
         let mut result = g

@@ -205,6 +205,8 @@ impl Base for DynamicGraph {
 
 impl Immutable for DynamicGraph {}
 
+impl<'graph> Immutable for Arc<dyn BoxableGraphView + 'graph> {}
+
 impl InheritViewOps for DynamicGraph {}
 
 impl InheritCoreGraphOps for DynamicGraph {}
@@ -244,7 +246,7 @@ mod test {
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
         let g = Graph::new();
-        g.add_node(0, 1u64, NO_PROPS, None).unwrap();
+        g.add_node(0, 1u64, NO_PROPS, None, None).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
         assert_eq!(
             boxed

@@ -61,6 +61,7 @@ fn main() {
                     lotr.src_id.clone(),
                     [("type", Prop::str("Character"))],
                     None,
+                    None,
                 )
                 .expect("Failed to add node");
 
@@ -68,6 +69,7 @@ fn main() {
                     lotr.time,
                     lotr.dst_id.clone(),
                     [("type", Prop::str("Character"))],
+                    None,
                     None,
                 )
                 .expect("Failed to add node");
@@ -106,7 +108,8 @@ fn main() {
     assert_eq!(graph.node(gandalf).unwrap().name(), "Gandalf");
 
     let r: Vec<String> = temporally_reachable_nodes(&graph, None, 20, 31930, vec!["Gandalf"], None)
-        .into_iter_values()
+        .to_hashmap(|value| value.reachable_nodes)
+        .into_values()
         .flatten()
         .map(|(_, s)| s)
         .collect();

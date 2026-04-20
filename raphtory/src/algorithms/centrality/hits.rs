@@ -5,7 +5,7 @@ use crate::{
     },
     db::{
         api::{
-            state::NodeState,
+            state::{GenericNodeState, TypedNodeState},
             view::{NodeViewOps, StaticGraphViewOps},
         },
         task::{
@@ -17,11 +17,12 @@ use crate::{
     },
 };
 use num_traits::abs;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
-struct Hits {
-    hub_score: f32,
-    auth_score: f32,
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug)]
+pub struct Hits {
+    pub hub_score: f32,
+    pub auth_score: f32,
 }
 
 impl Default for Hits {
@@ -53,7 +54,7 @@ pub fn hits<G: StaticGraphViewOps>(
     g: &G,
     iter_count: usize,
     threads: Option<usize>,
-) -> NodeState<'static, (f32, f32), G> {
+) -> TypedNodeState<'static, Hits, G> {
     let mut ctx: Context<G, ComputeStateVec> = g.into();
 
     let recv_hub_score = sum::<f32>(2);
@@ -142,9 +143,12 @@ pub fn hits<G: StaticGraphViewOps>(
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         None,
         |_, _, _, local, index| {
-            NodeState::new_from_eval_mapped_with_index(g.clone(), local, index, |h| {
-                (h.hub_score, h.auth_score)
-            })
+            TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+                g.clone(),
+                local,
+                index,
+                None,
+            ))
         },
         threads,
         iter_count,

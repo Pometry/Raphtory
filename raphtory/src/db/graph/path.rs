@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::{
         api::{
-            state::ops::{NodeFilterOp, NodeOp},
+            state::ops::{ArrowNodeOp, NodeFilterOp, NodeOp},
             view::{
                 history::History,
                 internal::{InternalFilter, InternalNodeSelect, Static},
@@ -141,7 +141,7 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
 
 impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromGraph<'graph, G> {
     type Graph = G;
-    type ValueType<T: NodeOp + 'graph> =
+    type ValueType<T: ArrowNodeOp + 'graph> =
         BoxedLIter<'graph, (NodeView<'graph, G>, BoxedLIter<'graph, T::Output>)>;
     type PropType = NodeView<'graph, G>;
     type PathType = PathFromGraph<'graph, G>;
@@ -151,7 +151,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromGraph<
         &self.base_graph
     }
 
-    fn map<F: NodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>
+    fn map<F: ArrowNodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>
     where
         <F as NodeOp>::Output: 'graph,
     {
@@ -378,7 +378,7 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromNode<'graph, G> {
 
 impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromNode<'graph, G> {
     type Graph = G;
-    type ValueType<T: NodeOp + 'graph> = BoxedLIter<'graph, T::Output>;
+    type ValueType<T: ArrowNodeOp + 'graph> = BoxedLIter<'graph, T::Output>;
     type PropType = NodeView<'graph, G>;
     type PathType = PathFromNode<'graph, G>;
     type Edges = Edges<'graph, G>;
@@ -387,7 +387,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromNode<'
         &self.base_graph
     }
 
-    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
+    fn map<F: ArrowNodeOp + 'graph>(&self, op: F) -> Self::ValueType<F>
     where
         <F as NodeOp>::Output: 'graph,
     {

@@ -48,7 +48,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::meta::{Meta, PropMapper, STATIC_GRAPH_LAYER_ID},
-            EID,
+            LayerId, EID,
         },
         storage::{arc_str::ArcStr, timeindex::EventTime},
         Direction,
@@ -658,7 +658,7 @@ fn materialize_impl(
             let layer_name = storage.edge_meta().get_layer_name_by_id(*l_id);
             let new_id = layer_meta.get_or_create_id(&layer_name).inner();
 
-            layer_map[*l_id] = new_id;
+            layer_map[l_id.0] = new_id;
             layer_map
         }
         LayerIds::Multiple(ids) => {
@@ -666,9 +666,9 @@ fn materialize_impl(
             let layers = storage.edge_meta().layer_meta().all_keys();
 
             for id in ids {
-                let layer_name = &layers[id];
+                let layer_name = &layers[id.0];
                 let new_id = layer_meta.get_or_create_id(layer_name).inner();
-                layer_map[id] = new_id;
+                layer_map[id.0] = new_id;
             }
 
             layer_map
@@ -728,7 +728,7 @@ fn materialize_impl(
         let mut new_storage = graph_storage.write_lock()?;
 
         for layer_id in &layer_map {
-            new_storage.nodes.ensure_layer(*layer_id);
+            new_storage.nodes.ensure_layer(LayerId(*layer_id));
         }
 
         new_storage.nodes.par_iter_mut().try_for_each(|shard| {
@@ -759,8 +759,8 @@ fn materialize_impl(
                         .write_session()?
                         .set_node(gid.as_ref(), new_id)?;
 
-                    for (t, row) in node.rows() {
-                        writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, row);
+                    for (t, l, row) in node.rows() {
+                        writer.add_props(t, node_pos, LayerId(l.0), row); // TODO: Fix me
                     }
 
                     writer.update_c_props(
@@ -786,7 +786,7 @@ fn materialize_impl(
         new_storage.resize_segments_to_eid(EID(max_eid));
 
         for layer_id in &layer_map {
-            new_storage.edges.ensure_layer(*layer_id);
+            new_storage.edges.ensure_layer(LayerId(*layer_id));
         }
 
         new_storage.edges.par_iter_mut().try_for_each(|shard| {
@@ -800,7 +800,7 @@ fn materialize_impl(
                     writer.add_static_edge(Some(edge_pos), src, dst, false);
 
                     for edge in edge.explode_layers() {
-                        let layer = layer_map[edge.edge.layer().unwrap()];
+                        let layer = LayerId(layer_map[edge.edge.layer().unwrap().0]);
                         for edge in edge.explode() {
                             let t = edge.edge.time().unwrap();
                             writer.add_edge(t, edge_pos, src, dst, [], layer);
@@ -830,7 +830,7 @@ fn materialize_impl(
                             src,
                             dst,
                             layer,
-                            edge.metadata_ids().filter_map(move |prop_id| {
+                            edge.clone().metadata_ids().filter_map(move |prop_id| {
                                 edge.get_metadata(prop_id).map(|prop| (prop_id, prop))
                             }),
                         );
@@ -843,7 +843,7 @@ fn materialize_impl(
                         graph,
                         graph.layer_ids(),
                     ) {
-                        let layer = layer_map[layer];
+                        let layer = LayerId(layer_map[layer.0]);
                         writer.delete_edge(t, edge_pos, src, dst, layer);
                     }
                 }
@@ -871,7 +871,7 @@ fn materialize_impl(
                 }
 
                 for e in edge.explode_layers() {
-                    let layer = layer_map[e.edge.layer().unwrap()];
+                    let layer = LayerId(layer_map[e.edge.layer().unwrap().0]);
                     if let Some(node_pos) = maybe_src_pos {
                         let mut writer = shard.writer();
                         writer.add_outbound_edge::<i64>(
@@ -897,7 +897,7 @@ fn materialize_impl(
                         let mut writer = shard.writer();
 
                         let t = e.time().expect("exploded edge should have time");
-                        let l = layer_map[e.edge.layer().unwrap()];
+                        let l = LayerId(layer_map[e.edge.layer().unwrap().0]);
                         writer.update_timestamp(t, src_pos, eid.with_layer(l));
                     }
                     if let Some(dst_pos) = maybe_dst_pos {
@@ -905,7 +905,7 @@ fn materialize_impl(
                             let mut writer = shard.writer();
 
                             let t = e.time().expect("exploded edge should have time");
-                            let l = layer_map[e.edge.layer().unwrap()];
+                            let l = LayerId(layer_map[e.edge.layer().unwrap().0]);
                             writer.update_timestamp(t, dst_pos, eid.with_layer(l));
                         }
                     }
@@ -918,7 +918,7 @@ fn materialize_impl(
                     graph,
                     graph.layer_ids(),
                 ) {
-                    let layer = layer_map[layer];
+                    let layer = LayerId(layer_map[layer.0]);
                     if let Some(src_pos) = maybe_src_pos {
                         let mut writer = shard.writer();
                         writer.update_timestamp(t, src_pos, eid.with_layer_deletion(layer));

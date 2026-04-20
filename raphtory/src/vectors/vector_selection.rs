@@ -1,5 +1,5 @@
 use super::{
-    db::EntityDb,
+    entity_db::EntityDb,
     entity_ref::EntityRef,
     utils::{apply_window, find_top_k},
     vectorised_graph::VectorisedGraph,
@@ -13,10 +13,12 @@ use crate::{
     },
     errors::GraphResult,
     prelude::{EdgeViewOps, NodeViewOps, *},
+    vectors::{vector_collection::VectorCollection, VectorsQuery},
 };
 use either::Either;
+use futures_util::future::join_all;
 use itertools::Itertools;
-use std::collections::HashSet;
+use std::{collections::HashSet, future::Future};
 
 #[derive(Clone, Copy)]
 enum ExpansionPath {
@@ -75,6 +77,29 @@ impl Selected {
 
 pub type DynamicVectorSelection = VectorSelection<DynamicGraph>;
 
+pub type QueryPair = (
+    VectorsQuery<GraphResult<Vec<(EntityRef, f32)>>>,
+    VectorsQuery<GraphResult<Vec<(EntityRef, f32)>>>,
+);
+
+pub trait BlockingExecutor<Fut>:
+    Fn(Box<dyn FnOnce() -> QueryPair + Send + 'static>) -> Fut + Send + Sync + Clone + 'static
+where
+    Fut: std::future::Future<Output = QueryPair> + Send,
+{
+}
+
+impl<Fut, T> BlockingExecutor<Fut> for T
+where
+    Fut: std::future::Future<Output = QueryPair> + Send,
+    T: Fn(Box<dyn FnOnce() -> QueryPair + Send + 'static>) -> Fut + Send + Sync + Clone + 'static,
+{
+}
+
+pub async fn noop_executor(f: Box<dyn FnOnce() -> QueryPair + Send + 'static>) -> QueryPair {
+    f()
+}
+
 #[derive(Clone)]
 pub struct VectorSelection<G: StaticGraphViewOps> {
     pub(crate) graph: VectorisedGraph<G>,
@@ -96,6 +121,11 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         }
     }
 
+    /// Returns the vectorised graph instance behind this selection
+    pub fn get_vectorised_graph(&self) -> &VectorisedGraph<G> {
+        &self.graph
+    }
+
     /// Return the nodes present in the current selection
     pub fn nodes(&self) -> Vec<NodeView<'static, G>> {
         let g = &self.graph.source_graph;
@@ -115,25 +145,28 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
     }
 
     /// Return the documents present in the current selection
-    pub fn get_documents(&self) -> GraphResult<Vec<Document<G>>> {
+    pub async fn get_documents(&self) -> GraphResult<Vec<Document<G>>> {
         Ok(self
-            .get_documents_with_scores()?
+            .get_documents_with_distances()
+            .await?
             .into_iter()
             .map(|(doc, _)| doc)
             .collect())
     }
 
-    /// Return the documents alongside their scores present in the current selection
-    pub fn get_documents_with_scores(&self) -> GraphResult<Vec<(Document<G>, f32)>> {
-        self.selected
-            .iter()
-            .map(|(entity, score)| self.regenerate_doc(*entity).map(|doc| (doc, *score)))
-            .collect()
+    /// Return the documents alongside their distances present in the current selection
+    pub async fn get_documents_with_distances(&self) -> GraphResult<Vec<(Document<G>, f32)>> {
+        let futures = self.selected.iter().map(|(entity, distance)| async {
+            self.regenerate_doc(*entity)
+                .await
+                .map(|doc| (doc, *distance))
+        });
+        join_all(futures).await.into_iter().collect()
     }
 
     /// Add all `nodes` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     /// If any node id doesn't exist it will be ignored
     ///
     /// # Arguments
@@ -147,7 +180,7 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
 
     /// Add all `edges` to the current selection
     ///
-    /// Documents added by this call are assumed to have a score of 0.
+    /// Documents added by this call are assumed to have a distance of 0.
     /// If any edge doesn't exist it will be ignored
     ///
     /// # Arguments
@@ -192,106 +225,146 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
         }
     }
 
-    /// Add the top `limit` adjacent entities with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent entities closest to `query`
     ///
     /// The expansion algorithm is a loop with two steps on each iteration:
     ///
     /// 1. All the entities 1 hop away of some of the entities included on the selection (and
     ///    not already selected) are marked as candidates.
-    /// 2. Those candidates are added to the selection in descending order according to the
-    ///    similarity score obtained against the `query`.
+    /// 2. Those candidates are added to the selection in ascending distance from `query`.
     ///
     /// This loops goes on until the number of new entities reaches a total of `limit`
     /// entities or until no more documents are available
     ///
     /// Args:
-    ///   query (str | list): the text or the embedding to score against
+    ///   query (str | list): the text or the embedding to calculate the distance from
     ///   limit (int): the number of documents to add
     ///   window (Tuple[int | str, int | str], optional): the window where documents need to belong to in order to be considered
     ///
     /// Returns:
     ///     None:
-    pub fn expand_entities_by_similarity(
+    pub async fn expand_entities_by_similarity<Fut, Exec>(
         &mut self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> GraphResult<()> {
-        self.expand_by_similarity(query, limit, window, ExpansionPath::Both)
+        executor: Exec,
+    ) -> GraphResult<()>
+    where
+        Fut: Future<Output = QueryPair> + Send,
+        Exec: BlockingExecutor<Fut>,
+    {
+        self.expand_by_similarity(query, limit, window, ExpansionPath::Both, executor)
+            .await
     }
 
-    /// Add the top `limit` adjacent nodes with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent nodes closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers nodes.
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * limit - the maximum number of new nodes to add
     ///   * window - the window where documents need to belong to in order to be considered
-    pub fn expand_nodes_by_similarity(
+    pub async fn expand_nodes_by_similarity<Fut, Exec>(
         &mut self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> GraphResult<()> {
-        self.expand_by_similarity(query, limit, window, ExpansionPath::Nodes)
+        executor: Exec,
+    ) -> GraphResult<()>
+    where
+        Fut: Future<Output = QueryPair> + Send,
+        Exec: BlockingExecutor<Fut>,
+    {
+        self.expand_by_similarity(query, limit, window, ExpansionPath::Nodes, executor)
+            .await
     }
 
-    /// Add the top `limit` adjacent edges with higher score for `query` to the selection
+    /// Add to the selection the `limit` adjacent edges closest to `query`
     ///
     /// This function has the same behavior as expand_entities_by_similarity but it only considers edges.
     ///
     /// # Arguments
-    ///   * query - the embedding to score against
+    ///   * query - the embedding to calculate the distance from
     ///   * limit - the maximum number of new edges to add
     ///   * window - the window where documents need to belong to in order to be considered
-    pub fn expand_edges_by_similarity(
+    pub async fn expand_edges_by_similarity<Fut, Exec>(
         &mut self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
-    ) -> GraphResult<()> {
-        self.expand_by_similarity(query, limit, window, ExpansionPath::Edges)
+        executor: Exec,
+    ) -> GraphResult<()>
+    where
+        Fut: Future<Output = QueryPair> + Send,
+        Exec: BlockingExecutor<Fut>,
+    {
+        self.expand_by_similarity(query, limit, window, ExpansionPath::Edges, executor)
+            .await
     }
 
-    fn expand_by_similarity(
+    // it's very important that we keep raphtory access separate from async blocks querying to lancedb
+    // so that we can wrap the former with things like blocking_compute in raphtory-graphql
+    async fn expand_by_similarity<Fut, Exec>(
         &mut self,
         query: &Embedding,
         limit: usize,
         window: Option<(i64, i64)>,
         path: ExpansionPath,
-    ) -> GraphResult<()> {
-        let g = &self.graph.source_graph;
-        let view = apply_window(g, window);
+        executor: Exec,
+    ) -> GraphResult<()>
+    where
+        Fut: Future<Output = QueryPair> + Send,
+        Exec: BlockingExecutor<Fut>,
+    {
         let initial_size = self.selected.len();
+        let cloned_query = query.clone();
+        let cloned_self = self.clone();
 
-        let nodes: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_nodes() {
-            let jump = matches!(path, ExpansionPath::Nodes);
-            let filter = self.get_nodes_in_context(window, jump);
-            let nodes = self
-                .graph
-                .node_db
-                .top_k(query, limit, view.clone(), Some(filter))?;
-            Box::new(nodes)
-        } else {
-            Box::new(std::iter::empty())
-        };
+        let (node_query, edge_query) = executor(Box::new(move || {
+            let g = &cloned_self.graph.source_graph;
+            let view = apply_window(g, window);
 
-        let edges: Box<dyn Iterator<Item = (EntityRef, f32)>> = if path.includes_edges() {
-            let jump = matches!(path, ExpansionPath::Edges);
-            let filter = self.get_edges_in_context(window, jump);
-            let edges = self.graph.edge_db.top_k(query, limit, view, Some(filter))?;
-            Box::new(edges)
-        } else {
-            Box::new(std::iter::empty())
-        };
+            let node_query = if path.includes_nodes() {
+                let jump = matches!(path, ExpansionPath::Nodes);
+                let filter = cloned_self.get_nodes_in_context(window, jump);
+                cloned_self
+                    .graph
+                    .node_db
+                    .top_k(&cloned_query, limit, view.clone(), Some(filter))
+            } else {
+                VectorsQuery::resolved(Ok(vec![]))
+            };
 
-        let docs = find_top_k(nodes.chain(edges), limit).collect::<Vec<_>>(); // collect to remove lifetime
+            let edge_query = if path.includes_edges() {
+                let jump = matches!(path, ExpansionPath::Edges);
+                let filter = cloned_self.get_edges_in_context(window, jump);
+                cloned_self
+                    .graph
+                    .edge_db
+                    .top_k(&cloned_query, limit, view, Some(filter))
+            } else {
+                VectorsQuery::resolved(Ok(vec![]))
+            };
+
+            (node_query, edge_query)
+        }))
+        .await;
+
+        let nodes = node_query.execute().await?;
+        let edges = edge_query.execute().await?;
+
+        let docs = find_top_k(nodes.into_iter().chain(edges), limit).collect::<Vec<_>>();
         self.selected.extend_with_limit(docs, limit);
 
         let increment = self.selected.len() - initial_size;
+        println!(
+            "limit {increment}, limit: {limit}, stop? {}",
+            increment > 0 && increment < limit
+        );
         if increment > 0 && increment < limit {
-            self.expand_by_similarity(query, limit, window, path)?
+            Box::pin(self.expand_by_similarity(query, limit, window, path, executor)).await?
         }
         Ok(())
     }
@@ -332,23 +405,23 @@ impl<G: StaticGraphViewOps> VectorSelection<G> {
             .collect()
     }
 
-    fn regenerate_doc(&self, entity: EntityRef) -> GraphResult<Document<G>> {
+    async fn regenerate_doc(&self, entity: EntityRef) -> GraphResult<Document<G>> {
         match entity.resolve_entity(&self.graph.source_graph).unwrap() {
             Either::Left(node) => Ok(Document {
                 entity: DocumentEntity::Node(node.clone()),
                 content: self.graph.template.node(node).unwrap(),
-                embedding: self.graph.node_db.get_id(entity.id())?.unwrap(),
+                embedding: self.graph.node_db.get_id(entity.id()).await?.unwrap(),
             }),
             Either::Right(edge) => Ok(Document {
                 entity: DocumentEntity::Edge(edge.clone()),
                 content: self.graph.template.edge(edge).unwrap(),
-                embedding: self.graph.edge_db.get_id(entity.id())?.unwrap(),
+                embedding: self.graph.edge_db.get_id(entity.id()).await?.unwrap(),
             }),
         }
     }
 }
 
-// TODO: I could make get_neighbour_nodes rely on get_neighbour_edges and viceversa, reusing some code
+// TODO: we could make get_neighbour_nodes rely on get_neighbour_edges and viceversa, reusing some code
 impl EntityRef {
     fn get_adjacent_nodes<G: StaticGraphViewOps>(
         &self,

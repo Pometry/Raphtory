@@ -14,7 +14,6 @@ use raphtory::{
 };
 use std::{
     cmp::Ordering,
-    ffi::OsStr,
     fs,
     fs::File,
     io::{ErrorKind, Read, Seek, Write},
@@ -150,13 +149,22 @@ pub struct ValidGraphFolder {
     local_path: String,
 }
 
-fn valid_component(component: Component<'_>) -> Result<&OsStr, InvalidPathReason> {
+fn valid_component(component: Component<'_>) -> Result<&str, InvalidPathReason> {
     match component {
         Component::Prefix(_) => Err(InvalidPathReason::RootNotAllowed),
         Component::RootDir => Err(InvalidPathReason::RootNotAllowed),
         Component::CurDir => Err(InvalidPathReason::CurDirNotAllowed),
         Component::ParentDir => Err(InvalidPathReason::ParentDirNotAllowed),
-        Component::Normal(component) => Ok(component),
+        Component::Normal(component) => {
+            let component_str = component
+                .to_str()
+                .ok_or(InvalidPathReason::PathNotParsable)?;
+            if component_str.starts_with(".") {
+                Err(InvalidPathReason::HiddenPathNotAllowed)
+            } else {
+                Ok(component_str)
+            }
+        }
     }
 }
 

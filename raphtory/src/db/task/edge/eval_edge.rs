@@ -5,21 +5,19 @@ use crate::{
     },
     db::{
         api::{
-            properties::Properties,
+            properties::{Metadata, Properties},
             state::Index,
             view::{internal::InternalFilter, *},
         },
         graph::edge::EdgeView,
         task::{
+            edge::eval_edges::EvalEdges,
+            eval_graph::EvalGraph,
             node::{eval_node::EvalNodeView, eval_node_state::EVState},
             task_state::PrevLocalState,
         },
     },
 };
-
-use crate::db::task::edge::eval_edges::EvalEdges;
-
-use crate::db::{api::properties::Metadata, task::eval_graph::EvalGraph};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{cell::RefCell, rc::Rc};
 

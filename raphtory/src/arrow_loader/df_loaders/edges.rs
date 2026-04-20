@@ -27,7 +27,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
-            EID,
+            LayerId, EID,
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
@@ -554,12 +554,12 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
                     src,
                     dst,
                     exists,
-                    layer,
+                    LayerId(layer),
                     c_props.drain(..),
                     t_props.drain(..),
                 );
             } else {
-                writer.bulk_delete_edge(t, eid_pos, src, dst, exists, layer);
+                writer.bulk_delete_edge(t, eid_pos, *src, *dst, exists, LayerId(layer));
             }
         }
     }
@@ -590,9 +590,9 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
                 writer.add_static_inbound_edge(dst_pos, src, eid);
             }
             let elid = if delete {
-                eid.with_layer_deletion(layer)
+                eid.with_layer_deletion(LayerId(layer))
             } else {
-                eid.with_layer(layer)
+                eid.with_layer(LayerId(layer))
             };
 
             if src != dst {
@@ -611,7 +611,7 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
 fn add_and_resolve_outbound_edges<
     EXT: PersistenceStrategy<NS = NS, ES = ES>,
     NS: NodeSegmentOps<Extension = EXT>,
@@ -633,7 +633,7 @@ fn add_and_resolve_outbound_edges<
             // find the original EID in the static graph if it exists
             // otherwise create a new one
 
-            let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, dst, 0) {
+            let edge_id = if let Some(edge_id) = writer.get_out_edge(src_pos, dst, LayerId(0)) {
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
                 eids_exist[row].store(true, Ordering::Relaxed);
                 MaybeNew::Existing(edge_id)
@@ -647,9 +647,9 @@ fn add_and_resolve_outbound_edges<
 
             let edge_id = edge_id.map(|eid| {
                 if delete {
-                    eid.with_layer_deletion(layer)
+                    eid.with_layer_deletion(LayerId(layer))
                 } else {
-                    eid.with_layer(layer)
+                    eid.with_layer(LayerId(layer))
                 }
             });
 

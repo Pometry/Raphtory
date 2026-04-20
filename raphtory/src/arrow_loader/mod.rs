@@ -169,6 +169,8 @@ mod test {
             None,
             &graph,
             true,
+            None,
+            None,
         )
         .expect("failed to load nodes from pretend df");
 

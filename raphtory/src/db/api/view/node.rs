@@ -2,7 +2,7 @@ use crate::{
     core::entities::{edges::edge_ref::EdgeRef, VID},
     db::api::{
         properties::internal::InternalPropertiesOps,
-        state::{ops, ops::NodeOp},
+        state::ops::{self, ArrowNodeOp, IntoArrowNodeOp, NodeOp},
         view::{node_edges, TimeOps},
     },
     prelude::{EdgeViewOps, GraphViewOps, LayerOps},
@@ -10,12 +10,13 @@ use crate::{
 use itertools::Itertools;
 use raphtory_api::core::Direction;
 use raphtory_storage::graph::graph::GraphStorage;
+use serde::{Deserialize, Serialize};
 
 pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type Graph: GraphViewOps<'graph>;
     type ValueType<Op>: 'graph
     where
-        Op: NodeOp + 'graph,
+        Op: ArrowNodeOp + 'graph,
         Op::Output: 'graph;
     type PropType: InternalPropertiesOps + Clone + 'graph;
     type PathType: NodeViewOps<'graph, Graph = Self::Graph> + 'graph;
@@ -23,7 +24,7 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
     fn graph(&self) -> &Self::Graph;
 
-    fn map<F: NodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>;
+    fn map<F: ArrowNodeOp + Clone + 'graph>(&self, op: F) -> Self::ValueType<F>;
 
     fn map_edges<
         I: Iterator<Item = EdgeRef> + Send + Sync + 'graph,
@@ -42,10 +43,20 @@ pub trait BaseNodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     ) -> Self::PathType;
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct IsActiveRow {
+    is_active: bool,
+}
+impl From<bool> for IsActiveRow {
+    fn from(is_active: bool) -> Self {
+        IsActiveRow { is_active }
+    }
+}
+
 /// Operations defined for a node
 pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     type Graph: GraphViewOps<'graph>;
-    type ValueType<T: NodeOp>: 'graph
+    type ValueType<T: ArrowNodeOp>: 'graph
     where
         T: 'graph,
         T::Output: 'graph;
@@ -80,7 +91,11 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
     fn edge_history_count(&self) -> Self::ValueType<ops::EdgeHistoryCount<Self::Graph>>;
 
     /// Returns true if the node has any updates within the current window, otherwise false.
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>>;
+    fn is_active(
+        &self,
+    ) -> Self::ValueType<
+        ops::ArrowMap<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>, IsActiveRow>,
+    >;
 
     /// Get a view of the temporal properties of this node.
     ///
@@ -157,7 +172,7 @@ pub trait NodeViewOps<'graph>: Clone + TimeOps<'graph> + LayerOps<'graph> {
 
 impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     type Graph = V::Graph;
-    type ValueType<T: NodeOp + 'graph>
+    type ValueType<T: ArrowNodeOp + 'graph>
         = V::ValueType<T>
     where
         T::Output: 'graph;
@@ -213,9 +228,13 @@ impl<'graph, V: BaseNodeViewOps<'graph> + 'graph> NodeViewOps<'graph> for V {
     }
 
     /// Returns true if the node has any updates within the current window, otherwise false.
-    fn is_active(&self) -> Self::ValueType<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>> {
+    fn is_active(
+        &self,
+    ) -> Self::ValueType<
+        ops::ArrowMap<ops::Map<ops::HistoryOp<'graph, Self::Graph>, bool>, IsActiveRow>,
+    > {
         let op = ops::HistoryOp::new(self.graph().clone()).map(|h| !h.is_empty());
-        self.map(op)
+        self.map(op.into_arrow_node_op())
     }
 
     #[inline]

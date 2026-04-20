@@ -508,11 +508,11 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                         let time_semantics = g.edge_time_semantics();
                         time_semantics
                             .edge_layers(g.core_edge(e.pid()).as_ref(), g, g.layer_ids())
-                            .map(|layer| layer_names[layer].clone())
+                            .map(|layer| layer_names[layer.0].clone())
                             .collect()
                     }
                     Some(l) => {
-                        vec![layer_names[l].clone()]
+                        vec![layer_names[l.0].clone()]
                     }
                 }
             } else {

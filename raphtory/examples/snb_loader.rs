@@ -330,6 +330,8 @@ fn load_snb_graph(parquet_dir: &Path, graph: &Graph) -> Result<(), GraphError> {
         &[],
         None,
         None,
+        None,
+        None,
         true,
         None,
     )?;

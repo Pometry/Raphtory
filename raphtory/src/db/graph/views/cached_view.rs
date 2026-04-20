@@ -14,7 +14,7 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::ELID,
+        entities::{LayerId, ELID},
         storage::timeindex::{AsTime, EventTime},
     },
     inherit::Base,
@@ -82,7 +82,7 @@ impl<'graph, G: GraphViewOps<'graph>> CachedView<G> {
                 .collect(),
         );
         for l_name in graph.unique_layers() {
-            let l_id = graph.get_layer_id(&l_name).unwrap();
+            let l_id = graph.get_layer_id(&l_name).unwrap().0;
             let layer_g = graph.layers(l_name).unwrap();
 
             let nodes = layer_g
@@ -173,7 +173,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedVi
         _layer_ids: &LayerIds,
     ) -> bool {
         self.layered_mask
-            .get(eid.layer())
+            .get(eid.layer().0)
             .is_some_and(|(_, _, exploded_filter)| {
                 exploded_filter
                     .as_ref()
@@ -195,9 +195,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for CachedView<
         self.graph.internal_layer_filter_edge_list_trusted()
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.layered_mask
-            .get(layer)
+            .get(layer.0)
             .is_some_and(|(_, edge_filter, _)| edge_filter.contains(edge.eid().as_u64()))
     }
 
@@ -225,10 +225,10 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
         match layer_ids {
             LayerIds::None => false,
             LayerIds::All => self.layered_mask.iter().any(filter_fn),
-            LayerIds::One(id) => self.layered_mask.get(*id).is_some_and(filter_fn),
+            LayerIds::One(id) => self.layered_mask.get(id.0).is_some_and(filter_fn),
             LayerIds::Multiple(multiple) => multiple
                 .iter()
-                .any(|id| self.layered_mask.get(id).is_some_and(filter_fn)),
+                .any(|id| self.layered_mask.get(id.0).is_some_and(filter_fn)),
         }
     }
 
@@ -264,12 +264,12 @@ impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
             LayerIds::All => self.global_nodes_mask.contains(node.vid().as_u64()),
             LayerIds::One(id) => self
                 .layered_mask
-                .get(*id)
+                .get(id.0)
                 .map(|(nodes, _, _)| nodes.contains(node.vid().as_u64()))
                 .unwrap_or(false),
             LayerIds::Multiple(multiple) => multiple.iter().any(|id| {
                 self.layered_mask
-                    .get(id)
+                    .get(id.0)
                     .map(|(nodes, _, _)| nodes.contains(node.vid().as_u64()))
                     .unwrap_or(false)
             }),

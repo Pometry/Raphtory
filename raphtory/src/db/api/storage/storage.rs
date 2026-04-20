@@ -13,7 +13,7 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{AsPropRef, Prop, PropType},
         },
-        GidRef, EID, VID,
+        GidRef, LayerId, EID, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
@@ -46,8 +46,7 @@ use {
     either::Either,
     parking_lot::RwLock,
     raphtory_api::core::entities::properties::prop::IntoProp,
-    raphtory_core::entities::nodes::node_ref::AsNodeRef,
-    raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
+    raphtory_storage::core_ops::CoreGraphOps,
     std::{
         io::{Seek, Write},
         ops::{Deref, DerefMut},
@@ -347,13 +346,13 @@ impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.session.internal_add_update(t, layer, props)
     }
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.session.internal_delete_edge(t, layer)
     }
 
@@ -451,9 +450,8 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.write_lock()?)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         let id = self.graph.resolve_layer(layer)?;
-
         Ok(id)
     }
 
@@ -515,11 +513,12 @@ impl InternalAdditionOps for Storage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
         let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
         // don't fail early on indexing, actually update the graph even if indexing failed
-        let writer = self.graph.internal_add_node(t, v, props)?;
+        let writer = self.graph.internal_add_node(t, v, props, layer_id)?;
 
         #[cfg(feature = "search")]
         index_res?;
@@ -634,7 +633,7 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
@@ -656,7 +655,7 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
