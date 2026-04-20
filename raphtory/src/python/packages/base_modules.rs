@@ -203,7 +203,6 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         local_clustering_coefficient,
         local_clustering_coefficient_batch,
         weakly_connected_components,
-        weakly_connected_components_ds,
         strongly_connected_components,
         in_components,
         in_component,
