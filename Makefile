@@ -36,8 +36,10 @@ deactivate-storage:
 pull-storage: activate-storage
 	git submodule update --init --recursive pometry-storage-private
 
-pull-ui-tests:
-	git submodule update --init --recursive ui-tests
+update-ui-tests:
+	rm -rf ui-tests
+	git clone git@github.com:Pometry/ui-tests.git ui-tests
+	rm -rf ui-tests/.git
 
 install-node-tools:
 	@if command -v npx >/dev/null 2>&1; then \
