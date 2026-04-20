@@ -88,9 +88,10 @@ fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
 #[test]
 fn test_materialize_using_recordbatches_matches_materialize() {
     let g = Graph::new();
-    g.add_node(0, "A", [("node_meta", "alpha")], Some("TypeA"))
+    g.add_node(0, "A", [("node_meta", "alpha")], Some("TypeA"), None)
         .unwrap();
-    g.add_node(1, "B", [("node_meta", "beta")], None).unwrap();
+    g.add_node(1, "B", [("node_meta", "beta")], None, None)
+        .unwrap();
     g.add_edge(2, "A", "B", [("weight", 1)], Some("layer1"))
         .unwrap();
     g.add_edge(3, "A", "B", [("weight", 2)], Some("layer2"))
@@ -602,6 +603,8 @@ fn get_parquet_df_loader_time(
             None,
             &node_t_props,
             &[],
+            None,
+            None,
             None,
             None,
             false,
