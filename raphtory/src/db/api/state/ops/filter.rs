@@ -18,7 +18,6 @@ use crate::{
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use pyo3::pyclass::boolean_struct::False;
 use raphtory_api::core::entities::VID;
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::{
