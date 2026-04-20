@@ -259,7 +259,7 @@ where
                 }
             }
             Index::Partial(nodes) => {
-                if self.is_filtered() {
+                if self.is_list_filtered() {
                     let g = self.locked_storage();
                     self.par_iter_refs(g).count()
                 } else {
