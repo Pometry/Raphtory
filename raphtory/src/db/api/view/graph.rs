@@ -355,9 +355,32 @@ pub fn materialize_using_recordbatches(
     path: Option<&Path>,
     config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
-    let node_meta = Meta::new_for_nodes();
+    let mut node_meta = Meta::new_for_nodes();
     let edge_meta = Meta::new_for_edges();
     let graph_props_meta = Meta::new_for_graph_props();
+
+    let base_layer_meta = graph.edge_meta().layer_meta();
+    let layer_meta = edge_meta.layer_meta();
+    // NOTE: layers must be set in layer_meta before the TemporalGraph is initialized to
+    // make sure empty layers are created.
+    match graph.layer_ids() {
+        LayerIds::None => {}
+        LayerIds::All => {
+            for name in base_layer_meta.keys().iter() {
+                layer_meta.get_or_create_id(name);
+            }
+        }
+        LayerIds::One(id) => {
+            layer_meta.get_or_create_id(&base_layer_meta.get_name(id.0));
+        }
+        LayerIds::Multiple(ids) => {
+            let all_layers = base_layer_meta.all_keys();
+            for id in ids {
+                layer_meta.get_or_create_id(&all_layers[id.0]);
+            }
+        }
+    }
+    node_meta.set_layer_mapper(layer_meta.deep_clone());
 
     let ext = Extension::new(config, path)?;
     let temporal_graph = TemporalGraph::new_with_meta(
