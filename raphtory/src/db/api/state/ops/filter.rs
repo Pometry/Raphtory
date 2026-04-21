@@ -94,6 +94,48 @@ impl NodeOp for NodeIdFilterOp {
         let node = storage.core_node(node);
         self.filter.id_matches(node.id())
     }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        let op = &self.filter.operator;
+        match op {
+            FilterOperator::Eq => match &self.filter.field_value {
+                FilterValue::ID(id) => {
+                    let vid = storage.internalise_node(id.as_node_ref());
+                    NodeList::List {
+                        elems: vid.into_iter().collect(),
+                    }
+                }
+                _ => unreachable!(),
+            },
+            FilterOperator::IsIn => match &self.filter.field_value {
+                FilterValue::IDSet(ids) => NodeList::List {
+                    elems: ids
+                        .iter()
+                        .filter_map(|id| storage.internalise_node(id.as_node_ref()))
+                        .collect(),
+                },
+                _ => unreachable!(),
+            },
+            FilterOperator::IsNone => NodeList::empty(),
+            _ => NodeList::All,
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::IsSome => Some(true),
+            _ => None,
+        }
+    }
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match &self.filter.operator {
+            FilterOperator::Eq
+            | FilterOperator::IsIn
+            | FilterOperator::IsNone
+            | FilterOperator::IsSome => Some(true),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -151,7 +193,10 @@ impl NodeOp for NodeNameFilterOp {
     }
     fn const_value_in_domain(&self) -> Option<Self::Output> {
         match &self.filter.operator {
-            FilterOperator::Eq | FilterOperator::IsIn | FilterOperator::IsNone => Some(true),
+            FilterOperator::Eq
+            | FilterOperator::IsIn
+            | FilterOperator::IsNone
+            | FilterOperator::IsSome => Some(true),
             _ => None,
         }
     }
@@ -200,6 +245,33 @@ where
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) || self.right.apply(storage, node)
     }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        if matches!(self.const_value_in_domain(), Some(false)) {
+            NodeList::empty()
+        } else {
+            self.left.domain(storage).union(&self.right.domain(storage))
+        }
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(left), Some(right)) => Some(left || right),
+            _ => None,
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match (
+            self.left.const_value_in_domain(),
+            self.right.const_value_in_domain(),
+        ) {
+            (Some(true), _) | (_, Some(true)) => Some(true),
+            (Some(left), Some(right)) => Some(left || right),
+            _ => None,
+        }
+    }
 }
 
 impl<L, R> IntoDynNodeOp for OrOp<L, R> where Self: NodeOp + 'static {}
@@ -219,6 +291,35 @@ where
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
         self.left.apply(storage, node) && self.right.apply(storage, node)
+    }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        if matches!(self.const_value_in_domain(), Some(false)) {
+            NodeList::empty()
+        } else {
+            self.left
+                .domain(storage)
+                .intersection(&self.right.domain(storage))
+        }
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        match (self.left.const_value(), self.right.const_value()) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(left), Some(right)) => Some(left && right),
+            _ => None,
+        }
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        match (
+            self.left.const_value_in_domain(),
+            self.right.const_value_in_domain(),
+        ) {
+            (Some(false), _) | (_, Some(false)) => Some(false),
+            (Some(left), Some(right)) => Some(left && right),
+            _ => None,
+        }
     }
 }
 

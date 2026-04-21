@@ -72,7 +72,6 @@ pub fn load_nodes_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
-    graph.flush().map_err(into_graph_err)?;
 
     LOAD_POOL.install(move || {
         let properties_indices = properties
@@ -264,7 +263,6 @@ pub fn load_node_props_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
-    graph.flush().map_err(into_graph_err)?;
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))
