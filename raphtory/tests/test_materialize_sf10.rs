@@ -1,15 +1,16 @@
 use chrono::Local;
 use parquet::arrow::arrow_reader::ArrowReaderMetadata;
+#[cfg(feature = "io")]
+use raphtory::io::parquet_loaders::{
+    get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
+    load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
+    load_nodes_from_parquet,
+};
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::view::{materialize_using_recordbatches, MaterializedGraph},
         graph::graph::{assert_graph_equal_timestamps, graph_equal},
-    },
-    io::parquet_loaders::{
-        get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
-        load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
-        load_nodes_from_parquet,
     },
     prelude::{
         AdditionOps, DeletionOps, Graph, GraphViewOps, LayerOps, ParquetDecoder, ParquetEncoder,
