@@ -271,7 +271,7 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
         self.semantics
-            .node_tprop_last_at(node, view, prop_id, self.window.end.previous())
+            .node_tprop_last_at(node, view, prop_id, self.window.end)
     }
 
     #[inline]
