@@ -203,6 +203,13 @@ pub struct FilteredEdgeTProp<G, P> {
 impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
     for FilteredEdgeTProp<G, P>
 {
+    fn last(&self) -> Option<(EventTime, Prop)> {
+        if self.view.internal_exploded_edge_filtered() {
+            self.clone().iter_rev().next()
+        } else {
+            self.props.last()
+        }
+    }
     fn iter_inner(
         self,
         range: Option<Range<EventTime>>,

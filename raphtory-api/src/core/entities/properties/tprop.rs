@@ -18,6 +18,8 @@ pub trait TPropOps<'a>: Clone + Send + Sync + Sized + 'a {
         self.clone().iter_inner_rev(Some(EventTime::MIN..t)).next()
     }
 
+    fn last(&self) -> Option<(EventTime, Prop)>;
+
     fn iter_inner(
         self,
         range: Option<Range<EventTime>>,

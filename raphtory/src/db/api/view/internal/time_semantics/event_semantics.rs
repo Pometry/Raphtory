@@ -237,6 +237,17 @@ impl NodeTimeSemanticsOps for EventSemantics {
             .kmerge_by(|(a, _), (b, _)| a >= b)
     }
 
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last())
+            .max_by_key(|(t, _)| *t)
+    }
+
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,

@@ -290,6 +290,16 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
     ) -> Option<(EventTime, Prop)> {
         for_all!(self, semantics => semantics.node_tprop_last_at_window(node, view, prop_id, t, w))
     }
+
+    #[inline]
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        for_all!(self, semantics => semantics.node_tprop_last(node, view, prop_id))
+    }
 }
 
 impl EdgeTimeSemanticsOps for BaseTimeSemantics {

@@ -55,6 +55,10 @@ impl<'a, Mem: TPropOps<'a> + 'a, Unlocked: TPropOps<'a> + 'a> TPropOps<'a>
         for_all!(self, props => props.last_before(t))
     }
 
+    fn last(&self) -> Option<(EventTime, Prop)> {
+        for_all!(self, props => props.last())
+    }
+
     fn iter_inner(
         self,
         range: Option<Range<EventTime>>,

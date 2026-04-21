@@ -12,7 +12,7 @@ use raphtory_api::core::{
         prop::{Prop, PropArray, PropType},
         tprop::TPropOps,
     },
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::TimeIndexOps},
 };
 use rustc_hash::FxHashMap;
 use serde::Serialize;
@@ -119,6 +119,15 @@ impl<'a> TPropCell<'a> {
 }
 
 impl<'a> TPropOps<'a> for TPropCell<'a> {
+    fn last(&self) -> Option<(EventTime, Prop)> {
+        let i = self.t_cell?.last()?;
+        None
+    }
+
+    fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
+        todo!()
+    }
+
     fn iter_inner(
         self,
         range: Option<Range<EventTime>>,
@@ -386,6 +395,28 @@ impl TProp {
 }
 
 impl<'a> TPropOps<'a> for &'a TProp {
+    fn last(&self) -> Option<(EventTime, Prop)> {
+        match self {
+            TProp::Empty => None,
+            TProp::Str(cell) => cell.last_value().map(|(t, v)| (t, Prop::Str(v.clone()))),
+            TProp::U8(cell) => cell.last_value().map(|(t, v)| (t, Prop::U8(v.clone()))),
+            TProp::U16(cell) => cell.last_value().map(|(t, v)| (t, Prop::U16(v.clone()))),
+            TProp::I32(cell) => cell.last_value().map(|(t, v)| (t, Prop::I32(v.clone()))),
+            TProp::I64(cell) => cell.last_value().map(|(t, v)| (t, Prop::I64(v.clone()))),
+            TProp::U32(cell) => cell.last_value().map(|(t, v)| (t, Prop::U32(v.clone()))),
+            TProp::U64(cell) => cell.last_value().map(|(t, v)| (t, Prop::U64(v.clone()))),
+            TProp::F32(cell) => cell.last_value().map(|(t, v)| (t, Prop::F32(v.clone()))),
+            TProp::F64(cell) => cell.last_value().map(|(t, v)| (t, Prop::F64(v.clone()))),
+            TProp::Bool(cell) => cell.last_value().map(|(t, v)| (t, Prop::Bool(v.clone()))),
+            TProp::DTime(cell) => cell.last_value().map(|(t, v)| (t, Prop::DTime(v.clone()))),
+            TProp::List(cell) => cell.last_value().map(|(t, v)| (t, Prop::List(v.clone()))),
+            TProp::NDTime(cell) => cell.last_value().map(|(t, v)| (t, Prop::NDTime(v.clone()))),
+            TProp::Map(cell) => cell.last_value().map(|(t, v)| (t, Prop::Map(v.clone()))),
+            TProp::Decimal(cell) => cell
+                .last_value()
+                .map(|(t, v)| (t, Prop::Decimal(v.clone()))),
+        }
+    }
     fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
         match self {
             TProp::Empty => None,
