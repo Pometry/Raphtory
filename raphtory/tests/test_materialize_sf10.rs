@@ -295,6 +295,8 @@ fn test_materialize_filtered_sf1_matches() {
         "Filtered SF1 parity check passed.\n  materialize_using_recordbatches: {:?}\n  materialize_impl: {:?}",
         recordbatch_elapsed, impl_elapsed
     );
+    remove_dir_all_ignore_not_found(&old_materialize_graph_path).unwrap();
+    remove_dir_all_ignore_not_found(&rb_materialize_graph_path).unwrap();
 }
 
 #[cfg(feature = "io")]
