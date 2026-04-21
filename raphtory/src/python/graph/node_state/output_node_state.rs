@@ -7,8 +7,7 @@ use crate::{
                 OutputTypedNodeState, TransformedPropMap, TypedNodeState,
             },
             view::{
-                internal::IntoDynamicOrMutable, BoxableGraphView, DynamicGraph,
-                StaticGraphViewOps,
+                internal::IntoDynamicOrMutable, BoxableGraphView, DynamicGraph, StaticGraphViewOps,
             },
         },
         graph::nodes::Nodes,

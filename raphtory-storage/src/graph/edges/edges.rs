@@ -1,7 +1,7 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 use either::Either;
 use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerIds, EID};
-use raphtory_core::entities::{edges::edge_ref::EdgeRef};
+use raphtory_core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
 use storage::{utils::Iter2, EdgeEntryRef, Extension, ReadLockedEdges};
@@ -104,14 +104,26 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => match layers {
                 LayerIds::None => 0,
                 LayerIds::One(layer_id) => storage.storage().num_temporal_edges_layer(*layer_id),
-                LayerIds::All => layers.iter(storage.storage().num_layers()).map(|layer_id| storage.storage().num_temporal_edges_layer(layer_id)).sum::<usize>(),
-                LayerIds::Multiple(layers) => layers.iter().map(|layer_id| storage.storage().num_temporal_edges_layer(layer_id)).sum(),
+                LayerIds::All => layers
+                    .iter(storage.storage().num_layers())
+                    .map(|layer_id| storage.storage().num_temporal_edges_layer(layer_id))
+                    .sum::<usize>(),
+                LayerIds::Multiple(layers) => layers
+                    .iter()
+                    .map(|layer_id| storage.storage().num_temporal_edges_layer(layer_id))
+                    .sum(),
             },
             EdgesStorageRef::Unlocked(edges) => match layers {
                 LayerIds::None => 0,
                 LayerIds::One(layer_id) => edges.storage().num_temporal_edges_layer(*layer_id),
-                LayerIds::All => layers.iter(edges.storage().num_layers()).map(|layer_id| edges.storage().num_temporal_edges_layer(layer_id)).sum::<usize>(),
-                LayerIds::Multiple(layers) => layers.iter().map(|layer_id| edges.storage().num_temporal_edges_layer(layer_id)).sum(),
+                LayerIds::All => layers
+                    .iter(edges.storage().num_layers())
+                    .map(|layer_id| edges.storage().num_temporal_edges_layer(layer_id))
+                    .sum::<usize>(),
+                LayerIds::Multiple(layers) => layers
+                    .iter()
+                    .map(|layer_id| edges.storage().num_temporal_edges_layer(layer_id))
+                    .sum(),
             },
         }
     }
@@ -119,7 +131,9 @@ impl<'a> EdgesStorageRef<'a> {
     #[inline]
     pub fn edge(self, edge: EID) -> EdgeStorageEntry<'a> {
         match self {
-            EdgesStorageRef::Mem(storage) => EdgeStorageEntry::Mem(storage.edge_ref(Either::Left(edge))),
+            EdgesStorageRef::Mem(storage) => {
+                EdgeStorageEntry::Mem(storage.edge_ref(Either::Left(edge)))
+            }
             EdgesStorageRef::Unlocked(storage) => storage.edge(edge),
         }
     }

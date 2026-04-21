@@ -167,6 +167,18 @@ impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
     fn apply(&self, storage: &GraphStorage, node: VID) -> V {
         self.deref().apply(storage, node)
     }
+
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        self.deref().domain(_storage)
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        self.deref().const_value()
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        self.deref().const_value_in_domain()
+    }
 }
 
 #[derive(Clone, Copy, Debug)]

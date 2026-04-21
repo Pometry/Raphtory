@@ -4,6 +4,7 @@ use crate::{
     serialise::parquet::model::ParquetDelEdge,
 };
 use arrow::datatypes::{DataType, Field};
+use either::Either;
 use model::ParquetCEdge;
 use raphtory_api::{core::storage::timeindex::TimeIndexOps, iter::IntoDynBoxed};
 use raphtory_storage::{
@@ -11,7 +12,6 @@ use raphtory_storage::{
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
 };
 use std::path::Path;
-use either::Either;
 
 pub(crate) fn encode_edge_tprop(
     g: &GraphStorage,

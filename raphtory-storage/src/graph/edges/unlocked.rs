@@ -1,5 +1,5 @@
-use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId};
 use either::Either;
+use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::entities::{LayerIds, EID};
 use rayon::prelude::*;

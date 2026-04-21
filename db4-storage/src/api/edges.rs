@@ -124,7 +124,11 @@ pub trait LockedESegment: Send + Sync + std::fmt::Debug {
     where
         Self: 'a;
 
-    fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>, edge_ref: Option<EdgeRef>) -> Self::EntryRef<'a>
+    fn entry_ref<'a>(
+        &'a self,
+        edge_pos: impl Into<LocalPOS>,
+        edge_ref: Option<EdgeRef>,
+    ) -> Self::EntryRef<'a>
     where
         Self: 'a;
 

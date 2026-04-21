@@ -1,9 +1,7 @@
 use ahash::HashSet;
 use proptest::{prelude::Strategy, proptest, sample::Index};
 use raphtory::{
-    algorithms::components::{
-        weakly_connected_components, ConnectedComponent,
-    },
+    algorithms::components::{weakly_connected_components, ConnectedComponent},
     db::api::{
         mutation::AdditionOps,
         state::{NodeStateValue, TypedNodeState},

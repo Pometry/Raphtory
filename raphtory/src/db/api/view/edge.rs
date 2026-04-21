@@ -433,7 +433,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 let time_semantics = g.edge_time_semantics();
                 match e.time() {
                     None => match e.layer() {
-                        None => time_semantics.edge_earliest_time(g.core_edge(Either::Right(e)).as_ref(), g),
+                        None => time_semantics
+                            .edge_earliest_time(g.core_edge(Either::Right(e)).as_ref(), g),
                         Some(layer) => time_semantics.edge_earliest_time(
                             g.core_edge(Either::Right(e)).as_ref(),
                             LayeredGraph::new(g, LayerIds::One(layer)),
@@ -460,7 +461,8 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 let time_semantics = g.edge_time_semantics();
                 match e.time() {
                     None => match e.layer() {
-                        None => time_semantics.edge_latest_time(g.core_edge(Either::Right(e)).as_ref(), g),
+                        None => time_semantics
+                            .edge_latest_time(g.core_edge(Either::Right(e)).as_ref(), g),
 
                         Some(layer) => time_semantics.edge_latest_time(
                             g.core_edge(Either::Right(e)).as_ref(),

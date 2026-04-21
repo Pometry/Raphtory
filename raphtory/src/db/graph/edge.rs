@@ -50,7 +50,11 @@ use raphtory_storage::{
     },
 };
 use std::{
-    cmp::Ordering, fmt::{Debug, Formatter}, hash::{Hash, Hasher}, iter, sync::Arc
+    cmp::Ordering,
+    fmt::{Debug, Formatter},
+    hash::{Hash, Hasher},
+    iter,
+    sync::Arc,
 };
 use storage::wal::{GraphWalOps, WalOps};
 

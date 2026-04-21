@@ -52,7 +52,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
     path::Path,
-    sync::{Arc, atomic::Ordering}, time::Instant,
+    sync::{atomic::Ordering, Arc},
 };
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
@@ -743,22 +743,15 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let core_edges = self.core_edges();
         let layer_ids = self.layer_ids();
         let edge_time_semantics = self.edge_time_semantics();
-        let now = Instant::now();
         if self.filtered() {
-            let x = core_edges
+            core_edges
                 .as_ref()
                 .par_iter(layer_ids)
                 .filter(|e| self.filter_edge(e.as_ref()))
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum();
-            println!("A Counting temporal edges with layer ids: {:?}, filtered: {}, elapsed: {:?}", layer_ids, self.filtered(), now.elapsed());
-            x
+                .sum()
         } else {
-            let x = core_edges
-                .as_ref()
-                .count_temporal_edges(layer_ids);
-            println!("B Counting temporal edges with layer ids: {:?}, filtered: {}, elapsed: {:?}", layer_ids, self.filtered(), now.elapsed());
-            x
+            core_edges.as_ref().count_temporal_edges(layer_ids)
         }
     }
 

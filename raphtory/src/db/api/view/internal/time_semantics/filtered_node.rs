@@ -247,9 +247,9 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
         self.history(view, layer_ids).edge_history()
     }
 
-    fn filtered_edges_iter<G: GraphViewOps<'a>>(
+    fn filtered_edges_iter<G: GraphView + 'a>(
         self,
-        view: G,
+        view: &'a G,
         layer_ids: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
@@ -261,22 +261,49 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
                 view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                     && view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
-            FilterState::Nodes | FilterState::BothIndependent => FilterVariants::Nodes(iter.filter(move |e| {
-                let gs = view.core_graph();
-                view.filter_node(gs.core_node(e.remote()).as_ref())
-            })),
-            FilterState::Edges => {
-                FilterVariants::Edges(iter.filter(move |e| {
+            FilterState::Nodes | FilterState::BothIndependent => {
+                FilterVariants::Nodes(iter.filter(move |e| {
                     let gs = view.core_graph();
-                    view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
+                    view.filter_node(gs.core_node(e.remote()).as_ref())
                 }))
             }
+            FilterState::Edges => FilterVariants::Edges(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
+            })),
         }
     }
 
-    fn filtered_neighbours_iter<G: GraphViewOps<'a>>(
+    fn internal_filtered_edges_iter<G: GraphView + 'a>(
         self,
-        view: G,
+        view: &'a G,
+        layer_ids: &'a LayerIds,
+        dir: Direction,
+    ) -> impl Iterator<Item = EdgeRef> + 'a {
+        let iter = self.edges_iter(layer_ids, dir);
+        match view.filter_state() {
+            FilterState::Neither => FilterVariants::Neither(iter),
+            FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.internal_filter_edge(gs.core_edge(Either::Right(*e)).as_ref(), layer_ids)
+                    && view.internal_filter_node(gs.core_node(e.remote()).as_ref(), layer_ids)
+            })),
+            FilterState::Nodes | FilterState::BothIndependent => {
+                FilterVariants::Nodes(iter.filter(move |e| {
+                    let gs = view.core_graph();
+                    view.internal_filter_node(gs.core_node(e.remote()).as_ref(), layer_ids)
+                }))
+            }
+            FilterState::Edges => FilterVariants::Edges(iter.filter(move |e| {
+                let gs = view.core_graph();
+                view.internal_filter_edge(gs.core_edge(Either::Right(*e)).as_ref(), layer_ids)
+            })),
+        }
+    }
+
+    fn filtered_neighbours_iter<G: GraphView + 'a>(
+        self,
+        view: &'a G,
         layer_ids: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {

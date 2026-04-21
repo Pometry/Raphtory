@@ -6,7 +6,10 @@ use crate::{
     properties::PropMutEntry,
     segments::{
         HasRow, SegmentContainer,
-        edge::{self, entry::{MemEdgeEntry, MemEdgeRef}},
+        edge::{
+            self,
+            entry::{MemEdgeEntry, MemEdgeRef},
+        },
     },
     utils::Iter4,
     wal::LSN,
@@ -345,9 +348,7 @@ impl MemEdgeSegment {
 
     #[inline]
     pub fn t_len(&self, layer_id: usize) -> usize {
-        self.layers
-            .get(layer_id)
-            .map_or(0, |layer| layer.t_len())
+        self.layers.get(layer_id).map_or(0, |layer| layer.t_len())
     }
 }
 
@@ -402,7 +403,11 @@ impl ArcLockedSegmentView {
 impl LockedESegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemEdgeRef<'a>;
 
-    fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>, edge_ref: Option<EdgeRef>) -> Self::EntryRef<'a>
+    fn entry_ref<'a>(
+        &'a self,
+        edge_pos: impl Into<LocalPOS>,
+        edge_ref: Option<EdgeRef>,
+    ) -> Self::EntryRef<'a>
     where
         Self: 'a,
     {

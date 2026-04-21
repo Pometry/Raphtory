@@ -225,7 +225,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn t_len(&self, layer_id: usize) -> usize {
-        self.segments.iter().map(|(_, page)| page.t_len(layer_id)).sum()
+        self.segments
+            .iter()
+            .map(|(_, page)| page.t_len(layer_id))
+            .sum()
     }
 
     pub fn prop_meta(&self) -> &Arc<Meta> {
