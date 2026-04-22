@@ -156,13 +156,20 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type TProps = EdgeTProps<'a>;
 
     fn edge(self, layer_id: LayerId) -> Option<(VID, VID)> {
-        self.edge_ref.map(|e| (e.src(), e.dst())).or_else(|| {
-            self.es
+        match self.edge_ref {
+            None => self
+                .es
                 .as_ref()
                 .get(layer_id.0)?
                 .get(self.pos)
-                .map(|entry| (entry.src, entry.dst))
-        })
+                .map(|entry| (entry.src, entry.dst)),
+            Some(eref) => self
+                .es
+                .as_ref()
+                .get(layer_id.0)?
+                .has_item(self.pos)
+                .then_some((eref.src(), eref.dst())),
+        }
     }
 
     fn layer_additions(self, layer_id: LayerId) -> Self::Additions {

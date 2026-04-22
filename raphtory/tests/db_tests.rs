@@ -3006,10 +3006,8 @@ fn test_layer_name() {
         .add_edge(0, 0, 2, NO_PROPS, Some("awesome layer"))
         .unwrap();
 
-    test_storage!(&graph, |graph| {
-        assert_eq!(graph.edge(0, 1).unwrap().layer_names(), ["_default"]);
-        assert_eq!(graph.edge(0, 2).unwrap().layer_names(), ["awesome layer"]);
-    });
+    assert_eq!(graph.edge(0, 1).unwrap().layer_names(), ["_default"]);
+    assert_eq!(graph.edge(0, 2).unwrap().layer_names(), ["awesome layer"]);
 }
 
 #[test]
