@@ -362,21 +362,30 @@ impl<
                 // Log a checkpoint record in the WAL, indicating that the DB was shutdown
                 // with all the segments flushed to disk.
                 // On startup, recovery is skipped since there are no pending writes to replay.
-                let checkpoint_lsn = wal
-                    .log_shutdown_checkpoint()
-                    .expect("Failed to log shutdown checkpoint in drop");
+                let checkpoint_lsn = match wal.log_shutdown_checkpoint() {
+                    Ok(lsn) => lsn,
+                    Err(err) => {
+                        eprintln!("Failed to log shutdown checkpoint in drop: {err}");
+                        return;
+                    }
+                };
 
                 // Flush up to the end of the WAL stream.
                 let flush_lsn = wal.position();
-                wal.flush(flush_lsn)
-                    .expect("Failed to flush checkpoint record in drop");
+
+                if let Err(err) = wal.flush(flush_lsn) {
+                    eprintln!("Failed to flush checkpoint record in drop: {err}");
+                    return;
+                }
 
                 // Record the checkpoint and shutdown state and write control file to disk.
                 control_file.set_checkpoint(checkpoint_lsn);
                 control_file.set_db_state(DBState::Shutdown);
-                control_file
-                    .save()
-                    .expect("Failed to save control file in drop");
+
+                if let Err(err) = control_file.save() {
+                    eprintln!("Failed to save control file in drop: {err}");
+                    return;
+                }
             }
             Err(err) => {
                 eprintln!("Failed to flush storage in drop: {err}")
