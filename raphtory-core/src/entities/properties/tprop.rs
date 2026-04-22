@@ -120,21 +120,10 @@ impl<'a> TPropCell<'a> {
 
 impl<'a> TPropOps<'a> for TPropCell<'a> {
     fn last(&self) -> Option<(EventTime, Prop)> {
-        let (time, pos) = self.t_cell?.last_value()?;
-        let end_pos = pos.as_ref()?;
-        (0..=*end_pos)
+        self.t_cell?
+            .iter()
             .rev()
-            .find_map(|idx| self.log?.get(idx))
-            .map(|prop| (time, prop))
-    }
-
-    fn last_before(&self, t: EventTime) -> Option<(EventTime, Prop)> {
-        let (time, pos) = self.t_cell?.last_before(t)?;
-        let end_pos = pos.as_ref()?;
-        (0..=*end_pos)
-            .rev()
-            .find_map(|idx| self.log?.get(idx))
-            .map(|prop| (time, prop))
+            .find_map(|(t, pos)| self.log?.get(pos.as_ref().copied()?).map(|prop| (*t, prop)))
     }
 
     fn iter_inner(
