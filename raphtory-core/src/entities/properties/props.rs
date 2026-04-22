@@ -18,9 +18,6 @@ pub enum MetadataError {
     IllegalUpdate { old: Prop, new: Prop },
 
     #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
-
-    #[error(transparent)]
     ColumnError(#[from] TPropColumnError),
 }
 

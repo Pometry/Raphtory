@@ -56,8 +56,6 @@ pub enum MutationError {
     #[error(transparent)]
     InvalidBigDecimal(#[from] InvalidBigDecimal),
     #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
-    #[error(transparent)]
     MetadataError(#[from] MetadataError),
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
     InvalidEdgeLayer {
