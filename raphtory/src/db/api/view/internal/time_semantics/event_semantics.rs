@@ -183,24 +183,24 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> bool {
-        // let fs = view.filter_state();
-        // if matches!(fs, FilterState::Neither) {
-        //     return true;
-        // }
+        let fs = view.filter_state();
+        if matches!(fs, FilterState::Neither) {
+            return true;
+        }
 
-        // let layers = view.layer_ids();
-        // let node_prop_history = node.node_additions(layers);
-        // let has_history = !node_prop_history.is_empty();
-        // if has_history {
-        //     return true;
-        // }
+        let layers = view.layer_ids();
+        let node_prop_history = node.node_additions(layers);
+        let has_history = !node_prop_history.is_empty();
+        if has_history {
+            return true;
+        }
 
-        // node.internal_filtered_edges_iter(&view, layers, Direction::OUT)
-        //     .chain(node.internal_filtered_edges_iter(&view, layers, Direction::IN))
-        //     .next()
-        //     .is_some()
+        node.internal_filtered_edges_iter(&view, layers, Direction::OUT)
+            .chain(node.internal_filtered_edges_iter(&view, layers, Direction::IN))
+            .next()
+            .is_some()
 
-        !node.history(&view, view.layer_ids()).is_empty()
+        // !node.history(&view, view.layer_ids()).is_empty()
     }
 
     fn node_valid_window<'graph, G: GraphView + 'graph>(

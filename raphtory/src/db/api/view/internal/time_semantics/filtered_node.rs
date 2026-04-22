@@ -1,6 +1,8 @@
 use crate::{
     db::api::view::internal::{
         EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView,
+        InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+        InternalNodeFilterOps,
     },
     prelude::GraphViewOps,
 };
@@ -14,9 +16,12 @@ use raphtory_api::core::{
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
-use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
+};
 use std::{ops::Range, sync::Arc};
-use storage::gen_ts::LayerIter;
+use storage::{api::edges::EdgeRefOps, gen_ts::LayerIter, EdgeEntryRef};
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
@@ -285,8 +290,8 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
                 let gs = view.core_graph();
-                view.internal_filter_edge(gs.core_edge(Either::Right(*e)).as_ref(), layer_ids)
-                    && view.internal_filter_node(gs.core_node(e.remote()).as_ref(), layer_ids)
+                view.internal_filter_node(gs.core_node(e.remote()).as_ref(), layer_ids)
+                    && filter_edge_impl(view, gs.core_edge(Either::Right(*e)).as_ref(), layer_ids)
             })),
             FilterState::Nodes | FilterState::BothIndependent => {
                 FilterVariants::Nodes(iter.filter(move |e| {
@@ -296,7 +301,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             }
             FilterState::Edges => FilterVariants::Edges(iter.filter(move |e| {
                 let gs = view.core_graph();
-                view.internal_filter_edge(gs.core_edge(Either::Right(*e)).as_ref(), layer_ids)
+                filter_edge_impl(view, gs.core_edge(Either::Right(*e)).as_ref(), layer_ids)
             })),
         }
     }
@@ -311,6 +316,26 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             .map(|e| e.remote())
             .dedup()
     }
+}
+
+fn filter_edge_impl<G: GraphView>(view: &G, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
+    (!view.internal_edge_filtered() || view.internal_filter_edge(edge, layer_ids))
+        && (!view.internal_edge_layer_filtered()
+            || view.edge_filter_includes_edge_layer_filter()
+            || edge
+                .layer_ids_iter(layer_ids)
+                .any(|layer_id| view.internal_filter_edge_layer(edge, layer_id)))
+        && (!view.internal_exploded_edge_filtered()
+            || view.edge_filter_includes_exploded_edge_filter()
+            || view.edge_layer_filter_includes_exploded_edge_filter()
+            || {
+                let eid = edge.edge_id();
+                edge.additions_iter(layer_ids).any(|(layer_id, additions)| {
+                    additions.iter().any(|t| {
+                        view.internal_filter_exploded_edge(eid.with_layer(layer_id), t, layer_ids)
+                    })
+                })
+            })
 }
 
 impl<'a, T: NodeStorageOps<'a>> FilteredNodeStorageOps<'a> for T {}
