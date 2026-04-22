@@ -9,7 +9,7 @@ use raphtory::io::parquet_loaders::{
 use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
-        api::view::{materialize_using_recordbatches, MaterializedGraph},
+        api::view::{materialize_impl, MaterializedGraph},
         graph::graph::{assert_graph_equal_timestamps, graph_equal},
     },
     prelude::{
@@ -92,9 +92,7 @@ fn test_materialize_using_recordbatches_matches_materialize() {
     g.add_metadata([("graph_meta", "constant")]).unwrap();
 
     let expected = g.materialize().unwrap();
-    let actual =
-        materialize_using_recordbatches(&g, None, g.core_graph().extension().config().clone())
-            .unwrap();
+    let actual = materialize_impl(&g, None, g.core_graph().extension().config().clone()).unwrap();
 
     assert_graph_equal_timestamps(&expected, &actual);
 }
@@ -131,7 +129,7 @@ fn test_materialize_snb_sf1_timings() {
         Local::now()
     );
     let recordbatch_start = Instant::now();
-    let recordbatch_graph = materialize_using_recordbatches(
+    let recordbatch_graph = materialize_impl(
         &g,
         Some(&rb_materialize_graph_path),
         g.core_graph().extension().config().clone(),
@@ -248,7 +246,7 @@ fn test_materialize_filtered_sf1_matches() {
         Local::now()
     );
     let recordbatch_start = Instant::now();
-    let recordbatch_graph = materialize_using_recordbatches(
+    let recordbatch_graph = materialize_impl(
         &filtered,
         Some(&rb_materialize_graph_path),
         g.core_graph().extension().config().clone(),
@@ -311,7 +309,7 @@ fn get_new_materialize_time(graph_path: &Path, materialize_graph_path: &Path) ->
         Local::now()
     );
     let recordbatch_start = Instant::now();
-    let _recordbatch_graph = materialize_using_recordbatches(
+    let _recordbatch_graph = materialize_impl(
         &sf10_graph,
         Some(&materialize_graph_path),
         sf10_graph.core_graph().extension().config().clone(),
