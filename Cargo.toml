@@ -45,6 +45,7 @@ debug = true
 [profile.with-debug]
 inherits = "dev"
 debug = true
+opt-level = 0
 
 # for fast one-time builds (e.g., docs/CI)
 [profile.build-fast]
