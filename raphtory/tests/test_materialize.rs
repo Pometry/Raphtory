@@ -1,26 +1,10 @@
 use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
-    arrow_loader::df_loaders::edges::ColumnNames,
-    db::{
-        api::{
-            storage::storage::PersistenceStrategy,
-            view::{materialize_using_recordbatches, MaterializedGraph},
-        },
-        graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
-    },
+    db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
     prelude::*,
     test_storage,
     test_utils::{build_edge_list, build_graph_from_edge_list},
-};
-#[cfg(feature = "io")]
-use raphtory::{
-    io::parquet_loaders::{
-        get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
-        load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
-        load_nodes_from_parquet,
-    },
-    serialise::parquet::ParquetEncoder,
 };
 use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::core_ops::CoreGraphOps;
