@@ -68,7 +68,6 @@ fn default_materialized_graphs_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../ldbc/data/materialized-graphs")
 }
 
-
 fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
     match fs::remove_dir_all(path.as_ref()) {
         Ok(()) => Ok(()),
