@@ -424,14 +424,18 @@ pub fn materialize_using_recordbatches(
                     let tx = tx.clone();
                     move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
                 };
+                let make_edge_sink_factory = |kind| {
+                    let tx = tx.clone();
+                    move |_, _, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
+                };
 
                 // Keep encode order aligned with loader dependencies
                 let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
                     encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
                     encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
-                    encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
-                    encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
-                    encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
+                    encode_edge_tprop(graph, make_edge_sink_factory(RecordBatchKind::EdgesT))?;
+                    encode_edge_cprop(graph, make_edge_sink_factory(RecordBatchKind::EdgesC))?;
+                    encode_edge_deletions(graph, make_edge_sink_factory(RecordBatchKind::EdgesD))?;
                     encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
                     encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
                     Ok(())
