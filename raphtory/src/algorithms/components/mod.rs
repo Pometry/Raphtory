@@ -4,12 +4,14 @@ mod lcc;
 mod out_components;
 mod scc;
 
-pub use connected_components::{weakly_connected_components, weakly_connected_components_ds};
+pub use connected_components::{weakly_connected_components, ConnectedComponent};
 pub use in_components::{
-    in_component, in_component_filtered, in_components, in_components_filtered,
+    in_component, in_component_filtered, in_components, in_components_filtered, InComponentState,
+    InState, TransformedInState,
 };
 pub use lcc::LargestConnectedComponent;
 pub use out_components::{
     out_component, out_component_filtered, out_components, out_components_filtered,
+    OutComponentState,
 };
 pub use scc::strongly_connected_components;

@@ -6,7 +6,7 @@ use either::Either;
 use raphtory_api::core::{
     entities::{
         properties::{prop::Prop, tprop::TPropOps},
-        LayerIds, ELID,
+        LayerId, LayerIds, ELID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
 };
@@ -242,19 +242,19 @@ pub trait FilteredEdgeStorageOps<'a> {
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + 'a;
+    ) -> impl Iterator<Item = LayerId> + 'a;
 
     fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>)>;
+    ) -> impl Iterator<Item = (LayerId, FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>)>;
 
     fn filtered_deletions_iter<G: GraphView + 'a>(
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>)>;
+    ) -> impl Iterator<Item = (LayerId, FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>)>;
 
     fn filtered_updates_iter<G: GraphView + 'a>(
         self,
@@ -262,7 +262,7 @@ pub trait FilteredEdgeStorageOps<'a> {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<
         Item = (
-            usize,
+            LayerId,
             FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>,
             FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>,
         ),
@@ -270,19 +270,19 @@ pub trait FilteredEdgeStorageOps<'a> {
 
     fn filtered_additions<G: GraphView + 'a>(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         view: G,
     ) -> FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>;
 
     fn filtered_deletions<G: GraphView + 'a>(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         view: G,
     ) -> FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>;
 
     fn filtered_temporal_prop_layer<G: GraphView + 'a>(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
         view: G,
     ) -> impl TPropOps<'a> + Sync + 'a;
@@ -292,13 +292,13 @@ pub trait FilteredEdgeStorageOps<'a> {
         prop_id: usize,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a;
+    ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a;
 
     fn filtered_edge_metadata<G: GraphView>(
         &self,
         view: G,
         prop_id: usize,
-        layer_filter: impl Fn(usize) -> bool,
+        layer_filter: impl Fn(LayerId) -> bool,
     ) -> Option<Prop>;
 }
 
@@ -307,16 +307,17 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + 'a {
+    ) -> impl Iterator<Item = LayerId> + 'a {
         self.layer_ids_iter(layer_ids)
             .filter(move |layer_id| view.internal_filter_edge_layer(self, *layer_id))
+            .map(|layer_id| layer_id)
     }
 
     fn filtered_additions_iter<G: GraphView + 'a>(
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>)> {
+    ) -> impl Iterator<Item = (LayerId, FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>)> {
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
             .map(move |layer_id| (layer_id, self.filtered_additions(layer_id, view.clone())))
     }
@@ -325,9 +326,9 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         self,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>)> {
+    ) -> impl Iterator<Item = (LayerId, FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>)> {
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
-            .map(move |layer| (layer, self.filtered_deletions(layer, view.clone())))
+            .map(move |layer_id| (layer_id, self.filtered_deletions(layer_id, view.clone())))
     }
 
     fn filtered_updates_iter<G: GraphViewOps<'a>>(
@@ -336,9 +337,9 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<
         Item = (
-            usize,
-            FilteredEdgeTimeIndex<'a, G, storage::EdgeAdditions<'a>>,
-            FilteredEdgeTimeIndex<'a, G, storage::EdgeDeletions<'a>>,
+            LayerId,
+            FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>>,
+            FilteredEdgeTimeIndex<'a, G, EdgeDeletions<'a>>,
         ),
     > + 'a {
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
@@ -353,7 +354,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
 
     fn filtered_additions<G: GraphViewOps<'a>>(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         view: G,
     ) -> FilteredEdgeTimeIndex<'a, G, EdgeAdditions<'a>> {
         FilteredEdgeTimeIndex {
@@ -366,7 +367,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
 
     fn filtered_deletions<G: GraphViewOps<'a>>(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         view: G,
     ) -> FilteredEdgeTimeIndex<'a, G, storage::EdgeDeletions<'a>> {
         FilteredEdgeTimeIndex {
@@ -379,7 +380,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
 
     fn filtered_temporal_prop_layer<G: GraphViewOps<'a>>(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
         view: G,
     ) -> impl TPropOps<'a> + Sync + 'a {
@@ -395,7 +396,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         prop_id: usize,
         view: G,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
             .map(move |layer_id| {
                 (
@@ -409,7 +410,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         &self,
         view: G,
         prop_id: usize,
-        layer_filter: impl Fn(usize) -> bool,
+        layer_filter: impl Fn(LayerId) -> bool,
     ) -> Option<Prop> {
         let layer_ids = view.layer_ids();
         let mut values = self

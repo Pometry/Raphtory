@@ -423,7 +423,7 @@ mod test {
     use proptest::prelude::*;
     use rand::seq::SliceRandom;
     use rayon::prelude::*;
-    use std::{collections::HashMap, sync::Arc};
+    use std::collections::HashMap;
 
     #[test]
     fn test_dict_mapper() {

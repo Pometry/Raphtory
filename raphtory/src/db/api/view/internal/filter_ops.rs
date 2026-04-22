@@ -4,7 +4,7 @@ use iter_enum::{
     ParallelIterator,
 };
 use raphtory_api::core::{
-    entities::{LayerIds, ELID},
+    entities::{LayerId, LayerIds, ELID},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_storage::graph::{
@@ -47,7 +47,7 @@ pub trait FilterOps {
 
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool;
 
-    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool;
+    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool;
 
     fn filter_exploded_edge(&self, eid: ELID, t: EventTime) -> bool;
 
@@ -66,7 +66,7 @@ pub trait InnerFilterOps {
     fn filter_edge_inner(&self, edge: EdgeEntryRef) -> bool;
 
     /// handles edge and edge layer filter (not exploded edge filter or windows)
-    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: usize) -> bool;
+    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: LayerId) -> bool;
 
     fn filter_exploded_edge_inner(&self, eid: ELID, t: EventTime) -> bool;
 
@@ -95,7 +95,7 @@ impl<G: GraphView> InnerFilterOps for G {
             && self.filter_edge_from_nodes(edge)
     }
 
-    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn filter_edge_layer_inner(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.layer_ids().contains(&layer)
             && self.internal_filter_edge_layer(edge, layer)
             && (self.edge_layer_filter_includes_edge_filter()
@@ -194,7 +194,7 @@ impl<G: GraphView> FilterOps for G {
         }
     }
 
-    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.internal_filter_edge_layer(edge, layer)
             && (self.edge_layer_filter_includes_edge_filter()
                 || self.internal_filter_edge(edge, self.layer_ids()))

@@ -1,10 +1,39 @@
 use crate::core::storage::arc_str::ArcStr;
+use bytemuck::{Pod, Zeroable};
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
     ParallelExtend, ParallelIterator,
 };
 use rayon::prelude::*;
-use std::{iter::Copied, sync::Arc};
+use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Display, Formatter, Result as FmtResult},
+    iter::Copied,
+    sync::Arc,
+};
+
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize, Pod, Zeroable,
+)]
+#[repr(transparent)]
+pub struct LayerId(pub usize);
+impl PartialEq<usize> for LayerId {
+    fn eq(&self, other: &usize) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<LayerId> for usize {
+    fn eq(&self, other: &LayerId) -> bool {
+        *self == other.0
+    }
+}
+
+impl Display for LayerId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        Display::fmt(&self.0, f)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Layer {
@@ -120,7 +149,7 @@ where
 pub enum LayerIds {
     None,
     All,
-    One(usize),
+    One(LayerId),
     Multiple(Multiple),
 }
 
@@ -141,11 +170,11 @@ pub enum LayerVariants<None, All, One, Multiple> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Multiple(pub Arc<[usize]>);
+pub struct Multiple(pub Arc<[LayerId]>);
 
 impl<'a> IntoIterator for &'a Multiple {
-    type Item = usize;
-    type IntoIter = Copied<core::slice::Iter<'a, usize>>;
+    type Item = LayerId;
+    type IntoIter = Copied<core::slice::Iter<'a, Self::Item>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.iter().copied()
@@ -154,33 +183,33 @@ impl<'a> IntoIterator for &'a Multiple {
 
 impl Multiple {
     #[inline]
-    pub fn contains(&self, id: usize) -> bool {
+    pub fn contains(&self, id: LayerId) -> bool {
         self.0.binary_search(&id).is_ok()
     }
 
     #[inline]
-    pub fn into_iter(self) -> impl Iterator<Item = usize> {
+    pub fn into_iter(self) -> impl Iterator<Item = LayerId> {
         let ids = self.0.clone();
         (0..ids.len()).map(move |i| ids[i])
     }
 
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = LayerId> + '_ {
         self.0.iter().copied()
     }
 
     #[inline]
-    pub fn get_id_by_index(&self, index: usize) -> Option<usize> {
+    pub fn get_id_by_index(&self, index: usize) -> Option<LayerId> {
         self.0.get(index).copied()
     }
 
     #[inline]
-    pub fn get_index_by_id(&self, id: usize) -> Option<usize> {
+    pub fn get_index_by_id(&self, id: LayerId) -> Option<usize> {
         self.0.binary_search(&id).ok()
     }
 
     #[inline]
-    pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = usize> {
+    pub fn par_iter(&self) -> impl rayon::iter::ParallelIterator<Item = LayerId> {
         let bit_vec = self.0.clone();
         (0..bit_vec.len()).into_par_iter().map(move |i| bit_vec[i])
     }
@@ -198,6 +227,15 @@ impl Multiple {
 
 impl FromIterator<usize> for Multiple {
     fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
+        let mut inner: Vec<_> = iter.into_iter().map(LayerId).collect();
+        inner.sort();
+        inner.dedup();
+        Multiple(inner.into())
+    }
+}
+
+impl FromIterator<LayerId> for Multiple {
+    fn from_iter<I: IntoIterator<Item = LayerId>>(iter: I) -> Self {
         let mut inner: Vec<_> = iter.into_iter().collect();
         inner.sort();
         inner.dedup();
@@ -205,8 +243,17 @@ impl FromIterator<usize> for Multiple {
     }
 }
 
+impl From<Vec<LayerId>> for Multiple {
+    fn from(mut v: Vec<LayerId>) -> Self {
+        v.sort();
+        v.dedup();
+        Multiple(v.into())
+    }
+}
+
 impl From<Vec<usize>> for Multiple {
-    fn from(mut v: Vec<usize>) -> Self {
+    fn from(v: Vec<usize>) -> Self {
+        let mut v: Vec<_> = v.into_iter().map(LayerId).collect();
         v.sort();
         v.dedup();
         Multiple(v.into())

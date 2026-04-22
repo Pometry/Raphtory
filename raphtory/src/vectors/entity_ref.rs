@@ -9,10 +9,11 @@ use either::Either;
 use raphtory_api::core::entities::GID;
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 
+// TODO: try to make private again if possible
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) enum EntityRef {
-    Node(u32),
-    Edge(u32),
+pub enum EntityRef {
+    Node(u64),
+    Edge(u64),
 }
 
 impl<G: StaticGraphViewOps> From<NodeView<'static, G>> for EntityRef {
@@ -28,7 +29,7 @@ impl<G: StaticGraphViewOps> From<EdgeView<G>> for EntityRef {
 }
 
 impl EntityRef {
-    pub(super) fn id(&self) -> u32 {
+    pub(super) fn id(&self) -> u64 {
         match self {
             EntityRef::Node(id) => *id,
             EntityRef::Edge(id) => *id,
@@ -79,18 +80,19 @@ impl EntityRef {
     }
 }
 
+// TODO: make sure I use this everywhere
 pub(super) trait IntoDbId {
-    fn into_db_id(self) -> u32;
+    fn into_db_id(self) -> u64;
 }
 
 impl<G: StaticGraphViewOps> IntoDbId for NodeView<'static, G> {
-    fn into_db_id(self) -> u32 {
-        self.node.index() as u32
+    fn into_db_id(self) -> u64 {
+        self.node.index() as u64
     }
 }
 
 impl<G: StaticGraphViewOps> IntoDbId for EdgeView<G> {
-    fn into_db_id(self) -> u32 {
-        self.edge.pid().0 as u32
+    fn into_db_id(self) -> u64 {
+        self.edge.pid().0 as u64
     }
 }

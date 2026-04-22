@@ -9,7 +9,7 @@ use crate::{
                 extract_secondary_index_col, process_shared_properties,
                 resolve_nodes_and_type_with_cache,
             },
-            layer_col::{lift_node_type_col, LayerCol},
+            layer_col::{lift_layer_col, lift_node_type_col, LayerCol},
             node_col::NodeCol,
             prop_handler::*,
         },
@@ -21,7 +21,13 @@ use arrow::{array::AsArray, datatypes::UInt64Type};
 use itertools::izip;
 use raphtory_api::{
     atomic_extra::atomic_vid_from_mut_slice,
-    core::{entities::properties::meta::STATIC_GRAPH_LAYER_ID, storage::timeindex::EventTime},
+    core::{
+        entities::{
+            properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
+            LayerId,
+        },
+        storage::timeindex::EventTime,
+    },
 };
 use raphtory_core::{
     entities::{GidRef, VID},
@@ -41,9 +47,9 @@ use storage::{
 
 #[cfg(feature = "progress")]
 use crate::io::arrow::df_loaders::build_progress_bar;
+
 #[cfg(feature = "progress")]
 use kdam::BarExt;
-use raphtory_api::core::entities::properties::prop::AsPropRef;
 
 #[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
@@ -60,11 +66,12 @@ pub fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
     resolve_nodes: bool,
+    layer_id: Option<&str>,
+    layer_id_col: Option<&str>,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
     }
-    graph.flush().map_err(into_graph_err)?;
 
     LOAD_POOL.install(move || {
         let properties_indices = properties
@@ -79,6 +86,9 @@ pub fn load_nodes_from_df<
         let node_type_index =
             node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
         let node_type_index = node_type_index.transpose()?;
+        let layer_index = layer_id_col
+            .map(|name| df_view.get_index(name))
+            .transpose()?;
 
         let node_id_index = df_view.get_index(node_id)?;
         let time_index = df_view.get_index(time)?;
@@ -118,6 +128,14 @@ pub fn load_nodes_from_df<
                 })?;
             let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
             let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
+            // When no layer is specified, node properties go to STATIC_GRAPH_LAYER_ID.
+            // resolve_layer(None) would return "_default" (LayerId 1), which is wrong for nodes.
+            let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
+                let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
+                Some(layer_col.resolve_layer(None, graph)?)
+            } else {
+                None
+            };
 
             let time_col = df.time_col(time_index)?;
             let node_col = df.node_col(node_id_index)?;
@@ -196,7 +214,9 @@ pub fn load_nodes_from_df<
                     for (row, (vid, time, secondary_index)) in zip.enumerate() {
                         if let Some(mut_node) = writer.resolve_pos(*vid) {
                             let t = EventTime(time, secondary_index);
-                            let layer_id = STATIC_GRAPH_LAYER_ID;
+                            let layer_id = layer_col_resolved
+                                .as_ref()
+                                .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[row]));
 
                             update_time(t);
 
@@ -243,7 +263,6 @@ pub fn load_node_props_from_df<
     if df_view.is_empty() {
         return Ok(());
     }
-    graph.flush().map_err(into_graph_err)?;
     let metadata_indices = metadata
         .iter()
         .map(|name| df_view.get_index(name))

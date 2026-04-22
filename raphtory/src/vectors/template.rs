@@ -256,10 +256,10 @@ mod template_tests {
         graph.add_metadata([("name", "test-name")]).unwrap();
 
         let node1 = graph
-            .add_node(0, "node1", [("temp_test", "value_at_0")], None)
+            .add_node(0, "node1", [("temp_test", "value_at_0")], None, None)
             .unwrap();
         graph
-            .add_node(1, "node1", [("temp_test", "value_at_1")], None)
+            .add_node(1, "node1", [("temp_test", "value_at_1")], None, None)
             .unwrap();
         node1
             .add_metadata([("key1", "value1"), ("key2", "value2")])
@@ -303,16 +303,16 @@ mod template_tests {
         let graph = Graph::new();
 
         let node1 = graph
-            .add_node(0, "node1", [("temp_test", "value_at_0")], None)
+            .add_node(0, "node1", [("temp_test", "value_at_0")], None, None)
             .unwrap();
         graph
-            .add_node(1, "node1", [("temp_test", "value_at_1")], None)
+            .add_node(1, "node1", [("temp_test", "value_at_1")], None, None)
             .unwrap();
         node1
             .add_metadata([("key1", "value1"), ("key2", "value2")])
             .unwrap();
         let node2 = graph
-            .add_node(0, "node2", NO_PROPS, Some("person"))
+            .add_node(0, "node2", NO_PROPS, Some("person"), None)
             .unwrap();
         node2
             .add_metadata([("const_test", "const_test_value")])
@@ -364,7 +364,13 @@ mod template_tests {
     fn test_datetimes() {
         let graph = Graph::new();
         graph
-            .add_node("2024-09-09T09:08:01", "node1", [("temp", "value")], None)
+            .add_node(
+                "2024-09-09T09:08:01",
+                "node1",
+                [("temp", "value")],
+                None,
+                None,
+            )
             .unwrap();
 
         // I should be able to iteate over properties without doing properties|items, which would be solved by implementing Object for Properties

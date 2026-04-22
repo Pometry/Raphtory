@@ -59,6 +59,37 @@ Returns:: GqlMutableGraph
 <td></td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="queryroot.vectorisegraph">vectoriseGraph</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Update graph query, has side effects to update graph state
+
+Returns:: GqlMutableGraph
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">model</td>
+<td valign="top"><a href="#embeddingmodel">EmbeddingModel</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">nodes</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">edges</td>
+<td valign="top"><a href="#template">Template</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="queryroot.vectorisedgraph">vectorisedGraph</strong></td>
 <td valign="top"><a href="#vectorisedgraph">VectorisedGraph</a></td>
 <td>
@@ -3708,6 +3739,11 @@ Add a new node or add updates to an existing node.
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="mutablegraph.createnode">createNode</strong></td>
 <td valign="top"><a href="#mutablenode">MutableNode</a>!</td>
 <td>
@@ -3733,6 +3769,11 @@ Create a new node or fail if it already exists.
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">nodeType</td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
 <td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
@@ -3985,6 +4026,11 @@ Add temporal property updates to the node.
 <tr>
 <td colspan="2" align="right" valign="top">properties</td>
 <td valign="top">[<a href="#propertyinput">PropertyInput</a>!]</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">layer</td>
+<td valign="top"><a href="#string">String</a></td>
 <td></td>
 </tr>
 </tbody>
@@ -6129,6 +6175,15 @@ Add the adjacent edges with higher score for query to the selection up to a spec
 </thead>
 <tbody>
 <tr>
+<td colspan="2" valign="top"><strong id="vectorisedgraph.optimizeindex">optimizeIndex</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Optmize the vector index
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="vectorisedgraph.emptyselection">emptySelection</strong></td>
 <td valign="top"><a href="#vectorselection">VectorSelection</a>!</td>
 <td>
@@ -7047,6 +7102,29 @@ Edge filter
 </tbody>
 </table>
 
+### EmbeddingModel
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="embeddingmodel.openai">openAI</strong></td>
+<td valign="top"><a href="#openaiconfig">OpenAIConfig</a></td>
+<td>
+
+OpenAI embedding models or compatible providers
+
+</td>
+</tr>
+</tbody>
+</table>
+
 ### GraphFilter
 
 GraphQL input type for restricting a graph view.
@@ -7603,6 +7681,15 @@ Metadata.
 <td>
 
 Updates.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="nodeaddition.layer">layer</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+Layer.
 
 </td>
 </tr>
@@ -8495,6 +8582,45 @@ Value.
 </tbody>
 </table>
 
+### OpenAIConfig
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="openaiconfig.model">model</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="openaiconfig.apibase">apiBase</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="openaiconfig.apikeyenv">apiKeyEnv</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="openaiconfig.orgid">orgId</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="openaiconfig.projectid">projectId</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
 ### PathFromNodeViewCollection
 
 <table>
@@ -9036,6 +9162,38 @@ List of metadata.
 <td>
 
 List of properties.
+
+</td>
+</tr>
+</tbody>
+</table>
+
+### Template
+
+<table>
+<thead>
+<tr>
+<th colspan="2" align="left">Field</th>
+<th align="left">Type</th>
+<th align="left">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td colspan="2" valign="top"><strong id="template.enabled">enabled</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a></td>
+<td>
+
+The default template.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="template.custom">custom</strong></td>
+<td valign="top"><a href="#string">String</a></td>
+<td>
+
+A custom template.
 
 </td>
 </tr>

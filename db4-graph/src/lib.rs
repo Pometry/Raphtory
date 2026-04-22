@@ -318,7 +318,10 @@ where
         match key {
             entities::Layer::None => Ok(LayerIds::None),
             entities::Layer::All => Ok(LayerIds::All),
-            entities::Layer::Default => Ok(LayerIds::One(1)),
+            entities::Layer::Default => match self.edge_meta().get_default_layer_id() {
+                None => Ok(LayerIds::None),
+                Some(id) => Ok(LayerIds::One(id)),
+            },
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => Ok(LayerIds::One(id)),
                 None => Err(InvalidLayer::new(
@@ -365,7 +368,10 @@ where
         match key {
             entities::Layer::None => LayerIds::None,
             entities::Layer::All => LayerIds::All,
-            entities::Layer::Default => LayerIds::One(0),
+            entities::Layer::Default => match self.edge_meta().get_default_layer_id() {
+                None => LayerIds::None,
+                Some(id) => LayerIds::One(id),
+            },
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => LayerIds::One(id),
                 None => LayerIds::None,

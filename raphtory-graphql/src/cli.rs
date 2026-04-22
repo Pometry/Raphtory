@@ -5,11 +5,15 @@ use crate::{
         app_config::AppConfigBuilder,
         auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
         cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
+        concurrency_config::{
+            DEFAULT_DISABLE_BATCHING, DEFAULT_DISABLE_LISTS, DEFAULT_EXCLUSIVE_WRITES,
+        },
         log_config::DEFAULT_LOG_LEVEL,
         otlp_config::{
             TracingLevel, DEFAULT_OTLP_AGENT_HOST, DEFAULT_OTLP_AGENT_PORT,
             DEFAULT_OTLP_TRACING_SERVICE_NAME, DEFAULT_TRACING_ENABLED, DEFAULT_TRACING_LEVEL,
         },
+        schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
     model::App,
     server::DEFAULT_PORT,
@@ -78,6 +82,94 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_AUTH_ENABLED_FOR_READS", default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS, help = "Enable auth for reads")]
     auth_enabled_for_reads: bool,
 
+    #[arg(
+        long,
+        env = "RAPHTORY_HEAVY_QUERY_LIMIT",
+        default_value = None,
+        help = "Restricts how many expensive graph traversal queries can execute simultaneously. Covers operations like connected components, edge traversals, and neighbour lookups (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours). Once the limit is exceeded, queries are parked on a semaphore and wait until a slot becomes available before executing."
+    )]
+    heavy_query_limit: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_EXCLUSIVE_WRITES",
+        default_value_t = DEFAULT_EXCLUSIVE_WRITES,
+        help = "Ensures only one ingestion/write operation runs at a time and blocks reads until it completes."
+    )]
+    exclusive_writes: bool,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_BATCHING",
+        default_value_t = DEFAULT_DISABLE_BATCHING,
+        help = "Rejects batched GraphQL requests outright. Batching can otherwise be used to circumvent per-request depth and complexity limits."
+    )]
+    disable_batching: bool,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_BATCH_SIZE",
+        default_value = None,
+        help = "Caps the number of queries accepted in a single batched HTTP request. Requests whose batch exceeds this size are rejected."
+    )]
+    max_batch_size: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_LISTS",
+        default_value_t = DEFAULT_DISABLE_LISTS,
+        help = "Completely disables bulk list endpoints (e.g. listing all nodes/edges). Essential for large graphs where unbounded list queries could return billions of results and exhaust server resources."
+    )]
+    disable_lists: bool,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_PAGE_SIZE",
+        default_value = None,
+        help = "Maximum page size enforced on paged collection queries. Caps the `limit` argument of `page` so clients can't circumvent `disable_lists` by requesting huge pages."
+    )]
+    max_page_size: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_QUERY_DEPTH",
+        default_value = None,
+        help = "Limits how deeply nested a query can be."
+    )]
+    max_query_depth: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_QUERY_COMPLEXITY",
+        default_value = None,
+        help = "Limits the total estimated cost of a query based on the number of fields selected. Blocks queries that try to fetch too much data in one request."
+    )]
+    max_query_complexity: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_RECURSIVE_DEPTH",
+        default_value = None,
+        help = "Internal safety limit to prevent stack overflows from pathologically structured queries. Falls back to the async-graphql default of 32 if unset."
+    )]
+    max_recursive_depth: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_MAX_DIRECTIVES_PER_FIELD",
+        default_value = None,
+        help = "Limits the number of GraphQL directives on any single field. Directives are annotations prefixed with @ that modify how a field is executed (e.g. @skip, @include, @deprecated)."
+    )]
+    max_directives_per_field: Option<usize>,
+
+    #[arg(
+        long,
+        env = "RAPHTORY_DISABLE_INTROSPECTION",
+        default_value_t = DEFAULT_DISABLE_INTROSPECTION,
+        help = "Fully disable schema introspection, preventing clients from discovering the API's structure and available fields. Recommended for production."
+    )]
+    disable_introspection: bool,
+
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None, help = "Public directory path")]
     public_dir: Option<PathBuf>,
 
@@ -114,7 +206,18 @@ where
                 .with_auth_public_key(server_args.auth_public_key)
                 .expect(PUBLIC_KEY_DECODING_ERR_MSG)
                 .with_public_dir(server_args.public_dir)
-                .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads);
+                .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads)
+                .with_heavy_query_limit(server_args.heavy_query_limit)
+                .with_exclusive_writes(server_args.exclusive_writes)
+                .with_disable_batching(server_args.disable_batching)
+                .with_max_batch_size(server_args.max_batch_size)
+                .with_disable_lists(server_args.disable_lists)
+                .with_max_page_size(server_args.max_page_size)
+                .with_max_query_depth(server_args.max_query_depth)
+                .with_max_query_complexity(server_args.max_query_complexity)
+                .with_max_recursive_depth(server_args.max_recursive_depth)
+                .with_max_directives_per_field(server_args.max_directives_per_field)
+                .with_disable_introspection(server_args.disable_introspection);
 
             #[cfg(feature = "search")]
             {
@@ -128,7 +231,8 @@ where
                 app_config,
                 None,
                 server_args.graph_config,
-            )?
+            )
+            .await?
             .run_with_port(server_args.port)
             .await?;
         }

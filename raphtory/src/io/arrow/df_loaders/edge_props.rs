@@ -22,7 +22,7 @@ use itertools::izip;
 use kdam::BarExt;
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
-    core::entities::{properties::prop::AsPropRef, EID},
+    core::entities::{properties::prop::AsPropRef, LayerId, EID},
 };
 use raphtory_core::entities::VID;
 use raphtory_storage::mutation::addition_ops::SessionAdditionOps;
@@ -225,7 +225,7 @@ fn add_and_resolve_outbound_edges<'a, NS: NodeSegmentOps<Extension = Extension>>
         if let Some(src_pos) = writer.resolve_pos(*src) {
             // find the original EID in the static graph if it exists
             // otherwise create a new one
-            if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, 0) {
+            if let Some(edge_id) = writer.get_out_edge(src_pos, *dst, LayerId(0)) {
                 eid_col_shared[row].store(edge_id.0, Ordering::Relaxed);
             } else {
                 return Err(LoadError::MissingEdgeError(*src, *dst));
@@ -254,7 +254,7 @@ fn update_edge_metadata<'a, ES: EdgeSegmentOps<Extension = Extension>>(
                     .map(|(id, prop)| (*id, prop.as_prop_ref())),
             );
 
-            writer.update_c_props(eid_pos, *src, *dst, *layer, c_props.drain(..));
+            writer.update_c_props(eid_pos, *src, *dst, LayerId(*layer), c_props.drain(..));
         }
     }
 }

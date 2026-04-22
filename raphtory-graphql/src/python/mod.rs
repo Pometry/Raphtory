@@ -1,6 +1,7 @@
 use crate::{
     model::App,
     url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError},
+    GQLError,
 };
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
@@ -128,6 +129,12 @@ pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
 
 impl From<UrlDecodeError> for PyErr {
     fn from(value: UrlDecodeError) -> Self {
+        adapt_err_value(&value)
+    }
+}
+
+impl From<GQLError> for PyErr {
+    fn from(value: GQLError) -> Self {
         adapt_err_value(&value)
     }
 }

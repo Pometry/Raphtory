@@ -11,7 +11,7 @@ use crate::{
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
-    entities::{properties::prop::SerdeArrowProp, GidType},
+    entities::{properties::prop::SerdeArrowProp, GidType, LayerId},
     storage::{arc_str::ArcStr, timeindex::EventTime},
 };
 use raphtory_storage::graph::graph::GraphStorage;
@@ -64,7 +64,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetTEdge<'a, G> {
         state.serialize_entry(DST_COL_ID, &edge.dst().node.0)?;
         state.serialize_entry(EDGE_COL_ID, &edge.edge.pid())?;
         state.serialize_entry(LAYER_COL, &layer)?;
-        state.serialize_entry(LAYER_ID_COL, &layer_id)?;
+        state.serialize_entry(LAYER_ID_COL, &layer_id.0)?;
 
         for (name, prop) in edge.properties().temporal().iter_latest() {
             state.serialize_entry(&name, &SerdeArrowProp(&prop))?;
@@ -103,7 +103,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetCEdge<'a, G> {
 
 pub(crate) struct ParquetDelEdge<'a, G> {
     pub layer: &'a str,
-    pub layer_id: usize,
+    pub layer_id: LayerId,
     pub edge: EdgeView<&'a G>,
     pub del: EventTime,
 }
@@ -122,7 +122,7 @@ impl<'a, G: StaticGraphViewOps> Serialize for ParquetDelEdge<'a, G> {
         state.serialize_entry(DST_COL_ID, &(edge.dst().node.0))?;
         state.serialize_entry(EDGE_COL_ID, &(edge.edge.pid().0))?;
         state.serialize_entry(LAYER_COL, &self.layer)?;
-        state.serialize_entry(LAYER_ID_COL, &self.layer_id)?;
+        state.serialize_entry(LAYER_ID_COL, &self.layer_id.0)?;
 
         state.end()
     }

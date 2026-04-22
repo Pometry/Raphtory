@@ -57,7 +57,7 @@ pub fn erdos_renyi(nodes_to_add: usize, p: f64, seed: Option<u64>) -> Result<Gra
     for i in 0..nodes_to_add {
         let id = GID::U64(i as u64);
         latest_time += 1;
-        graph.add_node(latest_time, &id, NO_PROPS, None)?;
+        graph.add_node(latest_time, &id, NO_PROPS, None, None)?;
     }
     for i in 0..nodes_to_add {
         let source_id = GID::U64(i as u64);

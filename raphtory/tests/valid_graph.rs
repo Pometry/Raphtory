@@ -346,7 +346,8 @@ fn weird_empty_graph() {
 #[test]
 fn mismatched_node_earliest_time_again() {
     let g = PersistentGraph::new();
-    g.add_node(-2925244660385668056, 1, NO_PROPS, None).unwrap();
+    g.add_node(-2925244660385668056, 1, NO_PROPS, None, None)
+        .unwrap();
     g.add_edge(1116793271088085151, 2, 1, NO_PROPS, Some("a"))
         .unwrap();
     g.add_edge(0, 9, 1, NO_PROPS, None).unwrap();

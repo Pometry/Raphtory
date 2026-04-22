@@ -7,6 +7,7 @@ use crate::{
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::ops::DerefMut;
@@ -70,7 +71,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
         }
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         self.lock.get_or_create_layer(layer_id);
         self.layer_counter.get(layer_id);
     }
@@ -116,7 +117,7 @@ impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
         self.writers.into_par_iter()
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         for writer in &mut self.writers {
             writer.ensure_layer(layer_id);
         }

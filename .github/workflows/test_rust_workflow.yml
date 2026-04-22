@@ -12,9 +12,10 @@ jobs:
   rust-test-no-storage:
     if: ${{ !inputs.skip_tests }}
     name: Rust Tests
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     env:
       RUST_BACKTRACE: 1
+      CARGO_BUILD_JOBS: 2
     strategy:
       matrix:
         include:
@@ -22,11 +23,6 @@ jobs:
           - os: ubuntu-latest
           - os: windows-latest
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        name: Xcode version
-        if: "contains(matrix.os, 'macOS')"
-        with:
-          xcode-version: latest-stable
       - uses: actions/checkout@v5
         with:
           submodules: recursive
@@ -56,7 +52,7 @@ jobs:
         uses: taiki-e/install-action@cargo-hack
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Run all Tests (no disk_graph)
         env:
           RUSTFLAGS: -Awarnings
@@ -71,7 +67,7 @@ jobs:
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:

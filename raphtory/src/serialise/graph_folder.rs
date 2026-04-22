@@ -766,8 +766,8 @@ mod tests {
     #[test]
     fn test_zip_from_folder() {
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         // Create a regular folder and encode the graph
@@ -795,8 +795,8 @@ mod tests {
     #[test]
     fn test_zip_from_zip() {
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         // Create an initial zip file
@@ -855,7 +855,7 @@ mod tests {
         graph
             .node(1)
             .unwrap()
-            .add_updates(5, [("test node prop", 5i32)])
+            .add_updates(5, [("test node prop", 5i32)], None)
             .unwrap();
 
         let temp_folder = tempfile::TempDir::new().unwrap();
