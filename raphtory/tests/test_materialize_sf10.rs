@@ -68,15 +68,6 @@ fn default_materialized_graphs_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../ldbc/data/materialized-graphs")
 }
 
-fn set_snb_env_vars() {
-    unsafe {
-        std::env::set_var("RAPHTORY_FSYNC_ON_FLUSH", "false");
-        std::env::set_var("RAPHTORY_MAX_NODE_PAGE_LEN", "500000");
-        std::env::set_var("RAPHTORY_MAX_EDGE_PAGE_LEN", "5000000");
-        std::env::set_var("RAPHTORY_MAX_MEMORY_BYTES", "12000000000");
-        std::env::set_var("RAPHTORY_MIN_FLUSH_BYTES", "128000000");
-    }
-}
 
 fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
     match fs::remove_dir_all(path.as_ref()) {
@@ -191,7 +182,6 @@ fn test_materialize_snb_sf1_timings() {
 #[test]
 #[ignore = "requires a locally persisted SNB SF1 graph produced by ldbc/load_snb_sf10.py"]
 fn test_materialize_filtered_sf1_matches() {
-    set_snb_env_vars();
     let graph_path = default_sf1_graph_path();
     let old_materialize_graph_path =
         default_materialized_graphs_path().join("sf1_filtered_materialize_old");
@@ -752,7 +742,6 @@ fn get_parquet_df_loader_time(
 #[test]
 #[ignore = "requires locally persisted SNB SF10 graphs and parquet export"]
 fn test_current() {
-    set_snb_env_vars();
     let graph_path = default_sf10_graph_path();
     let parquet_path = default_sf10_parquet_path();
     let parquet_loader_graph_path = default_materialized_graphs_path().join("parquet_loader_sf10");
@@ -776,25 +765,4 @@ fn test_current() {
         parquet_decode_duration,
         materialize_duration
     );
-
-    // let materialize_secs = materialize_duration.as_secs_f64();
-    // let parquet_decode_secs = parquet_decode_duration.as_secs_f64();
-    // let faster = if materialize_secs < parquet_decode_secs {
-    //     "materialize_using_recordbatches"
-    // } else if parquet_decode_secs < materialize_secs {
-    //     "decode_parquet"
-    // } else {
-    //     "tie"
-    // };
-    // let ratio = if materialize_secs > 0.0 && parquet_decode_secs > 0.0 {
-    //     if materialize_secs > parquet_decode_secs {
-    //         materialize_secs / parquet_decode_secs
-    //     } else {
-    //         parquet_decode_secs / materialize_secs
-    //     }
-    // } else {
-    //     1.0
-    // };
-    //
-    // println!("Faster path: {faster} ({ratio:.2}x)");
 }
