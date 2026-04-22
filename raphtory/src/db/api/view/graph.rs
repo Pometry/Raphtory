@@ -444,10 +444,11 @@ fn materialize_impl(
                             .kmerge_by(|(t, _, _), (t2, _, _)| t <= t2)
                             .chunk_by(|(t, _, _)| *t);
 
-                        let history = edge.history();
+                        let history = edge.explode();
 
                         let rows = history
                             .iter()
+                            .map(|e| e.time().unwrap())
                             .merge_join_by(&prop_rows, |lt, (rt, _)| lt.cmp(rt))
                             .map(|v| match v {
                                 EitherOrBoth::Both(_, (t, props))
