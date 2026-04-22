@@ -851,21 +851,20 @@ fn graph_degree_window() {
     for (t, src, dst) in &vs {
         graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
     }
-    test_storage!(&graph, |graph| {
-        let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
-        let actual = (1..=3)
-            .map(|i| {
-                let v = graph.node(i).unwrap();
-                (
-                    v.window(-1, 7).in_degree(),
-                    v.window(1, 7).out_degree(),
-                    v.window(0, 1).degree(),
-                )
-            })
-            .collect::<Vec<_>>();
 
-        assert_eq!(actual, expected);
-    });
+    let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
+    let actual = (1..=3)
+        .map(|i| {
+            let v = graph.node(i).unwrap();
+            (
+                v.window(-1, 7).in_degree(),
+                v.window(1, 7).out_degree(),
+                v.window(0, 1).degree(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(actual, expected);
 }
 
 #[test]

@@ -431,28 +431,14 @@ fn materialize_impl(
                         let layer = LayerId(layer_map[edge.edge.layer().unwrap().0]);
                         for edge in edge.explode() {
                             let t = edge.edge.time().unwrap();
-                            writer.add_edge(t, edge_pos, src, dst, [], layer);
+                            let props = edge.properties();
+                            let props_iter = props
+                                .values()
+                                .enumerate()
+                                .filter_map(|(prop_id, value)| Some((prop_id, value?)));
+                            writer.add_edge(t, edge_pos, src, dst, props_iter, layer);
                         }
-                        //TODO: move this in edge.row()
-                        for (t, t_props) in edge
-                            .properties()
-                            .temporal()
-                            .values()
-                            .map(|tp| {
-                                let prop_id = tp.id();
-                                tp.iter_indexed()
-                                    .map(|(t, prop)| (t, prop_id, prop))
-                                    .collect::<Vec<_>>()
-                            })
-                            .kmerge_by(|(t, _, _), (t2, _, _)| t <= t2)
-                            .chunk_by(|(t, _, _)| *t)
-                            .into_iter()
-                        {
-                            let props = t_props
-                                .map(|(_, prop_id, prop)| (prop_id, prop))
-                                .collect::<Vec<_>>();
-                            writer.add_edge(t, edge_pos, src, dst, props, layer);
-                        }
+
                         writer.update_c_props(
                             edge_pos,
                             src,
