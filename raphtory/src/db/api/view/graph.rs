@@ -25,7 +25,7 @@ use crate::{
 use ahash::HashSet;
 use db4_graph::TemporalGraph;
 use either::Either;
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Group, Itertools, KMergeBy};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -51,8 +51,10 @@ use raphtory_storage::{
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::{
+    iter,
     path::Path,
     sync::{atomic::Ordering, Arc},
+    vec::IntoIter,
 };
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
@@ -429,14 +431,35 @@ fn materialize_impl(
 
                     for edge in edge.explode_layers() {
                         let layer = LayerId(layer_map[edge.edge.layer().unwrap().0]);
-                        for edge in edge.explode() {
-                            let t = edge.edge.time().unwrap();
-                            let props = edge.properties();
-                            let props_iter = props
-                                .values()
-                                .enumerate()
-                                .filter_map(|(prop_id, value)| Some((prop_id, value?)));
-                            writer.add_edge(t, edge_pos, src, dst, props_iter, layer);
+                        let prop_rows = edge
+                            .properties()
+                            .temporal()
+                            .values()
+                            .map(|tp| {
+                                let prop_id = tp.id();
+                                tp.iter_indexed()
+                                    .map(|(t, prop)| (t, prop_id, prop))
+                                    .collect::<Vec<_>>()
+                            })
+                            .kmerge_by(|(t, _, _), (t2, _, _)| t <= t2)
+                            .chunk_by(|(t, _, _)| *t);
+
+                        let history = edge.history();
+
+                        let rows = history
+                            .iter()
+                            .merge_join_by(&prop_rows, |lt, (rt, _)| lt.cmp(rt))
+                            .map(|v| match v {
+                                EitherOrBoth::Both(_, (t, props))
+                                | EitherOrBoth::Right((t, props)) => {
+                                    (t, Either::Right(props.map(|(_, id, v)| (id, v))))
+                                }
+                                EitherOrBoth::Left(t) => {
+                                    (t, Either::Left(iter::empty::<(usize, Prop)>()))
+                                }
+                            });
+                        for (t, props) in rows {
+                            writer.add_edge(t, edge_pos, src, dst, props, layer);
                         }
 
                         writer.update_c_props(
