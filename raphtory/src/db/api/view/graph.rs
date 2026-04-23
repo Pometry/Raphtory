@@ -356,8 +356,19 @@ pub fn materialize_impl(
     config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
     let mut node_meta = Meta::new_for_nodes();
-    let edge_meta = Meta::new_for_edges();
-    let graph_props_meta = Meta::new_for_graph_props();
+    let mut edge_meta = Meta::new_for_edges();
+    let mut graph_props_meta = Meta::new_for_graph_props();
+
+    // Preserve property mappers from the source graph so that
+    // windowed views expose the same prop mappings even for keys with no
+    // values inside the window.
+    node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
+    node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
+    edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
+    edge_meta.set_temporal_prop_mapper(graph.edge_meta().temporal_prop_mapper().deep_clone());
+    graph_props_meta.set_metadata_mapper(graph.graph_props_meta().metadata_mapper().deep_clone());
+    graph_props_meta
+        .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
 
     let base_layer_meta = graph.edge_meta().layer_meta();
     let layer_meta = edge_meta.layer_meta();
