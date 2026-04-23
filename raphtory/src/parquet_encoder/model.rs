@@ -13,9 +13,16 @@ use crate::{
 };
 use arrow::datatypes::DataType;
 use raphtory_api::core::{
-    entities::{properties::prop::SerdeArrowProp, GidType, EID},
-    storage::{arc_str::ArcStr, timeindex::EventTime},
+    entities::{
+        properties::{prop::SerdeArrowProp, tprop::TPropOps},
+        GidType, LayerId, EID,
+    },
+    storage::{
+        arc_str::ArcStr,
+        timeindex::{EventTime, TimeIndexOps},
+    },
 };
+use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 use serde::{
     ser::{Error, SerializeMap},
     Serialize,
@@ -76,8 +83,32 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
         state.serialize_entry(LAYER_COL, &layer)?;
         state.serialize_entry(LAYER_ID_COL, &layer_id)?;
 
-        for (name, prop) in edge.properties().temporal().iter_latest() {
-            state.serialize_entry(&name, &SerdeArrowProp(&prop))?;
+        // Emit temporal props for this exploded event. Two cases:
+        //   * real addition at exactly `t` in storage — use `at(t)` so we only
+        //     emit props actually set at that time (additions without new prop
+        //     values should not inherit persisted values, otherwise later
+        //     reloads see spurious duplicates).
+        //   * synthetic event (windowed persistent graph emits an event at
+        //     `w.start` for edges that persist into the window) — fall back to
+        //     the view's persistent semantics via `latest` to emit the
+        //     persisted prop values.
+        let core = edge.graph.core_edge(edge.edge.pid());
+        let core_ref = core.as_ref();
+        let layer = LayerId(layer_id);
+        let t_next = EventTime::start(t.0.saturating_add(1));
+        let has_real_addition = core_ref.additions(layer).active(t..t_next);
+        let mapper = edge.graph.edge_meta().temporal_prop_mapper();
+        let temporal = edge.properties().temporal();
+        for prop_id in mapper.ids() {
+            let prop = if has_real_addition {
+                core_ref.temporal_prop_layer(layer, prop_id).at(&t)
+            } else {
+                temporal.get_by_id(prop_id).and_then(|v| v.latest())
+            };
+            if let Some(prop) = prop {
+                let name = mapper.get_name(prop_id);
+                state.serialize_entry(&name, &SerdeArrowProp(&prop))?;
+            }
         }
 
         state.end()
