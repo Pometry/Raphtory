@@ -25,7 +25,7 @@ use crate::{
 use ahash::HashSet;
 use db4_graph::TemporalGraph;
 use either::Either;
-use itertools::{EitherOrBoth, Group, Itertools, KMergeBy};
+use itertools::{EitherOrBoth, Itertools};
 use raphtory_api::{
     atomic_extra::atomic_usize_from_mut_slice,
     core::{
@@ -54,7 +54,6 @@ use std::{
     iter,
     path::Path,
     sync::{atomic::Ordering, Arc},
-    vec::IntoIter,
 };
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 

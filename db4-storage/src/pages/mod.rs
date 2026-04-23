@@ -14,10 +14,7 @@ use graph_prop_store::GraphPropStorageInner;
 use node_page::writer::NodeWriter;
 use node_store::NodeStorageInner;
 use parking_lot::RwLockWriteGuard;
-use raphtory_api::core::{
-    entities::properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
-    utils::time::TryIntoInputTime,
-};
+use raphtory_api::core::entities::properties::meta::Meta;
 use rayon::prelude::*;
 use std::{
     path::{Path, PathBuf},
@@ -432,7 +429,7 @@ mod test {
     use rayon::iter::ParallelIterator;
 
     #[test]
-    fn test_iterleave() {
+    fn test_interleave() {
         let chunk_size = 3;
         let num_segments = 3;
         let max_seg_len = 4;

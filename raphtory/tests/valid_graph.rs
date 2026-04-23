@@ -79,6 +79,14 @@ fn materialize_prop_test_events() {
 }
 
 #[test]
+fn test_materialize_self_loop() {
+    let g = Graph::new();
+    g.add_edge(0, 0, 0, NO_PROPS, Some("a")).unwrap();
+    let gm = g.valid().materialize().unwrap();
+    assert_graph_equal(&g, &gm);
+}
+
+#[test]
 fn test_single_deleted_edge_events() {
     let g = Graph::new();
     g.delete_edge(0, 0, 0, Some("a")).unwrap();

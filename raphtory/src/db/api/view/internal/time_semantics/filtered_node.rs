@@ -1,8 +1,6 @@
 use crate::{
     db::api::view::internal::{
         EdgeTimeSemanticsOps, FilterOps, FilterState, FilterVariants, GraphView,
-        InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
-        InternalNodeFilterOps,
     },
     prelude::GraphViewOps,
 };
