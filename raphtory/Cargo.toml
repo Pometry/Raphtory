@@ -15,9 +15,10 @@ homepage.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-raphtory-api.workspace = true                                #{ path = "../raphtory-api", version = "0.15.1" }
-raphtory-core.workspace = true                               # = { path = "../raphtory-core", version = "0.15.1" }
-raphtory-storage.workspace = true                            # = { path = "../raphtory-storage", version = "0.15.1" }
+raphtory-api.workspace = true
+raphtory-core.workspace = true
+raphtory-storage.workspace = true
+storage.workspace = true
 db4-graph.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
 hashbrown = { workspace = true }
