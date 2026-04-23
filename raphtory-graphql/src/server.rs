@@ -33,12 +33,11 @@ use std::{
     fs::create_dir_all,
     future::Future,
     ops::Deref,
-    path::PathBuf,
+    path::{Path, PathBuf},
     pin::Pin,
-    task::{Context, Poll},
     sync::RwLock,
+    task::{Context, Poll},
 };
-use std::path::Path;
 use thiserror::Error;
 use tokio::{
     io,
@@ -182,7 +181,11 @@ impl GraphServer {
     pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
         let data = std::sync::Arc::new(std::sync::Mutex::new(Some(data)));
         self.schema_data.push(std::sync::Arc::new(move |sb| {
-            let data = data.lock().unwrap().take().expect("schema data injector called more than once");
+            let data = data
+                .lock()
+                .unwrap()
+                .take()
+                .expect("schema data injector called more than once");
             sb.data(data)
         }));
         self
