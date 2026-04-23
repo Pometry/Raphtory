@@ -1828,7 +1828,8 @@ mod graphql_test {
     async fn test_new_graph(schema: &Schema, path: &str, should_work: bool) {
         let req = Request::new(format!(
             r#"mutation {{ newGraph(path: "{path}", graphType: EVENT) }}"#,
-        ));
+        ))
+        .data(Access::Rw);
         let res = schema.execute(req).await;
 
         if should_work {
