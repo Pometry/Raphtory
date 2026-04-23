@@ -19,7 +19,6 @@ raphtory-api.workspace = true                                #{ path = "../rapht
 raphtory-core.workspace = true                               # = { path = "../raphtory-core", version = "0.15.1" }
 raphtory-storage.workspace = true                            # = { path = "../raphtory-storage", version = "0.15.1" }
 db4-graph.workspace = true
-storage.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
@@ -50,7 +49,6 @@ ahash = { workspace = true }
 roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
-uuid = { workspace = true }
 parquet = { workspace = true }
 arrow-json = { workspace = true }
 arrow-csv = { workspace = true }
@@ -59,7 +57,6 @@ arrow-array.workspace = true
 arrow-schema.workspace = true
 arrow-select.workspace = true
 serde_arrow.workspace = true
-disjoint-sets = { workspace = true }
 datafusion-physical-expr-common = { workspace = true }
 datafusion-physical-expr = { workspace = true }
 datafusion-physical-plan = { workspace = true }

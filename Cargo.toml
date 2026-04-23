@@ -193,7 +193,6 @@ strum = "0.27.2"
 strum_macros = "0.27.2"
 pythonize = { version = "0.27.0" }
 test-log = "0.2.19"
-disjoint-sets = "0.4.2"
 datafusion = { version = "52.5.0" }
 datafusion-physical-expr-common = "52.5.0"
 datafusion-physical-expr = "52.5.0"
