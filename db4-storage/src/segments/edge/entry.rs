@@ -172,6 +172,13 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         }
     }
 
+    fn has_layer_inner(self, layer_id: LayerId) -> bool {
+        self.es
+            .as_ref()
+            .get(layer_id.0)
+            .map_or(false, |seg| seg.has_item(self.pos))
+    }
+
     fn layer_additions(self, layer_id: LayerId) -> Self::Additions {
         EdgeAdditions::new_with_layer(AdditionCellsRef::new(self), layer_id.0)
     }

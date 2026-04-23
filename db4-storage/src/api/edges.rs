@@ -163,9 +163,7 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn edge(self, layer_id: LayerId) -> Option<(VID, VID)>;
 
-    fn has_layer_inner(self, layer_id: LayerId) -> bool {
-        self.edge(layer_id).is_some()
-    }
+    fn has_layer_inner(self, layer_id: LayerId) -> bool;
 
     fn internal_num_layers(self) -> usize;
 

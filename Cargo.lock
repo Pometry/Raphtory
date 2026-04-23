@@ -6394,6 +6394,7 @@ dependencies = [
  "datafusion-physical-expr-common",
  "datafusion-physical-plan",
  "db4-graph",
+ "db4-storage",
  "display-error-chain",
  "dotenv",
  "either",
