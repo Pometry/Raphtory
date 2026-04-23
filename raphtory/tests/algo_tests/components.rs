@@ -10,8 +10,10 @@ use raphtory::{
     prelude::*,
     test_storage,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeSet, HashMap},
+    fmt::{Debug, Formatter},
     hash::Hash,
 };
 
@@ -194,10 +196,22 @@ fn layered_connected_components() {
     assert_eq!(res_three_five, expected_three_five);
 }
 
+#[derive(Serialize, Deserialize)]
+struct ComponentTestInput {
+    edges: Vec<(u64, u64)>,
+    components: Vec<HashSet<u64>>,
+}
+
+impl Debug for ComponentTestInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&serde_json::to_string(self).unwrap())
+    }
+}
+
 fn random_component_edges(
     num_components: usize,
     num_nodes_per_component: usize,
-) -> impl Strategy<Value = (Vec<(u64, u64)>, Vec<HashSet<u64>>)> {
+) -> impl Strategy<Value = ComponentTestInput> {
     let vs = proptest::collection::vec(
         proptest::collection::vec(
             (
@@ -220,14 +234,14 @@ fn random_component_edges(
             }
             components.push(component.into_iter().collect());
         }
-        (edges, components)
+        ComponentTestInput { edges, components }
     })
 }
 
 #[test]
 fn weakly_connected_components_proptest() {
     proptest!(|(input in random_component_edges(10, 100))|{
-        let (edges, components) = input;
+        let ComponentTestInput {edges, components } = input;
         let g = Graph::new();
         for (src, dst) in edges {
             g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
