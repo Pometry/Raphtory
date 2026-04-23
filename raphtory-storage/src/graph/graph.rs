@@ -11,7 +11,9 @@ use crate::{
     mutation::MutationError,
 };
 use db4_graph::TemporalGraph;
-use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
+use raphtory_api::core::entities::{
+    properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
+};
 use raphtory_core::entities::nodes::node_ref::NodeRef;
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
@@ -256,17 +258,17 @@ impl GraphStorage {
         }
     }
 
-    pub fn layer_ids_iter(&self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> {
+    pub fn layer_ids_iter(&self, layer_ids: &LayerIds) -> impl Iterator<Item = LayerId> {
         match layer_ids {
             LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => LayerVariants::All(1..=self.unfiltered_num_layers()),
+            LayerIds::All => LayerVariants::All((1..=self.unfiltered_num_layers()).map(LayerId)),
             LayerIds::One(id) => LayerVariants::One(iter::once(*id)),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(ids.clone().into_iter()),
         }
     }
 
-    pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = usize> {
-        1..=self.unfiltered_num_layers()
+    pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = LayerId> {
+        (1..=self.unfiltered_num_layers()).map(move |layer_id| LayerId(layer_id))
     }
 
     pub fn node_meta(&self) -> &Meta {

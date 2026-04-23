@@ -7,7 +7,7 @@ use crate::{
     wal::LSN,
 };
 use raphtory_api::core::entities::{
-    EID, VID,
+    EID, LayerId, VID,
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
         prop::{AsPropRef, Prop},
@@ -40,7 +40,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         }
     }
 
-    fn new_local_pos(&self, layer_id: usize) -> LocalPOS {
+    fn new_local_pos(&self, layer_id: LayerId) -> LocalPOS {
         let new_pos = LocalPOS(self.page.increment_num_edges());
         self.increment_layer_num_edges(layer_id);
         new_pos
@@ -53,7 +53,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         src: VID,
         dst: VID,
         props: impl IntoIterator<Item = (usize, Prop)>,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> LocalPOS {
         self.graph_stats.update_time(t.t());
         if self
@@ -74,7 +74,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
+        layer_id: LayerId,
     ) {
         self.graph_stats.update_time(t.t());
         if self
@@ -118,7 +118,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         src: VID,
         dst: VID,
         edge_exists: bool,
-        layer_id: usize,
+        layer_id: LayerId,
         c_props: impl IntoIterator<Item = (usize, P)>,
         t_props: impl IntoIterator<Item = (usize, P)>,
     ) {
@@ -152,7 +152,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         src: VID,
         dst: VID,
         exists: bool,
-        layer_id: usize,
+        layer_id: LayerId,
     ) {
         if !exists {
             if self
@@ -177,11 +177,11 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.page.segment_id()
     }
 
-    fn increment_layer_num_edges(&self, layer_id: usize) {
+    fn increment_layer_num_edges(&self, layer_id: LayerId) {
         self.graph_stats.increment(layer_id);
     }
 
-    pub fn get_edge(&self, layer_id: usize, edge_pos: LocalPOS) -> Option<(VID, VID)> {
+    pub fn get_edge(&self, layer_id: LayerId, edge_pos: LocalPOS) -> Option<(VID, VID)> {
         self.page.get_edge(edge_pos, layer_id, self.writer.deref())
     }
 
@@ -192,7 +192,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
     pub fn check_metadata<P: AsPropRef>(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         self.writer.check_metadata(edge_pos, layer_id, props)
@@ -203,7 +203,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
         let existing_edge = self.page.has_edge(edge_pos, layer_id, self.writer.deref());

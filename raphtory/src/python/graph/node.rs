@@ -385,18 +385,22 @@ impl PyMutableNode {
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, properties=None, event_id=None))]
+    #[pyo3(signature = (t, properties=None, event_id=None, layer=None))]
     pub fn add_updates(
         &self,
         t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<(), GraphError> {
         match event_id {
-            None => self.node.add_updates(t, properties.unwrap_or_default()),
-            Some(event_id) => self
+            None => self
                 .node
-                .add_updates((t, event_id), properties.unwrap_or_default()),
+                .add_updates(t, properties.unwrap_or_default(), layer),
+            Some(event_id) => {
+                self.node
+                    .add_updates((t, event_id), properties.unwrap_or_default(), layer)
+            }
         }
     }
 

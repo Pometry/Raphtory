@@ -5,7 +5,7 @@ use crate::{
             state::{
                 ops::{
                     filter::{AndOp, NodeTypeFilterOp, NO_FILTER},
-                    Const, IntoDynNodeOp, NodeFilterOp, NodeOp,
+                    ArrowNodeOp, Const, DynNodeFilter, IntoDynNodeOp, NodeFilterOp,
                 },
                 Index, LazyNodeState,
             },
@@ -96,16 +96,13 @@ impl<
 }
 
 pub trait IntoDynNodes {
-    fn into_dyn(self)
-        -> Nodes<'static, DynamicGraph, DynamicGraph, Arc<dyn NodeOp<Output = bool>>>;
+    fn into_dyn(self) -> Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>;
 }
 
 impl<G: IntoDynamic, GH: IntoDynamic, F: NodeFilterOp + IntoDynNodeOp + 'static> IntoDynNodes
     for Nodes<'static, G, GH, F>
 {
-    fn into_dyn(
-        self,
-    ) -> Nodes<'static, DynamicGraph, DynamicGraph, Arc<dyn NodeOp<Output = bool>>> {
+    fn into_dyn(self) -> Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
         Nodes {
             base_graph: self.base_graph.into_dynamic(),
             graph: self.graph.into_dynamic(),
@@ -262,7 +259,7 @@ where
                 }
             }
             Index::Partial(nodes) => {
-                if self.is_filtered() {
+                if self.is_list_filtered() {
                     let g = self.locked_storage();
                     self.par_iter_refs(g).count()
                 } else {
@@ -323,7 +320,7 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_filtered()
+        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
     }
 
     pub fn is_filtered(&self) -> bool {
@@ -360,12 +357,17 @@ where
         &self,
         filter: Filter,
     ) -> Self::IterFiltered<Filter> {
+        let domain = filter.domain(self.graph.core_graph());
+        let nodes = match domain {
+            NodeList::All => self.nodes.clone(),
+            NodeList::List { elems } => self.nodes.intersection(&elems),
+        };
         let predicate = self.predicate.clone().and(filter);
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             predicate,
-            nodes: self.nodes.clone(),
+            nodes,
             _marker: Default::default(),
         }
     }
@@ -378,7 +380,7 @@ where
     F: NodeFilterOp + 'graph,
 {
     type Graph = GH;
-    type ValueType<T: NodeOp + 'graph> = LazyNodeState<'graph, T, G, GH, F>;
+    type ValueType<T: ArrowNodeOp + 'graph> = LazyNodeState<'graph, T, G, GH, F>;
     type PropType = NodeView<'graph, G>;
     type PathType = PathFromGraph<'graph, GH>;
     type Edges = NestedEdges<'graph, GH>;
@@ -387,7 +389,7 @@ where
         &self.graph
     }
 
-    fn map<T: NodeOp + 'graph>(&self, op: T) -> Self::ValueType<T> {
+    fn map<T: ArrowNodeOp + 'graph>(&self, op: T) -> Self::ValueType<T> {
         LazyNodeState::new(op, self.clone())
     }
 

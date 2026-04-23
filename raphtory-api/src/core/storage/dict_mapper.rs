@@ -209,10 +209,11 @@ impl DictMapper {
     }
 
     pub fn deep_clone(&self) -> Self {
+        let map = self.map.read_recursive().clone();
         let reverse_map = self.read_lock_reverse_map().clone();
 
         Self {
-            map: self.map.clone(),
+            map: Arc::new(RwLock::new(map)),
             reverse_map: Arc::new(RwLock::new(reverse_map)),
             num_private_fields: self.num_private_fields,
         }
@@ -329,86 +330,6 @@ impl DictMapper {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::core::storage::dict_mapper::DictMapper;
-    use proptest::prelude::*;
-    use rand::seq::SliceRandom;
-    use rayon::prelude::*;
-    use std::collections::HashMap;
-
-    #[test]
-    fn test_dict_mapper() {
-        let mapper = DictMapper::default();
-        assert_eq!(mapper.get_or_create_id("test"), 0usize);
-        assert_eq!(mapper.get_or_create_id("test").inner(), 0);
-        assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
-        assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
-        assert_eq!(mapper.get_or_create_id("test").inner(), 0);
-    }
-
-    #[test]
-    fn check_dict_mapper_concurrent_write() {
-        proptest!(|(write: Vec<String>)| {
-            let n = 100;
-            let mapper: DictMapper = DictMapper::default();
-
-            // create n maps from strings to ids in parallel
-            let res: Vec<HashMap<String, usize>> = (0..n)
-                .into_par_iter()
-                .map(|_| {
-                    let mut ids: HashMap<String, usize> = Default::default();
-                    let mut rng = rand::rng();
-                    let mut write_s = write.clone();
-                    write_s.shuffle(&mut rng);
-                    for s in write_s {
-                        let id = mapper.get_or_create_id(s.as_str());
-                        ids.insert(s, id.inner());
-                    }
-                    ids
-                })
-                .collect();
-
-            // check that all maps are the same and that all strings have been assigned an id
-            let res_0 = &res[0];
-            prop_assert!(res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some()));
-        });
-    }
-
-    // map 5 strings to 5 ids from 4 threads concurrently 1000 times
-    #[test]
-    fn test_dict_mapper_concurrent() {
-        use std::{sync::Arc, thread};
-
-        let mapper = Arc::new(DictMapper::default());
-        let mut threads = Vec::new();
-        for _ in 0..4 {
-            let mapper = Arc::clone(&mapper);
-            threads.push(thread::spawn(move || {
-                for _ in 0..1000 {
-                    mapper.get_or_create_id("test");
-                    mapper.get_or_create_id("test2");
-                    mapper.get_or_create_id("test3");
-                    mapper.get_or_create_id("test4");
-                    mapper.get_or_create_id("test5");
-                }
-            }));
-        }
-
-        for thread in threads {
-            thread.join().unwrap();
-        }
-
-        let mut actual = vec!["test", "test2", "test3", "test4", "test5"]
-            .into_iter()
-            .map(|name| mapper.get_or_create_id(name).inner())
-            .collect::<Vec<_>>();
-        actual.sort();
-
-        assert_eq!(actual, vec![0, 1, 2, 3, 4]);
-    }
-}
-
 #[derive(Debug)]
 pub struct AllKeys<T> {
     pub(crate) guard: ArcRwLockReadGuard<Vec<T>>,
@@ -495,3 +416,113 @@ impl<T: Clone> Iterator for LockedIter<T> {
 }
 
 impl<T: Clone> ExactSizeIterator for LockedIter<T> {}
+
+#[cfg(test)]
+mod test {
+    use crate::core::storage::dict_mapper::DictMapper;
+    use proptest::prelude::*;
+    use rand::seq::SliceRandom;
+    use rayon::prelude::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_dict_mapper() {
+        let mapper = DictMapper::default();
+        assert_eq!(mapper.get_or_create_id("test"), 0usize);
+        assert_eq!(mapper.get_or_create_id("test").inner(), 0);
+        assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
+        assert_eq!(mapper.get_or_create_id("test2").inner(), 1);
+        assert_eq!(mapper.get_or_create_id("test").inner(), 0);
+    }
+
+    #[test]
+    fn test_dict_mapper_deep_clone() {
+        let mapper = DictMapper::new_with_private_fields(["_private"]);
+        let alpha_id = mapper.get_or_create_id("alpha").inner();
+        let beta_id = mapper.get_or_create_id("beta").inner();
+
+        let cloned = mapper.deep_clone();
+
+        assert_eq!(cloned.num_private_fields(), mapper.num_private_fields());
+        assert_eq!(cloned.get_id("alpha"), Some(alpha_id));
+        assert_eq!(cloned.get_id("beta"), Some(beta_id));
+        assert_eq!(cloned.get_name(alpha_id).as_ref(), "alpha");
+        assert_eq!(cloned.get_name(beta_id).as_ref(), "beta");
+        assert_eq!(cloned.num_fields(), mapper.num_fields());
+        assert_eq!(
+            cloned.all_keys().into_iter().collect::<Vec<_>>(),
+            mapper.all_keys().into_iter().collect::<Vec<_>>()
+        );
+
+        let gamma_id = cloned.get_or_create_id("gamma").inner();
+        assert_eq!(gamma_id, 3);
+        assert!(cloned.contains("gamma"));
+        assert!(!mapper.contains("gamma"));
+
+        let delta_id = mapper.get_or_create_id("delta").inner();
+        assert_eq!(delta_id, 3);
+        assert!(mapper.contains("delta"));
+        assert!(!cloned.contains("delta"));
+    }
+
+    #[test]
+    fn check_dict_mapper_concurrent_write() {
+        proptest!(|(write: Vec<String>)| {
+            let n = 100;
+            let mapper: DictMapper = DictMapper::default();
+
+            // create n maps from strings to ids in parallel
+            let res: Vec<HashMap<String, usize>> = (0..n)
+                .into_par_iter()
+                .map(|_| {
+                    let mut ids: HashMap<String, usize> = Default::default();
+                    let mut rng = rand::rng();
+                    let mut write_s = write.clone();
+                    write_s.shuffle(&mut rng);
+                    for s in write_s {
+                        let id = mapper.get_or_create_id(s.as_str());
+                        ids.insert(s, id.inner());
+                    }
+                    ids
+                })
+                .collect();
+
+            // check that all maps are the same and that all strings have been assigned an id
+            let res_0 = &res[0];
+            prop_assert!(res[1..n].iter().all(|v| res_0 == v) && write.iter().all(|v| mapper.get_id(v).is_some()));
+        });
+    }
+
+    // map 5 strings to 5 ids from 4 threads concurrently 1000 times
+    #[test]
+    fn test_dict_mapper_concurrent() {
+        use std::{sync::Arc, thread};
+
+        let mapper = Arc::new(DictMapper::default());
+        let mut threads = Vec::new();
+        for _ in 0..4 {
+            let mapper = Arc::clone(&mapper);
+            threads.push(thread::spawn(move || {
+                for _ in 0..1000 {
+                    mapper.get_or_create_id("test");
+                    mapper.get_or_create_id("test2");
+                    mapper.get_or_create_id("test3");
+                    mapper.get_or_create_id("test4");
+                    mapper.get_or_create_id("test5");
+                }
+            }));
+        }
+
+        for thread in threads {
+            thread.join().unwrap();
+        }
+
+        let mut actual = vec!["test", "test2", "test3", "test4", "test5"]
+            .into_iter()
+            .map(|name| mapper.get_or_create_id(name).inner())
+            .collect::<Vec<_>>();
+        actual.sort();
+
+        assert_eq!(actual, vec![0, 1, 2, 3, 4]);
+    }
+}

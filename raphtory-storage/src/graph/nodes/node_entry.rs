@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
+    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerId, LayerIds, VID},
     Direction,
 };
 use raphtory_core::storage::timeindex::EventTime;
@@ -115,15 +115,15 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         self.as_ref().layer_ids_iter(layer_ids)
     }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {
         self.as_ref().temporal_prop_layer(layer_id, prop_id)
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         self.as_ref().constant_prop_layer(layer_id, prop_id)
     }
 
@@ -136,6 +136,10 @@ impl<'a, 'b: 'a> NodeStorageOps<'a> for &'a NodeStorageEntry<'b> {
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
         self.as_ref().tprop(prop_id)
+    }
+
+    fn num_layers(self) -> usize {
+        self.as_ref().num_layers()
     }
 
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a> {

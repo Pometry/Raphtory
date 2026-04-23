@@ -10,7 +10,7 @@ use raphtory_api::{
                 meta::STATIC_GRAPH_LAYER_ID,
                 prop::{AsPropRef, Prop},
             },
-            EID, VID,
+            LayerId, EID, VID,
         },
         storage::timeindex::EventTime,
     },
@@ -52,14 +52,14 @@ pub trait InternalPropertyAdditionOps {
     fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
 
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error>;
 }
@@ -134,7 +134,7 @@ impl InternalPropertyAdditionOps for TemporalGraph<Extension> {
     fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
@@ -153,7 +153,7 @@ impl InternalPropertyAdditionOps for TemporalGraph<Extension> {
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         let (_, edge_pos) = self.storage().edges().resolve_pos(eid);
@@ -213,7 +213,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
     fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
@@ -223,7 +223,7 @@ impl InternalPropertyAdditionOps for GraphStorage {
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.mutable()?
@@ -286,7 +286,7 @@ where
     fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_add_edge_metadata(eid, layer, props)
@@ -296,7 +296,7 @@ where
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         self.base().internal_update_edge_metadata(eid, layer, props)

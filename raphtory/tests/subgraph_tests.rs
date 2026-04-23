@@ -16,8 +16,8 @@ use std::collections::BTreeSet;
 fn test_materialize_no_edges() {
     let graph = Graph::new();
 
-    graph.add_node(1, 1, NO_PROPS, None).unwrap();
-    graph.add_node(2, 2, NO_PROPS, None).unwrap();
+    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 2, NO_PROPS, None, None).unwrap();
 
     test_storage!(&graph, |graph| {
         let sg = graph.subgraph([1, 2, 1]); // <- duplicated nodes should have no effect
@@ -85,10 +85,10 @@ fn layer_materialize() {
 #[test]
 fn test_cc() {
     let graph = Graph::new();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None).unwrap();
-    graph.add_node(1, 2, NO_PROPS, None).unwrap();
-    graph.add_node(1, 4, NO_PROPS, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 4, NO_PROPS, None, None).unwrap();
     graph.add_edge(0, 0, 1, NO_PROPS, Some("1")).unwrap();
     graph.add_edge(1, 3, 4, NO_PROPS, Some("1")).unwrap();
     let sg = graph.subgraph([0, 1, 3, 4]);
@@ -96,7 +96,12 @@ fn test_cc() {
     let groups = cc.groups();
     let group_sets = groups
         .iter()
-        .map(|(_, g)| g.id().into_iter_values().collect::<BTreeSet<_>>())
+        .map(|(_, g)| {
+            g.iter()
+                .map(|node| node.id())
+                .sorted()
+                .collect::<BTreeSet<_>>()
+        })
         .collect::<HashSet<_>>();
     assert_eq!(
         group_sets,
@@ -208,7 +213,9 @@ pub mod test_filters_node_subgraph {
             ];
 
             for (id, name, props) in &nodes {
-                graph.add_node(*id, name, props.clone(), None).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), None, None)
+                    .unwrap();
             }
 
             graph

@@ -93,6 +93,8 @@ pub struct NodeAddition {
     metadata: Option<Vec<GqlPropertyInput>>,
     /// Updates.
     updates: Option<Vec<TemporalPropertyInput>>,
+    /// Layer.
+    layer: Option<String>,
 }
 
 #[derive(InputObject, Clone)]
@@ -154,13 +156,18 @@ impl GqlMutableGraph {
         name: String,
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
+        layer: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-            let node = self_clone
-                .graph
-                .add_node(time, &name, prop_iter, node_type.as_str())?;
+            let node = self_clone.graph.add_node(
+                time,
+                &name,
+                prop_iter,
+                node_type.as_str(),
+                layer.as_str(),
+            )?;
 
             Ok::<_, GraphError>(node)
         })
@@ -179,13 +186,18 @@ impl GqlMutableGraph {
         name: String,
         properties: Option<Vec<GqlPropertyInput>>,
         node_type: Option<String>,
+        layer: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-            let node = self_clone
-                .graph
-                .create_node(time, &name, prop_iter, node_type.as_str())?;
+            let node = self_clone.graph.create_node(
+                time,
+                &name,
+                prop_iter,
+                node_type.as_str(),
+                layer.as_str(),
+            )?;
 
             Ok::<_, GraphError>(node)
         })
@@ -207,12 +219,14 @@ impl GqlMutableGraph {
                 .map(|node| {
                     let node = node.clone();
                     let name = node.name.as_str();
+                    let node_type = node.node_type.as_str();
+                    let layer = node.layer.as_str();
 
                     for prop in node.updates.unwrap_or(vec![]) {
                         let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
                         self_clone
                             .graph
-                            .add_node(prop.time, name, prop_iter, None)?;
+                            .add_node(prop.time, name, prop_iter, node_type, layer)?;
                     }
                     if let Some(node_type) = node.node_type.as_str() {
                         self_clone.get_node_view(name)?.set_node_type(node_type)?;
@@ -487,12 +501,15 @@ impl GqlMutableNode {
         &self,
         time: i64,
         properties: Option<Vec<GqlPropertyInput>>,
+        layer: Option<String>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
-            self_clone
-                .node
-                .add_updates(time, as_properties(properties.unwrap_or(vec![]))?)?;
+            self_clone.node.add_updates(
+                time,
+                as_properties(properties.unwrap_or(vec![]))?,
+                layer.as_str(),
+            )?;
             Ok::<_, GraphError>(())
         })
         .await?;
@@ -649,32 +666,19 @@ impl GqlMutableEdge {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        config::app_config::AppConfig,
-        data::{Data, EmbeddingConf},
-    };
-    use itertools::Itertools;
+    use crate::{config::app_config::AppConfig, data::Data, paths::ExistingGraphFolder};
     use raphtory::{
         db::api::{storage::storage::Config, view::MaterializedGraph},
         vectors::{
-            cache::VectorCache, embeddings::EmbeddingResult, template::DocumentTemplate, Embedding,
+            custom::{serve_custom_embedding, EmbeddingServer},
+            storage::OpenAIEmbeddings,
+            template::DocumentTemplate,
         },
     };
-    use std::collections::HashMap;
     use tempfile::tempdir;
 
-    async fn fake_embedding(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-        Ok(texts
-            .into_iter()
-            .map(|_| vec![1.0, 0.0, 0.0].into())
-            .collect_vec())
-    }
-
-    fn custom_template() -> DocumentTemplate {
-        DocumentTemplate {
-            node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
-            edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
-        }
+    fn fake_embedding(_: &str) -> Vec<f32> {
+        vec![1.0]
     }
 
     fn create_test_graph() -> MaterializedGraph {
@@ -682,47 +686,62 @@ mod tests {
         graph.into()
     }
 
-    async fn create_mutable_graph() -> (GqlMutableGraph, Data, tempfile::TempDir) {
+    async fn create_mutable_graph(
+        port: u16,
+    ) -> (GqlMutableGraph, Data, tempfile::TempDir, EmbeddingServer) {
         let graph = create_test_graph();
         let tmp_dir = tempdir().unwrap();
 
         let config = AppConfig::default();
-        let mut data = Data::new(tmp_dir.path(), &config, Config::default());
+        let data = Data::new(tmp_dir.path(), &config, Config::default());
 
-        // Override the embedding function with a mock for testing.
-        data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::in_memory(fake_embedding),
-            global_template: Some(custom_template()),
-            individual_templates: HashMap::new(),
-        });
+        let graph_name = "test_graph";
 
         let overwrite = false;
         let folder = data
-            .validate_path_for_insert("test_graph", overwrite)
+            .validate_path_for_insert(graph_name, overwrite)
             .unwrap();
         data.insert_graph(folder.clone(), graph).await.unwrap();
+        let template = DocumentTemplate {
+            node_template: Some("{{ name }} is a {{ node_type }}".to_string()),
+            edge_template: Some("{{ src.name }} appeared with {{ dst.name}}".to_string()),
+        };
 
-        let graph_with_vectors = data.get_graph("test_graph").await.unwrap();
+        let embedding_server = serve_custom_embedding(None, port, fake_embedding).await;
+
+        let config = OpenAIEmbeddings::new("whatever", format!("http://localhost:{port}"));
+        let vector_cache = data.vector_cache.resolve().await.unwrap();
+        let model = vector_cache.openai(config.into()).await.unwrap();
+        data.vectorise_folder(
+            &ExistingGraphFolder::try_from(tmp_dir.path().to_path_buf(), graph_name).unwrap(),
+            &template,
+            model,
+        )
+        .await
+        .unwrap();
+
+        let graph_with_vectors = data.get_graph(graph_name).await.unwrap();
         let mutable_graph = GqlMutableGraph::from(graph_with_vectors);
 
-        (mutable_graph, data, tmp_dir)
+        (mutable_graph, data, tmp_dir, embedding_server)
     }
 
     #[tokio::test]
     async fn test_add_nodes_empty_list() {
-        let (mutable_graph, _data, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _data, _tmp_dir, embedding_server) = create_mutable_graph(1745).await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap());
+        embedding_server.stop().await;
     }
 
     #[tokio::test]
     #[ignore = "TODO: #2384"]
     async fn test_add_nodes_simple() {
-        let (mutable_graph, _data, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _data, _tmp_dir, es) = create_mutable_graph(1746).await;
 
         let nodes = vec![
             NodeAddition {
@@ -733,6 +752,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
             NodeAddition {
                 name: "node2".to_string(),
@@ -742,6 +762,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
         ];
 
@@ -750,24 +771,25 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap());
 
-        // TODO: #2380 (embeddings aren't working right now)
-        let query = "node1".to_string();
-        let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
+        let embedding = fake_embedding("node1");
         let limit = 5;
         let result = mutable_graph
             .graph
             .vectors
             .unwrap()
-            .nodes_by_similarity(embedding, limit, None);
+            .nodes_by_similarity(&embedding.into(), limit, None)
+            .execute()
+            .await;
 
         assert!(result.is_ok());
-        assert!(result.unwrap().get_documents().unwrap().len() == 2);
+        assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+        es.stop().await;
     }
 
     #[tokio::test]
     #[ignore = "TODO: #2384"]
     async fn test_add_nodes_with_properties() {
-        let (mutable_graph, _data, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _data, _tmp_dir, es) = create_mutable_graph(1747).await;
 
         let nodes = vec![
             NodeAddition {
@@ -793,6 +815,7 @@ mod tests {
                         }]),
                     },
                 ]),
+                layer: None,
             },
             NodeAddition {
                 name: "complex_node_2".to_string(),
@@ -802,6 +825,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
             NodeAddition {
                 name: "complex_node_3".to_string(),
@@ -814,6 +838,7 @@ mod tests {
                         value: Value::F64(55000.0),
                     }]),
                 }]),
+                layer: None,
             },
         ];
 
@@ -822,24 +847,25 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap());
 
-        // TODO: #2380 (embeddings aren't working right now)
-        // let query = "complex_node_1".to_string();
-        // let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
-        // let limit = 5;
-        // let result = mutable_graph
-        //     .graph
-        //     .vectors
-        //     .unwrap()
-        //     .nodes_by_similarity(embedding, limit, None);
-        //
-        // assert!(result.is_ok());
-        // assert!(result.unwrap().get_documents().unwrap().len() == 3);
+        let embedding = fake_embedding("complex_node_1");
+        let limit = 5;
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .nodes_by_similarity(&embedding.into(), limit, None)
+            .execute()
+            .await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().await.unwrap().len() == 3);
+        es.stop().await;
     }
 
     #[tokio::test]
     #[ignore = "TODO: #2384"]
     async fn test_add_edges_simple() {
-        let (mutable_graph, _data, _tmp_dir) = create_mutable_graph().await;
+        let (mutable_graph, _data, _tmp_dir, es) = create_mutable_graph(1748).await;
 
         // First add some nodes.
         let nodes = vec![
@@ -851,6 +877,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
             NodeAddition {
                 name: "node2".to_string(),
@@ -860,6 +887,7 @@ mod tests {
                     time: 0,
                     properties: None,
                 }]),
+                layer: None,
             },
         ];
 
@@ -900,16 +928,18 @@ mod tests {
 
         // TODO: #2380 (embeddings aren't working right now)
         // Test that edge embeddings were generated.
-        // let query = "node1 appeared with node2".to_string();
-        // let embedding = &fake_embedding(vec![query]).await.unwrap().remove(0);
-        // let limit = 5;
-        // let result = mutable_graph
-        //     .graph
-        //     .vectors
-        //     .unwrap()
-        //     .edges_by_similarity(embedding, limit, None);
-        //
-        // assert!(result.is_ok());
-        // assert!(result.unwrap().get_documents().unwrap().len() == 2);
+        let embedding = fake_embedding("node1 appeared with node2");
+        let limit = 5;
+        let result = mutable_graph
+            .graph
+            .vectors
+            .unwrap()
+            .edges_by_similarity(&embedding.into(), limit, None)
+            .execute()
+            .await;
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
+        es.stop().await;
     }
 }

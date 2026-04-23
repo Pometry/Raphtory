@@ -191,15 +191,16 @@ impl PyPersistentGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str | int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional) : The optional string which will be used as a node type.
+    ///    node_type (str, optional): The optional string which will be used as a node type.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
+    ///    layer: (str, optional): The optional string which will be used as a layer.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn add_node(
         &self,
         timestamp: EventTimeComponent,
@@ -207,16 +208,22 @@ impl PyPersistentGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         match event_id {
-            None => self
-                .graph
-                .add_node(timestamp, id, properties.unwrap_or_default(), node_type),
+            None => self.graph.add_node(
+                timestamp,
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+                layer,
+            ),
             Some(event_id) => self.graph.add_node(
                 (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
+                layer,
             ),
         }
     }
@@ -227,15 +234,16 @@ impl PyPersistentGraph {
     ///    timestamp (TimeInput): The timestamp of the node.
     ///    id (str | int): The id of the node.
     ///    properties (PropInput, optional): The properties of the node.
-    ///    node_type (str, optional) : The optional string which will be used as a node type.
+    ///    node_type (str, optional): The optional string which will be used as a node type.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
+    ///    layer (str, optional): The optional string which will be used as a layer.
     ///
     /// Returns:
     ///   MutableNode: the newly created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
         timestamp: EventTimeComponent,
@@ -243,17 +251,22 @@ impl PyPersistentGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, PersistentGraph>, GraphError> {
         match event_id {
-            None => {
-                self.graph
-                    .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
-            }
+            None => self.graph.create_node(
+                timestamp,
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+                layer,
+            ),
             Some(event_id) => self.graph.create_node(
                 (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
+                layer,
             ),
         }
     }
@@ -640,6 +653,8 @@ impl PyPersistentGraph {
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
     ///     event_id (str, optional): The column name for the secondary index.
+    ///     layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+    ///     layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -647,14 +662,13 @@ impl PyPersistentGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None)
     )]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
         time: &str,
         id: &str,
-
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -663,6 +677,8 @@ impl PyPersistentGraph {
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
         event_id: Option<&str>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -678,6 +694,8 @@ impl PyPersistentGraph {
                 &properties,
                 &metadata,
                 shared_metadata.as_ref(),
+                layer,
+                layer_col,
                 column_schema,
                 event_id,
             )
@@ -710,6 +728,8 @@ impl PyPersistentGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
                     None,
                     true,
                     arced_schema.clone(),
@@ -726,6 +746,8 @@ impl PyPersistentGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
                     csv_options.as_ref(),
                     arced_schema,
                     event_id,

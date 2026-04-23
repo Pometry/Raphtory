@@ -2,12 +2,13 @@ use crate::{
     core::storage::locked_view::LockedView,
     db::api::state::{
         ops::{NodeFilterOp, NodeOp},
-        LazyNodeState, NodeState,
+        LazyNodeState, NodeState, NodeStateValue, TypedNodeState,
     },
     prelude::{GraphViewOps, NodeStateOps, NodeViewOps},
 };
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, TimeZone};
+use indexmap::IndexMap;
 use itertools::Itertools;
 use pyo3::{prelude::PyAnyMethods, Bound, Py, PyAny, Python};
 use raphtory_api::core::{
@@ -267,6 +268,16 @@ impl<K: Repr, V: Repr, S> Repr for HashMap<K, V, S> {
     }
 }
 
+impl<K: Repr, V: Repr, S> Repr for IndexMap<K, V, S> {
+    fn repr(&self) -> String {
+        let repr = self
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k.repr(), v.repr()))
+            .join(", ");
+        format!("{{{}}}", repr)
+    }
+}
+
 impl<S: Repr, T: Repr> Repr for (S, T) {
     fn repr(&self) -> String {
         format!("({}, {})", self.0.repr(), self.1.repr())
@@ -325,6 +336,20 @@ impl<'graph, G: GraphViewOps<'graph>, V: Repr + Clone + Send + Sync + 'graph> Re
 {
     fn repr(&self) -> String {
         StructReprBuilder::new("NodeState")
+            .add_fields_from_iter(self.iter().map(|(n, v)| (n.name(), v)))
+            .finish()
+    }
+}
+
+impl<
+        'graph,
+        G: GraphViewOps<'graph>,
+        V: Repr + NodeStateValue + 'graph,
+        T: Clone + Send + Sync + 'graph,
+    > Repr for TypedNodeState<'graph, V, G, T>
+{
+    fn repr(&self) -> String {
+        StructReprBuilder::new("TypedNodeState")
             .add_fields_from_iter(self.iter().map(|(n, v)| (n.name(), v)))
             .finish()
     }

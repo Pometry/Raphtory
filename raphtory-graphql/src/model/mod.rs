@@ -25,8 +25,8 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
-    Result, Upload,
+    App, Enum, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
+    ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{
@@ -37,8 +37,13 @@ use raphtory::{
         },
         graph::views::{deletion_graph::PersistentGraph, filter::model::NodeViewFilterOps},
     },
-    errors::GraphError,
+    errors::{GraphError, GraphResult},
     prelude::*,
+    vectors::{
+        cache::CachedEmbeddingModel,
+        storage::OpenAIEmbeddings,
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
     version,
 };
 use std::{
@@ -54,6 +59,47 @@ pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+#[derive(InputObject, Debug, Clone, Default)]
+pub struct OpenAIConfig {
+    model: String,
+    api_base: Option<String>,
+    api_key_env: Option<String>,
+    org_id: Option<String>,
+    project_id: Option<String>,
+}
+
+#[derive(OneOfInput, Clone, Debug)]
+pub enum EmbeddingModel {
+    /// OpenAI embedding models or compatible providers
+    OpenAI(OpenAIConfig),
+}
+
+impl EmbeddingModel {
+    async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
+        let data = ctx.data_unchecked::<Data>();
+        match self {
+            Self::OpenAI(OpenAIConfig {
+                model,
+                api_base,
+                api_key_env,
+                org_id,
+                project_id,
+            }) => {
+                let embeddings = OpenAIEmbeddings {
+                    model,
+                    api_base,
+                    api_key_env,
+                    org_id,
+                    project_id,
+                    dim: None,
+                };
+                let vector_cache = data.vector_cache.resolve().await?;
+                vector_cache.openai(embeddings.into()).await
+            }
+        }
+    }
+}
 
 /// a thin wrapper around spawn_blocking that unwraps the join handle
 pub(crate) async fn blocking_io<F, R>(f: F) -> R
@@ -337,6 +383,22 @@ fn require_graph_read_src(
 #[graphql(root)]
 pub(crate) struct QueryRoot;
 
+#[derive(OneOfInput, Clone, Debug)]
+pub enum Template {
+    /// The default template.
+    Enabled(bool),
+    /// A custom template.
+    Custom(String),
+}
+
+fn resolve(template: Option<Template>, default: &str) -> Option<String> {
+    match template? {
+        Template::Enabled(false) => None,
+        Template::Enabled(true) => Some(default.to_owned()),
+        Template::Custom(template) => Some(template),
+    }
+}
+
 #[ResolvedObjectFields]
 impl QueryRoot {
     /// Hello world demo
@@ -408,6 +470,32 @@ impl QueryRoot {
         let graph = data.get_graph(path.as_ref()).await?.into();
 
         Ok(graph)
+    }
+
+    /// Update graph query, has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
+    async fn vectorise_graph<'a>(
+        ctx: &Context<'a>,
+        path: String,
+        model: Option<EmbeddingModel>,
+        nodes: Option<Template>,
+        edges: Option<Template>,
+    ) -> Result<bool> {
+        ctx.require_jwt_write_access()?;
+        let data = ctx.data_unchecked::<Data>();
+        let template = DocumentTemplate {
+            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+        };
+        let cached_model = model
+            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+            .cache(ctx)
+            .await?;
+        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)?;
+        data.vectorise_folder(&folder, &template, cached_model)
+            .await?;
+        Ok(true)
     }
 
     /// Create vectorised graph in the format used for queries

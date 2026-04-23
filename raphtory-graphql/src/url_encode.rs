@@ -65,7 +65,7 @@ mod tests {
 
         edge.add_metadata([("14", 15f64)], Some("7")).unwrap();
 
-        let node = graph.add_node(17, 0, NO_PROPS, None).unwrap();
+        let node = graph.add_node(17, 0, NO_PROPS, None, None).unwrap();
         node.add_metadata([("blerg", "test")]).unwrap();
 
         let bytes = url_encode_graph(graph.clone()).unwrap();

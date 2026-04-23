@@ -31,6 +31,7 @@ mod proto_test {
 
     use arrow::array::types::{Int32Type, UInt8Type};
     use raphtory::test_utils::{build_edge_list, build_graph_from_edge_list};
+    use raphtory_api::core::entities::LayerId;
 
     #[test]
     fn prev_proto_str() {
@@ -287,7 +288,7 @@ mod proto_test {
         graph1.update_edge_tprops(
             EID(0),
             EventTime::start(1),
-            0,
+            LayerId(0),
             iter::empty::<(usize, Prop)>(),
         );
 
@@ -299,7 +300,7 @@ mod proto_test {
         graph2.update_edge_tprops(
             EID(1),
             EventTime::start(2),
-            0,
+            LayerId(0),
             iter::empty::<(usize, Prop)>(),
         );
         bytes1.extend(graph2.encode_to_vec());

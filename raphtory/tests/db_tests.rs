@@ -5,10 +5,14 @@ use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::su
 #[cfg(feature = "proto")]
 use raphtory::serialise::StableDecode;
 use raphtory::{
-    algorithms::components::weakly_connected_components,
+    algorithms::{
+        centrality::{degree_centrality::degree_centrality, pagerank::unweighted_page_rank},
+        components::weakly_connected_components,
+    },
     db::{
         api::{
             properties::internal::InternalMetadataOps,
+            state::MergePriority,
             view::{
                 internal::{GraphTimeSemanticsOps, InternalEdgeFilterOps},
                 EdgeViewOps, LayerOps, NodeViewOps, TimeOps,
@@ -29,7 +33,7 @@ use raphtory::{
     },
 };
 use raphtory_api::core::{
-    entities::{GID, VID},
+    entities::{LayerId, GID, VID},
     storage::{
         arc_str::{ArcStr, OptionAsStr},
         timeindex::{AsTime, EventTime},
@@ -181,7 +185,7 @@ fn add_node_grows_graph_len() {
 
         let expected_len = vs.iter().map(|(_, v)| v).sorted().dedup().count();
         for (t, v) in vs {
-            g.add_node(t, v, NO_PROPS, None)
+            g.add_node(t, v, NO_PROPS, None, None)
                 .map_err(|err| error!("{:?}", err))
                 .ok();
         }
@@ -198,7 +202,7 @@ fn add_node_gets_names() {
 
         let expected_len = vs.iter().sorted().dedup().count();
         for (t, name) in vs.iter().enumerate() {
-            g.add_node(t as i64, name.clone(), NO_PROPS, None)
+            g.add_node(t as i64, name.clone(), NO_PROPS, None, None)
                 .map_err(|err| info!("{:?}", err))
                 .ok();
         }
@@ -281,9 +285,15 @@ fn get_edge_works() {
 #[test]
 fn import_from_another_graph() {
     let g = Graph::new();
-    let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+    let g_a = g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
 
     assert_eq!(g_b.history(), vec![1]);
@@ -299,7 +309,7 @@ fn import_from_another_graph() {
     assert_eq!(res.metadata().get("con").unwrap(), Prop::I64(11));
 
     let gg = Graph::new();
-    gg.add_node(1, "B", NO_PROPS, None).unwrap();
+    gg.add_node(1, "B", NO_PROPS, None, None).unwrap();
     let res = gg.import_nodes(vec![&g_a, &g_b], false);
     match res {
         Err(GraphError::NodesExistError(ids)) => {
@@ -336,7 +346,7 @@ fn import_from_another_graph() {
         )
         .unwrap();
     let gg = Graph::new();
-    let _ = gg.add_node(0, "B", NO_PROPS, None);
+    let _ = gg.add_node(0, "B", NO_PROPS, None, None);
     let res = gg.import_edge(&e_a_b_p, false).expect("Failed to add edge");
     assert_eq!(res.properties().as_vec(), e_a_b_p.properties().as_vec());
 
@@ -368,9 +378,15 @@ fn import_from_another_graph() {
 #[test]
 fn import_node_as() {
     let g = Graph::new();
-    let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+    let g_a = g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
@@ -379,7 +395,7 @@ fn import_node_as() {
     assert_eq!(res.name(), "X");
     assert_eq!(res.history(), vec![0]);
 
-    let _ = gg.add_node(1, "Y", NO_PROPS, None).unwrap();
+    let _ = gg.add_node(1, "Y", NO_PROPS, None, None).unwrap();
     let res = gg.import_node_as(&g_b, "Y", false);
     match res {
         Err(GraphError::NodeExistsError(id)) => {
@@ -403,14 +419,20 @@ fn import_node_as() {
 #[test]
 fn import_node_as_merge() {
     let g = Graph::new();
-    let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+    let g_a = g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
     let gg = Graph::new();
-    gg.add_node(1, "Y", NO_PROPS, None).unwrap();
+    gg.add_node(1, "Y", NO_PROPS, None, None).unwrap();
 
     let res = gg.import_node_as(&g_a, "X", false).unwrap();
     assert_eq!(res.name(), "X");
@@ -426,16 +448,22 @@ fn import_node_as_merge() {
 #[test]
 fn import_nodes_as() {
     let g = Graph::new();
-    let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+    let g_a = g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
-    let g_c = g.add_node(0, "C", NO_PROPS, None).unwrap();
+    let g_c = g.add_node(0, "C", NO_PROPS, None, None).unwrap();
 
     let gg = Graph::new();
-    gg.add_node(1, "Q", NO_PROPS, None).unwrap();
-    gg.add_node(1, "R", NO_PROPS, None).unwrap();
+    gg.add_node(1, "Q", NO_PROPS, None, None).unwrap();
+    gg.add_node(1, "R", NO_PROPS, None, None).unwrap();
     let res = gg.import_nodes_as(vec![&g_a, &g_b, &g_c], vec!["P", "Q", "R"], false);
     match res {
         Err(GraphError::NodesExistError(ids)) => {
@@ -462,14 +490,20 @@ fn import_nodes_as() {
 #[test]
 fn import_nodes_as_merge() {
     let g = Graph::new();
-    let g_a = g.add_node(0, "A", NO_PROPS, None).unwrap();
+    let g_a = g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
 
     let gg = Graph::new();
-    gg.add_node(1, "Q", NO_PROPS, None).unwrap();
+    gg.add_node(1, "Q", NO_PROPS, None, None).unwrap();
     gg.import_nodes_as(vec![&g_a, &g_b], vec!["P", "Q"], true)
         .unwrap();
     let mut nodes = gg.nodes().name().collect_vec();
@@ -485,9 +519,15 @@ fn import_nodes_as_merge() {
 #[test]
 fn import_edge_as() {
     let g = Graph::new();
-    g.add_node(0, "A", NO_PROPS, None).unwrap();
+    g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))])
         .unwrap();
@@ -546,9 +586,15 @@ fn import_edge_as() {
 #[test]
 fn import_edge_as_merge() {
     let g = Graph::new();
-    g.add_node(0, "A", NO_PROPS, None).unwrap();
+    g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
     let e_a_b = g
@@ -583,13 +629,19 @@ fn import_edge_as_merge() {
 #[test]
 fn import_edges_as() {
     let g = Graph::new();
-    g.add_node(0, "A", NO_PROPS, None).unwrap();
+    g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))])
         .unwrap();
-    g.add_node(0, "C", NO_PROPS, None).unwrap();
+    g.add_node(0, "C", NO_PROPS, None, None).unwrap();
     let e_a_b = g
         .add_edge(
             2,
@@ -644,9 +696,15 @@ fn import_edges_as() {
 #[test]
 fn import_edges_as_merge() {
     let g = Graph::new();
-    g.add_node(0, "A", NO_PROPS, None).unwrap();
+    g.add_node(0, "A", NO_PROPS, None, None).unwrap();
     let g_b = g
-        .add_node(1, "B", vec![("temp".to_string(), Prop::Bool(true))], None)
+        .add_node(
+            1,
+            "B",
+            vec![("temp".to_string(), Prop::Bool(true))],
+            None,
+            None,
+        )
         .unwrap();
     let _ = g_b.add_metadata(vec![("con".to_string(), Prop::I64(11))]);
     let e_a_b = g
@@ -918,7 +976,7 @@ fn time_test() {
     assert_eq!(g.latest_time(), None);
     assert_eq!(g.earliest_time(), None);
 
-    g.add_node(5, 1, NO_PROPS, None)
+    g.add_node(5, 1, NO_PROPS, None, None)
         .map_err(|err| error!("{:?}", err))
         .ok();
 
@@ -931,7 +989,7 @@ fn time_test() {
     assert_eq!(g.latest_time().unwrap().t(), 10);
     assert_eq!(g.earliest_time().unwrap().t(), 10);
 
-    g.add_node(5, 1, NO_PROPS, None)
+    g.add_node(5, 1, NO_PROPS, None, None)
         .map_err(|err| error!("{:?}", err))
         .ok();
     assert_eq!(g.latest_time().unwrap().t(), 10);
@@ -949,9 +1007,9 @@ fn time_test() {
 #[test]
 fn test_metadata_props() {
     let g = Graph::new();
-    let n = g.add_node(1, 1, [("p1", 1)], None).unwrap();
+    let n = g.add_node(1, 1, [("p1", 1)], None, None).unwrap();
     n.add_metadata([("m1", 1)]).unwrap();
-    let n = g.add_node(1, 2, [("p2", 2)], None).unwrap();
+    let n = g.add_node(1, 2, [("p2", 2)], None, None).unwrap();
     n.add_metadata([("m2", 2)]).unwrap();
 
     let n1_meta = g
@@ -986,8 +1044,14 @@ fn metadata() {
     .unwrap();
     g.add_edge(0, 22, 33, NO_PROPS, None).unwrap();
     g.add_edge(0, 33, 11, NO_PROPS, None).unwrap();
-    g.add_node(0, 11, vec![("temp".to_string(), Prop::Bool(true))], None)
-        .unwrap();
+    g.add_node(
+        0,
+        11,
+        vec![("temp".to_string(), Prop::Bool(true))],
+        None,
+        None,
+    )
+    .unwrap();
     g.add_edge(0, 44, 55, NO_PROPS, None).unwrap();
     let v11 = g.node(11).unwrap();
     let v22 = g.node(22).unwrap();
@@ -1070,7 +1134,7 @@ fn temporal_node_rows_1_node() {
     let graph = Graph::new();
 
     graph
-        .add_node(0, 1, [("cool".to_string(), Prop::Bool(true))], None)
+        .add_node(0, 1, [("cool".to_string(), Prop::Bool(true))], None, None)
         .unwrap();
 
     test_storage!(&graph, |graph| {
@@ -1078,14 +1142,14 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         assert_eq!(actual, vec![(0.into(), vec![Prop::Bool(true)])]);
     });
 
     graph
-        .add_node(0, 1, [("coolio".to_string(), Prop::U64(9))], None)
+        .add_node(0, 1, [("coolio".to_string(), Prop::U64(9))], None, None)
         .unwrap();
 
     test_storage!(&graph, |graph| {
@@ -1093,7 +1157,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         assert_eq!(
@@ -1114,6 +1178,7 @@ fn temporal_node_rows_1_node() {
                 ("coolio".to_string(), Prop::U64(19)),
             ],
             None,
+            None,
         )
         .unwrap();
 
@@ -1122,7 +1187,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -1133,7 +1198,7 @@ fn temporal_node_rows_1_node() {
         assert_eq!(actual, expected);
     });
 
-    graph.add_node(2, 1, NO_PROPS, None).unwrap();
+    graph.add_node(2, 1, NO_PROPS, None, None).unwrap();
     // edge additions should not show up in prop rows
     graph.add_edge(3, 1, 1, NO_PROPS, None).unwrap();
 
@@ -1142,7 +1207,7 @@ fn temporal_node_rows_1_node() {
             .node(1)
             .unwrap()
             .rows()
-            .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+            .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
         let expected = vec![
@@ -1162,19 +1227,19 @@ fn temporal_node_rows_nodes() {
     let mut nodes = Vec::new();
     nodes.push(
         graph
-            .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None)
+            .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None, None)
             .unwrap()
             .node,
     );
     nodes.push(
         graph
-            .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None)
+            .add_node(1, 2, [("cool".to_string(), Prop::U64(2))], None, None)
             .unwrap()
             .node,
     );
     nodes.push(
         graph
-            .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None)
+            .add_node(2, 3, [("cool".to_string(), Prop::U64(3))], None, None)
             .unwrap()
             .node,
     );
@@ -1200,13 +1265,13 @@ fn temporal_node_rows_nodes() {
 fn temporal_node_rows_window() {
     let graph = Graph::new();
     graph
-        .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None)
+        .add_node(0, 1, [("cool".to_string(), Prop::U64(1))], None, None)
         .unwrap();
     graph
-        .add_node(1, 1, [("cool".to_string(), Prop::U64(2))], None)
+        .add_node(1, 1, [("cool".to_string(), Prop::U64(2))], None, None)
         .unwrap();
     graph
-        .add_node(2, 1, [("cool".to_string(), Prop::U64(3))], None)
+        .add_node(2, 1, [("cool".to_string(), Prop::U64(3))], None, None)
         .unwrap();
 
     test_storage!(&graph, |graph| {
@@ -1241,7 +1306,7 @@ fn temporal_props_node() {
     let graph = Graph::new();
 
     graph
-        .add_node(0, 1, [("cool".to_string(), Prop::Bool(true))], None)
+        .add_node(0, 1, [("cool".to_string(), Prop::Bool(true))], None, None)
         .unwrap();
 
     let v = graph.node(1).unwrap();
@@ -1251,7 +1316,7 @@ fn temporal_props_node() {
 
     // we flip cool from true to false after t 3
     graph
-        .add_node(3, 1, [("cool".to_string(), Prop::Bool(false))], None)
+        .add_node(3, 1, [("cool".to_string(), Prop::Bool(false))], None, None)
         .unwrap();
 
     test_storage!(&graph, |graph| {
@@ -1367,7 +1432,7 @@ fn test_time_range_on_empty_graph() {
 fn test_add_node_with_nums() {
     let graph = Graph::new();
 
-    graph.add_node(1, 831, NO_PROPS, None).unwrap();
+    graph.add_node(1, 831, NO_PROPS, None, None).unwrap();
     test_storage!(&graph, |graph| {
         assert!(graph.has_node(831));
 
@@ -1379,8 +1444,8 @@ fn test_add_node_with_nums() {
 fn test_add_node_with_strings() {
     let graph = Graph::new();
 
-    graph.add_node(0, "haaroon", NO_PROPS, None).unwrap();
-    graph.add_node(1, "hamza", NO_PROPS, None).unwrap();
+    graph.add_node(0, "haaroon", NO_PROPS, None, None).unwrap();
+    graph.add_node(1, "hamza", NO_PROPS, None, None).unwrap();
     test_storage!(&graph, |graph| {
         assert!(graph.has_node("haaroon"));
         assert!(graph.has_node("hamza"));
@@ -1679,10 +1744,11 @@ fn node_properties() -> Result<(), GraphError> {
         1,
         [("t", Prop::str("wallet")), ("cost", Prop::F64(99.5))],
         Some("a"),
+        None,
     )?;
 
     let n1 = g.node(1).unwrap();
-    g.add_node(1, 2, [("t", Prop::str("person"))], None)?;
+    g.add_node(1, 2, [("t", Prop::str("person"))], None, None)?;
     g.add_node(
         6,
         3,
@@ -1691,6 +1757,7 @@ fn node_properties() -> Result<(), GraphError> {
             ("cost_b", Prop::F64(76.0)),
         ],
         Some("b"),
+        None,
     )?;
 
     g.add_node(
@@ -1701,6 +1768,7 @@ fn node_properties() -> Result<(), GraphError> {
             ("bool_prop", Prop::Bool(true)),
         ],
         Some("b"),
+        None,
     )?;
 
     n1.add_metadata([("lol", Prop::str("smile"))])?;
@@ -1728,7 +1796,7 @@ fn test_decimal_properties() {
     let graph = Graph::new();
     let dec_prop = Prop::Decimal(BigDecimal::new(123456234234123123i64.into(), 9));
     graph
-        .add_node(0, 1, [("cost".to_string(), dec_prop.clone())], None)
+        .add_node(0, 1, [("cost".to_string(), dec_prop.clone())], None, None)
         .unwrap();
 
     test_storage!(&graph, |graph| {
@@ -1742,10 +1810,10 @@ fn test_decimal_properties() {
 fn node_history_rows() {
     let graph = Graph::new();
     graph
-        .add_node(1, 2, [("cool".to_string(), Prop::U64(1))], None)
+        .add_node(1, 2, [("cool".to_string(), Prop::U64(1))], None, None)
         .unwrap();
     graph
-        .add_node(0, 1, [("cool".to_string(), 1u64)], None)
+        .add_node(0, 1, [("cool".to_string(), 1u64)], None, None)
         .unwrap();
     graph
         .add_node(
@@ -1756,18 +1824,19 @@ fn node_history_rows() {
                 ("bla".to_string(), Prop::I64(2)),
             ],
             None,
+            None,
         )
         .unwrap();
-    graph.add_node(2, 1, NO_PROPS, None).unwrap();
+    graph.add_node(2, 1, NO_PROPS, None, None).unwrap();
     graph
-        .add_node(1, 1, [("cool".to_string(), 3u64)], None)
+        .add_node(1, 1, [("cool".to_string(), 3u64)], None, None)
         .unwrap();
 
     let node = graph.node(1).unwrap();
 
     let actual = node
         .rows()
-        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
         .collect::<Vec<_>>();
 
     let expected = vec![
@@ -1783,7 +1852,7 @@ fn node_history_rows() {
 
     let actual = node
         .rows()
-        .map(|(t, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
+        .map(|(t, _, row)| (t, row.into_iter().map(|(_, a)| a).collect::<Vec<_>>()))
         .collect::<Vec<_>>();
 
     let expected = vec![(EventTime::new(1, 0), vec![Prop::U64(1)])];
@@ -1795,10 +1864,18 @@ fn node_history_rows() {
 fn check_node_history_str() {
     let graph = Graph::new();
 
-    graph.add_node(4, "Lord Farquaad", NO_PROPS, None).unwrap();
-    graph.add_node(6, "Lord Farquaad", NO_PROPS, None).unwrap();
-    graph.add_node(7, "Lord Farquaad", NO_PROPS, None).unwrap();
-    graph.add_node(8, "Lord Farquaad", NO_PROPS, None).unwrap();
+    graph
+        .add_node(4, "Lord Farquaad", NO_PROPS, None, None)
+        .unwrap();
+    graph
+        .add_node(6, "Lord Farquaad", NO_PROPS, None, None)
+        .unwrap();
+    graph
+        .add_node(7, "Lord Farquaad", NO_PROPS, None, None)
+        .unwrap();
+    graph
+        .add_node(8, "Lord Farquaad", NO_PROPS, None, None)
+        .unwrap();
 
     let times_of_farquaad = graph.node("Lord Farquaad").unwrap().history();
 
@@ -1814,11 +1891,11 @@ fn check_node_history_str() {
 fn check_node_history_num() {
     let graph = Graph::new();
 
-    graph.add_node(1, 1, NO_PROPS, None).unwrap();
-    graph.add_node(2, 1, NO_PROPS, None).unwrap();
-    graph.add_node(3, 1, NO_PROPS, None).unwrap();
-    graph.add_node(4, 1, NO_PROPS, None).unwrap();
-    graph.add_node(8, 1, NO_PROPS, None).unwrap();
+    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(3, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(4, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(8, 1, NO_PROPS, None, None).unwrap();
 
     let times_of_one = graph.node(1).unwrap().history();
 
@@ -1915,7 +1992,7 @@ fn test_ingesting_timestamps() {
     let latest_time = "2022-06-07 12:34:00".try_into_time().unwrap().t();
 
     let g = Graph::new();
-    g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None)
+    g.add_node("2022-06-06T12:34:00.000", 0, NO_PROPS, None, None)
         .unwrap();
     g.add_edge("2022-06-07T12:34:00", 1, 2, NO_PROPS, None)
         .unwrap();
@@ -1925,7 +2002,7 @@ fn test_ingesting_timestamps() {
     let g = Graph::new();
     let fmt = "%Y-%m-%d %H:%M";
 
-    g.add_node(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS, None)
+    g.add_node(CustomTime("2022-06-06 12:34", fmt), 0, NO_PROPS, None, None)
         .unwrap();
     g.add_edge(CustomTime("2022-06-07 12:34", fmt), 1, 2, NO_PROPS, None)
         .unwrap();
@@ -2266,9 +2343,9 @@ fn test_temporal_edge_props_window() {
 #[test]
 fn test_node_early_late_times() {
     let graph = Graph::new();
-    graph.add_node(1, 1, NO_PROPS, None).unwrap();
-    graph.add_node(2, 1, NO_PROPS, None).unwrap();
-    graph.add_node(3, 1, NO_PROPS, None).unwrap();
+    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(3, 1, NO_PROPS, None, None).unwrap();
 
     // FIXME: Node add without properties not showing up (Issue #46)
     assert_eq!(graph.node(1).unwrap().earliest_time().unwrap().t(), 1);
@@ -2305,9 +2382,9 @@ fn test_node_early_late_times() {
 #[test]
 fn test_node_ids() {
     let graph = Graph::new();
-    graph.add_node(1, 1, NO_PROPS, None).unwrap();
-    graph.add_node(1, 2, NO_PROPS, None).unwrap();
-    graph.add_node(2, 3, NO_PROPS, None).unwrap();
+    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 3, NO_PROPS, None, None).unwrap();
 
     assert_eq!(graph.nodes().id().sort_by_id(), vec![1u64, 2u64, 3u64]);
 
@@ -2442,7 +2519,14 @@ fn test_layer_explode() {
             })
             .collect::<Vec<_>>();
 
-        assert_eq!(layer_exploded, vec![(1, 2, 1), (1, 2, 2), (1, 2, 3)]);
+        assert_eq!(
+            layer_exploded,
+            vec![
+                (1u64, 2u64, LayerId(1)),
+                (1u64, 2u64, LayerId(2)),
+                (1u64, 2u64, LayerId(3)),
+            ]
+        );
     });
 }
 
@@ -2559,9 +2643,9 @@ fn test_layer_explode_stacking_window() {
 #[test]
 fn test_multi_layer_degree() {
     let graph = Graph::new();
-    graph.add_node(1, 2, NO_PROPS, None).unwrap();
-    graph.add_node(1, 3, NO_PROPS, None).unwrap();
-    graph.add_node(1, 4, NO_PROPS, None).unwrap();
+    graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 3, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 4, NO_PROPS, None, None).unwrap();
 
     graph.add_edge(1, 1, 4, NO_PROPS, None).expect("failed");
     graph
@@ -2700,7 +2784,7 @@ fn node_from_id_is_consistent() {
     proptest!(|(nodes: Vec<u64>)| {
         let g = Graph::new();
         for v in nodes.iter() {
-            g.add_node(0, *v, NO_PROPS, None).unwrap();
+            g.add_node(0, *v, NO_PROPS, None, None).unwrap();
         }
         prop_assert!(g.nodes()
             .name()
@@ -2714,7 +2798,8 @@ fn node_from_id_is_consistent() {
 fn large_id_is_consistent() {
     global_info_logger();
     let g = Graph::new();
-    g.add_node(0, 10000000000000000006, NO_PROPS, None).unwrap();
+    g.add_node(0, 10000000000000000006, NO_PROPS, None, None)
+        .unwrap();
     info!("names: {:?}", g.nodes().name().collect_vec());
     assert!(g
         .nodes()
@@ -2839,6 +2924,40 @@ fn can_apply_algorithm_on_filtered_graph() {
 }
 
 #[test]
+fn test_node_state_merge() {
+    let graph = Graph::new();
+    for i in 0..1_000 {
+        graph.add_edge(0, i, i + 1, NO_PROPS, None).unwrap();
+    }
+
+    let sg = graph.subgraph(1..200);
+    let degs = degree_centrality(&graph);
+    let pr = unweighted_page_rank(&sg, None, None, None, false, None);
+
+    let m1 = pr.state.merge(
+        &degs.state,
+        MergePriority::Left,
+        MergePriority::Left,
+        Some(HashMap::from([(
+            "degree_centrality".to_string(),
+            MergePriority::Right,
+        )])),
+    );
+    assert_eq!(m1.values().num_rows(), sg.count_nodes());
+
+    let m2 = degs.state.merge(
+        &pr.state,
+        MergePriority::Left,
+        MergePriority::Left,
+        Some(HashMap::from([(
+            "pagerank_score".to_string(),
+            MergePriority::Right,
+        )])),
+    );
+    assert_eq!(m2.values().num_rows(), graph.count_nodes());
+}
+
+#[test]
 #[cfg(feature = "proto")]
 fn save_load_serial() {
     let g = Graph::new();
@@ -2853,11 +2972,11 @@ fn save_load_serial() {
 #[test]
 fn test_node_type_changes() {
     let g = Graph::new();
-    g.add_node(0, "A", NO_PROPS, Some("typeA")).unwrap();
-    g.add_node(1, "A", NO_PROPS, None).unwrap();
+    g.add_node(0, "A", NO_PROPS, Some("typeA"), None).unwrap();
+    g.add_node(1, "A", NO_PROPS, None, None).unwrap();
     let node_a = g.node("A").unwrap();
     assert_eq!(node_a.node_type().as_str(), Some("typeA"));
-    let result = g.add_node(2, "A", NO_PROPS, Some("typeB"));
+    let result = g.add_node(2, "A", NO_PROPS, Some("typeB"), None);
     assert!(result.is_err());
 }
 
@@ -2897,10 +3016,10 @@ fn test_layer_name() {
 fn test_type_filter() {
     let g = PersistentGraph::new();
 
-    g.add_node(1, 1, NO_PROPS, Some("wallet")).unwrap();
-    g.add_node(1, 2, NO_PROPS, Some("timer")).unwrap();
-    g.add_node(1, 3, NO_PROPS, Some("timer")).unwrap();
-    g.add_node(1, 4, NO_PROPS, Some("wallet")).unwrap();
+    g.add_node(1, 1, NO_PROPS, Some("wallet"), None).unwrap();
+    g.add_node(1, 2, NO_PROPS, Some("timer"), None).unwrap();
+    g.add_node(1, 3, NO_PROPS, Some("timer"), None).unwrap();
+    g.add_node(1, 4, NO_PROPS, Some("wallet"), None).unwrap();
 
     assert_eq!(
         g.nodes()
@@ -2913,15 +3032,15 @@ fn test_type_filter() {
     );
 
     let g = Graph::new();
-    g.add_node(1, 1, NO_PROPS, Some("a")).unwrap();
-    g.add_node(1, 2, NO_PROPS, Some("b")).unwrap();
-    g.add_node(1, 3, NO_PROPS, Some("b")).unwrap();
-    g.add_node(1, 4, NO_PROPS, Some("a")).unwrap();
-    g.add_node(1, 5, NO_PROPS, Some("c")).unwrap();
-    g.add_node(1, 6, NO_PROPS, Some("e")).unwrap();
-    g.add_node(1, 7, NO_PROPS, None).unwrap();
-    g.add_node(1, 8, NO_PROPS, None).unwrap();
-    g.add_node(1, 9, NO_PROPS, None).unwrap();
+    g.add_node(1, 1, NO_PROPS, Some("a"), None).unwrap();
+    g.add_node(1, 2, NO_PROPS, Some("b"), None).unwrap();
+    g.add_node(1, 3, NO_PROPS, Some("b"), None).unwrap();
+    g.add_node(1, 4, NO_PROPS, Some("a"), None).unwrap();
+    g.add_node(1, 5, NO_PROPS, Some("c"), None).unwrap();
+    g.add_node(1, 6, NO_PROPS, Some("e"), None).unwrap();
+    g.add_node(1, 7, NO_PROPS, None, None).unwrap();
+    g.add_node(1, 8, NO_PROPS, None, None).unwrap();
+    g.add_node(1, 9, NO_PROPS, None, None).unwrap();
     g.add_edge(2, 1, 2, NO_PROPS, Some("a")).unwrap();
     g.add_edge(2, 3, 2, NO_PROPS, Some("a")).unwrap();
     g.add_edge(2, 2, 4, NO_PROPS, Some("a")).unwrap();
@@ -3481,7 +3600,7 @@ fn test_unique_property() {
 #[test]
 fn test_create_node() {
     let g = Graph::new();
-    g.create_node(0, 1, [("test", Prop::Bool(true))], None)
+    g.create_node(0, 1, [("test", Prop::Bool(true))], None, None)
         .unwrap();
 
     let n = g.node(1).unwrap();
@@ -3489,7 +3608,7 @@ fn test_create_node() {
     assert_eq!(n.id().as_u64().unwrap(), 1);
     assert_eq!(n.properties().get("test").unwrap(), Prop::Bool(true));
 
-    let result = g.create_node(1, 1, [("test".to_string(), Prop::Bool(true))], None);
+    let result = g.create_node(1, 1, [("test".to_string(), Prop::Bool(true))], None, None);
     assert!(matches!(result, Err(GraphError::NodeExistsError(id)) if id == GID::U64(1)));
 }
 
@@ -3557,7 +3676,7 @@ fn materialize_temporal_properties_one_edge() {
 #[test]
 fn materialize_one_node() {
     let g = Graph::new();
-    g.add_node(0, 0, NO_PROPS, None).unwrap();
+    g.add_node(0, 0, NO_PROPS, None, None).unwrap();
 
     let n = g.node(0).unwrap();
     let hist = n.history();

@@ -17,7 +17,10 @@ use raphtory::{
     errors::GraphError,
     serialise::GraphPaths,
     vectors::{
-        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
+        cache::{CachedEmbeddingModel, VectorCache},
+        storage::LazyDiskVectorCache,
+        template::DocumentTemplate,
+        vectorisable::Vectorisable,
         vectorised_graph::VectorisedGraph,
     },
 };
@@ -25,6 +28,7 @@ use std::{
     collections::HashMap,
     fs, io,
     io::{Read, Seek},
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -32,13 +36,6 @@ use tracing::{error, warn};
 use walkdir::WalkDir;
 
 pub const DIRTY_PATH: &'static str = ".dirty";
-
-#[derive(Clone)]
-pub struct EmbeddingConf {
-    pub(crate) cache: VectorCache,
-    pub(crate) global_template: Option<DocumentTemplate>,
-    pub(crate) individual_templates: HashMap<String, DocumentTemplate>,
-}
 
 #[derive(thiserror::Error, Debug)]
 pub enum MutationErrorInner {
@@ -131,13 +128,28 @@ pub(crate) fn get_relative_path(
     Ok(path_str)
 }
 
-pub struct Data {
+/// Inner struct with a drop implementation that cleans up the graphs
+pub struct DataInner {
     pub(crate) work_dir: PathBuf,
     pub(crate) cache: Cache<String, GraphWithVectors>,
-    pub(crate) create_index: bool,
-    pub(crate) embedding_conf: Option<EmbeddingConf>,
+    pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
+}
+
+/// Outer data struct that wraps the inner data to make sure it is only dropped once
+#[derive(Clone)]
+pub struct Data {
+    inner: Arc<DataInner>,
+    pub(crate) create_index: bool,
+}
+
+impl Deref for Data {
+    type Target = DataInner;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref()
+    }
 }
 
 impl Data {
@@ -169,14 +181,24 @@ impl Data {
         #[cfg(not(feature = "search"))]
         let create_index = false;
 
+        // TODO: make vector feature optional?
+
         Self {
-            work_dir: work_dir.to_path_buf(),
-            cache,
+            inner: Arc::new(DataInner {
+                work_dir: work_dir.to_path_buf(),
+                cache,
+                vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
+                graph_conf,
+                auth_policy: None,
+            }),
             create_index,
-            embedding_conf: Default::default(),
-            graph_conf,
-            auth_policy: None,
         }
+    }
+
+    pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
+        Arc::get_mut(&mut self.inner)
+            .expect("Data is not uniquely owned when setting auth_policy")
+            .auth_policy = Some(policy);
     }
 
     async fn invalidate(&self, path: &str) {
@@ -217,12 +239,11 @@ impl Data {
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
         self.invalidate(writeable_folder.local_path()).await;
-        let vectors = self.vectorise(graph.clone(), &writeable_folder).await;
         let config = self.graph_conf.clone();
         let graph = blocking_compute(move || {
             writeable_folder.write_graph_data(graph.clone(), config)?;
             let folder = writeable_folder.finish()?;
-            let graph = GraphWithVectors::new(graph, vectors, folder.as_existing()?);
+            let graph = GraphWithVectors::new(graph, None, folder.as_existing()?);
             Ok::<_, InsertionError>(graph)
         })
         .await?;
@@ -239,16 +260,12 @@ impl Data {
         bytes: R,
     ) -> Result<(), InsertionError> {
         self.invalidate(folder.local_path()).await;
-        let folder_clone = folder.clone();
         let conf = self.graph_conf.clone();
-        blocking_io(move || folder_clone.write_graph_bytes(bytes, conf)).await?;
-        if let Some(template) = self.resolve_template(folder.local_path()) {
-            let folder_clone = folder.clone();
-            let conf = self.graph_conf.clone();
-            let graph = blocking_io(move || folder_clone.read_graph(conf)).await?;
-            self.vectorise_with_template(graph, &folder, template).await;
-        }
-        blocking_io(move || folder.finish()).await?;
+        blocking_io(move || {
+            folder.write_graph_bytes(bytes, conf)?;
+            folder.finish()
+        })
+        .await?;
         Ok(())
     }
 
@@ -276,23 +293,16 @@ impl Data {
         Ok(())
     }
 
-    fn resolve_template(&self, graph: &str) -> Option<&DocumentTemplate> {
-        let conf = self.embedding_conf.as_ref()?;
-        conf.individual_templates
-            .get(graph)
-            .or(conf.global_template.as_ref())
-    }
-
     async fn vectorise_with_template(
         &self,
         graph: MaterializedGraph,
         folder: &impl ValidGraphPaths,
         template: &DocumentTemplate,
+        model: CachedEmbeddingModel,
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let conf = self.embedding_conf.as_ref()?;
         let vectors = graph
             .vectorise(
-                conf.cache.clone(),
+                model,
                 template.clone(),
                 Some(&folder.graph_folder().vectors_path().ok()?),
                 true, // verbose
@@ -308,34 +318,19 @@ impl Data {
         }
     }
 
-    async fn vectorise(
+    pub(crate) async fn vectorise_folder(
         &self,
-        graph: MaterializedGraph,
-        folder: &ValidWriteableGraphFolder,
-    ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let template = self.resolve_template(folder.local_path())?;
-        self.vectorise_with_template(graph, folder, template).await
-    }
-
-    async fn vectorise_folder(&self, folder: ExistingGraphFolder) -> Option<()> {
-        // it's important that we check if there is a valid template set for this graph path
-        // before actually loading the graph, otherwise we are loading the graph for no reason
-        let template = self.resolve_template(folder.local_path())?;
-        let graph = self
-            .read_graph_from_disk_inner(folder.clone())
-            .await
-            .ok()?
-            .graph;
-        self.vectorise_with_template(graph, &folder, template).await;
-        Some(())
-    }
-
-    pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
-        for folder in self.get_all_graph_folders() {
-            if !folder.vectors_path()?.exists() {
-                self.vectorise_folder(folder).await;
-            }
-        }
+        folder: &ExistingGraphFolder,
+        template: &DocumentTemplate,
+        model: CachedEmbeddingModel,
+    ) -> Result<(), GQLError> {
+        let graph = match self.get_cached_graph(folder.local_path()).await {
+            None => self.read_graph_from_disk_inner(folder.clone()).await?,
+            Some(graph) => graph,
+        };
+        self.vectorise_with_template(graph.graph, folder, template, model)
+            .await;
+        self.cache.remove(folder.local_path()).await;
         Ok(())
     }
 
@@ -355,23 +350,20 @@ impl Data {
     async fn read_graph_from_disk_inner(
         &self,
         folder: ExistingGraphFolder,
-    ) -> Result<GraphWithVectors, GQLError> {
-        let cache = self.embedding_conf.as_ref().map(|conf| conf.cache.clone());
+    ) -> Result<GraphWithVectors, GraphError> {
         let create_index = self.create_index;
         let config = self.graph_conf.clone();
-        Ok(blocking_io(move || {
-            GraphWithVectors::read_from_folder(&folder, cache, create_index, config)
-        })
-        .await?)
+        let cache = self.vector_cache.clone();
+        GraphWithVectors::read_from_folder(&folder, &cache, create_index, config).await
     }
 
     async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         let folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
-        self.read_graph_from_disk_inner(folder).await
+        Ok(self.read_graph_from_disk_inner(folder).await?)
     }
 }
 
-impl Drop for Data {
+impl Drop for DataInner {
     fn drop(&mut self) {
         // On drop, serialize graphs that don't have underlying storage.
         for (_, graph) in self.cache.iter() {
@@ -497,16 +489,18 @@ pub(crate) mod data_tests {
         let g0_path = work_dir.join("g0");
         let g1_path = work_dir.join("g1");
         let g2_path = work_dir.join("shivam/investigations/2024-12-22/g2");
-        let g3_path = work_dir.join("shivam/investigations/g3"); // Graph
+        let g3_path = work_dir.join("shivam/investigations/g3.with.dots"); // Graph
         let g4_path = work_dir.join("shivam/investigations/g4"); // Disk graph dir
         let g5_path = work_dir.join("shivam/investigations/g5"); // Empty dir
         let g6_path = work_dir.join("shivam/investigations/g6"); // File that is not a graph
+        let g7_path = work_dir.join(".graph"); // Invalid hidden path
 
         create_graph_folder(&g0_path);
         create_graph_folder(&g1_path);
         create_graph_folder(&g2_path);
         create_graph_folder(&g3_path);
         create_graph_folder(&g4_path);
+        create_graph_folder(&g7_path);
 
         // Empty, non-graph folder
         fs::create_dir_all(&g5_path).unwrap();
@@ -536,6 +530,7 @@ pub(crate) mod data_tests {
         assert!(paths.contains(&g4_path));
         assert!(!paths.contains(&g5_path)); // Empty folder is ignored
         assert!(!paths.contains(&g6_path)); // Non-graph folder is ignored
+        assert!(!paths.contains(&g7_path)); // Hidden path is ignored
 
         assert!(data
             .get_graph("shivam/investigations/2024-12-22/g2")
@@ -543,6 +538,7 @@ pub(crate) mod data_tests {
             .is_ok());
 
         assert!(data.get_graph("some/random/path").await.is_err());
+        assert!(data.get_graph(".graph").await.is_err());
     }
 
     #[tokio::test]

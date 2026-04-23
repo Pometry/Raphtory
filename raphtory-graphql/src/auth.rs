@@ -1,4 +1,4 @@
-use crate::config::auth_config::{AuthConfig, PublicKey};
+use crate::config::{app_config::AppConfig, auth_config::PublicKey};
 use async_graphql::{
     async_trait,
     extensions::{Extension, ExtensionContext, ExtensionFactory, NextParseQuery},
@@ -10,13 +10,13 @@ use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLReque
 use futures_util::StreamExt;
 use jsonwebtoken::{decode, Algorithm, Validation};
 use poem::{
-    error::{TooManyRequests, Unauthorized},
+    error::{BadRequest, TooManyRequests, Unauthorized},
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,
 };
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
-use tokio::sync::Semaphore;
+use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, warn};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -36,36 +36,29 @@ pub(crate) struct TokenClaims {
 // TODO: maybe this should be renamed as it doens't only take care of auth anymore
 pub struct AuthenticatedGraphQL<E> {
     executor: E,
-    config: AuthConfig,
+    config: AppConfig,
     semaphore: Option<Semaphore>,
     lock: Option<tokio::sync::RwLock<()>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
     /// Create a GraphQL endpoint.
-    pub fn new(executor: E, config: AuthConfig) -> Self {
+    pub fn new(executor: E, config: AppConfig) -> Self {
+        let semaphore = config.concurrency.heavy_query_limit.map(|limit| {
+            println!("Server running with concurrency limited to {limit} for heavy queries");
+            Semaphore::new(limit)
+        });
+        let lock = if config.concurrency.exclusive_writes {
+            println!("Server running with exclusive writes");
+            Some(RwLock::new(()))
+        } else {
+            None
+        };
         Self {
             executor,
             config,
-            semaphore: std::env::var("RAPHTORY_CONCURRENCY_LIMIT")
-                .ok()
-                .and_then(|limit| {
-                    let limit = limit.parse::<usize>().ok()?;
-                    println!(
-                        "Server running with concurrency limited to {limit} for heavy queries"
-                    );
-                    Some(Semaphore::new(limit))
-                }),
-            lock: std::env::var("RAPHTORY_THREADSAFE")
-                .ok()
-                .and_then(|thread_safe| {
-                    if thread_safe == "1" {
-                        println!("Server running in threadsafe mode");
-                        Some(tokio::sync::RwLock::new(()))
-                    } else {
-                        None
-                    }
-                }),
+            semaphore,
+            lock,
         }
     }
 }
@@ -106,6 +99,10 @@ pub enum AuthError {
     RequireRead,
     #[error("The requested endpoint requires write access")]
     RequireWrite,
+    #[error("Query batching is disabled on this server")]
+    BatchingDisabled,
+    #[error("Batch size {actual} exceeds the maximum allowed {max}")]
+    BatchSizeExceeded { max: usize, actual: usize },
 }
 
 impl From<AuthError> for ServerError {
@@ -127,7 +124,7 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let (access, role) = match &self.config.public_key {
+        let (access, role) = match &self.config.auth.public_key {
             Some(public_key) => {
                 let claims = req
                     .header(AUTHORIZATION)
@@ -138,7 +135,7 @@ where
                         (claims.access, claims.role)
                     }
                     None => {
-                        if self.config.require_auth_for_reads {
+                        if self.config.auth.require_auth_for_reads {
                             warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
@@ -169,8 +166,21 @@ where
                 )))
         } else {
             let (req, mut body) = req.split();
-            let req = GraphQLBatchRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access).data(role);
+            let batch_req = GraphQLBatchRequest::from_request(&req, &mut body).await?.0;
+
+            if let BatchRequest::Batch(requests) = &batch_req {
+                if self.config.concurrency.disable_batching {
+                    return Err(BadRequest(AuthError::BatchingDisabled));
+                }
+                if let Some(max) = self.config.concurrency.max_batch_size {
+                    let actual = requests.len();
+                    if actual > max {
+                        return Err(BadRequest(AuthError::BatchSizeExceeded { max, actual }));
+                    }
+                }
+            }
+
+            let req = batch_req.data(access).data(role);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => request.query.contains("updateGraph"),

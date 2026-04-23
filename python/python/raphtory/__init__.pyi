@@ -660,10 +660,9 @@ class GraphView(object):
 
     def vectorise(
         self,
-        embedding: Callable[[list], list],
+        model,
         nodes: bool | str = True,
         edges: bool | str = True,
-        cache: Optional[str] = None,
         verbose: bool = False,
     ) -> VectorisedGraph:
         """
@@ -764,6 +763,7 @@ class Graph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> MutableNode:
         """
         Adds a new node with the given id and properties to the graph.
@@ -774,6 +774,7 @@ class Graph(GraphView):
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
+           layer (str, optional): The optional string which will be used as a node layer.
 
         Returns:
             MutableNode: The added node.
@@ -810,6 +811,7 @@ class Graph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -820,7 +822,7 @@ class Graph(GraphView):
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
-
+           layer (str, optional): The optional string which will be used as a layer.
         Returns:
             MutableNode: The created node.
 
@@ -1235,6 +1237,8 @@ class Graph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1254,6 +1258,8 @@ class Graph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index. Defaults to None.
+            layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+            layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1390,6 +1396,7 @@ class PersistentGraph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Any = None,
     ) -> None:
         """
         Adds a new node with the given id and properties to the graph.
@@ -1398,8 +1405,9 @@ class PersistentGraph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str | int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional) : The optional string which will be used as a node type.
+           node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
+           layer: (str, optional): The optional string which will be used as a layer.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1433,6 +1441,7 @@ class PersistentGraph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -1441,8 +1450,9 @@ class PersistentGraph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str | int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional) : The optional string which will be used as a node type.
+           node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
+           layer (str, optional): The optional string which will be used as a layer.
 
         Returns:
           MutableNode: the newly created node.
@@ -1913,6 +1923,8 @@ class PersistentGraph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1932,6 +1944,8 @@ class PersistentGraph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index.
+            layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+            layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -3113,7 +3127,7 @@ class PathFromNode(object):
         """
 
     @property
-    def earliest_time(self) -> OptionEventTimeIterable:
+    def earliest_time(self):
         """
         The earliest time of each node.
 
@@ -3235,7 +3249,7 @@ class PathFromNode(object):
         """
 
     @property
-    def id(self) -> GIDIterable:
+    def id(self):
         """
         The node IDs.
 
@@ -3278,7 +3292,7 @@ class PathFromNode(object):
         """
 
     @property
-    def latest_time(self) -> OptionEventTimeIterable:
+    def latest_time(self):
         """
         The latest time of each node.
 
@@ -3320,7 +3334,7 @@ class PathFromNode(object):
         """
 
     @property
-    def name(self) -> StringIterable:
+    def name(self):
         """
         The node names.
 
@@ -3338,7 +3352,7 @@ class PathFromNode(object):
         """
 
     @property
-    def node_type(self) -> OptionArcStringIterable:
+    def node_type(self):
         """
         The node types.
 
@@ -3591,7 +3605,7 @@ class PathFromGraph(object):
              PathFromGraph: The layered view
         """
 
-    def degree(self) -> NestedUsizeIterable:
+    def degree(self):
         """
         Returns the node degrees.
 
@@ -3600,7 +3614,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def earliest_time(self) -> NestedOptionEventTimeIterable:
+    def earliest_time(self):
         """
         The node earliest times.
 
@@ -3608,7 +3622,7 @@ class PathFromGraph(object):
             NestedOptionEventTimeIterable:
         """
 
-    def edge_history_count(self) -> NestedUsizeIterable:
+    def edge_history_count(self):
         """
         Returns the number of edge updates for each node.
 
@@ -3722,7 +3736,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Returns a history object for each node with time entries for when a node is added or change to a node is made.
 
@@ -3731,7 +3745,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def id(self) -> NestedGIDIterable:
+    def id(self):
         """
         The node ids
 
@@ -3739,7 +3753,7 @@ class PathFromGraph(object):
             NestedGIDIterable:
         """
 
-    def in_degree(self) -> NestedUsizeIterable:
+    def in_degree(self):
         """
         Returns the node in-degrees.
 
@@ -3774,7 +3788,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def latest_time(self) -> NestedOptionEventTimeIterable:
+    def latest_time(self):
         """
         The node latest times.
 
@@ -3807,7 +3821,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def metadata(self) -> MetadataListList:
+    def metadata(self):
         """
         Returns the node metadata.
 
@@ -3816,7 +3830,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def name(self) -> NestedStringIterable:
+    def name(self):
         """
         The node names.
 
@@ -3834,7 +3848,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def node_type(self) -> NestedOptionArcStringIterable:
+    def node_type(self):
         """
         The node types.
 
@@ -3842,7 +3856,7 @@ class PathFromGraph(object):
             NestedOptionArcStringIterable:
         """
 
-    def out_degree(self) -> NestedUsizeIterable:
+    def out_degree(self):
         """
         Returns the node out-degrees.
 
@@ -3869,7 +3883,7 @@ class PathFromGraph(object):
         """
 
     @property
-    def properties(self) -> PyNestedPropsIterable:
+    def properties(self):
         """
         Returns the node properties.
 
@@ -4037,6 +4051,7 @@ class MutableNode(Node):
         t: TimeInput,
         properties: Optional[PropInput] = None,
         event_id: Optional[int] = None,
+        layer=None,
     ) -> None:
         """
         Add updates to a node in the graph at a specified time.
@@ -4635,7 +4650,7 @@ class Edges(object):
         """
 
     @property
-    def deletions(self) -> HistoryIterable:
+    def deletions(self):
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -4653,7 +4668,7 @@ class Edges(object):
         """
 
     @property
-    def earliest_time(self) -> OptionEventTimeIterable:
+    def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
@@ -4763,7 +4778,7 @@ class Edges(object):
         """
 
     @property
-    def history(self) -> HistoryIterable:
+    def history(self):
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -4772,7 +4787,7 @@ class Edges(object):
         """
 
     @property
-    def id(self) -> GIDGIDIterable:
+    def id(self):
         """
         Returns all ids of the edges.
 
@@ -4780,7 +4795,7 @@ class Edges(object):
             GIDGIDIterable:
         """
 
-    def is_active(self) -> BoolIterable:
+    def is_active(self):
         """
         Check if the edges are active (there is at least one update during this time).
 
@@ -4788,7 +4803,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_deleted(self) -> BoolIterable:
+    def is_deleted(self):
         """
         Check if the edges are deleted.
 
@@ -4796,7 +4811,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_self_loop(self) -> BoolIterable:
+    def is_self_loop(self):
         """
         Check if the edges are on the same node.
 
@@ -4804,7 +4819,7 @@ class Edges(object):
             BoolIterable:
         """
 
-    def is_valid(self) -> BoolIterable:
+    def is_valid(self):
         """
         Check if the edges are valid (i.e. not deleted).
 
@@ -4821,7 +4836,7 @@ class Edges(object):
         """
 
     @property
-    def latest_time(self) -> OptionEventTimeIterable:
+    def latest_time(self):
         """
         Returns the latest times of the edges.
 
@@ -4842,7 +4857,7 @@ class Edges(object):
         """
 
     @property
-    def layer_name(self) -> ArcStringIterable:
+    def layer_name(self):
         """
         Get the layer name that all edges belong to - assuming they only belong to one layer
 
@@ -4851,7 +4866,7 @@ class Edges(object):
         """
 
     @property
-    def layer_names(self) -> ArcStringVecIterable:
+    def layer_names(self):
         """
         Get the layer names that all edges belong to - assuming they only belong to one layer.
 
@@ -5002,7 +5017,7 @@ class Edges(object):
         """
 
     @property
-    def time(self) -> EventTimeIterable:
+    def time(self):
         """
         Returns the times of exploded edges
 
@@ -5133,7 +5148,7 @@ class NestedEdges(object):
         """
 
     @property
-    def deletions(self) -> NestedHistoryIterable:
+    def deletions(self):
         """
         Returns a history object for each edge containing their deletion times.
 
@@ -5151,7 +5166,7 @@ class NestedEdges(object):
         """
 
     @property
-    def earliest_time(self) -> NestedOptionEventTimeIterable:
+    def earliest_time(self):
         """
         Returns the earliest time of the edges.
 
@@ -5261,7 +5276,7 @@ class NestedEdges(object):
         """
 
     @property
-    def history(self) -> NestedHistoryIterable:
+    def history(self):
         """
         Returns a history object for each edge containing time entries for when the edge is added or change to the edge is made.
 
@@ -5270,7 +5285,7 @@ class NestedEdges(object):
         """
 
     @property
-    def id(self) -> NestedGIDGIDIterable:
+    def id(self):
         """
         Returns all ids of the edges.
 
@@ -5278,7 +5293,7 @@ class NestedEdges(object):
             NestedGIDGIDIterable:
         """
 
-    def is_active(self) -> NestedBoolIterable:
+    def is_active(self):
         """
         Check if the edges are active (there is at least one update during this time).
 
@@ -5286,7 +5301,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_deleted(self) -> NestedBoolIterable:
+    def is_deleted(self):
         """
         Check if edges are deleted.
 
@@ -5294,7 +5309,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_self_loop(self) -> NestedBoolIterable:
+    def is_self_loop(self):
         """
         Check if the edges are on the same node.
 
@@ -5302,7 +5317,7 @@ class NestedEdges(object):
             NestedBoolIterable:
         """
 
-    def is_valid(self) -> NestedBoolIterable:
+    def is_valid(self):
         """
         Check if edges are valid (i.e., not deleted).
 
@@ -5319,7 +5334,7 @@ class NestedEdges(object):
         """
 
     @property
-    def latest_time(self) -> NestedOptionEventTimeIterable:
+    def latest_time(self):
         """
         Returns the latest time of the edges.
 
@@ -5340,7 +5355,7 @@ class NestedEdges(object):
         """
 
     @property
-    def layer_name(self) -> NestedArcStringIterable:
+    def layer_name(self):
         """
         Returns the name of the layer the edges belong to - assuming they only belong to one layer.
 
@@ -5349,7 +5364,7 @@ class NestedEdges(object):
         """
 
     @property
-    def layer_names(self) -> NestedArcStringVecIterable:
+    def layer_names(self):
         """
         Returns the names of the layers the edges belong to.
 
@@ -5370,7 +5385,7 @@ class NestedEdges(object):
         """
 
     @property
-    def metadata(self) -> MetadataListList:
+    def metadata(self):
         """
         Get a view of the metadata only.
 
@@ -5388,7 +5403,7 @@ class NestedEdges(object):
         """
 
     @property
-    def properties(self) -> PyNestedPropsIterable:
+    def properties(self):
         """
         Returns all properties of the edges
 
@@ -5500,7 +5515,7 @@ class NestedEdges(object):
         """
 
     @property
-    def time(self) -> NestedEventTimeIterable:
+    def time(self):
         """
         Returns the times of exploded edges.
 

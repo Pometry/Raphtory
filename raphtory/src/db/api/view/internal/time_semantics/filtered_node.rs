@@ -7,13 +7,16 @@ use crate::{
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
+    entities::{
+        edges::edge_ref::EdgeRef, layers::Multiple, properties::meta::STATIC_GRAPH_LAYER_ID,
+        LayerIds, ELID, VID,
+    },
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
 use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
-use std::ops::Range;
-use storage::gen_ts::ALL_LAYERS;
+use std::{ops::Range, sync::Arc};
+use storage::gen_ts::LayerIter;
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
@@ -37,14 +40,14 @@ pub struct NodePropHistory<'a, G> {
 impl<'a, G: Clone> NodeHistory<'a, G> {
     pub fn edge_history(&self) -> NodeEdgeHistory<'a, G> {
         NodeEdgeHistory {
-            additions: self.edge_history,
+            additions: self.edge_history.clone(),
             view: self.view.clone(),
         }
     }
 
     pub fn prop_history(&self) -> NodePropHistory<'a, G> {
         NodePropHistory {
-            additions: self.additions,
+            additions: self.additions.clone(),
             view: self.view.clone(),
         }
     }
@@ -66,11 +69,11 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
 
 impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
     pub fn history(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
-        handle_update_iter(self.additions.edge_events(), self.view.clone())
+        handle_update_iter(self.additions.clone().edge_events(), self.view.clone())
     }
 
     pub fn history_rev(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
-        handle_update_iter(self.additions.edge_events_rev(), self.view.clone())
+        handle_update_iter(self.additions.clone().edge_events_rev(), self.view.clone())
     }
 }
 
@@ -186,13 +189,48 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
     }
 }
 
+/// Build a `LayerIter` that includes `STATIC_GRAPH_LAYER_ID` in addition to any explicitly
+/// requested layers. Nodes added without a specific layer are stored in STATIC_GRAPH_LAYER_ID
+/// and should be visible in every layer-restricted view.
+fn layer_ids_with_static(layer_ids: &LayerIds) -> LayerIter<'_> {
+    match layer_ids {
+        // All layers already includes STATIC
+        LayerIds::All => LayerIter::LRef(layer_ids),
+        // No layers + static = just static
+        LayerIds::None => LayerIter::One(STATIC_GRAPH_LAYER_ID),
+        LayerIds::One(id) => {
+            if *id == STATIC_GRAPH_LAYER_ID {
+                LayerIter::One(*id)
+            } else {
+                // Return both the static layer and the requested layer, sorted for binary search
+                let mut ids = [STATIC_GRAPH_LAYER_ID, *id];
+                ids.sort();
+                LayerIter::Multiple(Multiple(Arc::from(ids.as_slice())))
+            }
+        }
+        LayerIds::Multiple(ids) => {
+            if ids.contains(STATIC_GRAPH_LAYER_ID) {
+                LayerIter::LRef(layer_ids)
+            } else {
+                let mut combined: Vec<_> = std::iter::once(STATIC_GRAPH_LAYER_ID)
+                    .chain(ids.iter())
+                    .collect();
+                combined.sort();
+                LayerIter::Multiple(Multiple(Arc::from(combined.as_slice())))
+            }
+        }
+    }
+}
+
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     /// Get a filtered view of the update history of the node
     ///
     /// Note that this is an internal API that does not apply the window filtering!
     fn history<G: GraphView + 'a>(self, view: G, layer_ids: &'a LayerIds) -> NodeHistory<'a, G> {
-        // FIXME: new storage supports multiple layers, we can be specific about the layers here once NodeStorageOps is updated
-        let additions = self.node_additions(ALL_LAYERS);
+        // Nodes added without a specific layer go to STATIC_GRAPH_LAYER_ID and should appear
+        // active in any layer-restricted view. Nodes added with an explicit layer only appear
+        // in that layer's view.
+        let additions = self.node_additions(layer_ids_with_static(layer_ids));
         let edge_history = self.node_edge_additions(layer_ids);
         NodeHistory {
             edge_history,
