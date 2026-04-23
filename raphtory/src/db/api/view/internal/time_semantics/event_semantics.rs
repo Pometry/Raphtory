@@ -270,7 +270,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             node.tprop_iter_layers(view.layer_ids(), prop_id)
-                .filter_map(|prop| prop.last_before(t.next()).filter(|(t, _)| w.contains(t)))
+                .filter_map(|prop| prop.last_window(w.start..t.next()))
                 .max_by_key(|(t, _)| *t)
         } else {
             None

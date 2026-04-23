@@ -105,6 +105,12 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
             .max_by_key(|(t, _)| *t)
     }
 
+    fn last_window(&self, w: Range<EventTime>) -> Option<(EventTime, Prop)> {
+        self.tprops(self.prop_id)
+            .filter_map(|t_props| t_props.last_window(w.clone()))
+            .max_by_key(|(t, _)| *t)
+    }
+
     fn last(&self) -> Option<(EventTime, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last())

@@ -4,12 +4,10 @@ use crate::{
 };
 use either::Either;
 
-use raphtory_api::core::
-    entities::properties::{
-        prop::{Prop, PropType},
-        tprop::TPropOps,
-    }
-;
+use raphtory_api::core::entities::properties::{
+    prop::{Prop, PropType},
+    tprop::TPropOps,
+};
 use std::ops::Range;
 use thiserror::Error;
 
