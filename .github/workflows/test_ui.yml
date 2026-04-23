@@ -46,7 +46,7 @@ jobs:
         with:
           cache-all-crates: true
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
+        uses: mozilla-actions/sccache-action@v0.0.10
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v4
         with:
