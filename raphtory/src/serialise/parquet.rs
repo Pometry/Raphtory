@@ -32,7 +32,10 @@ use std::{
     fs::File,
     io::{Read, Seek, Write},
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 use storage::Config;
 use walkdir::WalkDir;
@@ -237,10 +240,9 @@ where
 fn create_arrow_writer_sink(
     root_dir: &Path,
     schema: SchemaRef,
-    chunk: usize,
+    file_id: usize,
     filename_num_digits: usize,
     key_value_metadata: Option<Vec<KeyValue>>,
-    filename_prefix: Option<&str>,
 ) -> Result<ArrowWriter<File>, GraphError> {
     std::fs::create_dir_all(&root_dir)?;
 
@@ -249,10 +251,7 @@ fn create_arrow_writer_sink(
         .set_key_value_metadata(key_value_metadata)
         .build();
 
-    let filename = match filename_prefix {
-        Some(prefix) => format!("{prefix}_{chunk:0filename_num_digits$}.parquet"),
-        None => format!("{chunk:0filename_num_digits$}.parquet"),
-    };
+    let filename = format!("{file_id:0filename_num_digits$}.parquet");
     let node_file = File::create(root_dir.join(filename))?;
     Ok(ArrowWriter::try_new(
         node_file,
@@ -267,38 +266,35 @@ fn encode_graph_storage_to_parquet<G: GraphView>(
     graph_type: GraphType,
 ) -> Result<(), GraphError> {
     let base_dir = path.as_ref();
+    let edge_t_file_id = AtomicUsize::new(0);
+    let edge_c_file_id = AtomicUsize::new(0);
+    let edge_d_file_id = AtomicUsize::new(0);
 
-    encode_edge_tprop(g, |schema, chunk, num_digits, layer_id| {
-        let prefix = layer_id.map(|lid| format!("layer_{lid}"));
+    encode_edge_tprop(g, |schema, _chunk, num_digits| {
         create_arrow_writer_sink(
             &base_dir.join(EDGES_T_PATH),
             schema.clone(),
-            chunk,
+            edge_t_file_id.fetch_add(1, Ordering::Relaxed),
             num_digits,
             None,
-            prefix.as_deref(),
         )
     })?;
-    encode_edge_cprop(g, |schema, chunk, num_digits, layer_id| {
-        let prefix = layer_id.map(|lid| format!("layer_{lid}"));
+    encode_edge_cprop(g, |schema, _chunk, num_digits| {
         create_arrow_writer_sink(
             &base_dir.join(EDGES_C_PATH),
             schema.clone(),
-            chunk,
+            edge_c_file_id.fetch_add(1, Ordering::Relaxed),
             num_digits,
             None,
-            prefix.as_deref(),
         )
     })?;
-    encode_edge_deletions(g, |schema, chunk, num_digits, layer_id| {
-        let prefix = layer_id.map(|lid| format!("layer_{lid}"));
+    encode_edge_deletions(g, |schema, _chunk, num_digits| {
         create_arrow_writer_sink(
             &base_dir.join(EDGES_D_PATH),
             schema.clone(),
-            chunk,
+            edge_d_file_id.fetch_add(1, Ordering::Relaxed),
             num_digits,
             None,
-            prefix.as_deref(),
         )
     })?;
     encode_nodes_tprop(g, |schema, chunk, num_digits| {
@@ -307,7 +303,6 @@ fn encode_graph_storage_to_parquet<G: GraphView>(
             schema.clone(),
             chunk,
             num_digits,
-            None,
             None,
         )
     })?;
@@ -318,7 +313,6 @@ fn encode_graph_storage_to_parquet<G: GraphView>(
             chunk,
             num_digits,
             None,
-            None,
         )
     })?;
     encode_graph_tprop(g, |schema, chunk, num_digits| {
@@ -327,7 +321,6 @@ fn encode_graph_storage_to_parquet<G: GraphView>(
             schema.clone(),
             chunk,
             num_digits,
-            None,
             None,
         )
     })?;
@@ -347,7 +340,6 @@ fn encode_graph_storage_to_parquet<G: GraphView>(
             chunk,
             num_digits,
             Some(key_value_metadata),
-            None,
         )
     })?;
     Ok(())

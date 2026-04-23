@@ -52,19 +52,18 @@ fn active_layers<G: GraphView>(g: &G) -> Vec<LayerId> {
 
 pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    sink_factory_fn: impl Fn(SchemaRef, usize, usize, Option<usize>) -> Result<S, GraphError> + Sync,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
     // if we go layer by layer, we save a lot of disk space for graphs saved on disk
     for layer_id in active_layers(g) {
-        let lid = layer_id.0;
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
             g.edge_meta().temporal_prop_mapper(),
             get_edges_par_iter(g, &edges_locked, &layer_filter),
-            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits, Some(lid)),
+            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits),
             |id_type| {
                 vec![
                     Field::new(TIME_COL, DataType::Int64, false),
@@ -113,18 +112,17 @@ pub(crate) fn encode_edge_tprop<G: GraphView, S: RecordBatchSink>(
 
 pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    sink_factory_fn: impl Fn(SchemaRef, usize, usize, Option<usize>) -> Result<S, GraphError> + Sync,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
     for layer_id in active_layers(g) {
-        let lid = layer_id.0;
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
             g.edge_meta().temporal_prop_mapper(),
             get_edges_par_iter(g, &edges_locked, &layer_filter),
-            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits, Some(lid)),
+            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits),
             |id_type| {
                 vec![
                     Field::new(TIME_COL, DataType::Int64, false),
@@ -176,18 +174,17 @@ pub(crate) fn encode_edge_deletions<G: GraphView, S: RecordBatchSink>(
 
 pub(crate) fn encode_edge_cprop<G: GraphView, S: RecordBatchSink>(
     g: &G,
-    sink_factory_fn: impl Fn(SchemaRef, usize, usize, Option<usize>) -> Result<S, GraphError> + Sync,
+    sink_factory_fn: impl Fn(SchemaRef, usize, usize) -> Result<S, GraphError> + Sync,
 ) -> Result<(), GraphError> {
     let graph_locked = g.core_graph().lock();
     let edges_locked = graph_locked.edges();
     for layer_id in active_layers(g) {
-        let lid = layer_id.0;
         let layer_filter = LayerIds::One(layer_id);
         run_encode_indexed(
             g,
             g.edge_meta().metadata_mapper(),
             get_edges_par_iter(g, &edges_locked, &layer_filter),
-            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits, Some(lid)),
+            |schema, chunk, num_digits| sink_factory_fn(schema, chunk, num_digits),
             |id_type| {
                 vec![
                     Field::new(SRC_COL_VID, DataType::UInt64, false),
