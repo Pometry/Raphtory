@@ -501,9 +501,13 @@ fn resolve_node_and_meta_for_node_col<
             *node_type_id = id;
         }
 
+        // Create the node if it doesn't exist yet so metadata-only callers
+        // (e.g. materialize loading node c_props before t_props) still
+        // allocate a fresh VID in the target graph.
         let res_vid = graph
-            .internalise_node(gid.as_node_ref())
-            .unwrap_or_default();
+            .resolve_node(gid.as_node_ref())
+            .map_err(into_graph_err)?
+            .inner();
         *vid = res_vid;
         last_node_type = node_type;
     }
