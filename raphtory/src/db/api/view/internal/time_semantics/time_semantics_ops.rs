@@ -171,6 +171,14 @@ pub trait NodeTimeSemanticsOps {
         prop_id: usize,
     ) -> Option<(EventTime, Prop)>;
 
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)>;
+
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,

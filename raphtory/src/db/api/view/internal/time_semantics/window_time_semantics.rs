@@ -271,7 +271,18 @@ impl NodeTimeSemanticsOps for WindowTimeSemantics {
         prop_id: usize,
     ) -> Option<(EventTime, Prop)> {
         self.semantics
-            .node_tprop_last_at(node, view, prop_id, self.window.end.previous())
+            .node_tprop_last_window(node, view, prop_id, self.window.clone())
+    }
+
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
+        self.semantics
+            .node_tprop_last_window(node, view, prop_id, w)
     }
 
     #[inline]

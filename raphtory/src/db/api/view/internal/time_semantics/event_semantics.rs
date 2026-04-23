@@ -248,6 +248,18 @@ impl NodeTimeSemanticsOps for EventSemantics {
             .max_by_key(|(t, _)| *t)
     }
 
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last_window(w.clone()))
+            .max_by_key(|(t, _)| *t)
+    }
+
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
