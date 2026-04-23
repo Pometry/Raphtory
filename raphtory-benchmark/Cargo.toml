@@ -9,7 +9,6 @@ edition = "2021"
 criterion = { workspace = true }
 raphtory = { workspace = true, features = [
     "io",
-    "vectors",
 ] }
 raphtory-api = { workspace = true }
 sorted_vector_map = { workspace = true }
@@ -75,6 +74,7 @@ required-features = ["search"]
 [[bench]]
 name = "vectors"
 harness = false
+required-features = ["vectors"]
 
 [[bench]]
 name = "index_bench"
@@ -84,3 +84,4 @@ required-features = ["search"]
 [features]
 search = ["raphtory/search"]
 proto = ["raphtory/proto"]
+vectors = ["raphtory/vectors"]
