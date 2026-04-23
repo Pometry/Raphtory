@@ -524,11 +524,17 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     ) -> Option<(EventTime, Prop)> {
         node.tprop_iter_layers(view.layer_ids(), prop_id)
             .filter_map(|prop| {
-                if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
-                    None
-                } else {
-                    prop.last_before(w.start).map(|(t, v)| (t.max(w.start), v))
-                }
+                // Get the last value in the window [w.start, w.end)
+                prop.last_before(w.end)
+                    .filter(|(t, _)| *t >= w.start)
+                    .or_else(|| {
+                        // If no value in window, check for persisted value
+                        if prop.active(w.start..EventTime::start(w.start.t().saturating_add(1))) {
+                            None
+                        } else {
+                            prop.last_before(w.start).map(|(_, v)| (w.start, v))
+                        }
+                    })
             })
             .max_by_key(|(t, _)| *t)
     }
