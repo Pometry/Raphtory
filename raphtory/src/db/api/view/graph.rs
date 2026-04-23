@@ -429,13 +429,18 @@ pub fn materialize_impl(
                     move |_, _, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
                 };
 
-                // Keep encode order aligned with loader dependencies
+                // EdgesD must run before EdgesC: edges that exist only via
+                // deletions (e.g. in a windowed persistent graph) aren't
+                // produced by EdgesT, so the deletion pass is what
+                // materialises them. The edge-metadata loader then expects
+                // every layer-edge it sees to already exist.
+                // NodesC must run before NodesT as well.
                 let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
                     encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
                     encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
                     encode_edge_tprop(graph, make_edge_sink_factory(RecordBatchKind::EdgesT))?;
-                    encode_edge_cprop(graph, make_edge_sink_factory(RecordBatchKind::EdgesC))?;
                     encode_edge_deletions(graph, make_edge_sink_factory(RecordBatchKind::EdgesD))?;
+                    encode_edge_cprop(graph, make_edge_sink_factory(RecordBatchKind::EdgesC))?;
                     encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
                     encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
                     Ok(())
