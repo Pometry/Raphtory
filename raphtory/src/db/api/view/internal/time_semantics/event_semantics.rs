@@ -12,7 +12,7 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        properties::{prop::Prop, tprop::TPropOps},
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -189,8 +189,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         }
 
         let layers = view.layer_ids();
-        let node_prop_history = node.node_additions(layers);
-        let has_history = !node_prop_history.is_empty();
+        let has_history = !node
+            .node_additions(&layers.union(&LayerIds::One(STATIC_GRAPH_LAYER_ID)))
+            .is_empty();
         if has_history {
             return true;
         }

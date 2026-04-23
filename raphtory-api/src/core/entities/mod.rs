@@ -1,6 +1,7 @@
 use super::input::input_node::parse_u64_strict;
 use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
+use itertools::Itertools;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -500,6 +501,31 @@ impl LayerIds {
                     0 => LayerIds::None,
                     1 => LayerIds::One(ids[0]),
                     _ => LayerIds::Multiple(ids.into()),
+                }
+            }
+        }
+    }
+
+    pub fn union(&self, other: &LayerIds) -> LayerIds {
+        match (self, other) {
+            (LayerIds::All, _) | (_, LayerIds::All) => LayerIds::All,
+            (LayerIds::None, o) | (o, LayerIds::None) => o.clone(),
+            (LayerIds::One(id), LayerIds::One(other_id)) => {
+                if id == other_id {
+                    LayerIds::One(*id)
+                } else {
+                    LayerIds::Multiple([*id.min(other_id), *id.max(other_id)].into_iter().collect())
+                }
+            }
+            (LayerIds::Multiple(ids), LayerIds::Multiple(other_ids)) => {
+                LayerIds::Multiple(ids.iter().merge(other_ids.iter()).dedup().collect())
+            }
+            (LayerIds::One(id), LayerIds::Multiple(ids))
+            | (LayerIds::Multiple(ids), LayerIds::One(id)) => {
+                if ids.contains(*id) {
+                    LayerIds::Multiple(ids.clone())
+                } else {
+                    LayerIds::Multiple(ids.iter().merge(iter::once(*id)).collect())
                 }
             }
         }
