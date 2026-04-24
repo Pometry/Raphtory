@@ -424,9 +424,8 @@ pub fn materialize_impl(
     // Use std::thread::scope rather than rayon::scope so the producer runs on its own OS thread.
     // With rayon::scope on a single-thread pool, the main thread blocking on rx.recv() would starve the spawned producer.
     std::thread::scope(|scope| {
-        let (producer_result_tx, producer_result_rx) = crossbeam_channel::bounded(1);
         let producer_tx = tx.clone();
-        scope.spawn(move || {
+        let producer_handle = scope.spawn(move || {
             let make_sink_factory = |kind| {
                 let tx = producer_tx.clone();
                 move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
@@ -438,7 +437,7 @@ pub fn materialize_impl(
             // materializes them. The edge-metadata loader then expects
             // every layer-edge it sees to already exist.
             // NodesC must run before NodesT as well.
-            let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
+            ENCODE_POOL.install(|| -> Result<(), GraphError> {
                 encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
                 encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
                 encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
@@ -447,9 +446,7 @@ pub fn materialize_impl(
                 encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
                 encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
                 Ok(())
-            });
-
-            let _ = producer_result_tx.send(result);
+            })
         });
 
         drop(tx);
@@ -638,7 +635,7 @@ pub fn materialize_impl(
 
         drop(rx);
 
-        let producer_result = producer_result_rx.recv().unwrap_or_else(|_| {
+        let producer_result = producer_handle.join().unwrap_or_else(|_| {
             Err(GraphError::IOErrorMsg(
                 "record batch producer scope exited without reporting a result".to_string(),
             ))
