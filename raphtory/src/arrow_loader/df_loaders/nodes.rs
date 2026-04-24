@@ -241,6 +241,7 @@ pub fn load_nodes_from_df<
     Ok(())
 }
 
+/// Must be called from a single-threaded context if is_materializing == true && node_id_col.is_none() && node_type_id_col.is_none()
 #[allow(clippy::too_many_arguments)]
 pub fn load_node_props_from_df<
     'a,
@@ -510,10 +511,11 @@ fn resolve_node_and_meta_for_node_col<
         // (e.g. materialize loading node c_props before t_props) still
         // allocate a fresh VID in the target graph.
         let res_vid = if is_materializing {
-            graph
-                .resolve_node(gid.as_node_ref())
-                .map_err(into_graph_err)?
-                .inner()
+            // Safe because load_node_props_from_df is called sequentially from the
+            // materialize_impl consumer loop (one record batch at a time), and the resolve loop is serial
+            // both here and in load_node_props_from_df, so no other thread resolves the same id concurrently.
+            // Other future callers should make sure to utilize this pathway in single-threaded contexts only.
+            unsafe { graph.bulk_load_resolve_node(gid).map_err(into_graph_err)? }
         } else {
             graph
                 .internalise_node(gid.as_node_ref())
