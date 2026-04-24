@@ -3280,11 +3280,43 @@ type TemporalProperty {
 	"""
 	Return the values of the properties.
 	"""
-	values: [String!]!
-	at(t: TimeInput!): String
-	latest: String
-	unique: [String!]!
+	values: [PropertyOutput!]!
+	at(t: TimeInput!): PropertyOutput
+	latest: PropertyOutput
+	unique: [PropertyOutput!]!
 	orderedDedupe(latestTime: Boolean!): [PropertyTuple!]!
+	"""
+	Sum of all updates. Returns null if the dtype is not additive or the property is empty.
+	"""
+	sum: PropertyOutput
+	"""
+	Mean of all updates as an F64. Returns null if any value is non-numeric or the property is
+	empty.
+	"""
+	mean: PropertyOutput
+	"""
+	Alias for `mean`.
+	"""
+	average: PropertyOutput
+	"""
+	Minimum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+	empty.
+	"""
+	min: PropertyTuple
+	"""
+	Maximum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+	empty.
+	"""
+	max: PropertyTuple
+	"""
+	Median `(time, value)` pair (lower median on even-length inputs). Returns null if the dtype
+	is not comparable or the property is empty.
+	"""
+	median: PropertyTuple
+	"""
+	Number of updates.
+	"""
+	count: Int!
 }
 
 input TemporalPropertyInput {
@@ -3497,4 +3529,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-
