@@ -353,9 +353,13 @@ impl GqlNodes {
     }
 
     /// Returns a view of the node ids.
-    async fn ids(&self) -> Vec<String> {
+    async fn ids(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.iter_unlocked().map(|nn| nn.name()).collect()).await
+        Ok(
+            blocking_compute(move || self_clone.nn.iter_unlocked().map(|nn| nn.name()).collect())
+                .await,
+        )
     }
 
     /// Returns a filtered view that applies to list down the chain

@@ -94,10 +94,15 @@ def test_max_query_complexity():
 LIST_QUERIES = [
     ("collection (namespaces)", "{ namespaces { list { path } } }"),
     ("GqlNodes", '{ graph(path: "g") { nodes { list { name } } } }'),
+    ("GqlNodes.ids", '{ graph(path: "g") { nodes { ids } } }'),
     ("GqlEdges", '{ graph(path: "g") { edges { list { src { name } } } } }'),
     (
         "GqlPathFromNode",
         '{ graph(path: "g") { node(name: "ben") { neighbours { list { name } } } } }',
+    ),
+    (
+        "GqlPathFromNode.ids",
+        '{ graph(path: "g") { node(name: "ben") { neighbours { ids } } } }',
     ),
     (
         "GqlHistory",

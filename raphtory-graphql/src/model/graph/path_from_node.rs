@@ -228,9 +228,10 @@ impl GqlPathFromNode {
     }
 
     /// Returns the node ids.
-    async fn ids(&self) -> Vec<String> {
+    async fn ids(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
+        check_list_allowed(ctx)?;
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.nn.name().collect()).await
+        Ok(blocking_compute(move || self_clone.nn.name().collect()).await)
     }
 
     /// Takes a specified selection of views and applies them in given order.
