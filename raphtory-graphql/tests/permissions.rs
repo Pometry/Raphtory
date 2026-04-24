@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{time::Duration};
 
 use rand::prelude::IndexedRandom;
 use raphtory::{algorithms::components::in_component, prelude::*};
@@ -8,9 +8,9 @@ use url::Url;
 
 const PORT: u16 = 43871;
 
-/// Create namespaces in graphql using the given tree.
+/// Create namespaces and graphs in graphql using the given tree.
 /// Every leaf node is turned into a graph using the path from root as the namespace.
-async fn create_namespaces(tree: &Graph, url: Url) {
+async fn create_graphs(tree: &Graph, url: Url) -> Vec<String> {
     let client = RaphtoryGraphQLClient::connect(url, None).await.unwrap();
     let mut graph_paths = Vec::new();
 
@@ -32,11 +32,11 @@ async fn create_namespaces(tree: &Graph, url: Url) {
         }
     }
 
-    graph_paths.sort();
-
-    for path in graph_paths {
-        client.new_graph(path.as_str(), "EVENT").await.unwrap();
+    for path in graph_paths.iter() {
+        client.new_graph(path, "EVENT").await.unwrap();
     }
+
+    graph_paths
 }
 
 /// Create a random tree with the given number of nodes.
@@ -91,5 +91,5 @@ async fn permissions_proptest() {
     let (_server, _tempdir) = start_server().await;
     let namespace_tree = create_tree(10);
 
-    create_namespaces(&namespace_tree, url).await;
+    let graph_paths = create_graphs(&namespace_tree, url).await;
 }
