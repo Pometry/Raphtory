@@ -39,19 +39,6 @@ fn default_sf10_parquet_path() -> PathBuf {
 }
 
 #[cfg(feature = "io")]
-fn default_sf3_graph_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../ldbc/data/social_network-sf3-CsvComposite-LongDateFormatter/graph")
-}
-
-#[cfg(feature = "io")]
-fn default_sf3_parquet_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
-        "../../ldbc/data/social_network-sf3-CsvComposite-LongDateFormatter/parquet/data0/graph0",
-    )
-}
-
-#[cfg(feature = "io")]
 fn default_sf1_graph_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../ldbc/data/social_network-sf1-CsvComposite-LongDateFormatter/graph")
