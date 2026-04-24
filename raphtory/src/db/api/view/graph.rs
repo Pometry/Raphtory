@@ -420,41 +420,36 @@ pub fn materialize_impl(
     let stream_capacity = 10;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
-    if let Some(max_eid) = graph.edges().iter().map(|edge| edge.edge.pid().0).max() {
-        let mut write_locked_graph = materialized.write_lock()?;
-        write_locked_graph.resize_segments_to_eid(EID(max_eid));
-    }
-
     let mut scope_result = Ok(());
-    rayon::scope(|scope| {
+    // Use std::thread::scope rather than rayon::scope so the producer runs on its own OS thread.
+    // With rayon::scope on a single-thread pool, the main thread blocking on rx.recv() would starve the spawned producer.
+    std::thread::scope(|scope| {
         let (producer_result_tx, producer_result_rx) = crossbeam_channel::bounded(1);
-        scope.spawn({
-            let tx = tx.clone();
-            move |_| {
-                let make_sink_factory = |kind| {
-                    let tx = tx.clone();
-                    move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
-                };
+        let producer_tx = tx.clone();
+        scope.spawn(move || {
+            let make_sink_factory = |kind| {
+                let tx = producer_tx.clone();
+                move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
+            };
 
-                // EdgesD must run before EdgesC: edges that exist only via
-                // deletions (e.g. in a windowed persistent graph) aren't
-                // produced by EdgesT, so the deletion pass is what
-                // materialises them. The edge-metadata loader then expects
-                // every layer-edge it sees to already exist.
-                // NodesC must run before NodesT as well.
-                let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
-                    encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
-                    encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
-                    encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
-                    encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
-                    encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
-                    encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
-                    encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
-                    Ok(())
-                });
+            // EdgesD must run before EdgesC: edges that exist only via
+            // deletions (e.g. in a windowed persistent graph) aren't
+            // produced by EdgesT, so the deletion pass is what
+            // materializes them. The edge-metadata loader then expects
+            // every layer-edge it sees to already exist.
+            // NodesC must run before NodesT as well.
+            let result = ENCODE_POOL.install(|| -> Result<(), GraphError> {
+                encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
+                encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
+                encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
+                encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
+                encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
+                encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
+                encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
+                Ok(())
+            });
 
-                let _ = producer_result_tx.send(result);
-            }
+            let _ = producer_result_tx.send(result);
         });
 
         drop(tx);
@@ -462,7 +457,7 @@ pub fn materialize_impl(
         let consumer_result = loop {
             let message = match rx.recv() {
                 Ok(message) => message,
-                Err(_) => break Ok(()),
+                Err(_) => break Ok(()), // error here means the channel is empty and disconnected
             };
 
             let kind = message.kind();
@@ -650,7 +645,7 @@ pub fn materialize_impl(
         });
 
         scope_result = consumer_result.and(producer_result);
-    });
+    }); // std::thread::scope
     scope_result?;
 
     Ok(materialized)
