@@ -17,17 +17,20 @@ use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{RwLock, Semaphore};
+use tracing::{debug, warn};
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub(crate) enum Access {
+pub enum Access {
     Ro,
     Rw,
 }
 
 #[derive(Deserialize, Debug, Clone)]
 pub(crate) struct TokenClaims {
-    pub(crate) a: Access,
+    pub(crate) access: Access,
+    #[serde(default)]
+    pub(crate) role: Option<String>,
 }
 
 // TODO: maybe this should be renamed as it doens't only take care of auth anymore
@@ -35,7 +38,7 @@ pub struct AuthenticatedGraphQL<E> {
     executor: E,
     config: AppConfig,
     semaphore: Option<Semaphore>,
-    lock: Option<RwLock<()>>,
+    lock: Option<tokio::sync::RwLock<()>>,
 }
 
 impl<E> AuthenticatedGraphQL<E> {
@@ -121,23 +124,28 @@ where
 
     async fn call(&self, req: Request) -> Result<Self::Output> {
         // here ANY error when trying to validate the Authorization header is equivalent to it not being present at all
-        let access = match &self.config.auth.public_key {
+        let (access, role) = match &self.config.auth.public_key {
             Some(public_key) => {
-                let presented_access = req
+                let claims = req
                     .header(AUTHORIZATION)
-                    .and_then(|header| extract_access_from_header(header, public_key));
-                match presented_access {
-                    Some(access) => access,
+                    .and_then(|header| extract_claims_from_header(header, public_key));
+                match claims {
+                    Some(claims) => {
+                        debug!(role = ?claims.role, "JWT validated successfully");
+                        (claims.access, claims.role)
+                    }
                     None => {
-                        if self.config.auth.enabled_for_reads {
+                        if self.config.auth.require_auth_for_reads {
+                            warn!("Request missing valid JWT — rejecting (require_auth_for_reads=true)");
                             return Err(Unauthorized(AuthError::RequireRead));
                         } else {
-                            Access::Ro // if read access is not required, we give read access to all requests
+                            debug!("No valid JWT but require_auth_for_reads=false — granting read access");
+                            (Access::Ro, None)
                         }
                     }
                 }
             }
-            None => Access::Rw, // if auth is not setup, we give write access to all requests
+            None => (Access::Rw, None), // if auth is not setup, we give write access to all requests
         };
 
         let is_accept_multipart_mixed = req
@@ -148,7 +156,7 @@ where
         if is_accept_multipart_mixed {
             let (req, mut body) = req.split();
             let req = GraphQLRequest::from_request(&req, &mut body).await?;
-            let req = req.0.data(access);
+            let req = req.0.data(access).data(role);
             let stream = self.executor.execute_stream(req, None);
             Ok(Response::builder()
                 .header("content-type", "multipart/mixed; boundary=graphql")
@@ -172,7 +180,7 @@ where
                 }
             }
 
-            let req = batch_req.data(access);
+            let req = batch_req.data(access).data(role);
 
             let contains_update = match &req {
                 BatchRequest::Single(request) => request.query.contains("updateGraph"),
@@ -210,28 +218,50 @@ fn is_query_heavy(query: &str) -> bool {
         || query.contains("inNeighbours")
 }
 
-fn extract_access_from_header(header: &str, public_key: &PublicKey) -> Option<Access> {
+fn extract_claims_from_header(header: &str, public_key: &PublicKey) -> Option<TokenClaims> {
     if header.starts_with("Bearer ") {
         let jwt = header.replace("Bearer ", "");
-        let mut validation = Validation::new(Algorithm::EdDSA);
+        let mut validation = Validation::new(public_key.algorithms[0]);
+        validation.algorithms = public_key.algorithms.clone();
         validation.set_required_spec_claims::<String>(&[]); // we don't require 'exp' to be present
         let decoded = decode::<TokenClaims>(&jwt, &public_key.decoding_key, &validation);
-        Some(decoded.ok()?.claims.a)
+        match decoded {
+            Ok(token_data) => Some(token_data.claims),
+            Err(e) => {
+                warn!(error = %e, "JWT signature validation failed");
+                None
+            }
+        }
     } else {
+        warn!("Authorization header is missing or does not start with 'Bearer '");
         None
     }
 }
 
 pub(crate) trait ContextValidation {
-    fn require_write_access(&self) -> Result<(), AuthError>;
+    fn require_jwt_write_access(&self) -> Result<(), AuthError>;
+}
+
+/// Check that the request carries a write-access JWT (`"access": "rw"`).
+/// For use in dynamic resolver ops that run under `query { ... }` and are
+/// therefore not covered by the `MutationAuth` extension.
+pub fn require_jwt_write_access_dynamic(
+    ctx: &async_graphql::dynamic::ResolverContext,
+) -> Result<(), async_graphql::Error> {
+    if ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw) {
+        Ok(())
+    } else {
+        Err(async_graphql::Error::new(
+            "Access denied: write access required",
+        ))
+    }
 }
 
 impl<'a> ContextValidation for &Context<'a> {
-    fn require_write_access(&self) -> Result<(), AuthError> {
-        if self.data::<Access>().is_ok_and(|role| role == &Access::Rw) {
-            Ok(())
-        } else {
-            Err(AuthError::RequireWrite)
+    fn require_jwt_write_access(&self) -> Result<(), AuthError> {
+        match self.data::<Access>() {
+            Ok(access) if access == &Access::Rw => Ok(()),
+            _ => Err(AuthError::RequireWrite),
         }
     }
 }
@@ -259,10 +289,18 @@ impl Extension for MutationAuth {
                 .iter()
                 .any(|op| op.1.node.ty == OperationType::Mutation);
             if mutation && ctx.data::<Access>() != Ok(&Access::Rw) {
-                Err(AuthError::RequireWrite.into())
-            } else {
-                Ok(doc)
+                // If a policy is active, allow "ro" users through to resolvers —
+                // each resolver enforces its own per-graph or admin-only check.
+                // Without a policy (OSS), preserve the original blanket deny.
+                let policy_active = ctx
+                    .data::<crate::data::Data>()
+                    .map(|d| d.auth_policy.is_some())
+                    .unwrap_or(false);
+                if !policy_active {
+                    return Err(AuthError::RequireWrite.into());
+                }
             }
+            Ok(doc)
         })
     }
 }

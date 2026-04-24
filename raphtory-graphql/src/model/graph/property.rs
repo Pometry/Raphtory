@@ -28,6 +28,7 @@ use raphtory_api::core::{
     utils::time::{IntoTime, TryIntoTime},
 };
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::{
     collections::HashMap,
@@ -38,7 +39,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct ObjectEntry {
     /// Key.
     pub key: String,
@@ -46,7 +47,8 @@ pub struct ObjectEntry {
     pub value: Value,
 }
 
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Value {
     /// 8 bit unsigned integer.
     U8(u8),

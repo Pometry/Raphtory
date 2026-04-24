@@ -5,12 +5,13 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
     utils::time::{IntoTime, TryIntoTime},
 };
+use serde::{Deserialize, Serialize};
 
 /// Input for primary time component. Expects Int, DateTime formatted String, or Object { timestamp, eventId }
 /// where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
 /// Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
 /// %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
-#[derive(Scalar, Clone, Debug)]
+#[derive(Scalar, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "TimeInput")]
 pub struct GqlTimeInput(pub EventTime);
 
@@ -87,11 +88,7 @@ impl IntoTime for GqlTimeInput {
 }
 
 pub fn dt_format_str_is_valid(fmt_str: &str) -> bool {
-    if StrftimeItems::new(fmt_str).any(|it| matches!(it, Item::Error)) {
-        false
-    } else {
-        true
-    }
+    !StrftimeItems::new(fmt_str).any(|it| matches!(it, Item::Error))
 }
 
 /// Raphtory’s EventTime.

@@ -1,5 +1,6 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
+    auth_policy::AuthorizationPolicy,
     config::app_config::{load_config, AppConfig},
     data::Data,
     model::{
@@ -13,6 +14,7 @@ use crate::{
     GQLError,
 };
 use config::ConfigError;
+use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use poem::{
@@ -31,8 +33,9 @@ use std::{
     fs::create_dir_all,
     future::Future,
     ops::Deref,
-    path::PathBuf,
+    path::{Path, PathBuf},
     pin::Pin,
+    sync::RwLock,
     task::{Context, Poll},
 };
 use thiserror::Error;
@@ -47,13 +50,32 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
 use url::ParseError;
 
 pub const DEFAULT_PORT: u16 = 1736;
+
+type ServerExtensionFn = Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
+
+static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> = Lazy::new(|| RwLock::new(None));
+
+pub fn register_server_extension(f: ServerExtensionFn) {
+    *SERVER_EXTENSION.write().unwrap() = Some(f);
+}
+
+pub fn apply_server_extension(server: GraphServer, path: Option<&Path>) -> GraphServer {
+    match SERVER_EXTENSION.read().unwrap().as_ref() {
+        Some(ext) => ext(server, path),
+        None => server,
+    }
+}
+
+pub fn has_server_extension() -> bool {
+    SERVER_EXTENSION.read().unwrap().is_some()
+}
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -83,11 +105,18 @@ impl From<ServerError> for io::Error {
     }
 }
 
+type SchemaDataInjector = std::sync::Arc<
+    dyn Fn(async_graphql::dynamic::SchemaBuilder) -> async_graphql::dynamic::SchemaBuilder
+        + Send
+        + Sync,
+>;
+
 /// A struct for defining and running a Raphtory GraphQL server
 #[derive(Clone)]
 pub struct GraphServer {
     data: Data,
     config: AppConfig,
+    schema_data: Vec<SchemaDataInjector>,
 }
 
 pub fn register_query_plugin<
@@ -126,12 +155,40 @@ impl GraphServer {
         }
         let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
         let data = Data::new(work_dir.as_path(), &config, graph_config);
-        Ok(Self { data, config })
+        Ok(Self {
+            data,
+            config,
+            schema_data: Vec::new(),
+        })
     }
 
-    /// Turn off index for all graphs
+    /// Returns the working directory for this server.
+    pub fn work_dir(&self) -> &Path {
+        &self.data.work_dir
+    }
+
     pub fn turn_off_index(&mut self) {
         self.data.create_index = false; // FIXME: why does this exist yet?
+    }
+
+    /// Set the authorization policy used for graph access checks.
+    pub fn with_auth_policy(mut self, policy: std::sync::Arc<dyn AuthorizationPolicy>) -> Self {
+        self.data.set_auth_policy(policy);
+        self
+    }
+
+    /// Inject arbitrary typed data into the GQL schema (accessible via `ctx.data::<T>()`).
+    pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
+        let data = std::sync::Arc::new(std::sync::Mutex::new(Some(data)));
+        self.schema_data.push(std::sync::Arc::new(move |sb| {
+            let data = data
+                .lock()
+                .unwrap()
+                .take()
+                .expect("schema data injector called more than once");
+            sb.data(data)
+        }));
+        self
     }
 
     /// Vectorise all the graphs in the server working directory.
@@ -250,8 +307,11 @@ impl GraphServer {
         let schema_cfg = &self.config.schema;
         let mut schema_builder = App::create_schema()
             .data(self.data.clone())
-            .data(self.config.concurrency.clone())
-            .extension(MutationAuth);
+            .data(self.config.concurrency.clone());
+        for inject in &self.schema_data {
+            schema_builder = inject(schema_builder);
+        }
+        schema_builder = schema_builder.extension(MutationAuth);
         if let Some(depth) = schema_cfg.max_query_depth {
             schema_builder = schema_builder.limit_depth(depth);
         }

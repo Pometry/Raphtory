@@ -30,10 +30,25 @@ Hello world demo
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.graph">graph</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
+<td valign="top"><a href="#graph">Graph</a></td>
 <td>
 
 Returns a graph
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.graphmetadata">graphMetadata</strong></td>
+<td valign="top"><a href="#metagraph">MetaGraph</a></td>
+<td>
+
+Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+Requires at least INTROSPECT permission.
 
 </td>
 </tr>
@@ -157,7 +172,8 @@ Returns a plugin.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Encodes graph and returns as string
+Encodes graph and returns as string.
+If the caller has filtered access, the returned graph is a materialized view of the filter.
 
 Returns:: Base64 url safe encoded string
 
