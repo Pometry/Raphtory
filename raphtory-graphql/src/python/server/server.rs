@@ -4,6 +4,7 @@ use crate::{
         otlp_config::TracingLevel,
     },
     python::server::{running_server::PyRunningGraphServer, wait_server, BridgeCommand},
+    server::apply_server_extension,
     GraphServer,
 };
 use pyo3::{
@@ -33,7 +34,7 @@ use std::{path::PathBuf, thread};
 ///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
 ///     config_path (str | PathLike, optional): Path to the config file
 ///     auth_public_key (str, optional): Base64-encoded public key used to verify bearer tokens
-///     auth_enabled_for_reads (bool, optional): Require auth tokens for read queries
+///     require_auth_for_reads (bool, optional): Require auth tokens for read queries
 ///     create_index (bool, optional): Build a search index on startup
 ///     heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
 ///     exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
@@ -90,7 +91,7 @@ impl PyGraphServer {
             otlp_agent_port=None,
             otlp_tracing_service_name=None,
             auth_public_key=None,
-            auth_enabled_for_reads=None,
+            require_auth_for_reads=None,
             config_path = None,
             create_index = None,
             heavy_query_limit = None,
@@ -104,6 +105,7 @@ impl PyGraphServer {
             max_recursive_depth = None,
             max_directives_per_field = None,
             disable_introspection = None,
+            permissions_store_path = None
         )
     )]
     fn py_new(
@@ -117,7 +119,7 @@ impl PyGraphServer {
         otlp_agent_port: Option<String>,
         otlp_tracing_service_name: Option<String>,
         auth_public_key: Option<String>,
-        auth_enabled_for_reads: Option<bool>,
+        require_auth_for_reads: Option<bool>,
         config_path: Option<PathBuf>,
         create_index: Option<bool>,
         heavy_query_limit: Option<usize>,
@@ -131,6 +133,7 @@ impl PyGraphServer {
         max_recursive_depth: Option<usize>,
         max_directives_per_field: Option<usize>,
         disable_introspection: Option<bool>,
+        permissions_store_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
         if let Some(log_level) = log_level {
@@ -168,9 +171,9 @@ impl PyGraphServer {
         app_config_builder = app_config_builder
             .with_auth_public_key(auth_public_key)
             .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
-        if let Some(auth_enabled_for_reads) = auth_enabled_for_reads {
+        if let Some(require_auth_for_reads) = require_auth_for_reads {
             app_config_builder =
-                app_config_builder.with_auth_enabled_for_reads(auth_enabled_for_reads);
+                app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
         }
         #[cfg(feature = "search")]
         if let Some(create_index) = create_index {
@@ -219,6 +222,7 @@ impl PyGraphServer {
             config_path,
             Config::default(),
         ))?;
+        let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer(server))
     }
 

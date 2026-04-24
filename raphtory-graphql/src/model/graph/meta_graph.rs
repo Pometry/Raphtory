@@ -48,6 +48,10 @@ impl MetaGraph {
         }
     }
 
+    pub(crate) fn local_path(&self) -> &str {
+        self.folder.local_path()
+    }
+
     async fn meta(&self) -> Result<&GraphMetadata> {
         Ok(self
             .meta

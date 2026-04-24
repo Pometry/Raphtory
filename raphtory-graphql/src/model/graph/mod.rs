@@ -6,7 +6,7 @@ pub(crate) mod collection;
 mod document;
 pub(crate) mod edge;
 mod edges;
-pub(crate) mod filtering;
+pub mod filtering;
 pub(crate) mod graph;
 pub(crate) mod history;
 pub(crate) mod index;

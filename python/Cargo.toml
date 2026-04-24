@@ -26,6 +26,7 @@ raphtory = { workspace = true, features = [
 raphtory-graphql = { workspace = true, features = [
     "python",
 ] }
+auth = { workspace = true }
 clam-core = { workspace = true, features = ["python"] }
 
 
