@@ -259,14 +259,20 @@ impl From<(String, Prop)> for GqlProperty {
 
 #[ResolvedObjectFields]
 impl GqlProperty {
+    /// The property key (name).
     async fn key(&self) -> String {
         self.key.clone()
     }
 
+    /// The property value rendered as a human-readable string (e.g. `"10"`, `"hello"`,
+    /// `"2024-01-01T00:00:00Z"`). For programmatic access use `value`, which returns
+    /// a typed scalar.
     async fn as_string(&self) -> String {
         self.prop.to_string()
     }
 
+    /// The property value as a typed `PropertyOutput` scalar — numbers come back as
+    /// numbers, booleans as booleans, strings as strings, etc.
     async fn value(&self) -> GqlPropertyOutputVal {
         GqlPropertyOutputVal(self.prop.clone())
     }
@@ -293,15 +299,20 @@ impl From<(EventTime, Prop)> for GqlPropertyTuple {
 
 #[ResolvedObjectFields]
 impl GqlPropertyTuple {
+    /// The timestamp at which this value was recorded.
     async fn time(&self) -> GqlEventTime {
         self.time.into()
     }
 
+    /// The value rendered as a human-readable string. For programmatic access use
+    /// `value`, which returns a typed scalar.
     async fn as_string(&self) -> String {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.to_string()).await
     }
 
+    /// The value as a typed `PropertyOutput` scalar — numbers come back as numbers,
+    /// booleans as booleans, etc.
     async fn value(&self) -> GqlPropertyOutputVal {
         GqlPropertyOutputVal(self.prop.clone())
     }
@@ -328,32 +339,44 @@ impl From<(String, TemporalPropertyView<DynProps>)> for GqlTemporalProperty {
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperty {
-    /// Key of a property.
+    /// The property key (name).
     async fn key(&self) -> String {
         self.key.clone()
     }
 
+    /// Event history for this property — one entry per temporal update, in
+    /// insertion order. Use this to navigate the full timeline: access the
+    /// raw `timestamps` / `datetimes` / `eventId` lists, analyse gaps between
+    /// updates via `intervals` (mean/median/min/max), ask `isEmpty`, or
+    /// paginate the events.
     async fn history(&self) -> GqlHistory {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.history().into()).await
     }
 
-    /// Return the values of the properties.
+    /// All values this property has ever taken, in temporal order (one per update).
+    /// Typed as `PropertyOutput` so numeric values stay numeric.
     async fn values(&self) -> Vec<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.values().map(GqlPropertyOutputVal).collect()).await
     }
 
+    /// The value at or before time `t` (latest update on or before `t`). Returns null
+    /// if no update exists on or before `t`.
+    ///
+    /// * `t` — a TimeInput (epoch millis integer, RFC3339 string, or `{timestamp, eventId}` object).
     async fn at(&self, t: GqlTimeInput) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.at(t.into_time()).map(GqlPropertyOutputVal)).await
     }
 
+    /// The most recent value, or null if the property has never been set in this view.
     async fn latest(&self) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.latest().map(GqlPropertyOutputVal)).await
     }
 
+    /// The set of distinct values this property has ever taken (order not guaranteed).
     async fn unique(&self) -> Vec<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -367,6 +390,10 @@ impl GqlTemporalProperty {
         .await
     }
 
+    /// Collapses runs of consecutive-equal updates into a single `(time, value)` pair.
+    ///
+    /// * `latestTime` — if true, each run is represented by its *last* timestamp; if
+    ///   false, by its *first*. Useful for compressing chatter in a timeline.
     async fn ordered_dedupe(&self, latest_time: bool) -> Vec<GqlPropertyTuple> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -393,7 +420,7 @@ impl GqlTemporalProperty {
         blocking_compute(move || self_clone.prop.mean().map(GqlPropertyOutputVal)).await
     }
 
-    /// Alias for `mean`.
+    /// Alias for `mean` — same F64 average, same null cases.
     async fn average(&self) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.average().map(GqlPropertyOutputVal)).await
@@ -420,7 +447,7 @@ impl GqlTemporalProperty {
         blocking_compute(move || self_clone.prop.median().map(GqlPropertyTuple::from)).await
     }
 
-    /// Number of updates.
+    /// Number of updates recorded for this property in the current view.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.prop.count()).await
@@ -486,19 +513,26 @@ impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
 
 #[ResolvedObjectFields]
 impl GqlProperties {
-    /// Get property value matching the specified key.
+    /// Look up a single property by key. Returns null if no property with that key
+    /// exists in the current view.
+    ///
+    /// * `key` — the property name.
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
             .get(key.as_str())
             .map(|p| (key.to_string(), p).into())
     }
 
-    /// Check if the key is in the properties.
+    /// Returns true if a property with the given key exists in this view.
+    ///
+    /// * `key` — the property name to look up.
     async fn contains(&self, key: String) -> bool {
         self.props.get(&key).is_some()
     }
 
-    /// Return all property keys.
+    /// All property keys present in the current view. Does not include metadata
+    /// — metadata is a separate surface accessed via the entity's `metadata`
+    /// field.
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -511,7 +545,10 @@ impl GqlProperties {
         .await
     }
 
-    /// Return all property values.
+    /// Snapshot of property values, one `{key, value}` entry per property.
+    ///
+    /// * `keys` — optional whitelist. If provided, only properties with these keys are
+    ///   returned; if omitted or null, every property in the view is returned.
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
         let self_clone = self.clone();
         blocking_compute(move || match keys {
@@ -536,6 +573,8 @@ impl GqlProperties {
         .await
     }
 
+    /// The temporal-only view of these properties — excludes metadata (which has no
+    /// history) and lets you drill into per-key timelines and aggregates.
     async fn temporal(&self) -> GqlTemporalProperties {
         self.props.temporal().into()
     }
@@ -543,25 +582,33 @@ impl GqlProperties {
 
 #[ResolvedObjectFields]
 impl GqlMetadata {
-    /// Get metadata value matching the specified key.
+    /// Look up a single metadata value by key. Returns null if no metadata with that
+    /// key exists.
+    ///
+    /// * `key` — the metadata name.
     async fn get(&self, key: String) -> Option<GqlProperty> {
         self.props
             .get(key.as_str())
             .map(|p| (key.to_string(), p).into())
     }
 
-    /// /// Check if the key is in the metadata.
+    /// Returns true if a metadata entry with the given key exists.
+    ///
+    /// * `key` — the metadata name to look up.
     async fn contains(&self, key: String) -> bool {
         self.props.contains(key.as_str())
     }
 
-    /// Return all metadata keys.
+    /// All metadata keys present on this entity.
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.props.keys().map(|k| k.clone().into()).collect()).await
     }
 
-    /// /// Return all metadata values.
+    /// All metadata values as `{key, value}` entries.
+    ///
+    /// * `keys` — optional whitelist. If provided, only metadata with these keys is
+    ///   returned; if omitted, every metadata entry is returned.
     pub(crate) async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlProperty> {
         let self_clone = self.clone();
         blocking_compute(move || match keys {
@@ -589,17 +636,22 @@ impl GqlMetadata {
 
 #[ResolvedObjectFields]
 impl GqlTemporalProperties {
-    /// Get property value matching the specified key.
+    /// Look up a single temporal property by key. Returns null if there's no temporal
+    /// property with that key.
+    ///
+    /// * `key` — the property name.
     async fn get(&self, key: String) -> Option<GqlTemporalProperty> {
         self.props.get(key.as_str()).map(move |p| (key, p).into())
     }
 
-    /// Check if the key is in the properties.
+    /// Returns true if a temporal property with the given key exists.
+    ///
+    /// * `key` — the property name to look up.
     async fn contains(&self, key: String) -> bool {
         self.props.get(&key).is_some()
     }
 
-    /// Return all property keys.
+    /// All temporal-property keys present in this view.
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -612,7 +664,11 @@ impl GqlTemporalProperties {
         .await
     }
 
-    /// Return all property values.
+    /// All temporal properties, each as a `TemporalProperty` with its full timeline
+    /// available. Use `history`, `values`, `latest`, `at`, etc. on each entry.
+    ///
+    /// * `keys` — optional whitelist. If provided, only temporal properties with these
+    ///   keys are returned; if omitted, every temporal property in the view is returned.
     async fn values(&self, keys: Option<Vec<String>>) -> Vec<GqlTemporalProperty> {
         let self_clone = self.clone();
         blocking_compute(move || match keys {

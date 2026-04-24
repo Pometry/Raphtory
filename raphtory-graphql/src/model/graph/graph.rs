@@ -107,47 +107,73 @@ impl GqlGraph {
         self.apply(|g| g.default_layer())
     }
 
-    /// Returns a view containing all the specified layers.
+    /// View restricted to the named layers. Updates on any other layer are hidden;
+    /// if that leaves a node or edge with no updates left, it disappears from the
+    /// view.
+    ///
+    /// * `names` — layer names to include.
     async fn layers(&self, names: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.valid_layers(names.clone()))).await
     }
 
-    /// Returns a view containing all layers except the specified excluded layers.
+    /// View with the named layers hidden. Updates on those layers are removed; if
+    /// that leaves a node or edge with no updates left, it disappears from the
+    /// view.
+    ///
+    /// * `names` — layer names to exclude.
     async fn exclude_layers(&self, names: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.exclude_valid_layers(names.clone()))).await
     }
 
-    /// Returns a view containing the layer specified.
+    /// View restricted to a single layer. Convenience form of
+    /// `layers(names: [name])` — updates on any other layer are hidden, and
+    /// entities with nothing left disappear.
+    ///
+    /// * `name` — layer name to include.
     async fn layer(&self, name: String) -> GqlGraph {
         self.apply(|g| g.valid_layers(name.clone()))
     }
 
-    /// Returns a view containing all layers except the specified excluded layer.
+    /// View with one layer hidden. Convenience form of
+    /// `excludeLayers(names: [name])` — updates on that layer are removed, and
+    /// entities with nothing left disappear.
+    ///
+    /// * `name` — layer name to exclude.
     async fn exclude_layer(&self, name: String) -> GqlGraph {
         self.apply(|g| g.exclude_valid_layers(name.clone()))
     }
 
-    /// Returns a subgraph of a specified set of nodes which contains only the edges that connect nodes of the subgraph to each other.
+    /// View restricted to a chosen set of nodes and the edges between them. Edges
+    /// connecting a selected node to a non-selected node are hidden.
+    ///
+    /// * `nodes` — node ids to keep.
     async fn subgraph(&self, nodes: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.subgraph(nodes.clone()))).await
     }
 
-    /// Returns a view of the graph that only includes valid edges.
+    /// View containing only valid edges — for persistent graphs this drops edges
+    /// whose most recent event is a deletion at the latest time of the current
+    /// view (a later re-addition would keep them). On event graphs this is a
+    /// no-op.
     async fn valid(&self) -> GqlGraph {
         self.apply(|g| g.valid())
     }
 
-    /// Returns a subgraph filtered by the specified node types.
+    /// View restricted to nodes with the given node types.
+    ///
+    /// * `nodeTypes` — set of node-type names to include.
     async fn subgraph_node_types(&self, node_types: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.apply(|g| g.subgraph_node_types(node_types.clone())))
             .await
     }
 
-    /// Returns a subgraph containing all nodes except the specified excluded nodes.
+    /// View with a set of nodes removed (along with any edges touching them).
+    ///
+    /// * `nodes` — node ids to exclude.
     async fn exclude_nodes(&self, nodes: Vec<String>) -> GqlGraph {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -305,7 +331,10 @@ impl GqlGraph {
         Ok(self.graph.end().into())
     }
 
-    /// Returns the earliest time that any edge in this graph is valid.
+    /// The earliest time at which any edge in this graph is valid.
+    ///
+    /// * `includeNegative` — if false, edge events with a timestamp `< 0` are
+    ///   skipped when computing the minimum. Defaults to true.
     async fn earliest_edge_time(&self, include_negative: Option<bool>) -> Result<GqlEventTime> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -322,7 +351,10 @@ impl GqlGraph {
         .await)
     }
 
-    /// Returns the latest time that any edge in this graph is valid.
+    /// The latest time at which any edge in this graph is valid.
+    ///
+    /// * `includeNegative` — if false, edge events with a timestamp `< 0` are
+    ///   skipped when computing the maximum. Defaults to true.
     async fn latest_edge_time(&self, include_negative: Option<bool>) -> Result<GqlEventTime> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -370,12 +402,20 @@ impl GqlGraph {
     //// EXISTS CHECKERS ///
     ////////////////////////
 
-    /// Returns true if the graph contains the specified node.
+    /// Returns true if a node with the given id exists in this view.
+    ///
+    /// * `name` — node id to look up.
     async fn has_node(&self, name: String) -> Result<bool> {
         Ok(self.graph.has_node(name))
     }
 
-    /// Returns true if the graph contains the specified edge. Edges are specified by providing a source and destination node id. You can restrict the search to a specified layer.
+    /// Returns true if an edge exists between `src` and `dst` in this view, optionally
+    /// restricted to a single layer.
+    ///
+    /// * `src` — source node id.
+    /// * `dst` — destination node id.
+    /// * `layer` — optional; if provided, only checks whether the edge exists on this
+    ///   layer. If null or omitted, any layer counts.
     async fn has_edge(&self, src: String, dst: String, layer: Option<String>) -> Result<bool> {
         Ok(match layer {
             Some(name) => self
@@ -391,12 +431,18 @@ impl GqlGraph {
     //////// GETTERS ///////
     ////////////////////////
 
-    /// Gets the node with the specified id.
+    /// Look up a single node by id. Returns null if the node doesn't exist in this
+    /// view.
+    ///
+    /// * `name` — node id.
     async fn node(&self, name: String) -> Result<Option<GqlNode>> {
         Ok(self.graph.node(name).map(|node| node.into()))
     }
 
-    /// Gets (optionally a subset of) the nodes in the graph.
+    /// All nodes in this view, optionally narrowed by a filter.
+    ///
+    /// * `select` — optional node filter (by name, property, type, etc.). If omitted,
+    ///   every node in the view is returned.
     async fn nodes(&self, select: Option<GqlNodeFilter>) -> Result<GqlNodes> {
         let nn = self.graph.nodes();
 
@@ -413,12 +459,19 @@ impl GqlGraph {
         Ok(GqlNodes::new(nn))
     }
 
-    /// Gets the edge with the specified source and destination nodes.
+    /// Look up a single edge by its endpoint ids. Returns null if no edge exists
+    /// between `src` and `dst` in this view.
+    ///
+    /// * `src` — source node id.
+    /// * `dst` — destination node id.
     async fn edge(&self, src: String, dst: String) -> Result<Option<GqlEdge>> {
         Ok(self.graph.edge(src, dst).map(|e| e.into()))
     }
 
-    /// Gets the edges in the graph.
+    /// All edges in this view, optionally narrowed by a filter.
+    ///
+    /// * `select` — optional edge filter (by property, layer, src/dst, etc.). If
+    ///   omitted, every edge in the view is returned.
     async fn edges<'a>(&self, select: Option<GqlEdgeFilter>) -> Result<GqlEdges> {
         let base = self.graph.edges_unlocked();
 
@@ -477,10 +530,18 @@ impl GqlGraph {
         Ok(blocking_compute(move || GraphSchema::new(&self_clone.graph)).await)
     }
 
+    /// Access registered graph algorithms (PageRank, shortest path, etc.) for this
+    /// graph view. The set of available algorithms is defined by the plugin registry
+    /// loaded at server startup.
     async fn algorithms(&self) -> GraphAlgorithmPlugin {
         self.graph.clone().into()
     }
 
+    /// Nodes that are neighbours of every node in `selectedNodes`. Returns the
+    /// intersection of each selected node's neighbour set (undirected).
+    ///
+    /// * `selectedNodes` — node ids whose common neighbours you want. Returns an
+    ///   empty list if `selectedNodes` is empty or any id does not exist.
     async fn shared_neighbours(&self, selected_nodes: Vec<String>) -> Result<Vec<GqlNode>> {
         let self_clone = self.clone();
         Ok(blocking_compute(move || {
@@ -525,6 +586,12 @@ impl GqlGraph {
         .await
     }
 
+    /// Returns a filtered view of the graph. Applies a mixed node/edge filter
+    /// expression and narrows nodes, edges, and their properties to what matches.
+    ///
+    /// * `expr` — optional composite filter combining node, edge, property, and
+    ///   metadata conditions. If omitted, applies the identity filter (equivalent to
+    ///   no filtering).
     async fn filter(&self, expr: Option<GqlGraphFilter>) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -541,6 +608,10 @@ impl GqlGraph {
         .await
     }
 
+    /// Returns a graph view restricted to nodes that match the given filter; edges
+    /// are kept only if both endpoints survive.
+    ///
+    /// * `expr` — composite node filter (by name, property, type, etc.).
     async fn filter_nodes(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -554,6 +625,10 @@ impl GqlGraph {
         .await
     }
 
+    /// Returns a graph view restricted to edges that match the given filter. Nodes
+    /// remain in the view even if all their edges are filtered out.
+    ///
+    /// * `expr` — composite edge filter (by property, layer, src/dst, etc.).
     async fn filter_edges(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {

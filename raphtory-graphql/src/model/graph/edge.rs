@@ -248,6 +248,10 @@ impl GqlEdge {
         self.ee.earliest_time().into()
     }
 
+    /// The timestamp of the first event in this edge's history (first update, first
+    /// deletion, or anything in between). Differs from `earliestTime` in that
+    /// `earliestTime` reports when the edge is first *valid*; `firstUpdate` reports
+    /// when its history actually begins.
     async fn first_update(&self) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history().earliest_time().into()).await
@@ -258,6 +262,10 @@ impl GqlEdge {
         self.ee.latest_time().into()
     }
 
+    /// The timestamp of the last event in this edge's history (last update, last
+    /// deletion, or anything in between). Differs from `latestTime` in that
+    /// `latestTime` reports when the edge is last *valid*; `lastUpdate` reports
+    /// when its history actually ends.
     async fn last_update(&self) -> GqlEventTime {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ee.history().latest_time().into()).await
@@ -393,6 +401,10 @@ impl GqlEdge {
         self.ee.is_self_loop()
     }
 
+    /// Apply an edge filter in place, returning an edge view whose properties /
+    /// metadata / history are restricted to the matching subset.
+    ///
+    /// * `expr` — composite edge filter (by property, layer, src/dst, etc.).
     async fn filter(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {

@@ -401,12 +401,18 @@ fn resolve(template: Option<Template>, default: &str) -> Option<String> {
 
 #[ResolvedObjectFields]
 impl QueryRoot {
-    /// Hello world demo
+    /// Liveness check — returns a static "hello world" string. Useful for
+    /// smoke-testing that the GraphQL server is reachable.
     async fn hello() -> &'static str {
         "Hello world from raphtory-graphql"
     }
 
-    /// Returns a graph
+    /// Load a graph by path, returning null if the caller lacks read permission or
+    /// the graph doesn't exist. When a read-scoped filter is attached to the
+    /// caller's permissions, that filter is applied before the graph is returned.
+    ///
+    /// * `path` — graph path relative to the root namespace (e.g. `"master"` or
+    ///   `"team/project/graph"`).
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
@@ -550,7 +556,9 @@ impl QueryRoot {
         Namespace::root(data.work_dir.clone())
     }
 
-    /// Returns a plugin.
+    /// Entry point for read-only plugins registered with the server (e.g. graph
+    /// algorithms exposed as queries). Available plugins are defined at server
+    /// startup via the plugin registry.
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
@@ -578,6 +586,7 @@ impl QueryRoot {
         Ok(res)
     }
 
+    /// Version string of the running `raphtory-graphql` server build.
     async fn version<'a>(_ctx: &Context<'a>) -> String {
         String::from(version())
     }

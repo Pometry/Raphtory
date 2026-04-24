@@ -139,17 +139,29 @@ fn as_properties(
 
 #[ResolvedObjectFields]
 impl GqlMutableGraph {
-    /// Get the non-mutable graph.
+    /// Read-only view of this graph — identical to what you'd get from
+    /// `graph(path:)` on the query root. Use this when you want to compose
+    /// queries on the graph you've just mutated.
     async fn graph(&self) -> GqlGraph {
         GqlGraph::new(self.graph.folder.clone(), self.graph.graph.clone())
     }
 
-    /// Get mutable existing node.
+    /// Look up an existing node for mutation. Returns null if the node doesn't
+    /// exist; use `addNode` or `createNode` to create one.
+    ///
+    /// * `name` — node id.
     async fn node(&self, name: String) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| GqlMutableNode::new(n))
     }
 
-    /// Add a new node or add updates to an existing node.
+    /// Add a new node or append an update to an existing one. Upsert semantics:
+    /// no error if the node already exists — properties and type are merged.
+    ///
+    /// * `time` — timestamp of the event (epoch millis).
+    /// * `name` — node id.
+    /// * `properties` — optional property updates attached to this event.
+    /// * `nodeType` — optional node type; if provided, set on the node.
+    /// * `layer` — optional layer name. If omitted, the default layer is used.
     async fn add_node(
         &self,
         time: i64,
@@ -209,7 +221,13 @@ impl GqlMutableGraph {
         Ok(GqlMutableNode::new(node))
     }
 
-    /// Add a batch of nodes.
+    /// Batch-add multiple nodes in one call. For each `NodeAddition`, applies every
+    /// update it carries (time/properties pairs), then optionally sets its node type
+    /// and adds any metadata. On partial failure, returns a `BatchFailures` error
+    /// describing which entries failed and why; otherwise returns true.
+    ///
+    /// * `nodes` — list of `NodeAddition` inputs, each specifying a node's name,
+    ///   optional type, layer, per-timestamp updates, and metadata.
     async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, BatchFailures> {
         let self_clone = self.clone();
 
@@ -255,12 +273,23 @@ impl GqlMutableGraph {
         }
     }
 
-    /// Get a mutable existing edge.
+    /// Look up an existing edge for mutation. Returns null if no such edge exists.
+    ///
+    /// * `src` — source node id.
+    /// * `dst` — destination node id.
     async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| GqlMutableEdge::new(e))
     }
 
-    /// Add a new edge or add updates to an existing edge.
+    /// Add a new edge or append an update to an existing one. Upsert semantics:
+    /// safe to call on an edge that already exists — creates missing endpoints if
+    /// needed.
+    ///
+    /// * `time` — timestamp of the event (epoch millis).
+    /// * `src` — source node id.
+    /// * `dst` — destination node id.
+    /// * `properties` — optional property updates attached to this event.
+    /// * `layer` — optional layer name. If omitted, the default layer is used.
     async fn add_edge(
         &self,
         time: i64,
@@ -286,7 +315,13 @@ impl GqlMutableGraph {
         Ok(GqlMutableEdge::new(edge))
     }
 
-    /// Add a batch of edges.
+    /// Batch-add multiple edges in one call. For each `EdgeAddition`, applies every
+    /// update it carries, then adds any metadata. On partial failure, returns a
+    /// `BatchFailures` error describing which entries failed; otherwise returns
+    /// true.
+    ///
+    /// * `edges` — list of `EdgeAddition` inputs, each specifying an edge's `src`,
+    ///   `dst`, optional layer, per-timestamp updates, and metadata.
     async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, BatchFailures> {
         let self_clone = self.clone();
 

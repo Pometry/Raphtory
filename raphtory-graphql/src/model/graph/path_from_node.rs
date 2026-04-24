@@ -171,7 +171,9 @@ impl GqlPathFromNode {
         self.update(self.nn.shrink_end(end.into_time()))
     }
 
-    /// Filter nodes by type.
+    /// Narrow this path to neighbours whose node type is in the given set.
+    ///
+    /// * `nodeTypes` — set of node-type names to keep.
     async fn type_filter(&self, node_types: Vec<String>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
@@ -195,6 +197,7 @@ impl GqlPathFromNode {
     //// List ///////
     /////////////////
 
+    /// Number of neighbour nodes reachable from the source in this view.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.len()).await
@@ -221,13 +224,16 @@ impl GqlPathFromNode {
         .await)
     }
 
+    /// Materialise every neighbour node in the path. Rejected by the server when
+    /// bulk list endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.iter().collect()).await)
     }
 
-    /// Returns the node ids.
+    /// Every neighbour node's id (name) as a flat list of strings. Rejected by the
+    /// server when bulk list endpoints are disabled.
     async fn ids(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<String>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -282,7 +288,22 @@ impl GqlPathFromNode {
         Ok(return_view)
     }
 
-    /// Returns a filtered view that applies to list down the chain
+    /// Narrow the neighbour set to nodes matching `expr`. The filter sticks to
+    /// the returned path — every subsequent traversal (further hops, edges,
+    /// properties) continues to see the filtered scope.
+    ///
+    /// Useful when you want one scoping rule to apply across the whole query.
+    /// E.g. restricting the whole traversal to a specific week:
+    ///
+    /// ```text
+    /// node(name: "A") { neighbours { filter(expr: {window: {...week...}}) {
+    ///   list { neighbours { list { name } } }   # further hops still windowed
+    /// } } }
+    /// ```
+    ///
+    /// Contrast with `select`, which applies here and is not carried through.
+    ///
+    /// * `expr` — composite node filter (by name, property, type, etc.).
     async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -293,7 +314,23 @@ impl GqlPathFromNode {
         .await
     }
 
-    /// Returns filtered list of neighbour nodes
+    /// Narrow the neighbour set to nodes matching `expr`, but only at this hop
+    /// — further traversals out of these nodes see the unfiltered graph again.
+    ///
+    /// Useful when each hop needs a different scope. E.g. neighbours active on
+    /// Monday, then *their* neighbours active on Tuesday:
+    ///
+    /// ```text
+    /// node(name: "A") { neighbours { select(expr: {window: {...monday...}}) {
+    ///   list { neighbours { select(expr: {window: {...tuesday...}}) {
+    ///     list { name }
+    ///   } } }
+    /// } } }
+    /// ```
+    ///
+    /// Contrast with `filter`, which persists the scope through subsequent ops.
+    ///
+    /// * `expr` — composite node filter (by name, property, type, etc.).
     async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {

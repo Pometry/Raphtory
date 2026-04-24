@@ -147,6 +147,7 @@ impl GqlEdges {
         self.update(self.ee.at(time.into_time()))
     }
 
+    /// View showing only the latest state of each edge (equivalent to `at(latestTime)`).
     async fn latest(&self) -> Self {
         let e = self.ee.clone();
         let latest = blocking_compute(move || e.latest()).await;
@@ -238,7 +239,9 @@ impl GqlEdges {
         Ok(return_view)
     }
 
-    /// Returns an edge object for each update within the original edge.
+    /// Expand each edge into one edge per update: if `A->B` has three updates, it
+    /// becomes three `A->B` entries each at a distinct timestamp. Use this to
+    /// iterate per-event rather than per-edge.
     async fn explode(&self) -> Self {
         self.update(self.ee.explode())
     }
@@ -367,7 +370,23 @@ impl GqlEdges {
         Ok(blocking_compute(move || self_clone.iter().collect()).await)
     }
 
-    /// Returns a filtered view that applies to list down the chain
+    /// Narrow the collection to edges matching `expr`. The filter sticks to the
+    /// returned view — every subsequent traversal through these edges (their
+    /// properties, their endpoints' neighbours, etc.) continues to see the
+    /// filtered scope.
+    ///
+    /// Useful when you want one scoping rule to apply across the whole query.
+    /// E.g. restricting everything to a specific week:
+    ///
+    /// ```text
+    /// edges { filter(expr: {window: {start: 1234, end: 5678}}) {
+    ///   list { src { neighbours { list { name } } } }   # neighbours still windowed
+    /// } }
+    /// ```
+    ///
+    /// Contrast with `select`, which applies here and is not carried through.
+    ///
+    /// * `expr` — composite edge filter (by property, layer, src/dst, etc.).
     async fn filter(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -378,7 +397,26 @@ impl GqlEdges {
         .await
     }
 
-    /// Returns filtered list of edges
+    /// Narrow the collection to edges matching `expr`, but only at this step —
+    /// subsequent traversals out of these edges see the unfiltered graph again.
+    ///
+    /// Useful when you want different scopes at different hops. E.g. Monday's
+    /// edges, then the neighbours of their endpoints on Tuesday, then *those*
+    /// neighbours on Wednesday:
+    ///
+    /// ```text
+    /// edges { select(expr: {window: {...monday...}}) {
+    ///   list { src { select(expr: {window: {...tuesday...}}) {
+    ///     neighbours { select(expr: {window: {...wednesday...}}) {
+    ///       neighbours { list { name } }
+    ///     } }
+    ///   } } }
+    /// } }
+    /// ```
+    ///
+    /// Contrast with `filter`, which persists the scope through subsequent ops.
+    ///
+    /// * `expr` — composite edge filter (by property, layer, src/dst, etc.).
     async fn select(&self, expr: GqlEdgeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {

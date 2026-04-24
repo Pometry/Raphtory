@@ -194,6 +194,12 @@ impl GqlNodes {
         blocking_compute(move || self_clone.update(self_clone.nn.type_filter(&node_types))).await
     }
 
+    /// Apply a list of views in the given order and return the resulting nodes
+    /// collection. Lets callers compose window, layer, filter, and snapshot
+    /// operations in a single call.
+    ///
+    /// * `views` — ordered list of view operations; each entry is a one-of variant
+    ///   (`window`, `layer`, `filter`, etc.) applied to the running result.
     async fn apply_views(&self, views: Vec<NodesViewCollection>) -> Result<GqlNodes, GraphError> {
         let mut return_view: GqlNodes = GqlNodes::new(self.nn.clone());
         for view in views {
@@ -250,6 +256,11 @@ impl GqlNodes {
     //// Sorting ////
     /////////////////
 
+    /// Sort the nodes. Multiple criteria are applied lexicographically (ties on the
+    /// first key break to the second, etc.).
+    ///
+    /// * `sortBys` — ordered list of sort keys. Each entry chooses exactly one of
+    ///   `id` / `time` / `property`, with an optional `reverse: true` to flip order.
     async fn sorted(&self, sort_bys: Vec<NodeSortBy>) -> Self {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -320,6 +331,7 @@ impl GqlNodes {
     //// List ///////
     /////////////////
 
+    /// Number of nodes in the current view.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.nn.len()).await
@@ -346,13 +358,16 @@ impl GqlNodes {
         .await)
     }
 
+    /// Materialise every node in the view. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
         Ok(blocking_compute(move || self_clone.iter().collect()).await)
     }
 
-    /// Returns a view of the node ids.
+    /// Every node's id (name) as a flat list of strings. Rejected by the server when
+    /// bulk list endpoints are disabled.
     async fn ids(&self, ctx: &Context<'_>) -> Result<Vec<String>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -362,7 +377,22 @@ impl GqlNodes {
         )
     }
 
-    /// Returns a filtered view that applies to list down the chain
+    /// Narrow the collection to nodes matching `expr`. The filter sticks to the
+    /// returned view — every subsequent traversal through these nodes (their
+    /// neighbours, edges, properties) continues to see the filtered scope.
+    ///
+    /// Useful when you want one scoping rule to apply across the whole query.
+    /// E.g. restricting everything to a specific week:
+    ///
+    /// ```text
+    /// nodes { filter(expr: {window: {start: 1234, end: 5678}}) {
+    ///   list { neighbours { list { name } } }   # neighbours still windowed
+    /// } }
+    /// ```
+    ///
+    /// Contrast with `select`, which applies here and is not carried through.
+    ///
+    /// * `expr` — composite node filter (by name, property, type, etc.).
     async fn filter(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {
@@ -373,7 +403,26 @@ impl GqlNodes {
         .await
     }
 
-    /// Returns filtered list of nodes
+    /// Narrow the collection to nodes matching `expr`, but only at this step —
+    /// subsequent traversals out of these nodes see the unfiltered graph again.
+    ///
+    /// Useful when you want different scopes at different hops. E.g. nodes
+    /// active on Monday, then their neighbours active on Tuesday, then *those*
+    /// neighbours active on Wednesday:
+    ///
+    /// ```text
+    /// nodes { select(expr: {window: {...monday...}}) {
+    ///   list { neighbours { select(expr: {window: {...tuesday...}}) {
+    ///     list { neighbours { select(expr: {window: {...wednesday...}}) {
+    ///       list { name }
+    ///     } } }
+    ///   } } }
+    /// } }
+    /// ```
+    ///
+    /// Contrast with `filter`, which persists the scope through subsequent ops.
+    ///
+    /// * `expr` — composite node filter (by name, property, type, etc.).
     async fn select(&self, expr: GqlNodeFilter) -> Result<Self, GraphError> {
         let self_clone = self.clone();
         blocking_compute(move || {

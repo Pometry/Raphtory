@@ -36,6 +36,8 @@ impl GqlGraphWindowSet {
 #[ResolvedObjectFields]
 impl GqlGraphWindowSet {
     /// Returns the number of items.
+    /// Number of windows in this set. Materialising all windows is expensive for
+    /// large graphs — prefer `page` over `list` when iterating.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await
@@ -68,6 +70,8 @@ impl GqlGraphWindowSet {
         .await)
     }
 
+    /// Materialise every window as a list. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlGraph>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -95,6 +99,8 @@ impl GqlNodeWindowSet {
 }
 #[ResolvedObjectFields]
 impl GqlNodeWindowSet {
+    /// Number of windows in this set. Materialising all windows is expensive for
+    /// large graphs — prefer `page` over `list` when iterating.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await
@@ -127,6 +133,8 @@ impl GqlNodeWindowSet {
         .await)
     }
 
+    /// Materialise every window as a list. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -149,6 +157,8 @@ impl GqlNodesWindowSet {
 }
 #[ResolvedObjectFields]
 impl GqlNodesWindowSet {
+    /// Number of windows in this set. Materialising all windows is expensive for
+    /// large graphs — prefer `page` over `list` when iterating.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await
@@ -181,6 +191,8 @@ impl GqlNodesWindowSet {
         .await)
     }
 
+    /// Materialise every window as a list. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlNodes>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -204,6 +216,8 @@ impl GqlPathFromNodeWindowSet {
 }
 #[ResolvedObjectFields]
 impl GqlPathFromNodeWindowSet {
+    /// Number of windows in this set. Materialising all windows is expensive for
+    /// large graphs — prefer `page` over `list` when iterating.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await
@@ -236,6 +250,8 @@ impl GqlPathFromNodeWindowSet {
         .await)
     }
 
+    /// Materialise every window as a list. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlPathFromNode>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -263,6 +279,8 @@ impl GqlEdgeWindowSet {
 }
 #[ResolvedObjectFields]
 impl GqlEdgeWindowSet {
+    /// Number of windows in this set. Materialising all windows is expensive for
+    /// large graphs — prefer `page` over `list` when iterating.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await
@@ -295,6 +313,8 @@ impl GqlEdgeWindowSet {
         .await)
     }
 
+    /// Materialise every window as a list. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdge>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
@@ -315,6 +335,8 @@ impl GqlEdgesWindowSet {
 }
 #[ResolvedObjectFields]
 impl GqlEdgesWindowSet {
+    /// Number of windows in this set. Materialising all windows is expensive for
+    /// large graphs — prefer `page` over `list` when iterating.
     async fn count(&self) -> usize {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.ws.clone().count()).await
@@ -347,6 +369,8 @@ impl GqlEdgesWindowSet {
         .await)
     }
 
+    /// Materialise every window as a list. Rejected by the server when bulk list
+    /// endpoints are disabled; use `page` for paginated access instead.
     async fn list(&self, ctx: &Context<'_>) -> async_graphql::Result<Vec<GqlEdges>> {
         check_list_allowed(ctx)?;
         let self_clone = self.clone();
