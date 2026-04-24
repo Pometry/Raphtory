@@ -141,9 +141,7 @@ def test_node_temporal_aggregates():
             "window": {
                 "node": {
                     "properties": {
-                        "temporal": {
-                            "get": {"sum": None, "mean": None, "count": 0}
-                        }
+                        "temporal": {"get": {"sum": None, "mean": None, "count": 0}}
                     }
                 }
             }
