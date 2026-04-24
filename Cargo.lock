@@ -6512,6 +6512,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "raphtory-auth"
+version = "0.18.0"
+dependencies = [
+ "async-graphql",
+ "dynamic-graphql",
+ "futures-util",
+ "raphtory-graphql",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "raphtory-auth-noop"
 version = "0.18.0"
 
@@ -6594,10 +6608,12 @@ dependencies = [
  "parking_lot",
  "poem",
  "pretty_assertions",
+ "proptest",
  "pyo3",
  "rand 0.9.4",
  "raphtory",
  "raphtory-api",
+ "raphtory-auth",
  "raphtory-storage",
  "rayon",
  "reqwest",

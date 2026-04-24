@@ -71,6 +71,9 @@ pretty_assertions = { workspace = true }
 raphtory = { workspace = true, features = ["test-utils"] }
 arrow-array = { workspace = true }
 rand = { workspace = true }
+proptest = { workspace = true }
+jsonwebtoken = { workspace = true }
+serde = { workspace = true }
 
 
 [features]
