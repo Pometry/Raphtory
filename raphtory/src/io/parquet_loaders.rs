@@ -242,6 +242,7 @@ pub fn load_node_metadata_from_parquet<
             metadata_properties,
             shared_metadata,
             graph,
+            false,
         )?;
     }
 

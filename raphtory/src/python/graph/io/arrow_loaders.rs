@@ -180,6 +180,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
             metadata,
             shared_metadata,
             graph,
+            false,
         )
     })
 }
@@ -588,6 +589,7 @@ pub(crate) fn load_node_metadata_from_csv_path<
         metadata,
         shared_metadata,
         graph,
+        false,
     )
 }
 

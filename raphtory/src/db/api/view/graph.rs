@@ -480,6 +480,7 @@ pub fn materialize_impl(
                             &node_c_props_refs,
                             None,
                             &materialized,
+                            true,
                         )
                     })
                 }

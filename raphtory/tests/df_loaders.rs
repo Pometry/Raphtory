@@ -663,6 +663,7 @@ mod io_tests {
             &[],
             None,
             &g,
+            false,
         )
         .unwrap();
 

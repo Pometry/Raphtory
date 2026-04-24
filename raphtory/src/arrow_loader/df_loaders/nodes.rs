@@ -255,6 +255,7 @@ pub fn load_node_props_from_df<
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
+    is_materializing: bool,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
@@ -316,6 +317,7 @@ pub fn load_node_props_from_df<
             &df,
             &node_col,
             node_type_col,
+            is_materializing,
         )?;
 
         // We assume this is fast enough
@@ -438,6 +440,7 @@ fn get_or_resolve_node_vids_no_events<
     df: &'b DFChunk,
     src_col: &'a NodeCol,
     node_type_col: LayerCol<'a>,
+    is_materializing: bool,
 ) -> Result<(&'c [VID], &'c [usize]), GraphError> {
     assert!(!(node_type_ids_col.is_none() ^ node_id_col.is_none())); // both some or both none
     if let Some((node_type_index, node_id_col)) = node_type_ids_col.zip(node_id_col) {
@@ -458,6 +461,7 @@ fn get_or_resolve_node_vids_no_events<
             df,
             src_col,
             node_type_col,
+            is_materializing,
         )
     }
 }
@@ -472,6 +476,7 @@ fn resolve_node_and_meta_for_node_col<
     df: &DFChunk,
     src_col: &NodeCol,
     node_type_col: LayerCol<'a>,
+    is_materializing: bool,
 ) -> Result<(&'a [VID], &'a [usize]), GraphError> {
     node_col_resolved.resize_with(df.len(), Default::default);
     node_type_resolved.resize_with(df.len(), Default::default);
@@ -504,10 +509,16 @@ fn resolve_node_and_meta_for_node_col<
         // Create the node if it doesn't exist yet so metadata-only callers
         // (e.g. materialize loading node c_props before t_props) still
         // allocate a fresh VID in the target graph.
-        let res_vid = graph
-            .resolve_node(gid.as_node_ref())
-            .map_err(into_graph_err)?
-            .inner();
+        let res_vid = if is_materializing {
+            graph
+                .resolve_node(gid.as_node_ref())
+                .map_err(into_graph_err)?
+                .inner()
+        } else {
+            graph
+                .internalise_node(gid.as_node_ref())
+                .unwrap_or_default()
+        };
         *vid = res_vid;
         last_node_type = node_type;
     }
