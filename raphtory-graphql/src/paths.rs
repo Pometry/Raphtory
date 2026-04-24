@@ -214,6 +214,9 @@ pub(crate) fn create_valid_path(
     base_path: PathBuf,
     relative_path: &str,
 ) -> Result<NewPath, InternalPathValidationError> {
+    println!("Base path: {base_path:?}");
+    println!("Relative path: {relative_path}");
+
     ensure_clean_folder(&base_path)?;
     let user_facing_path = PathBuf::from(relative_path);
 
@@ -233,10 +236,12 @@ pub(crate) fn create_valid_path(
             Ok(_) => {
                 if !full_path.exists() {
                     if cleanup_marker.is_none() {
+                        println!("Creating cleanup marker for: {full_path:?}");
                         cleanup_marker = Some(CleanupPath {
                             path: full_path.clone(),
                             dirty_marker: mark_dirty(&full_path)?,
                         });
+                        println!("Created cleanup marker for: {full_path:?}");
                         fs::create_dir(&full_path)?;
                     }
                 }
@@ -567,15 +572,21 @@ pub(crate) fn mark_dirty(path: &Path) -> Result<PathBuf, InternalPathValidationE
         .to_str()
         .ok_or(InternalPathValidationError::NonUTFCharacters)?
         .to_string();
+
     let parent = path
         .parent()
         .ok_or(InternalPathValidationError::MissingParent)?;
+
     ensure_clean_folder(parent)?;
+
     let dirty_file_path = parent.join(DIRTY_PATH);
     let mut dirty_file = File::create_new(&dirty_file_path)?;
+
     dirty_file.write_all(&serde_json::to_vec(&RelativePath { path: cleanup_path })?)?;
+
     // make sure the dirty path is properly recorded before we proceed!
     dirty_file.sync_all()?;
+
     Ok(dirty_file_path)
 }
 

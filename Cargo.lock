@@ -6595,7 +6595,7 @@ dependencies = [
  "poem",
  "pretty_assertions",
  "pyo3",
- "rand 0.9.2",
+ "rand 0.9.4",
  "raphtory",
  "raphtory-api",
  "raphtory-storage",
