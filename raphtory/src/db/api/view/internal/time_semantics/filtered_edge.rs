@@ -85,6 +85,14 @@ impl<'a, TS: TimeIndexOps<'a, IndexType = EventTime, RangeType = TS>, G: GraphVi
         }
     }
 
+    fn last(&self) -> Option<Self::IndexType> {
+        if self.view.internal_exploded_edge_filtered() {
+            self.clone().iter_rev().next()
+        } else {
+            self.time_index.last()
+        }
+    }
+
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         if self.view.internal_exploded_edge_filtered() {
             let view = self.view.clone();
