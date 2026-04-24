@@ -3,7 +3,7 @@ use std::time::Duration;
 use rand::prelude::IndexedRandom;
 use raphtory::{algorithms::components::in_component, prelude::*};
 use raphtory_graphql::{client::raphtory_client::RaphtoryGraphQLClient, server::RunningGraphServer, GraphServer};
-use tempfile::tempdir;
+use tempfile::TempDir;
 use url::Url;
 
 const PORT: u16 = 43871;
@@ -34,10 +34,7 @@ async fn create_namespaces(tree: &Graph, url: Url) {
 
     graph_paths.sort();
 
-    println!("Graph paths: {graph_paths:?}");
-
     for path in graph_paths {
-        println!("Creating graph: {path}");
         client.new_graph(path.as_str(), "EVENT").await.unwrap();
     }
 }
@@ -77,21 +74,22 @@ fn create_tree(nodes: u64) -> Graph {
     graph
 }
 
-async fn start_server() -> RunningGraphServer {
-    let tempdir = tempdir().unwrap();
+async fn start_server() -> (RunningGraphServer, TempDir) {
+    let tempdir = TempDir::new().unwrap();
     let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default()).await.unwrap();
     let server = server.start_with_port(PORT).await.unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
 
-    server
+    // Return server and tempdir to prevent cleanup on drop.
+    (server, tempdir)
 }
 
 #[tokio::test]
 async fn permissions_proptest() {
     let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
+    let (_server, _tempdir) = start_server().await;
     let namespace_tree = create_tree(10);
 
-    let server = start_server().await;
     create_namespaces(&namespace_tree, url).await;
 }

@@ -214,21 +214,20 @@ pub(crate) fn create_valid_path(
     base_path: PathBuf,
     relative_path: &str,
 ) -> Result<NewPath, InternalPathValidationError> {
-    println!("Base path: {base_path:?}");
-    println!("Relative path: {relative_path}");
-
     ensure_clean_folder(&base_path)?;
     let user_facing_path = PathBuf::from(relative_path);
 
     if relative_path.contains(r"//") {
         return Err(InvalidPathReason::DoubleForwardSlash.into());
     }
+
     if relative_path.contains(r"\") {
         return Err(InvalidPathReason::BackslashError.into());
     }
 
     let mut full_path = base_path.clone();
     let mut cleanup_marker = None;
+
     // fail if any component is a Prefix (C://), tries to access root,
     // tries to access a parent dir or is a symlink which could break out of the working dir
     for component in user_facing_path.components() {
@@ -236,12 +235,11 @@ pub(crate) fn create_valid_path(
             Ok(_) => {
                 if !full_path.exists() {
                     if cleanup_marker.is_none() {
-                        println!("Creating cleanup marker for: {full_path:?}");
                         cleanup_marker = Some(CleanupPath {
                             path: full_path.clone(),
                             dirty_marker: mark_dirty(&full_path)?,
                         });
-                        println!("Created cleanup marker for: {full_path:?}");
+
                         fs::create_dir(&full_path)?;
                     }
                 }
@@ -334,11 +332,13 @@ impl ValidWriteableGraphFolder {
                 error,
             }
         })?;
+
         if !path.cleanup.is_some() {
             return Err(PathValidationError::GraphExistsError(
                 relative_path.to_string(),
             ));
         }
+
         Self::new(path, relative_path)
     }
 
