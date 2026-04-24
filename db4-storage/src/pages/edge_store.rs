@@ -123,7 +123,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
         .map(|(row_group_id, iter)| {
             (
                 row_group_id,
-                iter.filter(|eid| self.edge_ref(Either::Left(*eid)).edge(LayerId(0)).is_some()),
+                iter.filter(|eid| {
+                    self.edge_ref(Either::Left(*eid))
+                        .has_layer_inner(STATIC_GRAPH_LAYER_ID)
+                }),
             )
         })
     }

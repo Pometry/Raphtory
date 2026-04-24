@@ -5,7 +5,7 @@ use crate::{
     generic_t_props::WithTProps,
     segments::{additions::MemAdditions, edge::segment::MemEdgeSegment},
 };
-use raphtory_api::core::entities::{LayerId, properties::prop::Prop};
+use raphtory_api::core::entities::{LayerId, edges::edge_ref::Dir, properties::prop::Prop};
 use raphtory_core::{
     entities::{
         EID, Multiple, VID,
@@ -154,6 +154,24 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type Additions = EdgeAdditions<'a>;
     type Deletions = EdgeDeletions<'a>;
     type TProps = EdgeTProps<'a>;
+
+    #[inline]
+    fn edge_ref(self, dir: Dir) -> EdgeRef {
+        match self.edge_ref {
+            None => {
+                let es = &self.es.as_ref()[0];
+                let entry = es.get(self.pos).unwrap();
+                let segment_id = es.segment_id();
+                let max_page_len = es.max_page_len();
+                let eid = self.pos.as_eid(segment_id, max_page_len);
+                EdgeRef::new(eid, entry.src, entry.dst, dir)
+            }
+            Some(mut edge_ref) => {
+                edge_ref.set_dir(dir);
+                edge_ref
+            }
+        }
+    }
 
     fn edge(self, layer_id: LayerId) -> Option<(VID, VID)> {
         match self.edge_ref {

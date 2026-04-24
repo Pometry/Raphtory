@@ -5,6 +5,7 @@ use crate::{
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::{
     LayerId,
+    edges::edge_ref::Dir,
     properties::{meta::Meta, prop::Prop, tprop::TPropOps},
 };
 use raphtory_core::{
@@ -179,4 +180,5 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     fn dst(&self) -> Option<VID>;
 
     fn edge_id(&self) -> EID;
+    fn edge_ref(self, dir: Dir) -> EdgeRef;
 }

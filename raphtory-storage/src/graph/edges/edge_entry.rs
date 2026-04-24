@@ -1,5 +1,6 @@
 use crate::graph::edges::edge_storage_ops::EdgeStorageOps;
 use raphtory_api::core::entities::{
+    edges::edge_ref::{Dir, EdgeRef},
     properties::{prop::Prop, tprop::TPropOps},
     LayerId,
 };
@@ -26,6 +27,11 @@ impl<'a> EdgeStorageEntry<'a> {
 impl<'a, 'b: 'a> EdgeStorageOps<'a> for &'a EdgeStorageEntry<'b> {
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         self.as_ref().added(layer_ids, w)
+    }
+
+    #[inline]
+    fn edge_ref(self, dir: Dir) -> EdgeRef {
+        self.as_ref().edge_ref(dir)
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
