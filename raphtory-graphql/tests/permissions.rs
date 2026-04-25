@@ -89,7 +89,11 @@ fn create_tree(nodes: u64) -> Graph {
 
 fn start_server() -> (RunningGraphServer, TempDir) {
     RUNTIME.block_on(async {
-        let tempdir = TempDir::new().unwrap();
+        let mut tempdir = TempDir::new().unwrap();
+
+        // Prevent server drop from failing due to tempdir cleanup.
+        tempdir.disable_cleanup(true);
+
         let server = GraphServer::new(
             tempdir.path().to_path_buf(),
             None,
@@ -110,7 +114,7 @@ fn start_server() -> (RunningGraphServer, TempDir) {
 fn permissions_proptest() {
     const PROPTEST_CASES: u32 = 10;
     const TREE_SIZE_RANGE: RangeInclusive<u64> = 1..=20;
-    const NUM_USERS_RANGE: RangeInclusive<u64> = 2..=10;
+    const NUM_USERS_RANGE: RangeInclusive<u64> = 1..=10;
 
     proptest!(
         ProptestConfig::with_cases(PROPTEST_CASES),
@@ -121,6 +125,8 @@ fn permissions_proptest() {
             let graph_paths = create_graphs(&namespace_tree, url);
 
             // For each
+            black_box(_server);
+            black_box(_tempdir);
         }
     );
 }
