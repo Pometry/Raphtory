@@ -38,7 +38,7 @@ impl PyGraphFilter {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn window(start: EventTime, end: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.window(start, end)))
@@ -50,7 +50,7 @@ impl PyGraphFilter {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn at(time: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.at(time)))
@@ -62,7 +62,7 @@ impl PyGraphFilter {
     ///     time (int): Lower time bound.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn after(time: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.after(time)))
@@ -74,7 +74,7 @@ impl PyGraphFilter {
     ///     time (int): Upper time bound.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn before(time: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.before(time)))
@@ -83,7 +83,7 @@ impl PyGraphFilter {
     /// Evaluates filters against the latest available state of the graph.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn latest() -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.latest()))
@@ -95,7 +95,7 @@ impl PyGraphFilter {
     ///     time (int): Snapshot time.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn snapshot_at(time: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.snapshot_at(time)))
@@ -104,7 +104,7 @@ impl PyGraphFilter {
     /// Evaluates filters against the most recent snapshot of the graph.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn snapshot_latest() -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.snapshot_latest()))
@@ -116,7 +116,7 @@ impl PyGraphFilter {
     ///     layer (str): Layer name.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn layer(layer: String) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.layer(layer)))
@@ -128,7 +128,7 @@ impl PyGraphFilter {
     ///     layers (list[str]): Layer names.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyViewFilterBuilder {
         PyViewFilterBuilder(Arc::new(GraphFilter.layer(layers)))

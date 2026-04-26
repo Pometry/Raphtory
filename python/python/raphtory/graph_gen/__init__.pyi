@@ -1,7 +1,6 @@
 """
 Generate Raphtory graphs from attachment models
 """
-
 from __future__ import annotations
 
 ###############################################################################
@@ -20,20 +19,22 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ["random_attachment", "ba_preferential_attachment"]
-
-def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None):
+__all__ = ['random_attachment', 'ba_preferential_attachment']
+def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None) -> None:
     """
     Generates a graph using the random attachment model
 
@@ -48,12 +49,10 @@ def random_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any 
       seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 
     Returns:
-     None
+     None:
     """
 
-def ba_preferential_attachment(
-    g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None
-):
+def ba_preferential_attachment(g: Any, nodes_to_add: Any, edges_per_step: Any, seed: Any = None) -> None:
     """
     Generates a graph using the preferential attachment model.
 
@@ -75,6 +74,5 @@ def ba_preferential_attachment(
        seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 
     Returns:
-
-    None
+        None:
     """

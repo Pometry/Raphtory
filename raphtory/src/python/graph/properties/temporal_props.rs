@@ -241,7 +241,7 @@ impl PyTemporalProp {
     /// Get the property values for each update.
     ///
     /// Returns:
-    ///     NumpyArray:
+    ///     NDArray: a numpy array of values, one per update.
     pub fn values(&self) -> NumpyArray {
         self.prop.values().collect()
     }
@@ -851,6 +851,10 @@ impl PyPropHistValueListList {
         (move || builder().flatten()).into()
     }
 
+    /// Number of properties (or rows of properties).
+    ///
+    /// Returns:
+    ///     NestedUsizeIterable:
     pub fn count(&self) -> NestedUsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|itit| itit.len()))).into()
@@ -937,6 +941,10 @@ impl PropIterable {
         compute_median(self.iter().collect())
     }
 
+    /// Number of properties (or rows of properties).
+    ///
+    /// Returns:
+    ///     int:
     pub fn count(&self) -> usize {
         self.iter().count()
     }
@@ -1035,6 +1043,10 @@ impl PyPropHistValueList {
         (move || builder().map(compute_mean)).into()
     }
 
+    /// Number of properties (or rows of properties).
+    ///
+    /// Returns:
+    ///     UsizeIterable:
     pub fn count(&self) -> UsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.len())).into()
@@ -1060,6 +1072,10 @@ impl PyPropValueList {
         )
     }
 
+    /// Number of properties (or rows of properties).
+    ///
+    /// Returns:
+    ///     int:
     pub fn count(&self) -> usize {
         self.iter().count()
     }
@@ -1192,6 +1208,10 @@ impl PyPropValueListList {
         (move || builder().flatten()).into()
     }
 
+    /// Number of properties (or rows of properties).
+    ///
+    /// Returns:
+    ///     UsizeIterable:
     pub fn count(&self) -> UsizeIterable {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.count())).into()

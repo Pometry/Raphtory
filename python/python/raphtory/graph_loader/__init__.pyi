@@ -1,7 +1,6 @@
 """
 Load and save Raphtory graphs from/to file(s)
 """
-
 from __future__ import annotations
 
 ###############################################################################
@@ -20,27 +19,21 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = [
-    "lotr_graph",
-    "lotr_graph_with_props",
-    "neo4j_movie_graph",
-    "stable_coin_graph",
-    "reddit_hyperlink_graph",
-    "reddit_hyperlink_graph_local",
-    "karate_club_graph",
-]
-
+__all__ = ['lotr_graph', 'lotr_graph_with_props', 'neo4j_movie_graph', 'stable_coin_graph', 'reddit_hyperlink_graph', 'reddit_hyperlink_graph_local', 'karate_club_graph']
 def lotr_graph() -> Graph:
     """
     Load the Lord of the Rings dataset into a graph.
@@ -69,9 +62,7 @@ def lotr_graph_with_props() -> Graph:
         Graph:
     """
 
-def neo4j_movie_graph(
-    uri: str, username: str, password: str, database: str = ...
-) -> Graph:
+def neo4j_movie_graph(uri: str, username: str, password: str, database: str = "neo4j") -> Graph:
     """
     Returns the neo4j movie graph example.
 
@@ -79,7 +70,7 @@ def neo4j_movie_graph(
         uri (str):
         username (str):
         password (str):
-        database (str):
+        database (str): Neo4j database name. Defaults to "neo4j".
 
     Returns:
         Graph:

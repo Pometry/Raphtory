@@ -15,36 +15,25 @@ import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = [
-    "VectorisedGraph",
-    "Document",
-    "Embedding",
-    "VectorSelection",
-    "OpenAIEmbeddings",
-    "VectorCache",
-    "embedding_server",
-]
-
-class VectorisedGraph(object):
+__all__ = ['VectorisedGraph', 'Document', 'Embedding', 'VectorSelection', 'OpenAIEmbeddings', 'VectorCache', 'EmbeddingServer', 'RunningEmbeddingServer', 'embedding_server']
+class VectorisedGraph(object): 
     """VectorisedGraph object that contains embedded documents that correspond to graph entities."""
 
-    def edges_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> VectorSelection:
+    def edges_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
         """
         Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked in ascending order of distance.
 
@@ -57,15 +46,15 @@ class VectorisedGraph(object):
           VectorSelection: The vector selection resulting from the search.
         """
 
-    def empty_selection(self):
-        """Return an empty selection of entities."""
+    def empty_selection(self) -> VectorSelection:
+        """
+        Return an empty selection of entities.
 
-    def entities_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> VectorSelection:
+        Returns:
+            VectorSelection:
+        """
+
+    def entities_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
         """
         Perform a similarity search between each entity's associated document and a specified `query`. Returns a number of entities up to a specified `limit` ranked in ascending order of distance.
 
@@ -78,12 +67,7 @@ class VectorisedGraph(object):
           VectorSelection: The vector selection resulting from the search.
         """
 
-    def nodes_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> VectorSelection:
+    def nodes_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
         """
         Perform a similarity search between each node's associated document and a specified `query`. Returns a number of nodes up to a specified `limit` ranked in ascending order of distance.
 
@@ -96,10 +80,15 @@ class VectorisedGraph(object):
           VectorSelection: The vector selection resulting from the search.
         """
 
-    def optimize_index(self):
-        """Optmize the vector index"""
+    def optimize_index(self) -> None:
+        """
+        Optimise the vector index.
 
-class Document(object):
+        Returns:
+            None:
+        """
+
+class Document(object): 
     """A document corresponding to a graph entity. Used to generate embeddings."""
 
     def __repr__(self):
@@ -132,13 +121,21 @@ class Document(object):
             Optional[Any]:
         """
 
-class Embedding(object):
+class Embedding(object): 
+
     def __repr__(self):
         """Return repr(self)."""
 
-    def to_arrow(self): ...
+    def to_arrow(self) -> pyarrow.Array:
+        """
+        Returns the embedding as a `pyarrow.Array` of floats.
 
-class VectorSelection(object):
+        Returns:
+            pyarrow.Array:
+        """
+
+class VectorSelection(object): 
+
     def add_edges(self, edges: list) -> None:
         """
         Add all the documents associated with the specified `edges` to the current selection.
@@ -184,9 +181,7 @@ class VectorSelection(object):
             list[Edge]: List of edges in the current selection.
         """
 
-    def expand(
-        self, hops: int, window: Optional[Tuple[int | str, int | str]] = None
-    ) -> None:
+    def expand(self, hops: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
         Add all the documents a specified number of `hops` away from the selection.
 
@@ -203,12 +198,7 @@ class VectorSelection(object):
             None:
         """
 
-    def expand_edges_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> None:
+    def expand_edges_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
         Add to the selection the `limit` adjacent edges closest to `query`
 
@@ -223,12 +213,7 @@ class VectorSelection(object):
             None:
         """
 
-    def expand_entities_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> None:
+    def expand_entities_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
         Add to the selection the `limit` adjacent entities closest to `query`
 
@@ -250,12 +235,7 @@ class VectorSelection(object):
             None:
         """
 
-    def expand_nodes_by_similarity(
-        self,
-        query: str | list,
-        limit: int,
-        window: Optional[Tuple[int | str, int | str]] = None,
-    ) -> None:
+    def expand_nodes_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
         """
         Add to the selection the `limit` adjacent nodes closest to `query`
 
@@ -294,20 +274,86 @@ class VectorSelection(object):
             list[Node]: List of nodes in the current selection.
         """
 
-class OpenAIEmbeddings(object):
-    def __new__(
-        cls,
-        model="text-embedding-3-small",
-        api_base=None,
-        api_key_env=None,
-        org_id=None,
-        project_id=None,
-        dim=None,
-    ) -> OpenAIEmbeddings:
+class OpenAIEmbeddings(object): 
+    """
+    OpenAI-compatible embedding configuration. Pass an instance of this to
+    `VectorCache(...)` to drive `vectorise(...)`.
+
+    Arguments:
+        model (str): The OpenAI embedding model to use. Defaults to "text-embedding-3-small".
+        api_base (str, optional): Base URL for the OpenAI-compatible API. Defaults to None.
+        api_key_env (str, optional): Environment variable name to read the API key from. Defaults to None.
+        org_id (str, optional): OpenAI organization id. Defaults to None.
+        project_id (str, optional): OpenAI project id. Defaults to None.
+        dim (int, optional): Embedding dimension override. Defaults to None.
+    """
+
+    def __new__(cls, model: str = 'text-embedding-3-small', api_base: Optional[str] = None, api_key_env: Optional[str] = None, org_id: Optional[str] = None, project_id: Optional[str] = None, dim: Optional[int] = None) -> OpenAIEmbeddings:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class VectorCache(object):
-    def __new__(cls, v_cache, cache=None) -> VectorCache:
+class VectorCache(object): 
+    """
+    Cache wrapping an embedding model. Pass to `Graph.vectorise(model=...)`
+    or other vectorisation entry points.
+
+    Arguments:
+        v_cache (OpenAIEmbeddings): Embedding model configuration.
+        cache (str, optional): Path to persist the embedding cache on disk. Defaults to None.
+    """
+
+    def __new__(cls, v_cache: OpenAIEmbeddings, cache: Optional[str] = None) -> VectorCache:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-def embedding_server(function): ...
+class EmbeddingServer(object): 
+
+    def run(self, port: int, host: Optional[str] = None) -> None:
+        """
+        Run the embedding server in the foreground until it's stopped.
+
+        Arguments:
+            port (int): Port to listen on.
+            host (str, optional): Host interface to bind to. Defaults to None.
+
+        Returns:
+            None:
+        """
+
+    def start(self, port: int, host: Optional[str] = None) -> RunningEmbeddingServer:
+        """
+        Start the embedding server in the background and return a handle.
+
+        Arguments:
+            port (int): Port to listen on.
+            host (str, optional): Host interface to bind to. Defaults to None.
+
+        Returns:
+            RunningEmbeddingServer: handle to stop the server.
+        """
+
+class RunningEmbeddingServer(object): 
+
+    def __enter__(self):
+        ...
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        ...
+
+    def stop(self) -> None:
+        """
+        Stop the running embedding server.
+
+        Returns:
+            None:
+        """
+
+def embedding_server(function: Callable[[str], list[float]]) -> EmbeddingServer:
+    """
+    Wrap a Python callable so it can be served as an OpenAI-compatible
+    embedding endpoint via `EmbeddingServer.serve(...)`.
+
+    Arguments:
+        function (Callable[[str], list[float]]): A callable that maps a text input to its embedding vector.
+
+    Returns:
+        EmbeddingServer:
+    """

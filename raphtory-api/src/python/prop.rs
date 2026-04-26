@@ -3,6 +3,7 @@ use crate::core::{
     storage::arc_str::ArcStr,
 };
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use pyo3::{
     exceptions::PyTypeError,
     prelude::*,
@@ -112,62 +113,146 @@ pub struct PyProp(pub Prop);
 
 #[pymethods]
 impl PyProp {
+    /// Construct a `Prop` holding an unsigned 8-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u8(value: u8) -> Self {
         PyProp(Prop::U8(value))
     }
 
+    /// Construct a `Prop` holding an unsigned 16-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u16(value: u16) -> Self {
         PyProp(Prop::U16(value))
     }
 
+    /// Construct a `Prop` holding an unsigned 32-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u32(value: u32) -> Self {
         PyProp(Prop::U32(value))
     }
 
+    /// Construct a `Prop` holding an unsigned 64-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u64(value: u64) -> Self {
         PyProp(Prop::U64(value))
     }
 
+    /// Construct a `Prop` holding a signed 32-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn i32(value: i32) -> Self {
         PyProp(Prop::I32(value))
     }
 
+    /// Construct a `Prop` holding a signed 64-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn i64(value: i64) -> Self {
         PyProp(Prop::I64(value))
     }
 
+    /// Construct a `Prop` holding a 32-bit float.
+    ///
+    /// Arguments:
+    ///     value (float): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn f32(value: f32) -> Self {
         PyProp(Prop::F32(value))
     }
 
+    /// Construct a `Prop` holding a 64-bit float.
+    ///
+    /// Arguments:
+    ///     value (float): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn f64(value: f64) -> Self {
         PyProp(Prop::F64(value))
     }
 
+    /// Construct a `Prop` holding a string.
+    ///
+    /// Arguments:
+    ///     value (str): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn str(value: &str) -> Self {
         PyProp(Prop::str(value))
     }
 
+    /// Construct a `Prop` holding a boolean.
+    ///
+    /// Arguments:
+    ///     value (bool): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn bool(value: bool) -> Self {
         PyProp(Prop::Bool(value))
     }
 
+    /// Construct a `Prop` holding a list of values.
+    ///
+    /// Arguments:
+    ///     values (list): the values to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn list(values: &Bound<'_, PyAny>) -> PyResult<Self> {
         let elems: Vec<Prop> = values.extract()?;
         Ok(PyProp(Prop::list(elems)))
     }
 
+    /// Construct a `Prop` holding a string-keyed map of values.
+    ///
+    /// Arguments:
+    ///     dict (dict[str, Any]): the map to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn map(dict: Bound<'_, PyDict>) -> PyResult<Self> {
         let items: HashMap<String, Prop> = dict.extract()?;
@@ -180,6 +265,50 @@ impl PyProp {
         Ok(PyProp(Prop::Map(Arc::new(map))))
     }
 
+    /// Construct a `Prop` holding a timezone-aware datetime (stored as UTC).
+    ///
+    /// Arguments:
+    ///     value (datetime): a timezone-aware datetime. Use `Prop.naive_datetime` for naive ones.
+    ///
+    /// Returns:
+    ///     Prop:
+    #[staticmethod]
+    pub fn datetime(value: DateTime<Utc>) -> Self {
+        PyProp(Prop::DTime(value))
+    }
+
+    /// Construct a `Prop` holding a naive (timezone-unaware) datetime.
+    ///
+    /// Arguments:
+    ///     value (datetime): the value to wrap (any tz info is dropped).
+    ///
+    /// Returns:
+    ///     Prop:
+    #[staticmethod]
+    pub fn naive_datetime(value: NaiveDateTime) -> Self {
+        PyProp(Prop::NDTime(value))
+    }
+
+    /// Construct a `Prop` holding an arbitrary-precision decimal.
+    ///
+    /// Arguments:
+    ///     value (str | Decimal): the value to wrap; strings must parse as a decimal.
+    ///
+    /// Returns:
+    ///     Prop:
+    #[staticmethod]
+    pub fn decimal(value: &str) -> PyResult<Self> {
+        let bd = BigDecimal::from_str(value)
+            .map_err(|_| PyTypeError::new_err(format!("Could not convert {value} to Decimal")))?;
+        let prop = Prop::try_from_bd(bd)
+            .map_err(|_| PyTypeError::new_err(format!("Decimal too large {value}")))?;
+        Ok(PyProp(prop))
+    }
+
+    /// Returns the `PropType` of the wrapped value.
+    ///
+    /// Returns:
+    ///     PropType:
     pub fn dtype(&self) -> PropType {
         self.0.dtype()
     }
@@ -268,71 +397,133 @@ pub struct PyPropType(pub PropType);
 
 #[pymethods]
 impl PyPropType {
+    /// Unsigned 8-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u8() -> PropType {
         PropType::U8
     }
 
+    /// Unsigned 16-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u16() -> PropType {
         PropType::U16
     }
 
+    /// Unsigned 32-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u32() -> PropType {
         PropType::U32
     }
 
+    /// Unsigned 64-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u64() -> PropType {
         PropType::U64
     }
 
+    /// Signed 32-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn i32() -> PropType {
         PropType::I32
     }
 
+    /// Signed 64-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn i64() -> PropType {
         PropType::I64
     }
 
+    /// 32-bit float type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn f32() -> PropType {
         PropType::F32
     }
 
+    /// 64-bit float type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn f64() -> PropType {
         PropType::F64
     }
 
+    /// String type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn str() -> PropType {
         PropType::Str
     }
 
+    /// Boolean type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn bool() -> PropType {
         PropType::Bool
     }
 
+    /// Naive datetime type (timezone-unaware).
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn naive_datetime() -> PropType {
         PropType::NDTime
     }
 
+    /// Datetime type (timezone-aware).
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn datetime() -> PropType {
         PropType::DTime
     }
 
+    /// List type with a single element type.
+    ///
+    /// Arguments:
+    ///     p (PropType): element type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn list(p: PropType) -> PropType {
         PropType::List(Box::new(p))
     }
 
+    /// Map type with string keys and typed values.
+    ///
+    /// Arguments:
+    ///     hash_map (dict[str, PropType]): mapping from key name to value type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn map(hash_map: HashMap<String, PropType>) -> PropType {
         PropType::Map(Arc::new(hash_map))
