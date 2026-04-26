@@ -273,7 +273,7 @@ impl PyProp {
     /// Returns:
     ///     Prop:
     #[staticmethod]
-    pub fn datetime(value: DateTime<Utc>) -> Self {
+    pub fn aware_datetime(value: DateTime<Utc>) -> Self {
         PyProp(Prop::DTime(value))
     }
 
@@ -292,16 +292,37 @@ impl PyProp {
     /// Construct a `Prop` holding an arbitrary-precision decimal.
     ///
     /// Arguments:
-    ///     value (str | Decimal): the value to wrap; strings must parse as a decimal.
+    ///     value (Decimal | str | int | float): the value to wrap. Strings must
+    ///         parse as a decimal. Note that floats only have ~15-17 digits of
+    ///         precision — pass a string or `decimal.Decimal` for higher precision.
     ///
     /// Returns:
     ///     Prop:
     #[staticmethod]
-    pub fn decimal(value: &str) -> PyResult<Self> {
-        let bd = BigDecimal::from_str(value)
-            .map_err(|_| PyTypeError::new_err(format!("Could not convert {value} to Decimal")))?;
+    pub fn decimal(value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let bd = if value.get_type().name()?.contains("Decimal")? {
+            // decimal.Decimal — go via its str representation for full precision.
+            let s = value.str()?.to_cow()?.into_owned();
+            BigDecimal::from_str(&s)
+                .map_err(|_| PyTypeError::new_err(format!("Could not convert {s} to Decimal")))?
+        } else if let Ok(i) = value.extract::<i64>() {
+            BigDecimal::from(i)
+        } else if let Ok(u) = value.extract::<u64>() {
+            BigDecimal::from(u)
+        } else if let Ok(f) = value.extract::<f64>() {
+            BigDecimal::try_from(f)
+                .map_err(|_| PyTypeError::new_err(format!("Could not convert {f} to Decimal")))?
+        } else if let Ok(s) = value.extract::<String>() {
+            BigDecimal::from_str(&s)
+                .map_err(|_| PyTypeError::new_err(format!("Could not convert {s} to Decimal")))?
+        } else {
+            return Err(PyTypeError::new_err(format!(
+                "Could not convert {:?} to Decimal",
+                value
+            )));
+        };
         let prop = Prop::try_from_bd(bd)
-            .map_err(|_| PyTypeError::new_err(format!("Decimal too large {value}")))?;
+            .map_err(|_| PyTypeError::new_err(format!("Decimal too large: {value:?}")))?;
         Ok(PyProp(prop))
     }
 
@@ -503,6 +524,19 @@ impl PyPropType {
     #[staticmethod]
     pub fn datetime() -> PropType {
         PropType::DTime
+    }
+
+    /// Arbitrary-precision decimal type with a fixed scale (number of digits
+    /// after the decimal point).
+    ///
+    /// Arguments:
+    ///     scale (int): the number of digits after the decimal point.
+    ///
+    /// Returns:
+    ///     PropType:
+    #[staticmethod]
+    pub fn decimal(scale: i64) -> PropType {
+        PropType::Decimal { scale }
     }
 
     /// List type with a single element type.

@@ -25,40 +25,40 @@ from pandas import DataFrame
 import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['gql', 'register_procedure', 'GqlResult', 'GqlRow']
-def gql(graph: GraphView, query: str, params: Optional[dict] = None) -> GqlResult:
+__all__ = ["gql", "register_procedure", "GqlResult", "GqlRow"]
+
+def gql(graph: Any, query: Any, params=None):
     """
     Execute a GQL query against a Raphtory graph view.
 
     Args:
-        graph (GraphView): A Raphtory GraphView to query.
-        query (str): A GQL query string.
-        params (dict, optional): Optional parameter bindings for the query. Defaults to None.
+        graph: A Raphtory GraphView to query
+        query: A GQL query string
 
     Returns:
-        GqlResult: A result object with table display, pandas conversion, and iteration.
+        A GqlResult object with table display, pandas conversion, and iteration.
     """
 
-def register_procedure(graph: GraphView, name: str, input_params: list[str], output_params: list[str], data: list[dict]) -> None:
+def register_procedure(
+    graph: Any, name: Any, input_params: Any, output_params: Any, data: Any
+):
     """
     Register a mock procedure with the cached coordinator.
 
     Args:
-        graph (GraphView): A Raphtory GraphView (needed to ensure coordinator is initialized).
-        name (str): Procedure name (e.g., "test.my.proc").
-        input_params (list[str]): List of input parameter names.
-        output_params (list[str]): List of output parameter names.
-        data (list[dict]): List of dicts, each dict maps column name -> value.
-
-    Returns:
-        None:
+        graph: A Raphtory GraphView (needed to ensure coordinator is initialized)
+        name: Procedure name (e.g., "test.my.proc")
+        input_params: List of input parameter names
+        output_params: List of output parameter names
+        data: List of dicts, each dict maps column name -> value
     """
 
-class GqlResult(object): 
+class GqlResult(object):
     """GQL query result with table display, pandas conversion, and iteration."""
 
     def __getitem__(self, key):
@@ -77,39 +77,19 @@ class GqlResult(object):
         """Return str(self)."""
 
     @property
-    def columns(self) -> list[str]:
-        """
-        Get column names.
+    def columns(self):
+        """Get column names."""
 
-        Returns:
-            list[str]:
-        """
+    def num_columns(self):
+        """Number of columns."""
 
-    def num_columns(self) -> int:
-        """
-        Number of columns.
+    def num_rows(self):
+        """Number of rows."""
 
-        Returns:
-            int:
-        """
+    def to_df(self):
+        """Convert to a pandas DataFrame."""
 
-    def num_rows(self) -> int:
-        """
-        Number of rows.
-
-        Returns:
-            int:
-        """
-
-    def to_df(self) -> pandas.DataFrame:
-        """
-        Convert to a pandas DataFrame.
-
-        Returns:
-            pandas.DataFrame:
-        """
-
-class GqlRow(object): 
+class GqlRow(object):
     """A single row from a GQL query result."""
 
     def __getitem__(self, key):
@@ -118,26 +98,6 @@ class GqlRow(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def keys(self) -> list[str]:
-        """
-        Column names of this row.
-
-        Returns:
-            list[str]:
-        """
-
-    def to_dict(self) -> dict:
-        """
-        Convert this row to a Python `dict` of `{column: value}`.
-
-        Returns:
-            dict:
-        """
-
-    def values(self) -> list:
-        """
-        Values of this row aligned with `keys()`.
-
-        Returns:
-            list:
-        """
+    def keys(self): ...
+    def to_dict(self): ...
+    def values(self): ...

@@ -1891,3 +1891,152 @@ def test_load_nodes_invalid_layer_reference():
 
     with pytest.raises(Exception, match="Invalid layer: nonexistent_layer"):
         g.layers(["nonexistent_layer"])
+
+
+# --- Schema loading: Decimal & datetime PropTypes -----------------------------
+
+
+def test_load_nodes_with_decimal_schema_from_string_column():
+    """`schema={"col": PropType.decimal(N)}` casts a string column to Decimal."""
+    from decimal import Decimal
+
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "price": ["19.99", "0.50"],
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["price"],
+        schema={"price": PropType.decimal(2)},
+    )
+    assert g.node("s1").properties["price"] == Decimal("19.99")
+    assert g.node("s2").properties["price"] == Decimal("0.50")
+
+
+def test_load_nodes_with_decimal_schema_from_arrow_decimal_column():
+    """An Arrow Decimal128 column maps onto `PropType.decimal(scale)`."""
+    from decimal import Decimal
+
+    arr = pa.array(
+        [Decimal("1.23"), Decimal("4.56")],
+        type=pa.decimal128(precision=10, scale=2),
+    )
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "price": arr.to_pandas(),
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["price"],
+        schema={"price": PropType.decimal(2)},
+    )
+    assert g.node("s1").properties["price"] == Decimal("1.23")
+    assert g.node("s2").properties["price"] == Decimal("4.56")
+
+
+def test_load_edges_with_decimal_schema():
+    from decimal import Decimal
+
+    df = pd.DataFrame(
+        {
+            "src": ["a", "b"],
+            "dst": ["b", "c"],
+            "time": [1, 2],
+            "weight": ["3.14", "2.71"],
+        }
+    )
+    g = Graph()
+    g.load_edges(
+        df,
+        time="time",
+        src="src",
+        dst="dst",
+        properties=["weight"],
+        schema={"weight": PropType.decimal(2)},
+    )
+    assert g.edge("a", "b").properties["weight"] == Decimal("3.14")
+    assert g.edge("b", "c").properties["weight"] == Decimal("2.71")
+
+
+def test_load_nodes_with_naive_datetime_schema():
+    """`PropType.naive_datetime()` casts a string column to NDTime."""
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "ts": ["2024-06-01T12:00:00", "2024-06-02T13:30:00"],
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["ts"],
+        schema={"ts": PropType.naive_datetime()},
+    )
+    assert g.node("s1").properties["ts"] == datetime.datetime(2024, 6, 1, 12, 0, 0)
+    assert g.node("s2").properties["ts"] == datetime.datetime(2024, 6, 2, 13, 30, 0)
+
+
+def test_load_nodes_with_aware_datetime_schema():
+    """`PropType.datetime()` casts to DTime (timezone-aware UTC)."""
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "ts": ["2024-06-01T12:00:00+00:00", "2024-06-02T13:30:00+00:00"],
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["ts"],
+        schema={"ts": PropType.datetime()},
+    )
+    assert g.node("s1").properties["ts"] == datetime.datetime(
+        2024, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc
+    )
+    assert g.node("s2").properties["ts"] == datetime.datetime(
+        2024, 6, 2, 13, 30, 0, tzinfo=datetime.timezone.utc
+    )
+
+
+def test_load_edges_with_datetime_schema():
+    df = pd.DataFrame(
+        {
+            "src": ["a", "b"],
+            "dst": ["b", "c"],
+            "time": [1, 2],
+            "scheduled_at": [
+                "2024-06-01T09:00:00+00:00",
+                "2024-06-02T17:00:00+00:00",
+            ],
+        }
+    )
+    g = Graph()
+    g.load_edges(
+        df,
+        time="time",
+        src="src",
+        dst="dst",
+        properties=["scheduled_at"],
+        schema={"scheduled_at": PropType.datetime()},
+    )
+    assert g.edge("a", "b").properties["scheduled_at"] == datetime.datetime(
+        2024, 6, 1, 9, 0, 0, tzinfo=datetime.timezone.utc
+    )

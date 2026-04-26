@@ -17,9 +17,11 @@ use crate::{
             },
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                MetadataView, PropertiesView, PyMetadata, PyPropHistValueList,
-                PyPropHistValueListList, PyPropValueList, PyPropValueListList, PyProperties,
-                PyTemporalProp, PyTemporalProperties, PyTemporalPropsList, PyTemporalPropsListList,
+                MetadataView, PropertiesView, PyMetadata, PyPropHistItemsList,
+                PyPropHistItemsListList, PyPropHistValueList, PyPropHistValueListList,
+                PyPropValueList, PyPropValueListList, PyProperties, PyTemporalProp,
+                PyTemporalPropList, PyTemporalPropListList, PyTemporalProperties,
+                PyTemporalPropsList, PyTemporalPropsListList,
             },
             views::graph_view::PyGraphView,
         },
@@ -50,7 +52,7 @@ use crate::{
                     NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
                     OptionArcStringIterable, OptionEventTimeIterable, OptionI64Iterable,
                     OptionUsizeIterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
-                    StringIterable, U64Iterable, UsizeIterable,
+                    PropIterable, StringIterable, U64Iterable, UsizeIterable,
                 },
             },
         },
@@ -177,6 +179,11 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         PyTemporalPropsListList,
         PyPropHistValueList,
         PyPropHistValueListList,
+        PyTemporalPropList,
+        PyTemporalPropListList,
+        PyPropHistItemsList,
+        PyPropHistItemsListList,
+        PropIterable,
     );
     Ok(iterables_module)
 }

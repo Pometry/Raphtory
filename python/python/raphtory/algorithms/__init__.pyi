@@ -1,6 +1,7 @@
 """
 Algorithmic functions that can be run on Raphtory graphs
 """
+
 from __future__ import annotations
 
 ###############################################################################
@@ -28,12 +29,65 @@ from pandas import DataFrame
 import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['dijkstra_single_source_shortest_paths', 'global_reciprocity', 'betweenness_centrality', 'all_local_reciprocity', 'triplet_count', 'local_triangle_count', 'average_degree', 'directed_graph_density', 'degree_centrality', 'alternating_mask', 'max_degree', 'min_degree', 'max_out_degree', 'max_in_degree', 'min_out_degree', 'min_in_degree', 'pagerank', 'single_source_shortest_path', 'global_clustering_coefficient', 'temporally_reachable_nodes', 'temporal_bipartite_graph_projection', 'local_clustering_coefficient', 'local_clustering_coefficient_batch', 'weakly_connected_components', 'strongly_connected_components', 'in_components', 'in_component', 'out_components', 'out_component', 'fast_rp', 'global_temporal_three_node_motif', 'global_temporal_three_node_motif_multi', 'local_temporal_three_node_motifs', 'hits', 'balance', 'label_propagation', 'k_core', 'temporal_SEIR', 'louvain', 'fruchterman_reingold', 'cohesive_fruchterman_reingold', 'max_weight_matching', 'Matching', 'Infected']
-def dijkstra_single_source_shortest_paths(graph: GraphView, source: NodeInput, targets: list[NodeInput], direction: Direction = "both", weight: str = 'weight') -> NodeStateWeightedSP:
+__all__ = [
+    "dijkstra_single_source_shortest_paths",
+    "global_reciprocity",
+    "betweenness_centrality",
+    "all_local_reciprocity",
+    "triplet_count",
+    "local_triangle_count",
+    "average_degree",
+    "directed_graph_density",
+    "degree_centrality",
+    "alternating_mask",
+    "max_degree",
+    "min_degree",
+    "max_out_degree",
+    "max_in_degree",
+    "min_out_degree",
+    "min_in_degree",
+    "pagerank",
+    "single_source_shortest_path",
+    "global_clustering_coefficient",
+    "temporally_reachable_nodes",
+    "temporal_bipartite_graph_projection",
+    "local_clustering_coefficient",
+    "local_clustering_coefficient_batch",
+    "weakly_connected_components",
+    "strongly_connected_components",
+    "in_components",
+    "in_component",
+    "out_components",
+    "out_component",
+    "fast_rp",
+    "global_temporal_three_node_motif",
+    "global_temporal_three_node_motif_multi",
+    "local_temporal_three_node_motifs",
+    "hits",
+    "balance",
+    "label_propagation",
+    "k_core",
+    "temporal_SEIR",
+    "louvain",
+    "fruchterman_reingold",
+    "cohesive_fruchterman_reingold",
+    "max_weight_matching",
+    "Matching",
+    "Infected",
+]
+
+def dijkstra_single_source_shortest_paths(
+    graph: GraphView,
+    source: NodeInput,
+    targets: list[NodeInput],
+    direction: Direction = "both",
+    weight: str = "weight",
+) -> NodeStateWeightedSP:
     """
     Finds the shortest paths from a single source to multiple targets in a graph.
 
@@ -63,7 +117,9 @@ def global_reciprocity(graph: GraphView) -> float:
         float: reciprocity of the graph between 0 and 1.
     """
 
-def betweenness_centrality(graph: GraphView, k: Optional[int] = None, normalized: bool = True) -> NodeStateF64:
+def betweenness_centrality(
+    graph: GraphView, k: Optional[int] = None, normalized: bool = True
+) -> NodeStateF64:
     """
     Computes the betweenness centrality for nodes in a given graph.
 
@@ -242,7 +298,13 @@ def min_in_degree(graph: GraphView) -> int:
         int: value of the smallest indegree
     """
 
-def pagerank(graph: GraphView, iter_count: int = 20, max_diff: Optional[float] = None, use_l2_norm: bool = True, damping_factor: float = 0.85) -> OutputNodeState:
+def pagerank(
+    graph: GraphView,
+    iter_count: int = 20,
+    max_diff: Optional[float] = None,
+    use_l2_norm: bool = True,
+    damping_factor: float = 0.85,
+) -> OutputNodeState:
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -263,7 +325,9 @@ def pagerank(graph: GraphView, iter_count: int = 20, max_diff: Optional[float] =
         OutputNodeState: NodeState mapping nodes to their pagerank score.
     """
 
-def single_source_shortest_path(graph: GraphView, source: NodeInput, cutoff: Optional[int] = None) -> NodeStateNodes:
+def single_source_shortest_path(
+    graph: GraphView, source: NodeInput, cutoff: Optional[int] = None
+) -> NodeStateNodes:
     """
     Calculates the single source shortest paths from a given source node.
 
@@ -294,7 +358,13 @@ def global_clustering_coefficient(graph: GraphView) -> float:
         [`Triplet Count`](triplet_count)
     """
 
-def temporally_reachable_nodes(graph: GraphView, max_hops: int, start_time: int, seed_nodes: list[NodeInput], stop_nodes: Optional[list[NodeInput]] = None) -> NodeStateReachability:
+def temporally_reachable_nodes(
+    graph: GraphView,
+    max_hops: int,
+    start_time: int,
+    seed_nodes: list[NodeInput],
+    stop_nodes: Optional[list[NodeInput]] = None,
+) -> NodeStateReachability:
     """
     Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
 
@@ -313,7 +383,9 @@ def temporally_reachable_nodes(graph: GraphView, max_hops: int, start_time: int,
         NodeStateReachability: Mapping of nodes to their reachability history.
     """
 
-def temporal_bipartite_graph_projection(graph: GraphView, delta: int, pivot_type: str) -> Graph:
+def temporal_bipartite_graph_projection(
+    graph: GraphView, delta: int, pivot_type: str
+) -> Graph:
     """
     Projects a temporal bipartite graph into an undirected temporal graph over the pivot node type. Let `G` be a bipartite graph with node types `A` and `B`. Given `delta > 0`, the projection graph `G'` pivoting over type `B` nodes,
     will make a connection between nodes `n1` and `n2` (of type `A`) at time `(t1 + t2)/2` if they respectively have an edge at time `t1`, `t2` with the same node of type `B` in `G`, and `|t2-t1| < delta`.
@@ -382,7 +454,9 @@ def strongly_connected_components(graph: GraphView) -> OutputNodeState:
         OutputNodeState: NodeState mapping nodes to their component ids
     """
 
-def in_components(graph: GraphView, filter: Optional[filter.FilterExpr] = None) -> NodeStateNodes:
+def in_components(
+    graph: GraphView, filter: Optional[filter.FilterExpr] = None
+) -> NodeStateNodes:
     """
     In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
@@ -394,7 +468,9 @@ def in_components(graph: GraphView, filter: Optional[filter.FilterExpr] = None) 
         NodeStateNodes: Mapping of nodes to the nodes in their 'in-component'
     """
 
-def in_component(node: Node, filter: Optional[filter.FilterExpr] = None) -> NodeStateUsize:
+def in_component(
+    node: Node, filter: Optional[filter.FilterExpr] = None
+) -> NodeStateUsize:
     """
     In component -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
 
@@ -406,7 +482,9 @@ def in_component(node: Node, filter: Optional[filter.FilterExpr] = None) -> Node
        NodeStateUsize: Mapping of nodes in the in-component to the distance from the starting node.
     """
 
-def out_components(graph: GraphView, filter: Optional[filter.FilterExpr] = None) -> NodeStateNodes:
+def out_components(
+    graph: GraphView, filter: Optional[filter.FilterExpr] = None
+) -> NodeStateNodes:
     """
     Out components -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
@@ -418,7 +496,9 @@ def out_components(graph: GraphView, filter: Optional[filter.FilterExpr] = None)
         NodeStateNodes: Mapping of nodes to the nodes within their 'out-component'
     """
 
-def out_component(node: Node, filter: Optional[filter.FilterExpr] = None) -> NodeStateUsize:
+def out_component(
+    node: Node, filter: Optional[filter.FilterExpr] = None
+) -> NodeStateUsize:
     """
     Out component -- Finding the "out-component" of a node in a directed graph involves identifying all nodes that can be reached following only outgoing edges.
 
@@ -430,7 +510,14 @@ def out_component(node: Node, filter: Optional[filter.FilterExpr] = None) -> Nod
        NodeStateUsize: A NodeState mapping the nodes in the out-component to their distance from the starting node.
     """
 
-def fast_rp(graph: GraphView, embedding_dim: int, normalization_strength: float, iter_weights: list[float], seed: Optional[int] = None, threads: Optional[int] = None) -> NodeStateListF64:
+def fast_rp(
+    graph: GraphView,
+    embedding_dim: int,
+    normalization_strength: float,
+    iter_weights: list[float],
+    seed: Optional[int] = None,
+    threads: Optional[int] = None,
+) -> NodeStateListF64:
     """
     Computes embedding vectors for each vertex of an undirected/bidirectional graph according to the Fast RP algorithm.
     Original Paper: https://doi.org/10.48550/arXiv.1908.11512
@@ -446,7 +533,9 @@ def fast_rp(graph: GraphView, embedding_dim: int, normalization_strength: float,
         NodeStateListF64: Mapping from nodes to embedding vectors.
     """
 
-def global_temporal_three_node_motif(graph: GraphView, delta: int, threads: Optional[int] = None) -> list[int]:
+def global_temporal_three_node_motif(
+    graph: GraphView, delta: int, threads: Optional[int] = None
+) -> list[int]:
     """
     Computes the number of three edge, up-to-three node delta-temporal motifs in the graph, using the algorithm of Paranjape et al, Motifs in Temporal Networks (2017).
     We point the reader to this reference for more information on the algorithm and background, but provide a short summary below.
@@ -495,7 +584,9 @@ def global_temporal_three_node_motif(graph: GraphView, delta: int, threads: Opti
 
     """
 
-def global_temporal_three_node_motif_multi(graph: GraphView, deltas: list[int], threads: Optional[int] = None) -> list[list[int]]:
+def global_temporal_three_node_motif_multi(
+    graph: GraphView, deltas: list[int], threads: Optional[int] = None
+) -> list[list[int]]:
     """
     Computes the global counts of three-edge up-to-three node temporal motifs for a range of timescales. See `global_temporal_three_node_motif` for an interpretation of each row returned.
 
@@ -508,7 +599,9 @@ def global_temporal_three_node_motif_multi(graph: GraphView, deltas: list[int], 
         list[list[int]]: A list of 40d arrays, each array is the motif count for a particular value of delta, returned in the order that the deltas were given as input.
     """
 
-def local_temporal_three_node_motifs(graph: GraphView, delta: int, threads: Optional[int] = None) -> NodeStateMotifs:
+def local_temporal_three_node_motifs(
+    graph: GraphView, delta: int, threads: Optional[int] = None
+) -> NodeStateMotifs:
     """
     Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
 
@@ -525,7 +618,9 @@ def local_temporal_three_node_motifs(graph: GraphView, delta: int, threads: Opti
        the motif. For two node motifs, both constituent nodes count the motif. For triangles, all three constituent nodes count the motif.
     """
 
-def hits(graph: GraphView, iter_count: int = 20, threads: Optional[int] = None) -> NodeStateHits:
+def hits(
+    graph: GraphView, iter_count: int = 20, threads: Optional[int] = None
+) -> NodeStateHits:
     """
     HITS (Hubs and Authority) Algorithm:
 
@@ -544,7 +639,9 @@ def hits(graph: GraphView, iter_count: int = 20, threads: Optional[int] = None) 
         NodeStateHits: A mapping from nodes their hub and authority scores
     """
 
-def balance(graph: GraphView, name: str = "weight", direction: Direction = "both") -> NodeStateF64:
+def balance(
+    graph: GraphView, name: str = "weight", direction: Direction = "both"
+) -> NodeStateF64:
     """
     Sums the weights of edges in the graph based on the specified direction.
 
@@ -563,7 +660,9 @@ def balance(graph: GraphView, name: str = "weight", direction: Direction = "both
 
     """
 
-def label_propagation(graph: GraphView, iter_count: int = 20, seed: Optional[bytes] = None) -> OutputNodeState:
+def label_propagation(
+    graph: GraphView, iter_count: int = 20, seed: Optional[bytes] = None
+) -> OutputNodeState:
     """
     Computes components using a label propagation algorithm
 
@@ -577,7 +676,9 @@ def label_propagation(graph: GraphView, iter_count: int = 20, seed: Optional[byt
 
     """
 
-def k_core(graph: GraphView, k: int, iter_count: int, threads: Optional[int] = None) -> list[Node]:
+def k_core(
+    graph: GraphView, k: int, iter_count: int, threads: Optional[int] = None
+) -> list[Node]:
     """
     Determines which nodes are in the k-core for a given value of k
 
@@ -592,7 +693,15 @@ def k_core(graph: GraphView, k: int, iter_count: int, threads: Optional[int] = N
 
     """
 
-def temporal_SEIR(graph: GraphView, seeds: int | float | list[NodeInput], infection_prob: float, initial_infection: int | str | datetime, recovery_rate: float | None = None, incubation_rate: float | None = None, rng_seed: int | None = None) -> NodeStateSEIR:
+def temporal_SEIR(
+    graph: GraphView,
+    seeds: int | float | list[NodeInput],
+    infection_prob: float,
+    initial_infection: int | str | datetime,
+    recovery_rate: float | None = None,
+    incubation_rate: float | None = None,
+    rng_seed: int | None = None,
+) -> NodeStateSEIR:
     """
     Simulate an SEIR dynamic on the network
 
@@ -622,7 +731,12 @@ def temporal_SEIR(graph: GraphView, seeds: int | float | list[NodeInput], infect
 
     """
 
-def louvain(graph: GraphView, resolution: float = 1.0, weight_prop: str | None = None, tol: None | float = None) -> NodeStateUsize:
+def louvain(
+    graph: GraphView,
+    resolution: float = 1.0,
+    weight_prop: str | None = None,
+    tol: None | float = None,
+) -> NodeStateUsize:
     """
     Louvain algorithm for community detection
 
@@ -636,7 +750,14 @@ def louvain(graph: GraphView, resolution: float = 1.0, weight_prop: str | None =
         NodeStateUsize: Mapping of nodes to their community assignment
     """
 
-def fruchterman_reingold(graph: GraphView, iterations: int | None = 100, scale: float | None = 1.0, node_start_size: float | None = 1.0, cooloff_factor: float | None = 0.95, dt: float | None = 0.1) -> NodeLayout:
+def fruchterman_reingold(
+    graph: GraphView,
+    iterations: int | None = 100,
+    scale: float | None = 1.0,
+    node_start_size: float | None = 1.0,
+    cooloff_factor: float | None = 0.95,
+    dt: float | None = 0.1,
+) -> NodeLayout:
     """
     Fruchterman Reingold layout algorithm
 
@@ -652,7 +773,14 @@ def fruchterman_reingold(graph: GraphView, iterations: int | None = 100, scale: 
         NodeLayout: A mapping from nodes to their [x, y] positions
     """
 
-def cohesive_fruchterman_reingold(graph: GraphView, iter_count: int = 100, scale: float = 1.0, node_start_size: float = 1.0, cooloff_factor: float = 0.95, dt: float = 0.1) -> NodeLayout:
+def cohesive_fruchterman_reingold(
+    graph: GraphView,
+    iter_count: int = 100,
+    scale: float = 1.0,
+    node_start_size: float = 1.0,
+    cooloff_factor: float = 0.95,
+    dt: float = 0.1,
+) -> NodeLayout:
     """
     Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
     Arguments:
@@ -668,7 +796,12 @@ def cohesive_fruchterman_reingold(graph: GraphView, iter_count: int = 100, scale
 
     """
 
-def max_weight_matching(graph: GraphView, weight_prop: Optional[str] = None, max_cardinality: bool = True, verify_optimum_flag: bool = False) -> Matching:
+def max_weight_matching(
+    graph: GraphView,
+    weight_prop: Optional[str] = None,
+    max_cardinality: bool = True,
+    verify_optimum_flag: bool = False,
+) -> Matching:
     """
     Compute a maximum-weighted matching in the general undirected weighted
     graph given by "edges". If `max_cardinality` is true, only
@@ -705,7 +838,7 @@ def max_weight_matching(graph: GraphView, weight_prop: Optional[str] = None, max
         Matching: The matching
     """
 
-class Matching(object): 
+class Matching(object):
     """A Matching (i.e., a set of edges that do not share any nodes)"""
 
     def __bool__(self):
@@ -777,8 +910,7 @@ class Matching(object):
 
         """
 
-class Infected(object): 
-
+class Infected(object):
     def __repr__(self):
         """Return repr(self)."""
 

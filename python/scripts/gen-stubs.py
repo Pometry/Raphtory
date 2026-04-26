@@ -20,6 +20,7 @@ imports = [
     "import pyarrow  # type: ignore[import-untyped]",
     "from pyarrow import DataType  # type: ignore[import-untyped]",
     "from os import PathLike",
+    "from decimal import Decimal",
     "import networkx as nx  # type: ignore",
     "import pyvis  # type: ignore",
     "from raphtory.iterables import *",

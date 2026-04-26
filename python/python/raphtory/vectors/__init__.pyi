@@ -25,15 +25,32 @@ from pandas import DataFrame
 import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
 
-__all__ = ['VectorisedGraph', 'Document', 'Embedding', 'VectorSelection', 'OpenAIEmbeddings', 'VectorCache', 'EmbeddingServer', 'RunningEmbeddingServer', 'embedding_server']
-class VectorisedGraph(object): 
+__all__ = [
+    "VectorisedGraph",
+    "Document",
+    "Embedding",
+    "VectorSelection",
+    "OpenAIEmbeddings",
+    "VectorCache",
+    "EmbeddingServer",
+    "RunningEmbeddingServer",
+    "embedding_server",
+]
+
+class VectorisedGraph(object):
     """VectorisedGraph object that contains embedded documents that correspond to graph entities."""
 
-    def edges_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
+    def edges_by_similarity(
+        self,
+        query: str | list,
+        limit: int,
+        window: Optional[Tuple[int | str, int | str]] = None,
+    ) -> VectorSelection:
         """
         Perform a similarity search between each edge's associated document and a specified `query`. Returns a number of edges up to a specified `limit` ranked in ascending order of distance.
 
@@ -54,7 +71,12 @@ class VectorisedGraph(object):
             VectorSelection:
         """
 
-    def entities_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
+    def entities_by_similarity(
+        self,
+        query: str | list,
+        limit: int,
+        window: Optional[Tuple[int | str, int | str]] = None,
+    ) -> VectorSelection:
         """
         Perform a similarity search between each entity's associated document and a specified `query`. Returns a number of entities up to a specified `limit` ranked in ascending order of distance.
 
@@ -67,7 +89,12 @@ class VectorisedGraph(object):
           VectorSelection: The vector selection resulting from the search.
         """
 
-    def nodes_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> VectorSelection:
+    def nodes_by_similarity(
+        self,
+        query: str | list,
+        limit: int,
+        window: Optional[Tuple[int | str, int | str]] = None,
+    ) -> VectorSelection:
         """
         Perform a similarity search between each node's associated document and a specified `query`. Returns a number of nodes up to a specified `limit` ranked in ascending order of distance.
 
@@ -88,7 +115,7 @@ class VectorisedGraph(object):
             None:
         """
 
-class Document(object): 
+class Document(object):
     """A document corresponding to a graph entity. Used to generate embeddings."""
 
     def __repr__(self):
@@ -121,8 +148,7 @@ class Document(object):
             Optional[Any]:
         """
 
-class Embedding(object): 
-
+class Embedding(object):
     def __repr__(self):
         """Return repr(self)."""
 
@@ -134,8 +160,7 @@ class Embedding(object):
             pyarrow.Array:
         """
 
-class VectorSelection(object): 
-
+class VectorSelection(object):
     def add_edges(self, edges: list) -> None:
         """
         Add all the documents associated with the specified `edges` to the current selection.
@@ -181,7 +206,9 @@ class VectorSelection(object):
             list[Edge]: List of edges in the current selection.
         """
 
-    def expand(self, hops: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
+    def expand(
+        self, hops: int, window: Optional[Tuple[int | str, int | str]] = None
+    ) -> None:
         """
         Add all the documents a specified number of `hops` away from the selection.
 
@@ -198,7 +225,12 @@ class VectorSelection(object):
             None:
         """
 
-    def expand_edges_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
+    def expand_edges_by_similarity(
+        self,
+        query: str | list,
+        limit: int,
+        window: Optional[Tuple[int | str, int | str]] = None,
+    ) -> None:
         """
         Add to the selection the `limit` adjacent edges closest to `query`
 
@@ -213,7 +245,12 @@ class VectorSelection(object):
             None:
         """
 
-    def expand_entities_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
+    def expand_entities_by_similarity(
+        self,
+        query: str | list,
+        limit: int,
+        window: Optional[Tuple[int | str, int | str]] = None,
+    ) -> None:
         """
         Add to the selection the `limit` adjacent entities closest to `query`
 
@@ -235,7 +272,12 @@ class VectorSelection(object):
             None:
         """
 
-    def expand_nodes_by_similarity(self, query: str | list, limit: int, window: Optional[Tuple[int | str, int | str]] = None) -> None:
+    def expand_nodes_by_similarity(
+        self,
+        query: str | list,
+        limit: int,
+        window: Optional[Tuple[int | str, int | str]] = None,
+    ) -> None:
         """
         Add to the selection the `limit` adjacent nodes closest to `query`
 
@@ -274,24 +316,32 @@ class VectorSelection(object):
             list[Node]: List of nodes in the current selection.
         """
 
-class OpenAIEmbeddings(object): 
+class OpenAIEmbeddings(object):
     """
     OpenAI-compatible embedding configuration. Pass an instance of this to
     `VectorCache(...)` to drive `vectorise(...)`.
 
     Arguments:
         model (str): The OpenAI embedding model to use. Defaults to "text-embedding-3-small".
-        api_base (str, optional): Base URL for the OpenAI-compatible API. Defaults to None.
-        api_key_env (str, optional): Environment variable name to read the API key from. Defaults to None.
-        org_id (str, optional): OpenAI organization id. Defaults to None.
-        project_id (str, optional): OpenAI project id. Defaults to None.
-        dim (int, optional): Embedding dimension override. Defaults to None.
+        api_base (str, optional): Base URL for the OpenAI-compatible API. If None, falls back to OpenAI's default endpoint. Defaults to None.
+        api_key_env (str, optional): Environment variable name to read the API key from. If None, reads from `OPENAI_API_KEY`. Defaults to None.
+        org_id (str, optional): OpenAI organization id. If None, no org id is sent. Defaults to None.
+        project_id (str, optional): OpenAI project id. If None, no project id is sent. Defaults to None.
+        dim (int, optional): Embedding dimension override. If None, the model's native dimension is used. Defaults to None.
     """
 
-    def __new__(cls, model: str = 'text-embedding-3-small', api_base: Optional[str] = None, api_key_env: Optional[str] = None, org_id: Optional[str] = None, project_id: Optional[str] = None, dim: Optional[int] = None) -> OpenAIEmbeddings:
+    def __new__(
+        cls,
+        model: str = "text-embedding-3-small",
+        api_base: Optional[str] = None,
+        api_key_env: Optional[str] = None,
+        org_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        dim: Optional[int] = None,
+    ) -> OpenAIEmbeddings:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class VectorCache(object): 
+class VectorCache(object):
     """
     Cache wrapping an embedding model. Pass to `Graph.vectorise(model=...)`
     or other vectorisation entry points.
@@ -301,11 +351,12 @@ class VectorCache(object):
         cache (str, optional): Path to persist the embedding cache on disk. Defaults to None.
     """
 
-    def __new__(cls, v_cache: OpenAIEmbeddings, cache: Optional[str] = None) -> VectorCache:
+    def __new__(
+        cls, v_cache: OpenAIEmbeddings, cache: Optional[str] = None
+    ) -> VectorCache:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-class EmbeddingServer(object): 
-
+class EmbeddingServer(object):
     def run(self, port: int, host: Optional[str] = None) -> None:
         """
         Run the embedding server in the foreground until it's stopped.
@@ -330,14 +381,9 @@ class EmbeddingServer(object):
             RunningEmbeddingServer: handle to stop the server.
         """
 
-class RunningEmbeddingServer(object): 
-
-    def __enter__(self):
-        ...
-
-    def __exit__(self, _exc_type, _exc_val, _exc_tb):
-        ...
-
+class RunningEmbeddingServer(object):
+    def __enter__(self): ...
+    def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
     def stop(self) -> None:
         """
         Stop the running embedding server.

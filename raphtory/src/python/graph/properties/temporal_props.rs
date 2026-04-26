@@ -487,22 +487,40 @@ py_eq!(PyTemporalPropsList, PyTemporalPropsListCmp);
 
 #[pymethods]
 impl PyTemporalPropsList {
+    /// Property keys present across the underlying entities.
+    ///
+    /// Returns:
+    ///     list[str]:
     fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .next()
             .map(|p| p.keys().collect())
             .unwrap_or_default()
     }
+
+    /// Per-key list of temporal property views.
+    ///
+    /// Returns:
+    ///     list[PyTemporalPropList]:
     fn values(&self) -> Vec<PyTemporalPropList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
+
+    /// Pairs of `(key, temporal property list)` for every property key.
+    ///
+    /// Returns:
+    ///     list[tuple[str, PyTemporalPropList]]:
     fn items(&self) -> Vec<(ArcStr, PyTemporalPropList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
+    /// Latest value of each property across the underlying entities.
+    ///
+    /// Returns:
+    ///     dict[str, PyPropValueList]:
     fn latest(&self) -> HashMap<ArcStr, PyPropValueList> {
         let builder = self.builder.clone();
         self.keys()
@@ -522,6 +540,10 @@ impl PyTemporalPropsList {
             .collect()
     }
 
+    /// Full update history of each property across the underlying entities.
+    ///
+    /// Returns:
+    ///     dict[str, PyPropHistItemsList]:
     fn histories(&self) -> HashMap<ArcStr, PyPropHistItemsList> {
         self.keys()
             .into_iter()
@@ -554,6 +576,13 @@ impl PyTemporalPropsList {
         self.keys().into_iter().into()
     }
 
+    /// Look up a temporal property by key.
+    ///
+    /// Arguments:
+    ///     key (str): property key.
+    ///
+    /// Returns:
+    ///     Optional[PyTemporalPropList]:
     fn get(&self, key: ArcStr) -> Option<PyTemporalPropList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
@@ -614,6 +643,10 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropList {
+    /// Update history (one history per underlying entity).
+    ///
+    /// Returns:
+    ///     HistoryIterable:
     #[getter]
     pub fn history(&self) -> HistoryIterable {
         let builder = self.builder.clone();
@@ -626,21 +659,40 @@ impl PyTemporalPropList {
         .into()
     }
 
+    /// Per-entity list of property values across each entity's history.
+    ///
+    /// Returns:
+    ///     PyPropHistValueList:
     pub fn values(&self) -> PyPropHistValueList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.values().collect_vec()).unwrap_or_default())).into()
     }
 
+    /// Per-entity list of `(time, value)` pairs across each entity's history.
+    ///
+    /// Returns:
+    ///     PyPropHistItemsList:
     pub fn items(&self) -> PyPropHistItemsList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.map(|v| v.iter().collect_vec()).unwrap_or_default())).into()
     }
 
+    /// Value of each entity's property at the given time (latest update at or before `t`).
+    ///
+    /// Arguments:
+    ///     t (TimeInput): the time at which to evaluate the property.
+    ///
+    /// Returns:
+    ///     PyPropValueList:
     pub fn at(&self, t: EventTime) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().map(move |p| p.and_then(|v| v.at(t)))).into()
     }
 
+    /// Latest value of each entity's property.
+    ///
+    /// Returns:
+    ///     PyPropValueList:
     pub fn value(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().map(|p| p.and_then(|v| v.latest()))).into()
@@ -691,22 +743,40 @@ py_eq!(PyTemporalPropsListList, PyTemporalPropsListListCmp);
 
 #[pymethods]
 impl PyTemporalPropsListList {
+    /// Property keys present across the underlying entities.
+    ///
+    /// Returns:
+    ///     list[str]:
     fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(|it| it.map(|p| p.keys().collect_vec()))
             .next()
             .unwrap_or_default()
     }
+
+    /// Per-key list of nested temporal property views.
+    ///
+    /// Returns:
+    ///     list[PyTemporalPropListList]:
     fn values(&self) -> Vec<PyTemporalPropListList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
+
+    /// Pairs of `(key, nested temporal property list)` for every property key.
+    ///
+    /// Returns:
+    ///     list[tuple[str, PyTemporalPropListList]]:
     fn items(&self) -> Vec<(ArcStr, PyTemporalPropListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
 
+    /// Latest value of each property across the nested entities.
+    ///
+    /// Returns:
+    ///     dict[str, PyPropValueListList]:
     fn latest(&self) -> HashMap<ArcStr, PyPropValueListList> {
         let builder = self.builder.clone();
         self.keys()
@@ -729,6 +799,10 @@ impl PyTemporalPropsListList {
             .collect()
     }
 
+    /// Full update history of each property across the nested entities.
+    ///
+    /// Returns:
+    ///     dict[str, PyPropHistItemsListList]:
     fn histories(&self) -> HashMap<ArcStr, PyPropHistItemsListList> {
         let builder = self.builder.clone();
         self.keys()
@@ -768,6 +842,13 @@ impl PyTemporalPropsListList {
         self.keys().into_iter().into()
     }
 
+    /// Look up a nested temporal property by key.
+    ///
+    /// Arguments:
+    ///     key (str): property key.
+    ///
+    /// Returns:
+    ///     Optional[PyTemporalPropListList]:
     fn get(&self, key: ArcStr) -> Option<PyTemporalPropListList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
@@ -798,6 +879,10 @@ py_iterable_comp!(
 
 #[pymethods]
 impl PyTemporalPropListList {
+    /// Update history (per outer entity, per inner entity).
+    ///
+    /// Returns:
+    ///     NestedHistoryIterable:
     #[getter]
     pub fn history(&self) -> NestedHistoryIterable {
         let builder = self.builder.clone();
@@ -812,6 +897,10 @@ impl PyTemporalPropListList {
         .into()
     }
 
+    /// Nested list of property values across each inner entity's history.
+    ///
+    /// Returns:
+    ///     PyPropHistValueListList:
     pub fn values(&self) -> PyPropHistValueListList {
         let builder = self.builder.clone();
         (move || {
@@ -820,6 +909,10 @@ impl PyTemporalPropListList {
         .into()
     }
 
+    /// Nested list of `(time, value)` pairs across each inner entity's history.
+    ///
+    /// Returns:
+    ///     PyPropHistItemsListList:
     pub fn items(&self) -> PyPropHistItemsListList {
         let builder = self.builder.clone();
         (move || {
@@ -828,16 +921,31 @@ impl PyTemporalPropListList {
         .into()
     }
 
+    /// Value of each inner entity's property at the given time.
+    ///
+    /// Arguments:
+    ///     t (TimeInput): the time at which to evaluate the property.
+    ///
+    /// Returns:
+    ///     PyPropValueListList:
     pub fn at(&self, t: EventTime) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(move |it| it.map(move |p| p.and_then(|v| v.at(t))))).into()
     }
 
+    /// Latest value of each inner entity's property.
+    ///
+    /// Returns:
+    ///     PyPropValueListList:
     pub fn value(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(|p| p.and_then(|v| v.latest())))).into()
     }
 
+    /// Flatten the nested temporal property list to a single list of temporal properties.
+    ///
+    /// Returns:
+    ///     PyTemporalPropList:
     pub fn flatten(&self) -> PyTemporalPropList {
         let builder = self.builder.clone();
         (move || builder().flatten()).into()
@@ -846,6 +954,10 @@ impl PyTemporalPropListList {
 
 #[pymethods]
 impl PyPropHistValueListList {
+    /// Flatten the nested history-values list to a single history-values list.
+    ///
+    /// Returns:
+    ///     PyPropHistValueList:
     pub fn flatten(&self) -> PyPropHistValueList {
         let builder = self.builder.clone();
         (move || builder().flatten()).into()
@@ -917,6 +1029,10 @@ impl PyPropHistValueListList {
         .into()
     }
 
+    /// Mean property value across each row.
+    ///
+    /// Returns:
+    ///     PyPropValueListList:
     pub fn mean(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.map(compute_mean))).into()
@@ -973,6 +1089,10 @@ impl PropIterable {
         self.mean()
     }
 
+    /// Compute the mean of all property values.
+    ///
+    /// Returns:
+    ///     PropValue: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> PropValue {
         compute_mean(self.iter())
     }
@@ -1019,8 +1139,10 @@ impl PyPropHistValueList {
         .into()
     }
 
+    /// Median property value of each row.
+    ///
     /// Returns:
-    ///     list[PropValue]:
+    ///     PyPropValueList:
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().map(compute_median)).into()
@@ -1052,6 +1174,10 @@ impl PyPropHistValueList {
         (move || builder().map(|it| it.len())).into()
     }
 
+    /// Flatten the per-row history values into a single iterable of values.
+    ///
+    /// Returns:
+    ///     PropIterable:
     pub fn flatten(&self) -> PropIterable {
         let builder = self.builder.clone();
         (move || builder().flatten()).into()
@@ -1190,19 +1316,29 @@ impl PyPropValueListList {
         self.mean()
     }
 
+    /// Mean property value across each row.
+    ///
+    /// Returns:
+    ///     PyPropValueList:
     pub fn mean(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().map(|it| compute_mean(it.flatten()))).into()
     }
 
+    /// Median property value across each row.
+    ///
     /// Returns:
-    ///     list[PropValue]:
+    ///     PyPropValueList:
     pub fn median(&self) -> PyPropValueList {
         let builder = self.builder.clone();
 
         (move || builder().map(|it| compute_median(it.flatten().collect()))).into()
     }
 
+    /// Flatten the nested iterable into a single list of values.
+    ///
+    /// Returns:
+    ///     PyPropValueList:
     pub fn flatten(&self) -> PyPropValueList {
         let builder = self.builder.clone();
         (move || builder().flatten()).into()
@@ -1217,8 +1353,10 @@ impl PyPropValueListList {
         (move || builder().map(|it| it.count())).into()
     }
 
+    /// Drop missing entries from each row.
+    ///
     /// Returns:
-    ///     list[list[PropValue]]:
+    ///     PyPropValueListList:
     pub fn drop_none(&self) -> PyPropValueListList {
         let builder = self.builder.clone();
         (move || builder().map(|it| it.filter(|x| x.is_some()))).into()
