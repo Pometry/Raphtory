@@ -32,7 +32,6 @@ use thiserror::Error;
 
 pub mod addition_ops;
 pub mod addition_ops_ext;
-pub mod durability_ops;
 pub mod property_addition_ops;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
