@@ -70,10 +70,12 @@ tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
 raphtory = { workspace = true, features = ["test-utils"] }
 arrow-array = { workspace = true }
+auth = { workspace = true }
 rand = { workspace = true }
 proptest = { workspace = true }
 jsonwebtoken = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 
 
 [features]
