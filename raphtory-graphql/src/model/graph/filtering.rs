@@ -1,4 +1,4 @@
-use crate::model::graph::{property::Value, timeindex::GqlTimeInput};
+use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -60,11 +60,11 @@ pub enum GraphViewCollection {
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Subgraph nodes.
-    Subgraph(Vec<String>),
+    Subgraph(Vec<GqlNodeId>),
     /// Subgraph node types.
     SubgraphNodeTypes(Vec<String>),
     /// List of excluded nodes.
-    ExcludeNodes(Vec<String>),
+    ExcludeNodes(Vec<GqlNodeId>),
     /// Valid state.
     Valid(bool),
     /// Window between a start and end time.

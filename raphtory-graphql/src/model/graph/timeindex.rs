@@ -124,7 +124,14 @@ impl GqlEventTime {
     /// Defaults to RFC 3339 if not provided (e.g., "2023-12-25T10:30:45.123Z").
     /// Refer to chrono::format::strftime for formatting specifiers and escape sequences.
     /// Raises an error if a time conversion fails.
-    async fn datetime(&self, format_string: Option<String>) -> Result<Option<String>, Error> {
+
+    async fn datetime(
+        &self,
+        #[graphql(
+            desc = "Optional format string for the rendered datetime. Uses `%`-style specifiers — for example `%Y-%m-%d` for `2024-01-15`, `%Y-%m-%d %H:%M:%S` for `2024-01-15 10:30:00`, or `%H:%M` for `10:30`. Defaults to RFC 3339 (e.g. `2024-01-15T10:30:45.123+00:00`) when omitted."
+        )]
+        format_string: Option<String>,
+    ) -> Result<Option<String>, Error> {
         let fmt_string = format_string.as_deref().unwrap_or("%+"); // %+ is RFC 3339
         if dt_format_str_is_valid(fmt_string) {
             self.inner

@@ -13,6 +13,10 @@ use itertools::Itertools;
 use std::{path::PathBuf, sync::Arc};
 use walkdir::WalkDir;
 
+/// A directory-like container for graphs and nested namespaces. Graphs are
+/// addressed by path (e.g. `"team/project/graph"`), and every segment except
+/// the last is a namespace. Use to browse what's stored on the server without
+/// loading any graph data.
 #[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub(crate) struct Namespace {
     current_dir: PathBuf,  // always validated

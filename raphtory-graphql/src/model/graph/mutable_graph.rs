@@ -1,6 +1,9 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::graph::{edge::GqlEdge, graph::GqlGraph, node::GqlNode, property::Value},
+    model::graph::{
+        edge::GqlEdge, graph::GqlGraph, node::GqlNode, node_id::GqlNodeId, property::Value,
+        timeindex::GqlTimeInput,
+    },
     rayon::blocking_write,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
@@ -10,7 +13,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::storage::arc_str::OptionAsStr;
+use raphtory_api::core::{storage::arc_str::OptionAsStr, utils::time::IntoTime};
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
@@ -77,16 +80,17 @@ pub struct GqlPropertyInput {
 
 #[derive(InputObject, Clone)]
 pub struct TemporalPropertyInput {
-    /// Time.
-    time: i64,
+    /// Time of the update — accepts the same forms as `TimeInput` (epoch
+    /// millis Int, RFC3339 string, or `{timestamp, eventId}` object).
+    time: GqlTimeInput,
     /// Properties.
     properties: Option<Vec<GqlPropertyInput>>,
 }
 
 #[derive(InputObject, Clone)]
 pub struct NodeAddition {
-    /// Name.
-    name: String,
+    /// Node id (string or non-negative integer).
+    name: GqlNodeId,
     /// Node type.
     node_type: Option<String>,
     /// Metadata.
@@ -99,10 +103,10 @@ pub struct NodeAddition {
 
 #[derive(InputObject, Clone)]
 pub struct EdgeAddition {
-    /// Source node.
-    src: String,
-    /// Destination node.
-    dst: String,
+    /// Source node id (string or non-negative integer).
+    src: GqlNodeId,
+    /// Destination node id (string or non-negative integer).
+    dst: GqlNodeId,
     /// Layer.
     layer: Option<String>,
     /// Metadata.
@@ -111,6 +115,11 @@ pub struct EdgeAddition {
     updates: Option<Vec<TemporalPropertyInput>>,
 }
 
+/// Write-enabled handle for a graph. Obtained by calling `updateGraph(path)`
+/// on the root query with a path you have write permission for. Supports
+/// adding nodes and edges (individually or in batches), attaching
+/// properties/metadata, and looking up mutable `node`/`edge` handles. Use the
+/// read-only `graph(path)` resolver for queries.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "MutableGraph")]
 pub struct GqlMutableGraph {
@@ -148,33 +157,33 @@ impl GqlMutableGraph {
 
     /// Look up an existing node for mutation. Returns null if the node doesn't
     /// exist; use `addNode` or `createNode` to create one.
-    ///
-    /// * `name` — node id.
-    async fn node(&self, name: String) -> Option<GqlMutableNode> {
+
+    async fn node(&self, #[graphql(desc = "Node id.")] name: GqlNodeId) -> Option<GqlMutableNode> {
         self.graph.node(name).map(|n| GqlMutableNode::new(n))
     }
 
     /// Add a new node or append an update to an existing one. Upsert semantics:
     /// no error if the node already exists — properties and type are merged.
-    ///
-    /// * `time` — timestamp of the event (epoch millis).
-    /// * `name` — node id.
-    /// * `properties` — optional property updates attached to this event.
-    /// * `nodeType` — optional node type; if provided, set on the node.
-    /// * `layer` — optional layer name. If omitted, the default layer is used.
+
     async fn add_node(
         &self,
-        time: i64,
-        name: String,
-        properties: Option<Vec<GqlPropertyInput>>,
+        #[graphql(desc = "Time of the event.")] time: GqlTimeInput,
+        #[graphql(desc = "Node id.")] name: GqlNodeId,
+        #[graphql(desc = "Optional property updates attached to this event.")] properties: Option<
+            Vec<GqlPropertyInput>,
+        >,
+        #[graphql(
+            desc = "Optional node type to assign. If provided, sets the node's type at this event."
+        )]
         node_type: Option<String>,
+        #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             let node = self_clone.graph.add_node(
-                time,
+                time.into_time(),
                 &name,
                 prop_iter,
                 node_type.as_str(),
@@ -191,20 +200,28 @@ impl GqlMutableGraph {
         Ok(GqlMutableNode::new(node))
     }
 
-    /// Create a new node or fail if it already exists.
+    /// Create a new node or fail if it already exists. Strict alternative to
+    /// `addNode` — use this when you want to detect collisions.
+
     async fn create_node(
         &self,
-        time: i64,
-        name: String,
-        properties: Option<Vec<GqlPropertyInput>>,
+        #[graphql(desc = "Time of the create event.")] time: GqlTimeInput,
+        #[graphql(desc = "Node id.")] name: GqlNodeId,
+        #[graphql(desc = "Optional property updates attached to this event.")] properties: Option<
+            Vec<GqlPropertyInput>,
+        >,
+        #[graphql(
+            desc = "Optional node type to assign. If provided, sets the node's type at this event."
+        )]
         node_type: Option<String>,
+        #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
     ) -> Result<GqlMutableNode, GraphError> {
         let self_clone = self.clone();
         let node = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
             let node = self_clone.graph.create_node(
-                time,
+                time.into_time(),
                 &name,
                 prop_iter,
                 node_type.as_str(),
@@ -225,10 +242,14 @@ impl GqlMutableGraph {
     /// update it carries (time/properties pairs), then optionally sets its node type
     /// and adds any metadata. On partial failure, returns a `BatchFailures` error
     /// describing which entries failed and why; otherwise returns true.
-    ///
-    /// * `nodes` — list of `NodeAddition` inputs, each specifying a node's name,
-    ///   optional type, layer, per-timestamp updates, and metadata.
-    async fn add_nodes(&self, nodes: Vec<NodeAddition>) -> Result<bool, BatchFailures> {
+
+    async fn add_nodes(
+        &self,
+        #[graphql(
+            desc = "List of `NodeAddition` inputs, each specifying a node's name, optional type, layer, per-timestamp updates, and metadata."
+        )]
+        nodes: Vec<NodeAddition>,
+    ) -> Result<bool, BatchFailures> {
         let self_clone = self.clone();
 
         let (succeeded, batch_failures) = blocking_write(move || {
@@ -236,15 +257,19 @@ impl GqlMutableGraph {
                 .iter()
                 .map(|node| {
                     let node = node.clone();
-                    let name = node.name.as_str();
+                    let name = &node.name;
                     let node_type = node.node_type.as_str();
                     let layer = node.layer.as_str();
 
                     for prop in node.updates.unwrap_or(vec![]) {
                         let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
-                        self_clone
-                            .graph
-                            .add_node(prop.time, name, prop_iter, node_type, layer)?;
+                        self_clone.graph.add_node(
+                            prop.time.into_time(),
+                            name,
+                            prop_iter,
+                            node_type,
+                            layer,
+                        )?;
                     }
                     if let Some(node_type) = node.node_type.as_str() {
                         self_clone.get_node_view(name)?.set_node_type(node_type)?;
@@ -274,36 +299,37 @@ impl GqlMutableGraph {
     }
 
     /// Look up an existing edge for mutation. Returns null if no such edge exists.
-    ///
-    /// * `src` — source node id.
-    /// * `dst` — destination node id.
-    async fn edge(&self, src: String, dst: String) -> Option<GqlMutableEdge> {
+
+    async fn edge(
+        &self,
+        #[graphql(desc = "Source node id.")] src: GqlNodeId,
+        #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
+    ) -> Option<GqlMutableEdge> {
         self.graph.edge(src, dst).map(|e| GqlMutableEdge::new(e))
     }
 
     /// Add a new edge or append an update to an existing one. Upsert semantics:
     /// safe to call on an edge that already exists — creates missing endpoints if
     /// needed.
-    ///
-    /// * `time` — timestamp of the event (epoch millis).
-    /// * `src` — source node id.
-    /// * `dst` — destination node id.
-    /// * `properties` — optional property updates attached to this event.
-    /// * `layer` — optional layer name. If omitted, the default layer is used.
+
     async fn add_edge(
         &self,
-        time: i64,
-        src: String,
-        dst: String,
-        properties: Option<Vec<GqlPropertyInput>>,
+        #[graphql(desc = "Time of the event.")] time: GqlTimeInput,
+        #[graphql(desc = "Source node id.")] src: GqlNodeId,
+        #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
+        #[graphql(desc = "Optional property updates attached to this event.")] properties: Option<
+            Vec<GqlPropertyInput>,
+        >,
+        #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
         let self_clone = self.clone();
         let edge = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-            let edge = self_clone
-                .graph
-                .add_edge(time, src, dst, prop_iter, layer.as_str())?;
+            let edge =
+                self_clone
+                    .graph
+                    .add_edge(time.into_time(), src, dst, prop_iter, layer.as_str())?;
 
             Ok::<_, GraphError>(edge)
         })
@@ -319,30 +345,38 @@ impl GqlMutableGraph {
     /// update it carries, then adds any metadata. On partial failure, returns a
     /// `BatchFailures` error describing which entries failed; otherwise returns
     /// true.
-    ///
-    /// * `edges` — list of `EdgeAddition` inputs, each specifying an edge's `src`,
-    ///   `dst`, optional layer, per-timestamp updates, and metadata.
-    async fn add_edges(&self, edges: Vec<EdgeAddition>) -> Result<bool, BatchFailures> {
+
+    async fn add_edges(
+        &self,
+        #[graphql(
+            desc = "List of `EdgeAddition` inputs, each specifying an edge's `src`, `dst`, optional layer, per-timestamp updates, and metadata."
+        )]
+        edges: Vec<EdgeAddition>,
+    ) -> Result<bool, BatchFailures> {
         let self_clone = self.clone();
 
         let (edge_pairs, failures) = blocking_write(move || {
             let edge_res: Vec<_> = edges
                 .into_iter()
                 .map(|edge| {
-                    let src = edge.src.as_str();
-                    let dst = edge.dst.as_str();
+                    let src = &edge.src;
+                    let dst = &edge.dst;
                     let layer = edge.layer.as_str();
                     for prop in edge.updates.unwrap_or(vec![]) {
                         let prop_iter = as_properties(prop.properties.unwrap_or(vec![]))?;
-                        self_clone
-                            .graph
-                            .add_edge(prop.time, src, dst, prop_iter, layer)?;
+                        self_clone.graph.add_edge(
+                            prop.time.into_time(),
+                            src,
+                            dst,
+                            prop_iter,
+                            layer,
+                        )?;
                     }
                     let metadata = edge.metadata.unwrap_or(vec![]);
                     if !metadata.is_empty() {
                         let prop_iter = as_properties(metadata)?;
                         self_clone
-                            .get_edge_view(src.to_string(), dst.to_string())?
+                            .get_edge_view(src, dst)?
                             .add_metadata(prop_iter, layer)?;
                     }
                     Ok((edge.src, edge.dst))
@@ -362,19 +396,24 @@ impl GqlMutableGraph {
         }
     }
 
-    /// Mark an edge as deleted (creates the edge if it did not exist).
+    /// Mark an edge as deleted at the given time. Persistent graphs treat this
+    /// as a tombstone (the edge becomes invalid from `time` onwards); event
+    /// graphs simply log the deletion event. Creates the edge first if it did
+    /// not exist.
+
     async fn delete_edge(
         &self,
-        time: i64,
-        src: String,
-        dst: String,
+        #[graphql(desc = "Time of the deletion.")] time: GqlTimeInput,
+        #[graphql(desc = "Source node id.")] src: GqlNodeId,
+        #[graphql(desc = "Destination node id.")] dst: GqlNodeId,
+        #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
     ) -> Result<GqlMutableEdge, GraphError> {
         let self_clone = self.clone();
         let edge = blocking_write(move || {
             let edge = self_clone
                 .graph
-                .delete_edge(time, src, dst, layer.as_str())?;
+                .delete_edge(time.into_time(), src, dst, layer.as_str())?;
 
             Ok::<_, GraphError>(edge)
         })
@@ -386,17 +425,19 @@ impl GqlMutableGraph {
         Ok(GqlMutableEdge::new(edge))
     }
 
-    /// Add temporal properties to graph.
+    /// Add temporal properties to the graph itself (not a node or edge). Each
+    /// call records a property update at `t`.
+
     async fn add_properties(
         &self,
-        t: i64,
-        properties: Vec<GqlPropertyInput>,
+        #[graphql(desc = "Time of the update.")] t: GqlTimeInput,
+        #[graphql(desc = "List of `{key, value}` pairs to set.")] properties: Vec<GqlPropertyInput>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         let result = blocking_write(move || {
             self_clone
                 .graph
-                .add_properties(t, as_properties(properties)?)?;
+                .add_properties(t.into_time(), as_properties(properties)?)?;
             Ok(true)
         })
         .await;
@@ -406,8 +447,15 @@ impl GqlMutableGraph {
         result
     }
 
-    /// Add metadata to graph (errors if the property already exists).
-    async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+    /// Add metadata to the graph itself. Errors if any of the keys already
+    /// exists — use `updateMetadata` to overwrite.
+
+    async fn add_metadata(
+        &self,
+        #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
+            GqlPropertyInput,
+        >,
+    ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         let result = blocking_write(move || {
             self_clone.graph.add_metadata(as_properties(properties)?)?;
@@ -419,8 +467,15 @@ impl GqlMutableGraph {
         result
     }
 
-    /// Update metadata of the graph (overwrites existing values).
-    async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+    /// Update metadata of the graph itself, overwriting any existing values for
+    /// the given keys.
+
+    async fn update_metadata(
+        &self,
+        #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
+            GqlPropertyInput,
+        >,
+    ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         let result = blocking_write(move || {
             self_clone
@@ -437,22 +492,25 @@ impl GqlMutableGraph {
 }
 
 impl GqlMutableGraph {
-    fn get_node_view(&self, name: &str) -> Result<NodeView<'static, GraphWithVectors>, GraphError> {
+    fn get_node_view(
+        &self,
+        name: &GqlNodeId,
+    ) -> Result<NodeView<'static, GraphWithVectors>, GraphError> {
         self.graph
             .node(name)
-            .ok_or_else(|| GraphError::NodeMissingError(GID::Str(name.to_owned())))
+            .ok_or_else(|| GraphError::NodeMissingError(name.0.clone()))
     }
 
     fn get_edge_view(
         &self,
-        src: String,
-        dst: String,
+        src: &GqlNodeId,
+        dst: &GqlNodeId,
     ) -> Result<EdgeView<GraphWithVectors>, GraphError> {
         self.graph
-            .edge(src.clone(), dst.clone())
-            .ok_or(GraphError::EdgeMissingError {
-                src: GID::Str(src),
-                dst: GID::Str(dst),
+            .edge(src, dst)
+            .ok_or_else(|| GraphError::EdgeMissingError {
+                src: src.0.clone(),
+                dst: dst.0.clone(),
             })
     }
 
@@ -462,6 +520,9 @@ impl GqlMutableGraph {
     }
 }
 
+/// Write-side handle for a single node — returned from `addNode`, `createNode`,
+/// or `MutableGraph.node`. Supports adding updates, setting node type, and
+/// attaching or updating metadata.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "MutableNode")]
 pub struct GqlMutableNode {
@@ -486,8 +547,15 @@ impl GqlMutableNode {
         self.node.clone().into()
     }
 
-    /// Add metadata to the node (errors if the property already exists).
-    async fn add_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+    /// Add metadata to this node. Errors if any of the keys already exists —
+    /// use `updateMetadata` to overwrite.
+
+    async fn add_metadata(
+        &self,
+        #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
+            GqlPropertyInput,
+        >,
+    ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.add_metadata(as_properties(properties)?)?;
@@ -500,8 +568,13 @@ impl GqlMutableNode {
         Ok(true)
     }
 
-    /// Set the node type (errors if the node already has a non-default type).
-    async fn set_node_type(&self, new_type: String) -> Result<bool, GraphError> {
+    /// Set this node's type. Errors if the node already has a non-default
+    /// type and you're trying to change it.
+
+    async fn set_node_type(
+        &self,
+        #[graphql(desc = "Node-type name to assign.")] new_type: String,
+    ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.set_node_type(&new_type)?;
@@ -514,8 +587,15 @@ impl GqlMutableNode {
         Ok(true)
     }
 
-    /// Update metadata of the node (overwrites existing property values).
-    async fn update_metadata(&self, properties: Vec<GqlPropertyInput>) -> Result<bool, GraphError> {
+    /// Update metadata of this node, overwriting any existing values for the
+    /// given keys.
+
+    async fn update_metadata(
+        &self,
+        #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
+            GqlPropertyInput,
+        >,
+    ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone
@@ -531,17 +611,20 @@ impl GqlMutableNode {
         Ok(true)
     }
 
-    /// Add temporal property updates to the node.
+    /// Append a property update to this node at a specific time.
+
     async fn add_updates(
         &self,
-        time: i64,
+        #[graphql(desc = "Time of the update.")] time: GqlTimeInput,
+        #[graphql(desc = "Optional `{key, value}` pairs attached to the event.")]
         properties: Option<Vec<GqlPropertyInput>>,
+        #[graphql(desc = "Optional layer name. If omitted, the default layer is used.")]
         layer: Option<String>,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.node.add_updates(
-                time,
+                time.into_time(),
                 as_properties(properties.unwrap_or(vec![]))?,
                 layer.as_str(),
             )?;
@@ -563,6 +646,9 @@ impl GqlMutableNode {
     }
 }
 
+/// Write-side handle for a single edge — returned from `addEdge` or
+/// `MutableGraph.edge`. Supports adding updates, deletions, and attaching
+/// or updating metadata.
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "MutableEdge")]
 pub struct GqlMutableEdge {
@@ -597,11 +683,21 @@ impl GqlMutableEdge {
         GqlMutableNode::new(self.edge.dst())
     }
 
-    /// Mark the edge as deleted at time time.
-    async fn delete(&self, time: i64, layer: Option<String>) -> Result<bool, GraphError> {
+    /// Mark this edge as deleted at the given time. Persistent graphs treat this
+    /// as a tombstone (the edge becomes invalid from `time` onwards); event
+    /// graphs simply log the deletion event.
+
+    async fn delete(
+        &self,
+        #[graphql(desc = "Time of the deletion.")] time: GqlTimeInput,
+        #[graphql(
+            desc = "Optional layer name. If omitted, uses the layer the edge was originally added on (when called after `addEdge`)."
+        )]
+        layer: Option<String>,
+    ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
-            self_clone.edge.delete(time, layer.as_str())?;
+            self_clone.edge.delete(time.into_time(), layer.as_str())?;
             Ok::<_, GraphError>(())
         })
         .await?;
@@ -612,14 +708,18 @@ impl GqlMutableEdge {
         Ok(true)
     }
 
-    /// Add metadata to the edge (errors if the value already exists).
-    ///
-    /// If this is called after add_edge, the layer is inherited from the add_edge and does not
-    /// need to be specified again.
+    /// Add metadata to this edge. Errors if any of the keys already exists —
+    /// use `updateMetadata` to overwrite. If this is called after `addEdge`,
+    /// the layer is inherited and does not need to be specified again.
+
     async fn add_metadata(
         &self,
-        properties: Vec<GqlPropertyInput>,
-        layer: Option<String>,
+        #[graphql(desc = "List of `{key, value}` pairs to set as metadata.")] properties: Vec<
+            GqlPropertyInput,
+        >,
+        #[graphql(desc = "Optional layer name; defaults to the inherited layer.")] layer: Option<
+            String,
+        >,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
@@ -637,14 +737,18 @@ impl GqlMutableEdge {
         Ok(true)
     }
 
-    /// Update metadata of the edge (existing values are overwritten).
-    ///
-    /// If this is called after add_edge, the layer is inherited from the add_edge and does not
-    /// need to be specified again.
+    /// Update metadata of this edge, overwriting any existing values for the
+    /// given keys. If this is called after `addEdge`, the layer is inherited
+    /// and does not need to be specified again.
+
     async fn update_metadata(
         &self,
-        properties: Vec<GqlPropertyInput>,
-        layer: Option<String>,
+        #[graphql(desc = "List of `{key, value}` pairs to upsert.")] properties: Vec<
+            GqlPropertyInput,
+        >,
+        #[graphql(desc = "Optional layer name; defaults to the inherited layer.")] layer: Option<
+            String,
+        >,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
@@ -662,20 +766,23 @@ impl GqlMutableEdge {
         Ok(true)
     }
 
-    /// Add temporal property updates to the edge.
-    ///
-    /// If this is called after add_edge, the layer is inherited from the add_edge and does not
-    /// need to be specified again.
+    /// Append a property update to this edge at a specific time. If called
+    /// after `addEdge`, the layer is inherited and does not need to be
+    /// specified again.
+
     async fn add_updates(
         &self,
-        time: i64,
+        #[graphql(desc = "Time of the update.")] time: GqlTimeInput,
+        #[graphql(desc = "Optional `{key, value}` pairs attached to the event.")]
         properties: Option<Vec<GqlPropertyInput>>,
-        layer: Option<String>,
+        #[graphql(desc = "Optional layer name; defaults to the inherited layer.")] layer: Option<
+            String,
+        >,
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
             self_clone.edge.add_updates(
-                time,
+                time.into_time(),
                 as_properties(properties.unwrap_or(vec![]))?,
                 layer.as_str(),
             )?;

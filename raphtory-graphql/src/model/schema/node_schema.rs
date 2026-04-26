@@ -14,6 +14,9 @@ use raphtory_api::core::entities::LayerIds;
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 
+/// Describes nodes of a specific type in a graph — its property keys and
+/// observed value types (and, for string-valued properties, the set of
+/// distinct values seen). One `NodeSchema` per node type.
 #[derive(ResolvedObject)]
 pub(crate) struct NodeSchema {
     pub(crate) type_id: usize,
@@ -31,15 +34,21 @@ impl NodeSchema {
 
 #[ResolvedObjectFields]
 impl NodeSchema {
+    /// The node type this schema describes (e.g. `"person"`, `"org"`).
+    /// Falls back to the default node type for untyped nodes.
     async fn type_name(&self) -> String {
         self.type_name_inner()
     }
 
-    /// Returns the list of property schemas for this node
+    /// Property schemas seen on nodes of this type — one entry per property key
+    /// ever set on a node of this type, with its observed `PropertyType` and (for
+    /// string-valued properties) the set of distinct values.
     async fn properties(&self) -> Vec<PropertySchema> {
         self.properties_inner()
     }
 
+    /// Metadata schemas seen on nodes of this type — like `properties`, but
+    /// covering metadata fields rather than temporal properties.
     async fn metadata(&self) -> Vec<PropertySchema> {
         self.metadata_inner()
     }
