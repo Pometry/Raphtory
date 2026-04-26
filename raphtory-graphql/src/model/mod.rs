@@ -416,6 +416,9 @@ impl QueryRoot {
     /// Load a graph by path. Returns null if the graph doesn't exist or is
     /// inaccessible. When a READ-scoped filter is attached to the caller's
     /// permissions, that filter is applied before the graph is returned.
+    /// `graphType` lets you re-interpret the stored graph at query time —
+    /// e.g. read an event-stored graph through persistent semantics. Defaults
+    /// to the type the graph was created with.
     /// Requires READ on the graph.
 
     async fn graph<'a>(
@@ -424,6 +427,10 @@ impl QueryRoot {
             desc = "Graph path relative to the root namespace (e.g. `\"master\"` or `\"team/project/graph\"`)."
         )]
         path: &str,
+        #[graphql(
+            desc = "Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type."
+        )]
+        graph_type: Option<GqlGraphType>,
     ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
@@ -436,7 +443,22 @@ impl QueryRoot {
         };
 
         let graph_with_vecs = data.get_graph(path).await?;
-        let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
+        let materialized = match graph_type {
+            Some(GqlGraphType::Event) => match graph_with_vecs.graph {
+                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g),
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::EventGraph(g.event_graph())
+                }
+            },
+            Some(GqlGraphType::Persistent) => match graph_with_vecs.graph {
+                MaterializedGraph::EventGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.persistent_graph())
+                }
+                MaterializedGraph::PersistentGraph(g) => MaterializedGraph::PersistentGraph(g),
+            },
+            None => graph_with_vecs.graph,
+        };
+        let graph: DynamicGraph = materialized.into_dynamic();
 
         let graph = if let GraphPermission::Read {
             filter: Some(ref f),

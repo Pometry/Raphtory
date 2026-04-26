@@ -1,15 +1,21 @@
 use crate::{
     graph::{GraphWithVectors, UpdateEmbeddings},
-    model::graph::{
-        edge::GqlEdge, graph::GqlGraph, node::GqlNode, node_id::GqlNodeId, property::Value,
-        timeindex::GqlTimeInput,
+    model::{
+        graph::{
+            edge::GqlEdge, graph::GqlGraph, node::GqlNode, node_id::GqlNodeId, property::Value,
+            timeindex::GqlTimeInput,
+        },
+        GqlGraphType,
     },
     rayon::blocking_write,
 };
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::graph::{edge::EdgeView, node::NodeView},
+    db::{
+        api::view::MaterializedGraph,
+        graph::{edge::EdgeView, node::NodeView},
+    },
     errors::GraphError,
     prelude::*,
 };
@@ -150,9 +156,28 @@ fn as_properties(
 impl GqlMutableGraph {
     /// Read-only view of this graph — identical to what you'd get from
     /// `graph(path:)` on the query root. Use this when you want to compose
-    /// queries on the graph you've just mutated.
-    async fn graph(&self) -> GqlGraph {
-        GqlGraph::new(self.graph.folder.clone(), self.graph.graph.clone())
+    /// queries on the graph you've just mutated. `graphType` lets you
+    /// re-interpret the graph at query time (see `graph(path:)` for
+    /// semantics); defaults to the stored graph's native type.
+    async fn graph(
+        &self,
+        #[graphql(
+            desc = "Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type."
+        )]
+        graph_type: Option<GqlGraphType>,
+    ) -> GqlGraph {
+        let folder = self.graph.folder.clone();
+        match graph_type {
+            Some(GqlGraphType::Event) => match self.graph.graph.clone() {
+                MaterializedGraph::EventGraph(g) => GqlGraph::new(folder, g),
+                MaterializedGraph::PersistentGraph(g) => GqlGraph::new(folder, g.event_graph()),
+            },
+            Some(GqlGraphType::Persistent) => match self.graph.graph.clone() {
+                MaterializedGraph::EventGraph(g) => GqlGraph::new(folder, g.persistent_graph()),
+                MaterializedGraph::PersistentGraph(g) => GqlGraph::new(folder, g),
+            },
+            None => GqlGraph::new(folder, self.graph.graph.clone()),
+        }
     }
 
     /// Look up an existing node for mutation. Returns null if the node doesn't

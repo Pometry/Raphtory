@@ -2656,8 +2656,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 [[package]]
 name = "dynamic-graphql"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0466a5cdd914efd439f0904a84a17506ec4757f4abf35f9e46f3f314ee13fe75"
+source = "git+https://github.com/miratepuffin/dynamic-graphql?branch=add-arg-descriptions#69a07c5fe3c16b4baf76f676c96cde5865cae1de"
 dependencies = [
  "async-graphql",
  "dynamic-graphql-derive",
@@ -2667,8 +2666,7 @@ dependencies = [
 [[package]]
 name = "dynamic-graphql-derive"
 version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6027c3698e530bf88b37a618a05fd7a5e761dc2777771d5757ff07103f66189"
+source = "git+https://github.com/miratepuffin/dynamic-graphql?branch=add-arg-descriptions#69a07c5fe3c16b4baf76f676c96cde5865cae1de"
 dependencies = [
  "Inflector",
  "darling 0.20.11",
@@ -7576,7 +7574,7 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "snb"
-version = "0.18.0"
+version = "0.17.0"
 dependencies = [
  "chrono",
  "flate2",
