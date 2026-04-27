@@ -146,7 +146,7 @@ impl<'a, A: Send + Sync> TimeIndexOps<'a> for &'a TCell<A> {
         match self {
             TCell::Empty => false,
             TCell::TCell1(time_index_entry, _) => w.contains(time_index_entry),
-            TCell::TCellCap(svm) => svm.range(w).next().is_some(),
+            TCell::TCellCap(svm) => svm.active(w),
             TCell::TCellN(btree_map) => btree_map.range(w).next().is_some(),
         }
     }

@@ -349,6 +349,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
 
     type RangeType = Self;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.clone()
             .time_cells()
