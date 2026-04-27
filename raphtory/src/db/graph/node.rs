@@ -13,6 +13,7 @@ use crate::{
             mutation::time_from_input_session,
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
+                NodePropertySchemaOps,
             },
             state::ops::ArrowNodeOp,
             view::{
@@ -219,27 +220,19 @@ impl<'a, G: CoreGraphOps> Hash for NodeView<'a, G> {
     }
 }
 
-impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps> InternalTemporalPropertiesOps
-    for NodeView<'graph, G>
+impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps + NodePropertySchemaOps>
+    InternalTemporalPropertiesOps for NodeView<'graph, G>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().temporal_prop_mapper().get_id(name)
+        self.graph.node_visible_temporal_prop_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .get_name(id)
-            .clone()
+        self.graph.node_visible_temporal_prop_name(id)
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .ids()
-            .into_dyn_boxed()
+        self.graph.node_visible_temporal_prop_ids()
     }
 }
 
@@ -310,25 +303,19 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
     }
 }
 
-impl<'graph, G: CoreGraphOps> InternalMetadataOps for NodeView<'graph, G> {
+impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps
+    for NodeView<'graph, G>
+{
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().metadata_mapper().get_id(name)
+        self.graph.node_visible_metadata_id(name)
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph
-            .node_meta()
-            .metadata_mapper()
-            .get_name(id)
-            .clone()
+        self.graph.node_visible_metadata_name(id)
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .node_meta()
-            .metadata_mapper()
-            .ids()
-            .into_dyn_boxed()
+        self.graph.node_visible_metadata_ids()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {

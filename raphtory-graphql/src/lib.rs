@@ -3,6 +3,7 @@ pub use crate::{
     model::graph::filtering::GraphAccessFilter,
     server::GraphServer,
 };
+pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use crate::{data::InsertionError, paths::PathValidationError};
 use raphtory::errors::GraphError;
 use std::sync::Arc;

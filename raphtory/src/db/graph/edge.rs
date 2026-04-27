@@ -14,7 +14,7 @@ use crate::{
             mutation::{time_from_input, time_from_input_session},
             properties::{
                 internal::{
-                    InternalMetadataOps, InternalTemporalPropertiesOps,
+                    EdgePropertySchemaOps, InternalMetadataOps, InternalTemporalPropertiesOps,
                     InternalTemporalPropertyViewOps,
                 },
                 Metadata, Properties,
@@ -532,34 +532,17 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InternalMetadataOps for EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph> + EdgePropertySchemaOps> InternalMetadataOps for EdgeView<G> {
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
-        self.graph.edge_meta().metadata_mapper().get_id(name)
+        self.graph.edge_visible_metadata_id(name)
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph
-            .edge_meta()
-            .metadata_mapper()
-            .get_name(id)
-            .clone()
+        self.graph.edge_visible_metadata_name(id)
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .edge_meta()
-            .metadata_mapper()
-            .ids()
-            .into_dyn_boxed()
-    }
-
-    fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
-        self.graph
-            .edge_meta()
-            .metadata_mapper()
-            .keys()
-            .into_iter()
-            .into_dyn_boxed()
+        self.graph.edge_visible_metadata_ids()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
@@ -750,34 +733,19 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     }
 }
 
-impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertiesOps for EdgeView<G> {
+impl<'graph, G: GraphViewOps<'graph> + EdgePropertySchemaOps> InternalTemporalPropertiesOps
+    for EdgeView<G>
+{
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.edge_meta().temporal_prop_mapper().get_id(name)
+        self.graph.edge_visible_temporal_prop_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph
-            .edge_meta()
-            .temporal_prop_mapper()
-            .get_name(id)
-            .clone()
+        self.graph.edge_visible_temporal_prop_name(id)
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .edge_meta()
-            .temporal_prop_mapper()
-            .ids()
-            .into_dyn_boxed()
-    }
-
-    fn temporal_prop_keys(&self) -> BoxedLIter<'_, ArcStr> {
-        self.graph
-            .edge_meta()
-            .temporal_prop_mapper()
-            .keys()
-            .into_iter()
-            .into_dyn_boxed()
+        self.graph.edge_visible_temporal_prop_ids()
     }
 }
 

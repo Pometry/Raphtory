@@ -8,6 +8,93 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 
+/// Graph-level trait controlling which node temporal-property IDs are visible in this view.
+/// The default (for all base graph types) returns every ID from the schema.
+/// `PropertyRedactedGraph` overrides it to filter out hidden keys.
+pub trait NodePropertySchemaOps: Send + Sync {
+    fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
+    fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    fn node_visible_temporal_prop_name(&self, id: usize) -> ArcStr;
+    fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
+    fn node_visible_metadata_id(&self, name: &str) -> Option<usize>;
+    fn node_visible_metadata_name(&self, id: usize) -> ArcStr;
+}
+
+/// Same as `NodePropertySchemaOps` but for edge properties.
+pub trait EdgePropertySchemaOps: Send + Sync {
+    fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
+    fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    fn edge_visible_temporal_prop_name(&self, id: usize) -> ArcStr;
+    fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
+    fn edge_visible_metadata_id(&self, name: &str) -> Option<usize>;
+    fn edge_visible_metadata_name(&self, id: usize) -> ArcStr;
+}
+
+/// Marker: delegate `NodePropertySchemaOps` through `Base`.
+pub trait InheritNodePropertySchemaOps: Base {}
+/// Marker: delegate `EdgePropertySchemaOps` through `Base`.
+pub trait InheritEdgePropertySchemaOps: Base {}
+
+impl<G: InheritNodePropertySchemaOps + Send + Sync> NodePropertySchemaOps for G
+where
+    G::Base: NodePropertySchemaOps,
+{
+    #[inline]
+    fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().node_visible_temporal_prop_ids()
+    }
+    #[inline]
+    fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
+        self.base().node_visible_temporal_prop_id(name)
+    }
+    #[inline]
+    fn node_visible_temporal_prop_name(&self, id: usize) -> ArcStr {
+        self.base().node_visible_temporal_prop_name(id)
+    }
+    #[inline]
+    fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().node_visible_metadata_ids()
+    }
+    #[inline]
+    fn node_visible_metadata_id(&self, name: &str) -> Option<usize> {
+        self.base().node_visible_metadata_id(name)
+    }
+    #[inline]
+    fn node_visible_metadata_name(&self, id: usize) -> ArcStr {
+        self.base().node_visible_metadata_name(id)
+    }
+}
+
+impl<G: InheritEdgePropertySchemaOps + Send + Sync> EdgePropertySchemaOps for G
+where
+    G::Base: EdgePropertySchemaOps,
+{
+    #[inline]
+    fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().edge_visible_temporal_prop_ids()
+    }
+    #[inline]
+    fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
+        self.base().edge_visible_temporal_prop_id(name)
+    }
+    #[inline]
+    fn edge_visible_temporal_prop_name(&self, id: usize) -> ArcStr {
+        self.base().edge_visible_temporal_prop_name(id)
+    }
+    #[inline]
+    fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().edge_visible_metadata_ids()
+    }
+    #[inline]
+    fn edge_visible_metadata_id(&self, name: &str) -> Option<usize> {
+        self.base().edge_visible_metadata_id(name)
+    }
+    #[inline]
+    fn edge_visible_metadata_name(&self, id: usize) -> ArcStr {
+        self.base().edge_visible_metadata_name(id)
+    }
+}
+
 pub trait InternalTemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
 

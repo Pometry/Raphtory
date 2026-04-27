@@ -543,7 +543,7 @@ def test_analyst_sees_only_filtered_nodes():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }',
+            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -619,7 +619,7 @@ def test_analyst_sees_only_filtered_edges():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }',
+            '{ edge: { filter: { property: { name: "weight", where: { ge: { i64: 5 } } } } } }',
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
@@ -781,7 +781,7 @@ def test_receive_graph_with_filtered_access():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }',
+            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
         )
 
         client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
@@ -820,7 +820,7 @@ def test_analyst_sees_only_graph_filter_window():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ graph: { window: { start: 5, end: 15 } } }",
+            "{ graph: { filter: { window: { start: 5, end: 15 } } } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -878,10 +878,10 @@ def test_filter_and_node_node():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ and: ["
-            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
-            '{ node: { property: { name: "role", where: { eq: { str: "admin" } } } } }'
-            "] }",
+            "{ node: { filter: { and: ["
+            '{ property: { name: "region", where: { eq: { str: "us-west" } } } },'
+            '{ property: { name: "role", where: { eq: { str: "admin" } } } }'
+            "] } } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -922,10 +922,10 @@ def test_filter_and_edge_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ and: ["
-            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } },'
-            '{ edge: { property: { name: "kind", where: { eq: { str: "follows" } } } } }'
-            "] }",
+            "{ edge: { filter: { and: ["
+            '{ property: { name: "weight", where: { ge: { i64: 5 } } } },'
+            '{ property: { name: "kind", where: { eq: { str: "follows" } } } }'
+            "] } } }",
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
@@ -941,7 +941,7 @@ def test_filter_and_edge_edge():
 
 
 def test_filter_and_graph_graph():
-    """And([graph, graph]): two graph-level views intersect (sequential narrowing)."""
+    """graph window filter: only nodes within the window [5,15) are visible."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
@@ -954,14 +954,11 @@ def test_filter_and_graph_graph():
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
         create_role("analyst")
-        # window [1,15) ∩ window [5,25) → effective [5,15) → only middle (t=10)
+        # window [5,15) → only middle (t=10)
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ and: ["
-            "{ graph: { window: { start: 1, end: 15 } } },"
-            "{ graph: { window: { start: 5, end: 25 } } }"
-            "] }",
+            "{ graph: { filter: { window: { start: 5, end: 15 } } } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1015,10 +1012,8 @@ def test_filter_and_node_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ and: ["
-            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
-            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
-            "] }",
+            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
+            ' edge: { filter: { property: { name: "weight", where: { ge: { i64: 5 } } } } } }',
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1072,10 +1067,8 @@ def test_filter_and_node_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ and: ["
-            "{ graph: { window: { start: 5, end: 15 } } },"
-            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }'
-            "] }",
+            "{ graph: { filter: { window: { start: 5, end: 15 } } },"
+            ' node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1113,10 +1106,8 @@ def test_filter_and_edge_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ and: ["
-            "{ graph: { window: { start: 5, end: 15 } } },"
-            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
-            "] }",
+            "{ graph: { filter: { window: { start: 5, end: 15 } } },"
+            ' edge: { filter: { property: { name: "weight", where: { ge: { i64: 5 } } } } } }',
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
@@ -1152,10 +1143,10 @@ def test_filter_or_node_node():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ or: ["
-            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
-            '{ node: { property: { name: "region", where: { eq: { str: "us-east" } } } } }'
-            "] }",
+            "{ node: { filter: { or: ["
+            '{ property: { name: "region", where: { eq: { str: "us-west" } } } },'
+            '{ property: { name: "region", where: { eq: { str: "us-east" } } } }'
+            "] } } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1192,10 +1183,10 @@ def test_filter_or_edge_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ or: ["
-            '{ edge: { property: { name: "weight", where: { eq: { i64: 3 } } } } },'
-            '{ edge: { property: { name: "weight", where: { eq: { i64: 9 } } } } }'
-            "] }",
+            "{ edge: { filter: { or: ["
+            '{ property: { name: "weight", where: { eq: { i64: 3 } } } },'
+            '{ property: { name: "weight", where: { eq: { i64: 9 } } } }'
+            "] } } }",
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
@@ -1209,6 +1200,175 @@ def test_filter_or_edge_edge():
             ("a", "b"),
             ("a", "c"),
         }, f"expected (a,b)+(a,c), got {analyst_edges}"
+
+
+# --- Property redaction tests ---
+
+
+def test_analyst_node_hidden_property_not_visible():
+    """hiddenProperties strips a node temporal property from responses for the role.
+
+    Admin still sees all properties; analyst sees the node but not the hidden property.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        resp = gql("""query {
+            updateGraph(path: "jira") {
+                addNode(time: 1, name: "alice",
+                    properties: [
+                        { key: "salary", value: { i64: 100000 } },
+                        { key: "region", value: { str: "us-west" } }
+                    ]
+                ) { success }
+            }
+        }""")
+        assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ node: { hiddenProperties: ["salary"] } }',
+        )
+
+        QUERY = 'query { graph(path: "jira") { nodes { list { name properties { keys } } } } }'
+
+        # Analyst sees the node but salary is absent from keys
+        analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_resp, analyst_resp
+        node = analyst_resp["data"]["graph"]["nodes"]["list"][0]
+        assert "salary" not in node["properties"]["keys"], (
+            f"expected salary hidden, got keys: {node['properties']['keys']}"
+        )
+        assert "region" in node["properties"]["keys"], "region should still be visible"
+
+        # Admin sees all properties
+        admin_resp = gql(QUERY, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_resp, admin_resp
+        admin_node = admin_resp["data"]["graph"]["nodes"]["list"][0]
+        assert "salary" in admin_node["properties"]["keys"], "admin should see salary"
+
+
+def test_analyst_node_hidden_metadata_not_visible():
+    """hiddenMetadata strips a node metadata key from responses for the role."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        resp = gql("""query {
+            updateGraph(path: "jira") {
+                addNode(time: 1, name: "alice") {
+                    success
+                    addMetadata(properties: [
+                        { key: "ssn", value: { str: "123-45-6789" } },
+                        { key: "dept", value: { str: "eng" } }
+                    ])
+                }
+            }
+        }""")
+        assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+        assert resp["data"]["updateGraph"]["addNode"]["addMetadata"] is True, resp
+
+        create_role("analyst")
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ node: { hiddenMetadata: ["ssn"] } }',
+        )
+
+        QUERY = 'query { graph(path: "jira") { nodes { list { name metadata { keys } } } } }'
+
+        analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_resp, analyst_resp
+        node = analyst_resp["data"]["graph"]["nodes"]["list"][0]
+        assert "ssn" not in node["metadata"]["keys"], (
+            f"expected ssn hidden, got: {node['metadata']['keys']}"
+        )
+        assert "dept" in node["metadata"]["keys"], "dept should still be visible"
+
+        admin_resp = gql(QUERY, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_resp, admin_resp
+        admin_node = admin_resp["data"]["graph"]["nodes"]["list"][0]
+        assert "ssn" in admin_node["metadata"]["keys"], "admin should see ssn"
+
+
+def test_analyst_edge_hidden_property_not_visible():
+    """hiddenProperties strips an edge temporal property from responses for the role."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        resp = gql("""query {
+            updateGraph(path: "jira") {
+                addEdge(time: 1, src: "a", dst: "b",
+                    properties: [
+                        { key: "salary_delta", value: { i64: 5000 } },
+                        { key: "weight", value: { i64: 3 } }
+                    ]
+                ) { success }
+            }
+        }""")
+        assert resp["data"]["updateGraph"]["addEdge"]["success"] is True, resp
+
+        create_role("analyst")
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ edge: { hiddenProperties: ["salary_delta"] } }',
+        )
+
+        QUERY = 'query { graph(path: "jira") { edges { list { src { name } dst { name } properties { keys } } } } }'
+
+        analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_resp, analyst_resp
+        edge = analyst_resp["data"]["graph"]["edges"]["list"][0]
+        assert "salary_delta" not in edge["properties"]["keys"], (
+            f"expected salary_delta hidden, got: {edge['properties']['keys']}"
+        )
+        assert "weight" in edge["properties"]["keys"], "weight should still be visible"
+
+        admin_resp = gql(QUERY, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_resp, admin_resp
+        admin_edge = admin_resp["data"]["graph"]["edges"]["list"][0]
+        assert "salary_delta" in admin_edge["properties"]["keys"], "admin should see salary_delta"
+
+
+def test_redaction_combined_with_row_filter():
+    """Row filter and property redaction compose correctly.
+
+    Analyst sees only us-west nodes AND salary is hidden on those nodes.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region in [("alice", "us-west"), ("bob", "us-east")]:
+            gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(time: 1, name: "{name}",
+                        properties: [
+                            {{ key: "region", value: {{ str: "{region}" }} }},
+                            {{ key: "salary", value: {{ i64: 50000 }} }}
+                        ]
+                    ) {{ success }}
+                }}
+            }}""")
+
+        create_role("analyst")
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } }, hiddenProperties: ["salary"] } }',
+        )
+
+        QUERY = 'query { graph(path: "jira") { nodes { list { name properties { keys } } } } }'
+
+        analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_resp, analyst_resp
+        nodes = analyst_resp["data"]["graph"]["nodes"]["list"]
+        names = {n["name"] for n in nodes}
+        assert names == {"alice"}, f"expected only alice (us-west), got {names}"
+        alice = next(n for n in nodes if n["name"] == "alice")
+        assert "salary" not in alice["properties"]["keys"], "salary should be hidden"
+        assert "region" in alice["properties"]["keys"], "region should be visible"
 
 
 # --- Namespace permission tests ---

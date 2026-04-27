@@ -4,7 +4,9 @@ use crate::{
     core::storage::timeindex::{AsTime, EventTime, TimeIndex, TimeIndexOps},
     db::{
         api::{
-            properties::internal::InheritPropertiesOps,
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
             storage::storage::{PersistenceStrategy, Storage},
             view::internal::*,
         },
@@ -244,6 +246,10 @@ impl InheritListOps for PersistentGraph {}
 impl InheritCoreGraphOps for PersistentGraph {}
 
 impl InheritPropertiesOps for PersistentGraph {}
+
+impl InheritNodePropertySchemaOps for PersistentGraph {}
+
+impl InheritEdgePropertySchemaOps for PersistentGraph {}
 
 impl InheritLayerOps for PersistentGraph {}
 

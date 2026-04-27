@@ -1,6 +1,8 @@
 use crate::{
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
             Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
             InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -45,6 +47,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for IsSelfLoopGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for IsSelfLoopGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for IsSelfLoopGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for IsSelfLoopGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for IsSelfLoopGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for IsSelfLoopGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for IsSelfLoopGraph<G> {}
 

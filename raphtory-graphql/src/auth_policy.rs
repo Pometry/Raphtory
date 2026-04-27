@@ -1,4 +1,6 @@
 use crate::model::graph::filtering::GraphAccessFilter;
+use raphtory::db::graph::views::PropertyRedaction;
+use std::sync::Arc;
 
 /// Opaque error returned by [`AuthorizationPolicy::graph_permissions`] when access is entirely
 /// denied. The message is intended for logging only; callers must not surface it to end users.
@@ -27,8 +29,11 @@ impl std::fmt::Display for AuthPolicyError {
 pub enum GraphPermission {
     /// May query graph metadata (counts, schema) but not read data.
     Introspect,
-    /// May read graph data; optionally restricted by a data filter.
-    Read { filter: Option<GraphAccessFilter> },
+    /// May read graph data; optionally restricted by a row filter and/or property redaction.
+    Read {
+        filter: Option<GraphAccessFilter>,
+        redaction: Arc<PropertyRedaction>,
+    },
     /// May read and mutate the graph (implies `Read` and `Introspect`, never filtered).
     Write,
 }
@@ -38,8 +43,8 @@ impl GraphPermission {
     fn level(&self) -> u8 {
         match self {
             GraphPermission::Introspect => 0,
-            GraphPermission::Read { filter: Some(_) } => 1,
-            GraphPermission::Read { filter: None } => 2,
+            GraphPermission::Read { filter: Some(_), .. } => 1,
+            GraphPermission::Read { filter: None, .. } => 2,
             GraphPermission::Write => 3,
         }
     }

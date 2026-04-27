@@ -1,7 +1,9 @@
 use crate::{
     core::entities::LayerIds,
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
             InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
@@ -52,6 +54,10 @@ impl<G: GraphView> InheritCoreGraphOps for LayeredGraph<G> {}
 impl<G: GraphView> InheritMaterialize for LayeredGraph<G> {}
 
 impl<G: GraphView> InheritPropertiesOps for LayeredGraph<G> {}
+
+impl<G: GraphView> InheritNodePropertySchemaOps for LayeredGraph<G> {}
+
+impl<G: GraphView> InheritEdgePropertySchemaOps for LayeredGraph<G> {}
 
 impl<G: GraphView> InheritStorageOps for LayeredGraph<G> {}
 
