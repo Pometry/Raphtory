@@ -25,7 +25,6 @@ impl GraphPermission {
 
 #[derive(Debug, Clone, Copy)]
 pub enum NamespacePermission {
-    Discover,
     Introspect,
     Read,
     Write,
@@ -34,7 +33,6 @@ pub enum NamespacePermission {
 impl NamespacePermission {
     pub(crate) fn as_gql(self) -> &'static str {
         match self {
-            NamespacePermission::Discover => "DISCOVER",
             NamespacePermission::Introspect => "INTROSPECT",
             NamespacePermission::Read => "READ",
             NamespacePermission::Write => "WRITE",
@@ -44,7 +42,7 @@ impl NamespacePermission {
 
 #[derive(Debug, Clone)]
 pub struct PermissionGrant {
-    pub user_idx: u64,
+    pub user_id: u64,
     pub target: PermissionTarget,
     pub path_idx: usize,
     pub graph_permission: GraphPermission,
@@ -67,7 +65,6 @@ pub fn permissions_strategy(
             any::<bool>(),
             prop_oneof![Just(GraphPermission::Read), Just(GraphPermission::Write)],
             prop_oneof![
-                Just(NamespacePermission::Discover),
                 Just(NamespacePermission::Introspect),
                 Just(NamespacePermission::Read),
                 Just(NamespacePermission::Write),
@@ -77,7 +74,7 @@ pub fn permissions_strategy(
         )
             .prop_map(
                 move |(
-                    user_idx,
+                    user_id,
                     choose_namespace,
                     graph_permission,
                     namespace_permission,
@@ -95,7 +92,7 @@ pub fn permissions_strategy(
                     };
 
                     PermissionGrant {
-                        user_idx,
+                        user_id,
                         target,
                         path_idx,
                         graph_permission,

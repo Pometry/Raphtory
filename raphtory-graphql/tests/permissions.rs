@@ -98,8 +98,9 @@ fn permissions_proptest() {
     proptest!(
         ProptestConfig::with_cases(PROPTEST_CASES),
         |(tree_size in TREE_SIZE_RANGE, num_users in NUM_USERS_RANGE)| {
-            let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
             let (_server, _tempdir) = start_server(PORT, PUB_KEY);
+
+            let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
             let client = get_client(url, ADMIN_JWT.to_string());
 
             // Create nested namespaces and graphs on the server.
@@ -114,13 +115,15 @@ fn permissions_proptest() {
             }
 
             let mut runner = proptest::test_runner::TestRunner::default();
+
             let grants = permissions_strategy(num_users, graph_paths.len(), namespace_paths.len())
                 .new_tree(&mut runner)
                 .unwrap()
                 .current();
 
             for grant in &grants {
-                let role = format!("user_{}", grant.user_idx);
+                let role = format!("user_{}", grant.user_id);
+
                 let (path, target) = match grant.target {
                     PermissionTarget::Graph => (
                         &graph_paths[grant.path_idx],
@@ -131,6 +134,7 @@ fn permissions_proptest() {
                         PermissionTarget::Namespace,
                     ),
                 };
+
                 match target {
                     PermissionTarget::Graph => {
                         grant_graph(&client, &role, path, grant.graph_permission)
