@@ -9,7 +9,8 @@ use tracing::error;
 
 pub const DEFAULT_MAX_PAGE_LEN_NODES: u32 = 131_072; // 2^17
 pub const DEFAULT_MAX_PAGE_LEN_EDGES: u32 = 1_048_576; // 2^20
-pub const CONFIG_FILE: &str = "config.json";
+
+const CONFIG_FILE_NAME: &str = "config.json";
 
 pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn max_node_page_len(&self) -> u32;
@@ -25,14 +26,14 @@ pub trait ConfigOps: Serialize + DeserializeOwned + Args + Sized {
     fn with_node_types(&self, node_types: impl IntoIterator<Item = impl AsRef<str>>) -> Self;
 
     fn load_from_dir(dir: &Path) -> Result<Self, StorageError> {
-        let config_file = dir.join(CONFIG_FILE);
+        let config_file = dir.join(CONFIG_FILE_NAME);
         let config_file = std::fs::File::open(config_file)?;
         let config = serde_json::from_reader(config_file)?;
         Ok(config)
     }
 
     fn save_to_dir(&self, dir: &Path) -> Result<(), StorageError> {
-        let config_file = dir.join(CONFIG_FILE);
+        let config_file = dir.join(CONFIG_FILE_NAME);
         let config_file = std::fs::File::create(&config_file)?;
         serde_json::to_writer_pretty(config_file, self)?;
         Ok(())

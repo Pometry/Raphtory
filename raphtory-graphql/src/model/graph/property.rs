@@ -339,29 +339,29 @@ impl GqlTemporalProperty {
     }
 
     /// Return the values of the properties.
-    async fn values(&self) -> Vec<String> {
+    async fn values(&self) -> Vec<GqlPropertyOutputVal> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.values().map(|x| x.to_string()).collect()).await
+        blocking_compute(move || self_clone.prop.values().map(GqlPropertyOutputVal).collect()).await
     }
 
-    async fn at(&self, t: GqlTimeInput) -> Option<String> {
+    async fn at(&self, t: GqlTimeInput) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.at(t.into_time()).map(|x| x.to_string())).await
+        blocking_compute(move || self_clone.prop.at(t.into_time()).map(GqlPropertyOutputVal)).await
     }
 
-    async fn latest(&self) -> Option<String> {
+    async fn latest(&self) -> Option<GqlPropertyOutputVal> {
         let self_clone = self.clone();
-        blocking_compute(move || self_clone.prop.latest().map(|x| x.to_string())).await
+        blocking_compute(move || self_clone.prop.latest().map(GqlPropertyOutputVal)).await
     }
 
-    async fn unique(&self) -> Vec<String> {
+    async fn unique(&self) -> Vec<GqlPropertyOutputVal> {
         let self_clone = self.clone();
         blocking_compute(move || {
             self_clone
                 .prop
                 .unique()
                 .into_iter()
-                .map(|x| x.to_string())
+                .map(GqlPropertyOutputVal)
                 .collect_vec()
         })
         .await
@@ -378,6 +378,52 @@ impl GqlTemporalProperty {
                 .collect()
         })
         .await
+    }
+
+    /// Sum of all updates. Returns null if the dtype is not additive or the property is empty.
+    async fn sum(&self) -> Option<GqlPropertyOutputVal> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.sum().map(GqlPropertyOutputVal)).await
+    }
+
+    /// Mean of all updates as an F64. Returns null if any value is non-numeric or the property is
+    /// empty.
+    async fn mean(&self) -> Option<GqlPropertyOutputVal> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.mean().map(GqlPropertyOutputVal)).await
+    }
+
+    /// Alias for `mean`.
+    async fn average(&self) -> Option<GqlPropertyOutputVal> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.average().map(GqlPropertyOutputVal)).await
+    }
+
+    /// Minimum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+    /// empty.
+    async fn min(&self) -> Option<GqlPropertyTuple> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.min().map(GqlPropertyTuple::from)).await
+    }
+
+    /// Maximum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+    /// empty.
+    async fn max(&self) -> Option<GqlPropertyTuple> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.max().map(GqlPropertyTuple::from)).await
+    }
+
+    /// Median `(time, value)` pair (lower median on even-length inputs). Returns null if the dtype
+    /// is not comparable or the property is empty.
+    async fn median(&self) -> Option<GqlPropertyTuple> {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.median().map(GqlPropertyTuple::from)).await
+    }
+
+    /// Number of updates.
+    async fn count(&self) -> usize {
+        let self_clone = self.clone();
+        blocking_compute(move || self_clone.prop.count()).await
     }
 }
 

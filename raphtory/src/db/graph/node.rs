@@ -38,10 +38,10 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
+    durability_ops::DurabilityOps,
     graph::graph::GraphStorage,
     mutation::{
         addition_ops::{InternalAdditionOps, NodeWriteLock},
-        durability_ops::DurabilityOps,
         MutationError,
     },
 };
