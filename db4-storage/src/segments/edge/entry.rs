@@ -14,22 +14,34 @@ use raphtory_core::{
     },
     storage::timeindex::{EventTime, TimeIndexOps},
 };
+use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub struct MemEdgeEntry<'a, MES> {
     pos: LocalPOS,
     es: MES,
-    edge_ref: Option<EdgeRef>,
-    __marker: std::marker::PhantomData<&'a ()>,
+    src: VID,
+    dst: VID,
+    __marker: PhantomData<&'a ()>,
 }
 
 impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment>> MemEdgeEntry<'a, MES> {
     pub fn new(pos: LocalPOS, es: MES, edge_ref: Option<EdgeRef>) -> Self {
-        Self {
-            pos,
-            es,
-            edge_ref,
-            __marker: std::marker::PhantomData,
+        match edge_ref {
+            None => Self {
+                pos,
+                es,
+                src: VID::default(),
+                dst: VID::default(),
+                __marker: PhantomData,
+            },
+            Some(e_ref) => Self {
+                pos,
+                es,
+                src: e_ref.src(),
+                dst: e_ref.dst(),
+                __marker: PhantomData,
+            },
         }
     }
 }
@@ -51,8 +63,8 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
         MemEdgeRef {
             pos: self.pos,
             es: &self.es,
-            src: VID::default(),
-            dst: VID::default(),
+            src: self.src,
+            dst: self.dst,
         }
     }
 }
@@ -213,7 +225,8 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
                 .as_ref()
                 .first()
                 .and_then(|layer| layer.get(self.pos))
-                .map(|entry| entry.src).unwrap_or_default()
+                .map(|entry| entry.src)
+                .unwrap_or_default()
         })
     }
 
@@ -223,16 +236,21 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
                 .as_ref()
                 .first()
                 .and_then(|layer| layer.get(self.pos))
-                .map(|entry| entry.dst).unwrap_or_default()
+                .map(|entry| entry.dst)
+                .unwrap_or_default()
         })
     }
 
     fn edge_id(&self) -> EID {
-        self.es.as_ref().first().map(|es| {
-            let segment_id = es.segment_id();
-            let max_page_len = es.max_page_len();
-            self.pos.as_eid(segment_id, max_page_len)
-        }).unwrap_or_default()
+        self.es
+            .as_ref()
+            .first()
+            .map(|es| {
+                let segment_id = es.segment_id();
+                let max_page_len = es.max_page_len();
+                self.pos.as_eid(segment_id, max_page_len)
+            })
+            .unwrap_or_default()
     }
 
     fn internal_num_layers(self) -> usize {
