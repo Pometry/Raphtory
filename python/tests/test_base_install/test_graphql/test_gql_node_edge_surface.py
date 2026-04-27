@@ -106,6 +106,41 @@ def test_node_update_times_and_edge_history_count():
         )
     )
 
+    # Windowed [16, 40): firstUpdate must reflect the first event *inside* the
+    # window (t=20, A->B), not the window start (t=16). The previous case had
+    # an event at exactly the window start which would mask a bug returning
+    # the window start instead of the first real update.
+    # Events touching A in window: A->B@20, A->C@25, A->A@25, A->B@30 => 4.
+    query = """
+    {
+      graph(path: "g") {
+        window(start: 16, end: 40) {
+          node(name: "A") {
+            firstUpdate { timestamp }
+            lastUpdate { timestamp }
+            edgeHistoryCount
+          }
+        }
+      }
+    }
+    """
+    queries_and_expected.append(
+        (
+            query,
+            {
+                "graph": {
+                    "window": {
+                        "node": {
+                            "firstUpdate": {"timestamp": 20},
+                            "lastUpdate": {"timestamp": 30},
+                            "edgeHistoryCount": 4,
+                        }
+                    }
+                }
+            },
+        )
+    )
+
     # layer(layer2) on A: node events (add_node @ t=10) aren't layer-scoped so
     # firstUpdate still sees t=10. Edge events on layer2 touching A are at 25,
     # 30, 50 => lastUpdate=50, edgeHistoryCount=3.

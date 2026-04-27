@@ -29,7 +29,7 @@ def test_addnode_and_node_lookup_with_integer_ids():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -68,7 +68,7 @@ def test_addedge_and_edge_lookup_with_integer_endpoints():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -107,7 +107,7 @@ def test_view_transforms_with_integer_node_ids():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         # Build a small integer-id graph: 1 → 2, 1 → 3, 4 → 2 (so 1 and 4 share neighbour 2).
         client.query("""
@@ -146,7 +146,7 @@ def test_batch_addnodes_addedges_with_integer_ids():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -188,7 +188,7 @@ def test_view_transforms_with_string_node_ids():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         # alice → bob, alice → carol, dave → bob (alice and dave share bob).
         client.query("""
@@ -225,7 +225,7 @@ def test_batch_addnodes_addedges_with_string_ids():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -268,7 +268,7 @@ def test_string_ids_remain_unchanged_for_existing_clients():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -299,7 +299,7 @@ def test_negative_integer_rejected():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         try:
             client.query("""

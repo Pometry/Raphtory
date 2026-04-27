@@ -30,7 +30,7 @@ def test_add_node_accepts_int_string_and_object_time():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         # Three forms, three different nodes.
         client.query("""
@@ -107,7 +107,7 @@ def test_add_properties_accepts_time_input_shapes():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -138,8 +138,10 @@ def test_add_properties_accepts_time_input_shapes():
         )
         score = result["graph"]["properties"]["temporal"]["get"]
         timestamps = [h["timestamp"] for h in score["history"]["list"]]
-        assert sorted(timestamps) == [100, 200, 300]
-        assert sorted(score["values"]) == [1, 2, 3]
+        # History is returned in temporal order; not sorting on purpose so a
+        # regression that returns events out of order would fail this test.
+        assert timestamps == [100, 200, 300]
+        assert score["values"] == [1, 2, 3]
 
 
 def test_temporal_property_input_accepts_time_input_in_batch():
@@ -148,7 +150,7 @@ def test_temporal_property_input_accepts_time_input_in_batch():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -195,7 +197,7 @@ def test_add_edges_batch_accepts_time_input_shapes():
     work_dir = tempfile.mkdtemp()
     with GraphServer(work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
-        client.send_graph(path="g", graph=Graph())
+        client.new_graph("g", "EVENT")
 
         client.query("""
             {
@@ -286,11 +288,13 @@ def test_mutable_node_and_edge_add_updates_accept_time_input():
             }
             """,
         )
-        assert sorted(
-            result["graph"]["node"]["properties"]["temporal"]["get"]["values"]
-        ) == [1, 2, 3]
-        assert sorted(
-            result["graph"]["edge"]["properties"]["temporal"]["get"]["values"]
-        ) == [1, 2]
+        # Values come back in temporal order — assert the sequence as-is so
+        # an out-of-order regression would fail.
+        assert result["graph"]["node"]["properties"]["temporal"]["get"][
+            "values"
+        ] == [1, 2, 3]
+        assert result["graph"]["edge"]["properties"]["temporal"]["get"][
+            "values"
+        ] == [1, 2]
         # delete at t=30 with no later re-add → edge is invalid at the latest time.
         assert result["graph"]["edge"]["isValid"] is False

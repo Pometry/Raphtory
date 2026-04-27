@@ -695,9 +695,9 @@ input EdgeLayersExpr {
 }
 
 """
-Describes the shape of edges between a specific pair of node types — the
-property and metadata keys seen on such edges, along with their observed
-value types. One `EdgeSchema` per `(srcType, dstType)` pair per layer.
+Describes edges between a specific pair of node types — the property and
+metadata keys seen on such edges, along with their observed value types.
+One `EdgeSchema` per `(srcType, dstType)` pair per layer.
 """
 type EdgeSchema {
 	"""
@@ -2521,8 +2521,8 @@ type Intervals {
 }
 
 """
-Describes the shape of a single edge layer — its name and the per
-`(srcType, dstType)` edge schemas observed within it.
+Describes a single edge layer — its name and the per `(srcType, dstType)`
+edge schemas observed within it.
 """
 type LayerSchema {
 	"""
@@ -2626,8 +2626,8 @@ type MutRoot {
 	"""
 	plugins: MutationPlugin!
 	"""
-	Permanently delete a stored graph from the server. Requires write
-	permission on both the graph and its parent namespace.
+	Permanently delete a stored graph from the server.
+	Requires WRITE on the graph and on its parent namespace.
 	"""
 	deleteGraph(
 		"""
@@ -2638,6 +2638,7 @@ type MutRoot {
 	"""
 	Create a new empty graph at the given path. Errors if a graph already
 	exists there.
+	Requires WRITE on the parent namespace.
 	"""
 	newGraph(
 		"""
@@ -2648,12 +2649,18 @@ type MutRoot {
 	"""
 	Move a stored graph to a new path on the server (rename / relocate).
 	Atomic: copies first, then deletes the source.
+	Requires WRITE on the source graph and on both the source and
+	destination namespaces.
 	"""
 	moveGraph(
 		"""
 		Current graph path relative to the root namespace.
 		"""
-		path: String!,		newPath: String!,
+		path: String!,
+		"""
+		Destination path relative to the root namespace.
+		"""
+		newPath: String!,
 		"""
 		If true, allow replacing an existing graph at `newPath`; defaults to false.
 		"""
@@ -2662,12 +2669,17 @@ type MutRoot {
 	"""
 	Duplicate a stored graph to a new path on the server. Source is
 	preserved.
+	Requires READ on the source graph and WRITE on the destination namespace.
 	"""
 	copyGraph(
 		"""
 		Source graph path relative to the root namespace.
 		"""
-		path: String!,		newPath: String!,
+		path: String!,
+		"""
+		Destination path relative to the root namespace.
+		"""
+		newPath: String!,
 		"""
 		If true, allow replacing an existing graph at `newPath`; defaults to false.
 		"""
@@ -2676,6 +2688,7 @@ type MutRoot {
 	"""
 	Stream-upload a graph file using GraphQL multipart upload. The client
 	sends the file directly; the server stores it under `path`.
+	Requires WRITE on the destination namespace.
 	"""
 	uploadGraph(
 		"""
@@ -2694,6 +2707,7 @@ type MutRoot {
 	"""
 	Send a serialised graph as a base64-encoded string in the request
 	body. Use for smaller graphs where multipart upload is overkill.
+	Requires WRITE on the destination namespace.
 	"""
 	sendGraph(
 		"""
@@ -2712,12 +2726,21 @@ type MutRoot {
 	"""
 	Persist a subgraph of an existing stored graph as a new graph. The
 	subgraph contains only the listed nodes and edges between them.
+	Requires READ on the parent graph and WRITE on the destination namespace.
 	"""
-	createSubgraph(		parentPath: String!,
+	createSubgraph(
+		"""
+		Source graph path relative to the root namespace.
+		"""
+		parentPath: String!,
 		"""
 		Node ids to include in the subgraph.
 		"""
-		nodes: [NodeId!]!,		newPath: String!,
+		nodes: [NodeId!]!,
+		"""
+		Destination path relative to the root namespace.
+		"""
+		newPath: String!,
 		"""
 		If true, replace any graph already at `newPath`.
 		"""
@@ -2726,12 +2749,21 @@ type MutRoot {
 	"""
 	(Experimental) Build a Tantivy search index for a stored graph so it
 	can be queried via `searchNodes` / `searchEdges`.
+	Requires WRITE on the graph.
 	"""
 	createIndex(
 		"""
 		Graph path relative to the root namespace.
 		"""
-		path: String!,		indexSpec: IndexSpecInput,		inRam: Boolean!
+		path: String!,
+		"""
+		Optional spec selecting which node/edge property fields to index. Omit to index a default set.
+		"""
+		indexSpec: IndexSpecInput,
+		"""
+		If true, build the index in memory (faster but lost on restart). If false, persist to disk.
+		"""
+		inRam: Boolean!
 	): Boolean!
 }
 
@@ -2824,18 +2856,26 @@ type MutableEdge {
 }
 
 """
-Write-side handle for a graph — returned from mutations like `newGraph` or
-`updateGraph`. Supports adding nodes and edges (individually or in batches),
-attaching properties/metadata, and looking up mutable node/edge handles
-(`node`, `edge`). Read `graph` to get a matching read-only view.
+Write-enabled handle for a graph. Obtained by calling `updateGraph(path)`
+on the root query with a path you have write permission for. Supports
+adding nodes and edges (individually or in batches), attaching
+properties/metadata, and looking up mutable `node`/`edge` handles. Use the
+read-only `graph(path)` resolver for queries.
 """
 type MutableGraph {
 	"""
 	Read-only view of this graph — identical to what you'd get from
 	`graph(path:)` on the query root. Use this when you want to compose
-	queries on the graph you've just mutated.
+	queries on the graph you've just mutated. `graphType` lets you
+	re-interpret the graph at query time (see `graph(path:)` for
+	semantics); defaults to the stored graph's native type.
 	"""
-	graph: Graph!
+	graph(
+		"""
+		Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type.
+		"""
+		graphType: GraphType
+	): Graph!
 	"""
 	Look up an existing node for mutation. Returns null if the node doesn't
 	exist; use `addNode` or `createNode` to create one.
@@ -3640,9 +3680,9 @@ input NodeLayersExpr {
 }
 
 """
-Describes the shape of nodes of a specific type in a graph — its property
-keys and observed value types (and, for string-valued properties, the set
-of distinct values seen). One `NodeSchema` per node type.
+Describes nodes of a specific type in a graph — its property keys and
+observed value types (and, for string-valued properties, the set of
+distinct values seen). One `NodeSchema` per node type.
 """
 type NodeSchema {
 	"""
@@ -3657,8 +3697,8 @@ type NodeSchema {
 	"""
 	properties: [PropertySchema!]!
 	"""
-	Metadata schemas seen on nodes of this type — same shape as `properties`
-	but covering the metadata surface (constant, not temporal).
+	Metadata schemas seen on nodes of this type — like `properties`, but
+	covering metadata fields rather than temporal properties.
 	"""
 	metadata: [PropertySchema!]!
 }
@@ -4776,9 +4816,9 @@ input PropCondition @oneOf {
 }
 
 """
-All properties (temporal + constant) of an entity, excluding metadata.
+All temporal properties of an entity (metadata is exposed separately).
 Look up individual properties via `get` / `contains`, enumerate via
-`keys` / `values`, or drop down to `temporal` for the time-aware surface.
+`keys` / `values`, or drop into `temporal` for time-aware accessors.
 """
 type Properties {
 	"""
@@ -4802,8 +4842,7 @@ type Properties {
 	): Boolean!
 	"""
 	All property keys present in the current view. Does not include metadata
-	— metadata is a separate surface accessed via the entity's `metadata`
-	field.
+	— metadata is exposed separately via the entity's `metadata` field.
 	"""
 	keys: [String!]!
 	"""
@@ -4930,11 +4969,11 @@ type QueryPlugin {
 }
 
 """
-Top-level read-only query surface. Entry points for loading a graph
+Top-level READ-only query root. Entry points for loading a graph
 (`graph`, `graphMetadata`), browsing stored graphs (`namespaces`,
-`namespace`, `root`), encoding one for transport (`receiveGraph`),
-inspecting vectorised variants (`vectorisedGraph`), and a few utility
-endpoints (`version`, `hello`, `plugins`).
+`namespace`, `root`), downloading a stored graph as a base64 blob
+(`receiveGraph`), inspecting vectorised variants (`vectorisedGraph`),
+and a few utility endpoints (`version`, `hello`, `plugins`).
 """
 type QueryRoot {
 	"""
@@ -4943,20 +4982,29 @@ type QueryRoot {
 	"""
 	hello: String!
 	"""
-	Load a graph by path, returning null if the caller lacks read permission or
-	the graph doesn't exist. When a read-scoped filter is attached to the
-	caller's permissions, that filter is applied before the graph is returned.
+	Load a graph by path. Returns null if the graph doesn't exist or is
+	inaccessible. When a READ-scoped filter is attached to the caller's
+	permissions, that filter is applied before the graph is returned.
+	`graphType` lets you re-interpret the stored graph at query time —
+	e.g. read an event-stored graph through persistent semantics. Defaults
+	to the type the graph was created with.
+	Requires READ on the graph.
 	"""
 	graph(
 		"""
 		Graph path relative to the root namespace (e.g. `"master"` or `"team/project/graph"`).
 		"""
-		path: String!
+		path: String!,
+		"""
+		Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type.
+		"""
+		graphType: GraphType
 	): Graph
 	"""
 	Returns lightweight metadata for a graph (node/edge counts,
-	timestamps) without deserialising the full graph. Requires at least
-	INTROSPECT permission.
+	timestamps) without deserialising the full graph. Returns null if the
+	graph doesn't exist or is inaccessible.
+	Requires READ on the graph, or INTROSPECT on its parent namespace.
 	"""
 	graphMetadata(
 		"""
@@ -4966,7 +5014,8 @@ type QueryRoot {
 	): MetaGraph
 	"""
 	Open a graph for writing — returns a `MutableGraph` handle that can
-	add nodes/edges/properties/metadata. Requires write permission.
+	add nodes/edges/properties/metadata.
+	Requires WRITE on the graph.
 	"""
 	updateGraph(
 		"""
@@ -4976,8 +5025,8 @@ type QueryRoot {
 	): MutableGraph!
 	"""
 	Compute and persist embeddings for the nodes and edges of a stored
-	graph so it can be queried via `vectorisedGraph`. Requires JWT write
-	access.
+	graph so it can be queried via `vectorisedGraph`.
+	Requires WRITE access.
 	"""
 	vectoriseGraph(
 		"""
@@ -4999,8 +5048,9 @@ type QueryRoot {
 	): Boolean!
 	"""
 	Open a previously-vectorised graph for similarity queries. Returns null
-	if the graph has no embeddings (call `vectoriseGraph` first) or the
-	caller lacks read permission.
+	if the graph has no embeddings (call `vectoriseGraph` first) or is
+	inaccessible.
+	Requires READ on the graph.
 	"""
 	vectorisedGraph(
 		"""
@@ -5009,14 +5059,15 @@ type QueryRoot {
 		path: String!
 	): VectorisedGraph
 	"""
-	Returns all namespaces using recursive search
-	
-	Returns::  List of namespaces on root
+	Recursively list every namespace under the root. Each namespace is
+	filtered against the caller's permissions: only namespaces with at
+	least DISCOVER are returned.
 	"""
 	namespaces: CollectionOfNamespace!
 	"""
 	Return a specific namespace by path. Errors if no namespace exists at
 	that path.
+	Requires INTROSPECT on the namespace to browse its contents.
 	"""
 	namespace(
 		"""
@@ -5025,21 +5076,22 @@ type QueryRoot {
 		path: String!
 	): Namespace!
 	"""
-	Returns root namespace
-	
-	Returns::  Root namespace
+	Returns the root namespace. Use it as the entry point for browsing
+	namespaces and graphs — child listings filter against the caller's
+	permissions.
 	"""
 	root: Namespace!
 	"""
-	Entry point for read-only plugins registered with the server (e.g. graph
+	Entry point for READ-only plugins registered with the server (e.g. graph
 	algorithms exposed as queries). Available plugins are defined at server
 	startup via the plugin registry.
 	"""
 	plugins: QueryPlugin!
 	"""
 	Encode a stored graph as a base64 string for client-side download. If
-	the caller has filtered read access, only the materialised filtered
-	view is encoded.
+	a READ-scoped filter is attached to the caller's permissions, only the
+	materialised filtered view is encoded.
+	Requires READ on the graph.
 	"""
 	receiveGraph(
 		"""
