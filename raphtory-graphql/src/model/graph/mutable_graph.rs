@@ -912,21 +912,21 @@ mod tests {
 
         let nodes = vec![
             NodeAddition {
-                name: "node1".to_string(),
+                name: "node1".into(),
                 node_type: Some("test_node_type".to_string()),
                 metadata: None,
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: None,
                 }]),
                 layer: None,
             },
             NodeAddition {
-                name: "node2".to_string(),
+                name: "node2".into(),
                 node_type: Some("test_node_type".to_string()),
                 metadata: None,
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: None,
                 }]),
                 layer: None,
@@ -960,7 +960,7 @@ mod tests {
 
         let nodes = vec![
             NodeAddition {
-                name: "complex_node_1".to_string(),
+                name: "complex_node_1".into(),
                 node_type: Some("employee".to_string()),
                 metadata: Some(vec![GqlPropertyInput {
                     key: "department".to_string(),
@@ -968,14 +968,14 @@ mod tests {
                 }]),
                 updates: Some(vec![
                     TemporalPropertyInput {
-                        time: 0,
+                        time: 0.into(),
                         properties: Some(vec![GqlPropertyInput {
                             key: "salary".to_string(),
                             value: Value::F64(50000.0),
                         }]),
                     },
                     TemporalPropertyInput {
-                        time: 0,
+                        time: 0.into(),
                         properties: Some(vec![GqlPropertyInput {
                             key: "salary".to_string(),
                             value: Value::F64(55000.0),
@@ -985,21 +985,21 @@ mod tests {
                 layer: None,
             },
             NodeAddition {
-                name: "complex_node_2".to_string(),
+                name: "complex_node_2".into(),
                 node_type: Some("employee".to_string()),
                 metadata: None,
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: None,
                 }]),
                 layer: None,
             },
             NodeAddition {
-                name: "complex_node_3".to_string(),
+                name: "complex_node_3".into(),
                 node_type: Some("employee".to_string()),
                 metadata: None,
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: Some(vec![GqlPropertyInput {
                         key: "salary".to_string(),
                         value: Value::F64(55000.0),
@@ -1037,21 +1037,21 @@ mod tests {
         // First add some nodes.
         let nodes = vec![
             NodeAddition {
-                name: "node1".to_string(),
+                name: "node1".into(),
                 node_type: Some("person".to_string()),
                 metadata: None,
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: None,
                 }]),
                 layer: None,
             },
             NodeAddition {
-                name: "node2".to_string(),
+                name: "node2".into(),
                 node_type: Some("person".to_string()),
                 metadata: None,
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: None,
                 }]),
                 layer: None,
@@ -1064,25 +1064,25 @@ mod tests {
         // Now add edges between them.
         let edges = vec![
             EdgeAddition {
-                src: "node1".to_string(),
-                dst: "node2".to_string(),
+                src: "node1".into(),
+                dst: "node2".into(),
                 layer: Some("friendship".to_string()),
                 metadata: Some(vec![GqlPropertyInput {
                     key: "strength".to_string(),
                     value: Value::F64(0.8),
                 }]),
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: None,
                 }]),
             },
             EdgeAddition {
-                src: "node2".to_string(),
-                dst: "node1".to_string(),
+                src: "node2".into(),
+                dst: "node1".into(),
                 layer: Some("friendship".to_string()),
                 metadata: None,
                 updates: Some(vec![TemporalPropertyInput {
-                    time: 0,
+                    time: 0.into(),
                     properties: None,
                 }]),
             },

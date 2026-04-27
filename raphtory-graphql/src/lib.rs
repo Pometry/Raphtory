@@ -66,7 +66,7 @@ mod graphql_test {
         serialise::GraphFolder,
         test_utils::json_sort_by_name,
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
     use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
@@ -284,7 +284,7 @@ mod graphql_test {
                     "nodes": {
                         "list": [
                             {
-                                "id": "11"
+                                "id": 11
                             }
                         ]
                     }
@@ -1040,7 +1040,7 @@ mod graphql_test {
         let res_json = res.data.into_json().unwrap();
         assert_eq!(
             res_json,
-            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+            json!({"graph": {"nodes": {"list": [{"id": 1}]}}})
         );
     }
 
@@ -1089,7 +1089,7 @@ mod graphql_test {
         let res_json = res.data.into_json().unwrap();
         assert_eq!(
             res_json,
-            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
+            json!({"graph": {"nodes": {"list": [{"id": 1}]}}})
         );
 
         let receive_graph = r#"
@@ -1262,21 +1262,23 @@ mod graphql_test {
         let all_edges: Vec<_> = graph1
             .edges()
             .id()
-            .map(|(src, dst)| (src.to_string(), dst.to_string()))
+            .map(|(src, dst)| {
+                let src = match src {
+                    GID::U64(u) => u,
+                    GID::Str(_) => unreachable!("integer-indexed graph"),
+                };
+                let dst = match dst {
+                    GID::U64(u) => u,
+                    GID::Str(_) => unreachable!("integer-indexed graph"),
+                };
+                (src, dst)
+            })
             .collect();
 
         // make sure we have the correct edges
         assert_eq!(
             all_edges.iter().cloned().sorted().collect_vec(),
-            [
-                ("1".to_string(), "2".to_string()),
-                ("2".to_string(), "4".to_string()),
-                ("3".to_string(), "2".to_string()),
-                ("3".to_string(), "6".to_string()),
-                ("4".to_string(), "5".to_string()),
-                ("4".to_string(), "6".to_string()),
-                ("5".to_string(), "6".to_string()),
-            ]
+            [(1, 2), (2, 4), (3, 2), (3, 6), (4, 5), (4, 6), (5, 6),]
         );
         let graph2 = Graph::new();
         graph2.add_metadata([("name", "graph2")]).unwrap();

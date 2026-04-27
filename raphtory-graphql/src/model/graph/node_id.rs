@@ -40,6 +40,24 @@ impl From<GqlNodeId> for GID {
     }
 }
 
+impl From<&str> for GqlNodeId {
+    fn from(value: &str) -> Self {
+        GqlNodeId(GID::Str(value.to_owned()))
+    }
+}
+
+impl From<String> for GqlNodeId {
+    fn from(value: String) -> Self {
+        GqlNodeId(GID::Str(value))
+    }
+}
+
+impl From<u64> for GqlNodeId {
+    fn from(value: u64) -> Self {
+        GqlNodeId(GID::U64(value))
+    }
+}
+
 impl AsNodeRef for GqlNodeId {
     fn as_node_ref(&self) -> NodeRef<'_> {
         self.0.as_node_ref()
