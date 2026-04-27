@@ -18,18 +18,19 @@ use url::Url;
 
 const PORT: u16 = 43871;
 
-/// Same key pair as `Raphtory/python/tests/test_permissions.py` and `test_auth.py`.
-const AUTH_PUB_KEY: &str = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=";
-const AUTH_PRIVATE_KEY_PEM: &str = "-----BEGIN PRIVATE KEY-----
+const PUB_KEY: &str = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=";
+const PRIVATE_KEY: &str = "-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
 -----END PRIVATE KEY-----";
 
 static AUTH_INIT: Once = Once::new();
 static RUNTIME: LazyLock<Runtime> =
     LazyLock::new(|| Runtime::new().expect("Failed to create Tokio runtime"));
+
 static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
-    let key = EncodingKey::from_ed_pem(AUTH_PRIVATE_KEY_PEM.as_bytes())
+    let key = EncodingKey::from_ed_pem(PRIVATE_KEY.as_bytes())
         .expect("decode Ed25519 private key for test JWTs");
+
     encode(
         &Header::new(Algorithm::EdDSA),
         &json!({ "access": "rw", "role": "admin" }),
@@ -42,25 +43,31 @@ fn init_raphtory_auth() {
     AUTH_INIT.call_once(auth::init);
 }
 
-/// `createRole` with admin credentials — mirrors Python `create_role` + default `gql(..., ADMIN_HEADERS)`.
+fn gql(client: &RaphtoryGraphQLClient, query: &str) -> HashMap<String, JsonValue> {
+    RUNTIME
+        .block_on(client.query(query, HashMap::new()))
+        .unwrap_or_else(|e| panic!("Error executing query {query}: {e}"))
+}
+
 fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
-    let q = format!(
+    let query = format!(
         r#"mutation {{ permissions {{ createRole(name: "{name}") {{ success }} }} }}"#
     );
-    let data = RUNTIME
-        .block_on(client.query(&q, HashMap::new()))
-        .unwrap_or_else(|e| panic!("createRole {name}: {e}"));
+
+    let data = gql(client, &query);
+
     let success = data
         .get("permissions")
         .and_then(|p| p.get("createRole"))
         .and_then(|c| c.get("success"))
         .and_then(JsonValue::as_bool);
+
     assert_eq!(success, Some(true), "createRole {name} data: {data:?}");
 }
 
 /// Create namespaces and graphs in graphql using the given tree.
 /// Every leaf node is turned into a graph using the path from root as the namespace.
-fn create_graphs(tree: &Graph, url: Url, admin_token: &str) -> Vec<String> {
+fn create_graphs(client: &RaphtoryGraphQLClient, tree: &Graph) -> Vec<String> {
     let mut graph_paths = Vec::new();
 
     for node in tree.nodes() {
@@ -78,13 +85,6 @@ fn create_graphs(tree: &Graph, url: Url, admin_token: &str) -> Vec<String> {
             graph_paths.push(path);
         }
     }
-
-    let client = RUNTIME
-        .block_on(RaphtoryGraphQLClient::connect(
-            url,
-            Some(admin_token.to_string()),
-        ))
-        .unwrap();
 
     for path in graph_paths.iter() {
         RUNTIME
@@ -141,9 +141,9 @@ fn start_server() -> (RunningGraphServer, TempDir) {
 
         let work_dir = tempdir.path().to_path_buf();
         let permissions_path = work_dir.join("permissions.json");
-        // Same public key and default `require_auth_for_reads` as Python `test_permissions` server.
+
         let app_config = AppConfigBuilder::new()
-            .with_auth_public_key(Some(AUTH_PUB_KEY.to_string()))
+            .with_auth_public_key(Some(PUB_KEY.to_string()))
             .expect("test auth public key")
             .build();
 
@@ -155,9 +155,11 @@ fn start_server() -> (RunningGraphServer, TempDir) {
         )
         .await
         .unwrap();
-        let server = apply_server_extension(server, Some(permissions_path.as_path()));
 
+        let server = apply_server_extension(server, Some(permissions_path.as_path()));
         let server = server.start_with_port(PORT).await.unwrap();
+
+        // Wait for server to start.
         tokio::time::sleep(Duration::from_secs(1)).await;
 
         (server, tempdir)
@@ -175,17 +177,19 @@ fn permissions_proptest() {
         |(tree_size in TREE_SIZE_RANGE, num_users in NUM_USERS_RANGE)| {
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
             let (_server, _tempdir) = start_server();
-            let namespace_tree = create_tree(tree_size);
-            let admin_token = ADMIN_JWT.as_str();
-            let graph_paths = create_graphs(&namespace_tree, url.clone(), admin_token);
 
             let client = RUNTIME
                 .block_on(RaphtoryGraphQLClient::connect(
                     url,
-                    Some(admin_token.to_string()),
+                    Some(ADMIN_JWT.to_string()),
                 ))
                 .unwrap();
 
+            // Create nested namespaces and graphs on the server.
+            let namespace_tree = create_tree(tree_size);
+            let graph_paths = create_graphs(&client, &namespace_tree);
+
+            // Create roles for each user.
             for i in 0..num_users {
                 let role = format!("user_{i}");
                 create_role(&client, &role);
