@@ -303,7 +303,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     PropValue: The sum of all property values.
     pub fn sum(&self) -> Option<Prop> {
-        compute_generalised_sum(self.prop.values(), |a, b| a.add(b), |d| d.dtype().has_add())
+        self.prop.sum()
     }
 
     /// Find the minimum property value and its associated time.
@@ -311,17 +311,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     Tuple[EventTime, PropValue]: A tuple containing the time and the minimum property value.
     pub fn min(&self) -> Option<(EventTime, Prop)> {
-        compute_generalised_sum(
-            self.prop.iter(),
-            |a, b| {
-                if a.1.partial_cmp(&b.1)?.is_le() {
-                    Some(a)
-                } else {
-                    Some(b)
-                }
-            },
-            |d| d.1.dtype().has_cmp(),
-        )
+        self.prop.min()
     }
 
     /// Find the maximum property value and its associated time.
@@ -329,17 +319,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     Tuple[EventTime, PropValue]: A tuple containing the time and the maximum property value.
     pub fn max(&self) -> Option<(EventTime, Prop)> {
-        compute_generalised_sum(
-            self.prop.iter(),
-            |a, b| {
-                if a.1.partial_cmp(&b.1)?.is_ge() {
-                    Some(a)
-                } else {
-                    Some(b)
-                }
-            },
-            |d| d.1.dtype().has_cmp(),
-        )
+        self.prop.max()
     }
 
     /// Count the number of properties.
@@ -347,7 +327,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     int: The number of properties.
     pub fn count(&self) -> usize {
-        self.prop.iter().count()
+        self.prop.count()
     }
 
     /// Compute the average of all property values. Alias for mean().
@@ -355,7 +335,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     PropValue: The average of each property values, or None if count is zero.
     pub fn average(&self) -> Option<Prop> {
-        self.mean()
+        self.prop.average()
     }
 
     /// Compute the mean of all property values. Alias for mean().
@@ -363,7 +343,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     PropValue: The mean of each property values, or None if count is zero.
     pub fn mean(&self) -> Option<Prop> {
-        compute_mean(self.prop.values())
+        self.prop.mean()
     }
 
     /// Compute the median of all property values.
@@ -371,17 +351,7 @@ impl PyTemporalProp {
     /// Returns:
     ///     Tuple[EventTime, PropValue]: A tuple containing the time and the median property value, or None if empty
     pub fn median(&self) -> Option<(EventTime, Prop)> {
-        let mut sorted: Vec<(EventTime, Prop)> = self.prop.iter().collect();
-        if !sorted.first()?.1.dtype().has_cmp() {
-            return None;
-        }
-        sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
-        let len = sorted.len();
-        if len == 0 {
-            None
-        } else {
-            Some(sorted[(len - 1) / 2].clone())
-        }
+        self.prop.median()
     }
 
     pub fn __repr__(&self) -> String {

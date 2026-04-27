@@ -19,7 +19,8 @@ static GLOBAL: Jemalloc = Jemalloc;
 /// Raphtory graph analytics library
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
-    let _ = add_raphtory_classes(m);
+    auth::init();
+    add_raphtory_classes(m)?;
 
     let graphql_module = base_graphql_module(py)?;
     let algorithm_module = base_algorithm_module(py)?;

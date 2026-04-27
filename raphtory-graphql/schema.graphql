@@ -3155,7 +3155,12 @@ type QueryRoot {
 	"""
 	Returns a graph
 	"""
-	graph(path: String!): Graph!
+	graph(path: String!): Graph
+	"""
+	Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+	Requires at least INTROSPECT permission.
+	"""
+	graphMetadata(path: String!): MetaGraph
 	"""
 	Update graph query, has side effects to update graph state
 	
@@ -3197,7 +3202,8 @@ type QueryRoot {
 	"""
 	plugins: QueryPlugin!
 	"""
-	Encodes graph and returns as string
+	Encodes graph and returns as string.
+	If the caller has filtered access, the returned graph is a materialized view of the filter.
 	
 	Returns:: Base64 url safe encoded string
 	"""
@@ -3274,11 +3280,43 @@ type TemporalProperty {
 	"""
 	Return the values of the properties.
 	"""
-	values: [String!]!
-	at(t: TimeInput!): String
-	latest: String
-	unique: [String!]!
+	values: [PropertyOutput!]!
+	at(t: TimeInput!): PropertyOutput
+	latest: PropertyOutput
+	unique: [PropertyOutput!]!
 	orderedDedupe(latestTime: Boolean!): [PropertyTuple!]!
+	"""
+	Sum of all updates. Returns null if the dtype is not additive or the property is empty.
+	"""
+	sum: PropertyOutput
+	"""
+	Mean of all updates as an F64. Returns null if any value is non-numeric or the property is
+	empty.
+	"""
+	mean: PropertyOutput
+	"""
+	Alias for `mean`.
+	"""
+	average: PropertyOutput
+	"""
+	Minimum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+	empty.
+	"""
+	min: PropertyTuple
+	"""
+	Maximum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+	empty.
+	"""
+	max: PropertyTuple
+	"""
+	Median `(time, value)` pair (lower median on even-length inputs). Returns null if the dtype
+	is not comparable or the property is empty.
+	"""
+	median: PropertyTuple
+	"""
+	Number of updates.
+	"""
+	count: Int!
 }
 
 input TemporalPropertyInput {

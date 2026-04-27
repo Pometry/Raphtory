@@ -1,14 +1,16 @@
 use crate::{
-    data::get_relative_path,
+    auth_policy::{AuthorizationPolicy, NamespacePermission},
+    data::{get_relative_path, Data},
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidPath},
     rayon::blocking_compute,
 };
+use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use walkdir::WalkDir;
 
 #[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
@@ -135,24 +137,46 @@ impl Namespace {
     }
 }
 
+fn is_graph_visible(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    g: &MetaGraph,
+) -> bool {
+    policy
+        .as_ref()
+        .map_or(true, |p| p.graph_permissions(ctx, &g.local_path()).is_ok())
+}
+
+fn is_namespace_visible(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    n: &Namespace,
+) -> bool {
+    policy.as_ref().map_or(true, |p| {
+        p.namespace_permissions(ctx, &n.relative_path) >= NamespacePermission::Discover
+    })
+}
+
 #[ResolvedObjectFields]
 impl Namespace {
-    async fn graphs(&self) -> GqlCollection<MetaGraph> {
+    async fn graphs(&self, ctx: &Context<'_>) -> GqlCollection<MetaGraph> {
+        let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
-        blocking_compute(move || {
-            GqlCollection::new(
-                self_clone
-                    .get_children()
-                    .into_iter()
-                    .filter_map(|g| match g {
-                        NamespacedItem::MetaGraph(g) => Some(g),
-                        NamespacedItem::Namespace(_) => None,
-                    })
-                    .sorted()
-                    .collect(),
-            )
-        })
-        .await
+        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        GqlCollection::new(
+            items
+                .into_iter()
+                .filter_map(|item| match item {
+                    NamespacedItem::MetaGraph(g)
+                        if is_graph_visible(ctx, &data.auth_policy, &g) =>
+                    {
+                        Some(g)
+                    }
+                    _ => None,
+                })
+                .sorted()
+                .collect(),
+        )
     }
     async fn path(&self) -> String {
         self.relative_path.clone()
@@ -174,28 +198,42 @@ impl Namespace {
         }
     }
 
-    async fn children(&self) -> GqlCollection<Namespace> {
+    async fn children(&self, ctx: &Context<'_>) -> GqlCollection<Namespace> {
+        let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
-        blocking_compute(move || {
-            GqlCollection::new(
-                self_clone
-                    .get_children()
-                    .filter_map(|item| match item {
-                        NamespacedItem::MetaGraph(_) => None,
-                        NamespacedItem::Namespace(n) => Some(n),
-                    })
-                    .sorted()
-                    .collect(),
-            )
-        })
-        .await
+        let items = blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        GqlCollection::new(
+            items
+                .into_iter()
+                .filter_map(|item| match item {
+                    NamespacedItem::Namespace(n)
+                        if is_namespace_visible(ctx, &data.auth_policy, &n) =>
+                    {
+                        Some(n)
+                    }
+                    _ => None,
+                })
+                .sorted()
+                .collect(),
+        )
     }
 
     // Fetch the collection of namespaces/graphs in this namespace.
     // Namespaces will be listed before graphs.
-    async fn items(&self) -> GqlCollection<NamespacedItem> {
+    async fn items(&self, ctx: &Context<'_>) -> GqlCollection<NamespacedItem> {
+        let data = ctx.data_unchecked::<Data>();
         let self_clone = self.clone();
-        blocking_compute(move || GqlCollection::new(self_clone.get_children().sorted().collect()))
-            .await
+        let all_items =
+            blocking_compute(move || self_clone.get_children().collect::<Vec<_>>()).await;
+        GqlCollection::new(
+            all_items
+                .into_iter()
+                .filter(|item| match item {
+                    NamespacedItem::MetaGraph(g) => is_graph_visible(ctx, &data.auth_policy, g),
+                    NamespacedItem::Namespace(n) => is_namespace_visible(ctx, &data.auth_policy, n),
+                })
+                .sorted()
+                .collect(),
+        )
     }
 }

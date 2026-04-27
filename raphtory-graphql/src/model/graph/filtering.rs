@@ -31,6 +31,7 @@ use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::{AsTime, EventTime},
 };
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -40,7 +41,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct Window {
     /// Window start time.
     pub start: GqlTimeInput,
@@ -260,7 +261,8 @@ pub enum PathFromNodeViewCollection {
     ShrinkEnd(GqlTimeInput),
 }
 
-#[derive(Enum, Copy, Clone, Debug)]
+#[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum NodeField {
     /// Node ID field.
     ///
@@ -303,7 +305,7 @@ impl Display for NodeField {
 /// ```graphql
 /// { Property: { name: "weight", where: { Gt: 0.5 } } }
 /// ```
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct PropertyFilterNew {
     /// Property (or metadata) key.
     pub name: String,
@@ -311,6 +313,7 @@ pub struct PropertyFilterNew {
     ///
     /// Exposed as `where` in GraphQL.
     #[graphql(name = "where")]
+    #[serde(rename = "where")]
     pub where_: PropCondition,
 }
 
@@ -331,7 +334,8 @@ pub struct PropertyFilterNew {
 /// - `Value` is interpreted according to the property’s type.
 /// - Aggregators/qualifiers like `Sum` and `Len` apply when the underlying
 ///   property is list-like or aggregatable (depending on your engine rules).
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum PropCondition {
     /// Equality: property value equals the given value.
     Eq(Value),
@@ -448,7 +452,7 @@ impl PropCondition {
 /// ```graphql
 /// { Window: { start: 0, end: 10, expr: { Layers: { names: ["A"] } } } }
 /// ```
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -464,7 +468,7 @@ pub struct GraphWindowExpr {
 ///
 /// Example:
 /// `{ At: { time: 5, expr: { Layers: { names: ["L1"] } } } }`
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -475,7 +479,7 @@ pub struct GraphTimeExpr {
 /// Graph view restriction that takes only a nested expression.
 ///
 /// Used for unary view operations like `Latest` and `SnapshotLatest`.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphUnaryExpr {
     /// Optional nested filter applied after the unary operation.
     pub expr: Option<Wrapped<GqlGraphFilter>>,
@@ -484,7 +488,7 @@ pub struct GraphUnaryExpr {
 /// Graph view restriction by layer membership, optionally chaining another `GraphFilter`.
 ///
 /// Used by `GqlGraphFilter::Layers`.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -504,8 +508,9 @@ pub struct GraphLayersExpr {
 ///
 /// These filters can be nested via the `expr` field on the corresponding
 /// `*Expr` input objects to form pipelines.
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "GraphFilter")]
+#[serde(rename_all = "camelCase")]
 pub enum GqlGraphFilter {
     /// Restrict evaluation to a time window (inclusive start, exclusive end).
     Window(GraphWindowExpr),
@@ -534,7 +539,8 @@ pub enum GqlGraphFilter {
 ///
 /// Supports comparisons, string predicates, and set membership.
 /// (Presence checks and aggregations are handled via property filters instead.)
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum NodeFieldCondition {
     /// Equality.
     Eq(Value),
@@ -590,7 +596,7 @@ impl NodeFieldCondition {
 /// ```graphql
 /// { Node: { field: NodeName, where: { Contains: "ali" } } }
 /// ```
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeFieldFilterNew {
     /// Which built-in field to filter.
     pub field: NodeField,
@@ -598,6 +604,7 @@ pub struct NodeFieldFilterNew {
     ///
     /// Exposed as `where` in GraphQL.
     #[graphql(name = "where")]
+    #[serde(rename = "where")]
     pub where_: NodeFieldCondition,
 }
 
@@ -606,7 +613,7 @@ pub struct NodeFieldFilterNew {
 /// Used by `GqlNodeFilter::Window`.
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -619,7 +626,7 @@ pub struct NodeWindowExpr {
 /// Restricts node evaluation to a single time bound and applies a nested `NodeFilter`.
 ///
 /// Used by `At`, `Before`, and `After` node filters.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -630,7 +637,7 @@ pub struct NodeTimeExpr {
 /// Applies a unary node-view operation and then evaluates a nested `NodeFilter`.
 ///
 /// Used by `Latest` and `SnapshotLatest` node filters.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlNodeFilter>,
@@ -639,7 +646,7 @@ pub struct NodeUnaryExpr {
 /// Restricts node evaluation to one or more layers and applies a nested `NodeFilter`.
 ///
 /// Used by `GqlNodeFilter::Layers`.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -661,8 +668,9 @@ pub struct NodeLayersExpr {
 ///
 /// Filters can be combined recursively using logical operators
 /// (`And`, `Or`, `Not`).
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "NodeFilter")]
+#[serde(rename_all = "camelCase")]
 pub enum GqlNodeFilter {
     /// Filters a built-in node field (ID, name, or type).
     Node(NodeFieldFilterNew),
@@ -718,7 +726,7 @@ pub enum GqlNodeFilter {
 /// Used by `GqlEdgeFilter::Window`.
 ///
 /// The window is inclusive of `start` and exclusive of `end`.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeWindowExpr {
     /// Window start time (inclusive).
     pub start: GqlTimeInput,
@@ -731,7 +739,7 @@ pub struct EdgeWindowExpr {
 /// Restricts edge evaluation to a single time bound and applies a nested `EdgeFilter`.
 ///
 /// Used by `At`, `Before`, and `After` edge filters.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeTimeExpr {
     /// Reference time for the operation.
     pub time: GqlTimeInput,
@@ -742,7 +750,7 @@ pub struct EdgeTimeExpr {
 /// Applies a unary edge-view operation and then evaluates a nested `EdgeFilter`.
 ///
 /// Used by `Latest` and `SnapshotLatest` edge filters.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeUnaryExpr {
     /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlEdgeFilter>,
@@ -751,7 +759,7 @@ pub struct EdgeUnaryExpr {
 /// Restricts edge evaluation to one or more layers and applies a nested `EdgeFilter`.
 ///
 /// Used by `GqlEdgeFilter::Layers`.
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeLayersExpr {
     /// Layer names to include.
     pub names: Vec<String>,
@@ -787,8 +795,9 @@ pub struct EdgeLayersExpr {
 ///   }
 /// }
 /// ```
-#[derive(OneOfInput, Clone, Debug)]
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "EdgeFilter")]
+#[serde(rename_all = "camelCase")]
 pub enum GqlEdgeFilter {
     /// Applies a filter to the **source node** of the edge.
     ///
@@ -903,7 +912,8 @@ pub enum GqlEdgeFilter {
     IsSelfLoop(bool),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Wrapped<T>(Box<T>);
 impl<T> Deref for Wrapped<T> {
     type Target = T;
@@ -1733,4 +1743,24 @@ impl TryFrom<GqlGraphFilter> for DynView {
             }
         })
     }
+}
+
+/// Combined filter input covering all three filter levels (node, edge, graph-level).
+/// Used by `grantGraphFilteredReadOnly` to express a data-access restriction
+/// that is transparently applied whenever the role queries the graph.
+/// Use `and` / `or` to compose multiple sub-filters.
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GraphAccessFilter {
+    /// Filter by node properties, fields, or temporal state.
+    Node(GqlNodeFilter),
+    /// Filter by edge properties, source/destination, or temporal state.
+    Edge(GqlEdgeFilter),
+    /// Apply a graph-level view (window, snapshot, layer restriction, …).
+    Graph(GqlGraphFilter),
+    /// All sub-filters must pass (intersection).
+    And(Vec<GraphAccessFilter>),
+    /// At least one sub-filter must pass (union within each filter type;
+    /// cross-type sub-filters are applied as independent restrictions).
+    Or(Vec<GraphAccessFilter>),
 }

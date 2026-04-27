@@ -54,6 +54,7 @@ pub type GS<P> = GraphPropSegmentView<P>;
 pub type Layer<P> = GraphStore<NS<P>, ES<P>, GS<P>, P>;
 
 pub type Wal = <Extension as PersistenceStrategy>::Wal;
+pub type ControlFile = <Extension as PersistenceStrategy>::ControlFile;
 pub type Config = <Extension as PersistenceStrategy>::Config;
 pub type GIDResolver = MappingResolver;
 

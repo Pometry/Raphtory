@@ -6513,6 +6513,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "raphtory-auth-noop"
+version = "0.18.0"
+
+[[package]]
 name = "raphtory-benchmark"
 version = "0.18.0"
 dependencies = [
@@ -6633,8 +6637,18 @@ dependencies = [
  "pyo3",
  "pyo3-build-config",
  "raphtory",
+ "raphtory-auth-noop",
  "raphtory-graphql",
  "tikv-jemallocator",
+]
+
+[[package]]
+name = "raphtory-server"
+version = "0.18.0"
+dependencies = [
+ "raphtory-auth-noop",
+ "raphtory-graphql",
+ "tokio",
 ]
 
 [[package]]
@@ -7564,7 +7578,7 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "snb"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "chrono",
  "flate2",

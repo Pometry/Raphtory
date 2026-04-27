@@ -30,10 +30,25 @@ Hello world demo
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.graph">graph</strong></td>
-<td valign="top"><a href="#graph">Graph</a>!</td>
+<td valign="top"><a href="#graph">Graph</a></td>
 <td>
 
 Returns a graph
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="queryroot.graphmetadata">graphMetadata</strong></td>
+<td valign="top"><a href="#metagraph">MetaGraph</a></td>
+<td>
+
+Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+Requires at least INTROSPECT permission.
 
 </td>
 </tr>
@@ -157,7 +172,8 @@ Returns a plugin.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Encodes graph and returns as string
+Encodes graph and returns as string.
+If the caller has filtered access, the returned graph is a materialized view of the filter.
 
 Returns:: Base64 url safe encoded string
 
@@ -5955,7 +5971,7 @@ Key of a property.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.values">values</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
+<td valign="top">[<a href="#propertyoutput">PropertyOutput</a>!]!</td>
 <td>
 
 Return the values of the properties.
@@ -5964,7 +5980,7 @@ Return the values of the properties.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.at">at</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
 <td></td>
 </tr>
 <tr>
@@ -5974,12 +5990,12 @@ Return the values of the properties.
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.latest">latest</strong></td>
-<td valign="top"><a href="#string">String</a></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
 <td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="temporalproperty.unique">unique</strong></td>
-<td valign="top">[<a href="#string">String</a>!]!</td>
+<td valign="top">[<a href="#propertyoutput">PropertyOutput</a>!]!</td>
 <td></td>
 </tr>
 <tr>
@@ -5991,6 +6007,73 @@ Return the values of the properties.
 <td colspan="2" align="right" valign="top">latestTime</td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td></td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.sum">sum</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+Sum of all updates. Returns null if the dtype is not additive or the property is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.mean">mean</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+Mean of all updates as an F64. Returns null if any value is non-numeric or the property is
+empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.average">average</strong></td>
+<td valign="top"><a href="#propertyoutput">PropertyOutput</a></td>
+<td>
+
+Alias for `mean`.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.min">min</strong></td>
+<td valign="top"><a href="#propertytuple">PropertyTuple</a></td>
+<td>
+
+Minimum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.max">max</strong></td>
+<td valign="top"><a href="#propertytuple">PropertyTuple</a></td>
+<td>
+
+Maximum `(time, value)` pair. Returns null if the dtype is not comparable or the property is
+empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.median">median</strong></td>
+<td valign="top"><a href="#propertytuple">PropertyTuple</a></td>
+<td>
+
+Median `(time, value)` pair (lower median on even-length inputs). Returns null if the dtype
+is not comparable or the property is empty.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="temporalproperty.count">count</strong></td>
+<td valign="top"><a href="#int">Int</a>!</td>
+<td>
+
+Number of updates.
+
+</td>
 </tr>
 </tbody>
 </table>

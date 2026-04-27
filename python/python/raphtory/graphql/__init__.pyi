@@ -44,6 +44,7 @@ __all__ = [
     "decode_graph",
     "schema",
     "cli",
+    "has_permissions_extension",
 ]
 
 class GraphServer(object):
@@ -61,7 +62,7 @@ class GraphServer(object):
         otlp_tracing_service_name (str, optional): The OTLP tracing service name
         config_path (str | PathLike, optional): Path to the config file
         auth_public_key (str, optional): Base64-encoded public key used to verify bearer tokens
-        auth_enabled_for_reads (bool, optional): Require auth tokens for read queries
+        require_auth_for_reads (bool, optional): Require auth tokens for read queries
         create_index (bool, optional): Build a search index on startup
         heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
         exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
@@ -88,7 +89,7 @@ class GraphServer(object):
         otlp_agent_port: Optional[str] = None,
         otlp_tracing_service_name: Optional[str] = None,
         auth_public_key: Optional[str] = None,
-        auth_enabled_for_reads: Optional[bool] = None,
+        require_auth_for_reads: Optional[bool] = None,
         config_path: Optional[str | PathLike] = None,
         create_index: Optional[bool] = None,
         heavy_query_limit: Optional[int] = None,
@@ -102,6 +103,7 @@ class GraphServer(object):
         max_recursive_depth: Optional[int] = None,
         max_directives_per_field: Optional[int] = None,
         disable_introspection: Optional[bool] = None,
+        permissions_store_path=None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -794,3 +796,5 @@ def schema():
     """
 
 def cli(): ...
+def has_permissions_extension():
+    """Returns True if the permissions extension (raphtory-auth) is compiled in."""
