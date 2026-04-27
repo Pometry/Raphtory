@@ -1,4 +1,5 @@
 use crate::{
+    auth_policy::AuthorizationPolicy,
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::blocking_io,
@@ -129,6 +130,7 @@ pub struct DataInner {
     pub(crate) cache: Cache<String, GraphWithVectors>,
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
+    pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
 }
 
 /// Outer data struct that wraps the inner data to make sure it is only dropped once
@@ -183,9 +185,16 @@ impl Data {
                 cache,
                 vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
                 graph_conf,
+                auth_policy: None,
             }),
             create_index,
         }
+    }
+
+    pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
+        Arc::get_mut(&mut self.inner)
+            .expect("Data is not uniquely owned when setting auth_policy")
+            .auth_policy = Some(policy);
     }
 
     async fn invalidate(&self, path: &str) {

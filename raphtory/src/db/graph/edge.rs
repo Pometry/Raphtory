@@ -42,10 +42,10 @@ use raphtory_core::entities::{
     nodes::node_ref::{AsNodeRef, NodeRef},
 };
 use raphtory_storage::{
+    durability_ops::DurabilityOps,
     graph::edges::edge_storage_ops::EdgeStorageOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps},
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
     },
 };

@@ -3,7 +3,7 @@ use crate::config::index_config::DEFAULT_CREATE_INDEX;
 use crate::{
     config::{
         app_config::AppConfigBuilder,
-        auth_config::{DEFAULT_AUTH_ENABLED_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
+        auth_config::{DEFAULT_REQUIRE_AUTH_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
         cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
         concurrency_config::{
             DEFAULT_DISABLE_BATCHING, DEFAULT_DISABLE_LISTS, DEFAULT_EXCLUSIVE_WRITES,
@@ -16,7 +16,7 @@ use crate::{
         schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
     model::App,
-    server::DEFAULT_PORT,
+    server::{apply_server_extension, DEFAULT_PORT},
     GraphServer,
 };
 use clap::{Parser, Subcommand};
@@ -79,8 +79,8 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_AUTH_PUBLIC_KEY", default_value = None, help = "Public key for auth")]
     auth_public_key: Option<String>,
 
-    #[arg(long, env = "RAPHTORY_AUTH_ENABLED_FOR_READS", default_value_t = DEFAULT_AUTH_ENABLED_FOR_READS, help = "Enable auth for reads")]
-    auth_enabled_for_reads: bool,
+    #[arg(long, env = "RAPHTORY_REQUIRE_AUTH_FOR_READS", default_value_t = DEFAULT_REQUIRE_AUTH_FOR_READS, help = "Require JWT authentication for read requests (default: true)")]
+    require_auth_for_reads: bool,
 
     #[arg(
         long,
@@ -173,6 +173,9 @@ struct ServerArgs {
     #[arg(long, env = "RAPHTORY_PUBLIC_DIR", default_value = None, help = "Public directory path")]
     public_dir: Option<PathBuf>,
 
+    #[arg(long, env = "RAPHTORY_PERMISSIONS_STORE_PATH", default_value = None, help = "Path to the JSON permissions store file")]
+    permissions_store_path: Option<PathBuf>,
+
     #[cfg(feature = "search")]
     #[arg(long, env = "RAPHTORY_CREATE_INDEX", default_value_t = DEFAULT_CREATE_INDEX, help = "Enable index creation")]
     create_index: bool,
@@ -206,7 +209,7 @@ where
                 .with_auth_public_key(server_args.auth_public_key)
                 .expect(PUBLIC_KEY_DECODING_ERR_MSG)
                 .with_public_dir(server_args.public_dir)
-                .with_auth_enabled_for_reads(server_args.auth_enabled_for_reads)
+                .with_require_auth_for_reads(server_args.require_auth_for_reads)
                 .with_heavy_query_limit(server_args.heavy_query_limit)
                 .with_exclusive_writes(server_args.exclusive_writes)
                 .with_disable_batching(server_args.disable_batching)
@@ -226,15 +229,16 @@ where
 
             let app_config = Some(builder.build());
 
-            GraphServer::new(
+            let server = GraphServer::new(
                 server_args.work_dir,
                 app_config,
                 None,
                 server_args.graph_config,
             )
-            .await?
-            .run_with_port(server_args.port)
             .await?;
+            let server =
+                apply_server_extension(server, server_args.permissions_store_path.as_deref());
+            server.run_with_port(server_args.port).await?;
         }
     }
     Ok(())

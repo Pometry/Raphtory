@@ -1,9 +1,14 @@
-pub use crate::server::GraphServer;
+pub use crate::{
+    auth::{require_jwt_write_access_dynamic, Access},
+    model::graph::filtering::GraphAccessFilter,
+    server::GraphServer,
+};
 use crate::{data::InsertionError, paths::PathValidationError};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 
 mod auth;
+pub mod auth_policy;
 pub mod client;
 pub mod data;
 mod graph;
@@ -40,6 +45,7 @@ mod graphql_test {
     #[cfg(feature = "search")]
     use crate::config::app_config::AppConfigBuilder;
     use crate::{
+        auth::Access,
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
@@ -85,7 +91,7 @@ mod graphql_test {
             )
         }"#;
 
-        let req = Request::new(query);
+        let req = Request::new(query).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
     }
@@ -1066,7 +1072,9 @@ mod graphql_test {
         "##;
 
         let variables = json!({ "file": null, "overwrite": false });
-        let mut req = Request::new(query).variables(Variables::from_json(variables));
+        let mut req = Request::new(query)
+            .variables(Variables::from_json(variables))
+            .data(Access::Rw);
         req.set_upload("variables.file", upload_val);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
@@ -1111,9 +1119,11 @@ mod graphql_test {
             sendGraph(path: "test", graph: $graph, overwrite: $overwrite)
         }
         "#;
-        let req = Request::new(query).variables(Variables::from_json(
-            json!({ "graph": graph_str, "overwrite": false }),
-        ));
+        let req = Request::new(query)
+            .variables(Variables::from_json(
+                json!({ "graph": graph_str, "overwrite": false }),
+            ))
+            .data(Access::Rw);
 
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
@@ -1626,7 +1636,7 @@ mod graphql_test {
           createSubgraph(parentPath: "graph", newPath: "graph2", nodes: ["1", "2"], overwrite: false)
         }
         "#;
-        let req = Request::new(req);
+        let req = Request::new(req).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
         let req = r#"
@@ -1634,7 +1644,7 @@ mod graphql_test {
           createSubgraph(parentPath: "graph", newPath: "namespace1/graph3", nodes: ["2", "3", "4"], overwrite: false)
         }
         "#;
-        let req = Request::new(req);
+        let req = Request::new(req).data(Access::Rw);
         let res = schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
 
@@ -1818,7 +1828,8 @@ mod graphql_test {
     async fn test_new_graph(schema: &Schema, path: &str, should_work: bool) {
         let req = Request::new(format!(
             r#"mutation {{ newGraph(path: "{path}", graphType: EVENT) }}"#,
-        ));
+        ))
+        .data(Access::Rw);
         let res = schema.execute(req).await;
 
         if should_work {

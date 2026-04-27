@@ -3,7 +3,12 @@ use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
     pages::{edge_store::ReadLockedEdgeStorage, node_store::ReadLockedNodeStorage},
-    persist::{config::ConfigOps, strategy::PersistenceStrategy},
+    persist::{
+        config::ConfigOps,
+        control_file::{ControlFileOps, DBState},
+        strategy::PersistenceStrategy,
+    },
+    properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     state::StateIndex,
     wal::{GraphWalOps, WalOps},
@@ -356,32 +361,38 @@ impl<
 > Drop for GraphStore<NS, ES, GS, EXT>
 {
     fn drop(&mut self) {
+        let wal = self.ext.wal();
+        let control_file = self.ext.control_file();
+
         match self.flush() {
             Ok(_) => {
-                let wal = self.ext.wal();
+                // Log a checkpoint record in the WAL, indicating that the DB was shutdown
+                // with all the segments flushed to disk.
+                // On startup, recovery is skipped since there are no pending writes to replay.
+                let checkpoint_lsn = match wal.log_shutdown_checkpoint() {
+                    Ok(lsn) => lsn,
+                    Err(err) => {
+                        eprintln!("Failed to log shutdown checkpoint in drop: {err}");
+                        return;
+                    }
+                };
 
-                // INVARIANTS:
-                // 1. No new writes can occur since we are in a drop.
-                // 2. flush() has persisted all the segments to disk.
-                //
-                // Thus, we can safely discard all records with LSN <= latest_lsn_on_disk
-                // by rotating the WAL.
-                let latest_lsn_on_disk = wal.next_lsn() - 1;
+                // Flush up to the end of the WAL stream.
+                let flush_lsn = wal.position();
 
-                if let Err(e) = wal.rotate(latest_lsn_on_disk) {
-                    eprintln!("Failed to rotate WAL in drop: {}", e);
+                if let Err(err) = wal.flush(flush_lsn) {
+                    eprintln!("Failed to flush checkpoint record in drop: {err}");
+                    return;
                 }
 
-                // FIXME: If the process crashes here after rotation, we lose the
-                // checkpoint record. Write next LSN to a separate file before rotation.
+                // Record the checkpoint and shutdown state and write control file to disk.
+                control_file.set_checkpoint(checkpoint_lsn);
+                control_file.set_db_state(DBState::Shutdown);
 
-                // Log a checkpoint record so we can restore the next LSN after reload.
-                let checkpoint_lsn = wal
-                    .log_checkpoint(latest_lsn_on_disk)
-                    .expect("Failed to log checkpoint in drop");
-
-                wal.flush(checkpoint_lsn)
-                    .expect("Failed to flush checkpoint record in drop");
+                if let Err(err) = control_file.save() {
+                    eprintln!("Failed to save control file in drop: {err}");
+                    return;
+                }
             }
             Err(err) => {
                 eprintln!("Failed to flush storage in drop: {err}")

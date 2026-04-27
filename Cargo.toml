@@ -7,14 +7,17 @@ members = [
     "examples/custom-gql-apis",
     "python",
     "raphtory-graphql",
+    "raphtory-auth-noop",
+    "raphtory-server",
     "raphtory-api",
     "raphtory-core",
     "raphtory-storage",
     "raphtory-api-macros",
     "raphtory-itertools",
     "clam-core",
-    "clam-core/snb"
-    , "raphtory-itertools"]
+    "clam-core/snb",
+    "raphtory-itertools"
+]
 default-members = ["raphtory"]
 exclude = ["optd"]
 resolver = "2"
@@ -202,3 +205,6 @@ datafusion-expr-common = "52.5.0"
 package = "db4-storage"
 path = "db4-storage"
 
+[workspace.dependencies.auth]
+package = "raphtory-auth-noop"
+path = "raphtory-auth-noop"

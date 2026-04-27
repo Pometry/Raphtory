@@ -1,7 +1,10 @@
-use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+use crate::{
     durability_ops::DurabilityOps,
-    MutationError, NodeWriterT,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+        MutationError, NodeWriterT,
+    },
+    recovery_ops::RecoveryOps,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
@@ -36,7 +39,7 @@ use storage::{
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    Extension, LocalPOS, Wal, ES, GS, NS,
+    ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct AtomicAddEdge<'a, EXT>
@@ -754,4 +757,10 @@ impl DurabilityOps for TemporalGraph {
     fn wal(&self) -> Result<&Wal, MutationError> {
         Ok(&self.extension().wal())
     }
+
+    fn control_file(&self) -> Result<&ControlFile, MutationError> {
+        Ok(&self.extension().control_file())
+    }
 }
+
+impl RecoveryOps for TemporalGraph {}
