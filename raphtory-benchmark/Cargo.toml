@@ -11,14 +11,12 @@ raphtory = { workspace = true, features = [
     "io",
 ] }
 raphtory-api = { workspace = true }
-sorted_vector_map = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
-itertools = { workspace = true }
 fake = { workspace = true }
 csv = { workspace = true }
 chrono = { workspace = true }

@@ -10,7 +10,6 @@ mod vectorise {
     // async fn vectorise(graph: Graph) {
     //     tokio::task::spawn_blocking(move || vectorise_graph_for_bench(graph));
     // }
-    use std::time::SystemTime;
 
     pub async fn vectorise() {
         println!("size,duration");
@@ -37,5 +36,5 @@ mod vectorise {
 #[tokio::main]
 async fn main() {
     #[cfg(feature = "vectors")]
-    vectorise::vectorise()
+    vectorise::vectorise().await
 }

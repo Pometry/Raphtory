@@ -1,12 +1,8 @@
 use serde::{ser::SerializeSeq, Deserialize, Serialize};
-use std::{
-    borrow::Borrow,
-    mem,
-    ops::{Range, RangeBounds},
-};
+use std::{borrow::Borrow, mem, ops::Range};
 
 /// Implements a sorted vector map
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct SVM<K: Ord, V>(Vec<(K, V)>);
 
 impl<K: Ord, V> Default for SVM<K, V> {
@@ -152,24 +148,5 @@ where
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
-    }
-}
-
-// this implements Serialize for SortedVectorMap
-impl<K: Ord + Serialize, V: Serialize> Serialize for SVM<K, V> {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut seq = serializer.serialize_seq(Some(self.len()))?;
-        for (k, v) in self.iter() {
-            seq.serialize_element(&(k, v))?;
-        }
-        seq.end()
-    }
-}
-
-// this implements Serialize for SortedVectorMap
-impl<'de, K: Ord + Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for SVM<K, V> {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let vec = Vec::<(K, V)>::deserialize(deserializer)?;
-        Ok(SVM::from_iter(vec))
     }
 }

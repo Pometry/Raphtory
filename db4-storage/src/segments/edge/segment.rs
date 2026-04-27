@@ -6,10 +6,7 @@ use crate::{
     properties::PropMutEntry,
     segments::{
         HasRow, SegmentContainer,
-        edge::{
-            self,
-            entry::{MemEdgeEntry, MemEdgeRef},
-        },
+        edge::entry::{MemEdgeEntry, MemEdgeRef},
     },
     utils::Iter4,
     wal::LSN,
