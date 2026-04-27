@@ -1,33 +1,33 @@
-use std::collections::HashMap;
+mod utils;
+
+use std::collections::BTreeSet;
+use std::hint::black_box;
 use std::ops::RangeInclusive;
-use std::sync::Once;
-use std::{hint::black_box, sync::LazyLock, time::Duration};
+use std::sync::LazyLock;
 
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use proptest::prelude::*;
+use proptest::strategy::ValueTree;
 use rand::prelude::IndexedRandom;
-use raphtory::{algorithms::components::in_component, prelude::*};
-use raphtory::db::api::storage::storage::Config;
-use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
-use raphtory_graphql::config::app_config::AppConfigBuilder;
-use raphtory_graphql::server::{apply_server_extension, GraphServer, RunningGraphServer};
-use serde_json::{json, Value as JsonValue};
-use tempfile::TempDir;
-use tokio::runtime::Runtime;
+use raphtory::prelude::*;
+use serde_json::json;
 use url::Url;
+
+use utils::graphql::{
+    create_graphs, create_role, get_client,
+    grant_graph, grant_namespace, start_server,
+};
+use utils::strategy::{permissions_strategy, PermissionTarget};
 
 const PORT: u16 = 43871;
 
+// Borrowed from test_permissions.py.
 const PUB_KEY: &str = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=";
 const PRIVATE_KEY: &str = "-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
 -----END PRIVATE KEY-----";
 
-static AUTH_INIT: Once = Once::new();
-static RUNTIME: LazyLock<Runtime> =
-    LazyLock::new(|| Runtime::new().expect("Failed to create Tokio runtime"));
-
-static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
+pub static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
     let key = EncodingKey::from_ed_pem(PRIVATE_KEY.as_bytes())
         .expect("decode Ed25519 private key for test JWTs");
 
@@ -39,60 +39,19 @@ static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
     .expect("encode admin JWT")
 });
 
-fn init_raphtory_auth() {
-    AUTH_INIT.call_once(auth::init);
-}
+pub fn namespace_paths(graph_paths: &[String]) -> Vec<String> {
+    let mut namespaces = BTreeSet::new();
 
-fn gql(client: &RaphtoryGraphQLClient, query: &str) -> HashMap<String, JsonValue> {
-    RUNTIME
-        .block_on(client.query(query, HashMap::new()))
-        .unwrap_or_else(|e| panic!("Error executing query {query}: {e}"))
-}
-
-fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
-    let query = format!(
-        r#"mutation {{ permissions {{ createRole(name: "{name}") {{ success }} }} }}"#
-    );
-
-    let data = gql(client, &query);
-
-    let success = data
-        .get("permissions")
-        .and_then(|p| p.get("createRole"))
-        .and_then(|c| c.get("success"))
-        .and_then(JsonValue::as_bool);
-
-    assert_eq!(success, Some(true), "createRole {name} data: {data:?}");
-}
-
-/// Create namespaces and graphs in graphql using the given tree.
-/// Every leaf node is turned into a graph using the path from root as the namespace.
-fn create_graphs(client: &RaphtoryGraphQLClient, tree: &Graph) -> Vec<String> {
-    let mut graph_paths = Vec::new();
-
-    for node in tree.nodes() {
-        if node.out_neighbours().len() == 0 { // Leaf node
-            // In-component order yields path from root to node.
-            let mut in_components = in_component(node.clone())
-                .iter()
-                .map(|(node_view, _)| node_view.name())
-                .collect::<Vec<_>>();
-
-            // Include the node itself in the path.
-            in_components.push(node.name());
-
-            let path = in_components.join("/");
-            graph_paths.push(path);
+    for path in graph_paths {
+        let mut end = 0usize;
+        while let Some(rel) = path[end..].find('/') {
+            end += rel;
+            namespaces.insert(path[..end].to_string());
+            end += 1;
         }
     }
 
-    for path in graph_paths.iter() {
-        RUNTIME
-            .block_on(client.new_graph(path, "EVENT"))
-            .unwrap();
-    }
-
-    graph_paths
+    namespaces.into_iter().collect()
 }
 
 /// Create a random tree with the given number of nodes.
@@ -130,42 +89,6 @@ fn create_tree(nodes: u64) -> Graph {
     graph
 }
 
-fn start_server() -> (RunningGraphServer, TempDir) {
-    init_raphtory_auth();
-
-    RUNTIME.block_on(async {
-        let mut tempdir = TempDir::new().unwrap();
-
-        // Prevent server drop from failing due to tempdir cleanup.
-        tempdir.disable_cleanup(true);
-
-        let work_dir = tempdir.path().to_path_buf();
-        let permissions_path = work_dir.join("permissions.json");
-
-        let app_config = AppConfigBuilder::new()
-            .with_auth_public_key(Some(PUB_KEY.to_string()))
-            .expect("test auth public key")
-            .build();
-
-        let server = GraphServer::new(
-            work_dir,
-            Some(app_config),
-            None,
-            Config::default(),
-        )
-        .await
-        .unwrap();
-
-        let server = apply_server_extension(server, Some(permissions_path.as_path()));
-        let server = server.start_with_port(PORT).await.unwrap();
-
-        // Wait for server to start.
-        tokio::time::sleep(Duration::from_secs(1)).await;
-
-        (server, tempdir)
-    })
-}
-
 #[test]
 fn permissions_proptest() {
     const PROPTEST_CASES: u32 = 10;
@@ -176,18 +99,13 @@ fn permissions_proptest() {
         ProptestConfig::with_cases(PROPTEST_CASES),
         |(tree_size in TREE_SIZE_RANGE, num_users in NUM_USERS_RANGE)| {
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
-            let (_server, _tempdir) = start_server();
-
-            let client = RUNTIME
-                .block_on(RaphtoryGraphQLClient::connect(
-                    url,
-                    Some(ADMIN_JWT.to_string()),
-                ))
-                .unwrap();
+            let (_server, _tempdir) = start_server(PORT, PUB_KEY);
+            let client = get_client(url, ADMIN_JWT.to_string());
 
             // Create nested namespaces and graphs on the server.
             let namespace_tree = create_tree(tree_size);
             let graph_paths = create_graphs(&client, &namespace_tree);
+            let namespace_paths = namespace_paths(&graph_paths);
 
             // Create roles for each user.
             for i in 0..num_users {
@@ -195,9 +113,39 @@ fn permissions_proptest() {
                 create_role(&client, &role);
             }
 
+            let mut runner = proptest::test_runner::TestRunner::default();
+            let grants = permissions_strategy(num_users, graph_paths.len(), namespace_paths.len())
+                .new_tree(&mut runner)
+                .unwrap()
+                .current();
+
+            for grant in &grants {
+                let role = format!("user_{}", grant.user_idx);
+                let (path, target) = match grant.target {
+                    PermissionTarget::Graph => (
+                        &graph_paths[grant.path_idx],
+                        PermissionTarget::Graph,
+                    ),
+                    PermissionTarget::Namespace => (
+                        &namespace_paths[grant.path_idx],
+                        PermissionTarget::Namespace,
+                    ),
+                };
+                match target {
+                    PermissionTarget::Graph => {
+                        grant_graph(&client, &role, path, grant.graph_permission)
+                    }
+                    PermissionTarget::Namespace => {
+                        grant_namespace(&client, &role, path, grant.namespace_permission)
+                    }
+                }
+            }
+
             black_box(_server);
             black_box(_tempdir);
             black_box(graph_paths);
+            black_box(namespace_paths);
+            black_box(grants);
         }
     );
 }
