@@ -14,8 +14,8 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
         api::{
-            properties::{internal::InternalMetadataOps, Metadata, Properties},
-            state::{ops::filter::NodeTypeFilterOp, Index},
+            properties::{Metadata, Properties},
+            state::ops::filter::NodeTypeFilterOp,
             view::{internal::*, *},
         },
         graph::{
@@ -40,19 +40,12 @@ use crate::{
 };
 use ahash::HashSet;
 use arrow::array::RecordBatch;
-use chrono::Local;
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
-use raphtory_api::{
-    atomic_extra::atomic_usize_from_mut_slice,
-    core::{
-        entities::{
-            properties::meta::{Meta, PropMapper, STATIC_GRAPH_LAYER_ID},
-            LayerId, EID,
-        },
-        storage::{arc_str::ArcStr, timeindex::EventTime},
-        Direction,
-    },
+use raphtory_api::core::{
+    entities::properties::meta::{Meta, PropMapper},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+    Direction,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
@@ -60,17 +53,11 @@ use raphtory_storage::{
         edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
         nodes::node_storage_ops::NodeStorageOps,
     },
-    mutation::{
-        addition_ops::{InternalAdditionOps, SessionAdditionOps},
-        MutationError,
-    },
+    mutation::addition_ops::SessionAdditionOps,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{
-    path::Path,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{path::Path, sync::Arc};
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[cfg(feature = "search")]
