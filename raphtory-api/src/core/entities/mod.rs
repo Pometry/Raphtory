@@ -40,8 +40,18 @@ impl VID {
     }
 
     /// check if the VID points to a node
+    #[inline]
     pub fn is_initialised(&self) -> bool {
         self.0 != usize::MAX
+    }
+
+    #[inline]
+    pub fn or_init(self, init: impl FnOnce() -> VID) -> Self {
+        if self.is_initialised() {
+            self
+        } else {
+            init()
+        }
     }
 }
 

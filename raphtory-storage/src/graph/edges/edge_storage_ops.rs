@@ -193,21 +193,11 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     }
 
     fn src(self) -> VID {
-        EdgeRefOps::src(&self).unwrap_or_else(|| {
-            panic!(
-                "EdgeRefOps::src should not return None for eid {:?}",
-                self.eid(),
-            )
-        })
+        EdgeRefOps::src(&self)
     }
 
     fn dst(self) -> VID {
-        EdgeRefOps::dst(&self).unwrap_or_else(|| {
-            panic!(
-                "EdgeRefOps::dst should not return None for eid {:?}",
-                self.eid(),
-            )
-        })
+        EdgeRefOps::dst(&self)
     }
 
     fn eid(self) -> EID {

@@ -162,8 +162,6 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     type Deletions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
-    fn edge(self, layer_id: LayerId) -> Option<(VID, VID)>;
-
     fn has_layer_inner(self, layer_id: LayerId) -> bool;
 
     fn internal_num_layers(self) -> usize;
@@ -175,9 +173,9 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn layer_t_prop(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
 
-    fn src(&self) -> Option<VID>;
+    fn src(&self) -> VID;
 
-    fn dst(&self) -> Option<VID>;
+    fn dst(&self) -> VID;
 
     fn edge_id(&self) -> EID;
     fn edge_ref(self, dir: Dir) -> EdgeRef;

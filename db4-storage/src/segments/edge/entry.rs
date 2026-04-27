@@ -43,6 +43,7 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
         'a: 'b,
         MES: 'b;
 
+    #[inline]
     fn as_ref<'b>(&'b self) -> Self::Ref<'b>
     where
         'a: 'b,
@@ -50,7 +51,8 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
         MemEdgeRef {
             pos: self.pos,
             es: &self.es,
-            edge_ref: self.edge_ref,
+            src: VID::default(),
+            dst: VID::default(),
         }
     }
 }
@@ -59,12 +61,27 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
 pub struct MemEdgeRef<'a> {
     pos: LocalPOS,
     es: &'a MemEdgeSegment,
-    edge_ref: Option<EdgeRef>,
+    src: VID,
+    dst: VID,
 }
 
 impl<'a> MemEdgeRef<'a> {
+    #[inline]
     pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment, edge_ref: Option<EdgeRef>) -> Self {
-        Self { pos, es, edge_ref }
+        match edge_ref {
+            None => Self {
+                pos,
+                es,
+                src: VID::default(),
+                dst: VID::default(),
+            },
+            Some(e_ref) => Self {
+                pos,
+                es,
+                src: e_ref.src(),
+                dst: e_ref.dst(),
+            },
+        }
     }
 
     pub fn has_layers(&self, layer_ids: &Multiple) -> bool {
@@ -157,37 +174,14 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
 
     #[inline]
     fn edge_ref(self, dir: Dir) -> EdgeRef {
-        match self.edge_ref {
-            None => {
-                let es = &self.es.as_ref()[0];
-                let entry = es.get(self.pos).unwrap();
-                let segment_id = es.segment_id();
-                let max_page_len = es.max_page_len();
-                let eid = self.pos.as_eid(segment_id, max_page_len);
-                EdgeRef::new(eid, entry.src, entry.dst, dir)
-            }
-            Some(mut edge_ref) => {
-                edge_ref.set_dir(dir);
-                edge_ref
-            }
-        }
-    }
-
-    fn edge(self, layer_id: LayerId) -> Option<(VID, VID)> {
-        match self.edge_ref {
-            None => self
-                .es
-                .as_ref()
-                .get(layer_id.0)?
-                .get(self.pos)
-                .map(|entry| (entry.src, entry.dst)),
-            Some(eref) => self
-                .es
-                .as_ref()
-                .get(layer_id.0)?
-                .has_item(self.pos)
-                .then_some((eref.src(), eref.dst())),
-        }
+        let es = &self.es.as_ref()[0];
+        let entry = es.get(self.pos).unwrap();
+        let segment_id = es.segment_id();
+        let max_page_len = es.max_page_len();
+        let eid = self.pos.as_eid(segment_id, max_page_len);
+        let src = self.src.or_init(|| entry.src);
+        let dst = self.dst.or_init(|| entry.dst);
+        EdgeRef::new(eid, src, dst, dir)
     }
 
     fn has_layer_inner(self, layer_id: LayerId) -> bool {
@@ -213,32 +207,32 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
         EdgeTProps::new_with_layer(self, layer_id, prop_id)
     }
 
-    fn src(&self) -> Option<VID> {
-        self.edge_ref.map(|e| e.src()).or_else(|| {
+    fn src(&self) -> VID {
+        self.src.or_init(|| {
             self.es
                 .as_ref()
                 .first()
                 .and_then(|layer| layer.get(self.pos))
-                .map(|entry| entry.src)
+                .map(|entry| entry.src).unwrap_or_default()
         })
     }
 
-    fn dst(&self) -> Option<VID> {
-        self.edge_ref.map(|e| e.dst()).or_else(|| {
+    fn dst(&self) -> VID {
+        self.dst.or_init(|| {
             self.es
                 .as_ref()
                 .first()
                 .and_then(|layer| layer.get(self.pos))
-                .map(|entry| entry.dst)
+                .map(|entry| entry.dst).unwrap_or_default()
         })
     }
 
     fn edge_id(&self) -> EID {
-        self.edge_ref.map(|e| e.pid()).unwrap_or_else(|| {
-            let segment_id = self.es.as_ref()[0].segment_id();
-            let max_page_len = self.es.as_ref()[0].max_page_len();
+        self.es.as_ref().first().map(|es| {
+            let segment_id = es.segment_id();
+            let max_page_len = es.max_page_len();
             self.pos.as_eid(segment_id, max_page_len)
-        })
+        }).unwrap_or_default()
     }
 
     fn internal_num_layers(self) -> usize {
