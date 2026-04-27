@@ -840,6 +840,31 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         }
     }
 
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
+            .filter_map(|(_, prop)| prop.last())
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
+    }
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
+            .filter_map(|(_, prop)| prop.last_window(w.clone()))
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
+    }
+
     fn temporal_edge_prop_hist<'graph, G: GraphView + 'graph>(
         self,
         e: EdgeEntryRef<'graph>,

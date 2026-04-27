@@ -138,8 +138,6 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
     }
 
     fn at(&self, ti: &EventTime) -> Option<Prop> {
-        self.tprops(self.prop_id)
-            .flat_map(|t_props| t_props.at(ti))
-            .next() // TODO: need to figure out how to handle this
+        self.tprops(self.prop_id).find_map(|t_props| t_props.at(ti))
     }
 }

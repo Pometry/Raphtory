@@ -1270,6 +1270,38 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         EventSemantics.temporal_edge_prop_last_at(e, view, prop_id, t) // TODO: double check this
     }
 
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        EventSemantics.temporal_edge_prop_last(e, view, prop_id)
+    }
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        e.filtered_updates_iter(&view, view.layer_ids())
+            .filter_map(|(layer, additions, deletions)| {
+                let start = deletions
+                    .merge(additions.invert())
+                    .range(EventTime::MIN..w.end)
+                    .last()
+                    .map(|t| t.next())
+                    .unwrap_or(EventTime::MIN);
+                e.filtered_temporal_prop_layer(layer, prop_id, &view)
+                    .iter_inner_rev(Some(start..w.end))
+                    .next()
+            })
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
+    }
+
     fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(
         &self,
         e: EdgeEntryRef,

@@ -589,6 +589,22 @@ pub trait EdgeTimeSemanticsOps {
         w: Range<EventTime>,
     ) -> Option<Prop>;
 
+    // /// Return the last value of a temporal edge property at or before a given point in time
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop>;
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop>;
+
     /// Return property history of an edge in temporal order
     ///
     /// Items are (timestamp, layer_id, property value)
