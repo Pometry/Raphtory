@@ -123,6 +123,7 @@ impl<A: Sync + Send> TCell<A> {
         }
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         match self {
             TCell::Empty => 0,
@@ -132,6 +133,7 @@ impl<A: Sync + Send> TCell<A> {
         }
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
