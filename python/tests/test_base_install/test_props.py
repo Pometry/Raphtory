@@ -168,11 +168,12 @@ def test_aware_datetime():
     assert "2024-06-01" in repr(p)
 
 
-def test_aware_datetime_rejects_naive_input():
-    """`Prop.aware_datetime` requires tz-aware input — use `naive_datetime` for naive ones."""
+def test_aware_datetime_treats_naive_as_utc():
+    """Naive datetimes are accepted and interpreted as UTC, consistent with
+    how `EventTime` and other Raphtory time inputs handle them."""
     naive = datetime(2024, 6, 1, 12, 30, 45)
-    with pytest.raises(TypeError):
-        Prop.aware_datetime(naive)
+    aware = datetime(2024, 6, 1, 12, 30, 45, tzinfo=timezone.utc)
+    assert Prop.aware_datetime(naive) == Prop.aware_datetime(aware)
 
 
 def test_naive_datetime():

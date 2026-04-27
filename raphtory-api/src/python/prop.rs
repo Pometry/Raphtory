@@ -266,15 +266,25 @@ impl PyProp {
     }
 
     /// Construct a `Prop` holding a timezone-aware datetime (stored as UTC).
+    /// Naive datetimes are accepted and interpreted as UTC, matching the
+    /// convention used elsewhere in Raphtory's time inputs.
     ///
     /// Arguments:
-    ///     value (datetime): a timezone-aware datetime. Use `Prop.naive_datetime` for naive ones.
+    ///     value (datetime): a datetime. Naive datetimes are treated as UTC.
     ///
     /// Returns:
     ///     Prop:
     #[staticmethod]
-    pub fn aware_datetime(value: DateTime<Utc>) -> Self {
-        PyProp(Prop::DTime(value))
+    pub fn aware_datetime(value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(dt) = value.extract::<DateTime<Utc>>() {
+            return Ok(PyProp(Prop::DTime(dt)));
+        }
+        if let Ok(naive) = value.extract::<NaiveDateTime>() {
+            return Ok(PyProp(Prop::DTime(naive.and_utc())));
+        }
+        Err(PyTypeError::new_err(format!(
+            "Could not convert {value:?} to a datetime"
+        )))
     }
 
     /// Construct a `Prop` holding a naive (timezone-unaware) datetime.
