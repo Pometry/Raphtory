@@ -6522,6 +6522,7 @@ dependencies = [
  "itertools 0.13.0",
  "once_cell",
  "rand 0.9.4",
+ "rand_distr 0.5.1",
  "raphtory",
  "raphtory-api",
  "rayon",
@@ -7562,7 +7563,7 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "snb"
-version = "0.17.0"
+version = "0.18.0"
 dependencies = [
  "chrono",
  "flate2",
