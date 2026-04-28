@@ -3,7 +3,7 @@ use chrono::format::{Item, StrftimeItems};
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Scalar, ScalarValue};
 use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
-    utils::time::{IntoTime, TryIntoTime},
+    utils::time::{InputTime, IntoTime, TryIntoTime},
 };
 use serde::{Deserialize, Serialize};
 
@@ -11,9 +11,14 @@ use serde::{Deserialize, Serialize};
 /// where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
 /// Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
 /// %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
+///
+/// Internally wraps `InputTime` so write paths (`addNode`, `addEdge`,
+/// `addProperties`, etc.) can preserve auto-increment of `event_id` when only
+/// a timestamp is given. Pass the object form `{timestamp, eventId}` to lock
+/// the event_id explicitly.
 #[derive(Scalar, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "TimeInput")]
-pub struct GqlTimeInput(pub EventTime);
+pub struct GqlTimeInput(pub InputTime);
 
 impl ScalarValue for GqlTimeInput {
     fn from_value(value: GqlValue) -> Result<Self, Error> {
@@ -23,11 +28,11 @@ impl ScalarValue for GqlTimeInput {
                 .ok_or(Error::new(
                     "Expected Int, DateTime formatted String, or Object { timestamp, eventId }.",
                 ))
-                .map(|timestamp| GqlTimeInput(EventTime::start(timestamp))),
+                .map(|timestamp| GqlTimeInput(InputTime::Simple(timestamp))),
 
             GqlValue::String(dt) => dt
                 .try_into_time()
-                .map(|t| GqlTimeInput(t.set_event_id(0)))
+                .map(|t| GqlTimeInput(InputTime::Simple(t.t())))
                 .map_err(|e| Error::new(e.to_string())),
 
             // TimeInput: Object { timestamp: Number | String, eventId: Number }
@@ -62,7 +67,7 @@ impl ScalarValue for GqlTimeInput {
                     _ => return Err(Error::new("eventId must be a non-negative Int.")),
                 };
 
-                Ok(GqlTimeInput(EventTime::new(ts, idx)))
+                Ok(GqlTimeInput(InputTime::Indexed(ts, idx)))
             }
             _ => Err(Error::new(
                 "Expected Int, DateTime formatted String, or Object { timestamp, eventId }.",
@@ -71,19 +76,43 @@ impl ScalarValue for GqlTimeInput {
     }
 
     fn to_value(&self) -> GqlValue {
-        self.0.t().into()
+        self.t().into()
     }
 }
 
 impl From<i64> for GqlTimeInput {
     fn from(value: i64) -> Self {
-        GqlTimeInput(EventTime::start(value))
+        GqlTimeInput(InputTime::Simple(value))
+    }
+}
+
+impl GqlTimeInput {
+    /// Extract just the timestamp (for read-side query args like `window`,
+    /// `at`, `before`, `after`). Auto-increment semantics aren't relevant
+    /// when only reading.
+    pub fn t(&self) -> i64 {
+        match &self.0 {
+            InputTime::Simple(t) => *t,
+            InputTime::Indexed(t, _) => *t,
+        }
+    }
+
+    /// Pass the underlying `InputTime` straight through to write paths so
+    /// `Simple` causes the graph to allocate a fresh `event_id` and
+    /// `Indexed` locks one explicitly.
+    pub fn into_input_time(self) -> InputTime {
+        self.0
     }
 }
 
 impl IntoTime for GqlTimeInput {
+    /// Build an `EventTime`. For read-side use only — write paths should call
+    /// `into_input_time` instead so auto-increment of `event_id` works.
     fn into_time(self) -> EventTime {
-        self.0
+        match self.0 {
+            InputTime::Simple(t) => EventTime::start(t),
+            InputTime::Indexed(t, e) => EventTime::new(t, e),
+        }
     }
 }
 

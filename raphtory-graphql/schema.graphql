@@ -5289,6 +5289,11 @@ Input for primary time component. Expects Int, DateTime formatted String, or Obj
 where the timestamp is either an Int or a DateTime formatted String, and eventId is a non-negative Int.
 Valid string formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%,
 %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%.
+
+Internally wraps `InputTime` so write paths (`addNode`, `addEdge`,
+`addProperties`, etc.) can preserve auto-increment of `event_id` when only
+a timestamp is given. Pass the object form `{timestamp, eventId}` to lock
+the event_id explicitly.
 """
 scalar TimeInput
 
