@@ -562,8 +562,10 @@ impl GqlGraph {
                 None => Arc::new(GraphFilter),
             };
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
-                .with_graph_redaction(self_clone.graph_redaction.clone()))
+            Ok(
+                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
+                    .with_graph_redaction(self_clone.graph_redaction.clone()),
+            )
         })
         .await
     }
@@ -573,8 +575,10 @@ impl GqlGraph {
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
-                .with_graph_redaction(self_clone.graph_redaction.clone()))
+            Ok(
+                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
+                    .with_graph_redaction(self_clone.graph_redaction.clone()),
+            )
         })
         .await
     }
@@ -584,8 +588,10 @@ impl GqlGraph {
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
-                .with_graph_redaction(self_clone.graph_redaction.clone()))
+            Ok(
+                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
+                    .with_graph_redaction(self_clone.graph_redaction.clone()),
+            )
         })
         .await
     }

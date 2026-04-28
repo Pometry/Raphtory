@@ -2,9 +2,9 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
-                InternalMetadataOps, InternalPropertiesOps, NodePropertySchemaOps,
-                EdgePropertySchemaOps,
+                EdgePropertySchemaOps, InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps,
+                InheritPropertiesOps, InternalMetadataOps, InternalPropertiesOps,
+                NodePropertySchemaOps,
             },
             storage::storage::Storage,
         },

@@ -39,9 +39,7 @@ pub enum GraphPermission {
     /// May query graph metadata (counts, schema) but not read data.
     Introspect,
     /// May read graph data; optionally restricted by a row filter and/or property redaction.
-    Read {
-        filter: Option<GraphAccessFilter>,
-    },
+    Read { filter: Option<GraphAccessFilter> },
     /// May read and mutate the graph (implies `Read` and `Introspect`, never filtered).
     Write,
 }

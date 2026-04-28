@@ -12,8 +12,8 @@ use crate::{
         api::{
             mutation::time_from_input_session,
             properties::internal::{
-                InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
-                NodePropertySchemaOps,
+                InternalMetadataOps, InternalTemporalPropertiesOps,
+                InternalTemporalPropertyViewOps, NodePropertySchemaOps,
             },
             state::ops::ArrowNodeOp,
             view::{
@@ -228,7 +228,9 @@ impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps + NodePropertySchemaOps>
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.node_visible_temporal_prop_name(id).unwrap_or_default()
+        self.graph
+            .node_visible_temporal_prop_name(id)
+            .unwrap_or_default()
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
@@ -303,15 +305,15 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
     }
 }
 
-impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps
-    for NodeView<'graph, G>
-{
+impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps for NodeView<'graph, G> {
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
         self.graph.node_visible_metadata_id(name)
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph.node_visible_metadata_name(id).unwrap_or_default()
+        self.graph
+            .node_visible_metadata_name(id)
+            .unwrap_or_default()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {

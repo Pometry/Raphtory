@@ -1,17 +1,16 @@
-use crate::{
-    db::api::{
-        properties::internal::{
-            EdgePropertySchemaOps, InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps,
-            InheritPropertiesOps, NodePropertySchemaOps,
-        },
-        view::internal::{
-            GraphView, Immutable, InheritAllEdgeFilterOps, InheritCoreGraphOps,
-            InheritEdgeHistoryFilter, InheritListOps, InheritMaterialize,
-            InheritNodeHistoryFilter, InheritNodeFilterOps, InheritStorageOps,
-            InheritTimeSemantics, Static,
-        },
+use crate::db::api::{
+    properties::internal::{
+        EdgePropertySchemaOps, InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps,
+        InheritPropertiesOps, NodePropertySchemaOps,
     },
-    db::api::view::BoxedLIter,
+    view::{
+        internal::{
+            GraphView, Immutable, InheritAllEdgeFilterOps, InheritCoreGraphOps,
+            InheritEdgeHistoryFilter, InheritListOps, InheritMaterialize, InheritNodeFilterOps,
+            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics, Static,
+        },
+        BoxedLIter,
+    },
 };
 use raphtory_api::{core::storage::arc_str::ArcStr, inherit::Base};
 use raphtory_storage::layer_ops::InheritLayerOps;
@@ -44,7 +43,11 @@ impl PropertyRedaction {
 
 /// Precompute a boolean visibility array indexed by property ID.
 /// IDs not in the array (out of range) default to visible.
-fn compute_visibility<F>(ids: BoxedLIter<usize>, name_fn: F, hidden: &HashSet<String>) -> Box<[bool]>
+fn compute_visibility<F>(
+    ids: BoxedLIter<usize>,
+    name_fn: F,
+    hidden: &HashSet<String>,
+) -> Box<[bool]>
 where
     F: Fn(usize) -> Option<ArcStr>,
 {

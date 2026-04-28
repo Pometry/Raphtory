@@ -9,7 +9,10 @@ use super::GraphStorage;
 
 impl NodePropertySchemaOps for GraphStorage {
     fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        self.node_meta().temporal_prop_mapper().ids().into_dyn_boxed()
+        self.node_meta()
+            .temporal_prop_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
     fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.node_meta().temporal_prop_mapper().get_id(name)
@@ -30,7 +33,10 @@ impl NodePropertySchemaOps for GraphStorage {
 
 impl EdgePropertySchemaOps for GraphStorage {
     fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        self.edge_meta().temporal_prop_mapper().ids().into_dyn_boxed()
+        self.edge_meta()
+            .temporal_prop_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
         self.edge_meta().temporal_prop_mapper().get_id(name)

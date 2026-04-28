@@ -1,8 +1,8 @@
 use crate::db::{
     api::{
         properties::internal::{
-                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
-            },
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         state::ops::NodeFilterOp,
         view::internal::{
             GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
