@@ -543,7 +543,7 @@ def test_analyst_sees_only_filtered_nodes():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
+            '{ filter: { node: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -619,7 +619,7 @@ def test_analyst_sees_only_filtered_edges():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ edge: { filter: { property: { name: "weight", where: { ge: { i64: 5 } } } } } }',
+            '{ filter: { edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } } }',
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
@@ -781,7 +781,7 @@ def test_receive_graph_with_filtered_access():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
+            '{ filter: { node: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
         )
 
         client = RaphtoryClient(url=RAPHTORY, token=ANALYST_JWT)
@@ -820,7 +820,7 @@ def test_analyst_sees_only_graph_filter_window():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ graph: { filter: { window: { start: 5, end: 15 } } } }",
+            "{ filter: { graph: { window: { start: 5, end: 15 } } } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -878,7 +878,7 @@ def test_filter_and_node_node():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ node: { filter: { and: ["
+            "{ filter: { node: { and: ["
             '{ property: { name: "region", where: { eq: { str: "us-west" } } } },'
             '{ property: { name: "role", where: { eq: { str: "admin" } } } }'
             "] } } }",
@@ -922,7 +922,7 @@ def test_filter_and_edge_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ edge: { filter: { and: ["
+            "{ filter: { edge: { and: ["
             '{ property: { name: "weight", where: { ge: { i64: 5 } } } },'
             '{ property: { name: "kind", where: { eq: { str: "follows" } } } }'
             "] } } }",
@@ -941,7 +941,7 @@ def test_filter_and_edge_edge():
 
 
 def test_filter_and_graph_graph():
-    """graph window filter: only nodes within the window [5,15) are visible."""
+    """And([graph, graph]): intersection of two graph windows is visible."""
     work_dir = tempfile.mkdtemp()
     with make_server(work_dir).start():
         gql(CREATE_JIRA)
@@ -954,11 +954,14 @@ def test_filter_and_graph_graph():
             assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
 
         create_role("analyst")
-        # window [5,15) → only middle (t=10)
+        # window [1,15) AND window [5,25) → intersection [5,15) → only middle (t=10)
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ graph: { filter: { window: { start: 5, end: 15 } } } }",
+            "{ filter: { and: ["
+            "{ graph: { window: { start: 1, end: 15 } } },"
+            "{ graph: { window: { start: 5, end: 25 } } }"
+            "] } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1012,8 +1015,10 @@ def test_filter_and_node_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
-            ' edge: { filter: { property: { name: "weight", where: { ge: { i64: 5 } } } } } }',
+            '{ filter: { and: ['
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
+            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
+            '] } }',
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1067,8 +1072,10 @@ def test_filter_and_node_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ graph: { filter: { window: { start: 5, end: 15 } } },"
-            ' node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } } } }',
+            '{ filter: { and: ['
+            '{ graph: { window: { start: 5, end: 15 } } },'
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }'
+            '] } }',
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1106,8 +1113,10 @@ def test_filter_and_edge_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ graph: { filter: { window: { start: 5, end: 15 } } },"
-            ' edge: { filter: { property: { name: "weight", where: { ge: { i64: 5 } } } } } }',
+            '{ filter: { and: ['
+            '{ graph: { window: { start: 5, end: 15 } } },'
+            '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
+            '] } }',
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
@@ -1143,7 +1152,7 @@ def test_filter_or_node_node():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ node: { filter: { or: ["
+            "{ filter: { node: { or: ["
             '{ property: { name: "region", where: { eq: { str: "us-west" } } } },'
             '{ property: { name: "region", where: { eq: { str: "us-east" } } } }'
             "] } } }",
@@ -1183,7 +1192,7 @@ def test_filter_or_edge_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            "{ edge: { filter: { or: ["
+            "{ filter: { edge: { or: ["
             '{ property: { name: "weight", where: { eq: { i64: 3 } } } },'
             '{ property: { name: "weight", where: { eq: { i64: 9 } } } }'
             "] } } }",
@@ -1200,6 +1209,50 @@ def test_filter_or_edge_edge():
             ("a", "b"),
             ("a", "c"),
         }, f"expected (a,b)+(a,c), got {analyst_edges}"
+
+
+def test_filter_or_row_filter_node_node():
+    """Or([Node(...), Node(...)]): top-level GraphRowFilter Or combining two node predicates.
+
+    This exercises the GraphRowFilter::Or arm in apply_row_filter_sync, which groups same-type
+    sub-filters and combines them with GqlNodeFilter::Or before applying.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region in [("alice", "us-west"), ("bob", "us-east"), ("carol", "eu")]:
+            resp = gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(
+                        time: 1, name: "{name}",
+                        properties: [{{ key: "region", value: {{ str: "{region}" }} }}]
+                    ) {{ success }}
+                }}
+            }}""")
+            assert resp["data"]["updateGraph"]["addNode"]["success"] is True, resp
+
+        create_role("analyst")
+        # GraphRowFilter::Or([Node(us-west), Node(us-east)]) → alice + bob; carol(eu) hidden
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            "{ filter: { or: ["
+            '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
+            '{ node: { property: { name: "region", where: { eq: { str: "us-east" } } } } }'
+            "] } }",
+        )
+
+        QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
+        analyst_names = {
+            n["name"]
+            for n in gql(QUERY_NODES, headers=ANALYST_HEADERS)["data"]["graph"][
+                "nodes"
+            ]["list"]
+        }
+        assert analyst_names == {
+            "alice",
+            "bob",
+        }, f"expected alice+bob, got {analyst_names}"
 
 
 # --- Property redaction tests ---
@@ -1229,7 +1282,7 @@ def test_analyst_node_hidden_property_not_visible():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { hiddenProperties: ["salary"] } }',
+            '{ hiddenProperties: { node: ["salary"] } }',
         )
 
         QUERY = 'query { graph(path: "jira") { nodes { list { name properties { keys } } } } }'
@@ -1273,7 +1326,7 @@ def test_analyst_node_hidden_metadata_not_visible():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { hiddenMetadata: ["ssn"] } }',
+            '{ hiddenMetadata: { node: ["ssn"] } }',
         )
 
         QUERY = 'query { graph(path: "jira") { nodes { list { name metadata { keys } } } } }'
@@ -1313,7 +1366,7 @@ def test_analyst_edge_hidden_property_not_visible():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ edge: { hiddenProperties: ["salary_delta"] } }',
+            '{ hiddenProperties: { edge: ["salary_delta"] } }',
         )
 
         QUERY = 'query { graph(path: "jira") { edges { list { src { name } dst { name } properties { keys } } } } }'
@@ -1356,7 +1409,7 @@ def test_redaction_combined_with_row_filter():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } }, hiddenProperties: ["salary"] } }',
+            '{ filter: { node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }, hiddenProperties: { node: ["salary"] } }',
         )
 
         QUERY = 'query { graph(path: "jira") { nodes { list { name properties { keys } } } } }'
@@ -1397,7 +1450,7 @@ def test_row_filter_on_hidden_property_still_applies():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } }, hiddenProperties: ["region"] } }',
+            '{ filter: { node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }, hiddenProperties: { node: ["region"] } }',
         )
 
         QUERY = 'query { graph(path: "jira") { nodes { list { name properties { keys } } } } }'
@@ -1435,7 +1488,7 @@ def test_analyst_graph_hidden_property_not_visible():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ graph: { hiddenProperties: ["internal_id"] } }',
+            '{ hiddenProperties: { graph: ["internal_id"] } }',
         )
 
         QUERY = 'query { graph(path: "jira") { properties { keys } } }'
@@ -1471,7 +1524,7 @@ def test_analyst_graph_hidden_metadata_not_visible():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ graph: { hiddenMetadata: ["secret_token"] } }',
+            '{ hiddenMetadata: { graph: ["secret_token"] } }',
         )
 
         QUERY = 'query { graph(path: "jira") { metadata { keys } } }'

@@ -5,7 +5,7 @@ use crate::{
     model::{
         graph::{
             collection::GqlCollection,
-            filtering::{GraphAccessFilter, GraphRowFilter},
+            filtering::{GqlEdgeFilter, GqlNodeFilter, GraphAccessFilter, GraphRowFilter, HiddenKeys},
             graph::GqlGraph,
             index::IndexSpecInput,
             meta_graph::MetaGraph,
@@ -38,6 +38,7 @@ use raphtory::{
         graph::views::{
             deletion_graph::PersistentGraph,
             filter::model::NodeViewFilterOps,
+            property_redacted_graph::PropertyRedaction,
             PropertyRedactedGraph,
         },
     },
@@ -193,84 +194,122 @@ fn require_at_least_read(
     Ok(GraphPermission::Write)
 }
 
-/// Applies a `GraphAccessFilter` struct (row filters only) to a `DynamicGraph`.
+/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+/// All filter work (conversion + application) runs inside a single `blocking_compute` call.
 async fn apply_graph_filter(
-    mut graph: DynamicGraph,
-    filter: &GraphAccessFilter,
+    graph: DynamicGraph,
+    row_filter: GraphRowFilter,
 ) -> async_graphql::Result<DynamicGraph> {
-    if let Some(node_f) = filter.node.as_ref().and_then(|n| n.filter.clone()) {
-        graph = apply_row_filter(graph, GraphRowFilter::Node(node_f)).await?;
-    }
-    if let Some(edge_f) = filter.edge.as_ref().and_then(|e| e.filter.clone()) {
-        graph = apply_row_filter(graph, GraphRowFilter::Edge(edge_f)).await?;
-    }
-    if let Some(graph_f) = filter.graph.as_ref().and_then(|g| g.filter.clone()) {
-        graph = apply_row_filter(graph, GraphRowFilter::Graph(graph_f)).await?;
-    }
-    Ok(graph)
+    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
 }
 
-/// Applies a single `GraphRowFilter` leaf to a `DynamicGraph`.
-async fn apply_row_filter(
-    mut graph: DynamicGraph,
+fn apply_row_filter_sync(
+    graph: DynamicGraph,
     filter: GraphRowFilter,
 ) -> async_graphql::Result<DynamicGraph> {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynView,
     };
-
     match filter {
         GraphRowFilter::Node(gql_filter) => {
-            let raphtory_filter = CompositeNodeFilter::try_from(gql_filter).map_err(|e| {
+            let f = CompositeNodeFilter::try_from(gql_filter).map_err(|e| {
                 error!(error = %e, "node filter conversion failed");
                 async_graphql::Error::new("internal error applying access filter")
             })?;
-            graph = blocking_compute({
-                let g = graph.clone();
-                move || g.filter(raphtory_filter)
-            })
-            .await
-            .map_err(|e| {
-                error!(error = %e, "node filter apply failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })?
-            .into_dynamic();
+            graph
+                .filter(f)
+                .map(|g| g.into_dynamic())
+                .map_err(|e| {
+                    error!(error = %e, "node filter apply failed");
+                    async_graphql::Error::new("internal error applying access filter")
+                })
         }
         GraphRowFilter::Edge(gql_filter) => {
-            let raphtory_filter = CompositeEdgeFilter::try_from(gql_filter).map_err(|e| {
+            let f = CompositeEdgeFilter::try_from(gql_filter).map_err(|e| {
                 error!(error = %e, "edge filter conversion failed");
                 async_graphql::Error::new("internal error applying access filter")
             })?;
-            graph = blocking_compute({
-                let g = graph.clone();
-                move || g.filter(raphtory_filter)
-            })
-            .await
-            .map_err(|e| {
-                error!(error = %e, "edge filter apply failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })?
-            .into_dynamic();
+            graph
+                .filter(f)
+                .map(|g| g.into_dynamic())
+                .map_err(|e| {
+                    error!(error = %e, "edge filter apply failed");
+                    async_graphql::Error::new("internal error applying access filter")
+                })
         }
         GraphRowFilter::Graph(gql_filter) => {
             let dyn_view = DynView::try_from(gql_filter).map_err(|e| {
                 error!(error = %e, "graph filter conversion failed");
                 async_graphql::Error::new("internal error applying access filter")
             })?;
-            graph = blocking_compute({
-                let g = graph.clone();
-                move || g.filter(dyn_view)
-            })
-            .await
-            .map_err(|e| {
-                error!(error = %e, "graph filter apply failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })?
-            .into_dynamic();
+            graph
+                .filter(dyn_view)
+                .map(|g| g.into_dynamic())
+                .map_err(|e| {
+                    error!(error = %e, "graph filter apply failed");
+                    async_graphql::Error::new("internal error applying access filter")
+                })
+        }
+        GraphRowFilter::And(filters) => {
+            let mut g = graph;
+            for f in filters {
+                g = apply_row_filter_sync(g, f)?;
+            }
+            Ok(g)
+        }
+        GraphRowFilter::Or(filters) => {
+            // Group same-type sub-filters and combine with native Or.
+            // Cross-type sub-filters are applied as independent restrictions.
+            let mut node_fs: Vec<GqlNodeFilter> = vec![];
+            let mut edge_fs: Vec<GqlEdgeFilter> = vec![];
+            let mut rest: Vec<GraphRowFilter> = vec![];
+            for f in filters {
+                match f {
+                    GraphRowFilter::Node(n) => node_fs.push(n),
+                    GraphRowFilter::Edge(e) => edge_fs.push(e),
+                    other => rest.push(other),
+                }
+            }
+            let mut g = graph;
+            if !node_fs.is_empty() {
+                let combined = if node_fs.len() == 1 {
+                    node_fs.pop().unwrap()
+                } else {
+                    GqlNodeFilter::Or(node_fs)
+                };
+                g = apply_row_filter_sync(g, GraphRowFilter::Node(combined))?;
+            }
+            if !edge_fs.is_empty() {
+                let combined = if edge_fs.len() == 1 {
+                    edge_fs.pop().unwrap()
+                } else {
+                    GqlEdgeFilter::Or(edge_fs)
+                };
+                g = apply_row_filter_sync(g, GraphRowFilter::Edge(combined))?;
+            }
+            for f in rest {
+                g = apply_row_filter_sync(g, f)?;
+            }
+            Ok(g)
         }
     }
+}
 
-    Ok(graph)
+/// Extract per-entity hidden property sets from a `GraphAccessFilter`.
+fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
+    let hp = filter.hidden_properties.as_ref();
+    let hm = filter.hidden_metadata.as_ref();
+    fn collect(keys: Option<&HiddenKeys>, pick: fn(&HiddenKeys) -> Option<&Vec<String>>) -> std::collections::HashSet<String> {
+        keys.and_then(pick).map(|v| v.iter().cloned().collect()).unwrap_or_default()
+    }
+    PropertyRedaction {
+        node_hidden_props:  collect(hp, |h| h.node.as_ref()),
+        node_hidden_meta:   collect(hm, |h| h.node.as_ref()),
+        edge_hidden_props:  collect(hp, |h| h.edge.as_ref()),
+        edge_hidden_meta:   collect(hm, |h| h.edge.as_ref()),
+        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
+        graph_hidden_meta:  collect(hm, |h| h.graph.as_ref()),
+    }
 }
 
 /// Returns the namespace portion of a graph path: everything before the last `/`.
@@ -399,26 +438,23 @@ impl QueryRoot {
         let graph_with_vecs = data.get_graph(path).await?;
         let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
 
-        // Row filter
-        let graph = if let GraphPermission::Read {
-            filter: Some(ref f),
-            ..
-        } = perms
+        // Row filter + property redaction — extracted once from the access filter.
+        let (graph, graph_redaction) = if let GraphPermission::Read { filter: Some(ref f) } = perms
         {
-            apply_graph_filter(graph, f).await?
-        } else {
-            graph
-        };
-
-        // Property redaction — node/edge props are intercepted at DB layer via PropertyRedactedGraph;
-        // graph-level props are filtered at the GQL layer via GqlGraph::graph_redaction.
-        let (graph, graph_redaction) = if let GraphPermission::Read { ref redaction, .. } = perms {
-            let redacted_graph = if redaction.has_restrictions() {
+            // Apply row filter (runs in blocking_compute inside apply_graph_filter).
+            let graph = if let Some(ref row_filter) = f.filter {
+                apply_graph_filter(graph, row_filter.clone()).await?
+            } else {
+                graph
+            };
+            // Build redaction and apply to graph (node/edge at DB layer; graph-level at GQL layer).
+            let redaction = Arc::new(build_redaction(f));
+            let graph = if redaction.has_restrictions() {
                 PropertyRedactedGraph::new(graph, &redaction).into_dynamic()
             } else {
                 graph
             };
-            (redacted_graph, redaction.clone())
+            (graph, redaction)
         } else {
             (graph, Default::default())
         };
@@ -564,8 +600,12 @@ impl QueryRoot {
             ..
         } = perm
         {
-            let filtered = apply_graph_filter(raw.into_dynamic(), f).await?;
-            let materialized = blocking_compute(move || filtered.materialize())
+            let graph = if let Some(ref row_filter) = f.filter {
+                apply_graph_filter(raw.into_dynamic(), row_filter.clone()).await?
+            } else {
+                raw.into_dynamic()
+            };
+            let materialized = blocking_compute(move || graph.materialize())
                 .await
                 .map_err(|e| async_graphql::Error::new(e.to_string()))?;
             url_encode_graph(materialized)?

@@ -1745,64 +1745,54 @@ impl TryFrom<GqlGraphFilter> for DynView {
     }
 }
 
-/// Combined filter input covering all three filter levels (node, edge, graph-level).
-/// Used by `grantGraphFilteredReadOnly` to express a data-access restriction
-/// Internal recursive filter enum used by `apply_row_filter`.
-/// Not exposed in the GQL schema — `GraphAccessFilter` (struct) is the public type.
-/// TODO: Add cross-entity-type Or support (requires a union graph view).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Row-level visibility filter for `grantGraphFilteredReadOnly`.
+/// Compose node, edge, and graph-level sub-filters with `and` / `or`.
+// TODO: Add cross-entity-type Or support (requires a union graph view).
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) enum GraphRowFilter {
+pub enum GraphRowFilter {
+    /// Filter by node properties, fields, or temporal state.
     Node(GqlNodeFilter),
+    /// Filter by edge properties, source/destination, or temporal state.
     Edge(GqlEdgeFilter),
+    /// Apply a graph-level view (window, snapshot, layer restriction, …).
     Graph(GqlGraphFilter),
+    /// All sub-filters must pass (intersection).
+    And(Vec<GraphRowFilter>),
+    /// At least one sub-filter must pass.
+    /// Same-type sub-filters (e.g. two `Node` variants) are combined into a single native Or.
+    /// Cross-type `Or` (e.g. `Node` and `Edge` together) is not yet supported — each type's
+    /// sub-filters are collected and applied independently, which approximates an And not an Or.
+    /// See the TODO above for the proper union graph view implementation.
+    Or(Vec<GraphRowFilter>),
 }
 
-/// Node-level access descriptor: which nodes to include and which properties to hide.
+/// Property/metadata keys to hide per entity type.
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct NodeAccessFilter {
-    /// Row filter — which nodes are visible (optional).
-    pub filter: Option<GqlNodeFilter>,
-    /// Temporal property keys to strip from node responses.
+pub struct HiddenKeys {
+    /// Keys to strip from node property/metadata responses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hidden_properties: Option<Vec<String>>,
-    /// Metadata keys to strip from node responses.
+    pub node: Option<Vec<String>>,
+    /// Keys to strip from edge property/metadata responses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hidden_metadata: Option<Vec<String>>,
-}
-
-/// Edge-level access descriptor: which edges to include and which properties to hide.
-#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct EdgeAccessFilter {
-    /// Row filter — which edges are visible (optional).
-    pub filter: Option<GqlEdgeFilter>,
-    /// Temporal property keys to strip from edge responses.
+    pub edge: Option<Vec<String>>,
+    /// Keys to strip from graph-own property/metadata responses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hidden_properties: Option<Vec<String>>,
-    /// Metadata keys to strip from edge responses.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hidden_metadata: Option<Vec<String>>,
-}
-
-/// Graph-level access descriptor: graph-wide view filter and graph-own property restrictions.
-#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
-pub struct GraphLevelAccessFilter {
-    /// Graph-level view filter (window, snapshot, layer, …).
-    pub filter: Option<GqlGraphFilter>,
-    /// Graph own temporal property keys to strip.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hidden_properties: Option<Vec<String>>,
-    /// Graph own metadata keys to strip.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hidden_metadata: Option<Vec<String>>,
+    pub graph: Option<Vec<String>>,
 }
 
 /// Top-level access filter accepted by `grantGraphFilteredReadOnly`.
-/// Each entity kind carries both a row filter (which entities are visible) and property
-/// restrictions (which columns are visible on those entities).
+/// Separates row-level visibility (which entities are returned) from column-level
+/// visibility (which property keys appear on returned entities).
 #[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
 pub struct GraphAccessFilter {
-    pub node: Option<NodeAccessFilter>,
-    pub edge: Option<EdgeAccessFilter>,
-    pub graph: Option<GraphLevelAccessFilter>,
+    /// Row-level filter: which nodes/edges/graph-view are visible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<GraphRowFilter>,
+    /// Temporal property keys to hide per entity type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_properties: Option<HiddenKeys>,
+    /// Metadata keys to hide per entity type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_metadata: Option<HiddenKeys>,
 }
