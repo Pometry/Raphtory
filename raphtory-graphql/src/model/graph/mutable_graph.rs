@@ -351,10 +351,13 @@ impl GqlMutableGraph {
         let self_clone = self.clone();
         let edge = blocking_write(move || {
             let prop_iter = as_properties(properties.unwrap_or(vec![]))?;
-            let edge =
-                self_clone
-                    .graph
-                    .add_edge(time.into_input_time(), src, dst, prop_iter, layer.as_str())?;
+            let edge = self_clone.graph.add_edge(
+                time.into_input_time(),
+                src,
+                dst,
+                prop_iter,
+                layer.as_str(),
+            )?;
 
             Ok::<_, GraphError>(edge)
         })
@@ -436,9 +439,10 @@ impl GqlMutableGraph {
     ) -> Result<GqlMutableEdge, GraphError> {
         let self_clone = self.clone();
         let edge = blocking_write(move || {
-            let edge = self_clone
-                .graph
-                .delete_edge(time.into_input_time(), src, dst, layer.as_str())?;
+            let edge =
+                self_clone
+                    .graph
+                    .delete_edge(time.into_input_time(), src, dst, layer.as_str())?;
 
             Ok::<_, GraphError>(edge)
         })
@@ -722,7 +726,9 @@ impl GqlMutableEdge {
     ) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
-            self_clone.edge.delete(time.into_input_time(), layer.as_str())?;
+            self_clone
+                .edge
+                .delete(time.into_input_time(), layer.as_str())?;
             Ok::<_, GraphError>(())
         })
         .await?;

@@ -1038,10 +1038,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(
-            res_json,
-            json!({"graph": {"nodes": {"list": [{"id": 1}]}}})
-        );
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": [{"id": 1}]}}}));
     }
 
     #[tokio::test]
@@ -1087,10 +1084,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(
-            res_json,
-            json!({"graph": {"nodes": {"list": [{"id": 1}]}}})
-        );
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": [{"id": 1}]}}}));
 
         let receive_graph = r#"
         query {

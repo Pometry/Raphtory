@@ -1427,7 +1427,9 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::Window(w) => {
                 let inner: CompositeNodeFilter = w.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.into_time(), w.end.into_time(), inner,
+                    w.start.into_time(),
+                    w.end.into_time(),
+                    inner,
                 ))))
             }
 
@@ -1592,7 +1594,9 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             GqlEdgeFilter::Window(w) => {
                 let inner: CompositeEdgeFilter = w.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.into_time(), w.end.into_time(), inner,
+                    w.start.into_time(),
+                    w.end.into_time(),
+                    inner,
                 ))))
             }
 

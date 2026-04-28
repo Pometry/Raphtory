@@ -290,11 +290,14 @@ def test_mutable_node_and_edge_add_updates_accept_time_input():
         )
         # Values come back in temporal order — assert the sequence as-is so
         # an out-of-order regression would fail.
-        assert result["graph"]["node"]["properties"]["temporal"]["get"][
-            "values"
-        ] == [1, 2, 3]
-        assert result["graph"]["edge"]["properties"]["temporal"]["get"][
-            "values"
-        ] == [1, 2]
+        assert result["graph"]["node"]["properties"]["temporal"]["get"]["values"] == [
+            1,
+            2,
+            3,
+        ]
+        assert result["graph"]["edge"]["properties"]["temporal"]["get"]["values"] == [
+            1,
+            2,
+        ]
         # delete at t=30 with no later re-add → edge is invalid at the latest time.
         assert result["graph"]["edge"]["isValid"] is False

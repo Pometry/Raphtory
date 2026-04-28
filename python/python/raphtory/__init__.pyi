@@ -7174,6 +7174,27 @@ class WindowSet(object):
         """
 
 class Prop(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __hash__(self):
+        """Return hash(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
 
@@ -7181,9 +7202,11 @@ class Prop(object):
     def aware_datetime(value: datetime) -> Prop:
         """
         Construct a `Prop` holding a timezone-aware datetime (stored as UTC).
+        Naive datetimes are accepted and interpreted as UTC, matching the
+        convention used elsewhere in Raphtory's time inputs.
 
         Arguments:
-            value (datetime): a timezone-aware datetime. Use `Prop.naive_datetime` for naive ones.
+            value (datetime): a datetime. Naive datetimes are treated as UTC.
 
         Returns:
             Prop:
