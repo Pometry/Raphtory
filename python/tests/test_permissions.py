@@ -1015,10 +1015,10 @@ def test_filter_and_node_edge():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ filter: { and: ['
+            "{ filter: { and: ["
             '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } },'
             '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
-            '] } }',
+            "] } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1072,10 +1072,10 @@ def test_filter_and_node_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ filter: { and: ['
-            '{ graph: { window: { start: 5, end: 15 } } },'
+            "{ filter: { and: ["
+            "{ graph: { window: { start: 5, end: 15 } } },"
             '{ node: { property: { name: "region", where: { eq: { str: "us-west" } } } } }'
-            '] } }',
+            "] } }",
         )
 
         QUERY_NODES = 'query { graph(path: "jira") { nodes { list { name } } } }'
@@ -1113,10 +1113,10 @@ def test_filter_and_edge_graph():
         grant_graph_filtered_read_only(
             "analyst",
             "jira",
-            '{ filter: { and: ['
-            '{ graph: { window: { start: 5, end: 15 } } },'
+            "{ filter: { and: ["
+            "{ graph: { window: { start: 5, end: 15 } } },"
             '{ edge: { property: { name: "weight", where: { ge: { i64: 5 } } } } }'
-            '] } }',
+            "] } }",
         )
 
         QUERY_EDGES = 'query { graph(path: "jira") { edges { list { src { name } dst { name } } } } }'
@@ -1291,9 +1291,9 @@ def test_analyst_node_hidden_property_not_visible():
         analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
         assert "errors" not in analyst_resp, analyst_resp
         node = analyst_resp["data"]["graph"]["nodes"]["list"][0]
-        assert "salary" not in node["properties"]["keys"], (
-            f"expected salary hidden, got keys: {node['properties']['keys']}"
-        )
+        assert (
+            "salary" not in node["properties"]["keys"]
+        ), f"expected salary hidden, got keys: {node['properties']['keys']}"
         assert "region" in node["properties"]["keys"], "region should still be visible"
 
         # Admin sees all properties
@@ -1334,9 +1334,9 @@ def test_analyst_node_hidden_metadata_not_visible():
         analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
         assert "errors" not in analyst_resp, analyst_resp
         node = analyst_resp["data"]["graph"]["nodes"]["list"][0]
-        assert "ssn" not in node["metadata"]["keys"], (
-            f"expected ssn hidden, got: {node['metadata']['keys']}"
-        )
+        assert (
+            "ssn" not in node["metadata"]["keys"]
+        ), f"expected ssn hidden, got: {node['metadata']['keys']}"
         assert "dept" in node["metadata"]["keys"], "dept should still be visible"
 
         admin_resp = gql(QUERY, headers=ADMIN_HEADERS)
@@ -1374,15 +1374,17 @@ def test_analyst_edge_hidden_property_not_visible():
         analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
         assert "errors" not in analyst_resp, analyst_resp
         edge = analyst_resp["data"]["graph"]["edges"]["list"][0]
-        assert "salary_delta" not in edge["properties"]["keys"], (
-            f"expected salary_delta hidden, got: {edge['properties']['keys']}"
-        )
+        assert (
+            "salary_delta" not in edge["properties"]["keys"]
+        ), f"expected salary_delta hidden, got: {edge['properties']['keys']}"
         assert "weight" in edge["properties"]["keys"], "weight should still be visible"
 
         admin_resp = gql(QUERY, headers=ADMIN_HEADERS)
         assert "errors" not in admin_resp, admin_resp
         admin_edge = admin_resp["data"]["graph"]["edges"]["list"][0]
-        assert "salary_delta" in admin_edge["properties"]["keys"], "admin should see salary_delta"
+        assert (
+            "salary_delta" in admin_edge["properties"]["keys"]
+        ), "admin should see salary_delta"
 
 
 def test_redaction_combined_with_row_filter():
@@ -1461,11 +1463,15 @@ def test_row_filter_on_hidden_property_still_applies():
 
         # Row filter still works — only us-west node visible
         names = {n["name"] for n in nodes}
-        assert names == {"alice"}, f"row filter broken: expected only alice, got {names}"
+        assert names == {
+            "alice"
+        }, f"row filter broken: expected only alice, got {names}"
 
         # The filter key itself is hidden from the response
         alice = next(n for n in nodes if n["name"] == "alice")
-        assert "region" not in alice["properties"]["keys"], "region should be hidden from response"
+        assert (
+            "region" not in alice["properties"]["keys"]
+        ), "region should be hidden from response"
         assert "score" in alice["properties"]["keys"], "score should still be visible"
 
 

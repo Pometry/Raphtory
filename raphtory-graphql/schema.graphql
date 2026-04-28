@@ -1742,7 +1742,7 @@ type Metadata {
 	"""
 	get(key: String!): Property
 	"""
-	/// Check if the key is in the metadata.
+	Check if the key is in the metadata.
 	"""
 	contains(key: String!): Boolean!
 	"""
@@ -1750,7 +1750,7 @@ type Metadata {
 	"""
 	keys: [String!]!
 	"""
-	/// Return all metadata values.
+	Return all metadata values.
 	"""
 	values(keys: [String!]): [Property!]!
 }
@@ -3529,3 +3529,4 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
+

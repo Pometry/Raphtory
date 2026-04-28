@@ -3514,7 +3514,7 @@ Get metadata value matching the specified key.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-/// Check if the key is in the metadata.
+Check if the key is in the metadata.
 
 </td>
 </tr>
@@ -3537,7 +3537,7 @@ Return all metadata keys.
 <td valign="top">[<a href="#property">Property</a>!]!</td>
 <td>
 
-/// Return all metadata values.
+Return all metadata values.
 
 </td>
 </tr>
