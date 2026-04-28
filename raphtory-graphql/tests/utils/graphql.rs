@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, Once};
 use std::time::Duration;
 
-use raphtory::algorithms::components::in_component;
 use raphtory::db::api::storage::storage::Config;
-use raphtory::prelude::{Graph, GraphViewOps, NodeStateOps, NodeViewOps};
+use raphtory::prelude::Graph;
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory_graphql::config::app_config::AppConfigBuilder;
 use raphtory_graphql::server::{apply_server_extension, GraphServer, RunningGraphServer};
@@ -13,7 +12,7 @@ use tempfile::TempDir;
 use tokio::runtime::Runtime;
 use url::Url;
 
-use crate::utils::strategy::{GraphPermission, NamespacePermission};
+use crate::utils::strategy::{leaf_paths, GraphPermission, NamespacePermission};
 
 static AUTH_INIT: Once = Once::new();
 
@@ -35,6 +34,8 @@ pub fn start_server(port: u16, pub_key: &str) -> (RunningGraphServer, TempDir) {
 
     RUNTIME.block_on(async {
         let mut tempdir = TempDir::new().unwrap();
+
+        // Prevent cleanup so server can flush to workdir after drop.
         tempdir.disable_cleanup(true);
 
         let work_dir = tempdir.path().to_path_buf();
@@ -138,21 +139,7 @@ pub fn grant_namespace(
 /// Create namespaces and graphs in graphql using the given tree.
 /// Each leaf node is turned into a graph, all other nodes are turned into namespaces.
 pub fn create_graphs(client: &RaphtoryGraphQLClient, tree: &Graph) -> Vec<String> {
-    let mut graph_paths = Vec::new();
-
-    for node in tree.nodes() {
-        if node.out_neighbours().is_empty() { // Leaf node
-            // In-components are sorted by distance from the leaf node.
-            let mut in_components = in_component(node.clone())
-                .iter()
-                .map(|(node_view, _)| node_view.name())
-                .collect::<Vec<_>>();
-
-            // Include the leaf node itself in the path.
-            in_components.push(node.name());
-            graph_paths.push(in_components.join("/"));
-        }
-    }
+    let graph_paths = leaf_paths(tree);
 
     for path in &graph_paths {
         RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();

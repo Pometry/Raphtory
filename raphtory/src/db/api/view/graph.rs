@@ -305,7 +305,7 @@ fn materialize_impl(
 
     node_meta.set_layer_mapper(layer_meta.clone());
 
-    // Create new WAL file for the new materialized graph.
+    // Create a new Extension instance for the new materialized graph.
     let ext = Extension::new(config, path)?;
 
     let temporal_graph = TemporalGraph::new_with_meta(
