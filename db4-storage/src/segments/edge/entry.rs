@@ -20,28 +20,15 @@ use std::marker::PhantomData;
 pub struct MemEdgeEntry<'a, MES> {
     pos: LocalPOS,
     es: MES,
-    src: VID,
-    dst: VID,
     __marker: PhantomData<&'a ()>,
 }
 
 impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment>> MemEdgeEntry<'a, MES> {
-    pub fn new(pos: LocalPOS, es: MES, edge_ref: Option<EdgeRef>) -> Self {
-        match edge_ref {
-            None => Self {
-                pos,
-                es,
-                src: VID::default(),
-                dst: VID::default(),
-                __marker: PhantomData,
-            },
-            Some(e_ref) => Self {
-                pos,
-                es,
-                src: e_ref.src(),
-                dst: e_ref.dst(),
-                __marker: PhantomData,
-            },
+    pub fn new(pos: LocalPOS, es: MES, _edge_ref: Option<EdgeRef>) -> Self {
+        Self {
+            pos,
+            es,
+            __marker: PhantomData,
         }
     }
 }
@@ -63,8 +50,6 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
         MemEdgeRef {
             pos: self.pos,
             es: &self.es,
-            src: self.src,
-            dst: self.dst,
         }
     }
 }
@@ -73,27 +58,12 @@ impl<'a, MES: std::ops::Deref<Target = MemEdgeSegment> + Send + Sync> EdgeEntryO
 pub struct MemEdgeRef<'a> {
     pos: LocalPOS,
     es: &'a MemEdgeSegment,
-    src: VID,
-    dst: VID,
 }
 
 impl<'a> MemEdgeRef<'a> {
     #[inline]
-    pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment, edge_ref: Option<EdgeRef>) -> Self {
-        match edge_ref {
-            None => Self {
-                pos,
-                es,
-                src: VID::default(),
-                dst: VID::default(),
-            },
-            Some(e_ref) => Self {
-                pos,
-                es,
-                src: e_ref.src(),
-                dst: e_ref.dst(),
-            },
-        }
+    pub fn new(pos: LocalPOS, es: &'a MemEdgeSegment, _edge_ref: Option<EdgeRef>) -> Self {
+        Self { pos, es }
     }
 
     pub fn has_layers(&self, layer_ids: &Multiple) -> bool {
@@ -186,13 +156,19 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
 
     #[inline]
     fn edge_ref(self, dir: Dir) -> EdgeRef {
-        let es = &self.es.as_ref()[0];
-        let entry = es.get(self.pos).unwrap();
+        let es = &self
+            .es
+            .as_ref()
+            .first()
+            .expect("Valid edge ref should always have static graph layer");
+        let entry = es
+            .get(self.pos)
+            .expect("Valid edge ref should always have static graph entry");
         let segment_id = es.segment_id();
         let max_page_len = es.max_page_len();
         let eid = self.pos.as_eid(segment_id, max_page_len);
-        let src = self.src.or_init(|| entry.src);
-        let dst = self.dst.or_init(|| entry.dst);
+        let src = entry.src;
+        let dst = entry.dst;
         EdgeRef::new(eid, src, dst, dir)
     }
 
@@ -220,25 +196,19 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     }
 
     fn src(&self) -> VID {
-        self.src.or_init(|| {
-            self.es
-                .as_ref()
-                .first()
-                .and_then(|layer| layer.get(self.pos))
-                .map(|entry| entry.src)
-                .unwrap_or_default()
-        })
+        self.es
+            .as_ref()
+            .first()
+            .and_then(|layer| layer.get(self.pos).map(|entry| entry.src))
+            .expect("Valid edge ref should always have defined src")
     }
 
     fn dst(&self) -> VID {
-        self.dst.or_init(|| {
-            self.es
-                .as_ref()
-                .first()
-                .and_then(|layer| layer.get(self.pos))
-                .map(|entry| entry.dst)
-                .unwrap_or_default()
-        })
+        self.es
+            .as_ref()
+            .first()
+            .and_then(|layer| layer.get(self.pos).map(|entry| entry.dst))
+            .expect("Valid edge ref should always have defined dst")
     }
 
     fn edge_id(&self) -> EID {
@@ -250,7 +220,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
                 let max_page_len = es.max_page_len();
                 self.pos.as_eid(segment_id, max_page_len)
             })
-            .unwrap_or_default()
+            .expect("Valid edge ref should always have defined edge id")
     }
 
     fn internal_num_layers(self) -> usize {
