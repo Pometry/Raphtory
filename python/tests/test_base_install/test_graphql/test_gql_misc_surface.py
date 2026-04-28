@@ -8,8 +8,12 @@
 - `MetaGraph.nodeCount`, `MetaGraph.edgeCount`, `QueryRoot.graphMetadata`
 """
 
-from utils import run_group_graphql_test
+import json
+import tempfile
+
+from utils import PORT, run_group_graphql_test
 from raphtory import Graph
+from raphtory.graphql import GraphServer
 
 
 def create_graph() -> Graph:
@@ -32,37 +36,44 @@ def create_graph() -> Graph:
 
 
 def test_nodes_ids():
-    """`nodes.ids` on base / window / layer views."""
+    """`nodes.ids` on base / window / layer views. Order isn't guaranteed
+    by the resolver, so each result is compared as a set."""
     graph = create_graph()
-    queries_and_expected = []
 
-    # base: all 4 nodes present
-    query = """{ graph(path: "g") { nodes { ids } } }"""
-    queries_and_expected.append(
-        (query, {"graph": {"nodes": {"ids": ["A", "B", "C", "D"]}}})
-    )
-
-    # window [10, 25): D (added at 40) excluded
-    query = """{ graph(path: "g") { window(start: 10, end: 25) { nodes { ids } } } }"""
-    queries_and_expected.append(
+    cases = [
+        # base: all 4 nodes present.
         (
-            query,
-            {"graph": {"window": {"nodes": {"ids": ["A", "B", "C"]}}}},
-        )
-    )
-
-    # layer(layer2): D only has a layer1 edge (C->D) but is still present
-    # because base-layer (non-layered) node events are always included in any
-    # layer view — D was added via `add_node(40, "D", ...)` with no layer arg.
-    query = """{ graph(path: "g") { layer(name: "layer2") { nodes { ids } } } }"""
-    queries_and_expected.append(
+            """{ graph(path: "g") { nodes { ids } } }""",
+            ("graph", "nodes"),
+            {"A", "B", "C", "D"},
+        ),
+        # window [10, 25): D (added at 40) excluded.
         (
-            query,
-            {"graph": {"layer": {"nodes": {"ids": ["A", "B", "C", "D"]}}}},
-        )
-    )
+            """{ graph(path: "g") { window(start: 10, end: 25) { nodes { ids } } } }""",
+            ("graph", "window", "nodes"),
+            {"A", "B", "C"},
+        ),
+        # layer(layer2): D only has a layer1 edge (C->D) but is still present
+        # because base-layer (non-layered) node events are always included in
+        # any layer view — D was added via `add_node(40, "D", ...)` with no
+        # layer arg.
+        (
+            """{ graph(path: "g") { layer(name: "layer2") { nodes { ids } } } }""",
+            ("graph", "layer", "nodes"),
+            {"A", "B", "C", "D"},
+        ),
+    ]
 
-    run_group_graphql_test(queries_and_expected, graph, sort_output=True)
+    tmp = tempfile.mkdtemp()
+    with GraphServer(tmp, create_index=True).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+        for query, path, expected in cases:
+            response = client.query(query)
+            data = json.loads(response) if isinstance(response, str) else response
+            for key in path:
+                data = data[key]
+            assert set(data["ids"]) == expected, f"query: {query}"
 
 
 def test_edges_explode_and_explode_layers():
