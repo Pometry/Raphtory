@@ -456,7 +456,7 @@ impl GqlGraph {
         } else {
             Ok(GqlProperties::with_hidden(
                 props,
-                self.graph_redaction.graph_hidden_props.clone(),
+                Arc::new(self.graph_redaction.graph_hidden_props.clone()),
             ))
         }
     }
@@ -469,7 +469,7 @@ impl GqlGraph {
         } else {
             Ok(GqlMetadata::with_hidden(
                 meta,
-                self.graph_redaction.graph_hidden_meta.clone(),
+                Arc::new(self.graph_redaction.graph_hidden_meta.clone()),
             ))
         }
     }

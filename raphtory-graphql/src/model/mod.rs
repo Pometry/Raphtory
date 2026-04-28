@@ -414,7 +414,7 @@ impl QueryRoot {
         // graph-level props are filtered at the GQL layer via GqlGraph::graph_redaction.
         let (graph, graph_redaction) = if let GraphPermission::Read { ref redaction, .. } = perms {
             let redacted_graph = if redaction.has_restrictions() {
-                PropertyRedactedGraph::new(graph, redaction.clone()).into_dynamic()
+                PropertyRedactedGraph::new(graph, &redaction).into_dynamic()
             } else {
                 graph
             };
