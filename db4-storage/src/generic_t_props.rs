@@ -6,7 +6,6 @@ use raphtory_api::core::entities::{
     LayerId,
     properties::{prop::Prop, tprop::TPropOps},
 };
-use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{entities::LayerIds, storage::timeindex::EventTime};
 
 use crate::utils::Iter4;
@@ -29,7 +28,6 @@ where
         prop_id: usize,
     ) -> impl Iterator<Item = Self::TProp> + Send + Sync + 'a;
 
-    #[box_on_debug_lifetime]
     fn into_t_props_layers(
         self,
         layers: impl Borrow<LayerIds>,
@@ -85,7 +83,6 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
 }
 
 impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
-    #[box_on_debug_lifetime]
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
             Either::Left(layer_ids) => {
