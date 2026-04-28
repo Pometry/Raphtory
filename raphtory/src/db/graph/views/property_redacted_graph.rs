@@ -26,6 +26,8 @@ pub struct PropertyRedaction {
     pub node_hidden_meta: Arc<HashSet<String>>,
     pub edge_hidden_props: Arc<HashSet<String>>,
     pub edge_hidden_meta: Arc<HashSet<String>>,
+    pub graph_hidden_props: Arc<HashSet<String>>,
+    pub graph_hidden_meta: Arc<HashSet<String>>,
 }
 
 impl PropertyRedaction {
@@ -34,6 +36,8 @@ impl PropertyRedaction {
             || !self.node_hidden_meta.is_empty()
             || !self.edge_hidden_props.is_empty()
             || !self.edge_hidden_meta.is_empty()
+            || !self.graph_hidden_props.is_empty()
+            || !self.graph_hidden_meta.is_empty()
     }
 }
 
@@ -79,10 +83,11 @@ impl<G: GraphView> InheritLayerOps for PropertyRedactedGraph<G> {}
 
 impl<G: GraphView + NodePropertySchemaOps> NodePropertySchemaOps for PropertyRedactedGraph<G> {
     fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        let hidden = self.redaction.node_hidden_props.clone();
+        let hidden = self.redaction.node_hidden_props.as_ref();
         Box::new(self.graph.node_visible_temporal_prop_ids().filter(move |&id| {
-            let name = self.graph.node_visible_temporal_prop_name(id);
-            !hidden.contains(name.as_ref())
+            self.graph
+                .node_visible_temporal_prop_name(id)
+                .map_or(false, |name| !hidden.contains(name.as_ref()))
         }))
     }
 
@@ -93,15 +98,17 @@ impl<G: GraphView + NodePropertySchemaOps> NodePropertySchemaOps for PropertyRed
         self.graph.node_visible_temporal_prop_id(name)
     }
 
-    fn node_visible_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.node_visible_temporal_prop_name(id)
+    fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
+        let name = self.graph.node_visible_temporal_prop_name(id)?;
+        (!self.redaction.node_hidden_props.contains(name.as_ref())).then_some(name)
     }
 
     fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        let hidden = self.redaction.node_hidden_meta.clone();
+        let hidden = self.redaction.node_hidden_meta.as_ref();
         Box::new(self.graph.node_visible_metadata_ids().filter(move |&id| {
-            let name = self.graph.node_visible_metadata_name(id);
-            !hidden.contains(name.as_ref())
+            self.graph
+                .node_visible_metadata_name(id)
+                .map_or(false, |name| !hidden.contains(name.as_ref()))
         }))
     }
 
@@ -112,17 +119,19 @@ impl<G: GraphView + NodePropertySchemaOps> NodePropertySchemaOps for PropertyRed
         self.graph.node_visible_metadata_id(name)
     }
 
-    fn node_visible_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph.node_visible_metadata_name(id)
+    fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
+        let name = self.graph.node_visible_metadata_name(id)?;
+        (!self.redaction.node_hidden_meta.contains(name.as_ref())).then_some(name)
     }
 }
 
 impl<G: GraphView + EdgePropertySchemaOps> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
     fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        let hidden = self.redaction.edge_hidden_props.clone();
+        let hidden = self.redaction.edge_hidden_props.as_ref();
         Box::new(self.graph.edge_visible_temporal_prop_ids().filter(move |&id| {
-            let name = self.graph.edge_visible_temporal_prop_name(id);
-            !hidden.contains(name.as_ref())
+            self.graph
+                .edge_visible_temporal_prop_name(id)
+                .map_or(false, |name| !hidden.contains(name.as_ref()))
         }))
     }
 
@@ -133,15 +142,17 @@ impl<G: GraphView + EdgePropertySchemaOps> EdgePropertySchemaOps for PropertyRed
         self.graph.edge_visible_temporal_prop_id(name)
     }
 
-    fn edge_visible_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_visible_temporal_prop_name(id)
+    fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
+        let name = self.graph.edge_visible_temporal_prop_name(id)?;
+        (!self.redaction.edge_hidden_props.contains(name.as_ref())).then_some(name)
     }
 
     fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        let hidden = self.redaction.edge_hidden_meta.clone();
+        let hidden = self.redaction.edge_hidden_meta.as_ref();
         Box::new(self.graph.edge_visible_metadata_ids().filter(move |&id| {
-            let name = self.graph.edge_visible_metadata_name(id);
-            !hidden.contains(name.as_ref())
+            self.graph
+                .edge_visible_metadata_name(id)
+                .map_or(false, |name| !hidden.contains(name.as_ref()))
         }))
     }
 
@@ -152,7 +163,8 @@ impl<G: GraphView + EdgePropertySchemaOps> EdgePropertySchemaOps for PropertyRed
         self.graph.edge_visible_metadata_id(name)
     }
 
-    fn edge_visible_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_visible_metadata_name(id)
+    fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
+        let name = self.graph.edge_visible_metadata_name(id)?;
+        (!self.redaction.edge_hidden_meta.contains(name.as_ref())).then_some(name)
     }
 }

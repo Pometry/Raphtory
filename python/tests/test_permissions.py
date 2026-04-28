@@ -1371,6 +1371,78 @@ def test_redaction_combined_with_row_filter():
         assert "region" in alice["properties"]["keys"], "region should be visible"
 
 
+def test_analyst_graph_hidden_property_not_visible():
+    """hiddenProperties on graph-level strips graph temporal properties for the role."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        resp = gql("""query {
+            updateGraph(path: "jira") {
+                addProperties(t: 1, properties: [
+                    { key: "internal_id", value: { i64: 42 } },
+                    { key: "version", value: { i64: 1 } }
+                ])
+            }
+        }""")
+        assert resp["data"]["updateGraph"]["addProperties"] is True, resp
+
+        create_role("analyst")
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ graph: { hiddenProperties: ["internal_id"] } }',
+        )
+
+        QUERY = 'query { graph(path: "jira") { properties { keys } } }'
+
+        analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_resp, analyst_resp
+        keys = analyst_resp["data"]["graph"]["properties"]["keys"]
+        assert "internal_id" not in keys, f"expected internal_id hidden, got: {keys}"
+        assert "version" in keys, "version should still be visible"
+
+        admin_resp = gql(QUERY, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_resp, admin_resp
+        admin_keys = admin_resp["data"]["graph"]["properties"]["keys"]
+        assert "internal_id" in admin_keys, "admin should see internal_id"
+
+
+def test_analyst_graph_hidden_metadata_not_visible():
+    """hiddenMetadata on graph-level strips graph metadata for the role."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        resp = gql("""query {
+            updateGraph(path: "jira") {
+                addMetadata(properties: [
+                    { key: "secret_token", value: { str: "abc123" } },
+                    { key: "owner", value: { str: "platform-team" } }
+                ])
+            }
+        }""")
+        assert resp["data"]["updateGraph"]["addMetadata"] is True, resp
+
+        create_role("analyst")
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ graph: { hiddenMetadata: ["secret_token"] } }',
+        )
+
+        QUERY = 'query { graph(path: "jira") { metadata { keys } } }'
+
+        analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_resp, analyst_resp
+        keys = analyst_resp["data"]["graph"]["metadata"]["keys"]
+        assert "secret_token" not in keys, f"expected secret_token hidden, got: {keys}"
+        assert "owner" in keys, "owner should still be visible"
+
+        admin_resp = gql(QUERY, headers=ADMIN_HEADERS)
+        assert "errors" not in admin_resp, admin_resp
+        admin_keys = admin_resp["data"]["graph"]["metadata"]["keys"]
+        assert "secret_token" in admin_keys, "admin should see secret_token"
+
+
 # --- Namespace permission tests ---
 
 

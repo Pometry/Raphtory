@@ -538,7 +538,7 @@ impl<'graph, G: GraphViewOps<'graph> + EdgePropertySchemaOps> InternalMetadataOp
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_visible_metadata_name(id)
+        self.graph.edge_visible_metadata_name(id).unwrap_or_default()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
@@ -741,7 +741,7 @@ impl<'graph, G: GraphViewOps<'graph> + EdgePropertySchemaOps> InternalTemporalPr
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.edge_visible_temporal_prop_name(id)
+        self.graph.edge_visible_temporal_prop_name(id).unwrap_or_default()
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {

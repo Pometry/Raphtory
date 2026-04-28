@@ -410,18 +410,23 @@ impl QueryRoot {
             graph
         };
 
-        // Property redaction
-        let graph = if let GraphPermission::Read { ref redaction, .. } = perms {
-            if redaction.has_restrictions() {
+        // Property redaction — node/edge props are intercepted at DB layer via PropertyRedactedGraph;
+        // graph-level props are filtered at the GQL layer via GqlGraph::graph_redaction.
+        let (graph, graph_redaction) = if let GraphPermission::Read { ref redaction, .. } = perms {
+            let redacted_graph = if redaction.has_restrictions() {
                 PropertyRedactedGraph::new(graph, redaction.clone()).into_dynamic()
             } else {
                 graph
-            }
+            };
+            (redacted_graph, redaction.clone())
         } else {
-            graph
+            (graph, Default::default())
         };
 
-        Ok(Some(GqlGraph::new(graph_with_vecs.folder, graph)))
+        Ok(Some(
+            GqlGraph::new(graph_with_vecs.folder, graph)
+                .with_graph_redaction(graph_redaction),
+        ))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.

@@ -228,7 +228,7 @@ impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps + NodePropertySchemaOps>
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
-        self.graph.node_visible_temporal_prop_name(id)
+        self.graph.node_visible_temporal_prop_name(id).unwrap_or_default()
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
@@ -311,7 +311,7 @@ impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
-        self.graph.node_visible_metadata_name(id)
+        self.graph.node_visible_metadata_name(id).unwrap_or_default()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {

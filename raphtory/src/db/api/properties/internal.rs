@@ -14,20 +14,24 @@ use raphtory_api::{
 pub trait NodePropertySchemaOps: Send + Sync {
     fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
     fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
-    fn node_visible_temporal_prop_name(&self, id: usize) -> ArcStr;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
     fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize>;
-    fn node_visible_metadata_name(&self, id: usize) -> ArcStr;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
 }
 
 /// Same as `NodePropertySchemaOps` but for edge properties.
 pub trait EdgePropertySchemaOps: Send + Sync {
     fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
     fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
-    fn edge_visible_temporal_prop_name(&self, id: usize) -> ArcStr;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
     fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
     fn edge_visible_metadata_id(&self, name: &str) -> Option<usize>;
-    fn edge_visible_metadata_name(&self, id: usize) -> ArcStr;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
 }
 
 /// Marker: delegate `NodePropertySchemaOps` through `Base`.
@@ -48,7 +52,7 @@ where
         self.base().node_visible_temporal_prop_id(name)
     }
     #[inline]
-    fn node_visible_temporal_prop_name(&self, id: usize) -> ArcStr {
+    fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_temporal_prop_name(id)
     }
     #[inline]
@@ -60,7 +64,7 @@ where
         self.base().node_visible_metadata_id(name)
     }
     #[inline]
-    fn node_visible_metadata_name(&self, id: usize) -> ArcStr {
+    fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_metadata_name(id)
     }
 }
@@ -78,7 +82,7 @@ where
         self.base().edge_visible_temporal_prop_id(name)
     }
     #[inline]
-    fn edge_visible_temporal_prop_name(&self, id: usize) -> ArcStr {
+    fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
         self.base().edge_visible_temporal_prop_name(id)
     }
     #[inline]
@@ -90,7 +94,7 @@ where
         self.base().edge_visible_metadata_id(name)
     }
     #[inline]
-    fn edge_visible_metadata_name(&self, id: usize) -> ArcStr {
+    fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().edge_visible_metadata_name(id)
     }
 }
