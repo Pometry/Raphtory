@@ -64,7 +64,7 @@ fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
 }
 
 #[test]
-fn test_materialize_using_recordbatches_matches_materialize() {
+fn test_materialize() {
     let g = Graph::new();
     g.add_node(0, "A", [("node_meta", "alpha")], Some("TypeA"), None)
         .unwrap();
@@ -79,22 +79,18 @@ fn test_materialize_using_recordbatches_matches_materialize() {
     g.add_metadata([("graph_meta", "constant")]).unwrap();
 
     let expected = g.materialize().unwrap();
-    let actual = materialize_impl(&g, None, g.core_graph().extension().config().clone()).unwrap();
 
-    assert_graph_equal_timestamps(&expected, &actual);
+    assert_graph_equal_timestamps(&expected, &g);
 }
 
 #[cfg(feature = "io")]
 #[test]
 #[ignore = "requires a locally persisted SNB SF1 graph produced by ldbc/load_snb_sf10.py"]
-fn test_materialize_snb_sf1_timings() {
+fn test_get_materialize_snb_sf1_time() {
     let graph_path = default_sf1_graph_path();
-    let old_materialize_graph_path = default_materialized_graphs_path().join("old_materialize");
-    let rb_materialize_graph_path = default_materialized_graphs_path().join("rb_materialize");
+    let rb_materialize_graph_path = default_materialized_graphs_path().join("rb_materialize_sf1");
     // clear out the directories in case they had previous files in them
-    remove_dir_all_ignore_not_found(&old_materialize_graph_path).unwrap();
     remove_dir_all_ignore_not_found(&rb_materialize_graph_path).unwrap();
-    fs::create_dir_all(&old_materialize_graph_path).unwrap();
     fs::create_dir_all(&rb_materialize_graph_path).unwrap();
 
     if !graph_path.exists() {
@@ -111,55 +107,24 @@ fn test_materialize_snb_sf1_timings() {
         g.count_temporal_edges()
     );
 
-    println!(
-        "Starting materialize using RecordBatches at {}",
-        Local::now()
-    );
-    let recordbatch_start = Instant::now();
-    let recordbatch_graph = materialize_impl(
+    println!("Starting materialize at {}", Local::now());
+    let materialize_start = Instant::now();
+    let materialized_graph = materialize_impl(
         &g,
         Some(&rb_materialize_graph_path),
         g.core_graph().extension().config().clone(),
     )
     .unwrap();
-    let recordbatch_elapsed = recordbatch_start.elapsed();
+    let materialize_elapsed = materialize_start.elapsed();
     println!(
-        "Finished materialize using RecordBatches at {}\nTook {recordbatch_elapsed:?}",
+        "Finished materialize at {}\nTook {materialize_elapsed:?}",
         Local::now()
     );
 
-    println!("Starting materialize impl (old) at {}", Local::now());
-    let impl_start = Instant::now();
-    let materialize_impl_graph = g.materialize_at(&old_materialize_graph_path).unwrap();
-    let impl_elapsed = impl_start.elapsed();
-    println!(
-        "Finished materialize impl (old) at {}\nTook {impl_elapsed:?}",
-        Local::now()
-    );
-
-    assert!(graph_equal(&g, &materialize_impl_graph));
-    assert!(graph_equal(&g, &recordbatch_graph));
-
-    let impl_secs = impl_elapsed.as_secs_f64();
-    let recordbatch_secs = recordbatch_elapsed.as_secs_f64();
-    let faster = if impl_secs < recordbatch_secs {
-        "materialize_impl"
-    } else if recordbatch_secs < impl_secs {
-        "materialize_using_recordbatches"
-    } else {
-        "tie"
-    };
-    let ratio = if impl_secs > 0.0 && recordbatch_secs > 0.0 {
-        if impl_secs > recordbatch_secs {
-            impl_secs / recordbatch_secs
-        } else {
-            recordbatch_secs / impl_secs
-        }
-    } else {
-        1.0
-    };
-
-    println!("Faster path: {faster} ({ratio:.2}x)");
+    println!("Checking materialized graph...");
+    assert_graph_equal_timestamps(&g, &materialized_graph);
+    println!("Passed!");
+    remove_dir_all_ignore_not_found(&rb_materialize_graph_path).unwrap();
 }
 
 #[cfg(feature = "io")]
@@ -167,14 +132,10 @@ fn test_materialize_snb_sf1_timings() {
 #[ignore = "requires a locally persisted SNB SF1 graph produced by ldbc/load_snb_sf10.py"]
 fn test_materialize_filtered_sf1_matches() {
     let graph_path = default_sf1_graph_path();
-    let old_materialize_graph_path =
-        default_materialized_graphs_path().join("sf1_filtered_materialize_old");
     let rb_materialize_graph_path =
         default_materialized_graphs_path().join("sf1_filtered_materialize_rb");
 
-    remove_dir_all_ignore_not_found(&old_materialize_graph_path).unwrap();
     remove_dir_all_ignore_not_found(&rb_materialize_graph_path).unwrap();
-    fs::create_dir_all(&old_materialize_graph_path).unwrap();
     fs::create_dir_all(&rb_materialize_graph_path).unwrap();
 
     if !graph_path.exists() {
@@ -228,53 +189,29 @@ fn test_materialize_filtered_sf1_matches() {
         {selected_temporal_edges}/{total_temporal_edges} temporal edges ({temporal_edges_percent}%)"
     );
 
-    println!(
-        "Starting filtered SF1 materialize using RecordBatches at {}",
-        Local::now()
-    );
-    let recordbatch_start = Instant::now();
-    let recordbatch_graph = materialize_impl(
+    println!("Starting filtered SF1 materialize at {}", Local::now());
+    let materialize_start = Instant::now();
+    let materialized_graph = materialize_impl(
         &filtered,
         Some(&rb_materialize_graph_path),
         g.core_graph().extension().config().clone(),
     )
     .unwrap();
-    let recordbatch_elapsed = recordbatch_start.elapsed();
+    let materialize_elapsed = materialize_start.elapsed();
     println!(
-        "Finished filtered SF1 materialize using RecordBatches at {}\nTook {recordbatch_elapsed:?}",
+        "Finished filtered SF1 materialize at {}\nTook {materialize_elapsed:?}",
         Local::now()
     );
 
-    println!(
-        "Starting filtered SF1 materialize impl (old) at {}",
-        Local::now()
-    );
-    let impl_start = Instant::now();
-    let materialize_impl_graph = filtered
-        .materialize_at(&old_materialize_graph_path)
-        .unwrap();
-    let impl_elapsed = impl_start.elapsed();
-    println!(
-        "Finished filtered SF1 materialize impl (old) at {}\nTook {impl_elapsed:?}",
-        Local::now()
-    );
-
-    println!("Checking RecordBatch materialized graph");
-    assert_graph_equal_timestamps(&filtered, &recordbatch_graph);
-    println!("Passed!\nChecking old materialized graph");
-    assert_graph_equal_timestamps(&filtered, &materialize_impl_graph);
+    println!("Checking filtered materialized graph");
+    assert_graph_equal_timestamps(&filtered, &materialized_graph);
     println!("Passed!");
 
-    println!(
-        "Filtered SF1 parity check passed.\n  materialize_using_recordbatches: {:?}\n  materialize_impl: {:?}",
-        recordbatch_elapsed, impl_elapsed
-    );
-    remove_dir_all_ignore_not_found(&old_materialize_graph_path).unwrap();
     remove_dir_all_ignore_not_found(&rb_materialize_graph_path).unwrap();
 }
 
 #[cfg(feature = "io")]
-fn get_new_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Duration {
+fn get_materialize_time(graph_path: &Path, materialize_graph_path: &Path) -> Duration {
     remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
     fs::create_dir_all(&materialize_graph_path).unwrap();
 
@@ -291,27 +228,24 @@ fn get_new_materialize_time(graph_path: &Path, materialize_graph_path: &Path) ->
         sf10_graph.count_temporal_edges()
     );
 
-    println!(
-        "Starting SF10 materialize using RecordBatches at {}",
-        Local::now()
-    );
-    let recordbatch_start = Instant::now();
-    let _recordbatch_graph = materialize_impl(
+    println!("Starting SF10 materialize at {}", Local::now());
+    let materialize_start = Instant::now();
+    let _materialized_graph = materialize_impl(
         &sf10_graph,
         Some(&materialize_graph_path),
         sf10_graph.core_graph().extension().config().clone(),
     )
     .unwrap();
-    let recordbatch_elapsed = recordbatch_start.elapsed();
+    let materialize_elapsed = materialize_start.elapsed();
     println!(
-        "Finished SF10 materialize using RecordBatches at {}\nTook {recordbatch_elapsed:?}",
+        "Finished SF10 materialize at {}\nTook {materialize_elapsed:?}",
         Local::now()
     );
-    drop(_recordbatch_graph);
+    drop(_materialized_graph);
     drop(sf10_graph);
     // free up disk space for next test
     remove_dir_all_ignore_not_found(&materialize_graph_path).unwrap();
-    recordbatch_elapsed
+    materialize_elapsed
 }
 
 #[cfg(feature = "io")]
@@ -732,7 +666,7 @@ fn test_current() {
     let parquet_decode_graph_path = default_materialized_graphs_path().join("parquet_decode_sf10");
     let materialize_graph_path = default_materialized_graphs_path().join("rb_materialize_sf10");
 
-    let materialize_duration = get_new_materialize_time(&graph_path, &materialize_graph_path);
+    let materialize_duration = get_materialize_time(&graph_path, &materialize_graph_path);
 
     let parquet_dump_duration = get_parquet_encode_time(&graph_path, &parquet_path);
 
@@ -743,7 +677,7 @@ fn test_current() {
         get_parquet_decode_time(&graph_path, &parquet_path, &parquet_decode_graph_path);
 
     println!(
-        "Summary:\n  encode_parquet: {:?}\n  parquet loaders replay: {:?}\n  decode_parquet: {:?}\n  materialize_using_recordbatches: {:?}",
+        "Summary:\n  encode_parquet: {:?}\n  parquet loaders replay: {:?}\n  decode_parquet: {:?}\n  materialize: {:?}",
         parquet_dump_duration,
         parquet_loader_duration,
         parquet_decode_duration,
