@@ -60,6 +60,13 @@ impl<'a> TPropOps<'a> for TPropCell<'a> {
             .find_map(|(t, pos)| self.log?.get(pos.as_ref().copied()?).map(|prop| (*t, prop)))
     }
 
+    fn last_window(&self, w: Range<EventTime>) -> Option<(EventTime, Prop)> {
+        self.t_cell?
+            .iter_window(w)
+            .rev()
+            .find_map(|(t, pos)| self.log?.get(pos.as_ref().copied()?).map(|prop| (*t, prop)))
+    }
+
     fn iter_inner(
         self,
         range: Option<Range<EventTime>>,

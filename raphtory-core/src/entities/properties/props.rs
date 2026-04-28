@@ -1,7 +1,4 @@
-use crate::{
-    entities::properties::tprop::IllegalPropType,
-    storage::{lazy_vec::IllegalSet, TPropColumnError},
-};
+use crate::storage::{lazy_vec::IllegalSet, TPropColumnError};
 use raphtory_api::core::entities::properties::prop::Prop;
 use std::fmt::Debug;
 use thiserror::Error;

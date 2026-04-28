@@ -1,10 +1,12 @@
-use criterion::measurement::WallTime;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkGroup, Criterion};
+use criterion::{
+    black_box, criterion_group, criterion_main, measurement::WallTime, BenchmarkGroup, Criterion,
+};
 use rand::{Rng, SeedableRng};
 use rand_distr::{Distribution, Normal};
-use raphtory::db::api::properties::internal::InternalTemporalPropertyViewOps;
-use raphtory::storage::core_ops::CoreGraphOps;
-use raphtory::{graph_loader::lotr_graph::lotr_graph, prelude::*};
+use raphtory::{
+    db::api::properties::internal::InternalTemporalPropertyViewOps,
+    graph_loader::lotr_graph::lotr_graph, prelude::*, storage::core_ops::CoreGraphOps,
+};
 use raphtory_api::core::storage::timeindex::AsTime;
 
 const PROP_NAME: &str = "bench_prop";

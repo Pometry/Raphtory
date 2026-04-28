@@ -12,10 +12,7 @@ use raphtory_api::{
 };
 use raphtory_core::entities::{
     graph::tgraph::TooManyLayers,
-    properties::{
-        props::{MetadataError, TPropError},
-        tprop::IllegalPropType,
-    },
+    properties::props::{MetadataError, TPropError},
 };
 use std::sync::Arc;
 use storage::{

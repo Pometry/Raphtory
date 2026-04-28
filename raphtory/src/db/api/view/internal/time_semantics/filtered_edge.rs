@@ -210,6 +210,15 @@ impl<'graph, G: GraphViewOps<'graph>, P: TPropOps<'graph>> TPropOps<'graph>
             self.props.last()
         }
     }
+
+    fn last_window(&self, w: Range<EventTime>) -> Option<(EventTime, Prop)> {
+        if self.view.internal_exploded_edge_filtered() {
+            self.clone().iter_window_rev(w).next()
+        } else {
+            self.props.last_window(w)
+        }
+    }
+
     fn iter_inner(
         self,
         range: Option<Range<EventTime>>,
