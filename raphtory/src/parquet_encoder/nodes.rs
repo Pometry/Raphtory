@@ -7,7 +7,7 @@ use crate::{
     errors::GraphError,
     parquet_encoder::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode_indexed, RecordBatchSink, NODE_ID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
+        run_encode_indexed, RecordBatchSink, LAYER_COL, NODE_ID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
         SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::NodeViewOps,
@@ -59,6 +59,7 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                 Field::new(TYPE_COL, DataType::Utf8, true),
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
+                Field::new(LAYER_COL, DataType::Utf8, true),
             ]
         },
         |nodes, g, decoder, sink| {
@@ -67,14 +68,16 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
 
             let cols = g.node_meta().temporal_prop_mapper().all_keys();
             let cols = &cols;
+            let layer_meta = g.node_meta().layer_meta();
             for node_rows in nodes
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         node.rows()
-                            .map(|(t, _, props)| ParquetTNode {
+                            .map(|(t, layer_id, props)| ParquetTNode {
                                 export_id: node.id(),
                                 export_vid: node.node.0,
                                 export_node_type: node.node_type(),
+                                export_layer: layer_meta.get_name(layer_id.0),
                                 cols,
                                 t,
                                 props,

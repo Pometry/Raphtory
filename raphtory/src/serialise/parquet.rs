@@ -429,6 +429,7 @@ fn decode_graph_storage(
             TYPE_COL,
             TIME_COL,
             SECONDARY_INDEX_COL,
+            LAYER_COL,
         ];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
         let t_prop_columns = t_prop_columns
@@ -448,7 +449,7 @@ fn decode_graph_storage(
             &[],
             None,
             None,
-            None,
+            Some(LAYER_COL),
             batch_size,
             false,
             None,
