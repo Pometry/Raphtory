@@ -43,6 +43,7 @@ use pyo3::{prelude::*, Borrowed};
 use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
+use crate::db::graph::views::node_subgraph::UnfilteredSubgraph;
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;
@@ -106,6 +107,16 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for WindowedGra
 }
 
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for LayeredGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for UnfilteredSubgraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;

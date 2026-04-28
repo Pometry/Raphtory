@@ -5,28 +5,80 @@ use crate::db::api::{
             filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
             time_semantics_ops::NodeTimeSemanticsOps,
         },
-        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
+        EdgeTimeSemanticsOps, FilterOps, FilterVariants, GraphView, InnerFilterOps,
+        InternalNodeFilterOps,
     },
 };
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
+        edges::edge_ref::EdgeRef,
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
-use raphtory_storage::graph::{
-    edges::edge_storage_ops::EdgeStorageOps,
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::edge_storage_ops::EdgeStorageOps,
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
 };
 use std::ops::Range;
-use storage::EdgeEntryRef;
+use storage::{api::edges::EdgeRefOps, EdgeEntryRef};
 
 #[derive(Debug, Copy, Clone)]
 pub struct EventSemantics;
+
+fn filter_edge_impl<G: GraphView>(view: &G, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
+    (!view.internal_edge_filtered() || view.internal_filter_edge(edge, layer_ids))
+        && (!view.internal_edge_layer_filtered()
+            || view.edge_filter_includes_edge_layer_filter()
+            || edge
+                .layer_ids_iter(layer_ids)
+                .any(|layer_id| view.internal_filter_edge_layer(edge, layer_id)))
+        && (!view.internal_exploded_edge_filtered()
+            || view.edge_filter_includes_exploded_edge_filter()
+            || view.edge_layer_filter_includes_exploded_edge_filter()
+            || {
+                let eid = edge.edge_id();
+                edge.additions_iter(layer_ids).any(|(layer_id, additions)| {
+                    additions.iter().any(|t| {
+                        view.internal_filter_exploded_edge(eid.with_layer(layer_id), t, layer_ids)
+                    })
+                })
+            })
+}
+fn node_has_valid_edges<'a, G: GraphView + 'a>(
+    node: NodeStorageRef<'a>,
+    view: &'a G,
+    layer_ids: &'a LayerIds,
+    dir: Direction,
+) -> bool {
+    let mut iter = node.edges_iter(layer_ids, dir);
+    match view.filter_state() {
+        FilterState::Neither => true,
+        FilterState::Both => {
+            let edges = view.core_edges();
+            let nodes = view.core_nodes();
+            iter.any(|e| {
+                view.internal_filter_node(nodes.node_entry(e.remote()), layer_ids)
+                    && filter_edge_impl(view, edges.edge(Either::Right(e)), layer_ids)
+            })
+        }
+        FilterState::Nodes | FilterState::BothIndependent => {
+            let nodes = view.core_nodes();
+            iter.any(|e| view.internal_filter_node(nodes.node_entry(e.remote()), layer_ids))
+        }
+        FilterState::Edges => {
+            let edges = view.core_edges();
+            iter.any(|e| filter_edge_impl(view, edges.edge(Either::Right(e)), layer_ids))
+        }
+    }
+}
 
 impl NodeTimeSemanticsOps for EventSemantics {
     fn node_earliest_time<'graph, G: GraphView + 'graph>(
@@ -178,16 +230,19 @@ impl NodeTimeSemanticsOps for EventSemantics {
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
+    #[inline]
     fn node_valid<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
         view: G,
     ) -> bool {
         let fs = view.filter_state();
-        if matches!(fs, FilterState::Neither) {
+        if matches!(fs, FilterState::Neither) || view.node_and_edge_filters_independent() {
+            // just node filtering is enough, any node that passes the filter is valid
             return true;
         }
 
+        // nodes with explicit additions are always valid
         let layers = view.layer_ids();
         let has_history = !node
             .node_additions(&layers.union(&LayerIds::One(STATIC_GRAPH_LAYER_ID)))
@@ -196,11 +251,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
             return true;
         }
 
-        node.internal_filtered_edges_iter(&view, layers, Direction::OUT)
-            .chain(node.internal_filtered_edges_iter(&view, layers, Direction::IN))
-            .next()
-            .is_some()
-
+        // otherwise need to check if the node has valid edge updates
+        node_has_valid_edges(node, &view, layers, Direction::OUT)
+            || node_has_valid_edges(node, &view, layers, Direction::IN)
         // !node.history(&view, view.layer_ids()).is_empty()
     }
 

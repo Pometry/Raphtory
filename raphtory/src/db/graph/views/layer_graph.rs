@@ -6,13 +6,14 @@ use crate::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
             InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
             InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-            InternalLayerOps, InternalNodeFilterOps, Static,
+            InternalEdgeLayerFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },
 };
-use raphtory_api::inherit::Base;
+use raphtory_api::{core::entities::LayerId, inherit::Base};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::nodes::node_ref::NodeStorageRef};
 use std::fmt::{Debug, Formatter};
+use storage::EdgeEntryRef;
 
 #[derive(Clone)]
 pub struct LayeredGraph<G> {
@@ -69,15 +70,18 @@ impl<G: GraphView> InternalNodeFilterOps for LayeredGraph<G> {
     }
 
     fn edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_filter_includes_node_filter()
+        !self.graph.internal_nodes_filtered()
+            || (self.graph.edge_filter_includes_node_filter() && self.layers.is_all())
     }
 
     fn edge_layer_filter_includes_node_filter(&self) -> bool {
-        self.graph.edge_layer_filter_includes_node_filter()
+        !self.graph.internal_nodes_filtered()
+            || (self.graph.edge_layer_filter_includes_node_filter() && self.layers.is_all())
     }
 
     fn exploded_edge_filter_includes_node_filter(&self) -> bool {
-        self.graph.exploded_edge_filter_includes_node_filter()
+        !self.graph.internal_nodes_filtered()
+            || (self.graph.exploded_edge_filter_includes_node_filter() && self.layers.is_all())
     }
 
     fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
@@ -97,7 +101,36 @@ impl<G: GraphView> InternalLayerOps for LayeredGraph<G> {
     }
 }
 
-impl<G: GraphView> InheritEdgeLayerFilterOps for LayeredGraph<G> {}
+impl<G: GraphView> InternalEdgeLayerFilterOps for LayeredGraph<G> {
+    fn internal_edge_layer_filtered(&self) -> bool {
+        self.graph.internal_edge_layer_filtered()
+    }
+
+    fn internal_layer_filter_edge_list_trusted(&self) -> bool {
+        self.graph.internal_layer_filter_edge_list_trusted() && self.layers.is_all()
+    }
+
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
+        self.graph.internal_filter_edge_layer(edge, layer)
+    }
+
+    fn node_filter_includes_edge_layer_filter(&self) -> bool {
+        // can no longer trust this as additional nodes might need to be removed
+        !self.graph.internal_edge_layer_filtered()
+            || (self.graph.node_filter_includes_edge_filter() && self.layers.is_all())
+    }
+
+    fn edge_filter_includes_edge_layer_filter(&self) -> bool {
+        // can no longer trust this as additional edges might need to be removed
+        !self.graph.internal_edge_layer_filtered()
+            || (self.graph.edge_filter_includes_edge_layer_filter() && self.layers.is_all())
+    }
+
+    fn exploded_edge_filter_includes_edge_layer_filter(&self) -> bool {
+        // exploded edges are always within a layer
+        self.graph.exploded_edge_filter_includes_edge_layer_filter()
+    }
+}
 
 impl<G: GraphView> InheritEdgeFilterOps for LayeredGraph<G> {}
 

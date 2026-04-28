@@ -95,6 +95,8 @@ fn test_single_deleted_edge_events() {
     assert_eq!(gv.count_edges(), 0);
     assert_eq!(gv.count_temporal_edges(), 0);
 
+    assert_eq!(gv.valid_layers("a").count_nodes(), 0);
+
     let expected = Graph::new();
     expected.resolve_layer(Some("a")).unwrap();
     assert_graph_equal(&gv, &expected);
