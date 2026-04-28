@@ -8,11 +8,12 @@ use proptest::prelude::*;
 use serde_json::json;
 use url::Url;
 
+use utils::strategy::{permissions_strategy, PermissionGrant};
+
 use utils::graphql::{
-    create_graphs, create_role, get_client,
+    create_graph, create_role, get_client,
     grant_graph, grant_namespace, start_server,
 };
-use utils::strategy::{permissions_strategy, PermissionGrant};
 
 const PORT: u16 = 43871;
 
@@ -49,8 +50,10 @@ fn permissions_proptest() {
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
             let client = get_client(url, ADMIN_JWT.to_string());
 
-            // Create nested namespaces and graphs on the server.
-            create_graphs(&client, &case.namespace_tree);
+            // Create graphs on the server.
+            for path in &case.graph_paths {
+                create_graph(&client, path);
+            }
 
             // Create roles for each user.
             for i in 0..case.num_users {

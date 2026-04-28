@@ -3,7 +3,6 @@ use std::sync::{LazyLock, Once};
 use std::time::Duration;
 
 use raphtory::db::api::storage::storage::Config;
-use raphtory::prelude::Graph;
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory_graphql::config::app_config::AppConfigBuilder;
 use raphtory_graphql::server::{apply_server_extension, GraphServer, RunningGraphServer};
@@ -12,7 +11,7 @@ use tempfile::TempDir;
 use tokio::runtime::Runtime;
 use url::Url;
 
-use crate::utils::strategy::{leaf_paths, GraphPermission, NamespacePermission};
+use crate::utils::strategy::{GraphPermission, NamespacePermission, PermissionGrant};
 
 static AUTH_INIT: Once = Once::new();
 
@@ -136,14 +135,7 @@ pub fn grant_namespace(
     );
 }
 
-/// Create namespaces and graphs in graphql using the given tree.
-/// Each leaf node is turned into a graph, all other nodes are turned into namespaces.
-pub fn create_graphs(client: &RaphtoryGraphQLClient, tree: &Graph) -> Vec<String> {
-    let graph_paths = leaf_paths(tree);
-
-    for path in &graph_paths {
-        RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
-    }
-
-    graph_paths
+/// Create a graph on the graphql server using the given path.
+pub fn create_graph(client: &RaphtoryGraphQLClient, path: &str) {
+    RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
 }

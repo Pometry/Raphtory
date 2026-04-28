@@ -1,33 +1,192 @@
-use std::ops::RangeInclusive;
+use std::{fmt, ops::RangeInclusive};
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 use raphtory::prelude::*;
 
-const MAX_GRANTS_PER_CASE: usize = 50;
+#[derive(Clone)]
+pub struct PermissionsCase {
+    pub num_users: usize,
+    pub grants: Vec<PermissionGrant>,
+    pub graph_paths: Vec<String>,
+    pub namespace_tree: Graph,
+}
 
-/// Build a namespace tree with the given number of nodes and parent relationships.
-/// `parents` is a slice of indices that represent the parent of each node, excluding the root.
-pub fn build_namespace_tree(nodes: usize, parents: &[usize]) -> Graph {
-    let graph = Graph::new();
+impl fmt::Debug for PermissionsCase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Exclude the namespace tree to avoid printing large graphs.
+        f.debug_struct("PermissionsCase")
+            .field("num_users", &self.num_users)
+            .field("grants", &self.grants)
+            .field("graph_paths", &self.graph_paths)
+            .finish()
+    }
+}
 
-    if parents.len() != nodes - 1 {
-        panic!("parents must have length nodes - 1");
+#[derive(Debug, Clone)]
+pub enum PermissionGrant {
+    Graph {
+        user_id: usize,
+        path: String,
+        permission: GraphPermission,
+    },
+    Namespace {
+        user_id: usize,
+        path: String,
+        permission: NamespacePermission,
+    },
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum GraphPermission {
+    Read,
+    Write,
+}
+
+impl GraphPermission {
+    pub(crate) fn as_gql(self) -> &'static str {
+        match self {
+            GraphPermission::Read => "READ",
+            GraphPermission::Write => "WRITE",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum NamespacePermission {
+    Introspect,
+    Read,
+    Write,
+}
+
+impl NamespacePermission {
+    pub(crate) fn as_gql(self) -> &'static str {
+        match self {
+            NamespacePermission::Introspect => "INTROSPECT",
+            NamespacePermission::Read => "READ",
+            NamespacePermission::Write => "WRITE",
+        }
+    }
+}
+
+pub fn permissions_strategy(
+    namespace_size: RangeInclusive<usize>,
+    num_users: RangeInclusive<usize>,
+) -> BoxedStrategy<PermissionsCase> {
+    (namespace_size, num_users)
+        .prop_flat_map(|(namespace_size, num_users)| {
+            parents_strategy(namespace_size).prop_flat_map(move |parents| {
+                let namespace_tree = build_namespace_tree(&parents);
+                let graph_paths = leaf_paths(&namespace_tree);
+                let namespace_paths = branch_paths(&namespace_tree);
+
+                grants_strategy(num_users, graph_paths.clone(), namespace_paths).prop_map(move |grants| {
+                    PermissionsCase {
+                        num_users,
+                        namespace_tree: namespace_tree.clone(),
+                        graph_paths: graph_paths.clone(),
+                        grants,
+                    }
+                })
+            })
+        })
+        .boxed()
+}
+
+/// Create a strategy to pick a parent for each node in a tree.
+fn parents_strategy(tree_size: usize) -> BoxedStrategy<Vec<usize>> {
+    if tree_size <= 1 {
+        return Just(vec![]).boxed();
     }
 
-    if nodes == 0 {
+    // Root node has no parent.
+    let mut strategy: BoxedStrategy<Vec<usize>> = Just(vec![0]).boxed();
+
+    for node in 1..tree_size {
+        strategy = strategy
+            .prop_flat_map(move |parents| {
+                // Pick a random parent for the current node from existing nodes seen so far.
+                (0usize..node).prop_map(move |parent| {
+                    let mut parents = parents.clone();
+
+                    parents.push(parent);
+                    parents
+                })
+            })
+            .boxed();
+    }
+
+    strategy
+}
+
+fn grants_strategy(
+    num_users: usize,
+    graph_paths: Vec<String>,
+    namespace_paths: Vec<String>,
+) -> impl Strategy<Value = Vec<PermissionGrant>> {
+    let max_user = num_users - 1;
+    let total_paths = namespace_paths.len() + graph_paths.len();
+    let num_grants = 1..=total_paths; // FIXME: Increase this to 3x later.
+
+    prop::collection::vec(
+        (0..=max_user, 0..total_paths)
+            .prop_flat_map(move |(user_id, path_idx)| {
+                // Choose either a namespace or a graph path based on path_idx.
+                if path_idx < namespace_paths.len() {
+                    let path = namespace_paths[path_idx].clone();
+
+                    prop_oneof![
+                        Just(NamespacePermission::Introspect),
+                        Just(NamespacePermission::Read),
+                        Just(NamespacePermission::Write),
+                    ]
+                    .prop_map(move |permission| PermissionGrant::Namespace {
+                        user_id,
+                        path: path.clone(),
+                        permission,
+                    })
+                    .boxed()
+                } else {
+                    let graph_idx = path_idx - namespace_paths.len();
+                    let path = graph_paths[graph_idx].clone();
+
+                    prop_oneof![
+                        Just(GraphPermission::Read),
+                        Just(GraphPermission::Write),
+                    ]
+                    .prop_map(move |permission| PermissionGrant::Graph {
+                        user_id,
+                        path: path.clone(),
+                        permission,
+                    })
+                    .boxed()
+                }
+            }),
+        num_grants,
+    )
+}
+
+/// Build a namespace tree with the given number of nodes and parent relationships.
+/// `parents` is a slice of indices that represent the parent of each node.
+pub fn build_namespace_tree(parents: &[usize]) -> Graph {
+    let graph = Graph::new();
+
+    if parents.len() == 0 {
         return graph;
     }
 
-    for node in 0..nodes {
+    for node in 0..parents.len() {
         let name = format!("node_{node}");
 
         graph
             .add_node(0, name, NO_PROPS, None, None)
             .unwrap();
-    }
 
-    for node in 1..nodes {
-        let parent = parents[node - 1];
+        // Root node has no parent.
+        if node == 0 {
+            continue;
+        }
+
+        let parent = parents[node];
         let parent_name = format!("node_{parent}");
         let node_name = format!("node_{node}");
 
@@ -101,155 +260,4 @@ pub fn branch_paths(tree: &Graph) -> Vec<String> {
     }
 
     branches
-}
-
-/// Create a strategy to pick a parent for each node in a tree.
-fn parents_strategy(tree_size: usize) -> BoxedStrategy<Vec<usize>> {
-    if tree_size <= 1 {
-        return Just(vec![]).boxed();
-    }
-
-    let mut strategy: BoxedStrategy<Vec<usize>> = Just(vec![]).boxed();
-
-    for node in 1..tree_size {
-        strategy = strategy
-            .prop_flat_map(move |parents| {
-                // Pick a random parent for the current node from existing nodes seen so far.
-                (0usize..node).prop_map(move |parent| {
-                    let mut parents = parents.clone();
-
-                    parents.push(parent);
-                    parents
-                })
-            })
-            .boxed();
-    }
-
-    strategy
-}
-
-#[derive(Debug, Clone)]
-pub struct PermissionsCase {
-    pub num_users: usize,
-    pub namespace_tree: Graph,
-    pub grants: Vec<PermissionGrant>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum GraphPermission {
-    Read,
-    Write,
-}
-
-impl GraphPermission {
-    pub(crate) fn as_gql(self) -> &'static str {
-        match self {
-            GraphPermission::Read => "READ",
-            GraphPermission::Write => "WRITE",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum NamespacePermission {
-    Introspect,
-    Read,
-    Write,
-}
-
-impl NamespacePermission {
-    pub(crate) fn as_gql(self) -> &'static str {
-        match self {
-            NamespacePermission::Introspect => "INTROSPECT",
-            NamespacePermission::Read => "READ",
-            NamespacePermission::Write => "WRITE",
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum PermissionGrant {
-    Graph {
-        user_id: usize,
-        path: String,
-        permission: GraphPermission,
-    },
-    Namespace {
-        user_id: usize,
-        path: String,
-        permission: NamespacePermission,
-    },
-}
-
-fn grants_strategy(
-    num_users: usize,
-    graph_paths: Vec<String>,
-    namespace_paths: Vec<String>,
-) -> impl Strategy<Value = Vec<PermissionGrant>> {
-    let max_user = num_users.saturating_sub(1);
-    let max_graph = graph_paths.len().saturating_sub(1);
-    let max_namespace = namespace_paths.len().saturating_sub(1);
-    let namespace_available = !namespace_paths.is_empty();
-
-    prop::collection::vec(
-        (
-            0..=max_user,
-            any::<bool>(),
-            prop_oneof![Just(GraphPermission::Read), Just(GraphPermission::Write)],
-            prop_oneof![
-                Just(NamespacePermission::Introspect),
-                Just(NamespacePermission::Read),
-                Just(NamespacePermission::Write),
-            ],
-            0usize..=max_graph,
-            0usize..=max_namespace,
-        )
-            .prop_map(
-                move |(
-                    user_id,
-                    choose_namespace,
-                    graph_permission,
-                    namespace_permission,
-                    graph_idx,
-                    namespace_idx,
-                )| {
-                    if choose_namespace && namespace_available {
-                        PermissionGrant::Namespace {
-                            user_id,
-                            path: namespace_paths[namespace_idx].clone(),
-                            permission: namespace_permission,
-                        }
-                    } else {
-                        PermissionGrant::Graph {
-                            user_id,
-                            path: graph_paths[graph_idx].clone(),
-                            permission: graph_permission,
-                        }
-                    }
-                },
-            ),
-        1..=MAX_GRANTS_PER_CASE,
-    )
-}
-
-pub fn permissions_strategy(
-    namespace_size: RangeInclusive<usize>,
-    num_users: RangeInclusive<usize>,
-) -> BoxedStrategy<PermissionsCase> {
-    (namespace_size, num_users)
-        .prop_flat_map(|(namespace_size, num_users)| {
-            parents_strategy(namespace_size).prop_flat_map(move |parents| {
-                let namespace_tree = build_namespace_tree(namespace_size, &parents);
-                let leaf_paths = leaf_paths(&namespace_tree);
-                let branch_paths = branch_paths(&namespace_tree);
-
-                grants_strategy(num_users, leaf_paths.clone(), branch_paths.clone())
-                    .prop_map(move |grants| PermissionsCase {
-                        num_users,
-                        namespace_tree: namespace_tree.clone(),
-                        grants,
-                    })
-            })
-        })
-        .boxed()
 }
