@@ -108,7 +108,8 @@ impl<'a, 'py: 'a> IntoPyObject<'py> for &'a Prop {
     }
 }
 
-#[pyclass(name = "Prop", module = "raphtory")]
+#[pyclass(name = "Prop", module = "raphtory", eq)]
+#[derive(PartialEq)]
 pub struct PyProp(pub Prop);
 
 #[pymethods]
@@ -346,6 +347,13 @@ impl PyProp {
 
     pub fn __repr__(&self) -> String {
         format!("{}", self.0)
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::hash::{DefaultHasher, Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        self.0.hash(&mut hasher);
+        hasher.finish()
     }
 }
 
