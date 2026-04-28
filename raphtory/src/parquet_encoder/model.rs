@@ -99,11 +99,11 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
         let has_real_addition = core_ref.additions(layer).active(t..t_next);
         let mapper = edge.graph.edge_meta().temporal_prop_mapper();
         let temporal = edge.properties().temporal();
-        for prop_id in mapper.ids() {
+        for (prop_id, prop) in temporal.iter_ids() {
             let prop = if has_real_addition {
                 core_ref.temporal_prop_layer(layer, prop_id).at(&t)
             } else {
-                temporal.get_by_id(prop_id).and_then(|v| v.latest())
+                prop.latest()
             };
             if let Some(prop) = prop {
                 let name = mapper.get_name(prop_id);
