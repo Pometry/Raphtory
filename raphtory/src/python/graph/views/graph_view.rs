@@ -24,7 +24,7 @@ use crate::{
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
-                node_subgraph::NodeSubgraph,
+                node_subgraph::{NodeSubgraph, UnfilteredSubgraph},
                 valid_graph::ValidGraph,
                 window_graph::WindowedGraph,
             },
@@ -43,7 +43,6 @@ use pyo3::{prelude::*, Borrowed};
 use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
 use std::{collections::HashMap, path::PathBuf};
-use crate::db::graph::views::node_subgraph::UnfilteredSubgraph;
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;
