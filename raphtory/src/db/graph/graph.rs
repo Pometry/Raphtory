@@ -290,16 +290,61 @@ fn normalise_temporal_map<T: AsTime + Copy>(
     for (k, v) in map {
         let mut v2: Vec<(i64, Prop)> = v.iter().map(|(t, p)| (t.t(), p.clone())).collect();
 
-        // stable deterministic ordering for same timestamp too
+        // stable deterministic ordering for events at the same timestamp
         v2.sort_by(|(t1, p1), (t2, p2)| {
             t1.cmp(t2)
-                .then_with(|| format!("{p1:?}").cmp(&format!("{p2:?}")))
+                .then_with(|| canonical_prop_repr(p1).cmp(&canonical_prop_repr(p2)))
         });
 
         out.insert(k.clone(), v2);
     }
 
     out
+}
+
+/// Render a `Prop` as a string that is invariant to `PropArray` variant
+/// (`Vec` vs `Array`) and to `FxHashMap` iteration order (which is undefined).
+/// Used as a stable sort key in test assertions.
+fn canonical_prop_repr(p: &Prop) -> String {
+    let mut s = String::new();
+    write_canonical_prop(&mut s, p);
+    s
+}
+
+fn write_canonical_prop(out: &mut String, p: &Prop) {
+    use std::fmt::Write;
+    match p {
+        Prop::List(arr) => {
+            out.push_str("List([");
+            let mut first = true;
+            for item in arr.iter() {
+                if !first {
+                    out.push_str(", ");
+                }
+                first = false;
+                write_canonical_prop(out, &item);
+            }
+            out.push_str("])");
+        }
+        Prop::Map(m) => {
+            let mut keys: Vec<&ArcStr> = m.keys().collect();
+            keys.sort();
+            out.push_str("Map({");
+            let mut first = true;
+            for k in keys {
+                if !first {
+                    out.push_str(", ");
+                }
+                first = false;
+                let _ = write!(out, "{k:?}: ");
+                write_canonical_prop(out, &m[k]);
+            }
+            out.push_str("})");
+        }
+        other => {
+            let _ = write!(out, "{other:?}");
+        }
+    }
 }
 
 #[track_caller]
