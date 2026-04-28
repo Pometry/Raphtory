@@ -1371,6 +1371,51 @@ def test_redaction_combined_with_row_filter():
         assert "region" in alice["properties"]["keys"], "region should be visible"
 
 
+def test_row_filter_on_hidden_property_still_applies():
+    """Row filter based on a property that is also hidden composes correctly.
+
+    The row filter runs at the DB layer on raw property values; redaction only strips
+    keys from the GQL output. Hiding the filter key must not break row filtering.
+    """
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        for name, region in [("alice", "us-west"), ("bob", "us-east")]:
+            gql(f"""query {{
+                updateGraph(path: "jira") {{
+                    addNode(time: 1, name: "{name}",
+                        properties: [
+                            {{ key: "region", value: {{ str: "{region}" }} }},
+                            {{ key: "score", value: {{ i64: 42 }} }}
+                        ]
+                    ) {{ success }}
+                }}
+            }}""")
+
+        create_role("analyst")
+        # Filter by 'region' AND hide 'region' — same key in both
+        grant_graph_filtered_read_only(
+            "analyst",
+            "jira",
+            '{ node: { filter: { property: { name: "region", where: { eq: { str: "us-west" } } } }, hiddenProperties: ["region"] } }',
+        )
+
+        QUERY = 'query { graph(path: "jira") { nodes { list { name properties { keys } } } } }'
+
+        analyst_resp = gql(QUERY, headers=ANALYST_HEADERS)
+        assert "errors" not in analyst_resp, analyst_resp
+        nodes = analyst_resp["data"]["graph"]["nodes"]["list"]
+
+        # Row filter still works — only us-west node visible
+        names = {n["name"] for n in nodes}
+        assert names == {"alice"}, f"row filter broken: expected only alice, got {names}"
+
+        # The filter key itself is hidden from the response
+        alice = next(n for n in nodes if n["name"] == "alice")
+        assert "region" not in alice["properties"]["keys"], "region should be hidden from response"
+        assert "score" in alice["properties"]["keys"], "score should still be visible"
+
+
 def test_analyst_graph_hidden_property_not_visible():
     """hiddenProperties on graph-level strips graph temporal properties for the role."""
     work_dir = tempfile.mkdtemp()
