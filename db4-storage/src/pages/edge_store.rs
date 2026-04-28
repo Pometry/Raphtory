@@ -480,6 +480,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
     }
 
     pub fn num_edges(&self) -> usize {
+        println!("edges_counts: {:?}", self.layer_counter);
         self.layer_counter.get(LayerId(0))
     }
 
