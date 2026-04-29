@@ -6526,6 +6526,7 @@ dependencies = [
  "itertools 0.13.0",
  "once_cell",
  "rand 0.9.4",
+ "rand_distr 0.5.1",
  "raphtory",
  "raphtory-api",
  "rayon",
