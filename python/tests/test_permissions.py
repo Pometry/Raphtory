@@ -1288,6 +1288,28 @@ def test_child_namespace_restriction_overrides_parent():
         assert "team/restricted/secret" in paths
 
 
+def test_parent_grant_does_not_override_child_grant():
+    """A direct child grant should remain effective after a broader parent READ grant."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_DEEP)
+        create_role("analyst")
+
+        update_deep = """query { updateGraph(path: "a/b/c") { addNode(time: 1, name: "child_write_node") { success } } }"""
+
+        # Grant child graph WRITE first and verify write access works.
+        grant_graph("analyst", "a/b/c", "WRITE")
+        response = gql(update_deep, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["updateGraph"]["addNode"]["success"] is True
+
+        # Then grant parent namespace READ; child graph WRITE should still win.
+        grant_namespace("analyst", "a", "READ")
+        response = gql(update_deep, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["updateGraph"]["addNode"]["success"] is True
+
+
 def test_discover_derivation():
     """grantGraph READ on a namespaced graph → ancestor namespace gets DISCOVER (visible in children)."""
     work_dir = tempfile.mkdtemp()
