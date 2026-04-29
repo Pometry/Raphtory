@@ -456,14 +456,12 @@ impl FilteredEdgesStorageOps for EdgesStorage {
         let par_iter = self.par_iter(layer_ids);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(par_iter),
-            FilterState::Both => FilterVariants::Both(par_iter.filter(move |&e| {
-                view.filter_edge(e)
-                    && view.filter_node(view.core_node(e.src()).as_ref())
-                    && view.filter_node(view.core_node(e.dst()).as_ref())
-            })),
+            FilterState::Both => {
+                FilterVariants::Both(par_iter.filter(move |&e| view.filter_edge(e)))
+            }
             FilterState::Nodes => FilterVariants::Nodes(par_iter.filter(move |&e| {
-                view.filter_node(view.core_node(e.src()).as_ref())
-                    && view.filter_node(view.core_node(e.dst()).as_ref())
+                view.internal_filter_node(view.core_node(e.src()).as_ref(), layer_ids)
+                    && view.internal_filter_node(view.core_node(e.dst()).as_ref(), layer_ids)
             })),
             FilterState::Edges | FilterState::BothIndependent => {
                 FilterVariants::Edges(par_iter.filter(move |&e| view.filter_edge(e)))

@@ -1,4 +1,8 @@
-use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
+use crate::db::api::view::internal::{
+    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView, InternalEdgeFilterOps,
+    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
+    NodeTimeSemanticsOps,
+};
 use either::Either;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
@@ -126,17 +130,36 @@ impl<G: GraphView> InnerFilterOps for G {
 impl<G: GraphView> FilterOps for G {
     #[inline]
     fn filter_node(&self, node: NodeStorageRef) -> bool {
-        if self.filtered() {
-            let time_semantics = self.node_time_semantics();
-            self.internal_filter_node(node, self.layer_ids())
-                && time_semantics.node_valid(node, self)
-        } else {
-            if self.is_layer_filtered() {
-                node.has_layers(self.layer_ids())
-            } else {
-                true
+        if self.is_layer_filtered() {
+            // layers need filtering
+            if !node.has_layers(self.layer_ids()) {
+                return false;
             }
         }
+
+        if self.internal_nodes_filtered() {
+            if !self.internal_filter_node(node, self.layer_ids()) {
+                return false;
+            }
+        }
+
+        if self.window_filtered()
+            || (self.internal_nodes_filtered()
+                && (!self.edge_filter_includes_node_filter()
+                    || !self.edge_layer_filter_includes_node_filter()
+                    || !self.exploded_edge_filter_includes_node_filter()))
+            || (self.internal_edge_filtered() && !self.node_filter_includes_edge_filter())
+            || (self.internal_edge_layer_filtered()
+                && !self.node_filter_includes_edge_layer_filter())
+            || (self.internal_exploded_edge_filtered()
+                && !self.node_filter_includes_exploded_edge_filter())
+        {
+            if !self.node_time_semantics().node_valid(node, self) {
+                return false;
+            }
+        }
+
+        true
     }
 
     #[inline]

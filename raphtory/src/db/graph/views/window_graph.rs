@@ -204,7 +204,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G> {
     #[inline]
     fn internal_nodes_filtered(&self) -> bool {
-        self.window_is_empty() || self.graph.internal_nodes_filtered() || self.window_is_bounding()
+        self.window_is_empty() || self.graph.internal_nodes_filtered()
     }
 
     #[inline]
@@ -297,6 +297,12 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
     fn edge_time_semantics(&self) -> TimeSemantics {
         self.graph.edge_time_semantics().window(self.window_bound())
     }
+
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        self.window_is_bounding()
+    }
+
     fn view_start(&self) -> Option<EventTime> {
         self.start
     }
