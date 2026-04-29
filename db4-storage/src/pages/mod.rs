@@ -8,7 +8,6 @@ use crate::{
         control_file::{ControlFileOps, DBState},
         strategy::PersistenceStrategy,
     },
-    properties::props_meta_writer::PropsMetaWriter,
     segments::{edge::segment::MemEdgeSegment, node::segment::MemNodeSegment},
     state::StateIndex,
     wal::{GraphWalOps, WalOps},

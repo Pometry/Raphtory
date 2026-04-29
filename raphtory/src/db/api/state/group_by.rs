@@ -2,10 +2,7 @@ use super::node_state_ops::ToOwnedValue;
 use crate::{
     db::{
         api::state::{ops::Const, Index},
-        graph::{
-            nodes::Nodes,
-            views::node_subgraph::{NodeSubgraph, UnfilteredSubgraph},
-        },
+        graph::{nodes::Nodes, views::node_subgraph::UnfilteredSubgraph},
     },
     prelude::{GraphViewOps, NodeStateOps},
 };

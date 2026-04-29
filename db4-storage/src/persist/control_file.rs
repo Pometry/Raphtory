@@ -47,7 +47,7 @@ impl ControlFileOps for NoControlFile {
         0
     }
 
-    fn set_db_state(&self, state: DBState) {}
+    fn set_db_state(&self, _state: DBState) {}
 
-    fn set_checkpoint(&self, lsn: LSN) {}
+    fn set_checkpoint(&self, _lsn: LSN) {}
 }

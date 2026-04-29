@@ -4,8 +4,8 @@ use crate::{
         properties::internal::InheritPropertiesOps,
         view::internal::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
-            InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritListOps,
-            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InheritExplodedEdgeFilterOps, InheritListOps, InheritMaterialize,
+            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
             InternalEdgeLayerFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
         },
     },

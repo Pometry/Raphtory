@@ -5,27 +5,22 @@ use crate::db::api::{
             filtered_edge::FilteredEdgeStorageOps, filtered_node::FilteredNodeStorageOps,
             time_semantics_ops::NodeTimeSemanticsOps,
         },
-        EdgeTimeSemanticsOps, FilterOps, FilterVariants, GraphView, InnerFilterOps,
-        InternalNodeFilterOps,
+        EdgeTimeSemanticsOps, FilterOps, GraphView, InnerFilterOps,
     },
 };
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
-        edges::edge_ref::EdgeRef,
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, ELID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps,
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+use raphtory_storage::graph::{
+    edges::edge_storage_ops::EdgeStorageOps,
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::ops::Range;
 use storage::{api::edges::EdgeRefOps, EdgeEntryRef};

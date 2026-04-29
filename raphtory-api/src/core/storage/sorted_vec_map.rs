@@ -1,4 +1,4 @@
-use serde::{ser::SerializeSeq, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::{borrow::Borrow, mem, ops::Range};
 
 /// Implements a sorted vector map
@@ -14,7 +14,7 @@ impl<K: Ord, V> Default for SVM<K, V> {
 impl<K: Ord, V> FromIterator<(K, V)> for SVM<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut is_sorted = true;
-        let mut iter = iter.into_iter();
+        let iter = iter.into_iter();
         let mut data = Vec::with_capacity(iter.size_hint().0);
         for (key, value) in iter {
             is_sorted = is_sorted && data.last().is_none_or(|(last_key, _)| last_key <= &key);

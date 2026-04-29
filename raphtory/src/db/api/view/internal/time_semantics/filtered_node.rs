@@ -14,12 +14,9 @@ use raphtory_api::core::{
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{edges::edge_storage_ops::EdgeStorageOps, nodes::node_storage_ops::NodeStorageOps},
-};
+use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
 use std::{ops::Range, sync::Arc};
-use storage::{api::edges::EdgeRefOps, gen_ts::LayerIter, EdgeEntryRef};
+use storage::gen_ts::LayerIter;
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
