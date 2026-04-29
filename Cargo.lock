@@ -1213,7 +1213,6 @@ dependencies = [
  "comfy-table",
  "criterion",
  "db4-storage",
- "either",
  "env_logger 0.10.2",
  "fastrand",
  "flate2",
