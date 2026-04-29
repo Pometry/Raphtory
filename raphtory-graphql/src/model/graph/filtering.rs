@@ -1747,7 +1747,6 @@ impl TryFrom<GqlGraphFilter> for DynView {
 
 /// Row-level visibility filter for `grantGraphFilteredReadOnly`.
 /// Compose node, edge, and graph-level sub-filters with `and` / `or`.
-// TODO: Add cross-entity-type Or support (requires a union graph view).
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum GraphRowFilter {
@@ -1759,11 +1758,10 @@ pub enum GraphRowFilter {
     Graph(GqlGraphFilter),
     /// All sub-filters must pass (intersection).
     And(Vec<GraphRowFilter>),
-    /// At least one sub-filter must pass.
-    /// Same-type sub-filters (e.g. two `Node` variants) are combined into a single native Or.
-    /// Cross-type `Or` (e.g. `Node` and `Edge` together) is not yet supported — each type's
-    /// sub-filters are collected and applied independently, which approximates an And not an Or.
-    /// See the TODO above for the proper union graph view implementation.
+    /// At least one sub-filter must pass (union).
+    /// Cross-type sub-filters (e.g. `Node` and `Edge` together) produce a proper graph union:
+    /// a node is visible if it matches the node filter or has a visible edge,
+    /// and an edge is visible if it matches the edge filter or both its endpoints are visible.
     Or(Vec<GraphRowFilter>),
 }
 

@@ -6,7 +6,7 @@ use crate::{
         graph::{
             collection::GqlCollection,
             filtering::{
-                GqlEdgeFilter, GqlNodeFilter, GraphAccessFilter, GraphRowFilter, HiddenKeys,
+                GraphAccessFilter, GraphRowFilter, HiddenKeys,
             },
             graph::GqlGraph,
             index::IndexSpecInput,
@@ -209,6 +209,15 @@ fn apply_row_filter_sync(
     graph: DynamicGraph,
     filter: GraphRowFilter,
 ) -> async_graphql::Result<DynamicGraph> {
+    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
+    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
+    // Parallel AndFilter composition loses this ordering because DynView.internal_filter_node
+    // always returns true — the window only restricts time semantics, not node predicates.
+    if let GraphRowFilter::And(filters) = filter {
+        return filters
+            .into_iter()
+            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
+    }
     let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
         error!(error = %e, "filter conversion failed");
         async_graphql::Error::new("internal error applying access filter")
