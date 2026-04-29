@@ -83,6 +83,7 @@ impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
 }
 
 impl<'a, Ref: WithTProps<'a>> GenericTProps<'a, Ref> {
+    #[inline]
     fn tprops(self, prop_id: usize) -> impl Iterator<Item = Ref::TProp> + Send + Sync + 'a {
         match self.layer_id {
             Either::Left(layer_ids) => {
@@ -102,12 +103,14 @@ impl<'a, Ref: WithTProps<'a>> TPropOps<'a> for GenericTProps<'a, Ref> {
             .max_by_key(|(t, _)| *t)
     }
 
+    #[inline]
     fn last_window(&self, w: Range<EventTime>) -> Option<(EventTime, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last_window(w.clone()))
             .max_by_key(|(t, _)| *t)
     }
 
+    #[inline]
     fn last(&self) -> Option<(EventTime, Prop)> {
         self.tprops(self.prop_id)
             .filter_map(|t_props| t_props.last())
