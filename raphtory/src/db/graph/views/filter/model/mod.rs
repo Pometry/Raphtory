@@ -1,6 +1,12 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
 use crate::db::{
-    api::{state::NodeOp, view::BoxableGraphView},
+    api::{
+        state::{
+            ops::{filter::NO_FILTER, Const},
+            NodeOp,
+        },
+        view::BoxableGraphView,
+    },
     graph::views::filter::model::{
         edge_filter::CompositeEdgeFilter,
         is_active_edge_filter::IsActiveEdge,
@@ -69,6 +75,64 @@ pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
 pub mod windowed_filter;
+
+#[derive(Debug, Copy, Clone)]
+pub struct NoFilter;
+
+impl CreateFilter for NoFilter {
+    type EntityFiltered<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+    type NodeFilter<'graph, G>
+        = Const<bool>
+    where
+        Self: 'graph,
+        G: GraphView + 'graph;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        Ok(graph)
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        _graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(NO_FILTER)
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
+}
+
+impl TryAsCompositeFilter for NoFilter {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
 
 pub trait Wrap {
     type Wrapped<T>;
@@ -578,6 +642,11 @@ impl<T> DynViewFilter for T where T: DynInternalViewWrapOps + DynCreateFilter + 
 {}
 
 pub type DynView = Arc<dyn DynViewFilter>;
+
+pub type DynFilter = Arc<dyn DynCreateFilter>;
+
+impl ComposableFilter for DynFilter {}
+impl ComposableFilter for DynView {}
 
 impl InternalViewWrapOps for DynView {
     type Window = DynView;

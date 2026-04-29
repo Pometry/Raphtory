@@ -38,8 +38,10 @@ use raphtory::{
             view::{DynamicGraph, Filter, IntoDynamic, MaterializedGraph},
         },
         graph::views::{
-            deletion_graph::PersistentGraph, filter::model::NodeViewFilterOps,
-            property_redacted_graph::PropertyRedaction, PropertyRedactedGraph,
+            deletion_graph::PersistentGraph,
+            filter::model::{ComposableFilter, DynFilter, DynView, NodeViewFilterOps},
+            property_redacted_graph::PropertyRedaction,
+            PropertyRedactedGraph,
         },
     },
     errors::{GraphError, GraphResult},
@@ -207,86 +209,17 @@ fn apply_row_filter_sync(
     graph: DynamicGraph,
     filter: GraphRowFilter,
 ) -> async_graphql::Result<DynamicGraph> {
-    use raphtory::db::graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynView,
-    };
-    match filter {
-        GraphRowFilter::Node(gql_filter) => {
-            let f = CompositeNodeFilter::try_from(gql_filter).map_err(|e| {
-                error!(error = %e, "node filter conversion failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })?;
-            graph.filter(f).map(|g| g.into_dynamic()).map_err(|e| {
-                error!(error = %e, "node filter apply failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })
-        }
-        GraphRowFilter::Edge(gql_filter) => {
-            let f = CompositeEdgeFilter::try_from(gql_filter).map_err(|e| {
-                error!(error = %e, "edge filter conversion failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })?;
-            graph.filter(f).map(|g| g.into_dynamic()).map_err(|e| {
-                error!(error = %e, "edge filter apply failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })
-        }
-        GraphRowFilter::Graph(gql_filter) => {
-            let dyn_view = DynView::try_from(gql_filter).map_err(|e| {
-                error!(error = %e, "graph filter conversion failed");
-                async_graphql::Error::new("internal error applying access filter")
-            })?;
-            graph
-                .filter(dyn_view)
-                .map(|g| g.into_dynamic())
-                .map_err(|e| {
-                    error!(error = %e, "graph filter apply failed");
-                    async_graphql::Error::new("internal error applying access filter")
-                })
-        }
-        GraphRowFilter::And(filters) => {
-            let mut g = graph;
-            for f in filters {
-                g = apply_row_filter_sync(g, f)?;
-            }
-            Ok(g)
-        }
-        GraphRowFilter::Or(filters) => {
-            // Group same-type sub-filters and combine with native Or.
-            // Cross-type sub-filters are applied as independent restrictions.
-            let mut node_fs: Vec<GqlNodeFilter> = vec![];
-            let mut edge_fs: Vec<GqlEdgeFilter> = vec![];
-            let mut rest: Vec<GraphRowFilter> = vec![];
-            for f in filters {
-                match f {
-                    GraphRowFilter::Node(n) => node_fs.push(n),
-                    GraphRowFilter::Edge(e) => edge_fs.push(e),
-                    other => rest.push(other),
-                }
-            }
-            let mut g = graph;
-            if !node_fs.is_empty() {
-                let combined = if node_fs.len() == 1 {
-                    node_fs.pop().unwrap()
-                } else {
-                    GqlNodeFilter::Or(node_fs)
-                };
-                g = apply_row_filter_sync(g, GraphRowFilter::Node(combined))?;
-            }
-            if !edge_fs.is_empty() {
-                let combined = if edge_fs.len() == 1 {
-                    edge_fs.pop().unwrap()
-                } else {
-                    GqlEdgeFilter::Or(edge_fs)
-                };
-                g = apply_row_filter_sync(g, GraphRowFilter::Edge(combined))?;
-            }
-            for f in rest {
-                g = apply_row_filter_sync(g, f)?;
-            }
-            Ok(g)
-        }
-    }
+    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
+        error!(error = %e, "filter conversion failed");
+        async_graphql::Error::new("internal error applying access filter")
+    })?;
+    Ok(graph
+        .filter(dyn_filter)
+        .map_err(|e| {
+            error!(error = %e, "failed to apply filter");
+            async_graphql::Error::new("internal error applying access filter")
+        })?
+        .into_dynamic())
 }
 
 /// Extract per-entity hidden property sets from a `GraphAccessFilter`.

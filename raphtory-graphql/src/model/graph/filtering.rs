@@ -23,7 +23,7 @@ use raphtory::{
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        DynView, ViewWrapOps,
+        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -1765,6 +1765,43 @@ pub enum GraphRowFilter {
     /// sub-filters are collected and applied independently, which approximates an And not an Or.
     /// See the TODO above for the proper union graph view implementation.
     Or(Vec<GraphRowFilter>),
+}
+
+impl TryFrom<GraphRowFilter> for DynFilter {
+    type Error = GraphError;
+
+    fn try_from(value: GraphRowFilter) -> Result<Self, Self::Error> {
+        let filter = match value {
+            GraphRowFilter::Node(filter) => {
+                Arc::new(CompositeNodeFilter::try_from(filter)?) as DynFilter
+            }
+            GraphRowFilter::Edge(filter) => {
+                Arc::new(CompositeEdgeFilter::try_from(filter)?) as DynFilter
+            }
+            GraphRowFilter::Graph(filter) => DynView::try_from(filter)?,
+            GraphRowFilter::And(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                let first = filters.next().transpose()?;
+                match first {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+            GraphRowFilter::Or(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                let first = filters.next().transpose()?;
+                match first {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+        };
+        Ok(filter)
+    }
 }
 
 /// Property/metadata keys to hide per entity type.
