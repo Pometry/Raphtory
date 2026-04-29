@@ -480,6 +480,7 @@ pub fn materialize_impl(
                             TYPE_COL,
                             TIME_COL,
                             SECONDARY_INDEX_COL,
+                            LAYER_COL,
                         ],
                     );
                     let node_t_props_refs =
@@ -498,7 +499,7 @@ pub fn materialize_impl(
                         &materialized,
                         true,
                         None,
-                        None,
+                        Some(LAYER_COL),
                     )
                 }
                 RecordBatchKind::EdgesT => {
