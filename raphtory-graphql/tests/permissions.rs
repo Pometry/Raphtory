@@ -5,14 +5,16 @@ use std::sync::LazyLock;
 
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use proptest::prelude::*;
+use raphtory::db::api::view::MaterializedGraph;
+use raphtory::prelude::{GraphViewOps, NodeViewOps, Prop, PropUnwrap, PropertiesOps};
 use serde_json::json;
 use url::Url;
 
-use utils::strategy::{permissions_strategy, PermissionGrant};
+use utils::strategy::{permissions_strategy, Permission, PermissionGrant};
 
 use utils::graphql::{
-    create_graph, create_role, get_client,
-    grant_graph, grant_namespace, start_server,
+    create_graph, create_role, create_grant, get_client,
+    start_server,
 };
 
 const PORT: u16 = 43871;
@@ -23,7 +25,7 @@ const PRIVATE_KEY: &str = "-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
 -----END PRIVATE KEY-----";
 
-pub static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
+static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
     let key = EncodingKey::from_ed_pem(PRIVATE_KEY.as_bytes())
         .expect("decode Ed25519 private key for test JWTs");
 
@@ -35,6 +37,122 @@ pub static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
     .expect("encode admin JWT")
 });
 
+// Track a permission grant across the given namespace tree.
+fn track_grant(grant: &PermissionGrant, user_trees: &[MaterializedGraph]) {
+    match grant {
+        PermissionGrant::Graph { user_id, path, permission } => {
+            assert!(matches!(permission, Permission::Read | Permission::Write));
+
+            let user_tree = &user_trees[*user_id];
+
+            // Find the node in the tree corresponding to the given path.
+            let node_name = path.split('/').last().unwrap();
+            let node = user_tree.node(node_name).unwrap();
+
+            // Update the node's direct permission.
+            node
+                .update_metadata(vec![
+                    ("permission", Prop::Str(permission.as_str().into())),
+                    ("direct", Prop::Bool(true)),
+                ])
+                .unwrap();
+
+            // Propagate discover to ancestor namespaces.
+            propagate_up(path, user_tree);
+        }
+        PermissionGrant::Namespace { user_id, path, permission } => {
+            assert!(
+                matches!(permission, Permission::Introspect | Permission::Read | Permission::Write)
+            );
+
+            let user_tree = &user_trees[*user_id];
+
+            // Find the node in the tree corresponding to the given path.
+            let node_name = path.split('/').last().unwrap();
+            let node = user_tree.node(node_name).unwrap();
+
+            // Update the node's direct permission.
+            node
+                .update_metadata(vec![
+                    ("permission", Prop::Str(permission.as_str().into())),
+                    ("direct", Prop::Bool(true)),
+                ])
+                .unwrap();
+
+            // Propagate discover to ancestor namespaces.
+            propagate_up(path, user_tree);
+
+            // Propagate the permission to descendant namespaces and graphs.
+            propagate_down(path, user_tree, *permission);
+        }
+    }
+}
+
+// Propagate discover permissions to ancestor namespaces.
+fn propagate_up(path: &str, user_tree: &MaterializedGraph) {
+    // Apply discover to each node in the path.
+    for node_name in path.split('/').filter(|segment| !segment.is_empty()) {
+        let node = user_tree.node(node_name).unwrap();
+
+        // Discover permissions have least precedence, set them if no other permission is set.
+        if node.metadata().get("permission").is_none() {
+            node
+                .update_metadata(vec![
+                    ("permission", Prop::Str(Permission::Discover.as_str().into())),
+                    ("direct", Prop::Bool(false)),
+                ])
+                .unwrap();
+        }
+    }
+}
+
+// Propagates a permission to descendant namespaces and graphs.
+fn propagate_down(path: &str, user_tree: &MaterializedGraph, permission: Permission) {
+    let node_name = path.split('/').last().unwrap();
+    let node = user_tree.node(node_name).unwrap();
+    let mut stack = Vec::new();
+
+    // Start by propagating to the immediate children.
+    for neighbour in node.out_neighbours() {
+        stack.push(neighbour);
+    }
+
+    while let Some(node) = stack.pop() {
+        let node_permission = node.metadata().get("permission");
+        let direct = node.metadata().get("direct").unwrap().into_bool().unwrap();
+
+        if let Some(node_permission) = node_permission {
+            // Direct permissions override inherited permissions, skip this node
+            // and stop propagating.
+            if direct {
+                continue;
+            }
+
+            node
+                .update_metadata(vec![
+                    ("permission", Prop::Str(node_permission.into_str().unwrap())),
+                    ("direct", Prop::Bool(false)),
+                ])
+                .unwrap();
+
+            for neighbour in node.out_neighbours() {
+                stack.push(neighbour);
+            }
+        } else {
+            // This node has no permission, set it to the given permission.
+            node
+                .update_metadata(vec![
+                    ("permission", Prop::Str(permission.as_str().into())),
+                    ("direct", Prop::Bool(false)),
+                ])
+                .unwrap();
+
+            for neighbour in node.out_neighbours() {
+                stack.push(neighbour);
+            }
+        }
+    }
+}
 
 #[test]
 fn permissions_proptest() {
@@ -50,36 +168,27 @@ fn permissions_proptest() {
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
             let client = get_client(url, ADMIN_JWT.to_string());
 
+            let tree = case.namespace_tree.clone();
+
             // Create graphs on the server.
             for path in &case.graph_paths {
                 create_graph(&client, path);
             }
 
-            // Create roles for each user.
+            let mut user_trees = Vec::with_capacity(case.num_users);
+
+            // Create roles and separate namespace trees for each user.
             for i in 0..case.num_users {
                 let role = format!("user_{i}");
                 create_role(&client, &role);
+
+                let user_tree = tree.materialize().unwrap();
+                user_trees[i] = user_tree;
             }
 
             for grant in &case.grants {
-                match grant {
-                    PermissionGrant::Graph {
-                        user_id,
-                        path,
-                        permission,
-                    } => {
-                        let role = format!("user_{user_id}");
-                        grant_graph(&client, &role, path, *permission)
-                    }
-                    PermissionGrant::Namespace {
-                        user_id,
-                        path,
-                        permission,
-                    } => {
-                        let role = format!("user_{user_id}");
-                        grant_namespace(&client, &role, path, *permission)
-                    }
-                }
+                create_grant(&client, grant);
+                track_grant(grant, &user_trees);
             }
         }
     );

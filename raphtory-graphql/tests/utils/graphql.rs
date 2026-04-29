@@ -11,7 +11,7 @@ use tempfile::TempDir;
 use tokio::runtime::Runtime;
 use url::Url;
 
-use crate::utils::strategy::{GraphPermission, NamespacePermission, PermissionGrant};
+use crate::utils::strategy::{Permission, PermissionGrant};
 
 static AUTH_INIT: Once = Once::new();
 
@@ -81,15 +81,33 @@ pub fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
     assert_eq!(success, Some(true), "createRole {name} data: {data:?}");
 }
 
+/// Create a graph on the graphql server using the given path.
+pub fn create_graph(client: &RaphtoryGraphQLClient, path: &str) {
+    RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
+}
+
+pub fn create_grant(client: &RaphtoryGraphQLClient, grant: &PermissionGrant) {
+    match grant {
+        PermissionGrant::Graph { user_id, path, permission } => {
+            let role = format!("user_{user_id}");
+            grant_graph(client, &role, path, *permission);
+        }
+        PermissionGrant::Namespace { user_id, path, permission } => {
+            let role = format!("user_{user_id}");
+            grant_namespace(client, &role, path, *permission);
+        }
+    }
+}
+
 pub fn grant_graph(
     client: &RaphtoryGraphQLClient,
     role: &str,
     path: &str,
-    permission: GraphPermission,
+    permission: Permission,
 ) {
     let query = format!(
         r#"mutation {{ permissions {{ grantGraph(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
-        permission.as_gql()
+        permission.as_str()
     );
 
     let data = gql(client, &query);
@@ -104,7 +122,7 @@ pub fn grant_graph(
         success,
         Some(true),
         "grantGraph role={role} path={path} permission={} data: {data:?}",
-        permission.as_gql()
+        permission.as_str()
     );
 }
 
@@ -112,11 +130,11 @@ pub fn grant_namespace(
     client: &RaphtoryGraphQLClient,
     role: &str,
     path: &str,
-    permission: NamespacePermission,
+    permission: Permission,
 ) {
     let query = format!(
         r#"mutation {{ permissions {{ grantNamespace(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
-        permission.as_gql()
+        permission.as_str()
     );
 
     let data = gql(client, &query);
@@ -131,11 +149,6 @@ pub fn grant_namespace(
         success,
         Some(true),
         "grantNamespace role={role} path={path} permission={} data: {data:?}",
-        permission.as_gql()
+        permission.as_str()
     );
-}
-
-/// Create a graph on the graphql server using the given path.
-pub fn create_graph(client: &RaphtoryGraphQLClient, path: &str) {
-    RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
 }

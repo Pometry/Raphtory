@@ -27,43 +27,30 @@ pub enum PermissionGrant {
     Graph {
         user_id: usize,
         path: String,
-        permission: GraphPermission,
+        permission: Permission,
     },
     Namespace {
         user_id: usize,
         path: String,
-        permission: NamespacePermission,
+        permission: Permission,
     },
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum GraphPermission {
-    Read,
-    Write,
-}
-
-impl GraphPermission {
-    pub(crate) fn as_gql(self) -> &'static str {
-        match self {
-            GraphPermission::Read => "READ",
-            GraphPermission::Write => "WRITE",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum NamespacePermission {
+pub enum Permission {
+    Discover,
     Introspect,
     Read,
     Write,
 }
 
-impl NamespacePermission {
-    pub(crate) fn as_gql(self) -> &'static str {
+impl Permission {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
-            NamespacePermission::Introspect => "INTROSPECT",
-            NamespacePermission::Read => "READ",
-            NamespacePermission::Write => "WRITE",
+            Permission::Discover => "DISCOVER",
+            Permission::Introspect => "INTROSPECT",
+            Permission::Read => "READ",
+            Permission::Write => "WRITE",
         }
     }
 }
@@ -125,7 +112,7 @@ fn grants_strategy(
 ) -> impl Strategy<Value = Vec<PermissionGrant>> {
     let max_user = num_users - 1;
     let total_paths = namespace_paths.len() + graph_paths.len();
-    let num_grants = 1..=total_paths; // FIXME: Increase this to 3x later.
+    let num_grants = 1..=total_paths; // FIXME: Increase this to 3x.
 
     prop::collection::vec(
         (0..=max_user, 0..total_paths)
@@ -134,10 +121,12 @@ fn grants_strategy(
                 if path_idx < namespace_paths.len() {
                     let path = namespace_paths[path_idx].clone();
 
+                    // FIXME: Include revoke permissions.
+                    // Exclude Discover since it cannot be applied directly to namespaces.
                     prop_oneof![
-                        Just(NamespacePermission::Introspect),
-                        Just(NamespacePermission::Read),
-                        Just(NamespacePermission::Write),
+                        Just(Permission::Introspect),
+                        Just(Permission::Read),
+                        Just(Permission::Write),
                     ]
                     .prop_map(move |permission| PermissionGrant::Namespace {
                         user_id,
@@ -149,9 +138,11 @@ fn grants_strategy(
                     let graph_idx = path_idx - namespace_paths.len();
                     let path = graph_paths[graph_idx].clone();
 
+                    // FIXME: Include revoke permissions.
+                    // Exclude Introspect since it cannot be applied directly to graphs.
                     prop_oneof![
-                        Just(GraphPermission::Read),
-                        Just(GraphPermission::Write),
+                        Just(Permission::Read),
+                        Just(Permission::Write),
                     ]
                     .prop_map(move |permission| PermissionGrant::Graph {
                         user_id,
