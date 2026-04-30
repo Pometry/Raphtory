@@ -139,5 +139,5 @@ def test_delete():
         edge = rg.add_edge(1, "ben", "lucas", layer="colleagues")
         edge.delete(2, layer="colleagues")
         g = client.receive_graph("path/to/persistent_graph")
-        assert g.edge("ben", "hamza").deletions == [(2, 1)]
-        assert g.edge("ben", "lucas").deletions == [(2, 3)]
+        assert g.edge("ben", "hamza").deletions.t == [2]
+        assert g.edge("ben", "lucas").deletions.t == [2]

@@ -71,6 +71,10 @@ impl ResultVecUtcDateTimeIterable {
         self.repr()
     }
 
+    /// Materialise the iterable as a list of datetime lists, raising if any element produced an error.
+    ///
+    /// Returns:
+    ///     list[list[datetime]]: one datetime list per outer element.
     fn collect(&self) -> PyResult<Vec<Vec<DateTime<Utc>>>> {
         self.iter()
             .map(|result| result.map_err(PyErr::from))
@@ -162,6 +166,10 @@ impl NestedResultVecUtcDateTimeIterable {
         self.repr()
     }
 
+    /// Materialise the iterable as a deeply-nested list of datetime lists, raising if any element produced an error.
+    ///
+    /// Returns:
+    ///     list[list[list[datetime]]]: outer list per outer element; each contains a list of datetime lists.
     fn collect(&self) -> PyResult<Vec<Vec<Vec<DateTime<Utc>>>>> {
         self.iter()
             .map(|inner_iter| {

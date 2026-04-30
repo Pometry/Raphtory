@@ -627,7 +627,7 @@ def test_nodes():
                         {
                             "page": [
                                 {
-                                    "id": "1",
+                                    "id": 1,
                                     "degree": 1,
                                     "start": {"timestamp": 1},
                                     "end": {"timestamp": 2},
@@ -638,7 +638,7 @@ def test_nodes():
                         {
                             "page": [
                                 {
-                                    "id": "1",
+                                    "id": 1,
                                     "degree": 2,
                                     "start": {"timestamp": 2},
                                     "end": {"timestamp": 3},
@@ -649,7 +649,7 @@ def test_nodes():
                         {
                             "page": [
                                 {
-                                    "id": "1",
+                                    "id": 1,
                                     "degree": 2,
                                     "start": {"timestamp": 3},
                                     "end": {"timestamp": 4},
@@ -660,7 +660,7 @@ def test_nodes():
                         {
                             "page": [
                                 {
-                                    "id": "1",
+                                    "id": 1,
                                     "degree": 1,
                                     "start": {"timestamp": 4},
                                     "end": {"timestamp": 5},
@@ -671,7 +671,7 @@ def test_nodes():
                         {
                             "page": [
                                 {
-                                    "id": "1",
+                                    "id": 1,
                                     "degree": 0,
                                     "start": {"timestamp": 5},
                                     "end": {"timestamp": 6},
@@ -685,7 +685,7 @@ def test_nodes():
                         {
                             "page": [
                                 {
-                                    "id": "1",
+                                    "id": 1,
                                     "degree": 1,
                                     "start": {"timestamp": 4},
                                     "end": {"timestamp": 5},
@@ -696,7 +696,7 @@ def test_nodes():
                         {
                             "page": [
                                 {
-                                    "id": "1",
+                                    "id": 1,
                                     "degree": 0,
                                     "start": {"timestamp": 5},
                                     "end": {"timestamp": 6},
@@ -712,7 +712,7 @@ def test_nodes():
                             {
                                 "page": [
                                     {
-                                        "id": "1",
+                                        "id": 1,
                                         "degree": 2,
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 3},
@@ -724,7 +724,7 @@ def test_nodes():
                             {
                                 "page": [
                                     {
-                                        "id": "1",
+                                        "id": 1,
                                         "degree": 2,
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 4},
@@ -736,7 +736,7 @@ def test_nodes():
                             {
                                 "page": [
                                     {
-                                        "id": "1",
+                                        "id": 1,
                                         "degree": 2,
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 5},
@@ -748,7 +748,7 @@ def test_nodes():
                             {
                                 "page": [
                                     {
-                                        "id": "1",
+                                        "id": 1,
                                         "degree": 2,
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 6},
@@ -763,7 +763,7 @@ def test_nodes():
                             {
                                 "page": [
                                     {
-                                        "id": "1",
+                                        "id": 1,
                                         "degree": 2,
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 5},
@@ -775,7 +775,7 @@ def test_nodes():
                             {
                                 "page": [
                                     {
-                                        "id": "1",
+                                        "id": 1,
                                         "degree": 2,
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 6},
@@ -890,7 +890,7 @@ def test_path():
                             {
                                 "page": [
                                     {
-                                        "id": "2",
+                                        "id": 2,
                                         "degree": 1,
                                         "start": {"timestamp": 1},
                                         "end": {"timestamp": 2},
@@ -901,7 +901,7 @@ def test_path():
                             {
                                 "page": [
                                     {
-                                        "id": "2",
+                                        "id": 2,
                                         "degree": 1,
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 3},
@@ -912,7 +912,7 @@ def test_path():
                             {
                                 "page": [
                                     {
-                                        "id": "2",
+                                        "id": 2,
                                         "degree": 1,
                                         "start": {"timestamp": 3},
                                         "end": {"timestamp": 4},
@@ -923,7 +923,7 @@ def test_path():
                             {
                                 "page": [
                                     {
-                                        "id": "2",
+                                        "id": 2,
                                         "degree": 0,
                                         "start": {"timestamp": 4},
                                         "end": {"timestamp": 5},
@@ -934,7 +934,7 @@ def test_path():
                             {
                                 "page": [
                                     {
-                                        "id": "2",
+                                        "id": 2,
                                         "degree": 0,
                                         "start": {"timestamp": 5},
                                         "end": {"timestamp": 6},
@@ -948,7 +948,7 @@ def test_path():
                             {
                                 "page": [
                                     {
-                                        "id": "2",
+                                        "id": 2,
                                         "degree": 0,
                                         "start": {"timestamp": 4},
                                         "end": {"timestamp": 5},
@@ -959,7 +959,7 @@ def test_path():
                             {
                                 "page": [
                                     {
-                                        "id": "2",
+                                        "id": 2,
                                         "degree": 0,
                                         "start": {"timestamp": 5},
                                         "end": {"timestamp": 6},
@@ -975,7 +975,7 @@ def test_path():
                                 {
                                     "page": [
                                         {
-                                            "id": "2",
+                                            "id": 2,
                                             "degree": 1,
                                             "start": {"timestamp": 2},
                                             "end": {"timestamp": 3},
@@ -987,7 +987,7 @@ def test_path():
                                 {
                                     "page": [
                                         {
-                                            "id": "2",
+                                            "id": 2,
                                             "degree": 1,
                                             "start": {"timestamp": 2},
                                             "end": {"timestamp": 4},
@@ -999,7 +999,7 @@ def test_path():
                                 {
                                     "page": [
                                         {
-                                            "id": "2",
+                                            "id": 2,
                                             "degree": 1,
                                             "start": {"timestamp": 2},
                                             "end": {"timestamp": 5},
@@ -1011,7 +1011,7 @@ def test_path():
                                 {
                                     "page": [
                                         {
-                                            "id": "2",
+                                            "id": 2,
                                             "degree": 1,
                                             "start": {"timestamp": 2},
                                             "end": {"timestamp": 6},
@@ -1026,7 +1026,7 @@ def test_path():
                                 {
                                     "page": [
                                         {
-                                            "id": "2",
+                                            "id": 2,
                                             "degree": 1,
                                             "start": {"timestamp": 2},
                                             "end": {"timestamp": 5},
@@ -1038,7 +1038,7 @@ def test_path():
                                 {
                                     "page": [
                                         {
-                                            "id": "2",
+                                            "id": 2,
                                             "degree": 1,
                                             "start": {"timestamp": 2},
                                             "end": {"timestamp": 6},
@@ -1340,7 +1340,7 @@ def test_edges():
                         {
                             "page": [
                                 {
-                                    "id": ["1", "2"],
+                                    "id": [1, 2],
                                     "start": {"timestamp": 1},
                                     "end": {"timestamp": 2},
                                     "earliestTime": {"timestamp": 1},
@@ -1350,7 +1350,7 @@ def test_edges():
                         {
                             "page": [
                                 {
-                                    "id": ["1", "2"],
+                                    "id": [1, 2],
                                     "start": {"timestamp": 2},
                                     "end": {"timestamp": 3},
                                     "earliestTime": {"timestamp": 2},
@@ -1360,7 +1360,7 @@ def test_edges():
                         {
                             "page": [
                                 {
-                                    "id": ["1", "2"],
+                                    "id": [1, 2],
                                     "start": {"timestamp": 3},
                                     "end": {"timestamp": 4},
                                     "earliestTime": {"timestamp": 3},
@@ -1370,7 +1370,7 @@ def test_edges():
                         {
                             "page": [
                                 {
-                                    "id": ["1", "2"],
+                                    "id": [1, 2],
                                     "start": {"timestamp": 4},
                                     "end": {"timestamp": 5},
                                     "earliestTime": {"timestamp": None},
@@ -1380,7 +1380,7 @@ def test_edges():
                         {
                             "page": [
                                 {
-                                    "id": ["1", "2"],
+                                    "id": [1, 2],
                                     "start": {"timestamp": 5},
                                     "end": {"timestamp": 6},
                                     "earliestTime": {"timestamp": None},
@@ -1393,7 +1393,7 @@ def test_edges():
                         {
                             "page": [
                                 {
-                                    "id": ["1", "2"],
+                                    "id": [1, 2],
                                     "start": {"timestamp": 4},
                                     "end": {"timestamp": 5},
                                     "earliestTime": {"timestamp": None},
@@ -1403,7 +1403,7 @@ def test_edges():
                         {
                             "page": [
                                 {
-                                    "id": ["1", "2"],
+                                    "id": [1, 2],
                                     "start": {"timestamp": 5},
                                     "end": {"timestamp": 6},
                                     "earliestTime": {"timestamp": None},
@@ -1418,7 +1418,7 @@ def test_edges():
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
+                                        "id": [1, 2],
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 3},
                                         "earliestTime": {"timestamp": 2},
@@ -1429,7 +1429,7 @@ def test_edges():
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
+                                        "id": [1, 2],
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 4},
                                         "earliestTime": {"timestamp": 2},
@@ -1440,7 +1440,7 @@ def test_edges():
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
+                                        "id": [1, 2],
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 5},
                                         "earliestTime": {"timestamp": 2},
@@ -1451,7 +1451,7 @@ def test_edges():
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
+                                        "id": [1, 2],
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 6},
                                         "earliestTime": {"timestamp": 2},
@@ -1465,7 +1465,7 @@ def test_edges():
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
+                                        "id": [1, 2],
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 5},
                                         "earliestTime": {"timestamp": 2},
@@ -1476,7 +1476,7 @@ def test_edges():
                             {
                                 "page": [
                                     {
-                                        "id": ["1", "2"],
+                                        "id": [1, 2],
                                         "start": {"timestamp": 2},
                                         "end": {"timestamp": 6},
                                         "earliestTime": {"timestamp": 2},

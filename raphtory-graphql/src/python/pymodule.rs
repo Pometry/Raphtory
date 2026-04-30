@@ -14,6 +14,9 @@ use crate::{
 use pyo3::prelude::*;
 
 /// Returns True if the permissions extension (raphtory-auth) is compiled in.
+///
+/// Returns:
+///     bool: True if the extension is built in, False otherwise.
 #[pyfunction]
 pub fn has_permissions_extension() -> bool {
     crate::server::has_server_extension()

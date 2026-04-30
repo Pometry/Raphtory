@@ -3215,7 +3215,7 @@ def test_valid_graph():
     correct = {
         "graph": {
             "applyViews": {
-                "edges": {"list": [{"id": ["6", "7"], "latestTime": {"timestamp": 5}}]}
+                "edges": {"list": [{"id": [6, 7], "latestTime": {"timestamp": 5}}]}
             }
         }
     }

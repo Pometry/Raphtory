@@ -439,7 +439,13 @@ impl PyGraphView {
         self.graph.materialize()
     }
 
-    /// Materializes the graph view into a graphql compatible folder.
+    /// Materializes the graph view into a folder on disk.
+    ///
+    /// Arguments:
+    ///     path (str | PathLike): destination folder for the materialised graph.
+    ///
+    /// Returns:
+    ///     GraphView: the materialised graph at `path`.
     fn materialize_at(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize_at(&path)
     }

@@ -66,7 +66,7 @@ mod graphql_test {
         serialise::GraphFolder,
         test_utils::json_sort_by_name,
     };
-    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
     use serde_json::{json, Value};
     use std::{
         collections::{HashMap, HashSet},
@@ -284,7 +284,7 @@ mod graphql_test {
                     "nodes": {
                         "list": [
                             {
-                                "id": "11"
+                                "id": 11
                             }
                         ]
                     }
@@ -509,7 +509,6 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_unique_temporal_properties() {
-        // TODO: this doesn't test anything?
         let g = Graph::new();
         g.add_metadata([("name", "graph")]).unwrap();
         g.add_properties(1, [("state", "abc")]).unwrap();
@@ -537,127 +536,69 @@ mod graphql_test {
         let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
-        let expected = json!({
-            "graph": {
-              "properties": {
-                "temporal": {
-                  "values": [
-                    {
-                      "unique": [
-                        "xyz",
-                        "abc"
-                      ]
-                    }
-                  ]
-                }
-              },
-              "node": {
-                "properties": {
-                  "temporal": {
-                    "values": [
-                      {
-                        "unique": [
-                          "fax",
-                          "phone"
-                        ]
-                      }
-                    ]
-                  }
-                }
-              },
-              "edge": {
-                "properties": {
-                  "temporal": {
-                    "values": [
-                      {
-                        "unique": [
-                          "open",
-                          "review",
-                          "in-progress"
-                        ]
-                      },
-                      {
-                        "unique": [
-                          "false",
-                          "true"
-                        ]
-                      }
-                    ]
-                  }
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        // Query each `unique` by key so we can assert the typed element shape
+        // (strings for string props, bools for bool props — not stringified).
+        let query = r#"
+        {
+          graph(path: "graph") {
+            properties {
+              temporal {
+                get(key: "state") { unique }
+              }
+            }
+            node(name: "3") {
+              properties {
+                temporal {
+                  get(key: "name") { unique }
                 }
               }
             }
-        });
+            edge(src: "1", dst: "2") {
+              properties {
+                temporal {
+                  status: get(key: "status") { unique }
+                  state:  get(key: "state")  { unique }
+                }
+              }
+            }
+          }
+        }
+        "#;
 
-        let mut actual_graph_props = HashSet::new();
-        let mut actual_node_props = HashSet::new();
-        let mut actual_edge_props = HashSet::new();
+        let req = Request::new(query);
+        let res = schema.execute(req).await;
+        assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
+        let data = res.data.into_json().unwrap();
 
-        let graph_props = &expected["graph"]["properties"]["temporal"]["values"];
-        for value in graph_props.as_array().unwrap().iter() {
-            let unique_values: HashSet<_> = value["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect();
-            actual_graph_props.extend(unique_values);
+        fn sorted_unique<'a>(v: &'a Value) -> Vec<&'a Value> {
+            let mut out: Vec<&Value> = v["unique"].as_array().unwrap().iter().collect();
+            // serde_json::Value has a deterministic total order for same-typed values
+            // and groups by type for mixed inputs — fine for this test.
+            out.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+            out
         }
 
-        let node_props = &expected["graph"]["node"]["properties"]["temporal"]["values"];
-        for value in node_props.as_array().unwrap().iter() {
-            let unique_values: HashSet<_> = value["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect();
-            actual_node_props.extend(unique_values);
-        }
+        // graph-level `state` is a string property
+        let state = sorted_unique(&data["graph"]["properties"]["temporal"]["get"]);
+        assert_eq!(state, vec![&json!("abc"), &json!("xyz")]);
 
-        let edge_props = &expected["graph"]["edge"]["properties"]["temporal"]["values"];
-        for value in edge_props.as_array().unwrap().iter() {
-            let unique_values: HashSet<_> = value["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect();
-            actual_edge_props.extend(unique_values);
-        }
+        // node-level `name` is a string property
+        let name = sorted_unique(&data["graph"]["node"]["properties"]["temporal"]["get"]);
+        assert_eq!(name, vec![&json!("fax"), &json!("phone")]);
 
+        // edge-level `status` is a string property
+        let status = sorted_unique(&data["graph"]["edge"]["properties"]["temporal"]["status"]);
         assert_eq!(
-            actual_graph_props,
-            expected["graph"]["properties"]["temporal"]["values"][0]["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect::<HashSet<_>>()
+            status,
+            vec![&json!("in-progress"), &json!("open"), &json!("review")]
         );
-        assert_eq!(
-            actual_node_props,
-            expected["graph"]["node"]["properties"]["temporal"]["values"][0]["unique"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|v| v.as_str().unwrap())
-                .collect::<HashSet<_>>()
-        );
-        assert_eq!(
-            actual_edge_props,
-            expected["graph"]["edge"]["properties"]["temporal"]["values"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|value| value["unique"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|v| v.as_str().unwrap()))
-                .flatten()
-                .collect::<HashSet<_>>()
-        );
+
+        // edge-level `state` is a bool property — must come back as JSON bools,
+        // not strings "true" / "false".
+        let edge_state = sorted_unique(&data["graph"]["edge"]["properties"]["temporal"]["state"]);
+        assert_eq!(edge_state, vec![&json!(false), &json!(true)]);
     }
 
     #[tokio::test]
@@ -1097,10 +1038,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors, []);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(
-            res_json,
-            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
-        );
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": [{"id": 1}]}}}));
     }
 
     #[tokio::test]
@@ -1146,10 +1084,7 @@ mod graphql_test {
         let res = schema.execute(req).await;
         assert_eq!(res.errors.len(), 0);
         let res_json = res.data.into_json().unwrap();
-        assert_eq!(
-            res_json,
-            json!({"graph": {"nodes": {"list": [{"id": "1"}]}}})
-        );
+        assert_eq!(res_json, json!({"graph": {"nodes": {"list": [{"id": 1}]}}}));
 
         let receive_graph = r#"
         query {
@@ -1321,21 +1256,23 @@ mod graphql_test {
         let all_edges: Vec<_> = graph1
             .edges()
             .id()
-            .map(|(src, dst)| (src.to_string(), dst.to_string()))
+            .map(|(src, dst)| {
+                let src = match src {
+                    GID::U64(u) => u,
+                    GID::Str(_) => unreachable!("integer-indexed graph"),
+                };
+                let dst = match dst {
+                    GID::U64(u) => u,
+                    GID::Str(_) => unreachable!("integer-indexed graph"),
+                };
+                (src, dst)
+            })
             .collect();
 
         // make sure we have the correct edges
         assert_eq!(
             all_edges.iter().cloned().sorted().collect_vec(),
-            [
-                ("1".to_string(), "2".to_string()),
-                ("2".to_string(), "4".to_string()),
-                ("3".to_string(), "2".to_string()),
-                ("3".to_string(), "6".to_string()),
-                ("4".to_string(), "5".to_string()),
-                ("4".to_string(), "6".to_string()),
-                ("5".to_string(), "6".to_string()),
-            ]
+            [(1, 2), (2, 4), (3, 2), (3, 6), (4, 5), (4, 6), (5, 6),]
         );
         let graph2 = Graph::new();
         graph2.add_metadata([("name", "graph2")]).unwrap();
