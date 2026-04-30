@@ -21,7 +21,7 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    core_ops::InheritCoreGraphOps,
     graph::{
         edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},

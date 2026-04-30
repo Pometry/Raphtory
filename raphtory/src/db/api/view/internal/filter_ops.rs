@@ -1,8 +1,4 @@
-use crate::db::api::view::internal::{
-    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView, InternalEdgeFilterOps,
-    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
-    NodeTimeSemanticsOps,
-};
+use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
 use either::Either;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
