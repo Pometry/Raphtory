@@ -151,6 +151,10 @@ pub mod prelude {
         filter::Filter, property_filter::PropertyFilter,
     };
 
+    pub use crate::db::graph::views::{
+        property_redacted_graph::PropertyRedaction, PropertyRedactedGraph,
+    };
+
     pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
     pub use storage::{persist::config::ConfigOps, Config};

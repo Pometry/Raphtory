@@ -442,7 +442,9 @@ impl GqlProperties {
 
 impl<P: Into<DynProperties>> From<P> for GqlProperties {
     fn from(value: P) -> Self {
-        Self { props: value.into() }
+        Self {
+            props: value.into(),
+        }
     }
 }
 
@@ -552,10 +554,7 @@ impl GqlMetadata {
     /// Return all metadata keys.
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
-        blocking_compute(move || {
-            self_clone.props.keys().map(|k| k.clone().into()).collect()
-        })
-        .await
+        blocking_compute(move || self_clone.props.keys().map(|k| k.clone().into()).collect()).await
     }
 
     /// Return all metadata values.

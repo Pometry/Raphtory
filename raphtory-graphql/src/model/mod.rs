@@ -5,9 +5,7 @@ use crate::{
     model::{
         graph::{
             collection::GqlCollection,
-            filtering::{
-                GraphAccessFilter, GraphRowFilter, HiddenKeys,
-            },
+            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
             graph::GqlGraph,
             index::IndexSpecInput,
             meta_graph::MetaGraph,
@@ -41,7 +39,6 @@ use raphtory::{
             deletion_graph::PersistentGraph,
             filter::model::{ComposableFilter, DynFilter, DynView, NodeViewFilterOps},
             property_redacted_graph::PropertyRedaction,
-            PropertyRedactedGraph,
         },
     },
     errors::{GraphError, GraphResult},
@@ -393,7 +390,7 @@ impl QueryRoot {
             // Build redaction and apply to graph at the view level (covers node, edge, and graph properties).
             let redaction = build_redaction(f);
             if redaction.has_restrictions() {
-                PropertyRedactedGraph::new(graph, &redaction).into_dynamic()
+                graph.redact_properties(&redaction).into_dynamic()
             } else {
                 graph
             }
@@ -543,6 +540,18 @@ impl QueryRoot {
                 apply_graph_filter(raw.into_dynamic(), row_filter.clone()).await?
             } else {
                 raw.into_dynamic()
+            };
+            // Apply property redaction so the materialized graph only contains visible
+            // properties. Note: node/edge temporal properties copied via node.rows() bypass
+            // schema visibility and are not filtered here — metadata and graph-level
+            // properties are fully redacted.
+            let graph = {
+                let redaction = build_redaction(f);
+                if redaction.has_restrictions() {
+                    graph.redact_properties(&redaction).into_dynamic()
+                } else {
+                    graph
+                }
             };
             let materialized = blocking_compute(move || graph.materialize())
                 .await

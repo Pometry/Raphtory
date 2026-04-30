@@ -18,9 +18,7 @@ use raphtory::db::{
         state::ops::DynNodeFilter,
         view::{DynamicGraph, WindowSet},
     },
-    graph::{
-        edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode,
-    },
+    graph::{edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode},
 };
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "GraphWindowSet")]

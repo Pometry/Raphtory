@@ -32,19 +32,15 @@ use raphtory::{
         utils::time::TryIntoInterval,
     },
     db::{
-        api::{
-            view::{
-                filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
-                StaticGraphViewOps, TimeOps,
-            },
+        api::view::{
+            filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
+            StaticGraphViewOps, TimeOps,
         },
         graph::{
             node::NodeView,
-            views::{
-                filter::model::{
-                    edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
-                    node_filter::CompositeNodeFilter, DynView,
-                },
+            views::filter::model::{
+                edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
+                node_filter::CompositeNodeFilter, DynView,
             },
         },
     },
@@ -534,9 +530,10 @@ impl GqlGraph {
                 None => Arc::new(GraphFilter),
             };
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(
-                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic()),
-            )
+            Ok(GqlGraph::new(
+                self_clone.path.clone(),
+                filtered_graph.into_dynamic(),
+            ))
         })
         .await
     }
@@ -546,7 +543,10 @@ impl GqlGraph {
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic()))
+            Ok(GqlGraph::new(
+                self_clone.path.clone(),
+                filtered_graph.into_dynamic(),
+            ))
         })
         .await
     }
@@ -556,7 +556,10 @@ impl GqlGraph {
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic()))
+            Ok(GqlGraph::new(
+                self_clone.path.clone(),
+                filtered_graph.into_dynamic(),
+            ))
         })
         .await
     }

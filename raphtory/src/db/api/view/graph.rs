@@ -15,7 +15,8 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, filter::node_filtered_graph::NodeFilteredGraph,
-                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
+                node_subgraph::NodeSubgraph, property_redacted_graph::PropertyRedaction,
+                valid_graph::ValidGraph, PropertyRedactedGraph,
             },
         },
     },
@@ -123,6 +124,66 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
         &self,
         nodes: I,
     ) -> NodeSubgraph<Self>;
+
+    /// Create a view that hides the specified node temporal property keys.
+    fn exclude_node_properties<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<Self>;
+
+    /// Create a view that hides the specified node metadata (constant property) keys.
+    fn exclude_node_metadata<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<Self>;
+
+    /// Create a view that hides the specified edge temporal property keys.
+    fn exclude_edge_properties<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<Self>;
+
+    /// Create a view that hides the specified edge metadata (constant property) keys.
+    fn exclude_edge_metadata<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<Self>;
+
+    /// Create a view that hides the specified graph-level temporal property keys.
+    fn exclude_graph_properties<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<Self>;
+
+    /// Create a view that hides the specified graph-level metadata (constant property) keys.
+    fn exclude_graph_metadata<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<Self>;
+
+    /// Create a view that applies a full [`PropertyRedaction`] (all six entity × category
+    /// combinations). Use this when you already have a `PropertyRedaction` built from a
+    /// stored access filter.
+    fn redact_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<Self>;
+
+    /// Filter a temporal property row for a node during materialization.
+    /// Removes property IDs that are not visible according to [`NodePropertySchemaOps`].
+    ///
+    /// For graphs without property redaction every ID is visible, so the original `Vec` is
+    /// returned as-is (no allocation). For [`PropertyRedactedGraph`] the overridden
+    /// `node_visible_temporal_prop_name` returns `None` for hidden IDs, filtering them out.
+    fn filter_node_prop_row(&self, row: Vec<(usize, Prop)>) -> Vec<(usize, Prop)> {
+        if row
+            .iter()
+            .all(|(id, _)| self.node_visible_temporal_prop_name(*id).is_some())
+        {
+            row
+        } else {
+            row.into_iter()
+                .filter(|(id, _)| self.node_visible_temporal_prop_name(*id).is_some())
+                .collect()
+        }
+    }
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
@@ -388,7 +449,12 @@ fn materialize_impl(
                         .set_node(gid.as_ref(), new_id)?;
 
                     for (t, l, row) in node.rows() {
-                        writer.add_props(t, node_pos, LayerId(l.0), row); // TODO: Fix me
+                        writer.add_props(
+                            t,
+                            node_pos,
+                            LayerId(l.0),
+                            graph.filter_node_prop_row(row),
+                        );
                     }
 
                     writer.update_c_props(
@@ -672,6 +738,76 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             .map(|node| node.node);
 
         NodeSubgraph::new(self.clone(), nodes_to_include)
+    }
+
+    fn exclude_node_properties<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<G> {
+        let redaction = PropertyRedaction {
+            node_hidden_props: props.into_iter().map(Into::into).collect(),
+            ..PropertyRedaction::default()
+        };
+        PropertyRedactedGraph::new(self.clone(), &redaction)
+    }
+
+    fn exclude_node_metadata<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<G> {
+        let redaction = PropertyRedaction {
+            node_hidden_meta: props.into_iter().map(Into::into).collect(),
+            ..PropertyRedaction::default()
+        };
+        PropertyRedactedGraph::new(self.clone(), &redaction)
+    }
+
+    fn exclude_edge_properties<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<G> {
+        let redaction = PropertyRedaction {
+            edge_hidden_props: props.into_iter().map(Into::into).collect(),
+            ..PropertyRedaction::default()
+        };
+        PropertyRedactedGraph::new(self.clone(), &redaction)
+    }
+
+    fn exclude_edge_metadata<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<G> {
+        let redaction = PropertyRedaction {
+            edge_hidden_meta: props.into_iter().map(Into::into).collect(),
+            ..PropertyRedaction::default()
+        };
+        PropertyRedactedGraph::new(self.clone(), &redaction)
+    }
+
+    fn exclude_graph_properties<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<G> {
+        let redaction = PropertyRedaction {
+            graph_hidden_props: props.into_iter().map(Into::into).collect(),
+            ..PropertyRedaction::default()
+        };
+        PropertyRedactedGraph::new(self.clone(), &redaction)
+    }
+
+    fn exclude_graph_metadata<I: IntoIterator<Item = S>, S: Into<String>>(
+        &self,
+        props: I,
+    ) -> PropertyRedactedGraph<G> {
+        let redaction = PropertyRedaction {
+            graph_hidden_meta: props.into_iter().map(Into::into).collect(),
+            ..PropertyRedaction::default()
+        };
+        PropertyRedactedGraph::new(self.clone(), &redaction)
+    }
+
+    fn redact_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<G> {
+        PropertyRedactedGraph::new(self.clone(), redaction)
     }
 
     /// Return all the layer ids in the graph
