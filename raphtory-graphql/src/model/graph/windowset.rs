@@ -20,31 +20,18 @@ use raphtory::db::{
     },
     graph::{
         edge::EdgeView, edges::Edges, node::NodeView, nodes::Nodes, path::PathFromNode,
-        views::property_redacted_graph::PropertyRedaction,
     },
 };
-use std::sync::Arc;
-
 #[derive(ResolvedObject, Clone)]
 #[graphql(name = "GraphWindowSet")]
 pub(crate) struct GqlGraphWindowSet {
     pub(crate) ws: WindowSet<'static, DynamicGraph>,
     path: ExistingGraphFolder,
-    graph_redaction: Arc<PropertyRedaction>,
 }
 
 impl GqlGraphWindowSet {
     pub(crate) fn new(ws: WindowSet<'static, DynamicGraph>, path: ExistingGraphFolder) -> Self {
-        Self {
-            ws,
-            path,
-            graph_redaction: Default::default(),
-        }
-    }
-
-    pub(crate) fn with_graph_redaction(mut self, redaction: Arc<PropertyRedaction>) -> Self {
-        self.graph_redaction = redaction;
-        self
+        Self { ws, path }
     }
 }
 #[ResolvedObjectFields]
@@ -76,10 +63,7 @@ impl GqlGraphWindowSet {
                 .clone()
                 .skip(start)
                 .take(limit)
-                .map(|g| {
-                    GqlGraph::new(self_clone.path.clone(), g)
-                        .with_graph_redaction(self_clone.graph_redaction.clone())
-                })
+                .map(|g| GqlGraph::new(self_clone.path.clone(), g))
                 .collect()
         })
         .await)
@@ -92,10 +76,7 @@ impl GqlGraphWindowSet {
             self_clone
                 .ws
                 .clone()
-                .map(|g| {
-                    GqlGraph::new(self_clone.path.clone(), g)
-                        .with_graph_redaction(self_clone.graph_redaction.clone())
-                })
+                .map(|g| GqlGraph::new(self_clone.path.clone(), g))
                 .collect()
         })
         .await)

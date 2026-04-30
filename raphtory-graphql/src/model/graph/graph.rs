@@ -33,7 +33,6 @@ use raphtory::{
     },
     db::{
         api::{
-            properties::dyn_props::{DynMetadata, DynProperties},
             view::{
                 filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
                 StaticGraphViewOps, TimeOps,
@@ -46,7 +45,6 @@ use raphtory::{
                     edge_filter::CompositeEdgeFilter, graph_filter::GraphFilter,
                     node_filter::CompositeNodeFilter, DynView,
                 },
-                property_redacted_graph::PropertyRedaction,
             },
         },
     },
@@ -65,7 +63,6 @@ use std::{
 pub(crate) struct GqlGraph {
     path: ExistingGraphFolder,
     graph: DynamicGraph,
-    graph_redaction: Arc<PropertyRedaction>,
 }
 
 impl From<GraphWithVectors> for GqlGraph {
@@ -79,13 +76,7 @@ impl GqlGraph {
         Self {
             path,
             graph: graph.into_dynamic(),
-            graph_redaction: Default::default(),
         }
-    }
-
-    pub fn with_graph_redaction(mut self, redaction: Arc<PropertyRedaction>) -> Self {
-        self.graph_redaction = redaction;
-        self
     }
 
     fn apply<F, G>(&self, graph_operation: F) -> Self
@@ -96,7 +87,6 @@ impl GqlGraph {
         Self {
             path: self.path.clone(),
             graph: graph_operation(&self.graph).into_dynamic(),
-            graph_redaction: self.graph_redaction.clone(),
         }
     }
 }
@@ -190,8 +180,7 @@ impl GqlGraph {
         } else {
             self.graph.rolling(window, step)?
         };
-        Ok(GqlGraphWindowSet::new(ws, self.path.clone())
-            .with_graph_redaction(self.graph_redaction.clone()))
+        Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }
 
     /// Creates an expanding window with the specified step size.
@@ -212,8 +201,7 @@ impl GqlGraph {
         } else {
             self.graph.expanding(step)?
         };
-        Ok(GqlGraphWindowSet::new(ws, self.path.clone())
-            .with_graph_redaction(self.graph_redaction.clone()))
+        Ok(GqlGraphWindowSet::new(ws, self.path.clone()))
     }
 
     /// Return a graph containing only the activity between start and end, by default raphtory stores times in milliseconds from the unix epoch.
@@ -450,28 +438,12 @@ impl GqlGraph {
 
     /// Returns the properties of the graph.
     async fn properties(&self) -> Result<GqlProperties> {
-        let props: DynProperties = self.graph.properties().into();
-        if self.graph_redaction.graph_hidden_props.is_empty() {
-            Ok(props.into())
-        } else {
-            Ok(GqlProperties::with_hidden(
-                props,
-                Arc::new(self.graph_redaction.graph_hidden_props.clone()),
-            ))
-        }
+        Ok(self.graph.properties().into())
     }
 
     /// Returns the metadata of the graph.
     async fn metadata(&self) -> Result<GqlMetadata> {
-        let meta: DynMetadata = self.graph.metadata().into();
-        if self.graph_redaction.graph_hidden_meta.is_empty() {
-            Ok(meta.into())
-        } else {
-            Ok(GqlMetadata::with_hidden(
-                meta,
-                Arc::new(self.graph_redaction.graph_hidden_meta.clone()),
-            ))
-        }
+        Ok(self.graph.metadata().into())
     }
 
     ////////////////////////
@@ -563,8 +535,7 @@ impl GqlGraph {
             };
             let filtered_graph = self_clone.graph.filter(filter)?;
             Ok(
-                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
-                    .with_graph_redaction(self_clone.graph_redaction.clone()),
+                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic()),
             )
         })
         .await
@@ -575,10 +546,7 @@ impl GqlGraph {
         blocking_compute(move || {
             let filter: CompositeNodeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(
-                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
-                    .with_graph_redaction(self_clone.graph_redaction.clone()),
-            )
+            Ok(GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic()))
         })
         .await
     }
@@ -588,10 +556,7 @@ impl GqlGraph {
         blocking_compute(move || {
             let filter: CompositeEdgeFilter = expr.try_into()?;
             let filtered_graph = self_clone.graph.filter(filter)?;
-            Ok(
-                GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic())
-                    .with_graph_redaction(self_clone.graph_redaction.clone()),
-            )
+            Ok(GqlGraph::new(self_clone.path.clone(), filtered_graph.into_dynamic()))
         })
         .await
     }

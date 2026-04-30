@@ -31,7 +31,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     convert::TryFrom,
     fmt,
     fmt::{Display, Formatter},
@@ -431,29 +431,18 @@ impl GqlTemporalProperty {
 #[graphql(name = "Properties")]
 pub(crate) struct GqlProperties {
     props: DynProperties,
-    hidden: Arc<HashSet<String>>,
 }
 
 impl GqlProperties {
-    #[allow(dead_code)] //This is actually being used, but for some reason cargo complains
+    #[allow(dead_code)]
     pub(crate) fn new(props: DynProperties) -> Self {
-        Self {
-            props,
-            hidden: Default::default(),
-        }
-    }
-
-    pub(crate) fn with_hidden(props: DynProperties, hidden: Arc<HashSet<String>>) -> Self {
-        Self { props, hidden }
+        Self { props }
     }
 }
 
 impl<P: Into<DynProperties>> From<P> for GqlProperties {
     fn from(value: P) -> Self {
-        Self {
-            props: value.into(),
-            hidden: Default::default(),
-        }
+        Self { props: value.into() }
     }
 }
 
@@ -461,19 +450,11 @@ impl<P: Into<DynProperties>> From<P> for GqlProperties {
 #[graphql(name = "TemporalProperties")]
 pub(crate) struct GqlTemporalProperties {
     props: DynTemporalProperties,
-    hidden: Arc<HashSet<String>>,
 }
 
 impl GqlTemporalProperties {
     pub(crate) fn new(props: DynTemporalProperties) -> Self {
-        Self {
-            props,
-            hidden: Default::default(),
-        }
-    }
-
-    pub(crate) fn with_hidden(props: DynTemporalProperties, hidden: Arc<HashSet<String>>) -> Self {
-        Self { props, hidden }
+        Self { props }
     }
 }
 
@@ -487,19 +468,11 @@ impl From<DynTemporalProperties> for GqlTemporalProperties {
 #[graphql(name = "Metadata")]
 pub(crate) struct GqlMetadata {
     props: DynMetadata,
-    hidden: Arc<HashSet<String>>,
 }
 
 impl GqlMetadata {
     pub(crate) fn new(props: DynMetadata) -> Self {
-        Self {
-            props,
-            hidden: Default::default(),
-        }
-    }
-
-    pub(crate) fn with_hidden(props: DynMetadata, hidden: Arc<HashSet<String>>) -> Self {
-        Self { props, hidden }
+        Self { props }
     }
 }
 
@@ -513,9 +486,6 @@ impl<P: Into<DynMetadata>> From<P> for GqlMetadata {
 impl GqlProperties {
     /// Get property value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlProperty> {
-        if self.hidden.contains(&key) {
-            return None;
-        }
         self.props
             .get(key.as_str())
             .map(|p| (key.to_string(), p).into())
@@ -523,9 +493,6 @@ impl GqlProperties {
 
     /// Check if the key is in the properties.
     async fn contains(&self, key: String) -> bool {
-        if self.hidden.contains(&key) {
-            return false;
-        }
         self.props.get(&key).is_some()
     }
 
@@ -536,10 +503,7 @@ impl GqlProperties {
             self_clone
                 .props
                 .iter_filtered()
-                .filter_map(|(k, _)| {
-                    let key: String = k.into();
-                    (!self_clone.hidden.contains(&key)).then_some(key)
-                })
+                .map(|(k, _)| k.into())
                 .collect()
         })
         .await
@@ -554,31 +518,20 @@ impl GqlProperties {
                 .iter_filtered()
                 .filter_map(|(k, prop)| {
                     let key = k.to_string();
-                    if !self_clone.hidden.contains(&key) && keys.contains(&key) {
-                        Some((key, prop).into())
-                    } else {
-                        None
-                    }
+                    keys.contains(&key).then_some((key, prop).into())
                 })
                 .collect(),
             None => self_clone
                 .props
                 .iter_filtered()
-                .filter_map(|(k, prop)| {
-                    let key = k.to_string();
-                    (!self_clone.hidden.contains(&key)).then_some((key, prop).into())
-                })
+                .map(|(k, prop)| (k.to_string(), prop).into())
                 .collect(),
         })
         .await
     }
 
     async fn temporal(&self) -> GqlTemporalProperties {
-        if self.hidden.is_empty() {
-            self.props.temporal().into()
-        } else {
-            GqlTemporalProperties::with_hidden(self.props.temporal(), self.hidden.clone())
-        }
+        self.props.temporal().into()
     }
 }
 
@@ -586,9 +539,6 @@ impl GqlProperties {
 impl GqlMetadata {
     /// Get metadata value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlProperty> {
-        if self.hidden.contains(&key) {
-            return None;
-        }
         self.props
             .get(key.as_str())
             .map(|p| (key.to_string(), p).into())
@@ -596,9 +546,6 @@ impl GqlMetadata {
 
     /// Check if the key is in the metadata.
     async fn contains(&self, key: String) -> bool {
-        if self.hidden.contains(&key) {
-            return false;
-        }
         self.props.contains(key.as_str())
     }
 
@@ -606,14 +553,7 @@ impl GqlMetadata {
     async fn keys(&self) -> Vec<String> {
         let self_clone = self.clone();
         blocking_compute(move || {
-            self_clone
-                .props
-                .keys()
-                .filter_map(|k| {
-                    let key: String = k.clone().into();
-                    (!self_clone.hidden.contains(&key)).then_some(key)
-                })
-                .collect()
+            self_clone.props.keys().map(|k| k.clone().into()).collect()
         })
         .await
     }
@@ -627,20 +567,13 @@ impl GqlMetadata {
                 .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
-                    if !self_clone.hidden.contains(&key) && keys.contains(&key) {
-                        Some((key, p).into())
-                    } else {
-                        None
-                    }
+                    keys.contains(&key).then_some((key, p).into())
                 })
                 .collect(),
             None => self_clone
                 .props
                 .iter_filtered()
-                .filter_map(|(k, p)| {
-                    let key = k.to_string();
-                    (!self_clone.hidden.contains(&key)).then_some((key, p).into())
-                })
+                .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })
         .await
@@ -651,17 +584,11 @@ impl GqlMetadata {
 impl GqlTemporalProperties {
     /// Get property value matching the specified key.
     async fn get(&self, key: String) -> Option<GqlTemporalProperty> {
-        if self.hidden.contains(&key) {
-            return None;
-        }
         self.props.get(key.as_str()).map(move |p| (key, p).into())
     }
 
     /// Check if the key is in the properties.
     async fn contains(&self, key: String) -> bool {
-        if self.hidden.contains(&key) {
-            return false;
-        }
         self.props.get(&key).is_some()
     }
 
@@ -672,10 +599,7 @@ impl GqlTemporalProperties {
             self_clone
                 .props
                 .iter_filtered()
-                .filter_map(|(k, _)| {
-                    let key: String = k.into();
-                    (!self_clone.hidden.contains(&key)).then_some(key)
-                })
+                .map(|(k, _)| k.into())
                 .collect()
         })
         .await
@@ -690,20 +614,13 @@ impl GqlTemporalProperties {
                 .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
-                    if !self_clone.hidden.contains(&key) && keys.contains(&key) {
-                        Some((key, p).into())
-                    } else {
-                        None
-                    }
+                    keys.contains(&key).then_some((key, p).into())
                 })
                 .collect(),
             None => self_clone
                 .props
                 .iter_filtered()
-                .filter_map(|(k, p)| {
-                    let key = k.to_string();
-                    (!self_clone.hidden.contains(&key)).then_some((key, p).into())
-                })
+                .map(|(k, p)| (k.to_string(), p).into())
                 .collect(),
         })
         .await

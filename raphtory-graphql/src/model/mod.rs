@@ -380,7 +380,7 @@ impl QueryRoot {
         let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
 
         // Row filter + property redaction — extracted once from the access filter.
-        let (graph, graph_redaction) = if let GraphPermission::Read {
+        let graph = if let GraphPermission::Read {
             filter: Some(ref f),
         } = perms
         {
@@ -390,21 +390,18 @@ impl QueryRoot {
             } else {
                 graph
             };
-            // Build redaction and apply to graph (node/edge at DB layer; graph-level at GQL layer).
-            let redaction = Arc::new(build_redaction(f));
-            let graph = if redaction.has_restrictions() {
+            // Build redaction and apply to graph at the view level (covers node, edge, and graph properties).
+            let redaction = build_redaction(f);
+            if redaction.has_restrictions() {
                 PropertyRedactedGraph::new(graph, &redaction).into_dynamic()
             } else {
                 graph
-            };
-            (graph, redaction)
+            }
         } else {
-            (graph, Default::default())
+            graph
         };
 
-        Ok(Some(
-            GqlGraph::new(graph_with_vecs.folder, graph).with_graph_redaction(graph_redaction),
-        ))
+        Ok(Some(GqlGraph::new(graph_with_vecs.folder, graph)))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
