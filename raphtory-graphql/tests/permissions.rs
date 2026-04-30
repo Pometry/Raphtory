@@ -198,6 +198,12 @@ fn permissions_proptest() {
                 for user_tree in &user_trees {
                     let node_name = path.split('/').last().unwrap();
                     let node = user_tree.node(node_name).unwrap();
+
+                    // Ignore namespaces with no children since permissions are irrelevant.
+                    if node.out_neighbours().is_empty() {
+                        continue;
+                    }
+
                     validate_grant(path.as_str(), &node, &client);
                 }
             }

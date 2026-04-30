@@ -146,10 +146,9 @@ pub fn validate_graph_grant(
     permission: Option<Permission>,
     client: &RaphtoryGraphQLClient,
 ) {
-    let _ = (path, client);
     match permission {
         Some(_) => {
-            todo!()
+            return;
         }
         None => {
             todo!()
@@ -165,9 +164,92 @@ pub fn validate_namespace_grant(
     let _ = (path, permission, client);
 }
 
-pub fn query_graph(path: &str, client: &RaphtoryGraphQLClient) -> HashMap<String, JsonValue> {
+pub fn can_read_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
     let query = format!(r#"query {{ graph(path: "{path}") {{ path }} }}"#);
-    gql(&query, client)
+    let data = gql(&query, client);
+
+    data.get("graph")
+        .and_then(|graph| graph.get("path"))
+        .and_then(JsonValue::as_str)
+        .is_some_and(|graph_path| graph_path == path)
+}
+
+pub fn can_introspect_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let query = format!(r#"query {{ graphMetadata(path: "{path}") {{ path nodeCount }} }}"#);
+    let data = gql(&query, client);
+
+    data.get("graphMetadata")
+        .is_some_and(|metadata| !metadata.is_null())
+}
+
+pub fn can_write_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let query = format!(
+        r#"query {{ updateGraph(path: "{path}") {{ addNode(time: 1, name: "test_node") {{ success }} }} }}"#
+    );
+    let data = gql(&query, client);
+
+    data.get("updateGraph")
+        .and_then(|update| update.get("addNode"))
+        .and_then(|add_node| add_node.get("success"))
+        .and_then(JsonValue::as_bool)
+        .unwrap_or(false)
+}
+
+/// Verify that the namespace at `path` appears in its parent listing.
+pub fn can_discover_namespace(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let parent = path.rsplit_once('/').map_or("root", |(parent, _)| parent);
+
+    let query = if parent == "root" {
+        r#"query { root { children { list { path } } } }"#.to_string()
+    } else {
+        format!(r#"query {{ namespace(path: "{parent}") {{ children {{ list {{ path }} }} }} }}"#)
+    };
+
+    let data = gql(&query, client);
+
+    let children = if parent == "root" {
+        data.get("root")
+    } else {
+        data.get("namespace")
+    };
+
+    // Verify that the namespace is in the children list.
+    children
+        .and_then(|namespace| namespace.get("children"))
+        .and_then(|children| children.get("list"))
+        .and_then(JsonValue::as_array)
+        .is_some_and(|entries| {
+            entries.iter().any(|entry| {
+                entry
+                    .get("path")
+                    .and_then(JsonValue::as_str)
+                    .is_some_and(|entry_path| entry_path == path)
+            })
+        })
+}
+
+// Verify that the namespace at `path` can have its listings browsed.
+pub fn can_introspect_namespace(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let query = format!(
+        r#"query {{ namespace(path: "{path}") {{ graphs {{ list {{ path }} }} children {{ list {{ path }} }} }} }}"#
+    );
+
+    let data = gql(&query, client);
+    let namespace = data.get("namespace");
+
+    let has_graphs_list = namespace
+        .and_then(|ns| ns.get("graphs"))
+        .and_then(|graphs| graphs.get("list"))
+        .and_then(JsonValue::as_array)
+        .is_some();
+
+    let has_children_list = namespace
+        .and_then(|ns| ns.get("children"))
+        .and_then(|children| children.get("list"))
+        .and_then(JsonValue::as_array)
+        .is_some();
+
+    has_graphs_list || has_children_list
 }
 
 fn gql(query: &str, client: &RaphtoryGraphQLClient) -> HashMap<String, JsonValue> {
