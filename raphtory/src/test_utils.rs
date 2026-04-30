@@ -900,18 +900,11 @@ pub fn make_node_type() -> impl Strategy<Value = Option<Cow<'static, str>>> {
 }
 
 pub fn make_node_layer() -> impl Strategy<Value = Option<Cow<'static, str>>> {
-    // TODO: re-enable {Some("a"), Some("b")} once layered node updates round-trip
-    // cleanly through the parquet encoder and the windowed/persistent materialize
-    // path. With layered node fixtures, the proptests
-    //   parquet_tests::write_graph_to_parquet
-    //   parquet_tests::test_parquet_bytes_proptest
-    //   valid_graph::materialize_window_valid_persistent_prop_test
-    //   valid_graph::materialize_valid_window_persistent_prop_test
-    // catch divergences between source and round-tripped/materialized graphs
-    // (per-layer node counts mismatch, node earliest_time differs in windowed
-    // persistent materialize). Until those land, only emit None so the new
-    // node_layer field is wired through without breaking the suite.
-    proptest::sample::select(vec![None::<Cow<'static, str>>])
+    proptest::sample::select(vec![
+        None,
+        Some(Cow::Borrowed("a")),
+        Some(Cow::Borrowed("b")),
+    ])
 }
 
 pub fn make_node_types() -> impl Strategy<Value = Vec<&'static str>> {
@@ -1233,22 +1226,21 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         }
     }
 
+    // Nodes aren't filtered by layer here (mirroring original behaviour pre-
+    // node-layer support): a `g.valid_layers([...])` view's node visibility is
+    // derived from edge membership, not from per-node layer assignment.
     for (node, updates) in graph_fix.nodes() {
         let node_layer = updates.node_layer.as_str();
-        if layers.contains(node_layer.unwrap_or(STATIC_GRAPH_LAYER)) {
-            for (t, props) in updates.props.t_props.iter() {
-                g.add_node((*t, counter), node, props.clone(), None, node_layer)
-                    .unwrap();
-                counter += 1;
+        for (t, props) in updates.props.t_props.iter() {
+            g.add_node((*t, counter), node, props.clone(), None, node_layer)
+                .unwrap();
+            counter += 1;
+        }
+        if let Some(node) = g.node(node) {
+            node.add_metadata(updates.props.c_props.clone()).unwrap();
+            if let Some(node_type) = updates.node_type.as_str() {
+                node.set_node_type(node_type).unwrap();
             }
-            if let Some(node) = g.node(node) {
-                node.add_metadata(updates.props.c_props.clone()).unwrap();
-                if let Some(node_type) = updates.node_type.as_str() {
-                    node.set_node_type(node_type).unwrap();
-                }
-            }
-        } else {
-            counter += updates.props.t_props.len();
         }
     }
     g

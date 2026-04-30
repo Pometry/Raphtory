@@ -462,6 +462,7 @@ fn get_parquet_df_loader_time(
                 RAP_NODE_VID_COL,
                 RAP_NODE_TYPE_COL,
                 RAP_NODE_TYPE_ID_COL,
+                RAP_LAYER_COL,
             ],
         );
         let node_c_metadata = node_c_metadata
@@ -478,6 +479,8 @@ fn get_parquet_df_loader_time(
             Some(RAP_NODE_VID_COL),
             Some(RAP_NODE_TYPE_ID_COL),
             &node_c_metadata,
+            None,
+            None,
             None,
             None,
             None,

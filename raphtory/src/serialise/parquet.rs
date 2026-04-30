@@ -415,6 +415,8 @@ fn decode_graph_storage(
             Some(TYPE_ID_COL),
             &c_prop_columns,
             None,
+            None,
+            None,
             batch_size,
             None,
         )?;
@@ -482,13 +484,11 @@ fn decode_graph_storage(
             ColumnNames::new(
                 TIME_COL,
                 Some(SECONDARY_INDEX_COL),
-                SRC_COL_VID,
-                DST_COL_VID,
+                SRC_COL_ID,
+                DST_COL_ID,
                 Some(LAYER_COL),
-            )
-            .with_layer_id_col(LAYER_ID_COL)
-            .with_edge_id_col(EDGE_COL_ID),
-            false,
+            ),
+            true,
             &t_prop_columns,
             &[],
             None,
@@ -507,14 +507,12 @@ fn decode_graph_storage(
             ColumnNames::new(
                 TIME_COL,
                 Some(SECONDARY_INDEX_COL),
-                SRC_COL_VID,
-                DST_COL_VID,
+                SRC_COL_ID,
+                DST_COL_ID,
                 Some(LAYER_COL),
-            )
-            .with_layer_id_col(LAYER_ID_COL)
-            .with_edge_id_col(EDGE_COL_ID),
+            ),
             None,
-            false,
+            true,
             batch_size,
             None,
         )?;
@@ -540,15 +538,15 @@ fn decode_graph_storage(
         load_edge_metadata_from_parquet(
             &graph,
             &c_edge_path,
-            SRC_COL_VID,
-            DST_COL_VID,
+            SRC_COL_ID,
+            DST_COL_ID,
             &metadata,
             None,
             None,
             Some(LAYER_COL),
             batch_size,
             None,
-            false,
+            true,
         )?;
     }
     Ok(graph)

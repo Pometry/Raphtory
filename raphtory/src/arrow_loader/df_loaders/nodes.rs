@@ -259,6 +259,8 @@ pub fn load_node_props_from_df<
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
     is_materializing: bool,
+    layer_id: Option<&str>,
+    layer_id_col: Option<&str>,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
@@ -277,6 +279,10 @@ pub fn load_node_props_from_df<
 
     let node_id_index = node_id_col
         .map(|node_col| df_view.get_index(node_col.as_ref()))
+        .transpose()?;
+
+    let layer_index = layer_id_col
+        .map(|name| df_view.get_index(name))
         .transpose()?;
 
     let node_gid_index = df_view.get_index(node_id)?;
@@ -309,6 +315,14 @@ pub fn load_node_props_from_df<
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_gid_index)?;
+        // Per-row layer; null entries (and absent column) → STATIC_GRAPH_LAYER_ID.
+        // resolve_layer(None) would map to "_default", which is wrong for nodes.
+        let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
+            let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
+            Some(layer_col.resolve_node_layer(graph)?)
+        } else {
+            None
+        };
 
         let (node_col_resolved, node_type_col_resolved) = get_or_resolve_node_vids_no_events::<G>(
             graph,
@@ -350,6 +364,16 @@ pub fn load_node_props_from_df<
                 // filter out unresolved vids
                 {
                     if let Some(mut_node) = writer.resolve_pos(*vid) {
+                        let row_layer = layer_col_resolved
+                            .as_ref()
+                            .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[idx]));
+                        // gid and node_type live at STATIC_GRAPH_LAYER (gid()/
+                        // node_type_id() read only from layer 0 in storage); writing
+                        // them at any other layer would leave gid() panicking on
+                        // lookup. Per-layer rows still need to register the node so
+                        // the per-layer counter increments — that happens via the
+                        // metadata write below (or, if there is none, an explicit
+                        // empty update).
                         writer.store_node_id_and_node_type(
                             mut_node,
                             STATIC_GRAPH_LAYER_ID,
@@ -367,10 +391,16 @@ pub fn load_node_props_from_df<
                         c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
+                            writer.update_c_props(mut_node, row_layer, c_props.drain(..));
+                        } else if row_layer != STATIC_GRAPH_LAYER_ID {
+                            // No per-layer metadata to write, but we still need the
+                            // node to count in this layer. update_c_props with an
+                            // empty iterator increments the layer counter for new
+                            // nodes without touching c_prop slots.
                             writer.update_c_props(
                                 mut_node,
-                                STATIC_GRAPH_LAYER_ID,
-                                c_props.drain(..),
+                                row_layer,
+                                std::iter::empty::<(usize, Prop)>(),
                             );
                         }
                     };
