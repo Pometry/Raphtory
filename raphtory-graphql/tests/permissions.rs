@@ -7,6 +7,8 @@ use std::sync::LazyLock;
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use proptest::prelude::*;
 use raphtory::db::api::view::MaterializedGraph;
+use raphtory::db::graph::node::NodeView;
+use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory::prelude::{GraphViewOps, NodeViewOps, Prop, PropUnwrap, PropertiesOps};
 use serde_json::json;
 use url::Url;
@@ -124,16 +126,23 @@ fn propagate_down(path: &str, user_tree: &MaterializedGraph, permission: Permiss
     }
 }
 
-fn validate_grants(user_tree: &MaterializedGraph) {
-    for node in user_tree.nodes() {
-        let permission_prop = node.metadata().get("permission").and_then(|p| p.into_str());
-        let permission = permission_prop.and_then(|p| Permission::from_str(p.as_ref()).ok());
+fn validate_grant(
+    path: &str,
+    node: &NodeView<'_, MaterializedGraph>,
+    client: &RaphtoryGraphQLClient,
+) {
+    let permission = node
+        .metadata()
+        .get("permission")
+        .and_then(|p| p.into_str())
+        .and_then(|s| Permission::from_str(s.as_ref()).ok());
 
-        if node.out_neighbours().is_empty() {
-            validate_graph_grant(&node, permission);
-        } else {
-            validate_namespace_grant(&node, permission);
-        }
+    let is_graph_path = node.out_neighbours().is_empty();
+
+    if is_graph_path {
+        validate_graph_grant(path, permission, client);
+    } else {
+        validate_namespace_grant(path, permission, client);
     }
 }
 
@@ -155,7 +164,7 @@ fn permissions_proptest() {
 
             // Create graphs on the server.
             for path in &case.graph_paths {
-                create_graph(&client, path);
+                create_graph(path, &client);
             }
 
             let mut user_trees = Vec::with_capacity(case.num_users);
@@ -163,19 +172,34 @@ fn permissions_proptest() {
             // Create roles and separate namespace trees for each user.
             for i in 0..case.num_users {
                 let role = format!("user_{i}");
-                create_role(&client, &role);
+                create_role(&role, &client);
 
                 let user_tree = tree.materialize().unwrap();
                 user_trees.push(user_tree);
             }
 
+            // Create grants on the server and track them locally.
             for grant in &case.grants {
-                create_grant(&client, grant);
+                create_grant(grant, &client);
                 track_grant(grant, &user_trees);
             }
 
-            for user_tree in &user_trees {
-                validate_grants(user_tree);
+            // Validate grants across graph paths for each user.
+            for path in &case.graph_paths {
+                for user_tree in &user_trees {
+                    let node_name = path.split('/').last().unwrap();
+                    let node = user_tree.node(node_name).unwrap();
+                    validate_grant(path.as_str(), &node, &client);
+                }
+            }
+
+            // Validate grants across namespace paths for each user.
+            for path in &case.namespace_paths {
+                for user_tree in &user_trees {
+                    let node_name = path.split('/').last().unwrap();
+                    let node = user_tree.node(node_name).unwrap();
+                    validate_grant(path.as_str(), &node, &client);
+                }
             }
         }
     );

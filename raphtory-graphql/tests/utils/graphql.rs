@@ -3,8 +3,6 @@ use std::sync::{LazyLock, Once};
 use std::time::Duration;
 
 use raphtory::db::api::storage::storage::Config;
-use raphtory::db::api::view::MaterializedGraph;
-use raphtory::db::graph::node::NodeView;
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory_graphql::config::app_config::AppConfigBuilder;
 use raphtory_graphql::server::{apply_server_extension, GraphServer, RunningGraphServer};
@@ -63,15 +61,15 @@ pub fn start_server(port: u16, pub_key: &str) -> (RunningGraphServer, TempDir) {
 }
 
 /// Create a graph on the graphql server using the given path.
-pub fn create_graph(client: &RaphtoryGraphQLClient, path: &str) {
+pub fn create_graph(path: &str, client: &RaphtoryGraphQLClient) {
     RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
 }
 
-pub fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
+pub fn create_role(name: &str, client: &RaphtoryGraphQLClient) {
     let query =
         format!(r#"mutation {{ permissions {{ createRole(name: "{name}") {{ success }} }} }}"#);
 
-    let data = gql(client, &query);
+    let data = gql(&query, client);
 
     let success = data
         .get("permissions")
@@ -82,27 +80,27 @@ pub fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
     assert_eq!(success, Some(true), "createRole {name} data: {data:?}");
 }
 
-pub fn create_grant(client: &RaphtoryGraphQLClient, grant: &PermissionGrant) {
+pub fn create_grant(grant: &PermissionGrant, client: &RaphtoryGraphQLClient) {
     let role = format!("user_{}", grant.user_id);
 
     match grant.grant_type {
-        GrantType::Graph => grant_graph(client, &role, &grant.path, grant.permission),
-        GrantType::Namespace => grant_namespace(client, &role, &grant.path, grant.permission),
+        GrantType::Graph => grant_graph(&grant.path, &role, grant.permission, client),
+        GrantType::Namespace => grant_namespace(&grant.path, &role, grant.permission, client),
     }
 }
 
 pub fn grant_graph(
-    client: &RaphtoryGraphQLClient,
-    role: &str,
     path: &str,
+    role: &str,
     permission: Permission,
+    client: &RaphtoryGraphQLClient,
 ) {
     let query = format!(
         r#"mutation {{ permissions {{ grantGraph(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
         permission
     );
 
-    let data = gql(client, &query);
+    let data = gql(&query, client);
 
     let success = data
         .get("permissions")
@@ -118,17 +116,17 @@ pub fn grant_graph(
 }
 
 pub fn grant_namespace(
-    client: &RaphtoryGraphQLClient,
-    role: &str,
     path: &str,
+    role: &str,
     permission: Permission,
+    client: &RaphtoryGraphQLClient,
 ) {
     let query = format!(
         r#"mutation {{ permissions {{ grantNamespace(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
         permission
     );
 
-    let data = gql(client, &query);
+    let data = gql(&query, client);
 
     let success = data
         .get("permissions")
@@ -143,15 +141,36 @@ pub fn grant_namespace(
     );
 }
 
-pub fn validate_graph_grant(node: &NodeView<'_, MaterializedGraph>, permission: Option<Permission>) {
-    todo!()
+pub fn validate_graph_grant(
+    path: &str,
+    permission: Option<Permission>,
+    client: &RaphtoryGraphQLClient,
+) {
+    let _ = (path, client);
+    match permission {
+        Some(_) => {
+            todo!()
+        }
+        None => {
+            todo!()
+        }
+    }
 }
 
-pub fn validate_namespace_grant(node: &NodeView<'_, MaterializedGraph>, permission: Option<Permission>) {
-    todo!()
+pub fn validate_namespace_grant(
+    path: &str,
+    permission: Option<Permission>,
+    client: &RaphtoryGraphQLClient,
+) {
+    let _ = (path, permission, client);
 }
 
-fn gql(client: &RaphtoryGraphQLClient, query: &str) -> HashMap<String, JsonValue> {
+pub fn query_graph(path: &str, client: &RaphtoryGraphQLClient) -> HashMap<String, JsonValue> {
+    let query = format!(r#"query {{ graph(path: "{path}") {{ path }} }}"#);
+    gql(&query, client)
+}
+
+fn gql(query: &str, client: &RaphtoryGraphQLClient) -> HashMap<String, JsonValue> {
     RUNTIME
         .block_on(client.query(query, HashMap::new()))
         .unwrap_or_else(|e| panic!("Error executing query {query}: {e}"))

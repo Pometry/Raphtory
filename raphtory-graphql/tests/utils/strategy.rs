@@ -10,6 +10,7 @@ pub struct PermissionsCase {
     pub num_users: usize,
     pub grants: Vec<PermissionGrant>,
     pub graph_paths: Vec<String>,
+    pub namespace_paths: Vec<String>,
     pub namespace_tree: Graph,
 }
 
@@ -20,11 +21,12 @@ impl fmt::Debug for PermissionsCase {
             .field("num_users", &self.num_users)
             .field("grants", &self.grants)
             .field("graph_paths", &self.graph_paths)
+            .field("namespace_paths", &self.namespace_paths)
             .finish()
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GrantType {
     Graph,
     Namespace,
@@ -82,14 +84,17 @@ pub fn permissions_strategy(
                 let graph_paths = leaf_paths(&namespace_tree);
                 let namespace_paths = branch_paths(&namespace_tree);
 
-                grants_strategy(num_users, graph_paths.clone(), namespace_paths).prop_map(move |grants| {
-                    PermissionsCase {
-                        num_users,
-                        namespace_tree: namespace_tree.clone(),
-                        graph_paths: graph_paths.clone(),
-                        grants,
-                    }
-                })
+                grants_strategy(num_users, graph_paths.clone(), namespace_paths.clone()).prop_map(
+                    move |grants| {
+                        PermissionsCase {
+                            num_users,
+                            namespace_tree: namespace_tree.clone(),
+                            graph_paths: graph_paths.clone(),
+                            namespace_paths: namespace_paths.clone(),
+                            grants,
+                        }
+                    },
+                )
             })
         })
         .boxed()
