@@ -2370,6 +2370,7 @@ dependencies = [
  "raphtory-api",
  "raphtory-api-macros",
  "raphtory-core",
+ "raphtory-itertools",
  "rayon",
  "serde",
  "serde_json",
