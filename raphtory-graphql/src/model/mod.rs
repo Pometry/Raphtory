@@ -250,6 +250,50 @@ fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
     }
 }
 
+/// Applies the row filter and property redaction from a `GraphAccessFilter` to a graph.
+/// Returns the same `DynamicGraph` unchanged when neither filter is set.
+async fn apply_access_filter(
+    graph: DynamicGraph,
+    f: &GraphAccessFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    let graph = if let Some(ref row_filter) = f.filter {
+        apply_graph_filter(graph, row_filter.clone()).await?
+    } else {
+        graph
+    };
+    let redaction = build_redaction(f);
+    if redaction.has_restrictions() {
+        Ok(graph.redact_properties(&redaction).into_dynamic())
+    } else {
+        Ok(graph)
+    }
+}
+
+impl Data {
+    /// Loads a graph and applies row filter + property redaction from the caller's access
+    /// permission. Returns the graph folder (for metadata) and the filtered `DynamicGraph`.
+    /// Permission errors propagate as `Err`; callers that want `None` on denial (e.g. `graph()`)
+    /// should match on the result themselves.
+    async fn get_graph_with_permissions(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        let gwv = self.get_graph(path).await?;
+        let raw = gwv.graph.into_dynamic();
+        let graph = if let GraphPermission::Read {
+            filter: Some(ref f),
+        } = perm
+        {
+            apply_access_filter(raw, f).await?
+        } else {
+            raw
+        };
+        Ok((gwv.folder, graph))
+    }
+}
+
 /// Returns the namespace portion of a graph path: everything before the last `/`.
 /// For top-level graphs (no `/`), returns `""` (the root namespace).
 fn parent_namespace(path: &str) -> &str {
@@ -364,41 +408,12 @@ impl QueryRoot {
     /// Returns a graph
     async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
-
-        // Permission check: Err (denied or introspect-only) is converted to Ok(None) so the
-        // user sees null — indistinguishable from "graph not found". Warnings are logged inside
-        // require_at_least_read for cases where the user has namespace INTROSPECT visibility.
-        let perms = match require_at_least_read(ctx, &data.auth_policy, path) {
-            Ok(p) => p,
+        // Permission denial → Ok(None): indistinguishable from "graph not found" for the caller.
+        let (folder, graph) = match data.get_graph_with_permissions(ctx, path).await {
+            Ok(x) => x,
             Err(_) => return Ok(None),
         };
-
-        let graph_with_vecs = data.get_graph(path).await?;
-        let graph: DynamicGraph = graph_with_vecs.graph.into_dynamic();
-
-        // Row filter + property redaction — extracted once from the access filter.
-        let graph = if let GraphPermission::Read {
-            filter: Some(ref f),
-        } = perms
-        {
-            // Apply row filter (runs in blocking_compute inside apply_graph_filter).
-            let graph = if let Some(ref row_filter) = f.filter {
-                apply_graph_filter(graph, row_filter.clone()).await?
-            } else {
-                graph
-            };
-            // Build redaction and apply to graph at the view level (covers node, edge, and graph properties).
-            let redaction = build_redaction(f);
-            if redaction.has_restrictions() {
-                graph.redact_properties(&redaction).into_dynamic()
-            } else {
-                graph
-            }
-        } else {
-            graph
-        };
-
-        Ok(Some(GqlGraph::new(graph_with_vecs.folder, graph)))
+        Ok(Some(GqlGraph::new(folder, graph)))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
@@ -529,38 +544,11 @@ impl QueryRoot {
     /// Returns:: Base64 url safe encoded string
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let perm = require_at_least_read(ctx, &data.auth_policy, &path)?;
-        let raw = data.get_graph(&path).await?.graph;
-        let res = if let GraphPermission::Read {
-            filter: Some(ref f),
-            ..
-        } = perm
-        {
-            let graph = if let Some(ref row_filter) = f.filter {
-                apply_graph_filter(raw.into_dynamic(), row_filter.clone()).await?
-            } else {
-                raw.into_dynamic()
-            };
-            // Apply property redaction so the materialized graph only contains visible
-            // properties. Note: node/edge temporal properties copied via node.rows() bypass
-            // schema visibility and are not filtered here — metadata and graph-level
-            // properties are fully redacted.
-            let graph = {
-                let redaction = build_redaction(f);
-                if redaction.has_restrictions() {
-                    graph.redact_properties(&redaction).into_dynamic()
-                } else {
-                    graph
-                }
-            };
-            let materialized = blocking_compute(move || graph.materialize())
-                .await
-                .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-            url_encode_graph(materialized)?
-        } else {
-            url_encode_graph(raw)?
-        };
-        Ok(res)
+        let (_, graph) = data.get_graph_with_permissions(ctx, &path).await?;
+        let materialized = blocking_compute(move || graph.materialize())
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        Ok(url_encode_graph(materialized)?)
     }
 
     async fn version<'a>(_ctx: &Context<'a>) -> String {
