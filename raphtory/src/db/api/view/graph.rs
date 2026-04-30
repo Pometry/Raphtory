@@ -731,7 +731,28 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_nodes(&self) -> usize {
-        (&self).nodes().len()
+        if self.node_list_trusted() {
+            match self.node_list() {
+                NodeList::All => self.unfiltered_num_nodes(self.layer_ids()),
+                NodeList::List { elems } => elems.len(),
+            }
+        } else {
+            match self.node_list() {
+                NodeList::All => self
+                    .core_nodes()
+                    .as_ref()
+                    .par_iter()
+                    .filter(|node| self.filter_node(*node))
+                    .count(),
+                NodeList::List { elems } => {
+                    let nodes = self.core_nodes();
+                    elems
+                        .par_iter()
+                        .filter(|(_, node)| self.filter_node(nodes.node_entry(*node)))
+                        .count()
+                }
+            }
+        }
     }
 
     #[inline]
