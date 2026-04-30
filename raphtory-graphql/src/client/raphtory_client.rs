@@ -342,7 +342,8 @@ impl RaphtoryGraphQLClient {
         GraphQLRemoteGraph::new(path, self.clone())
     }
 
-    /// Create index on the server. `index_spec` must serialize to the GraphQL IndexSpecInput shape.
+    /// Create index on the server. `index_spec` must serialize to a value
+    /// compatible with the GraphQL `IndexSpecInput` type.
     pub async fn create_index(
         &self,
         path: &str,
