@@ -11,7 +11,7 @@ use raphtory::prelude::{GraphViewOps, NodeViewOps, Prop, PropUnwrap, PropertiesO
 use serde_json::json;
 use url::Url;
 
-use utils::strategy::{permissions_strategy, Permission, PermissionGrant};
+use utils::strategy::{permissions_strategy, GrantType, Permission, PermissionGrant};
 
 use utils::graphql::{
     create_graph, create_role, create_grant, get_client,
@@ -42,52 +42,30 @@ static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
 
 // Track a permission grant across the given namespace tree.
 fn track_grant(grant: &PermissionGrant, user_trees: &[MaterializedGraph]) {
-    match grant {
-        PermissionGrant::Graph { user_id, path, permission } => {
-            assert!(matches!(permission, Permission::Read | Permission::Write));
+    let user_id = grant.user_id;
+    let path = grant.path.as_str();
+    let permission = grant.permission;
 
-            let user_tree = &user_trees[*user_id];
+    let user_tree = &user_trees[user_id];
 
-            // Find the node in the tree corresponding to the given path.
-            let node_name = path.split('/').last().unwrap();
-            let node = user_tree.node(node_name).unwrap();
+    // Find the node in the tree corresponding to the given path.
+    let node_name = path.split('/').last().unwrap();
+    let node = user_tree.node(node_name).unwrap();
 
-            // Update the node's direct permission.
-            node
-                .update_metadata(vec![
-                    ("permission", Prop::Str(permission.to_string().into())),
-                    ("direct", Prop::Bool(true)),
-                ])
-                .unwrap();
+    // Update the node's direct permission.
+    node
+        .update_metadata(vec![
+            ("permission", Prop::Str(permission.to_string().into())),
+            ("direct", Prop::Bool(true)),
+        ])
+        .unwrap();
 
-            // Propagate discover to ancestor namespaces.
-            propagate_up(path, user_tree);
-        }
-        PermissionGrant::Namespace { user_id, path, permission } => {
-            assert!(
-                matches!(permission, Permission::Introspect | Permission::Read | Permission::Write)
-            );
+    // Propagate discover to ancestor namespaces.
+    propagate_up(path, user_tree);
 
-            let user_tree = &user_trees[*user_id];
-
-            // Find the node in the tree corresponding to the given path.
-            let node_name = path.split('/').last().unwrap();
-            let node = user_tree.node(node_name).unwrap();
-
-            // Update the node's direct permission.
-            node
-                .update_metadata(vec![
-                    ("permission", Prop::Str(permission.to_string().into())),
-                    ("direct", Prop::Bool(true)),
-                ])
-                .unwrap();
-
-            // Propagate discover to ancestor namespaces.
-            propagate_up(path, user_tree);
-
-            // Propagate the permission to descendant namespaces and graphs.
-            propagate_down(path, user_tree, *permission);
-        }
+    // Namespace grants also propagate to descendants.
+    if grant.grant_type == GrantType::Namespace {
+        propagate_down(path, user_tree, permission);
     }
 }
 

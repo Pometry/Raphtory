@@ -3,6 +3,7 @@ use std::str::FromStr;
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 use raphtory::prelude::*;
+use crate::utils::tree::{branch_paths, build_namespace_tree, leaf_paths};
 
 #[derive(Clone)]
 pub struct PermissionsCase {
@@ -23,18 +24,18 @@ impl fmt::Debug for PermissionsCase {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum GrantType {
+    Graph,
+    Namespace,
+}
+
 #[derive(Debug, Clone)]
-pub enum PermissionGrant {
-    Graph {
-        user_id: usize,
-        path: String,
-        permission: Permission,
-    },
-    Namespace {
-        user_id: usize,
-        path: String,
-        permission: Permission,
-    },
+pub struct PermissionGrant {
+    pub grant_type: GrantType,
+    pub user_id: usize,
+    pub path: String,
+    pub permission: Permission,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -136,14 +137,14 @@ fn grants_strategy(
                 if path_idx < namespace_paths.len() {
                     let path = namespace_paths[path_idx].clone();
 
-                    // FIXME: Include revoke permissions.
-                    // Exclude Discover since it cannot be applied directly to namespaces.
+                    // Exclude discover since it cannot be applied directly to namespaces.
                     prop_oneof![
                         Just(Permission::Introspect),
                         Just(Permission::Read),
                         Just(Permission::Write),
                     ]
-                    .prop_map(move |permission| PermissionGrant::Namespace {
+                    .prop_map(move |permission| PermissionGrant {
+                        grant_type: GrantType::Namespace,
                         user_id,
                         path: path.clone(),
                         permission,
@@ -153,13 +154,13 @@ fn grants_strategy(
                     let graph_idx = path_idx - namespace_paths.len();
                     let path = graph_paths[graph_idx].clone();
 
-                    // FIXME: Include revoke permissions.
-                    // Exclude Introspect since it cannot be applied directly to graphs.
+                    // Exclude introspect since it cannot be applied directly to graphs.
                     prop_oneof![
                         Just(Permission::Read),
                         Just(Permission::Write),
                     ]
-                    .prop_map(move |permission| PermissionGrant::Graph {
+                    .prop_map(move |permission| PermissionGrant {
+                        grant_type: GrantType::Graph,
                         user_id,
                         path: path.clone(),
                         permission,
@@ -171,99 +172,3 @@ fn grants_strategy(
     )
 }
 
-/// Build a namespace tree with the given number of nodes and parent relationships.
-/// `parents` is a slice of indices that represent the parent of each node.
-pub fn build_namespace_tree(parents: &[usize]) -> Graph {
-    let graph = Graph::new();
-
-    if parents.len() == 0 {
-        return graph;
-    }
-
-    for node in 0..parents.len() {
-        let name = format!("node_{node}");
-
-        graph
-            .add_node(0, name, NO_PROPS, None, None)
-            .unwrap();
-
-        // Root node has no parent.
-        if node == 0 {
-            continue;
-        }
-
-        let parent = parents[node];
-        let parent_name = format!("node_{parent}");
-        let node_name = format!("node_{node}");
-
-        graph
-            .add_edge(0, parent_name, node_name, NO_PROPS, None)
-            .unwrap();
-    }
-
-    graph
-}
-
-/// Build paths for all leaf nodes in the tree.
-/// Example: a -> b -> c returns ["a/b/c"]
-pub fn leaf_paths(tree: &Graph) -> Vec<String> {
-    let mut stack = Vec::new();
-    let root = tree.node("node_0").unwrap();
-    let parent_path = "".to_string();
-    let mut leaves = Vec::new();
-
-    stack.push((root, parent_path));
-
-    while let Some((node, parent_path)) = stack.pop() {
-        // Prevent leading slash in paths.
-        let node_path = if parent_path.is_empty() {
-            node.name()
-        } else {
-            [parent_path, node.name()].join("/")
-        };
-
-        let neighbours = node.out_neighbours();
-
-        if neighbours.is_empty() {
-            leaves.push(node_path);
-        } else {
-            for neighbour in node.out_neighbours() {
-                stack.push((neighbour, node_path.clone()));
-            }
-        }
-    }
-
-    leaves
-}
-
-/// Build paths for all branch nodes in the tree.
-/// Example: a -> b -> c returns ["a", "a/b"]
-pub fn branch_paths(tree: &Graph) -> Vec<String> {
-    let mut stack = Vec::new();
-    let root = tree.node("node_0").unwrap();
-    let parent_path = "".to_string();
-    let mut branches = Vec::new();
-
-    stack.push((root, parent_path));
-
-    while let Some((node, parent_path)) = stack.pop() {
-        // Prevent leading slash in paths.
-        let node_path = if parent_path.is_empty() {
-            node.name()
-        } else {
-            [parent_path, node.name()].join("/")
-        };
-
-        let neighbours = node.out_neighbours();
-
-        if !neighbours.is_empty() {
-            branches.push(node_path.clone());
-
-            for neighbour in neighbours {
-                stack.push((neighbour, node_path.clone()));
-            }
-        }
-    }
-
-    branches
-}

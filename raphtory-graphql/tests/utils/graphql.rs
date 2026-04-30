@@ -13,7 +13,7 @@ use tempfile::TempDir;
 use tokio::runtime::Runtime;
 use url::Url;
 
-use crate::utils::strategy::{Permission, PermissionGrant};
+use crate::utils::strategy::{GrantType, Permission, PermissionGrant};
 
 static AUTH_INIT: Once = Once::new();
 
@@ -83,15 +83,11 @@ pub fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
 }
 
 pub fn create_grant(client: &RaphtoryGraphQLClient, grant: &PermissionGrant) {
-    match grant {
-        PermissionGrant::Graph { user_id, path, permission } => {
-            let role = format!("user_{user_id}");
-            grant_graph(client, &role, path, *permission);
-        }
-        PermissionGrant::Namespace { user_id, path, permission } => {
-            let role = format!("user_{user_id}");
-            grant_namespace(client, &role, path, *permission);
-        }
+    let role = format!("user_{}", grant.user_id);
+
+    match grant.grant_type {
+        GrantType::Graph => grant_graph(client, &role, &grant.path, grant.permission),
+        GrantType::Namespace => grant_namespace(client, &role, &grant.path, grant.permission),
     }
 }
 
