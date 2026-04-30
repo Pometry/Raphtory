@@ -46,12 +46,29 @@ impl VID {
     }
 
     #[inline]
+    /// either return `self` if it is initialised, otherwise run the `init` closure
     pub fn or_init(self, init: impl FnOnce() -> VID) -> Self {
         if self.is_initialised() {
             self
         } else {
             init()
         }
+    }
+
+    #[inline]
+    /// either return `Some(self)` if it is initialised, otherwise, run the `init` closure
+    pub fn or_maybe_init(self, init: impl FnOnce() -> Option<VID>) -> Option<Self> {
+        if self.is_initialised() {
+            Some(self)
+        } else {
+            init()
+        }
+    }
+
+    #[inline]
+    /// return `Some(self)` if initialised, otherwise, `None`
+    pub fn into_option(self) -> Option<Self> {
+        self.is_initialised().then_some(self)
     }
 }
 

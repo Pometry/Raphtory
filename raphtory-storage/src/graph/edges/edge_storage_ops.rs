@@ -167,7 +167,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     #[inline]
     fn edge_ref(self, dir: Dir) -> EdgeRef {
-        EdgeRefOps::edge_ref(self, dir)
+        EdgeRefOps::edge_ref(self, dir).expect("valid edge entry should have edge ref info")
     }
 
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
@@ -193,11 +193,11 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     }
 
     fn src(self) -> VID {
-        EdgeRefOps::src(&self)
+        EdgeRefOps::src(&self).expect("valid edge entry should have src")
     }
 
     fn dst(self) -> VID {
-        EdgeRefOps::dst(&self)
+        EdgeRefOps::dst(&self).expect("valid edge entry should have dst")
     }
 
     fn eid(self) -> EID {

@@ -173,10 +173,10 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
 
     fn layer_t_prop(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
 
-    fn src(&self) -> VID;
+    fn src(&self) -> Option<VID>;
 
-    fn dst(&self) -> VID;
+    fn dst(&self) -> Option<VID>;
 
     fn edge_id(&self) -> EID;
-    fn edge_ref(self, dir: Dir) -> EdgeRef;
+    fn edge_ref(self, dir: Dir) -> Option<EdgeRef>;
 }

@@ -155,23 +155,18 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
     type TProps = EdgeTProps<'a>;
 
     #[inline]
-    fn edge_ref(self, dir: Dir) -> EdgeRef {
-        let es = &self
-            .es
-            .as_ref()
-            .first()
-            .expect("Valid edge ref should always have static graph layer");
-        let entry = es
-            .get(self.pos)
-            .expect("Valid edge ref should always have static graph entry");
+    fn edge_ref(self, dir: Dir) -> Option<EdgeRef> {
+        let es = &self.es.as_ref().first()?;
+        let entry = es.get(self.pos)?;
         let segment_id = es.segment_id();
         let max_page_len = es.max_page_len();
         let eid = self.pos.as_eid(segment_id, max_page_len);
         let src = entry.src;
         let dst = entry.dst;
-        EdgeRef::new(eid, src, dst, dir)
+        Some(EdgeRef::new(eid, src, dst, dir))
     }
 
+    #[inline]
     fn has_layer_inner(self, layer_id: LayerId) -> bool {
         self.es
             .as_ref()
@@ -179,38 +174,43 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
             .map_or(false, |seg| seg.has_item(self.pos))
     }
 
+    #[inline]
     fn layer_additions(self, layer_id: LayerId) -> Self::Additions {
         EdgeAdditions::new_with_layer(AdditionCellsRef::new(self), layer_id.0)
     }
 
+    #[inline]
     fn layer_deletions(self, layer_id: LayerId) -> Self::Deletions {
         EdgeDeletions::new_with_layer(DeletionCellsRef::new(self), layer_id.0)
     }
 
+    #[inline]
     fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         self.es.as_ref().get(layer_id.0)?.c_prop(self.pos, prop_id)
     }
 
+    #[inline]
     fn layer_t_prop(self, layer_id: LayerId, prop_id: usize) -> Self::TProps {
         EdgeTProps::new_with_layer(self, layer_id, prop_id)
     }
 
-    fn src(&self) -> VID {
+    #[inline]
+    fn src(&self) -> Option<VID> {
         self.es
             .as_ref()
             .first()
             .and_then(|layer| layer.get(self.pos).map(|entry| entry.src))
-            .expect("Valid edge ref should always have defined src")
     }
 
-    fn dst(&self) -> VID {
+    #[inline]
+    fn dst(&self) -> Option<VID> {
         self.es
             .as_ref()
             .first()
             .and_then(|layer| layer.get(self.pos).map(|entry| entry.dst))
-            .expect("Valid edge ref should always have defined dst")
     }
 
+    #[inline]
     fn edge_id(&self) -> EID {
         self.es
             .as_ref()
@@ -223,6 +223,7 @@ impl<'a> EdgeRefOps<'a> for MemEdgeRef<'a> {
             .expect("Valid edge ref should always have defined edge id")
     }
 
+    #[inline]
     fn internal_num_layers(self) -> usize {
         self.es.as_ref().len()
     }
