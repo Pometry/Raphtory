@@ -79,7 +79,6 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
 
     pub fn group(&self, index: usize) -> Option<(&V, Nodes<'graph, G>)> {
         self.groups.get(index).map(|(v, nodes)| {
-            dbg!(nodes);
             (
                 v,
                 Nodes::new_filtered(
