@@ -55,18 +55,16 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        let all_props: Vec<(usize, String, String)> = self
+        let visible: std::collections::HashSet<usize> =
+            self.graph.node_visible_temporal_prop_ids().collect();
+        let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
             .temporal_prop_mapper()
             .locked()
             .iter_ids_and_types()
-            .map(|(id, name, dtype)| (id, name.to_string(), dtype.to_string()))
-            .collect();
-        let (keys, property_types): (Vec<_>, Vec<_>) = all_props
-            .into_iter()
-            .filter(|(id, _, _)| self.graph.node_visible_temporal_prop_name(*id).is_some())
-            .map(|(_, name, dtype)| (name, dtype))
+            .filter(|(id, _, _)| visible.contains(id))
+            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
@@ -107,18 +105,16 @@ impl NodeSchema {
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
-        let all_meta: Vec<(usize, String, String)> = self
+        let visible: std::collections::HashSet<usize> =
+            self.graph.node_visible_metadata_ids().collect();
+        let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
             .metadata_mapper()
             .locked()
             .iter_ids_and_types()
-            .map(|(id, name, dtype)| (id, name.to_string(), dtype.to_string()))
-            .collect();
-        let (keys, property_types): (Vec<_>, Vec<_>) = all_meta
-            .into_iter()
-            .filter(|(id, _, _)| self.graph.node_visible_metadata_name(*id).is_some())
-            .map(|(_, name, dtype)| (name, dtype))
+            .filter(|(id, _, _)| visible.contains(id))
+            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
         if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
