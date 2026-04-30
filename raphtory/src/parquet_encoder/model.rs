@@ -195,7 +195,9 @@ pub(crate) struct ParquetTNode<'a> {
     pub export_id: GID,
     pub export_vid: usize,
     pub export_node_type: Option<ArcStr>,
-    pub export_layer: ArcStr,
+    /// `None` means STATIC_GRAPH_LAYER (id 0). We can't round-trip "_static_graph" through the loader
+    /// We leave LAYER_COL null for those rows and let the loader fall back.
+    pub export_layer: Option<ArcStr>,
     pub cols: &'a [ArcStr],
     pub t: EventTime,
     pub props: Vec<(usize, Prop)>,

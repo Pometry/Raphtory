@@ -126,9 +126,11 @@ pub fn load_nodes_from_df<
             let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
             // When no layer is specified, node properties go to STATIC_GRAPH_LAYER_ID.
             // resolve_layer(None) would return "_default" (LayerId 1), which is wrong for nodes.
+            // Null entries inside a layer column likewise mean STATIC_GRAPH_LAYER, so we use
+            // resolve_node_layer rather than resolve_layer.
             let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
                 let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
-                Some(layer_col.resolve_layer(None, graph)?)
+                Some(layer_col.resolve_node_layer(graph)?)
             } else {
                 None
             };

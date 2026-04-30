@@ -928,6 +928,7 @@ mod parquet_tests {
                         )],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),
@@ -1192,6 +1193,7 @@ mod parquet_tests {
                         c_props: vec![("b".to_string(), Prop::DTime(dt))],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),
@@ -1237,6 +1239,7 @@ mod parquet_tests {
                         c_props: vec![("b".to_string(), Prop::str("baa"))],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),

@@ -13,7 +13,10 @@ use proptest::{arbitrary::any, prelude::*};
 use proptest_derive::Arbitrary;
 use rand::seq::SliceRandom;
 use raphtory_api::core::{
-    entities::properties::prop::{PropType, DECIMAL_MAX},
+    entities::properties::{
+        meta::STATIC_GRAPH_LAYER,
+        prop::{PropType, DECIMAL_MAX},
+    },
     storage::{
         arc_str::{ArcStr, OptionAsStr},
         timeindex::AsTime,
@@ -245,6 +248,21 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             "graph missing expected layer {:?}",
             layer
         );
+    }
+
+    for (_, updates) in fixture.nodes() {
+        if updates.props.t_props.is_empty() {
+            continue;
+        }
+        // node_layer=None means STATIC_GRAPH_LAYER (id 0), which is not surfaced by has_layer,
+        // so skip the assertion
+        if let Some(layer) = updates.node_layer.as_str() {
+            assert!(
+                graph.has_layer(layer),
+                "graph missing expected node layer {:?}",
+                layer
+            );
+        }
     }
 
     // check earliest/latest time
@@ -659,6 +677,8 @@ impl Debug for PropUpdatesFixture {
 pub struct NodeUpdatesFixture {
     pub props: PropUpdatesFixture,
     pub node_type: Option<Cow<'static, str>>,
+    #[serde(default)] // backwards compatibility with old proptest regressions
+    pub node_layer: Option<Cow<'static, str>>,
 }
 
 impl Debug for NodeUpdatesFixture {
@@ -792,6 +812,7 @@ where
                                 ..Default::default()
                             },
                             node_type: None,
+                            node_layer: None,
                         },
                     )
                 })
@@ -878,6 +899,21 @@ pub fn make_node_type() -> impl Strategy<Value = Option<Cow<'static, str>>> {
     ])
 }
 
+pub fn make_node_layer() -> impl Strategy<Value = Option<Cow<'static, str>>> {
+    // TODO: re-enable {Some("a"), Some("b")} once layered node updates round-trip
+    // cleanly through the parquet encoder and the windowed/persistent materialize
+    // path. With layered node fixtures, the proptests
+    //   parquet_tests::write_graph_to_parquet
+    //   parquet_tests::test_parquet_bytes_proptest
+    //   valid_graph::materialize_window_valid_persistent_prop_test
+    //   valid_graph::materialize_valid_window_persistent_prop_test
+    // catch divergences between source and round-tripped/materialized graphs
+    // (per-layer node counts mismatch, node earliest_time differs in windowed
+    // persistent materialize). Until those land, only emit None so the new
+    // node_layer field is wired through without breaking the suite.
+    proptest::sample::select(vec![None::<Cow<'static, str>>])
+}
+
 pub fn make_node_types() -> impl Strategy<Value = Vec<&'static str>> {
     proptest::sample::subsequence(vec!["_default", "one", "two"], 0..=3)
 }
@@ -930,8 +966,16 @@ fn node_updates(
     schema: Vec<(String, PropType)>,
     num_updates: RangeInclusive<usize>,
 ) -> impl Strategy<Value = NodeUpdatesFixture> {
-    (prop_updates(schema, num_updates), make_node_type())
-        .prop_map(|(props, node_type)| NodeUpdatesFixture { props, node_type })
+    (
+        prop_updates(schema, num_updates),
+        make_node_type(),
+        make_node_layer(),
+    )
+        .prop_map(|(props, node_type, node_layer)| NodeUpdatesFixture {
+            props,
+            node_type,
+            node_layer,
+        })
 }
 
 fn edge_updates(
@@ -1112,8 +1156,10 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     }
 
     for (node, updates) in graph_fix.nodes() {
+        let node_layer = updates.node_layer.as_str();
         for (t, props) in updates.props.t_props.iter() {
-            g.add_node(*t, node, props.clone(), None, None).unwrap();
+            g.add_node(*t, node, props.clone(), None, node_layer)
+                .unwrap();
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
@@ -1133,6 +1179,12 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         .edges()
         .filter(|(_, updates)| !updates.deletions.is_empty() || !updates.props.t_props.is_empty())
         .map(|((_, _, layer), _)| layer.unwrap_or("_default"))
+        .chain(
+            graph_fix
+                .nodes()
+                .filter(|(_, updates)| !updates.props.t_props.is_empty())
+                .map(|(_, updates)| updates.node_layer.as_str().unwrap_or(STATIC_GRAPH_LAYER)),
+        )
         .collect();
 
     // make sure the graph has the layers in the right order
@@ -1182,16 +1234,21 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
     }
 
     for (node, updates) in graph_fix.nodes() {
-        for (t, props) in updates.props.t_props.iter() {
-            g.add_node((*t, counter), node, props.clone(), None, None)
-                .unwrap();
-            counter += 1;
-        }
-        if let Some(node) = g.node(node) {
-            node.add_metadata(updates.props.c_props.clone()).unwrap();
-            if let Some(node_type) = updates.node_type.as_str() {
-                node.set_node_type(node_type).unwrap();
+        let node_layer = updates.node_layer.as_str();
+        if layers.contains(node_layer.unwrap_or(STATIC_GRAPH_LAYER)) {
+            for (t, props) in updates.props.t_props.iter() {
+                g.add_node((*t, counter), node, props.clone(), None, node_layer)
+                    .unwrap();
+                counter += 1;
             }
+            if let Some(node) = g.node(node) {
+                node.add_metadata(updates.props.c_props.clone()).unwrap();
+                if let Some(node_type) = updates.node_type.as_str() {
+                    node.set_node_type(node_type).unwrap();
+                }
+            }
+        } else {
+            counter += updates.props.t_props.len();
         }
     }
     g

@@ -131,6 +131,54 @@ impl<'a> LayerCol<'a> {
         }
     }
 
+    /// Resolve layer ids for a node-loading column, where a null entry means STATIC_GRAPH_LAYER (id 0)
+    /// This differs from `resolve_layer`, which maps null to "_default" via `graph.resolve_layer(None)`
+    pub fn resolve_node_layer<'b>(
+        self,
+        graph: &(impl AdditionOps + Send + Sync),
+    ) -> Result<Cow<'b, [usize]>, GraphError> {
+        match self {
+            // avoid resolving None to _default like in edges
+            LayerCol::Name { name: None, len } => Ok(Cow::Owned(vec![0usize; len])),
+            LayerCol::Name {
+                name: Some(name),
+                len,
+            } => {
+                let layer = graph
+                    .resolve_layer(Some(name.as_ref()))
+                    .map_err(into_graph_err)?
+                    .inner()
+                    .0;
+                Ok(Cow::Owned(vec![layer; len]))
+            }
+            col => {
+                let mut res = vec![0usize; col.len()];
+                let mut last_name: Option<&str> = None;
+                let mut last_layer: usize = 0;
+                for (row, name) in col.iter().enumerate() {
+                    match name {
+                        None => res[row] = 0,
+                        Some(n) => {
+                            if last_name == Some(n) {
+                                res[row] = last_layer;
+                            } else {
+                                let layer = graph
+                                    .resolve_layer(Some(n))
+                                    .map_err(into_graph_err)?
+                                    .inner()
+                                    .0;
+                                res[row] = layer;
+                                last_name = Some(n);
+                                last_layer = layer;
+                            }
+                        }
+                    }
+                }
+                Ok(Cow::Owned(res))
+            }
+        }
+    }
+
     pub fn resolve_layer<'b>(
         self,
         layer_id_col: Option<&'b [u64]>,

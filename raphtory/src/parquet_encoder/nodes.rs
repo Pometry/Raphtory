@@ -77,7 +77,10 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                                 export_id: node.id(),
                                 export_vid: node.node.0,
                                 export_node_type: node.node_type(),
-                                export_layer: layer_meta.get_name(layer_id.0),
+                                // emit null for STATIC_GRAPH_LAYER (id 0) so
+                                // the loader's null-row fallback restores it
+                                export_layer: (layer_id.0 != 0)
+                                    .then(|| layer_meta.get_name(layer_id.0)),
                                 cols,
                                 t,
                                 props,
