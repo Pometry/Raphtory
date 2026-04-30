@@ -1,4 +1,5 @@
 use std::{fmt, ops::RangeInclusive};
+use std::str::FromStr;
 use proptest::prelude::*;
 use proptest::strategy::BoxedStrategy;
 use raphtory::prelude::*;
@@ -44,13 +45,27 @@ pub enum Permission {
     Write,
 }
 
-impl Permission {
-    pub(crate) fn as_str(self) -> &'static str {
+impl fmt::Display for Permission {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Permission::Discover => "DISCOVER",
-            Permission::Introspect => "INTROSPECT",
-            Permission::Read => "READ",
-            Permission::Write => "WRITE",
+            Permission::Discover => f.write_str("DISCOVER"),
+            Permission::Introspect => f.write_str("INTROSPECT"),
+            Permission::Read => f.write_str("READ"),
+            Permission::Write => f.write_str("WRITE"),
+        }
+    }
+}
+
+impl FromStr for Permission {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "DISCOVER" => Ok(Permission::Discover),
+            "INTROSPECT" => Ok(Permission::Introspect),
+            "READ" => Ok(Permission::Read),
+            "WRITE" => Ok(Permission::Write),
+            _ => Err("invalid permission"),
         }
     }
 }

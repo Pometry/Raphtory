@@ -3,6 +3,8 @@ use std::sync::{LazyLock, Once};
 use std::time::Duration;
 
 use raphtory::db::api::storage::storage::Config;
+use raphtory::db::api::view::MaterializedGraph;
+use raphtory::db::graph::node::NodeView;
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory_graphql::config::app_config::AppConfigBuilder;
 use raphtory_graphql::server::{apply_server_extension, GraphServer, RunningGraphServer};
@@ -60,10 +62,9 @@ pub fn start_server(port: u16, pub_key: &str) -> (RunningGraphServer, TempDir) {
     })
 }
 
-fn gql(client: &RaphtoryGraphQLClient, query: &str) -> HashMap<String, JsonValue> {
-    RUNTIME
-        .block_on(client.query(query, HashMap::new()))
-        .unwrap_or_else(|e| panic!("Error executing query {query}: {e}"))
+/// Create a graph on the graphql server using the given path.
+pub fn create_graph(client: &RaphtoryGraphQLClient, path: &str) {
+    RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
 }
 
 pub fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
@@ -79,11 +80,6 @@ pub fn create_role(client: &RaphtoryGraphQLClient, name: &str) {
         .and_then(JsonValue::as_bool);
 
     assert_eq!(success, Some(true), "createRole {name} data: {data:?}");
-}
-
-/// Create a graph on the graphql server using the given path.
-pub fn create_graph(client: &RaphtoryGraphQLClient, path: &str) {
-    RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
 }
 
 pub fn create_grant(client: &RaphtoryGraphQLClient, grant: &PermissionGrant) {
@@ -107,7 +103,7 @@ pub fn grant_graph(
 ) {
     let query = format!(
         r#"mutation {{ permissions {{ grantGraph(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
-        permission.as_str()
+        permission
     );
 
     let data = gql(client, &query);
@@ -121,8 +117,7 @@ pub fn grant_graph(
     assert_eq!(
         success,
         Some(true),
-        "grantGraph role={role} path={path} permission={} data: {data:?}",
-        permission.as_str()
+        "grantGraph role={role} path={path} permission={permission} data: {data:?}"
     );
 }
 
@@ -134,7 +129,7 @@ pub fn grant_namespace(
 ) {
     let query = format!(
         r#"mutation {{ permissions {{ grantNamespace(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
-        permission.as_str()
+        permission
     );
 
     let data = gql(client, &query);
@@ -148,7 +143,20 @@ pub fn grant_namespace(
     assert_eq!(
         success,
         Some(true),
-        "grantNamespace role={role} path={path} permission={} data: {data:?}",
-        permission.as_str()
+        "grantNamespace role={role} path={path} permission={permission} data: {data:?}"
     );
+}
+
+pub fn validate_graph_grant(node: &NodeView<'_, MaterializedGraph>, permission: Option<Permission>) {
+    todo!()
+}
+
+pub fn validate_namespace_grant(node: &NodeView<'_, MaterializedGraph>, permission: Option<Permission>) {
+    todo!()
+}
+
+fn gql(client: &RaphtoryGraphQLClient, query: &str) -> HashMap<String, JsonValue> {
+    RUNTIME
+        .block_on(client.query(query, HashMap::new()))
+        .unwrap_or_else(|e| panic!("Error executing query {query}: {e}"))
 }
