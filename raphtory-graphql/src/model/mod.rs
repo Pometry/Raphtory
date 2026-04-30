@@ -263,7 +263,7 @@ async fn apply_access_filter(
     };
     let redaction = build_redaction(f);
     if redaction.has_restrictions() {
-        Ok(graph.redact_properties(&redaction).into_dynamic())
+        Ok(graph.exclude_properties(&redaction).into_dynamic())
     } else {
         Ok(graph)
     }

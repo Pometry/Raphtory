@@ -42,6 +42,39 @@ impl PropertyRedaction {
             || !self.graph_hidden_props.is_empty()
             || !self.graph_hidden_meta.is_empty()
     }
+
+    pub fn with_node_props<I: IntoIterator<Item = S>, S: Into<String>>(mut self, props: I) -> Self {
+        self.node_hidden_props = props.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_node_meta<I: IntoIterator<Item = S>, S: Into<String>>(mut self, props: I) -> Self {
+        self.node_hidden_meta = props.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_edge_props<I: IntoIterator<Item = S>, S: Into<String>>(mut self, props: I) -> Self {
+        self.edge_hidden_props = props.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_edge_meta<I: IntoIterator<Item = S>, S: Into<String>>(mut self, props: I) -> Self {
+        self.edge_hidden_meta = props.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_graph_props<I: IntoIterator<Item = S>, S: Into<String>>(
+        mut self,
+        props: I,
+    ) -> Self {
+        self.graph_hidden_props = props.into_iter().map(Into::into).collect();
+        self
+    }
+
+    pub fn with_graph_meta<I: IntoIterator<Item = S>, S: Into<String>>(mut self, props: I) -> Self {
+        self.graph_hidden_meta = props.into_iter().map(Into::into).collect();
+        self
+    }
 }
 
 /// Precomputed boolean visibility arrays for all property categories.
@@ -362,7 +395,7 @@ mod tests {
     #[test]
     fn test_exclude_node_temporal_property() {
         let g = make_graph();
-        let view = g.exclude_node_properties(["salary"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_node_props(["salary"]));
         let alice = view.node("alice").unwrap();
         assert!(
             alice.properties().get("salary").is_none(),
@@ -377,7 +410,7 @@ mod tests {
     #[test]
     fn test_exclude_node_metadata() {
         let g = make_graph();
-        let view = g.exclude_node_metadata(["ssn"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_node_meta(["ssn"]));
         let alice = view.node("alice").unwrap();
         assert!(
             alice.metadata().get("ssn").is_none(),
@@ -387,7 +420,6 @@ mod tests {
             alice.metadata().get("dept").is_some(),
             "dept should be visible"
         );
-        // temporal properties are unaffected
         assert!(
             alice.properties().get("salary").is_some(),
             "salary temporal prop should still be visible"
@@ -397,8 +429,7 @@ mod tests {
     #[test]
     fn test_exclude_node_properties_does_not_hide_metadata() {
         let g = make_graph();
-        // exclude_node_properties only hides temporal props, not metadata
-        let view = g.exclude_node_properties(["salary"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_node_props(["salary"]));
         let alice = view.node("alice").unwrap();
         assert!(
             alice.properties().get("salary").is_none(),
@@ -413,7 +444,7 @@ mod tests {
     #[test]
     fn test_exclude_edge_properties() {
         let g = make_graph();
-        let view = g.exclude_edge_properties(["amount"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_edge_props(["amount"]));
         let e = view.edge("alice", "bob").unwrap();
         assert!(
             e.properties().get("amount").is_none(),
@@ -432,7 +463,7 @@ mod tests {
     #[test]
     fn test_exclude_edge_metadata() {
         let g = make_graph();
-        let view = g.exclude_edge_metadata(["ref"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_edge_meta(["ref"]));
         let e = view.edge("alice", "bob").unwrap();
         assert!(
             e.metadata().get("ref").is_none(),
@@ -451,7 +482,7 @@ mod tests {
     #[test]
     fn test_exclude_graph_properties() {
         let g = make_graph();
-        let view = g.exclude_graph_properties(["env"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_graph_props(["env"]));
         assert!(
             view.properties().get("env").is_none(),
             "env should be hidden"
@@ -469,7 +500,7 @@ mod tests {
     #[test]
     fn test_exclude_graph_metadata() {
         let g = make_graph();
-        let view = g.exclude_graph_metadata(["secret"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_graph_meta(["secret"]));
         assert!(
             view.metadata().get("secret").is_none(),
             "secret metadata should be hidden"
@@ -487,9 +518,11 @@ mod tests {
     #[test]
     fn test_chaining_node_and_edge() {
         let g = make_graph();
-        let view = g
-            .exclude_node_properties(["salary"])
-            .exclude_edge_properties(["amount"]);
+        let view = g.exclude_properties(
+            &PropertyRedaction::default()
+                .with_node_props(["salary"])
+                .with_edge_props(["amount"]),
+        );
         let alice = view.node("alice").unwrap();
         let e = view.edge("alice", "bob").unwrap();
         assert!(
@@ -513,7 +546,7 @@ mod tests {
     #[test]
     fn test_materialize_redacts_node_temporal_property() {
         let g = make_graph();
-        let view = g.exclude_node_properties(["salary"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_node_props(["salary"]));
         let materialized = view.materialize().unwrap();
         let alice = materialized.node("alice").unwrap();
         assert!(
@@ -529,7 +562,7 @@ mod tests {
     #[test]
     fn test_materialize_redacts_node_metadata() {
         let g = make_graph();
-        let view = g.exclude_node_metadata(["ssn"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_node_meta(["ssn"]));
         let materialized = view.materialize().unwrap();
         let alice = materialized.node("alice").unwrap();
         assert!(
@@ -545,7 +578,7 @@ mod tests {
     #[test]
     fn test_materialize_redacts_edge_metadata() {
         let g = make_graph();
-        let view = g.exclude_edge_metadata(["ref"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_edge_meta(["ref"]));
         let materialized = view.materialize().unwrap();
         let e = materialized.edge("alice", "bob").unwrap();
         assert!(
@@ -561,7 +594,7 @@ mod tests {
     #[test]
     fn test_materialize_redacts_graph_metadata() {
         let g = make_graph();
-        let view = g.exclude_graph_metadata(["secret"]);
+        let view = g.exclude_properties(&PropertyRedaction::default().with_graph_meta(["secret"]));
         let materialized = view.materialize().unwrap();
         assert!(
             materialized.metadata().get("secret").is_none(),
@@ -576,8 +609,9 @@ mod tests {
     #[test]
     fn test_window_then_exclude() {
         let g = make_graph();
-        // Chaining with time operations works because WindowedGraph: GraphViewOps
-        let view = g.window(0, 2).exclude_node_properties(["salary"]);
+        let view = g
+            .window(0, 2)
+            .exclude_properties(&PropertyRedaction::default().with_node_props(["salary"]));
         let alice = view.node("alice").unwrap();
         assert!(
             alice.properties().get("salary").is_none(),
