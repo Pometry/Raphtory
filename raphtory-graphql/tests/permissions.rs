@@ -150,11 +150,12 @@ fn validate_grant(
 fn permissions_proptest() {
     const PROPTEST_CASES: u32 = 10;
     const NAMESPACE_SIZE: RangeInclusive<usize> = 1..=20;
+    const NUM_GRANTS: RangeInclusive<usize> = 1..=20;
     const NUM_USERS: RangeInclusive<usize> = 1..=10;
 
     proptest!(
         ProptestConfig::with_cases(PROPTEST_CASES),
-        |(case in permissions_strategy(NAMESPACE_SIZE, NUM_USERS))| {
+        |(case in permissions_strategy(NAMESPACE_SIZE, NUM_GRANTS, NUM_USERS))| {
             let (_server, _tempdir) = start_server(PORT, PUB_KEY);
 
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();

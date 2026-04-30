@@ -75,26 +75,33 @@ impl FromStr for Permission {
 
 pub fn permissions_strategy(
     namespace_size: RangeInclusive<usize>,
+    num_grants: RangeInclusive<usize>,
     num_users: RangeInclusive<usize>,
 ) -> BoxedStrategy<PermissionsCase> {
     (namespace_size, num_users)
-        .prop_flat_map(|(namespace_size, num_users)| {
+        .prop_flat_map(move |(namespace_size, num_users)| {
+            let num_grants = num_grants.clone();
+
             parents_strategy(namespace_size).prop_flat_map(move |parents| {
                 let namespace_tree = build_namespace_tree(&parents);
                 let graph_paths = leaf_paths(&namespace_tree);
                 let namespace_paths = branch_paths(&namespace_tree);
 
-                grants_strategy(num_users, graph_paths.clone(), namespace_paths.clone()).prop_map(
-                    move |grants| {
-                        PermissionsCase {
-                            num_users,
-                            namespace_tree: namespace_tree.clone(),
-                            graph_paths: graph_paths.clone(),
-                            namespace_paths: namespace_paths.clone(),
-                            grants,
-                        }
-                    },
+                grants_strategy(
+                    num_grants.clone(),
+                    graph_paths.clone(),
+                    namespace_paths.clone(),
+                    num_users,
                 )
+                .prop_map(move |grants| {
+                    PermissionsCase {
+                        num_users,
+                        namespace_tree: namespace_tree.clone(),
+                        graph_paths: graph_paths.clone(),
+                        namespace_paths: namespace_paths.clone(),
+                        grants,
+                    }
+                })
             })
         })
         .boxed()
@@ -127,13 +134,13 @@ fn parents_strategy(tree_size: usize) -> BoxedStrategy<Vec<usize>> {
 }
 
 fn grants_strategy(
-    num_users: usize,
+    num_grants: RangeInclusive<usize>,
     graph_paths: Vec<String>,
     namespace_paths: Vec<String>,
+    num_users: usize,
 ) -> impl Strategy<Value = Vec<PermissionGrant>> {
     let max_user = num_users - 1;
     let total_paths = namespace_paths.len() + graph_paths.len();
-    let num_grants = 1..=total_paths; // FIXME: Increase this to 3x.
 
     prop::collection::vec(
         (0..=max_user, 0..total_paths)

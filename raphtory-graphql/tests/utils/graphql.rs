@@ -147,11 +147,33 @@ pub fn validate_graph_grant(
     client: &RaphtoryGraphQLClient,
 ) {
     match permission {
-        Some(_) => {
-            return;
+        Some(permission_enum) => {
+            match permission_enum {
+                Permission::Discover => {
+                    panic!("Discover permission is not supported for graphs");
+                }
+                Permission::Introspect => {
+                    assert!(can_introspect_graph(path, client), "graph {path} should be introspectable");
+                    assert!(!can_read_graph(path, client), "graph {path} should not be readable");
+                    assert!(!can_write_graph(path, client), "graph {path} should not be writable");
+                }
+                Permission::Read => {
+                    assert!(can_introspect_graph(path, client), "graph {path} should be introspectable");
+                    assert!(can_read_graph(path, client), "graph {path} should be readable");
+                    assert!(!can_write_graph(path, client), "graph {path} should not be writable");
+                }
+                Permission::Write => {
+                    assert!(can_introspect_graph(path, client), "graph {path} should be introspectable");
+                    assert!(can_read_graph(path, client), "graph {path} should be readable");
+                    assert!(can_write_graph(path, client), "graph {path} should be writable");
+                }
+            }
         }
         None => {
-            todo!()
+            // Graph has no permission attributed to it, no access should be allowed.
+            assert!(!can_read_graph(path, client), "graph {path} should not be readable");
+            assert!(!can_introspect_graph(path, client), "graph {path} should not be introspectable");
+            assert!(!can_write_graph(path, client), "graph {path} should not be writable");
         }
     }
 }
@@ -161,7 +183,36 @@ pub fn validate_namespace_grant(
     permission: Option<Permission>,
     client: &RaphtoryGraphQLClient,
 ) {
-    let _ = (path, permission, client);
+    match permission {
+        Some(permission_enum) => {
+            match permission_enum {
+                Permission::Discover => {
+                    assert!(can_discover_namespace(path, client), "namespace {path} should be discoverable");
+                    assert!(!can_introspect_namespace(path, client), "namespace {path} should not be introspectable");
+                }
+                Permission::Introspect => {
+                    assert!(can_introspect_namespace(path, client), "namespace {path} should be introspectable");
+                }
+                _ => {
+                    // Ignore READ and WRITE permissions since they are propagated down to graphs
+                    // and are tested separately.
+                }
+            }
+        }
+        None => {
+            // Namespace has no permission attributed to it, no access should be allowed.
+            assert!(!can_discover_namespace(path, client), "namespace {path} should not be discoverable");
+            assert!(!can_introspect_namespace(path, client), "namespace {path} should not be introspectable");
+        }
+    }
+}
+
+pub fn can_introspect_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let query = format!(r#"query {{ graphMetadata(path: "{path}") {{ path nodeCount }} }}"#);
+    let data = gql(&query, client);
+
+    data.get("graphMetadata")
+        .is_some_and(|metadata| !metadata.is_null())
 }
 
 pub fn can_read_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
@@ -172,14 +223,6 @@ pub fn can_read_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
         .and_then(|graph| graph.get("path"))
         .and_then(JsonValue::as_str)
         .is_some_and(|graph_path| graph_path == path)
-}
-
-pub fn can_introspect_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
-    let query = format!(r#"query {{ graphMetadata(path: "{path}") {{ path nodeCount }} }}"#);
-    let data = gql(&query, client);
-
-    data.get("graphMetadata")
-        .is_some_and(|metadata| !metadata.is_null())
 }
 
 pub fn can_write_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
