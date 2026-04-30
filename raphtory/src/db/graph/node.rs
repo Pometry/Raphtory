@@ -296,9 +296,18 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         let graph = &self.graph;
+        let visible: std::collections::HashSet<usize> =
+            graph.node_visible_temporal_prop_ids().collect();
         GenLockedIter::from(node, move |node| {
             semantics
                 .node_updates(node.as_ref(), graph)
+                .map(move |(t, l, row)| {
+                    let row: Vec<_> = row
+                        .into_iter()
+                        .filter(|(id, _)| visible.contains(id))
+                        .collect();
+                    (t, l, row)
+                })
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()

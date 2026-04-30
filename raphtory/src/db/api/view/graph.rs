@@ -134,25 +134,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// ```
     fn exclude_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<Self>;
 
-    /// Filter a temporal property row for a node during materialization.
-    /// Removes property IDs that are not visible according to [`NodePropertySchemaOps`].
-    ///
-    /// For graphs without property redaction every ID is visible, so the original `Vec` is
-    /// returned as-is (no allocation). For [`PropertyRedactedGraph`] the overridden
-    /// `node_visible_temporal_prop_name` returns `None` for hidden IDs, filtering them out.
-    fn filter_node_prop_row(&self, row: Vec<(usize, Prop)>) -> Vec<(usize, Prop)> {
-        if row
-            .iter()
-            .all(|(id, _)| self.node_visible_temporal_prop_name(*id).is_some())
-        {
-            row
-        } else {
-            row.into_iter()
-                .filter(|(id, _)| self.node_visible_temporal_prop_name(*id).is_some())
-                .collect()
-        }
-    }
-
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
 
@@ -417,12 +398,7 @@ fn materialize_impl(
                         .set_node(gid.as_ref(), new_id)?;
 
                     for (t, l, row) in node.rows() {
-                        writer.add_props(
-                            t,
-                            node_pos,
-                            LayerId(l.0),
-                            graph.filter_node_prop_row(row),
-                        );
+                        writer.add_props(t, node_pos, LayerId(l.0), row);
                     }
 
                     writer.update_c_props(
