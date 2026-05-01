@@ -107,16 +107,12 @@ def test_graphql_and_read_only_handle_interleaved():
             gql_nodes = client.query(
                 '{ graph(path: "g") { nodes { page(limit: 100) { name } } } }'
             )
-            assert (
-                len(gql_nodes["graph"]["nodes"]["page"]) == ro.count_nodes() == 3
-            )
+            assert len(gql_nodes["graph"]["nodes"]["page"]) == ro.count_nodes() == 3
 
             gql_edges = client.query(
                 '{ graph(path: "g") { edges { page(limit: 100) { src { name } } } } }'
             )
-            assert (
-                len(gql_edges["graph"]["edges"]["page"]) == ro.count_edges() == 3
-            )
+            assert len(gql_edges["graph"]["edges"]["page"]) == ro.count_edges() == 3
 
 
 def test_read_only_load_blocks_all_mutation_paths():
@@ -144,9 +140,9 @@ def test_read_only_load_blocks_all_mutation_paths():
             with pytest.raises(Exception) as exc:
                 mutate()
             msg = str(exc.value).lower()
-            assert "locked" in msg or "immutable" in msg, (
-                f"{name} did not raise a locked/immutable error: {exc.value}"
-            )
+            assert (
+                "locked" in msg or "immutable" in msg
+            ), f"{name} did not raise a locked/immutable error: {exc.value}"
 
 
 def test_writer_load_against_live_server_directory_fails():

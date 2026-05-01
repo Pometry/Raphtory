@@ -450,8 +450,7 @@ def test_namespace_listing_does_not_load_each_graph():
         for i in range(n_graphs):
             client.send_graph(f"bulk_{i}", g, overwrite=True)
 
-        result = client.query(
-            """{
+        result = client.query("""{
               root {
                 graphs {
                   list {
@@ -462,8 +461,7 @@ def test_namespace_listing_does_not_load_each_graph():
                   }
                 }
               }
-            }"""
-        )
+            }""")
 
         graphs = result["root"]["graphs"]["list"]
         assert len(graphs) == n_graphs

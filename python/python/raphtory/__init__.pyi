@@ -1086,7 +1086,9 @@ class Graph(GraphView):
         """
 
     @staticmethod
-    def load(path: str | PathLike, config: Optional[Config] = None) -> Graph:
+    def load(
+        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+    ) -> Graph:
         """
         Load a disk graph from path
 
@@ -1094,6 +1096,9 @@ class Graph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
+            read_only (bool): open as a read-only snapshot. Multiple processes can hold
+                              a read-only handle to the same graph directory concurrently;
+                              mutating the returned graph will fail. Defaults to ``False``.
 
         Returns:
             Graph: the graph
@@ -1708,7 +1713,9 @@ class PersistentGraph(GraphView):
         """
 
     @staticmethod
-    def load(path: str | PathLike, config: Optional[Config]) -> PersistentGraph:
+    def load(
+        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+    ) -> PersistentGraph:
         """
         Load a disk graph from path
 
@@ -1716,6 +1723,9 @@ class PersistentGraph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
+            read_only (bool): open as a read-only snapshot. Multiple processes can hold
+                              a read-only handle to the same graph directory concurrently;
+                              mutating the returned graph will fail. Defaults to ``False``.
 
         Returns:
             PersistentGraph: the graph
