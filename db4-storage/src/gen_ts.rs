@@ -6,6 +6,7 @@ use raphtory_core::{
     entities::{ELID, LayerIds, layers::Multiple},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
+use raphtory_itertools::FastMergeExt;
 
 use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter3};
 
@@ -304,7 +305,7 @@ where
                     .additions_tc(layer_id, self.range)
                     .map(|t_cell| t_cell.edge_events())
             })
-            .kmerge_by(|a, b| a < b)
+            .fast_merge_by(|a, b| a < b)
     }
 
     pub fn edge_events_rev(self) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
@@ -315,7 +316,7 @@ where
                     .additions_tc(layer_id, self.range)
                     .map(|t_cell| t_cell.edge_events_rev())
             })
-            .kmerge_by(|a, b| a > b)
+            .fast_merge_by(|a, b| a > b)
     }
 }
 
@@ -335,12 +336,14 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
 
     fn into_iter(self) -> impl Iterator<Item = EventTime> + Send + Sync + 'a {
         let iters = self.time_cells();
-        iters.map(|cell| cell.iter()).kmerge()
+        iters.map(|cell| cell.iter()).fast_merge()
     }
 
     fn into_iter_rev(self) -> impl Iterator<Item = EventTime> + Send + Sync + 'a {
         let iters = self.time_cells();
-        iters.map(|cell| cell.iter_rev()).kmerge_by(|a, b| a > b)
+        iters
+            .map(|cell| cell.iter_rev())
+            .fast_merge_by(|a, b| a > b)
     }
 }
 

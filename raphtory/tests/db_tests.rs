@@ -1577,11 +1577,15 @@ fn test_props() {
     g.add_edge(2, 1, 2, NO_PROPS, None).unwrap();
 
     let exploded = g.edge(1, 2).unwrap().explode();
-    let res = exploded
-        .properties()
-        .map(|p| p.as_vec().len())
-        .collect_vec();
-    assert_eq!(res, vec![1, 1, 0]);
+    let res = exploded.properties().map(|p| p.as_vec()).collect_vec();
+    assert_eq!(
+        res,
+        vec![
+            vec![("weight".into(), Prop::I64(1))],
+            vec![("weight".into(), Prop::I64(2))],
+            vec![]
+        ]
+    );
 }
 
 #[test]

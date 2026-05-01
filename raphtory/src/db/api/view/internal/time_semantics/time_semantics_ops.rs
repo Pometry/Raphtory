@@ -164,6 +164,21 @@ pub trait NodeTimeSemanticsOps {
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph;
 
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)>;
+
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)>;
+
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -571,6 +586,22 @@ pub trait EdgeTimeSemanticsOps {
         view: G,
         prop_id: usize,
         t: EventTime,
+        w: Range<EventTime>,
+    ) -> Option<Prop>;
+
+    // /// Return the last value of a temporal edge property at or before a given point in time
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop>;
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
         w: Range<EventTime>,
     ) -> Option<Prop>;
 

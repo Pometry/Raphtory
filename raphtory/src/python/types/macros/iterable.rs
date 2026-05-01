@@ -3,11 +3,19 @@ macro_rules! _py_numeric_methods {
     ($name:ident, $item:ty, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Sum of all values in the iterable.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn sum(&self) -> $pyitem {
                 let v: $item = self.iter().sum();
                 v.into()
             }
 
+            /// Mean of all values in the iterable.
+            ///
+            /// Returns:
+            ///     float:
             pub fn mean(&self) -> f64 {
                 use $crate::python::types::wrappers::iterables::MeanExt;
                 self.iter().mean()
@@ -21,10 +29,18 @@ macro_rules! _py_ord_max_min_methods {
     ($name:ident, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Maximum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn max(&self) -> Option<$pyitem> {
                 self.iter().max().map(|v| v.into())
             }
 
+            /// Minimum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn min(&self) -> Option<$pyitem> {
                 self.iter().min().map(|v| v.into())
             }
@@ -37,9 +53,17 @@ macro_rules! _py_float_max_min_methods {
     ($name:ident, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Maximum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn max(&self) -> Option<$pyitem> {
                 self.iter().max_by(|a, b| a.total_cmp(b)).map(|v| v.into())
             }
+            /// Minimum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn min(&self) -> Option<$pyitem> {
                 self.iter().min_by(|a, b| a.total_cmp(b)).map(|v| v.into())
             }
@@ -72,6 +96,10 @@ macro_rules! _py_iterable_collect_method {
     ($name:ident, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Materialise the iterable as a Python list.
+            ///
+            /// Returns:
+            ///     list:
             pub fn collect(&self) -> Vec<$pyitem> {
                 self.iter().map(|v| v.into()).collect()
             }

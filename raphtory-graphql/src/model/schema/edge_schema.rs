@@ -13,6 +13,9 @@ use raphtory::{
 use raphtory_api::core::entities::properties::meta::PropMapper;
 use std::collections::HashSet;
 
+/// Describes edges between a specific pair of node types — the property and
+/// metadata keys seen on such edges, along with their observed value types.
+/// One `EdgeSchema` per `(srcType, dstType)` pair per layer.
 #[derive(Clone, ResolvedObject)]
 pub(crate) struct EdgeSchema<G: StaticGraphViewOps> {
     graph: G,

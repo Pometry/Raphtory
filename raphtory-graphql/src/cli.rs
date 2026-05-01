@@ -248,6 +248,10 @@ pub async fn cli() -> IoResult<()> {
     cli_with_args(std::env::args_os()).await
 }
 
+/// Run the Raphtory GraphQL CLI from Python. Uses `sys.argv` for arguments.
+///
+/// Returns:
+///     None:
 #[cfg(feature = "python")]
 #[pyo3::pyfunction(name = "cli")]
 pub fn python_cli() -> pyo3::PyResult<()> {

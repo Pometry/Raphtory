@@ -165,8 +165,8 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<EventTime> {
     })
 }
 
-/// Raphtory’s EventTime.
-/// Represents a unique timepoint in the graph’s history as (timestamp, event_id).
+/// Raphtory's EventTime.
+/// Represents a unique timepoint in the graph's history as (timestamp, event_id).
 ///
 /// - timestamp: Number of milliseconds since the Unix epoch.
 /// - event_id: ID used for ordering between equal timestamps.
@@ -176,6 +176,10 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<EventTime> {
 /// EventTime can be converted into a timestamp or a Python datetime, and compared
 /// either by timestamp (against ints/floats/datetimes/strings), by tuple of (timestamp, event_id),
 /// or against another EventTime.
+///
+/// Arguments:
+///     timestamp (int | float | datetime | str): A time input convertible to an EventTime.
+///     event_id (int | float | datetime | str | None): Optionally, specify the event id. Defaults to None.
 #[pyclass(name = "EventTime", module = "raphtory", frozen)]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyEventTime {
@@ -367,7 +371,7 @@ impl PyOptionalEventTime {
     /// Returns the timestamp in milliseconds since the Unix epoch if an EventTime is contained, or else None.
     ///
     /// Returns:
-    ///     int | None: Milliseconds since the Unix epoch.
+    ///     Optional[int]: Milliseconds since the Unix epoch.
     #[getter]
     pub fn t(&self) -> Option<i64> {
         self.inner.map(|t| t.t())
@@ -376,7 +380,7 @@ impl PyOptionalEventTime {
     /// Returns the UTC datetime representation of this EventTime's timestamp if an EventTime is contained, or else None.
     ///
     /// Returns:
-    ///     datetime | None: The UTC datetime.
+    ///     Optional[datetime]: The UTC datetime.
     ///
     /// Raises:
     ///     TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
@@ -388,7 +392,7 @@ impl PyOptionalEventTime {
     /// Returns the event id used to order events within the same timestamp if an EventTime is contained, or else None.
     ///
     /// Returns:
-    ///     int | None: The event id.
+    ///     Optional[int]: The event id.
     #[getter]
     pub fn event_id(&self) -> Option<usize> {
         self.inner.map(|t| t.i())
@@ -413,7 +417,7 @@ impl PyOptionalEventTime {
     /// Returns the contained EventTime if it exists, or else None.
     ///
     /// Returns:
-    ///     EventTime | None:
+    ///     Optional[EventTime]:
     pub fn get_event_time(&self) -> Option<EventTime> {
         self.inner
     }
@@ -421,7 +425,7 @@ impl PyOptionalEventTime {
     /// Return this entry as a tuple of (timestamp, event_id), where the timestamp is in milliseconds if an EventTime is contained, or else None.
     ///
     /// Returns:
-    ///     tuple[int,int] | None: (timestamp, event_id).
+    ///     Optional[tuple[int, int]]: (timestamp, event_id).
     #[getter]
     pub fn as_tuple(&self) -> Option<(i64, usize)> {
         self.inner.map(|t| t.as_tuple())
