@@ -8,7 +8,7 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
-use std::{borrow::Cow, ops::Range};
+use std::{borrow::Cow, ops::Range, sync::Arc};
 use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
@@ -120,10 +120,14 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)>;
 
-    fn temp_prop_rows(self) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.temp_prop_rows_range(None)
+    fn temp_prop_rows(
+        self,
+        prop_ids: Arc<[usize]>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
+        self.temp_prop_rows_range(None, prop_ids)
     }
 }
 
@@ -213,7 +217,8 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        NodeRefOps::temp_prop_rows(self, w)
+        NodeRefOps::temp_prop_rows(self, w, prop_ids)
     }
 }

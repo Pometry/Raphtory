@@ -24,7 +24,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{iter, ops::Range};
+use std::{iter, ops::Range, sync::Arc};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 fn alive_before<
@@ -358,9 +358,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_updates<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows()
+        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
+        node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -370,6 +371,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         view: G,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
+        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
         let start = w.start;
         let first_row = if node
             .additions()
@@ -379,9 +381,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .is_some()
         {
             Some(
-                view.node_meta()
-                    .temporal_prop_mapper()
-                    .ids()
+                prop_ids
+                    .iter()
+                    .copied()
                     .map(|prop_id| (prop_id, node.tprop(prop_id)))
                     .filter_map(|(i, tprop)| {
                         if tprop.active(start..EventTime::start(start.t().saturating_add(1))) {
@@ -399,7 +401,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .into_iter()
             .map(move |row| (start, STATIC_GRAPH_LAYER_ID, row))
             .chain(
-                node.temp_prop_rows_range(Some(w))
+                node.temp_prop_rows_range(Some(w), prop_ids)
                     .map(|(t, l, row)| (t, LayerId(l), row)),
             )
     }

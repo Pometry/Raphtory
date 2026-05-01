@@ -18,7 +18,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 use storage::EdgeEntryRef;
 
 #[derive(Debug, Copy, Clone)]
@@ -158,19 +158,21 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows()
+        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
+        node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        _view: G,
+        view: G,
         w: Range<EventTime>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_range(Some(w))
+        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
+        node.temp_prop_rows_range(Some(w), prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
