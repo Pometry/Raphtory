@@ -63,6 +63,35 @@ fn test_failure3() {
     assert_graph_equal(&g_layer, &g_layer_expected);
 }
 
+// Regression for the build_graph_layer node-layer filter:
+//   * a node added with `add_node(.., None)` lands in STATIC_GRAPH_LAYER and
+//     must remain visible under any layer filter (it gets the same treatment
+//     as `valid_layers` gives it via the `additions().is_empty()` short-circuit).
+//   * a node added with `add_node(.., Some("a"))` only contributes to layer
+//     "a"'s storage, so under `valid_layers(["b"])` it must disappear.
+// build_graph_layer used to skip the layer dimension entirely, which mismatched
+// the source graph's `valid_layers` view and broke prop_test_layering for any
+// fixture that generated `node_layer = "a" | "b"`.
+#[test]
+fn test_node_layer_visibility_under_valid_layers() {
+    let graph_f: GraphFixture = serde_json::from_value(json!({
+        "nodes": {
+            "1": {"props":{"t_props":[[0,[]]],"c_props":[]}, "node_type": null, "node_layer": null},
+            "2": {"props":{"t_props":[[0,[]]],"c_props":[]}, "node_type": null, "node_layer": "a"},
+            "3": {"props":{"t_props":[[0,[]]],"c_props":[]}, "node_type": null, "node_layer": "b"}
+        },
+        "edges": []
+    }))
+    .unwrap();
+
+    let layer = ["b"];
+    let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
+    let g = Graph::from(build_graph(&graph_f));
+    let g_layer = g.valid_layers(layer.clone());
+
+    assert_graph_equal(&g_layer, &g_layer_expected);
+}
+
 #[test]
 fn prop_test_layering_persistent_graph() {
     proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
