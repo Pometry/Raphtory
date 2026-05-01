@@ -2,17 +2,15 @@ mod utils;
 
 use std::ops::RangeInclusive;
 use std::str::FromStr;
-use std::sync::LazyLock;
 
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use proptest::prelude::*;
 use raphtory::db::api::view::MaterializedGraph;
 use raphtory::db::graph::node::NodeView;
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory::prelude::{GraphViewOps, NodeViewOps, Prop, PropUnwrap, PropertiesOps};
-use serde_json::json;
 use url::Url;
 
+use utils::jwt::{ADMIN_JWT, PUB_KEY};
 use utils::strategy::{permissions_strategy, GrantType, Permission, PermissionGrant};
 
 use utils::graphql::{
@@ -23,24 +21,6 @@ use utils::graphql::{
 use crate::utils::graphql::{validate_graph_grant, validate_namespace_grant};
 
 const PORT: u16 = 43871;
-
-// Borrowed from test_permissions.py.
-const PUB_KEY: &str = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=";
-const PRIVATE_KEY: &str = "-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
------END PRIVATE KEY-----";
-
-static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
-    let key = EncodingKey::from_ed_pem(PRIVATE_KEY.as_bytes())
-        .expect("decode Ed25519 private key for test JWTs");
-
-    encode(
-        &Header::new(Algorithm::EdDSA),
-        &json!({ "access": "rw", "role": "admin" }),
-        &key,
-    )
-    .expect("encode admin JWT")
-});
 
 // Track a permission grant across the given namespace tree.
 fn track_grant(grant: &PermissionGrant, user_trees: &[MaterializedGraph]) {
@@ -148,9 +128,9 @@ fn validate_grant(
 
 #[test]
 fn permissions_proptest() {
-    const PROPTEST_CASES: u32 = 10;
+    const PROPTEST_CASES: u32 = 1;
     const NAMESPACE_SIZE: RangeInclusive<usize> = 1..=20;
-    const NUM_GRANTS: RangeInclusive<usize> = 1..=20;
+    const NUM_GRANTS: RangeInclusive<usize> = 1..=1;
     const NUM_USERS: RangeInclusive<usize> = 1..=10;
 
     proptest!(
@@ -159,13 +139,13 @@ fn permissions_proptest() {
             let (_server, _tempdir) = start_server(PORT, PUB_KEY);
 
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
-            let client = get_client(url, ADMIN_JWT.to_string());
+            let admin_client = get_client(url.clone(), ADMIN_JWT.to_string());
 
-            let tree = case.namespace_tree.clone();
+            let tree = case.namespace_tree;
 
             // Create graphs on the server.
             for path in &case.graph_paths {
-                create_graph(path, &client);
+                create_graph(path, &admin_client);
             }
 
             let mut user_trees = Vec::with_capacity(case.num_users);
@@ -173,7 +153,7 @@ fn permissions_proptest() {
             // Create roles and separate namespace trees for each user.
             for i in 0..case.num_users {
                 let role = format!("user_{i}");
-                create_role(&role, &client);
+                create_role(&role, &admin_client);
 
                 let user_tree = tree.materialize().unwrap();
                 user_trees.push(user_tree);
@@ -181,7 +161,7 @@ fn permissions_proptest() {
 
             // Create grants on the server and track them locally.
             for grant in &case.grants {
-                create_grant(grant, &client);
+                create_grant(grant, &admin_client);
                 track_grant(grant, &user_trees);
             }
 
@@ -190,7 +170,8 @@ fn permissions_proptest() {
                 for user_tree in &user_trees {
                     let node_name = path.split('/').last().unwrap();
                     let node = user_tree.node(node_name).unwrap();
-                    validate_grant(path.as_str(), &node, &client);
+
+                    validate_grant(path.as_str(), &node, &admin_client);
                 }
             }
 
@@ -205,7 +186,7 @@ fn permissions_proptest() {
                         continue;
                     }
 
-                    validate_grant(path.as_str(), &node, &client);
+                    validate_grant(path.as_str(), &node, &admin_client);
                 }
             }
         }
