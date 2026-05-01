@@ -12,6 +12,7 @@ use crate::{
             mutable_graph::GqlMutableGraph,
             namespace::Namespace,
             namespaced_item::NamespacedItem,
+            node_id::GqlNodeId,
             vectorised_graph::GqlVectorisedGraph,
         },
         plugins::{
@@ -406,18 +407,52 @@ impl QueryRoot {
     }
 
     /// Returns a graph
-    async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<Option<GqlGraph>> {
+
+    async fn graph<'a>(
+        ctx: &Context<'a>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
         // Permission denial → Ok(None): indistinguishable from "graph not found" for the caller.
-        let (folder, graph) = match data.get_graph_with_permissions(ctx, path).await {
-            Ok(x) => x,
+        let perm = match require_at_least_read(ctx, &data.auth_policy, path) {
+            Ok(p) => p,
             Err(_) => return Ok(None),
         };
-        Ok(Some(GqlGraph::new(folder, graph)))
+
+        let graph_with_vecs = data.get_graph(path).await?;
+        let materialized = match graph_type {
+            Some(GqlGraphType::Event) => match graph_with_vecs.graph {
+                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g),
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::EventGraph(g.event_graph())
+                }
+            },
+            Some(GqlGraphType::Persistent) => match graph_with_vecs.graph {
+                MaterializedGraph::EventGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.persistent_graph())
+                }
+                MaterializedGraph::PersistentGraph(g) => MaterializedGraph::PersistentGraph(g),
+            },
+            None => graph_with_vecs.graph,
+        };
+        let graph: DynamicGraph = materialized.into_dynamic();
+
+        let graph = if let GraphPermission::Read {
+            filter: Some(ref f),
+        } = perm
+        {
+            apply_access_filter(graph, f).await?
+        } else {
+            graph
+        };
+
+        Ok(Some(GqlGraph::new(graph_with_vecs.folder, graph)))
     }
 
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
     /// Requires at least INTROSPECT permission.
+
     async fn graph_metadata<'a>(ctx: &Context<'a>, path: String) -> Result<Option<MetaGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
@@ -446,6 +481,7 @@ impl QueryRoot {
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
+
     async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
         require_graph_write(ctx, &data.auth_policy, &path)?;
@@ -458,6 +494,7 @@ impl QueryRoot {
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
+
     async fn vectorise_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -484,6 +521,7 @@ impl QueryRoot {
     /// Create vectorised graph in the format used for queries
     ///
     /// Returns:: GqlVectorisedGraph
+
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
         path: &str,
@@ -520,6 +558,7 @@ impl QueryRoot {
     /// Returns a specific namespace at a given path
     ///
     /// Returns:: Namespace or error if no namespace found
+
     async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         Ok(Namespace::try_new(data.work_dir.clone(), path)?)
@@ -539,9 +578,9 @@ impl QueryRoot {
     }
 
     /// Encodes graph and returns as string.
-    /// If the caller has filtered access, the returned graph is a materialized view of the filter.
     ///
     /// Returns:: Base64 url safe encoded string
+
     async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let (_, graph) = data.get_graph_with_permissions(ctx, &path).await?;
@@ -551,6 +590,7 @@ impl QueryRoot {
         Ok(url_encode_graph(materialized)?)
     }
 
+    /// Version string of the running `raphtory-graphql` server build.
     async fn version<'a>(_ctx: &Context<'a>) -> String {
         String::from(version())
     }
@@ -570,7 +610,7 @@ impl Mut {
     }
 
     /// Delete graph from a path on the server.
-    // If namespace is not provided, it will be set to the current working directory.
+
     async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         require_graph_write(ctx, &data.auth_policy, &path)?;
@@ -581,6 +621,7 @@ impl Mut {
     }
 
     /// Creates a new graph.
+
     async fn new_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -610,6 +651,7 @@ impl Mut {
     }
 
     /// Move graph from a path on the server to a new_path on the server.
+
     async fn move_graph<'a>(
         ctx: &Context<'a>,
         path: &str,
@@ -629,6 +671,7 @@ impl Mut {
     }
 
     /// Copy graph from a path on the server to a new_path on the server.
+
     async fn copy_graph<'a>(
         ctx: &Context<'a>,
         path: &str,
@@ -654,6 +697,7 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
+
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
         path: String,
@@ -674,6 +718,7 @@ impl Mut {
     ///
     /// Returns::
     /// path of the new graph
+
     async fn send_graph<'a>(
         ctx: &Context<'a>,
         path: &str,
@@ -702,10 +747,11 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
+
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
         parent_path: &str,
-        nodes: Vec<String>,
+        nodes: Vec<GqlNodeId>,
         new_path: String,
         overwrite: bool,
     ) -> Result<String> {
@@ -731,6 +777,7 @@ impl Mut {
     }
 
     /// (Experimental) Creates search index.
+
     async fn create_index<'a>(
         ctx: &Context<'a>,
         path: &str,

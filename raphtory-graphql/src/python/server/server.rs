@@ -29,6 +29,7 @@ use std::{path::PathBuf, thread};
 ///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
 ///     log_level (str, optional): the log level for the server
 ///     tracing (bool, optional): whether tracing should be enabled
+///     tracing_level (str, optional): tracing verbosity (e.g. "ERROR", "WARN", "INFO", "DEBUG", "TRACE").
 ///     otlp_agent_host (str, optional): OTLP agent host for tracing
 ///     otlp_agent_port(str, optional): OTLP agent port for tracing
 ///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
@@ -47,6 +48,7 @@ use std::{path::PathBuf, thread};
 ///     max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
 ///     max_directives_per_field (int, optional): Maximum number of directives on any single field.
 ///     disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
+///     permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
@@ -227,7 +229,10 @@ impl PyGraphServer {
     }
 
     // TODO: remove this, should be config
-    /// Turn off index for all graphs
+    /// Turn off index for all graphs.
+    ///
+    /// Returns:
+    ///     None:
     fn turn_off_index(mut slf: PyRefMut<Self>) {
         slf.0.turn_off_index()
     }
@@ -239,6 +244,9 @@ impl PyGraphServer {
     ///     embeddings (OpenAIEmbeddings): the embeddings to use
     ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -268,6 +276,9 @@ impl PyGraphServer {
     ///     embeddings (OpenAIEmbeddings): the embeddings to use
     ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(
         signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]

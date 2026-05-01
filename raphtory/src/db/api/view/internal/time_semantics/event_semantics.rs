@@ -239,6 +239,29 @@ impl NodeTimeSemanticsOps for EventSemantics {
             .kmerge_by(|(a, _), (b, _)| a >= b)
     }
 
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last())
+            .max_by_key(|(t, _)| *t)
+    }
+
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last_window(w.clone()))
+            .max_by_key(|(t, _)| *t)
+    }
+
     fn node_tprop_last_at<'graph, G: GraphView + 'graph>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -261,7 +284,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
     ) -> Option<(EventTime, Prop)> {
         if w.contains(&t) {
             node.tprop_iter_layers(view.layer_ids(), prop_id)
-                .filter_map(|prop| prop.last_before(t.next()).filter(|(t, _)| w.contains(t)))
+                .filter_map(|prop| prop.last_window(w.start..t.next()))
                 .max_by_key(|(t, _)| *t)
         } else {
             None
@@ -817,6 +840,31 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         } else {
             None
         }
+    }
+
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
+            .filter_map(|(_, prop)| prop.last())
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
+    }
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        e.filtered_temporal_prop_iter(prop_id, &view, view.layer_ids())
+            .filter_map(|(_, prop)| prop.last_window(w.clone()))
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
     }
 
     fn temporal_edge_prop_hist<'graph, G: GraphView + 'graph>(

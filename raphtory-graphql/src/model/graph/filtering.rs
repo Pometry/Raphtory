@@ -1,4 +1,4 @@
-use crate::model::graph::{property::Value, timeindex::GqlTimeInput};
+use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -30,6 +30,7 @@ use raphtory::{
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -60,11 +61,11 @@ pub enum GraphViewCollection {
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Subgraph nodes.
-    Subgraph(Vec<String>),
+    Subgraph(Vec<GqlNodeId>),
     /// Subgraph node types.
     SubgraphNodeTypes(Vec<String>),
     /// List of excluded nodes.
-    ExcludeNodes(Vec<String>),
+    ExcludeNodes(Vec<GqlNodeId>),
     /// Valid state.
     Valid(bool),
     /// Window between a start and end time.
@@ -1426,13 +1427,15 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::Window(w) => {
                 let inner: CompositeNodeFilter = w.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.0, w.end.0, inner,
+                    w.start.into_time(),
+                    w.end.into_time(),
+                    inner,
                 ))))
             }
 
             GqlNodeFilter::At(t) => {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
-                let et: EventTime = t.time.0;
+                let et = t.time.into_time();
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
                     et,
                     EventTime::end(et.t().saturating_add(1)),
@@ -1444,14 +1447,14 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
                     EventTime::start(i64::MIN),
-                    EventTime::end(t.time.0.t()),
+                    EventTime::end(t.time.t()),
                     inner,
                 ))))
             }
 
             GqlNodeFilter::After(t) => {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
-                let start = EventTime::start(t.time.0.t().saturating_add(1));
+                let start = EventTime::start(t.time.t().saturating_add(1));
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
                     start,
                     EventTime::end(i64::MAX),
@@ -1469,7 +1472,7 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::SnapshotAt(t) => {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::SnapshotAt(Box::new(
-                    SnapshotAtWrap::new(t.time.0, inner),
+                    SnapshotAtWrap::new(t.time.into_time(), inner),
                 )))
             }
 
@@ -1591,13 +1594,15 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             GqlEdgeFilter::Window(w) => {
                 let inner: CompositeEdgeFilter = w.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.0, w.end.0, inner,
+                    w.start.into_time(),
+                    w.end.into_time(),
+                    inner,
                 ))))
             }
 
             GqlEdgeFilter::At(t) => {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
-                let et: EventTime = t.time.0;
+                let et = t.time.into_time();
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
                     et,
                     EventTime::end(et.t().saturating_add(1)),
@@ -1609,14 +1614,14 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
                     EventTime::start(i64::MIN),
-                    EventTime::end(t.time.0.t()),
+                    EventTime::end(t.time.t()),
                     inner,
                 ))))
             }
 
             GqlEdgeFilter::After(t) => {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
-                let start = EventTime::start(t.time.0.t().saturating_add(1));
+                let start = EventTime::start(t.time.t().saturating_add(1));
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
                     start,
                     EventTime::end(i64::MAX),
@@ -1634,7 +1639,7 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             GqlEdgeFilter::SnapshotAt(t) => {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::SnapshotAt(Box::new(
-                    SnapshotAtWrap::new(t.time.0, inner),
+                    SnapshotAtWrap::new(t.time.into_time(), inner),
                 )))
             }
 

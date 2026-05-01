@@ -68,6 +68,10 @@ impl PyEmbedding {
         self.repr()
     }
 
+    /// Returns the embedding as a `pyarrow.Array` of floats.
+    ///
+    /// Returns:
+    ///     pyarrow.Array:
     fn to_arrow(&self) -> PyArray {
         PyArray::from_array_ref(Arc::new(self.0.inner().clone()))
     }

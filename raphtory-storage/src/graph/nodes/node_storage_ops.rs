@@ -9,7 +9,7 @@ use raphtory_api::core::{
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
 use std::{borrow::Cow, ops::Range, sync::Arc};
-use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
+use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, utils::Iter3, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -75,35 +75,26 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &LayerIds,
         prop_id: usize,
     ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
-        let layers: Vec<LayerId> = match layer_ids {
-            // No edge layers requested → still include STATIC so unlayered nodes show their props.
-            LayerIds::None => vec![STATIC_GRAPH_LAYER_ID],
-            // All layers already includes STATIC.
-            LayerIds::All => (0..self.num_layers()).map(LayerId).collect(),
+        let layers = match layer_ids {
+            LayerIds::None => LayerVariants::None(std::iter::once(STATIC_GRAPH_LAYER_ID)),
+            LayerIds::All => LayerVariants::All((0..self.num_layers()).map(LayerId)),
             LayerIds::One(id) => {
                 if *id == STATIC_GRAPH_LAYER_ID {
-                    vec![*id]
+                    LayerVariants::One(std::iter::once(*id))
                 } else {
-                    let mut v = vec![STATIC_GRAPH_LAYER_ID, *id];
-                    v.sort();
-                    v
+                    LayerVariants::Multiple(Iter3::I([STATIC_GRAPH_LAYER_ID, *id].into_iter()))
                 }
             }
             LayerIds::Multiple(ids) => {
                 if ids.contains(STATIC_GRAPH_LAYER_ID) {
-                    ids.into_iter().collect()
+                    LayerVariants::Multiple(Iter3::J(ids.clone().into_iter()))
                 } else {
-                    let mut v: Vec<LayerId> = std::iter::once(STATIC_GRAPH_LAYER_ID)
-                        .chain(ids.into_iter())
-                        .collect();
-                    v.sort();
-                    v
+                    let v = std::iter::once(STATIC_GRAPH_LAYER_ID).chain(ids.clone().into_iter());
+                    LayerVariants::Multiple(Iter3::K(v))
                 }
             }
         };
-        layers
-            .into_iter()
-            .map(move |id| self.temporal_prop_layer(id, prop_id))
+        layers.map(move |id| self.temporal_prop_layer(id, prop_id))
     }
 
     fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;

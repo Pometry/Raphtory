@@ -506,6 +506,29 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         window_iter_rev.chain(first)
     }
 
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last())
+            .max_by_key(|(t, _)| *t)
+    }
+
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
+        node.tprop_iter_layers(view.layer_ids(), prop_id)
+            .filter_map(|prop| prop.last_before(w.end))
+            .max_by_key(|(t, _)| *t)
+    }
+
     fn node_tprop_last_at<'graph, G: GraphViewOps<'graph>>(
         &self,
         node: NodeStorageRef<'graph>,
@@ -1247,6 +1270,38 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         t: EventTime,
     ) -> Option<Prop> {
         EventSemantics.temporal_edge_prop_last_at(e, view, prop_id, t) // TODO: double check this
+    }
+
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        EventSemantics.temporal_edge_prop_last(e, view, prop_id)
+    }
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        e.filtered_updates_iter(&view, view.layer_ids())
+            .filter_map(|(layer, additions, deletions)| {
+                let start = deletions
+                    .merge(additions.invert())
+                    .range(EventTime::MIN..w.end)
+                    .last()
+                    .map(|t| t.next())
+                    .unwrap_or(EventTime::MIN);
+                e.filtered_temporal_prop_layer(layer, prop_id, &view)
+                    .iter_inner_rev(Some(start..w.end))
+                    .next()
+            })
+            .max_by(|(t1, _), (t2, _)| t1.cmp(t2))
+            .map(|(_, v)| v)
     }
 
     fn temporal_edge_prop_last_at_window<'graph, G: GraphViewOps<'graph>>(
