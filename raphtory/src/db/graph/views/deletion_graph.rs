@@ -197,6 +197,24 @@ impl PersistentGraph {
         )?)))
     }
 
+    /// Load the graph as a read-only snapshot — multiple processes can open
+    /// the same graph directory concurrently. Mutating operations will fail.
+    #[cfg(feature = "io")]
+    pub fn load_read_only(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::load_read_only(path.graph_path()?)?)))
+    }
+
+    #[cfg(feature = "io")]
+    pub fn load_read_only_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        Ok(Self(Arc::new(Storage::load_read_only_with_config(
+            path.graph_path()?,
+            config,
+        )?)))
+    }
+
     pub fn from_storage(storage: Arc<Storage>) -> Self {
         Self(storage)
     }

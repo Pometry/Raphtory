@@ -191,15 +191,24 @@ impl PyGraph {
     ///     path (str | PathLike): the path of the graph folder
     ///     config (Config, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
+    ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
+    ///                       a read-only handle to the same graph directory concurrently;
+    ///                       mutating the returned graph will fail. Defaults to ``False``.
     ///
     /// Returns:
     ///     Graph: the graph
-    #[pyo3(signature = (path, config = None))]
+    #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
-    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<Graph, GraphError> {
-        match config {
-            None => Graph::load(&path),
-            Some(PyConfig(config)) => Graph::load_with_config(&path, config),
+    pub fn load(
+        path: PathBuf,
+        config: Option<PyConfig>,
+        read_only: bool,
+    ) -> Result<Graph, GraphError> {
+        match (config, read_only) {
+            (None, false) => Graph::load(&path),
+            (Some(PyConfig(config)), false) => Graph::load_with_config(&path, config),
+            (None, true) => Graph::load_read_only(&path),
+            (Some(PyConfig(config)), true) => Graph::load_read_only_with_config(&path, config),
         }
     }
 

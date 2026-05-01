@@ -150,14 +150,26 @@ impl PyPersistentGraph {
     ///     path (str | PathLike): the path of the graph folder
     ///     config (Config, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
+    ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
+    ///                       a read-only handle to the same graph directory concurrently;
+    ///                       mutating the returned graph will fail. Defaults to ``False``.
     ///
     /// Returns:
     ///     PersistentGraph: the graph
+    #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
-    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<PersistentGraph, GraphError> {
-        match config {
-            None => PersistentGraph::load(&path),
-            Some(PyConfig(config)) => PersistentGraph::load_with_config(&path, config),
+    pub fn load(
+        path: PathBuf,
+        config: Option<PyConfig>,
+        read_only: bool,
+    ) -> Result<PersistentGraph, GraphError> {
+        match (config, read_only) {
+            (None, false) => PersistentGraph::load(&path),
+            (Some(PyConfig(config)), false) => PersistentGraph::load_with_config(&path, config),
+            (None, true) => PersistentGraph::load_read_only(&path),
+            (Some(PyConfig(config)), true) => {
+                PersistentGraph::load_read_only_with_config(&path, config)
+            }
         }
     }
 

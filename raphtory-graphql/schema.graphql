@@ -1896,6 +1896,11 @@ type MutableGraph {
 	Update metadata of the graph (overwrites existing values).
 	"""
 	updateMetadata(properties: [PropertyInput!]!): Boolean!
+	"""
+	Persist any in-memory state for this graph to disk so other
+	processes attaching a read-only handle observe up-to-date data.
+	"""
+	flush: Boolean!
 }
 
 type MutableNode {
@@ -3529,4 +3534,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

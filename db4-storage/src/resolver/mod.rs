@@ -43,6 +43,24 @@ pub trait GIDResolverOps {
     where
         Self: Sized;
 
+    /// Open a resolver in read-only mode against an existing path.
+    ///
+    /// Multiple read-only resolvers can attach to the same directory
+    /// concurrently and may coexist with a separate writer. Writes through
+    /// a read-only resolver return errors.
+    ///
+    /// The default implementation falls back to `new_with_path` for
+    /// backends that do not need a separate read-only path.
+    fn new_readonly_with_path(
+        path: impl AsRef<Path>,
+        dtype: Option<GidType>,
+    ) -> Result<Self, StorageError>
+    where
+        Self: Sized,
+    {
+        Self::new_with_path(path, dtype)
+    }
+
     fn len(&self) -> usize;
 
     fn is_empty(&self) -> bool {

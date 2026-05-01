@@ -241,6 +241,29 @@ impl Graph {
         })
     }
 
+    /// Load the graph as a read-only snapshot. Multiple processes can hold
+    /// a read-only handle to the same graph directory concurrently. Mutating
+    /// operations on the returned graph will fail.
+    #[cfg(feature = "io")]
+    pub fn load_read_only(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Ok(Self {
+            inner: Arc::new(Storage::load_read_only(path.graph_path()?)?),
+        })
+    }
+
+    #[cfg(feature = "io")]
+    pub fn load_read_only_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        Ok(Self {
+            inner: Arc::new(Storage::load_read_only_with_config(
+                path.graph_path()?,
+                config,
+            )?),
+        })
+    }
+
     pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
         Self { inner }
     }

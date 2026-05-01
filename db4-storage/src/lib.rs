@@ -213,3 +213,20 @@ pub fn loop_lock_write<A>(l: &RwLock<A>) -> parking_lot::RwLockWriteGuard<'_, A>
         backoff_us = (backoff_us * 2).min(MAX_BACKOFF_US);
     }
 }
+
+/// In-memory shim that mirrors the disk-storage function of the same name.
+/// In-memory graphs have no on-disk `graph_props` segment to read from, so
+/// callers always get an empty result. The existence of this symbol
+/// preserves the drop-in compatibility between this crate and
+/// `db4-disk-storage` when used as the workspace `storage` alias.
+pub fn read_constant_graph_properties(
+    _graph_dir: impl AsRef<Path>,
+) -> Result<
+    Vec<(
+        raphtory_api::core::storage::arc_str::ArcStr,
+        raphtory_api::core::entities::properties::prop::Prop,
+    )>,
+    error::StorageError,
+> {
+    Ok(Vec::new())
+}

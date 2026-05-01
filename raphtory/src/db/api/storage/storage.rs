@@ -19,7 +19,7 @@ use raphtory_api::core::{
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::graph::GraphStorage,
+    graph::{graph::GraphStorage, locked::LockedGraph},
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
@@ -56,7 +56,9 @@ use {
 };
 
 // Re-export for raphtory dependencies to use when creating graphs.
-pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+pub use storage::{
+    persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,
+};
 
 #[derive(Debug, Default)]
 pub struct Storage {
@@ -150,6 +152,23 @@ impl Storage {
         })
     }
 
+    fn load_read_only_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
+        // Skip crash recovery: recovery mutates the graph and is unsafe
+        // when other handles are attached to the same directory.
+        let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
+
+        // `LockedGraph` holds read locks on the underlying segments, so
+        // every mutation entry point that goes through
+        // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
+        let locked = LockedGraph::new(Arc::new(temporal_graph));
+
+        Ok(Self {
+            graph: GraphStorage::Mem(locked),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
     pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load(path)?;
@@ -162,6 +181,26 @@ impl Storage {
         let ext = Extension::load_with_config(path, config)?;
 
         Self::load_with_extension(path, ext)
+    }
+
+    /// Load the graph as a read-only snapshot — multiple processes can open
+    /// the same graph directory concurrently. Mutating operations on the
+    /// returned graph will return errors from the underlying storage.
+    pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load(path)?;
+
+        Self::load_read_only_with_extension(path, ext)
+    }
+
+    pub fn load_read_only_with_config(
+        path: impl AsRef<Path>,
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load_with_config(path, config)?;
+
+        Self::load_read_only_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {

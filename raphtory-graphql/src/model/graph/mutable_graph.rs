@@ -399,6 +399,17 @@ impl GqlMutableGraph {
 
         result
     }
+
+    /// Persist any in-memory state for this graph to disk so other
+    /// processes attaching a read-only handle observe up-to-date data.
+    async fn flush(&self) -> Result<bool, GraphError> {
+        let self_clone = self.clone();
+        blocking_write(move || {
+            self_clone.graph.graph.flush()?;
+            Ok(true)
+        })
+        .await
+    }
 }
 
 impl GqlMutableGraph {
