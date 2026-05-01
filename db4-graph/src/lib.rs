@@ -155,11 +155,7 @@ where
         Self::load_inner(path, ext, true)
     }
 
-    fn load_inner(
-        path: impl AsRef<Path>,
-        ext: EXT,
-        read_only: bool,
-    ) -> Result<Self, StorageError> {
+    fn load_inner(path: impl AsRef<Path>, ext: EXT, read_only: bool) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let storage = Layer::load(path, ext)?;
         let id_type = storage.nodes().id_type();
