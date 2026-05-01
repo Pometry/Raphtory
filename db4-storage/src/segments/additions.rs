@@ -112,8 +112,8 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
 
     fn is_empty(&self) -> bool {
         match self {
-            MemAdditions::Edges(edges) => edges.is_empty(),
-            MemAdditions::Props(props) => props.is_empty(),
+            MemAdditions::Edges(edges) => TCell::is_empty(edges),
+            MemAdditions::Props(props) => TCell::is_empty(props),
             MemAdditions::WEdges(edges) => edges.is_empty(),
             MemAdditions::WProps(edges) => edges.is_empty(),
         }

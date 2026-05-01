@@ -78,12 +78,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Materializes the view into a new graph.
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Inherits config from the graph.
-    ///
-    /// Arguments:
-    ///     path: Option<&Path>: An optional path used to store the new graph.
-    ///
-    /// Returns:
-    ///     MaterializedGraph: Returns a new materialized graph.
     #[cfg(feature = "io")]
     fn materialize_at(
         &self,
@@ -95,10 +89,7 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Materializes the view into a new graph.
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Sets a new config.
-    ///
-    /// # Arguments
-    ///     path: The path for the new graph.
-    ///     config: The new config.
+    #[cfg(feature = "io")]
     #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
