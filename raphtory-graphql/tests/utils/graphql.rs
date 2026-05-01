@@ -214,7 +214,7 @@ pub fn can_write_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
 
     // Write requests are denied if the user does not have write access to the graph.
     // This is unlike read requests which return a successful but empty response if
-    // the graph does not exist.
+    // the user does not have read access.
     let data = match gql(&query, client) {
         Ok(data) => data,
         Err(e) if e.to_string().contains("Access denied") => return false,
@@ -232,6 +232,7 @@ pub fn validate_namespace_grant(
     path: &str,
     permission: Option<Permission>,
     client: &RaphtoryGraphQLClient,
+    num_children: usize,
 ) {
     match permission {
         Some(permission_enum) => {
@@ -240,7 +241,10 @@ pub fn validate_namespace_grant(
                     assert!(can_discover_namespace(path, client), "namespace {path} should be discoverable");
                 }
                 Permission::Introspect => {
-                    assert!(can_introspect_namespace(path, client), "namespace {path} should be introspectable");
+                    assert!(
+                        can_introspect_namespace(path, num_children, client),
+                        "namespace {path} should be introspectable"
+                    );
                 }
                 _ => {
                     // Ignore READ and WRITE permissions since they are propagated down to graphs
@@ -251,7 +255,10 @@ pub fn validate_namespace_grant(
         None => {
             // Namespace has no permission attributed to it, no access should be allowed.
             assert!(!can_discover_namespace(path, client), "namespace {path} should not be discoverable");
-            assert!(!can_introspect_namespace(path, client), "namespace {path} should not be introspectable");
+            assert!(
+                !can_introspect_namespace(path, num_children, client),
+                "namespace {path} should not be introspectable"
+            );
         }
     }
 }
@@ -291,30 +298,43 @@ pub fn can_discover_namespace(path: &str, client: &RaphtoryGraphQLClient) -> boo
         })
 }
 
-// Verify that the namespace at `path` can have its listings browsed.
-pub fn can_introspect_namespace(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+// Verify that the namespace at `path` can have its listings browsed and that
+// immediate graphs plus child namespaces match the expected `num_children`.
+pub fn can_introspect_namespace(
+    path: &str,
+    num_children: usize,
+    client: &RaphtoryGraphQLClient,
+) -> bool {
     let query = format!(
         r#"query {{ namespace(path: "{path}") {{ graphs {{ list {{ path }} }} children {{ list {{ path }} }} }} }}"#
     );
 
-    let data = gql(&query, client)
-        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
+    let data = match gql(&query, client) {
+        Ok(data) => data,
+        Err(e) if e.to_string().contains("Access denied") => return false,
+        Err(e) => panic!("Error executing query: {query}: {e}"),
+    };
 
-    let namespace = data.get("namespace");
+    let Some(namespace) = data.get("namespace").filter(|v| !v.is_null()) else {
+        return false;
+    };
 
-    let has_graphs_list = namespace
-        .and_then(|ns| ns.get("graphs"))
+    let num_graphs = namespace
+        .get("graphs")
         .and_then(|graphs| graphs.get("list"))
         .and_then(JsonValue::as_array)
-        .is_some_and(|entries| !entries.is_empty());
+        .map(|entries| entries.len())
+        .unwrap_or(0);
 
-    let has_children_list = namespace
-        .and_then(|ns| ns.get("children"))
+    let num_namespaces = namespace
+        .get("children")
         .and_then(|children| children.get("list"))
         .and_then(JsonValue::as_array)
-        .is_some_and(|entries| !entries.is_empty());
+        .map(|entries| entries.len())
+        .unwrap_or(0);
 
-    has_graphs_list || has_children_list
+    // INSTROSPECT implies all listings of `path` are visible.
+    num_graphs + num_namespaces == num_children
 }
 
 fn gql(

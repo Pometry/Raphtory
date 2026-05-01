@@ -122,7 +122,8 @@ fn validate_grant(
     if is_graph_path {
         validate_graph_grant(path, permission, client);
     } else {
-        validate_namespace_grant(path, permission, client);
+        let num_children = node.out_neighbours().len();
+        validate_namespace_grant(path, permission, client, num_children);
     }
 }
 
