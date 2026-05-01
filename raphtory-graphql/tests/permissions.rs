@@ -136,7 +136,8 @@ fn permissions_proptest() {
     proptest!(
         ProptestConfig::with_cases(PROPTEST_CASES),
         |(case in permissions_strategy(NAMESPACE_SIZE, NUM_GRANTS, NUM_USERS))| {
-            let (_server, _tempdir) = start_server(PORT, PUB_KEY);
+            let total_graphs = case.graph_paths.len() as u64;
+            let (_server, _tempdir) = start_server(PORT, PUB_KEY, total_graphs);
 
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
             let admin_client = get_client(url.clone(), ADMIN_JWT.to_string());

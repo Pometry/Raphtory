@@ -28,7 +28,11 @@ pub fn get_client(url: Url, token: String) -> RaphtoryGraphQLClient {
         .expect("connect GraphQL client")
 }
 
-pub fn start_server(port: u16, pub_key: &str) -> (RunningGraphServer, TempDir) {
+pub fn start_server(
+    port: u16,
+    pub_key: &str,
+    cache_capacity: u64,
+) -> (RunningGraphServer, TempDir) {
     init_raphtory_auth();
 
     RUNTIME.block_on(async {
@@ -40,7 +44,9 @@ pub fn start_server(port: u16, pub_key: &str) -> (RunningGraphServer, TempDir) {
         let work_dir = tempdir.path().to_path_buf();
         let permissions_path = work_dir.join("permissions.json");
 
+        // Set cache capacity to prevent eviction during testing.
         let app_config = AppConfigBuilder::new()
+            .with_cache_capacity(cache_capacity)
             .with_auth_public_key(Some(pub_key.to_string()))
             .expect("test auth public key")
             .build();
