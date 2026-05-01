@@ -21,7 +21,6 @@ pub static ADMIN_JWT: LazyLock<String> = LazyLock::new(|| {
     .expect("encode admin JWT")
 });
 
-#[allow(dead_code)]
 pub fn user_jwt(role: &str) -> String {
     let key = EncodingKey::from_ed_pem(PRIVATE_KEY.as_bytes())
         .expect("decode Ed25519 private key for test JWTs");

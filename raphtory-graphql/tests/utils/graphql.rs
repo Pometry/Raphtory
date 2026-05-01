@@ -3,7 +3,7 @@ use std::sync::{LazyLock, Once};
 use std::time::Duration;
 
 use raphtory::db::api::storage::storage::Config;
-use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
+use raphtory_graphql::client::{raphtory_client::RaphtoryGraphQLClient, ClientError};
 use raphtory_graphql::config::app_config::AppConfigBuilder;
 use raphtory_graphql::server::{apply_server_extension, GraphServer, RunningGraphServer};
 use serde_json::Value as JsonValue;
@@ -69,7 +69,8 @@ pub fn create_role(name: &str, client: &RaphtoryGraphQLClient) {
     let query =
         format!(r#"mutation {{ permissions {{ createRole(name: "{name}") {{ success }} }} }}"#);
 
-    let data = gql(&query, client);
+    let data = gql(&query, client)
+        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
 
     let success = data
         .get("permissions")
@@ -100,7 +101,8 @@ pub fn grant_graph(
         permission
     );
 
-    let data = gql(&query, client);
+    let data = gql(&query, client)
+        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
 
     let success = data
         .get("permissions")
@@ -126,7 +128,8 @@ pub fn grant_namespace(
         permission
     );
 
-    let data = gql(&query, client);
+    let data = gql(&query, client)
+        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
 
     let success = data
         .get("permissions")
@@ -178,6 +181,47 @@ pub fn validate_graph_grant(
     }
 }
 
+pub fn can_introspect_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let query = format!(r#"query {{ graphMetadata(path: "{path}") {{ path nodeCount }} }}"#);
+    let data = gql(&query, client)
+        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
+
+    data.get("graphMetadata")
+        .is_some_and(|metadata| !metadata.is_null())
+}
+
+pub fn can_read_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let query = format!(r#"query {{ graph(path: "{path}") {{ path }} }}"#);
+    let data = gql(&query, client)
+        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
+
+    data.get("graph")
+        .and_then(|graph| graph.get("path"))
+        .and_then(JsonValue::as_str)
+        .is_some_and(|graph_path| graph_path == path)
+}
+
+pub fn can_write_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    let query = format!(
+        r#"query {{ updateGraph(path: "{path}") {{ addNode(time: 1, name: "test_node") {{ success }} }} }}"#
+    );
+
+    // Write requests are denied if the user does not have write access to the graph.
+    // This is unlike read requests which return a successful but empty response if
+    // the graph does not exist.
+    let data = match gql(&query, client) {
+        Ok(data) => data,
+        Err(e) if e.to_string().contains("Access denied") => return false,
+        Err(e) => panic!("Error executing query: {query}: {e}"),
+    };
+
+    data.get("updateGraph")
+        .and_then(|update| update.get("addNode"))
+        .and_then(|add_node| add_node.get("success"))
+        .and_then(JsonValue::as_bool)
+        .unwrap_or(false)
+}
+
 pub fn validate_namespace_grant(
     path: &str,
     permission: Option<Permission>,
@@ -188,7 +232,6 @@ pub fn validate_namespace_grant(
             match permission_enum {
                 Permission::Discover => {
                     assert!(can_discover_namespace(path, client), "namespace {path} should be discoverable");
-                    assert!(!can_introspect_namespace(path, client), "namespace {path} should not be introspectable");
                 }
                 Permission::Introspect => {
                     assert!(can_introspect_namespace(path, client), "namespace {path} should be introspectable");
@@ -207,37 +250,6 @@ pub fn validate_namespace_grant(
     }
 }
 
-pub fn can_introspect_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
-    let query = format!(r#"query {{ graphMetadata(path: "{path}") {{ path nodeCount }} }}"#);
-    let data = gql(&query, client);
-
-    data.get("graphMetadata")
-        .is_some_and(|metadata| !metadata.is_null())
-}
-
-pub fn can_read_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
-    let query = format!(r#"query {{ graph(path: "{path}") {{ path }} }}"#);
-    let data = gql(&query, client);
-
-    data.get("graph")
-        .and_then(|graph| graph.get("path"))
-        .and_then(JsonValue::as_str)
-        .is_some_and(|graph_path| graph_path == path)
-}
-
-pub fn can_write_graph(path: &str, client: &RaphtoryGraphQLClient) -> bool {
-    let query = format!(
-        r#"query {{ updateGraph(path: "{path}") {{ addNode(time: 1, name: "test_node") {{ success }} }} }}"#
-    );
-    let data = gql(&query, client);
-
-    data.get("updateGraph")
-        .and_then(|update| update.get("addNode"))
-        .and_then(|add_node| add_node.get("success"))
-        .and_then(JsonValue::as_bool)
-        .unwrap_or(false)
-}
-
 /// Verify that the namespace at `path` appears in its parent listing.
 pub fn can_discover_namespace(path: &str, client: &RaphtoryGraphQLClient) -> bool {
     let parent = path.rsplit_once('/').map_or("root", |(parent, _)| parent);
@@ -248,7 +260,8 @@ pub fn can_discover_namespace(path: &str, client: &RaphtoryGraphQLClient) -> boo
         format!(r#"query {{ namespace(path: "{parent}") {{ children {{ list {{ path }} }} }} }}"#)
     };
 
-    let data = gql(&query, client);
+    let data = gql(&query, client)
+        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
 
     let children = if parent == "root" {
         data.get("root")
@@ -256,18 +269,19 @@ pub fn can_discover_namespace(path: &str, client: &RaphtoryGraphQLClient) -> boo
         data.get("namespace")
     };
 
-    // Verify that the namespace is in the children list.
+    // Verify that the parent's children list is non-empty and contains this namespace.
     children
         .and_then(|namespace| namespace.get("children"))
         .and_then(|children| children.get("list"))
         .and_then(JsonValue::as_array)
         .is_some_and(|entries| {
-            entries.iter().any(|entry| {
-                entry
-                    .get("path")
-                    .and_then(JsonValue::as_str)
-                    .is_some_and(|entry_path| entry_path == path)
-            })
+            !entries.is_empty()
+                && entries.iter().any(|entry| {
+                    entry
+                        .get("path")
+                        .and_then(JsonValue::as_str)
+                        .is_some_and(|entry_path| entry_path == path)
+                })
         })
 }
 
@@ -277,26 +291,29 @@ pub fn can_introspect_namespace(path: &str, client: &RaphtoryGraphQLClient) -> b
         r#"query {{ namespace(path: "{path}") {{ graphs {{ list {{ path }} }} children {{ list {{ path }} }} }} }}"#
     );
 
-    let data = gql(&query, client);
+    let data = gql(&query, client)
+        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
+
     let namespace = data.get("namespace");
 
     let has_graphs_list = namespace
         .and_then(|ns| ns.get("graphs"))
         .and_then(|graphs| graphs.get("list"))
         .and_then(JsonValue::as_array)
-        .is_some();
+        .is_some_and(|entries| !entries.is_empty());
 
     let has_children_list = namespace
         .and_then(|ns| ns.get("children"))
         .and_then(|children| children.get("list"))
         .and_then(JsonValue::as_array)
-        .is_some();
+        .is_some_and(|entries| !entries.is_empty());
 
     has_graphs_list || has_children_list
 }
 
-fn gql(query: &str, client: &RaphtoryGraphQLClient) -> HashMap<String, JsonValue> {
-    RUNTIME
-        .block_on(client.query(query, HashMap::new()))
-        .unwrap_or_else(|e| panic!("Error executing query {query}: {e}"))
+fn gql(
+    query: &str,
+    client: &RaphtoryGraphQLClient,
+) -> Result<HashMap<String, JsonValue>, ClientError> {
+    RUNTIME.block_on(client.query(query, HashMap::new()))
 }

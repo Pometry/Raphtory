@@ -10,7 +10,7 @@ use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory::prelude::{GraphViewOps, NodeViewOps, Prop, PropUnwrap, PropertiesOps};
 use url::Url;
 
-use utils::jwt::{ADMIN_JWT, PUB_KEY};
+use utils::jwt::{user_jwt, ADMIN_JWT, PUB_KEY};
 use utils::strategy::{permissions_strategy, GrantType, Permission, PermissionGrant};
 
 use utils::graphql::{
@@ -128,10 +128,10 @@ fn validate_grant(
 
 #[test]
 fn permissions_proptest() {
-    const PROPTEST_CASES: u32 = 1;
-    const NAMESPACE_SIZE: RangeInclusive<usize> = 1..=20;
-    const NUM_GRANTS: RangeInclusive<usize> = 1..=1;
-    const NUM_USERS: RangeInclusive<usize> = 1..=10;
+    const PROPTEST_CASES: u32 = 10;
+    const NAMESPACE_SIZE: RangeInclusive<usize> = 1..=100;
+    const NUM_GRANTS: RangeInclusive<usize> = 1..=100;
+    const NUM_USERS: RangeInclusive<usize> = 1..=20;
 
     proptest!(
         ProptestConfig::with_cases(PROPTEST_CASES),
@@ -167,17 +167,19 @@ fn permissions_proptest() {
 
             // Validate grants across graph paths for each user.
             for path in &case.graph_paths {
-                for user_tree in &user_trees {
+                for (user_id, user_tree) in user_trees.iter().enumerate() {
                     let node_name = path.split('/').last().unwrap();
                     let node = user_tree.node(node_name).unwrap();
 
-                    validate_grant(path.as_str(), &node, &admin_client);
+                    let role = format!("user_{user_id}");
+                    let user_client = get_client(url.clone(), user_jwt(&role));
+                    validate_grant(path.as_str(), &node, &user_client);
                 }
             }
 
             // Validate grants across namespace paths for each user.
             for path in &case.namespace_paths {
-                for user_tree in &user_trees {
+                for (user_id, user_tree) in user_trees.iter().enumerate() {
                     let node_name = path.split('/').last().unwrap();
                     let node = user_tree.node(node_name).unwrap();
 
@@ -186,7 +188,9 @@ fn permissions_proptest() {
                         continue;
                     }
 
-                    validate_grant(path.as_str(), &node, &admin_client);
+                    let role = format!("user_{user_id}");
+                    let user_client = get_client(url.clone(), user_jwt(&role));
+                    validate_grant(path.as_str(), &node, &user_client);
                 }
             }
         }
