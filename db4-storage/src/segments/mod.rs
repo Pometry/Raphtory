@@ -160,6 +160,8 @@ pub struct SegmentContainer<T> {
     max_page_len: u32,
     properties: Properties,
     meta: Arc<Meta>,
+    out_count: usize, // used to count num edges
+    inb_count: usize, // used to count num edges
 }
 
 pub trait HasRow: Default + Send + Sync + Sized {
@@ -178,6 +180,8 @@ impl<T: HasRow> SegmentContainer<T> {
             max_page_len,
             properties: Default::default(),
             meta,
+            out_count: 0,
+            inb_count: 0,
         }
     }
 
@@ -188,6 +192,22 @@ impl<T: HasRow> SegmentContainer<T> {
             self,
             Self::new(self.segment_id, self.max_page_len, self.meta.clone()),
         )
+    }
+
+    pub fn inc_out_count(&mut self, i: usize) {
+        self.out_count += i;
+    }
+
+    pub fn inc_inb_count(&mut self, i: usize) {
+        self.inb_count += i;
+    }
+
+    pub fn out_count(&self) -> usize {
+        self.out_count
+    }
+
+    pub fn inb_count(&self) -> usize {
+        self.inb_count
     }
 
     #[inline]
