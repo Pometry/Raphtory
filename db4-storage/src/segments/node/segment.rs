@@ -261,11 +261,15 @@ impl MemNodeSegment {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
 
-        let add_out = layer.reserve_local_row(src_pos);
-        let new_entry = add_out.is_new();
-        let add_out = add_out.inner();
-        let is_new_edge = add_out.adj.add_edge_out(dst, e_id.edge);
-        let row = add_out.row;
+        let (is_new_edge, row, new_entry) = {
+            let add_out = layer.reserve_local_row(src_pos);
+            let new_entry = add_out.is_new();
+            let add_out = add_out.inner();
+            let is_new_edge = add_out.adj.add_edge_out(dst, e_id.edge);
+            let row = add_out.row;
+            (is_new_edge, row, new_entry)
+        };
+        layer.inc_out_count(is_new_edge as usize);
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
         }
@@ -290,11 +294,16 @@ impl MemNodeSegment {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
 
-        let add_in = layer.reserve_local_row(dst_pos);
-        let new_entry = add_in.is_new();
-        let add_in = add_in.inner();
-        let is_new_edge = add_in.adj.add_edge_into(src, e_id.edge);
-        let row = add_in.row;
+        let (is_new_edge, row, new_entry) = {
+            let add_in = layer.reserve_local_row(dst_pos);
+            let new_entry = add_in.is_new();
+            let add_in = add_in.inner();
+            let is_new_edge = add_in.adj.add_edge_into(src, e_id.edge);
+            let row = add_in.row;
+            (is_new_edge, row, new_entry)
+        };
+
+        layer.inc_inb_count(is_new_edge as usize);
 
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
