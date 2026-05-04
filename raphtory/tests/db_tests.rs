@@ -1244,13 +1244,13 @@ fn temporal_node_rows_nodes() {
             .node,
     );
 
+    let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
     for (id, n) in nodes.into_iter().enumerate() {
-        let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
         let actual = graph
             .core_graph()
             .nodes()
             .node(n)
-            .temp_prop_rows(prop_ids)
+            .temp_prop_rows(prop_ids.clone())
             .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
             .collect::<Vec<_>>();
 
@@ -1276,13 +1276,13 @@ fn temporal_node_rows_window() {
         .unwrap();
 
     test_storage!(&graph, |graph| {
+        let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
         let get_rows = |vid: VID, range: Range<EventTime>| {
-            let prop_ids: Arc<[usize]> = graph.node_meta().temporal_prop_mapper().ids().collect();
             graph
                 .core_graph()
                 .nodes()
                 .node(vid)
-                .temp_prop_rows_range(Some(range), prop_ids)
+                .temp_prop_rows_range(Some(range), prop_ids.clone())
                 .map(|(t, _, row)| (t, row.into_iter().map(|(_, p)| p).collect::<Vec<_>>()))
                 .collect::<Vec<_>>()
         };
