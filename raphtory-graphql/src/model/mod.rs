@@ -334,12 +334,17 @@ impl Data {
     }
 
     /// Checks read permission then returns the vectorised graph for the given path, if any.
+    /// Returns `None` for filtered-access users: embeddings are computed from the full graph
+    /// and search results cannot be retroactively row-filtered.
     async fn get_vectors_with_read_permission(
         &self,
         ctx: &Context<'_>,
         path: &str,
     ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
-        require_at_least_read(ctx, &self.auth_policy, path)?;
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
+            return Ok(None);
+        }
         Ok(self
             .get_graph(path)
             .await
