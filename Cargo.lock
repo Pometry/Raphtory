@@ -6399,6 +6399,7 @@ dependencies = [
  "raphtory",
  "raphtory-api",
  "raphtory-core",
+ "raphtory-itertools",
  "raphtory-storage",
  "rayon",
  "regex",

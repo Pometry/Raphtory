@@ -18,6 +18,7 @@ homepage.workspace = true
 raphtory-api.workspace = true
 raphtory-core.workspace = true
 raphtory-storage.workspace = true
+raphtory-itertools.workspace = true
 storage.workspace = true
 db4-graph.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }

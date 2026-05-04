@@ -18,6 +18,7 @@ use raphtory_api::core::{
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
+use raphtory_itertools::FastMergeExt;
 use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
@@ -269,7 +270,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         node.tprop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter())
-            .kmerge_by(|(a, _), (b, _)| a <= b)
+            .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
 
     fn node_tprop_iter_rev<'graph, G: GraphView + 'graph>(
@@ -280,7 +281,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         node.tprop_iter_layers(view.layer_ids(), prop_id)
             .map(|p| p.iter_rev())
-            .kmerge_by(|(a, _), (b, _)| a >= b)
+            .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
 
     fn node_tprop_iter_window<'graph, G: GraphView + 'graph>(
@@ -292,7 +293,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         node.tprop_iter_layers(view.layer_ids(), prop_id)
             .map(move |p| p.iter_window(w.clone()))
-            .kmerge_by(|(a, _), (b, _)| a <= b)
+            .fast_merge_by(|(a, _), (b, _)| a <= b)
     }
 
     fn node_tprop_iter_window_rev<'graph, G: GraphView + 'graph>(
@@ -304,7 +305,7 @@ impl NodeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, Prop)> + Send + Sync + 'graph {
         node.tprop_iter_layers(view.layer_ids(), prop_id)
             .map(move |p| p.iter_window_rev(w.clone()))
-            .kmerge_by(|(a, _), (b, _)| a >= b)
+            .fast_merge_by(|(a, _), (b, _)| a >= b)
     }
 
     fn node_tprop_last<'graph, G: GraphView + 'graph>(
@@ -418,7 +419,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
         edge.filtered_additions_iter(view, layer_ids)
             .map(|(layer_id, additions)| additions.iter().map(move |t| (t, layer_id)))
-            .kmerge()
+            .fast_merge()
     }
 
     fn edge_history_rev<'graph, G: GraphView + 'graph>(
@@ -429,7 +430,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
         edge.filtered_additions_iter(view, layer_ids)
             .map(|(layer_id, additions)| additions.iter_rev().map(move |t| (t, layer_id)))
-            .kmerge_by(|a, b| a >= b)
+            .fast_merge_by(|a, b| a >= b)
     }
 
     fn edge_history_window<'graph, G: GraphView + 'graph>(
@@ -446,7 +447,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .iter()
                     .map(move |t| (t, layer_id))
             })
-            .kmerge()
+            .fast_merge()
     }
 
     fn edge_history_window_rev<'graph, G: GraphView + 'graph>(
@@ -463,7 +464,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .iter_rev()
                     .map(move |t| (t, layer_id))
             })
-            .kmerge_by(|a, b| a >= b)
+            .fast_merge_by(|a, b| a >= b)
     }
 
     fn edge_exploded_count<'graph, G: GraphView + 'graph>(
@@ -653,7 +654,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
         e.filtered_deletions_iter(view, layer_ids)
             .map(|(layer_id, t)| t.iter().map(move |t| (t, layer_id)))
-            .kmerge()
+            .fast_merge()
     }
 
     fn edge_deletion_history_rev<'graph, G: GraphView + 'graph>(
@@ -664,7 +665,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, LayerId)> + Send + Sync + 'graph {
         e.filtered_deletions_iter(view, layer_ids)
             .map(|(layer_id, t)| t.iter_rev().map(move |t| (t, layer_id)))
-            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
+            .fast_merge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
     fn edge_deletion_history_window<'graph, G: GraphView + 'graph>(
@@ -681,7 +682,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .iter()
                     .map(move |t| (t, layer_id))
             })
-            .kmerge()
+            .fast_merge()
     }
 
     fn edge_deletion_history_window_rev<'graph, G: GraphView + 'graph>(
@@ -698,7 +699,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                     .iter_rev()
                     .map(move |t| (t, layer_id))
             })
-            .kmerge_by(|(t1, _), (t2, _)| t1 >= t2)
+            .fast_merge_by(|(t1, _), (t2, _)| t1 >= t2)
     }
 
     /// An edge is valid with event semantics if it has at least one addition event in the current view
@@ -944,7 +945,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
     ) -> impl Iterator<Item = (EventTime, LayerId, Prop)> + Send + Sync + 'graph {
         e.filtered_temporal_prop_iter(prop_id, view, layer_ids)
             .map(|(layer_id, prop)| prop.iter().map(move |(t, v)| (t, layer_id, v)))
-            .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
+            .fast_merge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
     }
 
     fn temporal_edge_prop_hist_rev<'graph, G: GraphView + 'graph>(
@@ -959,7 +960,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 prop.iter_inner_rev(None)
                     .map(move |(t, v)| (t, layer_id, v))
             })
-            .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
+            .fast_merge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 
     fn temporal_edge_prop_hist_window<'graph, G: GraphView + 'graph>(
@@ -975,7 +976,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 prop.iter_window(w.clone())
                     .map(move |(t, v)| (t, layer_id, v))
             })
-            .kmerge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
+            .fast_merge_by(|(t1, _, _), (t2, _, _)| t1 <= t2)
     }
 
     fn temporal_edge_prop_hist_window_rev<'graph, G: GraphView + 'graph>(
@@ -991,7 +992,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
                 prop.iter_window_rev(w.clone())
                     .map(move |(t, v)| (t, layer_id, v))
             })
-            .kmerge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
+            .fast_merge_by(|(t1, _, _), (t2, _, _)| t1 >= t2)
     }
 
     fn edge_metadata<'graph, G: GraphView + 'graph>(
