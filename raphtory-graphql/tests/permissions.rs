@@ -18,7 +18,7 @@ use utils::graphql::{
     start_server,
 };
 
-use crate::utils::graphql::{validate_graph_grant, validate_namespace_grant};
+use crate::utils::validate::{validate_graph_grant, validate_namespace_grant};
 
 const PORT: u16 = 43871;
 
