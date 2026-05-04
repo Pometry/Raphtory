@@ -22,10 +22,11 @@ fn init_raphtory_auth() {
 pub static RUNTIME: LazyLock<Runtime> =
     LazyLock::new(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
-pub fn get_client(url: Url, token: String) -> RaphtoryGraphQLClient {
-    RUNTIME
-        .block_on(RaphtoryGraphQLClient::connect(url, Some(token)))
-        .expect("connect GraphQL client")
+pub fn get_client(
+    url: Url,
+    token: String,
+) -> Result<RaphtoryGraphQLClient, ClientError> {
+    RUNTIME.block_on(RaphtoryGraphQLClient::connect(url, Some(token)))
 }
 
 pub fn start_server(
@@ -75,12 +76,11 @@ pub fn delete_graph(path: &str, client: &RaphtoryGraphQLClient) -> Result<(), Cl
     RUNTIME.block_on(client.delete_graph(path))
 }
 
-pub fn create_role(name: &str, client: &RaphtoryGraphQLClient) {
+pub fn create_role(name: &str, client: &RaphtoryGraphQLClient) -> Result<(), ClientError> {
     let query =
         format!(r#"mutation {{ permissions {{ createRole(name: "{name}") {{ success }} }} }}"#);
 
-    let data = gql(&query, client)
-        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
+    let data = gql(&query, client)?;
 
     let success = data
         .get("permissions")
@@ -88,10 +88,18 @@ pub fn create_role(name: &str, client: &RaphtoryGraphQLClient) {
         .and_then(|c| c.get("success"))
         .and_then(JsonValue::as_bool);
 
-    assert_eq!(success, Some(true), "createRole {name} data: {data:?}");
+    if success != Some(true) {
+        return Err(ClientError::InvalidResponse(format!(
+            "createRole {name} data: {data:?}"
+        )));
+    }
+    Ok(())
 }
 
-pub fn create_grant(grant: &PermissionGrant, client: &RaphtoryGraphQLClient) {
+pub fn create_grant(
+    grant: &PermissionGrant,
+    client: &RaphtoryGraphQLClient,
+) -> Result<(), ClientError> {
     let role = format!("user_{}", grant.user_id);
 
     match grant.grant_type {
@@ -105,14 +113,13 @@ pub fn grant_graph(
     role: &str,
     permission: Permission,
     client: &RaphtoryGraphQLClient,
-) {
+) -> Result<(), ClientError> {
     let query = format!(
         r#"mutation {{ permissions {{ grantGraph(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
         permission
     );
 
-    let data = gql(&query, client)
-        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
+    let data = gql(&query, client)?;
 
     let success = data
         .get("permissions")
@@ -120,11 +127,12 @@ pub fn grant_graph(
         .and_then(|c| c.get("success"))
         .and_then(JsonValue::as_bool);
 
-    assert_eq!(
-        success,
-        Some(true),
-        "grantGraph role={role} path={path} permission={permission} data: {data:?}"
-    );
+    if success != Some(true) {
+        return Err(ClientError::InvalidResponse(format!(
+            "grantGraph role={role} path={path} permission={permission} data: {data:?}"
+        )));
+    }
+    Ok(())
 }
 
 pub fn grant_namespace(
@@ -132,14 +140,13 @@ pub fn grant_namespace(
     role: &str,
     permission: Permission,
     client: &RaphtoryGraphQLClient,
-) {
+) -> Result<(), ClientError> {
     let query = format!(
         r#"mutation {{ permissions {{ grantNamespace(role: "{role}", path: "{path}", permission: {}) {{ success }} }} }}"#,
         permission
     );
 
-    let data = gql(&query, client)
-        .unwrap_or_else(|e| panic!("Error executing query: {query}: {e}"));
+    let data = gql(&query, client)?;
 
     let success = data
         .get("permissions")
@@ -147,11 +154,12 @@ pub fn grant_namespace(
         .and_then(|c| c.get("success"))
         .and_then(JsonValue::as_bool);
 
-    assert_eq!(
-        success,
-        Some(true),
-        "grantNamespace role={role} path={path} permission={permission} data: {data:?}"
-    );
+    if success != Some(true) {
+        return Err(ClientError::InvalidResponse(format!(
+            "grantNamespace role={role} path={path} permission={permission} data: {data:?}"
+        )));
+    }
+    Ok(())
 }
 
 pub(crate) fn gql(

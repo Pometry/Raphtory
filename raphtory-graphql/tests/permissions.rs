@@ -141,7 +141,7 @@ fn permissions_proptest() {
             let (_server, _tempdir) = start_server(PORT, PUB_KEY, total_graphs);
 
             let url = Url::parse(&format!("http://127.0.0.1:{PORT}")).unwrap();
-            let admin_client = get_client(url.clone(), ADMIN_JWT.to_string());
+            let admin_client = get_client(url.clone(), ADMIN_JWT.to_string()).unwrap();
 
             let tree = case.namespace_tree;
 
@@ -155,7 +155,7 @@ fn permissions_proptest() {
             // Create roles and separate namespace trees for each user.
             for i in 0..case.num_users {
                 let role = format!("user_{i}");
-                create_role(&role, &admin_client);
+                create_role(&role, &admin_client).unwrap();
 
                 let user_tree = tree.materialize().unwrap();
                 user_trees.push(user_tree);
@@ -163,7 +163,7 @@ fn permissions_proptest() {
 
             // Create grants on the server and track them locally.
             for grant in &case.grants {
-                create_grant(grant, &admin_client);
+                create_grant(grant, &admin_client).unwrap();
                 track_grant(grant, &user_trees);
             }
 
@@ -174,7 +174,7 @@ fn permissions_proptest() {
                     let node = user_tree.node(node_name).unwrap();
 
                     let role = format!("user_{user_id}");
-                    let user_client = get_client(url.clone(), user_jwt(&role));
+                    let user_client = get_client(url.clone(), user_jwt(&role)).unwrap();
                     validate_grant(path.as_str(), &node, &user_client);
                 }
             }
@@ -191,7 +191,7 @@ fn permissions_proptest() {
                     }
 
                     let role = format!("user_{user_id}");
-                    let user_client = get_client(url.clone(), user_jwt(&role));
+                    let user_client = get_client(url.clone(), user_jwt(&role)).unwrap();
                     validate_grant(path.as_str(), &node, &user_client);
                 }
             }
