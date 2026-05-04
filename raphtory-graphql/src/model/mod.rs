@@ -158,35 +158,35 @@ fn require_at_least_read(
 ) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-        match policy.graph_permissions(ctx, path) {
+        return match policy.graph_permissions(ctx, path) {
             Err(msg) => {
+                warn!(
+                    role = role.unwrap_or("<no role>"),
+                    graph = path,
+                    "Access denied by auth policy"
+                );
                 let ns = parent_namespace(path);
                 if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
-                    warn!(
-                        role = role.unwrap_or("<no role>"),
-                        graph = path,
-                        "Access denied by auth policy"
-                    );
-                    return Err(msg.into());
+                    Err(msg.into())
                 } else {
                     // Don't leak graph existence — act as if it doesn't exist.
-                    return Err(async_graphql::Error::new(MissingGraph.to_string()));
+                    Err(async_graphql::Error::new(MissingGraph.to_string()))
                 }
             }
             Ok(perm) => {
                 if let Some(p) = perm.at_least_read() {
-                    return Ok(p);
+                    Ok(p)
                 } else {
                     warn!(
                         role = role.unwrap_or("<no role>"),
                         graph = path,
                         "Introspect-only access — graph() denied; use graphMetadata() instead"
                     );
-                    return Err(async_graphql::Error::new(format!(
+                    Err(async_graphql::Error::new(format!(
                         "Access denied: role '{}' has introspect-only access to graph '{path}' — \
                          use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
                         role.unwrap_or("<no role>")
-                    )));
+                    )))
                 }
             }
         }
@@ -468,16 +468,11 @@ impl QueryRoot {
         if let Some(policy) = &data.auth_policy {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             if let Err(_) = policy.graph_permissions(ctx, &path) {
-                let ns = parent_namespace(&path);
-                if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
-                    warn!(
-                        role = role.unwrap_or("<no role>"),
-                        graph = path.as_str(),
-                        "Access denied by auth policy"
-                    );
-                }
-                // Always return null — permission denial is indistinguishable from "not found"
-                // from the user's perspective. The warning above is the only signal in the logs.
+                warn!(
+                    role = role.unwrap_or("<no role>"),
+                    graph = path.as_str(),
+                    "Access denied by auth policy"
+                );
                 return Ok(None);
             }
         }
