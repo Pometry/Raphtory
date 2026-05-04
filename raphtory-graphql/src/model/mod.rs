@@ -1,5 +1,5 @@
 use crate::{
-    auth::{AuthError, ContextValidation},
+    auth::ContextValidation,
     auth_policy::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission},
     data::Data,
     graph::GraphWithVectors,
@@ -52,11 +52,7 @@ use raphtory::{
     },
     version,
 };
-use std::{
-    error::Error,
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
+use std::sync::Arc;
 use tracing::{error, warn};
 
 pub mod graph;
@@ -114,16 +110,30 @@ where
     tokio::task::spawn_blocking(f).await.unwrap()
 }
 
-#[derive(Debug)]
-pub struct MissingGraph;
-
-impl Display for MissingGraph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Graph does not exist")
-    }
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum PermissionError {
+    /// Graph exists but caller has no namespace visibility — hide graph existence.
+    #[error("Graph does not exist")]
+    GraphNotFound,
+    /// Caller has introspect-only access; cannot read graph data.
+    #[error(
+        "Access denied: role '{role}' has introspect-only access to graph '{graph}' — \
+         use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs"
+    )]
+    IntrospectOnly { role: String, graph: String },
+    /// Caller has read-only access but the operation requires write.
+    #[error("Access denied: WRITE permission required for graph '{graph}'")]
+    GraphWriteRequired { graph: String },
+    /// Caller lacks write permission on the destination namespace.
+    #[error(
+        "Access denied: WRITE required on namespace '{namespace}' to {operation} graph '{graph}'"
+    )]
+    NamespaceWriteRequired {
+        namespace: String,
+        graph: String,
+        operation: String,
+    },
 }
-
-impl Error for MissingGraph {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum GqlGraphError {
@@ -171,7 +181,7 @@ fn require_at_least_read(
                     Err(msg.into())
                 } else {
                     // Don't leak graph existence — act as if it doesn't exist.
-                    Err(async_graphql::Error::new(MissingGraph.to_string()))
+                    Err(PermissionError::GraphNotFound.into())
                 }
             }
             Ok(perm) => {
@@ -183,11 +193,11 @@ fn require_at_least_read(
                         graph = path,
                         "Introspect-only access — graph() denied; use graphMetadata() instead"
                     );
-                    Err(async_graphql::Error::new(format!(
-                        "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                         use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
-                        role.unwrap_or("<no role>")
-                    )))
+                    Err(PermissionError::IntrospectOnly {
+                        role: role.unwrap_or("<no role>").to_string(),
+                        graph: path.to_string(),
+                    }
+                    .into())
                 }
             }
         };
@@ -345,13 +355,6 @@ fn parent_namespace(path: &str) -> &str {
     path.rfind('/').map(|i| &path[..i]).unwrap_or("")
 }
 
-fn write_denied(role: Option<&str>, msg: impl std::fmt::Display) -> async_graphql::Error {
-    match role {
-        Some(_) => async_graphql::Error::new(msg.to_string()),
-        None => AuthError::RequireWrite.into(),
-    }
-}
-
 fn require_graph_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -360,15 +363,13 @@ fn require_graph_write(
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             p.graph_permissions(ctx, path)
                 .map_err(async_graphql::Error::from)?
                 .at_least_write()
                 .ok_or_else(|| {
-                    write_denied(
-                        role,
-                        format!("Access denied: WRITE permission required for graph '{path}'"),
-                    )
+                    async_graphql::Error::from(PermissionError::GraphWriteRequired {
+                        graph: path.to_string(),
+                    })
                 })?;
             Ok(())
         }
@@ -385,12 +386,13 @@ fn require_namespace_write(
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             if p.namespace_permissions(ctx, ns_path) < NamespacePermission::Write {
-                return Err(write_denied(
-                    role,
-                    format!("Access denied: WRITE required on namespace '{ns_path}' to {operation} graph '{new_path}'"),
-                ));
+                return Err(PermissionError::NamespaceWriteRequired {
+                    namespace: ns_path.to_string(),
+                    graph: new_path.to_string(),
+                    operation: operation.to_string(),
+                }
+                .into());
             }
             Ok(())
         }
