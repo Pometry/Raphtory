@@ -410,7 +410,13 @@ impl QueryRoot {
 
     async fn graph<'a>(
         ctx: &Context<'a>,
+        #[graphql(
+            desc = "Graph path relative to the root namespace (e.g. `\"master\"` or `\"team/project/graph\"`)."
+        )]
         path: &str,
+        #[graphql(
+            desc = "Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type."
+        )]
         graph_type: Option<GqlGraphType>,
     ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
@@ -453,7 +459,10 @@ impl QueryRoot {
     /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
     /// Requires at least INTROSPECT permission.
 
-    async fn graph_metadata<'a>(ctx: &Context<'a>, path: String) -> Result<Option<MetaGraph>> {
+    async fn graph_metadata<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<Option<MetaGraph>> {
         let data = ctx.data_unchecked::<Data>();
 
         if let Some(policy) = &data.auth_policy {
@@ -482,7 +491,10 @@ impl QueryRoot {
     ///
     /// Returns:: GqlMutableGraph
 
-    async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
+    async fn update_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
         require_graph_write(ctx, &data.auth_policy, &path)?;
 
@@ -497,9 +509,14 @@ impl QueryRoot {
 
     async fn vectorise_graph<'a>(
         ctx: &Context<'a>,
-        path: String,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+        #[graphql(desc = "Optional embedding model; defaults to OpenAI's standard model.")]
         model: Option<EmbeddingModel>,
+        #[graphql(
+            desc = "Optional node-document template (which fields go into each node's text representation); defaults to the built-in template."
+        )]
         nodes: Option<Template>,
+        #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
         edges: Option<Template>,
     ) -> Result<bool> {
         ctx.require_jwt_write_access()?;
@@ -524,7 +541,7 @@ impl QueryRoot {
 
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
-        path: &str,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
     ) -> Result<Option<GqlVectorisedGraph>> {
         let data = ctx.data_unchecked::<Data>();
         require_at_least_read(ctx, &data.auth_policy, path)?;
@@ -581,7 +598,10 @@ impl QueryRoot {
     ///
     /// Returns:: Base64 url safe encoded string
 
-    async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
+    async fn receive_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let (_, graph) = data.get_graph_with_permissions(ctx, &path).await?;
         let materialized = blocking_compute(move || graph.materialize())
@@ -611,7 +631,10 @@ impl Mut {
 
     /// Delete graph from a path on the server.
 
-    async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool> {
+    async fn delete_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
         require_graph_write(ctx, &data.auth_policy, &path)?;
         let src_ns = parent_namespace(&path);
@@ -624,7 +647,7 @@ impl Mut {
 
     async fn new_graph<'a>(
         ctx: &Context<'a>,
-        path: String,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
@@ -654,8 +677,11 @@ impl Mut {
 
     async fn move_graph<'a>(
         ctx: &Context<'a>,
-        path: &str,
-        new_path: &str,
+        #[graphql(desc = "Current graph path relative to the root namespace.")] path: &str,
+        #[graphql(desc = "Destination path relative to the root namespace.")] new_path: &str,
+        #[graphql(
+            desc = "If true, allow replacing an existing graph at `newPath`; defaults to false."
+        )]
         overwrite: Option<bool>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
@@ -674,8 +700,11 @@ impl Mut {
 
     async fn copy_graph<'a>(
         ctx: &Context<'a>,
-        path: &str,
-        new_path: &str,
+        #[graphql(desc = "Source graph path relative to the root namespace.")] path: &str,
+        #[graphql(desc = "Destination path relative to the root namespace.")] new_path: &str,
+        #[graphql(
+            desc = "If true, allow replacing an existing graph at `newPath`; defaults to false."
+        )]
         overwrite: Option<bool>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
@@ -700,9 +729,9 @@ impl Mut {
 
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
-        path: String,
-        graph: Upload,
-        overwrite: bool,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
+        #[graphql(desc = "Multipart upload of the serialised graph file.")] graph: Upload,
+        #[graphql(desc = "If true, replace any graph already at `path`.")] overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(&path);
@@ -721,9 +750,9 @@ impl Mut {
 
     async fn send_graph<'a>(
         ctx: &Context<'a>,
-        path: &str,
-        graph: String,
-        overwrite: bool,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
+        #[graphql(desc = "Base64-encoded bincode of the serialised graph.")] graph: String,
+        #[graphql(desc = "If true, replace any graph already at `path`.")] overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         let dst_ns = parent_namespace(path);
@@ -750,10 +779,10 @@ impl Mut {
 
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
-        parent_path: &str,
-        nodes: Vec<GqlNodeId>,
-        new_path: String,
-        overwrite: bool,
+        #[graphql(desc = "Source graph path relative to the root namespace.")] parent_path: &str,
+        #[graphql(desc = "Node ids to include in the subgraph.")] nodes: Vec<GqlNodeId>,
+        #[graphql(desc = "Destination path relative to the root namespace.")] new_path: String,
+        #[graphql(desc = "If true, replace any graph already at `newPath`.")] overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
         require_graph_read_src(ctx, &data.auth_policy, parent_path, "create a subgraph")?;
@@ -780,7 +809,10 @@ impl Mut {
 
     async fn create_index<'a>(
         ctx: &Context<'a>,
-        path: &str,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
+        #[graphql(
+            desc = "Optional spec selecting which node/edge property fields to index. Omit to index a default set."
+        )]
         index_spec: Option<IndexSpecInput>,
         in_ram: bool,
     ) -> Result<bool> {
