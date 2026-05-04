@@ -218,7 +218,7 @@ impl Data {
         }
     }
 
-    pub async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, Arc<GQLError>> {
+    pub(crate) async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, Arc<GQLError>> {
         self.cache
             .try_get_with(path.into(), self.read_graph_from_disk(path))
             .await
