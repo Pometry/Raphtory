@@ -320,7 +320,7 @@ impl Data {
         };
         Ok((gwv.folder, graph))
     }
-    
+
     async fn get_raw_graph_with_read_permission(
         &self,
         ctx: &Context<'_>,
