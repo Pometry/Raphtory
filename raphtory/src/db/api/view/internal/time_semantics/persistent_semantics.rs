@@ -358,9 +358,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_updates<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
         node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
@@ -368,10 +368,10 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
         let start = w.start;
         let first_row = if node
             .additions()

@@ -291,12 +291,13 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
     where
         'graph: 'a,
     {
+        let prop_ids: Arc<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_updates(node.as_ref(), graph)
+                .node_updates(node.as_ref(), graph, prop_ids.clone())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()

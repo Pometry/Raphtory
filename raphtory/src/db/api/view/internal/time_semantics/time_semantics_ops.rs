@@ -4,7 +4,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 use storage::EdgeEntryRef;
 
 pub trait NodeTimeSemanticsOps {
@@ -111,6 +111,7 @@ pub trait NodeTimeSemanticsOps {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     fn node_updates_window<'graph, G: GraphView + 'graph>(
@@ -118,6 +119,7 @@ pub trait NodeTimeSemanticsOps {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph;
 
     /// Check if the node is part of the graph based on the history

@@ -158,9 +158,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_updates<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
         node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
@@ -168,10 +168,10 @@ impl NodeTimeSemanticsOps for EventSemantics {
     fn node_updates_window<'graph, G: GraphView + 'graph>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let prop_ids: Arc<[usize]> = view.node_visible_temporal_prop_ids().collect();
         node.temp_prop_rows_range(Some(w), prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
