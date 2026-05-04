@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
 use raphtory_graphql::client::ClientError;
 use serde_json::Value as JsonValue;
@@ -136,7 +138,7 @@ pub fn validate_namespace_grant(
     path: &str,
     permission: Option<Permission>,
     client: &RaphtoryGraphQLClient,
-    num_children: usize,
+    children: &[String],
 ) {
     match permission {
         Some(permission_enum) => {
@@ -149,7 +151,7 @@ pub fn validate_namespace_grant(
                 }
                 Permission::Introspect => {
                     assert!(
-                        can_introspect_namespace(path, num_children, client).unwrap(),
+                        can_introspect_namespace(path, children, client).unwrap(),
                         "namespace {path} should be introspectable"
                     );
                     assert!(
@@ -159,7 +161,7 @@ pub fn validate_namespace_grant(
                 }
                 Permission::Read => {
                     assert!(
-                        can_introspect_namespace(path, num_children, client).unwrap(),
+                        can_introspect_namespace(path, children, client).unwrap(),
                         "namespace {path} should be introspectable"
                     );
                     assert!(
@@ -169,7 +171,7 @@ pub fn validate_namespace_grant(
                 }
                 Permission::Write => {
                     assert!(
-                        can_introspect_namespace(path, num_children, client).unwrap(),
+                        can_introspect_namespace(path, children, client).unwrap(),
                         "namespace {path} should be introspectable"
                     );
                     assert!(
@@ -186,7 +188,7 @@ pub fn validate_namespace_grant(
                 "namespace {path} should not be discoverable"
             );
             assert!(
-                !can_introspect_namespace(path, num_children, client).unwrap(),
+                !can_introspect_namespace(path, children, client).unwrap(),
                 "namespace {path} should not be introspectable"
             );
             assert!(
@@ -241,10 +243,10 @@ pub fn can_discover_namespace(
 }
 
 // Verify that the namespace at `path` can have its listings browsed and that
-// immediate graphs plus child namespaces match the expected `num_children`.
+// immediate graphs and child namespaces match `children`.
 pub fn can_introspect_namespace(
     path: &str,
-    num_children: usize,
+    children: &[String],
     client: &RaphtoryGraphQLClient,
 ) -> Result<bool, ClientError> {
     let query = format!(
@@ -261,22 +263,35 @@ pub fn can_introspect_namespace(
         return Ok(false);
     };
 
-    let num_graphs = namespace
+    let mut listed = HashSet::new();
+
+    if let Some(entries) = namespace
         .get("graphs")
         .and_then(|graphs| graphs.get("list"))
         .and_then(JsonValue::as_array)
-        .map(|entries| entries.len())
-        .unwrap_or(0);
+    {
+        for entry in entries {
+            if let Some(p) = entry.get("path").and_then(JsonValue::as_str) {
+                listed.insert(path_last_segment(p).to_string());
+            }
+        }
+    }
 
-    let num_namespaces = namespace
+    if let Some(entries) = namespace
         .get("children")
-        .and_then(|children| children.get("list"))
+        .and_then(|ch| ch.get("list"))
         .and_then(JsonValue::as_array)
-        .map(|entries| entries.len())
-        .unwrap_or(0);
+    {
+        for entry in entries {
+            if let Some(p) = entry.get("path").and_then(JsonValue::as_str) {
+                listed.insert(path_last_segment(p).to_string());
+            }
+        }
+    }
 
-    // INSTROSPECT implies all listings of `path` are visible.
-    Ok(num_graphs + num_namespaces == num_children)
+    let expected: HashSet<String> = children.iter().cloned().collect();
+
+    Ok(listed == expected)
 }
 
 /// Can create and delete graphs at `path`.
@@ -299,7 +314,10 @@ pub fn can_write_namespace(
     }
 }
 
-#[inline]
 fn access_denied(err: &ClientError) -> bool {
     err.to_string().contains("Access denied")
+}
+
+fn path_last_segment(path: &str) -> &str {
+    path.rsplit('/').next().unwrap_or(path)
 }

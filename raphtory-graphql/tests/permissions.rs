@@ -122,8 +122,13 @@ fn validate_grant(
     if is_graph_path {
         validate_graph_grant(path, permission, client);
     } else {
-        let num_children = node.out_neighbours().len();
-        validate_namespace_grant(path, permission, client, num_children);
+        let children: Vec<String> = node
+            .out_neighbours()
+            .into_iter()
+            .map(|n| n.name().to_string())
+            .collect();
+
+        validate_namespace_grant(path, permission, client, &children);
     }
 }
 
