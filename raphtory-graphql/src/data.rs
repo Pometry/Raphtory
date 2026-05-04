@@ -218,6 +218,10 @@ impl Data {
         }
     }
 
+    /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
+    /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
+    /// `get_graph_with_write_permission` from `model/mod.rs` instead.
+    /// `pub(crate)` rather than private only because those wrappers live in a sibling module.
     pub(crate) async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, Arc<GQLError>> {
         self.cache
             .try_get_with(path.into(), self.read_graph_from_disk(path))
