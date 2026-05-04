@@ -599,24 +599,13 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
             let edge = self.graph.core_edge(Either::Right(self.edge));
             match self.edge.time() {
                 None => match self.edge.layer() {
-                    None => time_semantics
-                        .temporal_edge_prop_hist_rev(
-                            edge.as_ref(),
-                            &self.graph,
-                            self.graph.layer_ids(),
-                            id,
-                        )
-                        .next(),
-                    Some(layer) => time_semantics
-                        .temporal_edge_prop_hist_rev(
-                            edge.as_ref(),
-                            &self.graph,
-                            &LayerIds::One(layer),
-                            id,
-                        )
-                        .next(),
-                }
-                .map(|(_, _, v)| v),
+                    None => time_semantics.temporal_edge_prop_last(edge.as_ref(), &self.graph, id),
+                    Some(layer) => time_semantics.temporal_edge_prop_last(
+                        edge.as_ref(),
+                        LayeredGraph::new(&self.graph, LayerIds::One(layer)),
+                        id,
+                    ),
+                },
                 Some(t) => {
                     let layer = self.edge.layer().expect("exploded edge should have layer");
                     time_semantics.temporal_edge_prop_exploded(

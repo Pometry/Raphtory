@@ -12,6 +12,7 @@ raphtory = { workspace = true, features = [
 ] }
 raphtory-api = { workspace = true }
 rand = { workspace = true }
+rand_distr = { workspace = true }
 rayon = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
@@ -78,6 +79,10 @@ required-features = ["vectors"]
 name = "index_bench"
 harness = false
 required-features = ["search"]
+
+[[bench]]
+name = "temporal_props"
+harness = false
 
 [features]
 search = ["raphtory/search"]

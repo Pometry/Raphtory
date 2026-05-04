@@ -108,6 +108,14 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     fn is_empty(&self) -> bool {
         self.additions.is_empty()
     }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.additions.last()
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        self.additions.first()
+    }
 }
 
 impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
@@ -128,6 +136,22 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         self.history().map(|(t, _)| t)
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        if self.view.filtered() {
+            self.clone().iter_rev().next()
+        } else {
+            self.additions.last()
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        if self.view.filtered() {
+            self.clone().iter().next()
+        } else {
+            self.additions.first()
+        }
     }
 
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
@@ -157,6 +181,10 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.prop_history().active(w.clone()) || self.edge_history().active(w)
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.prop_history().last().max(self.edge_history().last())
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self {

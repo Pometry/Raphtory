@@ -84,8 +84,19 @@ impl TimeCol {
         match arr.data_type() {
             DataType::Int64 => Ok(Self(arr.as_primitive::<Int64Type>().clone())),
             DataType::UInt64 => {
-                let arr = arr.as_primitive::<UInt64Type>().clone();
-                let arr = cast(&arr, &DataType::Int64)?
+                let arr = cast(arr, &DataType::Int64)?
+                    .as_primitive::<Int64Type>()
+                    .clone();
+                Ok(Self(arr))
+            }
+            DataType::UInt32 => {
+                let arr = cast(arr, &DataType::Int64)?
+                    .as_primitive::<Int64Type>()
+                    .clone();
+                Ok(Self(arr))
+            }
+            DataType::Int32 => {
+                let arr = cast(arr, &DataType::Int64)?
                     .as_primitive::<Int64Type>()
                     .clone();
                 Ok(Self(arr))

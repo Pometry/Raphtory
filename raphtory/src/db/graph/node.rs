@@ -255,11 +255,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
-        let res = semantics
-            .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
-            .next()
-            .map(|(_, v)| v);
-        res
+        semantics
+            .node_tprop_last(node.as_ref(), &self.graph, id)
+            .map(|(_, v)| v)
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
