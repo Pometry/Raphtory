@@ -252,10 +252,10 @@ impl EarliestDateTimeView {
     ///
     /// Arguments:
     ///     node (NodeInput): the node
-    #[doc = "    default (Optional[datetime]): the default value. Defaults to None."]
+    ///     default (Optional[datetime]): the default value. Defaults to None.
     ///
     /// Returns:
-    #[doc = "    Optional[datetime]: the value for the node or the default value"]
+    ///     Optional[datetime]: the value for the node or the default value
     #[pyo3(signature = (node, default=None::<DateTime<Utc>>))]
     fn get(
         &self,

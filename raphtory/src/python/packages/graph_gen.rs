@@ -23,7 +23,7 @@ use pyo3::prelude::*;
 ///   seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
-///  None
+///  None:
 #[pyfunction]
 #[pyo3[signature = (g, nodes_to_add, edges_per_step, seed=None)]]
 pub fn random_attachment(
@@ -55,8 +55,7 @@ pub fn random_attachment(
 ///    seed: The seed used in rng, an array of length 32 containing ints (ints must have a max size of u8)
 ///
 /// Returns:
-///
-/// None
+///     None:
 #[pyfunction]
 #[pyo3[signature = (g, nodes_to_add, edges_per_step, seed=None)]]
 pub fn ba_preferential_attachment(

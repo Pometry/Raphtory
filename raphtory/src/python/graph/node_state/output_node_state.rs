@@ -33,11 +33,7 @@ use pyo3::{
 use raphtory_api::core::entities::properties::prop::PropUntagged;
 use std::{collections::HashMap, sync::Arc};
 
-#[pyclass(
-    name = "OutputNodeState",
-    module = "raphtory.output_node_state",
-    frozen
-)]
+#[pyclass(name = "OutputNodeState", module = "raphtory.node_state", frozen)]
 pub struct PyOutputNodeState {
     pub inner: OutputTypedNodeState<'static, DynamicGraph>,
 }
@@ -201,6 +197,7 @@ impl PyOutputNodeState {
     ///
     /// Arguments:
     ///     sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+    ///     k (int): Number of top entries to return.
     ///
     /// Returns:
     ///     OutputNodeState: Sorted NodeState
@@ -219,10 +216,10 @@ impl PyOutputNodeState {
     /// Group by value
     ///
     /// Arguments:
-    ///     cols (List[Str]): columns by which to group nodes
+    ///     cols (list[str]): columns by which to group nodes
     ///
     /// Returns:
-    ///     List[Tuple[Dict, Nodes]]: The grouped nodes
+    ///     list[tuple[dict, Nodes]]: The grouped nodes
     fn groups(
         &self,
         cols: Vec<String>,
@@ -237,24 +234,27 @@ impl PyOutputNodeState {
     //    self.inner.sort_by_id()
     //}
 
-    /// Convert TypedNodeState to Parquet
+    /// Convert OutputNodeState to Parquet
     ///
     /// Arguments:
-    ///     file_path (Str): filepath to which TypedNodeState is written
-    ///     id_column (Str): column containing IDs of nodes
+    ///     file_path (str): filepath to which OutputNodeState is written
+    ///     id_column (str): column containing IDs of nodes. Defaults to "id".
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn to_parquet(&self, file_path: String, id_column: String) {
         self.inner.state.to_parquet(file_path, Some(id_column));
     }
 
-    /// Get TypedNodeState from Parquet
+    /// Get OutputNodeState from Parquet
     ///
     /// Arguments:
-    ///     file_path (Str): filepath from which to read TypedNodeState
-    ///     id_column (Str): column to which node IDs will be written
+    ///     file_path (str): filepath from which to read OutputNodeState
+    ///     id_column (str): column to which node IDs will be written. Defaults to "id".
     ///
     /// Returns:
-    ///     TypedNodeState
+    ///     OutputNodeState:
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn from_parquet(&self, file_path: String, id_column: String) -> PyResult<Self> {
         Ok(PyOutputNodeState {
@@ -265,16 +265,16 @@ impl PyOutputNodeState {
         })
     }
 
-    /// Merge with another TypedNodeState (produces new TypedNodeState)
+    /// Merge with another OutputNodeState (produces new OutputNodeState)
     ///
     /// Arguments:
-    ///     other (TypedNodeState): TypedNodeState to merge with
-    ///     index_merge_priority (Str): "left" or "right" to take left or right index, "union" to union index sets
-    ///     default_column_merge_priority (Str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default
-    ///     column_merge_priority_map (Dict): map of column names (Str) to merge priority ("left", "right", or "exclude")
+    ///     other (OutputNodeState): OutputNodeState to merge with
+    ///     index_merge_priority (str): "left" or "right" to take left or right index, "union" to union index sets. Defaults to "left".
+    ///     default_column_merge_priority (str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default. Defaults to "left".
+    ///     column_merge_priority_map (dict, optional): map of column names (str) to merge priority ("left", "right", or "exclude"). Defaults to None.
     ///
     /// Returns:
-    ///     TypedNodeState
+    ///     OutputNodeState:
     #[pyo3(signature = (other, index_merge_priority="left".to_string(), default_column_merge_priority="left".to_string(), column_merge_priority_map=None::<HashMap<String, String>>))]
     fn merge<'py>(
         &self,

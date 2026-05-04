@@ -38,6 +38,10 @@ macro_rules! _py_nested_iterable_methods {
 
         #[pymethods]
         impl $name {
+            /// Materialise the nested iterable as a list of lists.
+            ///
+            /// Returns:
+            ///     list[list]:
             pub fn collect(&self) -> Vec<Vec<$pyitem>> {
                 self.iter()
                     .map(|it| it.map(|v| v.into()).collect())
@@ -52,6 +56,10 @@ macro_rules! _py_nested_numeric_methods {
     ($name:ident, $item:ty, $value_iterable:ty) => {
         #[pymethods]
         impl $name {
+            /// Per-row sum of values (one entry per outer row).
+            ///
+            /// Returns:
+            ///     Any:
             pub fn sum(&self) -> $value_iterable {
                 let builder = self.builder.clone();
                 (move || {
@@ -61,6 +69,10 @@ macro_rules! _py_nested_numeric_methods {
                 .into()
             }
 
+            /// Per-row mean of values (one entry per outer row).
+            ///
+            /// Returns:
+            ///     Any:
             pub fn mean(&self) -> Float64Iterable {
                 let builder = self.builder.clone();
                 (move || {
@@ -78,6 +90,10 @@ macro_rules! _py_nested_ord_max_min_methods {
     ($name:ident, $item:ty, $option_value_iterable:ty) => {
         #[pymethods]
         impl $name {
+            /// Per-row maximum value (or None for empty rows).
+            ///
+            /// Returns:
+            ///     Any:
             fn max(&self) -> $option_value_iterable {
                 let builder = self.builder.clone();
                 (move || {
@@ -87,6 +103,10 @@ macro_rules! _py_nested_ord_max_min_methods {
                 .into()
             }
 
+            /// Per-row minimum value (or None for empty rows).
+            ///
+            /// Returns:
+            ///     Any:
             fn min(&self) -> $option_value_iterable {
                 let builder = self.builder.clone();
                 (move || {
@@ -104,6 +124,10 @@ macro_rules! _py_nested_float_max_min_methods {
     ($name:ident, $item:ty, $option_value_iterable:ty) => {
         #[pymethods]
         impl $name {
+            /// Per-row maximum value (or None for empty rows).
+            ///
+            /// Returns:
+            ///     Any:
             fn max(&self) -> $option_value_iterable {
                 let builder = self.builder.clone();
                 (move || {
@@ -114,6 +138,10 @@ macro_rules! _py_nested_float_max_min_methods {
                 .into()
             }
 
+            /// Per-row minimum value (or None for empty rows).
+            ///
+            /// Returns:
+            ///     Any:
             fn min(&self) -> $option_value_iterable {
                 let builder = self.builder.clone();
                 (move || {

@@ -551,7 +551,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        locked_head.get_out_edge(pos, dst.into(), layer_id)
+        MemNodeSegment::get_out_edge(&locked_head, pos, dst.into(), layer_id) // rust-analyzer
     }
 
     fn get_inb_edge(
@@ -561,7 +561,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        locked_head.get_inb_edge(pos, src.into(), layer_id)
+        MemNodeSegment::get_inb_edge(&locked_head, pos, src.into(), layer_id) // rust-analyzer
     }
 
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {

@@ -12,10 +12,7 @@ use raphtory_api::{
 };
 use raphtory_core::entities::{
     graph::tgraph::TooManyLayers,
-    properties::{
-        props::{MetadataError, TPropError},
-        tprop::IllegalPropType,
-    },
+    properties::props::{MetadataError, TPropError},
 };
 use std::sync::Arc;
 use storage::{
@@ -54,8 +51,6 @@ pub enum MutationError {
     TPropError(#[from] TPropError),
     #[error(transparent)]
     InvalidBigDecimal(#[from] InvalidBigDecimal),
-    #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
     #[error(transparent)]
     MetadataError(#[from] MetadataError),
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
