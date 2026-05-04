@@ -66,8 +66,8 @@ impl<G: GraphView> InternalNodeFilterOps for LayeredGraph<G> {
 
     fn internal_node_list_trusted(&self) -> bool {
         // after applying a layer, previously filtered lists can no longer be trusted
-        !self.graph.internal_edge_layer_filtered()
-            || (self.graph.internal_node_list_trusted() && self.layers.is_all())
+        self.graph.internal_node_list_trusted()
+            && (self.layers.is_all() || self.graph.node_list().is_empty())
     }
 
     fn edge_filter_includes_node_filter(&self) -> bool {
