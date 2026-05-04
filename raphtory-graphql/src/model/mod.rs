@@ -320,6 +320,17 @@ impl Data {
         };
         Ok((gwv.folder, graph))
     }
+    
+    async fn get_raw_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<GraphWithVectors> {
+        require_at_least_read(ctx, &self.auth_policy, path)?;
+        self.get_graph(path)
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))
+    }
 
     /// Checks write permission then returns the raw `GraphWithVectors` for mutation operations.
     async fn get_graph_with_write_permission(
@@ -706,9 +717,9 @@ impl Mut {
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let overwrite = overwrite.unwrap_or(false);
-        let graph = data.get_graph_with_write_permission(ctx, path).await?.graph;
+        let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
-        data.insert_graph(folder, graph).await?;
+        data.insert_graph(folder, src.graph).await?;
 
         Ok(true)
     }
@@ -779,10 +790,9 @@ impl Mut {
         let dst_ns = parent_namespace(&new_path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
-        let parent_graph = data
-            .get_graph_with_write_permission(ctx, parent_path)
-            .await?
-            .graph;
+        let (_, parent_graph) = data
+            .get_graph_with_read_permission(ctx, parent_path, None)
+            .await?;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
             let subgraph = parent_graph.subgraph(nodes);
