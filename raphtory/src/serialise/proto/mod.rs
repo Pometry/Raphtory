@@ -31,7 +31,7 @@ use raphtory_storage::{
         nodes::node_storage_ops::NodeStorageOps,
     },
 };
-use std::iter;
+use std::{iter, sync::Arc};
 
 pub mod ext;
 
@@ -111,12 +111,13 @@ impl ProtoEncoder for GraphStorage {
         }
 
         // Nodes
+        let all_node_prop_ids: Arc<[usize]> = n_temporal_meta.ids().collect();
         let nodes = storage.nodes();
         for node_id in 0..nodes.len() {
             let node = nodes.node(VID(node_id));
             graph.new_node(node.id(), node.vid(), node.node_type_id());
 
-            for (time, _, row) in node.temp_prop_rows() {
+            for (time, _, row) in node.temp_prop_rows(Arc::clone(&all_node_prop_ids)) {
                 graph.update_node_tprops(node.vid(), time, row.into_iter());
             }
 

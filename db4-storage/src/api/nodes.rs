@@ -268,19 +268,20 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     fn temp_prop_rows(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
         (0..self.internal_num_layers()).flat_map(move |layer_id| {
             let w = w.clone();
+            let prop_ids = Arc::clone(&prop_ids);
             let additions = self.node_additions(layer_id);
             let additions = w
                 .clone()
                 .map(|w| Iter2::I1(additions.range(w).iter()))
                 .unwrap_or_else(|| Iter2::I2(additions.iter()));
 
-            let mut time_ordered_iter = self
-                .node_meta()
-                .temporal_prop_mapper()
-                .ids()
+            let mut time_ordered_iter = prop_ids
+                .iter()
+                .copied()
                 .map(move |prop_id| {
                     self.temporal_prop_layer(LayerId(layer_id), prop_id)
                         .iter_inner(w.clone())

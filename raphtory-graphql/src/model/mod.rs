@@ -1,11 +1,12 @@
 use crate::{
-    auth::{AuthError, ContextValidation},
+    auth::ContextValidation,
     auth_policy::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission},
     data::Data,
+    graph::GraphWithVectors,
     model::{
         graph::{
             collection::GqlCollection,
-            filtering::{GqlEdgeFilter, GqlNodeFilter, GraphAccessFilter},
+            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
             graph::GqlGraph,
             index::IndexSpecInput,
             meta_graph::MetaGraph,
@@ -36,7 +37,11 @@ use raphtory::{
             storage::storage::{Extension, PersistenceStrategy},
             view::{DynamicGraph, Filter, IntoDynamic, MaterializedGraph},
         },
-        graph::views::{deletion_graph::PersistentGraph, filter::model::NodeViewFilterOps},
+        graph::views::{
+            deletion_graph::PersistentGraph,
+            filter::model::{ComposableFilter, DynFilter, DynView, NodeViewFilterOps},
+            property_redacted_graph::PropertyRedaction,
+        },
     },
     errors::{GraphError, GraphResult},
     prelude::*,
@@ -47,13 +52,7 @@ use raphtory::{
     },
     version,
 };
-use std::{
-    error::Error,
-    fmt::{Display, Formatter},
-    future::Future,
-    pin::Pin,
-    sync::Arc,
-};
+use std::sync::Arc;
 use tracing::{error, warn};
 
 pub mod graph;
@@ -111,16 +110,30 @@ where
     tokio::task::spawn_blocking(f).await.unwrap()
 }
 
-#[derive(Debug)]
-pub struct MissingGraph;
-
-impl Display for MissingGraph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Graph does not exist")
-    }
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum PermissionError {
+    /// Graph exists but caller has no namespace visibility — hide graph existence.
+    #[error("Graph does not exist")]
+    GraphNotFound,
+    /// Caller has introspect-only access; cannot read graph data.
+    #[error(
+        "Access denied: role '{role}' has introspect-only access to graph '{graph}' — \
+         use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs"
+    )]
+    IntrospectOnly { role: String, graph: String },
+    /// Caller has read-only access but the operation requires write.
+    #[error("Access denied: WRITE permission required for graph '{graph}'")]
+    GraphWriteRequired { graph: String },
+    /// Caller lacks write permission on the destination namespace.
+    #[error(
+        "Access denied: WRITE required on namespace '{namespace}' to {operation} graph '{graph}'"
+    )]
+    NamespaceWriteRequired {
+        namespace: String,
+        graph: String,
+        operation: String,
+    },
 }
-
-impl Error for MissingGraph {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum GqlGraphError {
@@ -156,157 +169,206 @@ fn require_at_least_read(
 ) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
         let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-        match policy.graph_permissions(ctx, path) {
+        return match policy.graph_permissions(ctx, path) {
             Err(msg) => {
+                warn!(
+                    role = role.unwrap_or("<no role>"),
+                    graph = path,
+                    "Access denied by auth policy"
+                );
                 let ns = parent_namespace(path);
                 if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
-                    warn!(
-                        role = role.unwrap_or("<no role>"),
-                        graph = path,
-                        "Access denied by auth policy"
-                    );
-                    return Err(msg.into());
+                    Err(msg.into())
                 } else {
                     // Don't leak graph existence — act as if it doesn't exist.
-                    return Err(async_graphql::Error::new(MissingGraph.to_string()));
+                    Err(PermissionError::GraphNotFound.into())
                 }
             }
             Ok(perm) => {
                 if let Some(p) = perm.at_least_read() {
-                    return Ok(p);
+                    Ok(p)
                 } else {
                     warn!(
                         role = role.unwrap_or("<no role>"),
                         graph = path,
                         "Introspect-only access — graph() denied; use graphMetadata() instead"
                     );
-                    return Err(async_graphql::Error::new(format!(
-                        "Access denied: role '{}' has introspect-only access to graph '{path}' — \
-                         use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs",
-                        role.unwrap_or("<no role>")
-                    )));
+                    Err(PermissionError::IntrospectOnly {
+                        role: role.unwrap_or("<no role>").to_string(),
+                        graph: path.to_string(),
+                    }
+                    .into())
                 }
             }
-        }
+        };
     }
     Ok(GraphPermission::Write)
 }
 
-/// Applies a stored data filter (serialised as `serde_json::Value` with optional `node`, `edge`,
-/// `graph` keys) to a `DynamicGraph`, returning a new filtered view.
-fn apply_graph_filter(
-    mut graph: DynamicGraph,
-    filter: GraphAccessFilter,
-) -> Pin<Box<dyn Future<Output = async_graphql::Result<DynamicGraph>> + Send>> {
-    Box::pin(async move {
-        use raphtory::db::graph::views::filter::model::{
-            edge_filter::CompositeEdgeFilter, node_filter::CompositeNodeFilter, DynView,
-        };
+/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+/// All filter work (conversion + application) runs inside a single `blocking_compute` call.
+async fn apply_graph_filter(
+    graph: DynamicGraph,
+    row_filter: GraphRowFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
+}
 
-        match filter {
-            GraphAccessFilter::Node(gql_filter) => {
-                let raphtory_filter = CompositeNodeFilter::try_from(gql_filter).map_err(|e| {
-                    error!(error = %e, "node filter conversion failed");
-                    async_graphql::Error::new("internal error applying access filter")
-                })?;
-                graph = blocking_compute({
-                    let g = graph.clone();
-                    move || g.filter(raphtory_filter)
-                })
-                .await
-                .map_err(|e| {
-                    error!(error = %e, "node filter apply failed");
-                    async_graphql::Error::new("internal error applying access filter")
-                })?
-                .into_dynamic();
-            }
-            GraphAccessFilter::Edge(gql_filter) => {
-                let raphtory_filter = CompositeEdgeFilter::try_from(gql_filter).map_err(|e| {
-                    error!(error = %e, "edge filter conversion failed");
-                    async_graphql::Error::new("internal error applying access filter")
-                })?;
-                graph = blocking_compute({
-                    let g = graph.clone();
-                    move || g.filter(raphtory_filter)
-                })
-                .await
-                .map_err(|e| {
-                    error!(error = %e, "edge filter apply failed");
-                    async_graphql::Error::new("internal error applying access filter")
-                })?
-                .into_dynamic();
-            }
-            GraphAccessFilter::Graph(gql_filter) => {
-                let dyn_view = DynView::try_from(gql_filter).map_err(|e| {
-                    error!(error = %e, "graph filter conversion failed");
-                    async_graphql::Error::new("internal error applying access filter")
-                })?;
-                graph = blocking_compute({
-                    let g = graph.clone();
-                    move || g.filter(dyn_view)
-                })
-                .await
-                .map_err(|e| {
-                    error!(error = %e, "graph filter apply failed");
-                    async_graphql::Error::new("internal error applying access filter")
-                })?
-                .into_dynamic();
-            }
-            GraphAccessFilter::And(filters) => {
-                for f in filters {
-                    graph = apply_graph_filter(graph, f).await?;
-                }
-            }
-            GraphAccessFilter::Or(filters) => {
-                // Group same-type sub-filters and combine with native Or;
-                // cross-type sub-filters are applied as independent restrictions.
-                let mut node_fs: Vec<GqlNodeFilter> = vec![];
-                let mut edge_fs: Vec<GqlEdgeFilter> = vec![];
-                let mut rest: Vec<GraphAccessFilter> = vec![];
-                for f in filters {
-                    match f {
-                        GraphAccessFilter::Node(n) => node_fs.push(n),
-                        GraphAccessFilter::Edge(e) => edge_fs.push(e),
-                        other => rest.push(other),
-                    }
-                }
-                if !node_fs.is_empty() {
-                    let combined = if node_fs.len() == 1 {
-                        node_fs.pop().unwrap()
-                    } else {
-                        GqlNodeFilter::Or(node_fs)
-                    };
-                    graph = apply_graph_filter(graph, GraphAccessFilter::Node(combined)).await?;
-                }
-                if !edge_fs.is_empty() {
-                    let combined = if edge_fs.len() == 1 {
-                        edge_fs.pop().unwrap()
-                    } else {
-                        GqlEdgeFilter::Or(edge_fs)
-                    };
-                    graph = apply_graph_filter(graph, GraphAccessFilter::Edge(combined)).await?;
-                }
-                for f in rest {
-                    graph = apply_graph_filter(graph, f).await?;
-                }
-            }
-        }
+fn apply_row_filter_sync(
+    graph: DynamicGraph,
+    filter: GraphRowFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
+    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
+    // Parallel AndFilter composition loses this ordering because DynView.internal_filter_node
+    // always returns true — the window only restricts time semantics, not node predicates.
+    if let GraphRowFilter::And(filters) = filter {
+        return filters
+            .into_iter()
+            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
+    }
+    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
+        error!(error = %e, "filter conversion failed");
+        async_graphql::Error::new("internal error applying access filter")
+    })?;
+    Ok(graph
+        .filter(dyn_filter)
+        .map_err(|e| {
+            error!(error = %e, "failed to apply filter");
+            async_graphql::Error::new("internal error applying access filter")
+        })?
+        .into_dynamic())
+}
 
+/// Extract per-entity hidden property sets from a `GraphAccessFilter`.
+fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
+    let hp = filter.hidden_properties.as_ref();
+    let hm = filter.hidden_metadata.as_ref();
+    fn collect(
+        keys: Option<&HiddenKeys>,
+        pick: fn(&HiddenKeys) -> Option<&Vec<String>>,
+    ) -> std::collections::HashSet<String> {
+        keys.and_then(pick)
+            .map(|v| v.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+    PropertyRedaction {
+        node_hidden_props: collect(hp, |h| h.node.as_ref()),
+        node_hidden_meta: collect(hm, |h| h.node.as_ref()),
+        edge_hidden_props: collect(hp, |h| h.edge.as_ref()),
+        edge_hidden_meta: collect(hm, |h| h.edge.as_ref()),
+        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
+        graph_hidden_meta: collect(hm, |h| h.graph.as_ref()),
+    }
+}
+
+/// Applies the row filter and property redaction from a `GraphAccessFilter` to a graph.
+/// Returns the same `DynamicGraph` unchanged when neither filter is set.
+async fn apply_access_filter(
+    graph: DynamicGraph,
+    f: &GraphAccessFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    let graph = if let Some(ref row_filter) = f.filter {
+        apply_graph_filter(graph, row_filter.clone()).await?
+    } else {
+        graph
+    };
+    let redaction = build_redaction(f);
+    if redaction.has_restrictions() {
+        Ok(graph.exclude_properties(&redaction).into_dynamic())
+    } else {
         Ok(graph)
-    })
+    }
+}
+
+impl Data {
+    /// Loads a graph and applies row filter + property redaction from the caller's access
+    /// permission. Returns the graph folder (for metadata) and the filtered `DynamicGraph`.
+    /// Permission errors propagate as `Err`; callers that want `None` on denial (e.g. `graph()`)
+    /// should match on the result themselves.
+    async fn get_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        let gwv = self.get_graph(path).await?;
+        let typed_graph = match graph_type {
+            Some(GqlGraphType::Event) => match gwv.graph {
+                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g),
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::EventGraph(g.event_graph())
+                }
+            },
+            Some(GqlGraphType::Persistent) => match gwv.graph {
+                MaterializedGraph::EventGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.persistent_graph())
+                }
+                MaterializedGraph::PersistentGraph(g) => MaterializedGraph::PersistentGraph(g),
+            },
+            None => gwv.graph,
+        };
+        let raw = typed_graph.into_dynamic();
+        let graph = if let GraphPermission::Read {
+            filter: Some(ref f),
+        } = perm
+        {
+            apply_access_filter(raw, f).await?
+        } else {
+            raw
+        };
+        Ok((gwv.folder, graph))
+    }
+
+    async fn get_raw_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<GraphWithVectors> {
+        require_at_least_read(ctx, &self.auth_policy, path)?;
+        self.get_graph(path)
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))
+    }
+
+    /// Checks write permission then returns the raw `GraphWithVectors` for mutation operations.
+    async fn get_graph_with_write_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<GraphWithVectors> {
+        require_graph_write(ctx, &self.auth_policy, path)?;
+        self.get_graph(path)
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))
+    }
+
+    /// Checks read permission then returns the vectorised graph for the given path, if any.
+    /// Returns `None` for filtered-access users: embeddings are computed from the full graph
+    /// and search results cannot be retroactively row-filtered.
+    async fn get_vectors_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
+            return Ok(None);
+        }
+        Ok(self
+            .get_graph(path)
+            .await
+            .ok()
+            .and_then(|g| g.vectors)
+            .map(Into::into))
+    }
 }
 
 /// Returns the namespace portion of a graph path: everything before the last `/`.
 /// For top-level graphs (no `/`), returns `""` (the root namespace).
 fn parent_namespace(path: &str) -> &str {
     path.rfind('/').map(|i| &path[..i]).unwrap_or("")
-}
-
-fn write_denied(role: Option<&str>, msg: impl std::fmt::Display) -> async_graphql::Error {
-    match role {
-        Some(_) => async_graphql::Error::new(msg.to_string()),
-        None => AuthError::RequireWrite.into(),
-    }
 }
 
 fn require_graph_write(
@@ -317,15 +379,13 @@ fn require_graph_write(
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             p.graph_permissions(ctx, path)
                 .map_err(async_graphql::Error::from)?
                 .at_least_write()
                 .ok_or_else(|| {
-                    write_denied(
-                        role,
-                        format!("Access denied: WRITE permission required for graph '{path}'"),
-                    )
+                    async_graphql::Error::from(PermissionError::GraphWriteRequired {
+                        graph: path.to_string(),
+                    })
                 })?;
             Ok(())
         }
@@ -342,49 +402,19 @@ fn require_namespace_write(
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             if p.namespace_permissions(ctx, ns_path) < NamespacePermission::Write {
-                return Err(write_denied(
-                    role,
-                    format!("Access denied: WRITE required on namespace '{ns_path}' to {operation} graph '{new_path}'"),
-                ));
+                return Err(PermissionError::NamespaceWriteRequired {
+                    namespace: ns_path.to_string(),
+                    graph: new_path.to_string(),
+                    operation: operation.to_string(),
+                }
+                .into());
             }
             Ok(())
         }
     }
 }
 
-fn require_graph_read_src(
-    ctx: &Context<'_>,
-    policy: &Option<Arc<dyn AuthorizationPolicy>>,
-    path: &str,
-    operation: &str,
-) -> async_graphql::Result<()> {
-    match policy {
-        None => ctx.require_jwt_write_access().map_err(Into::into),
-        Some(p) => {
-            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
-            p.graph_permissions(ctx, path)
-                .map_err(async_graphql::Error::from)?
-                .at_least_read()
-                .ok_or_else(|| {
-                    write_denied(
-                        role,
-                        format!(
-                            "Access denied: READ required on source graph '{path}' to {operation}"
-                        ),
-                    )
-                })?;
-            Ok(())
-        }
-    }
-}
-
-/// Top-level READ-only query root. Entry points for loading a graph
-/// (`graph`, `graphMetadata`), browsing stored graphs (`namespaces`,
-/// `namespace`, `root`), downloading a stored graph as a base64 blob
-/// (`receiveGraph`), inspecting vectorised variants (`vectorisedGraph`),
-/// and a few utility endpoints (`version`, `hello`, `plugins`).
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub(crate) struct QueryRoot;
@@ -407,19 +437,12 @@ fn resolve(template: Option<Template>, default: &str) -> Option<String> {
 
 #[ResolvedObjectFields]
 impl QueryRoot {
-    /// Liveness check — returns a static "hello world" string. Useful for
-    /// smoke-testing that the GraphQL server is reachable.
+    /// Hello world demo
     async fn hello() -> &'static str {
         "Hello world from raphtory-graphql"
     }
 
-    /// Load a graph by path. Returns null if the graph doesn't exist or is
-    /// inaccessible. When a READ-scoped filter is attached to the caller's
-    /// permissions, that filter is applied before the graph is returned.
-    /// `graphType` lets you re-interpret the stored graph at query time —
-    /// e.g. read an event-stored graph through persistent semantics. Defaults
-    /// to the type the graph was created with.
-    /// Requires READ on the graph.
+    /// Returns a graph
 
     async fn graph<'a>(
         ctx: &Context<'a>,
@@ -433,49 +456,19 @@ impl QueryRoot {
         graph_type: Option<GqlGraphType>,
     ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
-
-        // Permission check: Err (denied or introspect-only) is converted to Ok(None) so the
-        // user sees null — indistinguishable from "graph not found". Warnings are logged inside
-        // require_at_least_read for cases where the user has namespace INTROSPECT visibility.
-        let perms = match require_at_least_read(ctx, &data.auth_policy, path) {
-            Ok(p) => p,
+        // Permission denial → Ok(None): indistinguishable from "graph not found" for the caller.
+        let (folder, graph) = match data
+            .get_graph_with_read_permission(ctx, path, graph_type)
+            .await
+        {
+            Ok(x) => x,
             Err(_) => return Ok(None),
         };
-
-        let graph_with_vecs = data.get_graph(path).await?;
-        let materialized = match graph_type {
-            Some(GqlGraphType::Event) => match graph_with_vecs.graph {
-                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g),
-                MaterializedGraph::PersistentGraph(g) => {
-                    MaterializedGraph::EventGraph(g.event_graph())
-                }
-            },
-            Some(GqlGraphType::Persistent) => match graph_with_vecs.graph {
-                MaterializedGraph::EventGraph(g) => {
-                    MaterializedGraph::PersistentGraph(g.persistent_graph())
-                }
-                MaterializedGraph::PersistentGraph(g) => MaterializedGraph::PersistentGraph(g),
-            },
-            None => graph_with_vecs.graph,
-        };
-        let graph: DynamicGraph = materialized.into_dynamic();
-
-        let graph = if let GraphPermission::Read {
-            filter: Some(ref f),
-        } = perms
-        {
-            apply_graph_filter(graph, f.clone()).await?
-        } else {
-            graph
-        };
-
-        Ok(Some(GqlGraph::new(graph_with_vecs.folder, graph)))
+        Ok(Some(GqlGraph::new(folder, graph)))
     }
 
-    /// Returns lightweight metadata for a graph (node/edge counts,
-    /// timestamps) without deserialising the full graph. Returns null if the
-    /// graph doesn't exist or is inaccessible.
-    /// Requires READ on the graph, or INTROSPECT on its parent namespace.
+    /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+    /// Requires at least INTROSPECT permission.
 
     async fn graph_metadata<'a>(
         ctx: &Context<'a>,
@@ -486,16 +479,11 @@ impl QueryRoot {
         if let Some(policy) = &data.auth_policy {
             let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
             if let Err(_) = policy.graph_permissions(ctx, &path) {
-                let ns = parent_namespace(&path);
-                if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
-                    warn!(
-                        role = role.unwrap_or("<no role>"),
-                        graph = path.as_str(),
-                        "Access denied by auth policy"
-                    );
-                }
-                // Always return null — permission denial is indistinguishable from "not found"
-                // from the user's perspective. The warning above is the only signal in the logs.
+                warn!(
+                    role = role.unwrap_or("<no role>"),
+                    graph = path.as_str(),
+                    "Access denied by auth policy"
+                );
                 return Ok(None);
             }
         }
@@ -505,25 +493,26 @@ impl QueryRoot {
         Ok(Some(MetaGraph::new(folder)))
     }
 
-    /// Open a graph for writing — returns a `MutableGraph` handle that can
-    /// add nodes/edges/properties/metadata.
-    /// Requires WRITE on the graph.
+    /// Update graph query, has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
 
     async fn update_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<GqlMutableGraph> {
         let data = ctx.data_unchecked::<Data>();
-        require_graph_write(ctx, &data.auth_policy, &path)?;
-
-        let graph = data.get_graph(path.as_ref()).await?.into();
+        let graph = data
+            .get_graph_with_write_permission(ctx, &path)
+            .await?
+            .into();
 
         Ok(graph)
     }
 
-    /// Compute and persist embeddings for the nodes and edges of a stored
-    /// graph so it can be queried via `vectorisedGraph`.
-    /// Requires WRITE access.
+    /// Update graph query, has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
 
     async fn vectorise_graph<'a>(
         ctx: &Context<'a>,
@@ -553,28 +542,21 @@ impl QueryRoot {
         Ok(true)
     }
 
-    /// Open a previously-vectorised graph for similarity queries. Returns null
-    /// if the graph has no embeddings (call `vectoriseGraph` first) or is
-    /// inaccessible.
-    /// Requires READ on the graph.
+    /// Create vectorised graph in the format used for queries
+    ///
+    /// Returns:: GqlVectorisedGraph
 
     async fn vectorised_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
     ) -> Result<Option<GqlVectorisedGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        require_at_least_read(ctx, &data.auth_policy, path)?;
-        Ok(data
-            .get_graph(path)
-            .await
-            .ok()
-            .and_then(|g| g.vectors)
-            .map(|v| v.into()))
+        data.get_vectors_with_read_permission(ctx, path).await
     }
 
-    /// Recursively list every namespace under the root. Each namespace is
-    /// filtered against the caller's permissions: only namespaces with at
-    /// least DISCOVER are returned.
+    /// Returns all namespaces using recursive search
+    ///
+    /// Returns::  List of namespaces on root
     async fn namespaces<'a>(ctx: &Context<'a>) -> GqlCollection<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir.clone());
@@ -591,61 +573,44 @@ impl QueryRoot {
         GqlCollection::new(list)
     }
 
-    /// Return a specific namespace by path. Errors if no namespace exists at
-    /// that path.
-    /// Requires INTROSPECT on the namespace to browse its contents.
+    /// Returns a specific namespace at a given path
+    ///
+    /// Returns:: Namespace or error if no namespace found
 
-    async fn namespace<'a>(
-        ctx: &Context<'a>,
-        #[graphql(
-            desc = "Namespace path relative to the root namespace (e.g. `\"team/project\"`)."
-        )]
-        path: String,
-    ) -> Result<Namespace> {
+    async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         Ok(Namespace::try_new(data.work_dir.clone(), path)?)
     }
 
-    /// Returns the root namespace. Use it as the entry point for browsing
-    /// namespaces and graphs — child listings filter against the caller's
-    /// permissions.
+    /// Returns root namespace
+    ///
+    /// Returns::  Root namespace
     async fn root<'a>(ctx: &Context<'a>) -> Namespace {
         let data = ctx.data_unchecked::<Data>();
         Namespace::root(data.work_dir.clone())
     }
 
-    /// Entry point for READ-only plugins registered with the server (e.g. graph
-    /// algorithms exposed as queries). Available plugins are defined at server
-    /// startup via the plugin registry.
+    /// Returns a plugin.
     async fn plugins<'a>() -> QueryPlugin {
         QueryPlugin::default()
     }
 
-    /// Encode a stored graph as a base64 string for client-side download. If
-    /// a READ-scoped filter is attached to the caller's permissions, only the
-    /// materialised filtered view is encoded.
-    /// Requires READ on the graph.
+    /// Encodes graph and returns as string.
+    ///
+    /// Returns:: Base64 url safe encoded string
 
     async fn receive_graph<'a>(
         ctx: &Context<'a>,
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let perm = require_at_least_read(ctx, &data.auth_policy, &path)?;
-        let raw = data.get_graph(&path).await?.graph;
-        let res = if let GraphPermission::Read {
-            filter: Some(ref f),
-        } = perm
-        {
-            let filtered = apply_graph_filter(raw.into_dynamic(), f.clone()).await?;
-            let materialized = blocking_compute(move || filtered.materialize())
-                .await
-                .map_err(|e| async_graphql::Error::new(e.to_string()))?;
-            url_encode_graph(materialized)?
-        } else {
-            url_encode_graph(raw)?
-        };
-        Ok(res)
+        let (_, graph) = data
+            .get_graph_with_read_permission(ctx, &path, None)
+            .await?;
+        let materialized = blocking_compute(move || graph.materialize())
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        Ok(url_encode_graph(materialized)?)
     }
 
     /// Version string of the running `raphtory-graphql` server build.
@@ -667,8 +632,7 @@ impl Mut {
         MutationPlugin::default()
     }
 
-    /// Permanently delete a stored graph from the server.
-    /// Requires WRITE on the graph and on its parent namespace.
+    /// Delete graph from a path on the server.
 
     async fn delete_graph<'a>(
         ctx: &Context<'a>,
@@ -682,9 +646,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Create a new empty graph at the given path. Errors if a graph already
-    /// exists there.
-    /// Requires WRITE on the parent namespace.
+    /// Creates a new graph.
 
     async fn new_graph<'a>(
         ctx: &Context<'a>,
@@ -714,10 +676,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Move a stored graph to a new path on the server (rename / relocate).
-    /// Atomic: copies first, then deletes the source.
-    /// Requires WRITE on the source graph and on both the source and
-    /// destination namespaces.
+    /// Move graph from a path on the server to a new_path on the server.
 
     async fn move_graph<'a>(
         ctx: &Context<'a>,
@@ -740,9 +699,7 @@ impl Mut {
         Ok(true)
     }
 
-    /// Duplicate a stored graph to a new path on the server. Source is
-    /// preserved.
-    /// Requires READ on the source graph and WRITE on the destination namespace.
+    /// Copy graph from a path on the server to a new_path on the server.
 
     async fn copy_graph<'a>(
         ctx: &Context<'a>,
@@ -754,23 +711,23 @@ impl Mut {
         overwrite: Option<bool>,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        require_graph_read_src(ctx, &data.auth_policy, path, "copy it")?;
         let dst_ns = parent_namespace(new_path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, new_path, "create")?;
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let overwrite = overwrite.unwrap_or(false);
-        let graph = data.get_graph(path).await?.graph;
+        let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
-        data.insert_graph(folder, graph).await?;
+        data.insert_graph(folder, src.graph).await?;
 
         Ok(true)
     }
 
-    /// Stream-upload a graph file using GraphQL multipart upload. The client
-    /// sends the file directly; the server stores it under `path`.
-    /// Requires WRITE on the destination namespace.
+    /// Upload a graph file from a path on the client using GQL multipart uploading.
+    ///
+    /// Returns::
+    /// name of the new graph
 
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
@@ -788,9 +745,10 @@ impl Mut {
         Ok(path)
     }
 
-    /// Send a serialised graph as a base64-encoded string in the request
-    /// body. Use for smaller graphs where multipart upload is overkill.
-    /// Requires WRITE on the destination namespace.
+    /// Send graph bincode as base64 encoded string.
+    ///
+    /// Returns::
+    /// path of the new graph
 
     async fn send_graph<'a>(
         ctx: &Context<'a>,
@@ -816,9 +774,10 @@ impl Mut {
         Ok(path.to_owned())
     }
 
-    /// Persist a subgraph of an existing stored graph as a new graph. The
-    /// subgraph contains only the listed nodes and edges between them.
-    /// Requires READ on the parent graph and WRITE on the destination namespace.
+    /// Returns a subgraph given a set of nodes from an existing graph in the server.
+    ///
+    /// Returns::
+    /// name of the new graph
 
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
@@ -828,11 +787,12 @@ impl Mut {
         #[graphql(desc = "If true, replace any graph already at `newPath`.")] overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        require_graph_read_src(ctx, &data.auth_policy, parent_path, "create a subgraph")?;
         let dst_ns = parent_namespace(&new_path);
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
-        let parent_graph = data.get_graph(parent_path).await?.graph;
+        let (_, parent_graph) = data
+            .get_graph_with_read_permission(ctx, parent_path, None)
+            .await?;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
             let subgraph = parent_graph.subgraph(nodes);
@@ -848,9 +808,7 @@ impl Mut {
         Ok(new_path)
     }
 
-    /// (Experimental) Build a Tantivy search index for a stored graph so it
-    /// can be queried via `searchNodes` / `searchEdges`.
-    /// Requires WRITE on the graph.
+    /// (Experimental) Creates search index.
 
     async fn create_index<'a>(
         ctx: &Context<'a>,
@@ -859,16 +817,12 @@ impl Mut {
             desc = "Optional spec selecting which node/edge property fields to index. Omit to index a default set."
         )]
         index_spec: Option<IndexSpecInput>,
-        #[graphql(
-            desc = "If true, build the index in memory (faster but lost on restart). If false, persist to disk."
-        )]
         in_ram: bool,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        require_graph_write(ctx, &data.auth_policy, path)?;
         #[cfg(feature = "search")]
         {
-            let graph = data.get_graph(path).await?.graph;
+            let graph = data.get_graph_with_write_permission(ctx, path).await?.graph;
             match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;

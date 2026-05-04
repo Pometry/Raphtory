@@ -7,6 +7,7 @@ pub mod list_ops;
 pub mod materialize;
 pub mod metadata;
 pub mod node_filter;
+pub mod property_schema;
 pub mod time_props;
 pub mod time_semantics;
 

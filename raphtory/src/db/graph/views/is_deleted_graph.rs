@@ -1,7 +1,9 @@
 use crate::{
     db::{
         api::{
-            properties::internal::InheritPropertiesOps,
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
             view::internal::{
                 EdgeTimeSemanticsOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -48,6 +50,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for IsDeletedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritListOps for IsDeletedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for IsDeletedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for IsDeletedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for IsDeletedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for IsDeletedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for IsDeletedGraph<G> {}
 

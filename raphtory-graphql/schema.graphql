@@ -1147,16 +1147,16 @@ type Edges {
 	returned view — every subsequent traversal through these edges (their
 	properties, their endpoints' neighbours, etc.) continues to see the
 	filtered scope.
-	
+
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting everything to a specific week:
-	
+
 	```text
 	edges { filter(expr: {window: {start: 1234, end: 5678}}) {
 	list { src { neighbours { list { name } } } }   # neighbours still windowed
 	} }
 	```
-	
+
 	Contrast with `select`, which applies here and is not carried through.
 	"""
 	filter(
@@ -1168,11 +1168,11 @@ type Edges {
 	"""
 	Narrow the collection to edges matching `expr`, but only at this step —
 	subsequent traversals out of these edges see the unfiltered graph again.
-	
+
 	Useful when you want different scopes at different hops. E.g. Monday's
 	edges, then the neighbours of their endpoints on Tuesday, then *those*
 	neighbours on Wednesday:
-	
+
 	```text
 	edges { select(expr: {window: {...monday...}}) {
 	list { src { select(expr: {window: {...tuesday...}}) {
@@ -1182,7 +1182,7 @@ type Edges {
 	} } }
 	} }
 	```
-	
+
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -1602,7 +1602,7 @@ type Graph {
 	end: EventTime!
 	"""
 	The earliest time at which any edge in this graph is valid.
-	
+
 	* `includeNegative` — if false, edge events with a timestamp `< 0` are
 	skipped when computing the minimum. Defaults to true.
 	"""
@@ -4129,16 +4129,16 @@ type Nodes {
 	Narrow the collection to nodes matching `expr`. The filter sticks to the
 	returned view — every subsequent traversal through these nodes (their
 	neighbours, edges, properties) continues to see the filtered scope.
-	
+
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting everything to a specific week:
-	
+
 	```text
 	nodes { filter(expr: {window: {start: 1234, end: 5678}}) {
 	list { neighbours { list { name } } }   # neighbours still windowed
 	} }
 	```
-	
+
 	Contrast with `select`, which applies here and is not carried through.
 	"""
 	filter(
@@ -4150,11 +4150,11 @@ type Nodes {
 	"""
 	Narrow the collection to nodes matching `expr`, but only at this step —
 	subsequent traversals out of these nodes see the unfiltered graph again.
-	
+
 	Useful when you want different scopes at different hops. E.g. nodes
 	active on Monday, then their neighbours active on Tuesday, then *those*
 	neighbours active on Wednesday:
-	
+
 	```text
 	nodes { select(expr: {window: {...monday...}}) {
 	list { neighbours { select(expr: {window: {...tuesday...}}) {
@@ -4164,7 +4164,7 @@ type Nodes {
 	} } }
 	} }
 	```
-	
+
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -4548,16 +4548,16 @@ type PathFromNode {
 	Narrow the neighbour set to nodes matching `expr`. The filter sticks to
 	the returned path — every subsequent traversal (further hops, edges,
 	properties) continues to see the filtered scope.
-	
+
 	Useful when you want one scoping rule to apply across the whole query.
 	E.g. restricting the whole traversal to a specific week:
-	
+
 	```text
 	node(name: "A") { neighbours { filter(expr: {window: {...week...}}) {
 	list { neighbours { list { name } } }   # further hops still windowed
 	} } }
 	```
-	
+
 	Contrast with `select`, which applies here and is not carried through.
 	"""
 	filter(
@@ -4569,10 +4569,10 @@ type PathFromNode {
 	"""
 	Narrow the neighbour set to nodes matching `expr`, but only at this hop
 	— further traversals out of these nodes see the unfiltered graph again.
-	
+
 	Useful when each hop needs a different scope. E.g. neighbours active on
 	Monday, then *their* neighbours active on Tuesday:
-	
+
 	```text
 	node(name: "A") { neighbours { select(expr: {window: {...monday...}}) {
 	list { neighbours { select(expr: {window: {...tuesday...}}) {
@@ -4580,7 +4580,7 @@ type PathFromNode {
 	} } }
 	} } }
 	```
-	
+
 	Contrast with `filter`, which persists the scope through subsequent ops.
 	"""
 	select(
@@ -5608,4 +5608,3 @@ schema {
 	query: QueryRoot
 	mutation: MutRoot
 }
-

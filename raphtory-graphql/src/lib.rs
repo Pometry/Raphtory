@@ -4,6 +4,7 @@ pub use crate::{
     server::GraphServer,
 };
 use crate::{data::InsertionError, paths::PathValidationError};
+pub use raphtory::db::graph::views::{PropertyRedactedGraph, PropertyRedaction};
 use raphtory::errors::GraphError;
 use std::sync::Arc;
 

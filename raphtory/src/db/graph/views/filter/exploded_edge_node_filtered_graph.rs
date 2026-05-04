@@ -1,6 +1,8 @@
 use crate::db::{
     api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         state::ops::NodeFilterOp,
         view::internal::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
@@ -58,6 +60,14 @@ impl<G: GraphView, F: NodeFilterOp> InheritListOps for ExplodedEdgeNodeFilteredG
 impl<G: GraphView, F: NodeFilterOp> InheritMaterialize for ExplodedEdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritNodeFilterOps for ExplodedEdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritPropertiesOps for ExplodedEdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritNodePropertySchemaOps
+    for ExplodedEdgeNodeFilteredGraph<G, F>
+{
+}
+impl<G: GraphView, F: NodeFilterOp> InheritEdgePropertySchemaOps
+    for ExplodedEdgeNodeFilteredGraph<G, F>
+{
+}
 impl<G: GraphView, F: NodeFilterOp> InheritTimeSemantics for ExplodedEdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritNodeHistoryFilter
     for ExplodedEdgeNodeFilteredGraph<G, F>

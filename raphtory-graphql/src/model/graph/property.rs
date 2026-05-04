@@ -483,7 +483,7 @@ pub(crate) struct GqlProperties {
 }
 
 impl GqlProperties {
-    #[allow(dead_code)] //This is actually being used, but for some reason cargo complains
+    #[allow(dead_code)]
     pub(crate) fn new(props: DynProperties) -> Self {
         Self { props }
     }
@@ -593,11 +593,7 @@ impl GqlProperties {
                 .iter_filtered()
                 .filter_map(|(k, prop)| {
                     let key = k.to_string();
-                    if keys.contains(&key) {
-                        Some((key, prop).into())
-                    } else {
-                        None
-                    }
+                    keys.contains(&key).then_some((key, prop).into())
                 })
                 .collect(),
             None => self_clone
@@ -661,11 +657,7 @@ impl GqlMetadata {
                 .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
-                    if keys.contains(&key) {
-                        Some((key, p).into())
-                    } else {
-                        None
-                    }
+                    keys.contains(&key).then_some((key, p).into())
                 })
                 .collect(),
             None => self_clone
@@ -729,11 +721,7 @@ impl GqlTemporalProperties {
                 .iter_filtered()
                 .filter_map(|(k, p)| {
                     let key = k.to_string();
-                    if keys.contains(&key) {
-                        Some((key, p).into())
-                    } else {
-                        None
-                    }
+                    keys.contains(&key).then_some((key, p).into())
                 })
                 .collect(),
             None => self_clone

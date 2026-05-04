@@ -33,12 +33,9 @@ use raphtory::{
         utils::time::TryIntoInterval,
     },
     db::{
-        api::{
-            properties::dyn_props::DynProperties,
-            view::{
-                filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
-                StaticGraphViewOps, TimeOps,
-            },
+        api::view::{
+            filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
+            StaticGraphViewOps, TimeOps,
         },
         graph::{
             node::NodeView,
@@ -598,7 +595,7 @@ impl GqlGraph {
 
     /// Returns the properties of the graph.
     async fn properties(&self) -> Result<GqlProperties> {
-        Ok(Into::<DynProperties>::into(self.graph.properties()).into())
+        Ok(self.graph.properties().into())
     }
 
     /// Returns the metadata of the graph.

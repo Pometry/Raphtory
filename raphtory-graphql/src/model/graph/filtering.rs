@@ -23,7 +23,7 @@ use raphtory::{
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        DynView, ViewWrapOps,
+        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
     },
     errors::GraphError,
 };
@@ -1750,13 +1750,11 @@ impl TryFrom<GqlGraphFilter> for DynView {
     }
 }
 
-/// Combined filter input covering all three filter levels (node, edge, graph-level).
-/// Used by `grantGraphFilteredReadOnly` to express a data-access restriction
-/// that is transparently applied whenever the role queries the graph.
-/// Use `and` / `or` to compose multiple sub-filters.
+/// Row-level visibility filter for `grantGraphFilteredReadOnly`.
+/// Compose node, edge, and graph-level sub-filters with `and` / `or`.
 #[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum GraphAccessFilter {
+pub enum GraphRowFilter {
     /// Filter by node properties, fields, or temporal state.
     Node(GqlNodeFilter),
     /// Filter by edge properties, source/destination, or temporal state.
@@ -1764,8 +1762,77 @@ pub enum GraphAccessFilter {
     /// Apply a graph-level view (window, snapshot, layer restriction, …).
     Graph(GqlGraphFilter),
     /// All sub-filters must pass (intersection).
-    And(Vec<GraphAccessFilter>),
-    /// At least one sub-filter must pass (union within each filter type;
-    /// cross-type sub-filters are applied as independent restrictions).
-    Or(Vec<GraphAccessFilter>),
+    And(Vec<GraphRowFilter>),
+    /// At least one sub-filter must pass (union).
+    /// Cross-type sub-filters (e.g. `Node` and `Edge` together) produce a proper graph union:
+    /// a node is visible if it matches the node filter or has a visible edge,
+    /// and an edge is visible if it matches the edge filter or both its endpoints are visible.
+    Or(Vec<GraphRowFilter>),
+}
+
+impl TryFrom<GraphRowFilter> for DynFilter {
+    type Error = GraphError;
+
+    fn try_from(value: GraphRowFilter) -> Result<Self, Self::Error> {
+        let filter = match value {
+            GraphRowFilter::Node(filter) => {
+                Arc::new(CompositeNodeFilter::try_from(filter)?) as DynFilter
+            }
+            GraphRowFilter::Edge(filter) => {
+                Arc::new(CompositeEdgeFilter::try_from(filter)?) as DynFilter
+            }
+            GraphRowFilter::Graph(filter) => DynView::try_from(filter)?,
+            GraphRowFilter::And(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                let first = filters.next().transpose()?;
+                match first {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+            GraphRowFilter::Or(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                let first = filters.next().transpose()?;
+                match first {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+        };
+        Ok(filter)
+    }
+}
+
+/// Property/metadata keys to hide per entity type.
+#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct HiddenKeys {
+    /// Keys to strip from node property/metadata responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node: Option<Vec<String>>,
+    /// Keys to strip from edge property/metadata responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edge: Option<Vec<String>>,
+    /// Keys to strip from graph-own property/metadata responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph: Option<Vec<String>>,
+}
+
+/// Top-level access filter accepted by `grantGraphFilteredReadOnly`.
+/// Separates row-level visibility (which entities are returned) from column-level
+/// visibility (which property keys appear on returned entities).
+#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct GraphAccessFilter {
+    /// Row-level filter: which nodes/edges/graph-view are visible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<GraphRowFilter>,
+    /// Temporal property keys to hide per entity type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_properties: Option<HiddenKeys>,
+    /// Metadata keys to hide per entity type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_metadata: Option<HiddenKeys>,
 }

@@ -1,6 +1,8 @@
 use crate::{
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
             EdgeList, Immutable, InheritMaterialize, InheritStorageOps, InheritTimeSemantics,
             InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
@@ -44,6 +46,14 @@ impl<G, L, R> InheritCoreGraphOps for AndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for AndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for AndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritPropertiesOps for AndFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodePropertySchemaOps
+    for AndFilteredGraph<G, L, R>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritEdgePropertySchemaOps
+    for AndFilteredGraph<G, L, R>
+{
+}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for AndFilteredGraph<G, L, R> {}
 
 impl<G, L: Send + Sync, R: Send + Sync> InternalLayerOps for AndFilteredGraph<G, L, R>
