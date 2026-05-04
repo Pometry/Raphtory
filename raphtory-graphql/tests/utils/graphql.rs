@@ -67,8 +67,12 @@ pub fn start_server(
 }
 
 /// Create a graph on the graphql server using the given path.
-pub fn create_graph(path: &str, client: &RaphtoryGraphQLClient) {
-    RUNTIME.block_on(client.new_graph(path, "EVENT")).unwrap();
+pub fn create_graph(path: &str, client: &RaphtoryGraphQLClient) -> Result<(), ClientError> {
+    RUNTIME.block_on(client.new_graph(path, "EVENT"))
+}
+
+pub fn delete_graph(path: &str, client: &RaphtoryGraphQLClient) -> Result<(), ClientError> {
+    RUNTIME.block_on(client.delete_graph(path))
 }
 
 pub fn create_role(name: &str, client: &RaphtoryGraphQLClient) {
@@ -245,10 +249,15 @@ pub fn validate_namespace_grant(
                         can_introspect_namespace(path, num_children, client),
                         "namespace {path} should be introspectable"
                     );
+                    assert!(!can_write_namespace(path, client), "namespace {path} should not be writable");
                 }
-                _ => {
-                    // Ignore READ and WRITE permissions since they are propagated down to graphs
-                    // and are tested separately.
+                Permission::Read => {
+                    assert!(can_introspect_namespace(path, num_children, client), "namespace {path} should be introspectable");
+                    assert!(!can_write_namespace(path, client), "namespace {path} should not be writable");
+                }
+                Permission::Write => {
+                    assert!(can_introspect_namespace(path, num_children, client), "namespace {path} should be introspectable");
+                    assert!(can_write_namespace(path, client), "namespace {path} should be writable");
                 }
             }
         }
@@ -335,6 +344,16 @@ pub fn can_introspect_namespace(
 
     // INSTROSPECT implies all listings of `path` are visible.
     num_graphs + num_namespaces == num_children
+}
+
+/// Can create and delete graphs at `path`.
+pub fn can_write_namespace(path: &str, client: &RaphtoryGraphQLClient) -> bool {
+    if create_graph(path, client).is_err() {
+        // Do not attempt delete if create fails.
+        return false;
+    }
+
+    delete_graph(path, client).is_ok()
 }
 
 fn gql(

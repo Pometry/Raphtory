@@ -147,7 +147,7 @@ fn permissions_proptest() {
 
             // Create graphs on the server.
             for path in &case.graph_paths {
-                create_graph(path, &admin_client);
+                create_graph(path, &admin_client).unwrap();
             }
 
             let mut user_trees = Vec::with_capacity(case.num_users);
