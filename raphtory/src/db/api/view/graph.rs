@@ -191,6 +191,7 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
+#[inline]
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
     let graph = g.clone();
     let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
@@ -207,7 +208,7 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
             GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
                 let edges = gs.edges();
                 let iter = edges.iter(layer_ids);
-                if graph.filtered() {
+                if graph.filtered_excluding_layers() {
                     iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
                         .into_dyn_boxed()
                 } else {

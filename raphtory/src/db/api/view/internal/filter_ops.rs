@@ -52,6 +52,8 @@ pub trait FilterOps {
     fn node_and_edge_filters_independent(&self) -> bool;
 
     fn filtered(&self) -> bool;
+    #[inline]
+    fn filtered_excluding_layers(&self) -> bool;
 
     fn node_list_trusted(&self) -> bool;
 
@@ -210,6 +212,16 @@ impl<G: GraphView> FilterOps for G {
             || self.internal_edge_layer_filtered()
             || self.internal_exploded_edge_filtered()
             || self.is_layer_filtered()
+            || self.window_filtered()
+    }
+
+    #[inline]
+    /// Checks if the graph has any kind of filter applied (includes window but not layer filters)
+    fn filtered_excluding_layers(&self) -> bool {
+        self.internal_nodes_filtered()
+            || self.internal_edge_filtered()
+            || self.internal_edge_layer_filtered()
+            || self.internal_exploded_edge_filtered()
             || self.window_filtered()
     }
 
