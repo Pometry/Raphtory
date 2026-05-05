@@ -106,8 +106,10 @@ pub mod vectors;
 pub mod io;
 
 pub mod api;
+pub mod arrow_loader;
 pub mod core;
 pub mod errors;
+pub mod parquet_encoder;
 #[cfg(feature = "io")]
 pub mod serialise;
 pub mod storage;

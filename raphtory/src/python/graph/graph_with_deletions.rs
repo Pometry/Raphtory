@@ -12,7 +12,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView, views::deletion_graph::PersistentGraph},
     },
     errors::GraphError,
-    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
+    io::parquet_loaders::*,
     prelude::{DeletionOps, GraphViewOps, ImportOps, ParquetEncoder},
     python::{
         graph::{
@@ -49,7 +49,7 @@ use std::{
     sync::Arc,
 };
 
-use crate::python::config::PyConfig;
+use crate::{arrow_loader::df_loaders::edges::ColumnNames, python::config::PyConfig};
 #[cfg(feature = "search")]
 use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 

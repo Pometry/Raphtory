@@ -170,6 +170,10 @@ impl<NS: NodeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<NS = NS>>
         self.segments.count()
     }
 
+    pub fn t_len(&self) -> usize {
+        self.segments.iter().map(|(_, page)| page.t_len()).sum()
+    }
+
     // pub fn segments(&self) -> &boxcar::Vec<Arc<NS>> {
     //     &self.segments
     // }
