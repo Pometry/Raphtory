@@ -812,21 +812,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
+        if self.internal_nodes_filtered() {
+            if !self.internal_filter_node(src_node.as_ref(), layer_ids) {
+                return None;
+            }
+        }
         let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
             FilterState::Neither => {}
-            FilterState::Both | FilterState::BothIndependent | FilterState::Edges => {
+            FilterState::Both
+            | FilterState::BothIndependent
+            | FilterState::Edges
+            | FilterState::Window => {
                 let edge = self.core_edge(Either::Right(edge_ref));
                 if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }
             }
             FilterState::Nodes => {
-                if !self.filter_node(src_node.as_ref()) {
-                    return None;
-                }
                 let dst_node = self.core_node(dst);
-                if !self.filter_node(dst_node.as_ref()) {
+                if !self.internal_filter_node(dst_node.as_ref(), layer_ids) {
                     return None;
                 }
             }

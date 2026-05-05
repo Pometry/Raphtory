@@ -538,6 +538,7 @@ fn materialize_proptest_failure() {
     let nodes = subgraph.default_layer().nodes().id().collect_vec();
     dbg!(nodes);
     assert_eq!(subgraph.default_layer().count_nodes(), 0);
+    assert_eq!(subgraph.count_edges(), 1);
     let materialised = subgraph.materialize().unwrap();
     assert_graph_equal(&subgraph, &materialised);
 }

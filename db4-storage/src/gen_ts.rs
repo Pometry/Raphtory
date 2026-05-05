@@ -321,6 +321,7 @@ where
 }
 
 impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
+    #[inline]
     pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + Send + Sync + 'a {
         let range = self.range;
         self.layer_id

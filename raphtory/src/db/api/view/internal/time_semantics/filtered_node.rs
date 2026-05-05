@@ -159,7 +159,10 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     }
 
     fn len(&self) -> usize {
-        if matches!(self.view.filter_state(), FilterState::Neither) {
+        if matches!(
+            self.view.filter_state(),
+            FilterState::Neither | FilterState::Window
+        ) {
             self.additions.len()
         } else {
             self.history().count()
@@ -167,7 +170,10 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
     }
 
     fn is_empty(&self) -> bool {
-        if matches!(self.view.filter_state(), FilterState::Neither) {
+        if matches!(
+            self.view.filter_state(),
+            FilterState::Neither | FilterState::Window
+        ) {
             self.additions.is_empty()
         } else {
             self.history().next().is_none()
@@ -293,7 +299,7 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
                 let gs = view.core_graph();
                 view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
-            FilterState::Edges | FilterState::BothIndependent => {
+            FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
                 FilterVariants::Edges(iter.filter(move |e| {
                     let gs = view.core_graph();
                     view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())

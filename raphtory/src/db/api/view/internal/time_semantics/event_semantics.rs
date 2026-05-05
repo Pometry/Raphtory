@@ -65,7 +65,7 @@ fn node_has_valid_edges<'a, G: GraphView + 'a>(
                     && filter_edge_impl(view, edges.edge(Either::Right(e)), layer_ids)
             })
         }
-        FilterState::Nodes | FilterState::BothIndependent => {
+        FilterState::Nodes | FilterState::BothIndependent | FilterState::Window => {
             let nodes = view.core_nodes();
             iter.any(|e| view.internal_filter_node(nodes.node_entry(e.remote()), layer_ids))
         }

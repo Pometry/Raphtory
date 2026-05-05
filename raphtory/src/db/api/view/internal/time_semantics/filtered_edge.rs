@@ -479,7 +479,7 @@ impl FilteredEdgesStorageOps for EdgesStorage {
                 view.internal_filter_node(view.core_node(e.src()).as_ref(), layer_ids)
                     && view.internal_filter_node(view.core_node(e.dst()).as_ref(), layer_ids)
             })),
-            FilterState::Edges | FilterState::BothIndependent => {
+            FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
                 FilterVariants::Edges(par_iter.filter(move |&e| view.filter_edge(e)))
             }
         }

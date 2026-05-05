@@ -1,4 +1,8 @@
-use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
+use crate::db::api::view::internal::{
+    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView, InternalEdgeFilterOps,
+    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
+    NodeTimeSemanticsOps,
+};
 use either::Either;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
@@ -8,14 +12,19 @@ use raphtory_api::core::{
     entities::{LayerId, LayerIds, ELID},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    graph::{
+        edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
+        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
+    },
+    layer_ops::InternalLayerOps,
 };
 
 #[derive(Debug)]
 pub enum FilterState {
     Neither,
+    Window,
     Both,
     BothIndependent,
     Nodes,
@@ -118,6 +127,7 @@ impl<G: GraphView> InnerFilterOps for G {
             })
     }
 
+    #[inline]
     fn is_layer_filtered(&self) -> bool {
         !matches!(self.layer_ids(), LayerIds::All)
     }
@@ -159,17 +169,21 @@ impl<G: GraphView> FilterOps for G {
     }
 
     #[inline]
+    /// Summary of explicitly defined internal filters
+    /// (this does not include windowing and layering which are handled separately)
     fn filter_state(&self) -> FilterState {
         match (
+            self.window_filtered(),
             self.internal_nodes_filtered(),
             self.internal_edge_filtered()
                 || self.internal_edge_layer_filtered()
                 || self.internal_exploded_edge_filtered(),
         ) {
-            (false, false) => FilterState::Neither,
-            (true, false) => FilterState::Nodes,
-            (false, true) => FilterState::Edges,
-            (true, true) => {
+            (false, false, false) => FilterState::Neither,
+            (true, false, false) => FilterState::Window, // window filtering only can sometimes be pushed down
+            (false, true, false) => FilterState::Nodes,
+            (false, false, true) => FilterState::Edges,
+            (_, true, true) | (true, false, true) | (true, true, false) => {
                 if self.node_and_edge_filters_independent() {
                     FilterState::BothIndependent
                 } else {
@@ -189,11 +203,14 @@ impl<G: GraphView> FilterOps for G {
     }
 
     #[inline]
+    /// Checks if the graph has any kind of filter applied (includes window and layer filters)
     fn filtered(&self) -> bool {
         self.internal_nodes_filtered()
             || self.internal_edge_filtered()
             || self.internal_edge_layer_filtered()
             || self.internal_exploded_edge_filtered()
+            || self.is_layer_filtered()
+            || self.window_filtered()
     }
 
     #[inline]
@@ -204,14 +221,42 @@ impl<G: GraphView> FilterOps for G {
             && self.node_filter_includes_exploded_edge_filter()
     }
 
+    #[inline]
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool {
-        self.internal_filter_edge(edge, self.layer_ids()) && self.filter_edge_from_nodes(edge) && {
+        if self.internal_edge_filtered() {
+            if !self.internal_filter_edge(edge, self.layer_ids()) {
+                return false;
+            }
+        }
+
+        if self.is_layer_filtered() {
+            if !edge.has_layer(self.layer_ids()) {
+                return false;
+            }
+        }
+
+        if self.internal_nodes_filtered() {
+            if !self.filter_edge_from_nodes(edge) {
+                return false;
+            }
+        }
+
+        if self.window_filtered()
+            || (self.internal_edge_layer_filtered()
+                && !self.edge_filter_includes_edge_layer_filter())
+            || (self.internal_exploded_edge_filtered()
+                && !self.edge_filter_includes_exploded_edge_filter())
+        {
             let time_semantics = self.edge_time_semantics();
-            edge.layer_ids_iter(self.layer_ids()).any(|layer_id| {
+            if !edge.layer_ids_iter(self.layer_ids()).any(|layer_id| {
                 self.internal_filter_edge_layer(edge, layer_id)
                     && time_semantics.include_edge(edge, self, layer_id)
-            })
+            }) {
+                return false;
+            }
         }
+
+        true
     }
 
     fn filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {

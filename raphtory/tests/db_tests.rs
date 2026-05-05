@@ -883,21 +883,19 @@ fn graph_edges_window() {
     for (t, src, dst) in &vs {
         graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
     }
-    test_storage!(&graph, |graph| {
-        let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
-        let actual = (1..=3)
-            .map(|i| {
-                let v = graph.node(i).unwrap();
-                (
-                    v.window(-1, 7).in_edges().iter().count(),
-                    v.window(1, 7).out_edges().iter().count(),
-                    v.window(0, 1).edges().iter().count(),
-                )
-            })
-            .collect::<Vec<_>>();
+    let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
+    let actual = (1..=3)
+        .map(|i| {
+            let v = graph.node(i).unwrap();
+            (
+                v.window(-1, 7).in_edges().iter().count(),
+                v.window(1, 7).out_edges().iter().count(),
+                v.window(0, 1).edges().iter().count(),
+            )
+        })
+        .collect::<Vec<_>>();
 
-        assert_eq!(actual, expected);
-    });
+    assert_eq!(actual, expected);
 }
 
 #[test]

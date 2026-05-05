@@ -204,7 +204,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for NodeSubgrap
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for NodeSubgraph<G> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.graph.internal_edge_filtered()
+        true
     }
 
     #[inline]
@@ -225,17 +225,22 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for NodeSubgraph<G> 
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> {
+    #[inline]
     fn internal_nodes_filtered(&self) -> bool {
         true
     }
+
+    #[inline]
     fn internal_node_list_trusted(&self) -> bool {
         true
     }
 
+    #[inline]
     fn edge_layer_filter_includes_node_filter(&self) -> bool {
         self.graph.edge_layer_filter_includes_node_filter()
     }
 
+    #[inline]
     fn exploded_edge_filter_includes_node_filter(&self) -> bool {
         self.graph.exploded_edge_filter_includes_node_filter()
     }
