@@ -1,18 +1,16 @@
 use crate::{
+    arrow_loader::{
+        dataframe::{DFChunk, DFView},
+        df_loaders::{
+            edges::{load_edges_from_df_prefetch, ColumnNames},
+            load_edge_deletions_from_df_prefetch, load_edges_props_from_df_prefetch,
+            load_graph_props_from_df,
+            nodes::{load_node_props_from_df, load_nodes_from_df},
+        },
+    },
     db::api::view::StaticGraphViewOps,
     errors::GraphError,
-    io::{
-        arrow::{
-            dataframe::{DFChunk, DFView},
-            df_loaders::{
-                edges::{load_edges_from_df_prefetch, ColumnNames},
-                load_edge_deletions_from_df_prefetch, load_edges_props_from_df_prefetch,
-                load_graph_props_from_df,
-                nodes::{load_node_props_from_df, load_nodes_from_df},
-            },
-        },
-        parquet_loaders::cast_columns,
-    },
+    io::parquet_loaders::cast_columns,
     prelude::{AdditionOps, PropertyAdditionOps},
 };
 use arrow::{
@@ -182,6 +180,7 @@ pub(crate) fn load_node_metadata_from_arrow_c_stream<
             metadata,
             shared_metadata,
             graph,
+            false,
         )
     })
 }
@@ -590,6 +589,7 @@ pub(crate) fn load_node_metadata_from_csv_path<
         metadata,
         shared_metadata,
         graph,
+        false,
     )
 }
 

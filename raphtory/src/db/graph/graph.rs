@@ -290,16 +290,61 @@ fn normalise_temporal_map<T: AsTime + Copy>(
     for (k, v) in map {
         let mut v2: Vec<(i64, Prop)> = v.iter().map(|(t, p)| (t.t(), p.clone())).collect();
 
-        // stable deterministic ordering for same timestamp too
+        // stable deterministic ordering for events at the same timestamp
         v2.sort_by(|(t1, p1), (t2, p2)| {
             t1.cmp(t2)
-                .then_with(|| format!("{p1:?}").cmp(&format!("{p2:?}")))
+                .then_with(|| canonical_prop_repr(p1).cmp(&canonical_prop_repr(p2)))
         });
 
         out.insert(k.clone(), v2);
     }
 
     out
+}
+
+/// Render a `Prop` as a string that is invariant to `PropArray` variant
+/// (`Vec` vs `Array`) and to `FxHashMap` iteration order (which is undefined).
+/// Used as a stable sort key in test assertions.
+fn canonical_prop_repr(p: &Prop) -> String {
+    let mut s = String::new();
+    write_canonical_prop(&mut s, p);
+    s
+}
+
+fn write_canonical_prop(out: &mut String, p: &Prop) {
+    use std::fmt::Write;
+    match p {
+        Prop::List(arr) => {
+            out.push_str("List([");
+            let mut first = true;
+            for item in arr.iter() {
+                if !first {
+                    out.push_str(", ");
+                }
+                first = false;
+                write_canonical_prop(out, &item);
+            }
+            out.push_str("])");
+        }
+        Prop::Map(m) => {
+            let mut keys: Vec<&ArcStr> = m.keys().collect();
+            keys.sort();
+            out.push_str("Map({");
+            let mut first = true;
+            for k in keys {
+                if !first {
+                    out.push_str(", ");
+                }
+                first = false;
+                let _ = write!(out, "{k:?}: ");
+                write_canonical_prop(out, &m[k]);
+            }
+            out.push_str("})");
+        }
+        other => {
+            let _ = write!(out, "{other:?}");
+        }
+    }
 }
 
 #[track_caller]
@@ -551,8 +596,8 @@ pub fn assert_nodes_equal_layer<
     let mut nodes1: Vec<_> = nodes1.collect();
     let mut nodes2: Vec<_> = nodes2.collect();
 
-    nodes1.sort();
-    nodes2.sort();
+    nodes1.par_sort_unstable();
+    nodes2.par_sort_unstable();
 
     assert_eq!(
         nodes1.len(),
@@ -560,9 +605,12 @@ pub fn assert_nodes_equal_layer<
         "mismatched number of nodes{layer_tag}",
     );
 
-    for (n1, n2) in nodes1.into_iter().zip(nodes2) {
-        assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps);
-    }
+    nodes1
+        .into_par_iter()
+        .zip_eq(nodes2.into_par_iter())
+        .for_each(|(n1, n2)| {
+            assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps)
+        });
 }
 
 #[track_caller]
@@ -598,150 +646,153 @@ pub fn assert_edges_equal_layer<
         edges2.len(),
         "mismatched number of edges{layer_tag}",
     );
-    edges1.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
-    edges2.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
+    edges1.par_sort_unstable_by(|e1, e2| e1.id().cmp(&e2.id()));
+    edges2.par_sort_unstable_by(|e1, e2| e1.id().cmp(&e2.id()));
 
-    for (e1, e2) in edges1.into_iter().zip(edges2) {
-        assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
-        if persistent || only_timestamps {
-            assert_eq!(
-                e1.earliest_time().map(|t| t.t()),
-                e2.earliest_time().map(|t| t.t()),
-                "mismatched earliest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-            assert_eq!(
-                e1.latest_time().map(|t| t.t()),
-                e2.latest_time().map(|t| t.t()),
-                "mismatched latest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        } else {
-            assert_eq!(
-                e1.earliest_time(),
-                e2.earliest_time(),
-                "mismatched earliest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-            assert_eq!(
-                e1.latest_time(),
-                e2.latest_time(),
-                "mismatched latest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        }
-        assert_eq!(
-            e1.metadata().as_map(),
-            e2.metadata().as_map(),
-            "mismatched metadata for edge {:?}{layer_tag}",
-            e1.id(),
-        );
-        if only_timestamps {
-            assert_eq!(
-                e1.properties()
-                    .temporal()
-                    .iter()
-                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
-                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
-                e2.properties()
-                    .temporal()
-                    .iter()
-                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
-                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
-                "mismatched temporal properties for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-
-            let mut e1_updates: Vec<_> = e1
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
-                .collect();
-            e1_updates.sort();
-
-            let mut e2_updates: Vec<_> = e2
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
-                .collect();
-            e2_updates.sort();
-            assert_eq!(
-                e1_updates,
-                e2_updates,
-                "mismatched updates for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        } else {
-            let left = normalise_temporal_map(&e1.properties().temporal().as_map());
-            let right = normalise_temporal_map(&e2.properties().temporal().as_map());
-
-            assert_eq!(
-                left,
-                right,
-                "mismatched temporal properties for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-
-            let mut e1_updates: Vec<_> = e1
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-                .collect();
-            e1_updates.sort();
-
-            let mut e2_updates: Vec<_> = e2
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-                .collect();
-            e2_updates.sort();
-            assert_eq!(
-                e1_updates,
-                e2_updates,
-                "mismatched updates for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        }
-        assert_eq!(
-            e1.is_valid(),
-            e2.is_valid(),
-            "mismatched is_valid for edge {:?}{layer_tag}",
-            e1.id()
-        );
-        if persistent {
-            let earliest = e1.timeline_start();
-            match earliest {
-                None => {
-                    assert!(
-                        e2.timeline_start().is_none(),
-                        "expected empty timeline for edge {:?}{layer_tag}",
-                        e1.id()
-                    )
-                }
-                Some(earliest) => {
-                    assert_eq!(
-                        e1.after(earliest.t()).is_active(),
-                        e2.after(earliest.t()).is_active(),
-                        "mismatched is_active for edge {:?}{layer_tag}",
-                        e1.id()
-                    );
-                }
+    edges1
+        .into_par_iter()
+        .zip_eq(edges2.into_par_iter())
+        .for_each(|(e1, e2)| {
+            assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
+            if persistent || only_timestamps {
+                assert_eq!(
+                    e1.earliest_time().map(|t| t.t()),
+                    e2.earliest_time().map(|t| t.t()),
+                    "mismatched earliest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+                assert_eq!(
+                    e1.latest_time().map(|t| t.t()),
+                    e2.latest_time().map(|t| t.t()),
+                    "mismatched latest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            } else {
+                assert_eq!(
+                    e1.earliest_time(),
+                    e2.earliest_time(),
+                    "mismatched earliest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+                assert_eq!(
+                    e1.latest_time(),
+                    e2.latest_time(),
+                    "mismatched latest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
             }
-        } else {
             assert_eq!(
-                e1.is_active(),
-                e2.is_active(),
-                "mismatched is_active for edge {:?}{layer_tag}",
+                e1.metadata().as_map(),
+                e2.metadata().as_map(),
+                "mismatched metadata for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+            if only_timestamps {
+                assert_eq!(
+                    e1.properties()
+                        .temporal()
+                        .iter()
+                        .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                        .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                    e2.properties()
+                        .temporal()
+                        .iter()
+                        .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                        .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                    "mismatched temporal properties for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+
+                let mut e1_updates: Vec<_> = e1
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                    .collect();
+                e1_updates.sort();
+
+                let mut e2_updates: Vec<_> = e2
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                    .collect();
+                e2_updates.sort();
+                assert_eq!(
+                    e1_updates,
+                    e2_updates,
+                    "mismatched updates for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            } else {
+                let left = normalise_temporal_map(&e1.properties().temporal().as_map());
+                let right = normalise_temporal_map(&e2.properties().temporal().as_map());
+
+                assert_eq!(
+                    left,
+                    right,
+                    "mismatched temporal properties for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+
+                let mut e1_updates: Vec<_> = e1
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                    .collect();
+                e1_updates.sort();
+
+                let mut e2_updates: Vec<_> = e2
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                    .collect();
+                e2_updates.sort();
+                assert_eq!(
+                    e1_updates,
+                    e2_updates,
+                    "mismatched updates for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            }
+            assert_eq!(
+                e1.is_valid(),
+                e2.is_valid(),
+                "mismatched is_valid for edge {:?}{layer_tag}",
                 e1.id()
             );
-        }
-        assert_eq!(
-            e1.is_deleted(),
-            e2.is_deleted(),
-            "mismatched is_deleted for edge {:?}{layer_tag}",
-            e1.id()
-        );
-    }
+            if persistent {
+                let earliest = e1.timeline_start();
+                match earliest {
+                    None => {
+                        assert!(
+                            e2.timeline_start().is_none(),
+                            "expected empty timeline for edge {:?}{layer_tag}",
+                            e1.id()
+                        )
+                    }
+                    Some(earliest) => {
+                        assert_eq!(
+                            e1.after(earliest.t()).is_active(),
+                            e2.after(earliest.t()).is_active(),
+                            "mismatched is_active for edge {:?}{layer_tag}",
+                            e1.id()
+                        );
+                    }
+                }
+            } else {
+                assert_eq!(
+                    e1.is_active(),
+                    e2.is_active(),
+                    "mismatched is_active for edge {:?}{layer_tag}",
+                    e1.id()
+                );
+            }
+            assert_eq!(
+                e1.is_deleted(),
+                e2.is_deleted(),
+                "mismatched is_deleted for edge {:?}{layer_tag}",
+                e1.id()
+            );
+        });
 }
 
 #[track_caller]
@@ -844,17 +895,17 @@ fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
             left_layers, right_layers
         );
 
-        for layer in left_layers {
+        left_layers.par_iter().for_each(|layer| {
             assert_graph_equal_layer(
                 &g1.layers(layer.deref())
                     .unwrap_or_else(|_| panic!("Left graph missing layer {layer})")),
                 &g2.layers(layer.deref())
                     .unwrap_or_else(|_| panic!("Right graph missing layer {layer}")),
-                Some(&layer),
+                Some(layer),
                 persistent,
                 only_timestamps,
             );
-        }
+        });
     })
 }
 
