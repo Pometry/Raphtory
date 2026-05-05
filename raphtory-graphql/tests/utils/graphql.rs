@@ -1,11 +1,15 @@
-use std::collections::HashMap;
-use std::sync::{LazyLock, Once};
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    sync::{LazyLock, Once},
+    time::Duration,
+};
 
 use raphtory::db::api::storage::storage::Config;
-use raphtory_graphql::client::{raphtory_client::RaphtoryGraphQLClient, ClientError};
-use raphtory_graphql::config::app_config::AppConfigBuilder;
-use raphtory_graphql::server::{apply_server_extension, GraphServer, RunningGraphServer};
+use raphtory_graphql::{
+    client::{raphtory_client::RaphtoryGraphQLClient, ClientError},
+    config::app_config::AppConfigBuilder,
+    server::{apply_server_extension, GraphServer, RunningGraphServer},
+};
 use serde_json::Value as JsonValue;
 use tempfile::TempDir;
 use tokio::runtime::Runtime;
@@ -22,10 +26,7 @@ fn init_raphtory_auth() {
 pub static RUNTIME: LazyLock<Runtime> =
     LazyLock::new(|| Runtime::new().expect("Failed to create Tokio runtime"));
 
-pub fn get_client(
-    url: Url,
-    token: String,
-) -> Result<RaphtoryGraphQLClient, ClientError> {
+pub fn get_client(url: Url, token: String) -> Result<RaphtoryGraphQLClient, ClientError> {
     RUNTIME.block_on(RaphtoryGraphQLClient::connect(url, Some(token)))
 }
 

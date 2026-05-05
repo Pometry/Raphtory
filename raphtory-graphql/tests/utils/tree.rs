@@ -12,9 +12,7 @@ pub fn build_namespace_tree(parents: &[usize]) -> Graph {
     for node in 0..parents.len() {
         let name = format!("node_{node}");
 
-        graph
-            .add_node(0, name, NO_PROPS, None, None)
-            .unwrap();
+        graph.add_node(0, name, NO_PROPS, None, None).unwrap();
 
         // Root node has no parent.
         if node == 0 {

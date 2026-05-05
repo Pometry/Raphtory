@@ -1,9 +1,7 @@
-use std::{fmt, ops::RangeInclusive};
-use std::str::FromStr;
-use proptest::prelude::*;
-use proptest::strategy::BoxedStrategy;
-use raphtory::prelude::*;
 use crate::utils::tree::{branch_paths, build_namespace_tree, leaf_paths};
+use proptest::{prelude::*, strategy::BoxedStrategy};
+use raphtory::prelude::*;
+use std::{fmt, ops::RangeInclusive, str::FromStr};
 
 #[derive(Clone)]
 pub struct PermissionsCase {
@@ -93,14 +91,12 @@ pub fn permissions_strategy(
                     namespace_paths.clone(),
                     num_users,
                 )
-                .prop_map(move |grants| {
-                    PermissionsCase {
-                        num_users,
-                        namespace_tree: namespace_tree.clone(),
-                        graph_paths: graph_paths.clone(),
-                        namespace_paths: namespace_paths.clone(),
-                        grants,
-                    }
+                .prop_map(move |grants| PermissionsCase {
+                    num_users,
+                    namespace_tree: namespace_tree.clone(),
+                    graph_paths: graph_paths.clone(),
+                    namespace_paths: namespace_paths.clone(),
+                    grants,
                 })
             })
         })
@@ -143,34 +139,30 @@ fn grants_strategy(
     let total_paths = namespace_paths.len() + graph_paths.len();
 
     prop::collection::vec(
-        (0..=max_user, 0..total_paths)
-            .prop_flat_map(move |(user_id, path_idx)| {
-                // Choose either a namespace or a graph path based on path_idx.
-                if path_idx < namespace_paths.len() {
-                    let path = namespace_paths[path_idx].clone();
+        (0..=max_user, 0..total_paths).prop_flat_map(move |(user_id, path_idx)| {
+            // Choose either a namespace or a graph path based on path_idx.
+            if path_idx < namespace_paths.len() {
+                let path = namespace_paths[path_idx].clone();
 
-                    // Exclude discover since it cannot be applied directly to namespaces.
-                    prop_oneof![
-                        Just(Permission::Introspect),
-                        Just(Permission::Read),
-                        Just(Permission::Write),
-                    ]
-                    .prop_map(move |permission| PermissionGrant {
-                        grant_type: GrantType::Namespace,
-                        user_id,
-                        path: path.clone(),
-                        permission,
-                    })
-                    .boxed()
-                } else {
-                    let graph_idx = path_idx - namespace_paths.len();
-                    let path = graph_paths[graph_idx].clone();
+                // Exclude discover since it cannot be applied directly to namespaces.
+                prop_oneof![
+                    Just(Permission::Introspect),
+                    Just(Permission::Read),
+                    Just(Permission::Write),
+                ]
+                .prop_map(move |permission| PermissionGrant {
+                    grant_type: GrantType::Namespace,
+                    user_id,
+                    path: path.clone(),
+                    permission,
+                })
+                .boxed()
+            } else {
+                let graph_idx = path_idx - namespace_paths.len();
+                let path = graph_paths[graph_idx].clone();
 
-                    // Exclude introspect since it cannot be applied directly to graphs.
-                    prop_oneof![
-                        Just(Permission::Read),
-                        Just(Permission::Write),
-                    ]
+                // Exclude introspect since it cannot be applied directly to graphs.
+                prop_oneof![Just(Permission::Read), Just(Permission::Write),]
                     .prop_map(move |permission| PermissionGrant {
                         grant_type: GrantType::Graph,
                         user_id,
@@ -178,9 +170,8 @@ fn grants_strategy(
                         permission,
                     })
                     .boxed()
-                }
-            }),
+            }
+        }),
         num_grants,
     )
 }
-

@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
-use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
-use raphtory_graphql::client::ClientError;
+use raphtory_graphql::client::{raphtory_client::RaphtoryGraphQLClient, ClientError};
 use serde_json::Value as JsonValue;
 
-use crate::utils::graphql::{create_graph, delete_graph, gql};
-use crate::utils::strategy::Permission;
+use crate::utils::{
+    graphql::{create_graph, delete_graph, gql},
+    strategy::Permission,
+};
 
 // --- Graph validators ---
 
@@ -15,55 +16,53 @@ pub fn validate_graph_grant(
     client: &RaphtoryGraphQLClient,
 ) {
     match permission {
-        Some(permission_enum) => {
-            match permission_enum {
-                Permission::Discover => {
-                    panic!("Discover permission is not supported for graphs");
-                }
-                Permission::Introspect => {
-                    assert!(
-                        can_introspect_graph(path, client).unwrap(),
-                        "graph {path} should be introspectable"
-                    );
-                    assert!(
-                        !can_read_graph(path, client).unwrap(),
-                        "graph {path} should not be readable"
-                    );
-                    assert!(
-                        !can_write_graph(path, client).unwrap(),
-                        "graph {path} should not be writable"
-                    );
-                }
-                Permission::Read => {
-                    assert!(
-                        can_introspect_graph(path, client).unwrap(),
-                        "graph {path} should be introspectable"
-                    );
-                    assert!(
-                        can_read_graph(path, client).unwrap(),
-                        "graph {path} should be readable"
-                    );
-                    assert!(
-                        !can_write_graph(path, client).unwrap(),
-                        "graph {path} should not be writable"
-                    );
-                }
-                Permission::Write => {
-                    assert!(
-                        can_introspect_graph(path, client).unwrap(),
-                        "graph {path} should be introspectable"
-                    );
-                    assert!(
-                        can_read_graph(path, client).unwrap(),
-                        "graph {path} should be readable"
-                    );
-                    assert!(
-                        can_write_graph(path, client).unwrap(),
-                        "graph {path} should be writable"
-                    );
-                }
+        Some(permission_enum) => match permission_enum {
+            Permission::Discover => {
+                panic!("Discover permission is not supported for graphs");
             }
-        }
+            Permission::Introspect => {
+                assert!(
+                    can_introspect_graph(path, client).unwrap(),
+                    "graph {path} should be introspectable"
+                );
+                assert!(
+                    !can_read_graph(path, client).unwrap(),
+                    "graph {path} should not be readable"
+                );
+                assert!(
+                    !can_write_graph(path, client).unwrap(),
+                    "graph {path} should not be writable"
+                );
+            }
+            Permission::Read => {
+                assert!(
+                    can_introspect_graph(path, client).unwrap(),
+                    "graph {path} should be introspectable"
+                );
+                assert!(
+                    can_read_graph(path, client).unwrap(),
+                    "graph {path} should be readable"
+                );
+                assert!(
+                    !can_write_graph(path, client).unwrap(),
+                    "graph {path} should not be writable"
+                );
+            }
+            Permission::Write => {
+                assert!(
+                    can_introspect_graph(path, client).unwrap(),
+                    "graph {path} should be introspectable"
+                );
+                assert!(
+                    can_read_graph(path, client).unwrap(),
+                    "graph {path} should be readable"
+                );
+                assert!(
+                    can_write_graph(path, client).unwrap(),
+                    "graph {path} should be writable"
+                );
+            }
+        },
         None => {
             // Graph has no permission attributed to it, no access should be allowed.
             assert!(
@@ -118,7 +117,6 @@ pub fn can_write_graph(path: &str, client: &RaphtoryGraphQLClient) -> Result<boo
         r#"query {{ updateGraph(path: "{path}") {{ addNode(time: 1, name: "test_node") {{ success }} }} }}"#
     );
     let data = match gql(&query, client) {
-
         Ok(data) => data,
         Err(e) if access_denied(&e) => return Ok(false),
         Err(e) => return Err(e),
@@ -141,46 +139,44 @@ pub fn validate_namespace_grant(
     children: &[String],
 ) {
     match permission {
-        Some(permission_enum) => {
-            match permission_enum {
-                Permission::Discover => {
-                    assert!(
-                        can_discover_namespace(path, client).unwrap(),
-                        "namespace {path} should be discoverable"
-                    );
-                }
-                Permission::Introspect => {
-                    assert!(
-                        can_introspect_namespace(path, children, client).unwrap(),
-                        "namespace {path} should be introspectable"
-                    );
-                    assert!(
-                        !can_write_namespace(path, client).unwrap(),
-                        "namespace {path} should not be writable"
-                    );
-                }
-                Permission::Read => {
-                    assert!(
-                        can_introspect_namespace(path, children, client).unwrap(),
-                        "namespace {path} should be introspectable"
-                    );
-                    assert!(
-                        !can_write_namespace(path, client).unwrap(),
-                        "namespace {path} should not be writable"
-                    );
-                }
-                Permission::Write => {
-                    assert!(
-                        can_introspect_namespace(path, children, client).unwrap(),
-                        "namespace {path} should be introspectable"
-                    );
-                    assert!(
-                        can_write_namespace(path, client).unwrap(),
-                        "namespace {path} should be writable"
-                    );
-                }
+        Some(permission_enum) => match permission_enum {
+            Permission::Discover => {
+                assert!(
+                    can_discover_namespace(path, client).unwrap(),
+                    "namespace {path} should be discoverable"
+                );
             }
-        }
+            Permission::Introspect => {
+                assert!(
+                    can_introspect_namespace(path, children, client).unwrap(),
+                    "namespace {path} should be introspectable"
+                );
+                assert!(
+                    !can_write_namespace(path, client).unwrap(),
+                    "namespace {path} should not be writable"
+                );
+            }
+            Permission::Read => {
+                assert!(
+                    can_introspect_namespace(path, children, client).unwrap(),
+                    "namespace {path} should be introspectable"
+                );
+                assert!(
+                    !can_write_namespace(path, client).unwrap(),
+                    "namespace {path} should not be writable"
+                );
+            }
+            Permission::Write => {
+                assert!(
+                    can_introspect_namespace(path, children, client).unwrap(),
+                    "namespace {path} should be introspectable"
+                );
+                assert!(
+                    can_write_namespace(path, client).unwrap(),
+                    "namespace {path} should be writable"
+                );
+            }
+        },
         None => {
             // Namespace has no permission attributed to it, no access should be allowed.
             assert!(
@@ -209,9 +205,7 @@ pub fn can_discover_namespace(
     let query = if parent == "root" {
         r#"query { root { children { list { path } } } }"#.to_string()
     } else {
-        format!(
-            r#"query {{ namespace(path: "{parent}") {{ children {{ list {{ path }} }} }} }}"#
-        )
+        format!(r#"query {{ namespace(path: "{parent}") {{ children {{ list {{ path }} }} }} }}"#)
     };
 
     let data = match gql(&query, client) {

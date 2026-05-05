@@ -1,22 +1,21 @@
 mod utils;
 
-use std::ops::RangeInclusive;
-use std::str::FromStr;
+use std::{ops::RangeInclusive, str::FromStr};
 
 use proptest::prelude::*;
-use raphtory::db::api::view::MaterializedGraph;
-use raphtory::db::graph::node::NodeView;
+use raphtory::{
+    db::{api::view::MaterializedGraph, graph::node::NodeView},
+    prelude::{GraphViewOps, NodeViewOps, Prop, PropUnwrap, PropertiesOps},
+};
 use raphtory_graphql::client::raphtory_client::RaphtoryGraphQLClient;
-use raphtory::prelude::{GraphViewOps, NodeViewOps, Prop, PropUnwrap, PropertiesOps};
 use url::Url;
 
-use utils::jwt::{user_jwt, ADMIN_JWT, PUB_KEY};
-use utils::strategy::{permissions_strategy, GrantType, Permission, PermissionGrant};
-
-use utils::graphql::{
-    create_graph, create_role, create_grant, get_client,
-    start_server,
+use utils::{
+    jwt::{user_jwt, ADMIN_JWT, PUB_KEY},
+    strategy::{permissions_strategy, GrantType, Permission, PermissionGrant},
 };
+
+use utils::graphql::{create_grant, create_graph, create_role, get_client, start_server};
 
 use crate::utils::validate::{validate_graph_grant, validate_namespace_grant};
 
@@ -35,12 +34,11 @@ fn track_grant(grant: &PermissionGrant, user_trees: &[MaterializedGraph]) {
     let node = user_tree.node(node_name).unwrap();
 
     // Update the node's direct permission.
-    node
-        .update_metadata(vec![
-            ("permission", Prop::Str(permission.to_string().into())),
-            ("direct", Prop::Bool(true)),
-        ])
-        .unwrap();
+    node.update_metadata(vec![
+        ("permission", Prop::Str(permission.to_string().into())),
+        ("direct", Prop::Bool(true)),
+    ])
+    .unwrap();
 
     // Propagate discover to ancestor namespaces.
     propagate_up(path, user_tree);
@@ -59,12 +57,14 @@ fn propagate_up(path: &str, user_tree: &MaterializedGraph) {
 
         // Discover permissions have least precedence, set them if no other permission is set.
         if node.metadata().get("permission").is_none() {
-            node
-                .update_metadata(vec![
-                    ("permission", Prop::Str(Permission::Discover.to_string().into())),
-                    ("direct", Prop::Bool(false)),
-                ])
-                .unwrap();
+            node.update_metadata(vec![
+                (
+                    "permission",
+                    Prop::Str(Permission::Discover.to_string().into()),
+                ),
+                ("direct", Prop::Bool(false)),
+            ])
+            .unwrap();
         }
     }
 }
@@ -93,12 +93,11 @@ fn propagate_down(path: &str, user_tree: &MaterializedGraph, permission: Permiss
             }
         }
 
-        node
-            .update_metadata(vec![
-                ("permission", Prop::Str(permission.to_string().into())),
-                ("direct", Prop::Bool(false)),
-            ])
-            .unwrap();
+        node.update_metadata(vec![
+            ("permission", Prop::Str(permission.to_string().into())),
+            ("direct", Prop::Bool(false)),
+        ])
+        .unwrap();
 
         for neighbour in node.out_neighbours() {
             stack.push(neighbour);
