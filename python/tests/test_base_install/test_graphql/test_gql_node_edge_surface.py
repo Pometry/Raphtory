@@ -562,7 +562,7 @@ def test_edge_nbr_on_exploded_edge():
                             "id": ["A", "A"],
                             "explode": {
                                 "list": [{"nbr": {"name": "A"}}],
-                            }
+                            },
                         },
                         {
                             "id": ["A", "B"],
@@ -572,7 +572,7 @@ def test_edge_nbr_on_exploded_edge():
                                     {"nbr": {"name": "B"}},
                                     {"nbr": {"name": "B"}},
                                 ],
-                            }
+                            },
                         },
                         {
                             "id": ["A", "C"],
@@ -581,7 +581,7 @@ def test_edge_nbr_on_exploded_edge():
                                     {"nbr": {"name": "C"}},
                                     {"nbr": {"name": "C"}},
                                 ],
-                            }
+                            },
                         },
                     ]
                 }
