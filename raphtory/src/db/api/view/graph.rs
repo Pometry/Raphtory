@@ -32,9 +32,9 @@ use crate::{
     errors::GraphError,
     parquet_encoder::{
         encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
-        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_COL_ID,
-        DST_COL_VID, EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
-        SECONDARY_INDEX_COL, SRC_COL_ID, SRC_COL_VID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_GID_COL,
+        DST_VID_COL, EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::*,
 };
@@ -442,7 +442,7 @@ pub fn materialize_impl(
                 RecordBatchKind::NodesC => {
                     let node_c_props = df_columns_except(
                         &df_view.names,
-                        &[NODE_ID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL],
+                        &[NODE_GID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL],
                     );
                     let node_c_props_refs =
                         node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
@@ -450,7 +450,7 @@ pub fn materialize_impl(
                     LOAD_POOL.install(|| {
                         load_node_props_from_df(
                             df_view,
-                            NODE_ID_COL,
+                            NODE_GID_COL,
                             None,
                             Some(TYPE_COL),
                             None,
@@ -466,7 +466,7 @@ pub fn materialize_impl(
                     let node_t_props = df_columns_except(
                         &df_view.names,
                         &[
-                            NODE_ID_COL,
+                            NODE_GID_COL,
                             NODE_VID_COL,
                             TYPE_COL,
                             TIME_COL,
@@ -480,7 +480,7 @@ pub fn materialize_impl(
                         df_view,
                         TIME_COL,
                         Some(SECONDARY_INDEX_COL),
-                        NODE_ID_COL,
+                        NODE_GID_COL,
                         &node_t_props_refs,
                         &[],
                         None,
@@ -498,10 +498,10 @@ pub fn materialize_impl(
                         &[
                             TIME_COL,
                             SECONDARY_INDEX_COL,
-                            SRC_COL_VID,
-                            SRC_COL_ID,
-                            DST_COL_VID,
-                            DST_COL_ID,
+                            SRC_VID_COL,
+                            SRC_GID_COL,
+                            DST_VID_COL,
+                            DST_GID_COL,
                             EDGE_COL_ID,
                             LAYER_COL,
                             LAYER_ID_COL,
@@ -516,8 +516,8 @@ pub fn materialize_impl(
                             ColumnNames::new(
                                 TIME_COL,
                                 Some(SECONDARY_INDEX_COL),
-                                SRC_COL_ID,
-                                DST_COL_ID,
+                                SRC_GID_COL,
+                                DST_GID_COL,
                                 Some(LAYER_COL),
                             ),
                             true,
@@ -534,10 +534,10 @@ pub fn materialize_impl(
                     let edge_c_props = df_columns_except(
                         &df_view.names,
                         &[
-                            SRC_COL_VID,
-                            SRC_COL_ID,
-                            DST_COL_VID,
-                            DST_COL_ID,
+                            SRC_VID_COL,
+                            SRC_GID_COL,
+                            DST_VID_COL,
+                            DST_GID_COL,
                             EDGE_COL_ID,
                             LAYER_COL,
                         ],
@@ -548,7 +548,7 @@ pub fn materialize_impl(
                     LOAD_POOL.install(|| {
                         load_edge_props_from_df(
                             df_view,
-                            ColumnNames::new("", None, SRC_COL_ID, DST_COL_ID, Some(LAYER_COL)),
+                            ColumnNames::new("", None, SRC_GID_COL, DST_GID_COL, Some(LAYER_COL)),
                             true,
                             &edge_c_props_refs,
                             None,
@@ -563,8 +563,8 @@ pub fn materialize_impl(
                         ColumnNames::new(
                             TIME_COL,
                             Some(SECONDARY_INDEX_COL),
-                            SRC_COL_ID,
-                            DST_COL_ID,
+                            SRC_GID_COL,
+                            DST_GID_COL,
                             Some(LAYER_COL),
                         ),
                         true,

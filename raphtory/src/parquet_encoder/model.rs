@@ -1,5 +1,6 @@
 use super::{
-    Prop, DST_COL_ID, LAYER_COL, NODE_ID_COL, SECONDARY_INDEX_COL, SRC_COL_ID, TIME_COL, TYPE_COL,
+    Prop, DST_GID_COL, LAYER_COL, NODE_GID_COL, SECONDARY_INDEX_COL, SRC_GID_COL, TIME_COL,
+    TYPE_COL,
 };
 use crate::{
     db::{
@@ -7,7 +8,7 @@ use crate::{
         graph::{edge::EdgeView, node::NodeView},
     },
     parquet_encoder::{
-        DST_COL_VID, EDGE_COL_ID, LAYER_ID_COL, NODE_VID_COL, SRC_COL_VID, TYPE_ID_COL,
+        DST_VID_COL, EDGE_COL_ID, LAYER_ID_COL, NODE_VID_COL, SRC_VID_COL, TYPE_ID_COL,
     },
     prelude::*,
 };
@@ -75,10 +76,10 @@ impl<'a, G: GraphView> Serialize for ParquetTEdge<'a, G> {
 
         state.serialize_entry(TIME_COL, &t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &t.1)?;
-        state.serialize_entry(SRC_COL_VID, &self.export_src_vid)?;
-        state.serialize_entry(SRC_COL_ID, &ParquetGID(&self.export_src_id))?;
-        state.serialize_entry(DST_COL_VID, &self.export_dst_vid)?;
-        state.serialize_entry(DST_COL_ID, &ParquetGID(&self.export_dst_id))?;
+        state.serialize_entry(SRC_VID_COL, &self.export_src_vid)?;
+        state.serialize_entry(SRC_GID_COL, &ParquetGID(&self.export_src_id))?;
+        state.serialize_entry(DST_VID_COL, &self.export_dst_vid)?;
+        state.serialize_entry(DST_GID_COL, &ParquetGID(&self.export_dst_id))?;
         state.serialize_entry(EDGE_COL_ID, &self.export_eid)?;
         state.serialize_entry(LAYER_COL, &layer)?;
         state.serialize_entry(LAYER_ID_COL, &layer_id)?;
@@ -136,10 +137,10 @@ impl<'a, G: GraphView> Serialize for ParquetCEdge<'a, G> {
             .layer_name()
             .map_err(|_| S::Error::custom("Edge has no layer"))?;
 
-        state.serialize_entry(SRC_COL_VID, &self.export_src_vid)?;
-        state.serialize_entry(SRC_COL_ID, &ParquetGID(&self.export_src_id))?;
-        state.serialize_entry(DST_COL_VID, &self.export_dst_vid)?;
-        state.serialize_entry(DST_COL_ID, &ParquetGID(&self.export_dst_id))?;
+        state.serialize_entry(SRC_VID_COL, &self.export_src_vid)?;
+        state.serialize_entry(SRC_GID_COL, &ParquetGID(&self.export_src_id))?;
+        state.serialize_entry(DST_VID_COL, &self.export_dst_vid)?;
+        state.serialize_entry(DST_GID_COL, &ParquetGID(&self.export_dst_id))?;
         state.serialize_entry(EDGE_COL_ID, &self.export_eid)?;
         state.serialize_entry(LAYER_COL, &layer)?;
 
@@ -179,10 +180,10 @@ impl<'a, G: GraphView> Serialize for ParquetDelEdge<'a, G> {
 
         state.serialize_entry(TIME_COL, &self.del.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.del.1)?;
-        state.serialize_entry(SRC_COL_VID, &self.export_src_vid)?;
-        state.serialize_entry(SRC_COL_ID, &ParquetGID(&self.export_src_id))?;
-        state.serialize_entry(DST_COL_VID, &self.export_dst_vid)?;
-        state.serialize_entry(DST_COL_ID, &ParquetGID(&self.export_dst_id))?;
+        state.serialize_entry(SRC_VID_COL, &self.export_src_vid)?;
+        state.serialize_entry(SRC_GID_COL, &ParquetGID(&self.export_src_id))?;
+        state.serialize_entry(DST_VID_COL, &self.export_dst_vid)?;
+        state.serialize_entry(DST_GID_COL, &ParquetGID(&self.export_dst_id))?;
         state.serialize_entry(EDGE_COL_ID, &self.export_eid)?;
         state.serialize_entry(LAYER_COL, &layer)?;
         state.serialize_entry(LAYER_ID_COL, &layer_id)?;
@@ -207,7 +208,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
     {
         let mut state = serializer.serialize_map(None)?;
 
-        state.serialize_entry(NODE_ID_COL, &ParquetGID(&self.export_id))?;
+        state.serialize_entry(NODE_GID_COL, &ParquetGID(&self.export_id))?;
         state.serialize_entry(NODE_VID_COL, &self.export_vid)?;
         state.serialize_entry(TYPE_COL, &self.export_node_type)?;
         state.serialize_entry(TIME_COL, &self.t.0)?;
@@ -234,7 +235,7 @@ impl<'a, G: GraphView> Serialize for ParquetCNode<'a, G> {
     {
         let mut state = serializer.serialize_map(None)?;
 
-        state.serialize_entry(NODE_ID_COL, &ParquetGID(&self.node.id()))?;
+        state.serialize_entry(NODE_GID_COL, &ParquetGID(&self.node.id()))?;
         state.serialize_entry(NODE_VID_COL, &self.export_vid)?;
         state.serialize_entry(TYPE_COL, &self.node.node_type())?;
         state.serialize_entry(TYPE_ID_COL, &self.export_node_type_id)?;

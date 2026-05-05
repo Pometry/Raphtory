@@ -7,7 +7,7 @@ use crate::{
     errors::GraphError,
     parquet_encoder::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode_indexed, RecordBatchSink, NODE_ID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
+        run_encode_indexed, RecordBatchSink, NODE_GID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
         SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::NodeViewOps,
@@ -54,7 +54,7 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
         sink_factory_fn,
         |id_type| {
             vec![
-                Field::new(NODE_ID_COL, id_type.clone(), false),
+                Field::new(NODE_GID_COL, id_type.clone(), false),
                 Field::new(NODE_VID_COL, DataType::UInt64, false),
                 Field::new(TYPE_COL, DataType::Utf8, true),
                 Field::new(TIME_COL, DataType::Int64, false),
@@ -109,7 +109,7 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
         sink_factory_fn,
         |id_type| {
             vec![
-                Field::new(NODE_ID_COL, id_type.clone(), false),
+                Field::new(NODE_GID_COL, id_type.clone(), false),
                 Field::new(NODE_VID_COL, DataType::UInt64, false),
                 Field::new(TYPE_COL, DataType::Utf8, true),
                 Field::new(TYPE_ID_COL, DataType::UInt64, true),
