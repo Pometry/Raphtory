@@ -6,7 +6,7 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use raphtory::{
-    db::api::storage::storage::{read_constant_graph_properties, Extension, PersistenceStrategy},
+    db::api::storage::storage::read_constant_graph_properties,
     errors::GraphError,
     prelude::{GraphViewOps, PropertiesOps},
     serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
@@ -123,7 +123,7 @@ impl MetaGraph {
                 .collect());
         }
 
-        if Extension::disk_storage_enabled() {
+        if self.meta().await?.is_diskgraph {
             let graph_path = self
                 .folder
                 .graph_folder()

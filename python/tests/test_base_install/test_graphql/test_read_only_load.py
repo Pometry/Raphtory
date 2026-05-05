@@ -24,6 +24,13 @@ import pytest
 from raphtory import Graph
 from raphtory.graphql import GraphServer, RaphtoryClient
 
+# Disk-backed Graph(graph_dir) requires the storage feature, which is not
+# compiled into the base test wheel. Same gate as test_disk_graph.py.
+pytestmark = pytest.mark.skipif(
+    "DISK_TEST_MARK" not in os.environ,
+    reason="disk-backed graph tests require the storage feature",
+)
+
 SERVER_URL = "http://localhost:1736"
 
 

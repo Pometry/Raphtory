@@ -268,6 +268,20 @@ impl Graph {
         Self { inner }
     }
 
+    /// Return a read-only handle to this graph. Mutations on the returned
+    /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
+    /// `TemporalGraph` is shared — this is not a snapshot.
+    ///
+    /// **Warning**: while a read-only handle is live, writes through the
+    /// original `Graph` will block on the per-segment read locks the
+    /// handle holds. Drop the read-only handle before mutating the
+    /// original.
+    pub fn read_only(&self) -> Self {
+        Self {
+            inner: Arc::new(self.inner.read_only()),
+        }
+    }
+
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
         let inner = Arc::new(Storage::from_inner(graph_storage));
         Self { inner }

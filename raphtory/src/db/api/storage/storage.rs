@@ -211,6 +211,19 @@ impl Storage {
         }
     }
 
+    /// Produce a read-only handle backed by the same `TemporalGraph` as
+    /// this storage. Mutations on the returned `Storage` return
+    /// `Immutable::ReadLockedImmutable`. The handle holds read locks on
+    /// every segment, so writers on the original `Storage` will block
+    /// until the read-only handle is dropped — this is not a snapshot.
+    pub fn read_only(&self) -> Self {
+        Self {
+            graph: self.graph.lock(),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        }
+    }
+
     #[cfg(feature = "search")]
     #[inline]
     fn if_index(
