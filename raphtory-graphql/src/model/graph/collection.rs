@@ -89,11 +89,16 @@ where
     ///
     /// For example, if page(5, 2, 1) is called, a page with 5 items, offset by 11 items (2 pages of 5 + 1),
     /// will be returned.
+
     async fn page(
         &self,
         ctx: &Context<'_>,
-        limit: usize,
+        #[graphql(desc = "Maximum number of items to return on this page.")] limit: usize,
+        #[graphql(desc = "Extra items to skip on top of `pageIndex` paging (default 0).")]
         offset: Option<usize>,
+        #[graphql(
+            desc = "Zero-based page number; multiplies `limit` to determine where to start (default 0)."
+        )]
         page_index: Option<usize>,
     ) -> Result<Vec<T>> {
         check_page_limit(ctx, limit)?;

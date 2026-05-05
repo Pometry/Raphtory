@@ -15,6 +15,7 @@ pub(crate) mod mutable_graph;
 pub(crate) mod namespace;
 pub(crate) mod namespaced_item;
 pub(crate) mod node;
+pub(crate) mod node_id;
 mod nodes;
 mod path_from_node;
 pub(crate) mod property;

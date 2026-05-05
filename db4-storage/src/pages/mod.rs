@@ -176,7 +176,7 @@ impl<
             node_meta.get_or_create_node_type_id(node_type);
         }
 
-        let t_len = edge_storage.t_len();
+        let t_len = edge_storage.t_len() + node_storage.t_len();
 
         Ok(Self {
             nodes: node_storage,

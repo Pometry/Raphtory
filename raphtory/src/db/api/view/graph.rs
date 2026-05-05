@@ -1,11 +1,21 @@
 #[cfg(feature = "io")]
 use crate::serialise::GraphPaths;
 use crate::{
+    arrow_loader::{
+        dataframe::{DFChunk, DFView},
+        df_loaders::{
+            edge_props::load_edges_from_df as load_edge_props_from_df,
+            edges::{load_edges_from_df, ColumnNames},
+            load_edge_deletions_from_df, load_graph_props_from_df,
+            nodes::{load_node_props_from_df, load_nodes_from_df},
+        },
+        LOAD_POOL,
+    },
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::{
         api::{
-            properties::{internal::InternalMetadataOps, Metadata, Properties},
-            state::{ops::filter::NodeTypeFilterOp, Index},
+            properties::{Metadata, Properties},
+            state::ops::filter::NodeTypeFilterOp,
             view::{internal::*, *},
         },
         graph::{
@@ -20,21 +30,22 @@ use crate::{
         },
     },
     errors::GraphError,
+    parquet_encoder::{
+        encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
+        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_GID_COL,
+        DST_VID_COL, EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+    },
     prelude::*,
 };
 use ahash::HashSet;
+use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use itertools::Itertools;
-use raphtory_api::{
-    atomic_extra::atomic_usize_from_mut_slice,
-    core::{
-        entities::{
-            properties::meta::{Meta, PropMapper, STATIC_GRAPH_LAYER_ID},
-            LayerId, EID,
-        },
-        storage::{arc_str::ArcStr, timeindex::EventTime},
-        Direction,
-    },
+use raphtory_api::core::{
+    entities::properties::meta::{Meta, PropMapper},
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+    Direction,
 };
 use raphtory_core::utils::iter::GenLockedIter;
 use raphtory_storage::{
@@ -42,17 +53,11 @@ use raphtory_storage::{
         edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
         nodes::node_storage_ops::NodeStorageOps,
     },
-    mutation::{
-        addition_ops::{InternalAdditionOps, SessionAdditionOps},
-        MutationError,
-    },
+    mutation::addition_ops::SessionAdditionOps,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{
-    path::Path,
-    sync::{atomic::Ordering, Arc},
-};
+use std::{path::Path, sync::Arc};
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[cfg(feature = "search")]
@@ -78,12 +83,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Materializes the view into a new graph.
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Inherits config from the graph.
-    ///
-    /// Arguments:
-    ///     path: Option<&Path>: An optional path used to store the new graph.
-    ///
-    /// Returns:
-    ///     MaterializedGraph: Returns a new materialized graph.
     #[cfg(feature = "io")]
     fn materialize_at(
         &self,
@@ -95,10 +94,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Materializes the view into a new graph.
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Sets a new config.
-    ///
-    /// # Arguments
-    ///     path: The path for the new graph.
-    ///     config: The new config.
     #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
@@ -243,16 +238,107 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
     }
 }
 
-fn materialize_impl(
+fn df_view_from_record_batch(
+    batch: RecordBatch,
+) -> DFView<impl Iterator<Item = Result<DFChunk, GraphError>> + Send> {
+    let (schema, columns, num_rows) = batch.into_parts();
+    let field_names = schema
+        .fields()
+        .iter()
+        .map(|field| field.name().to_string())
+        .collect();
+
+    DFView::new(
+        field_names,
+        std::iter::once(Ok(DFChunk::new(columns))),
+        Some(num_rows),
+    )
+}
+
+fn df_columns_except(names: &[String], exclude: &[&str]) -> Vec<String> {
+    names
+        .iter()
+        .map(|name| name.as_str())
+        .filter(|name| !exclude.contains(name))
+        .map(str::to_string)
+        .collect()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) enum RecordBatchKind {
+    EdgesT,
+    EdgesC,
+    EdgesD,
+    NodesT,
+    NodesC,
+    GraphT,
+    GraphC,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct RecordBatchMessage {
+    batch: RecordBatch,
+    kind: RecordBatchKind,
+}
+
+impl RecordBatchMessage {
+    pub(crate) fn kind(&self) -> RecordBatchKind {
+        self.kind
+    }
+
+    pub(crate) fn into_batch(self) -> RecordBatch {
+        self.batch
+    }
+}
+
+/// This RecordBatchSink allows for RecordBatches to be sent from multithreaded contexts (such as the parquet serializer)
+/// to be consumed by the receiver.
+#[derive(Debug, Clone)]
+pub(crate) struct ChannelRecordBatchSink {
+    tx: crossbeam_channel::Sender<RecordBatchMessage>,
+    kind: RecordBatchKind,
+}
+
+impl ChannelRecordBatchSink {
+    pub(crate) fn new(
+        tx: crossbeam_channel::Sender<RecordBatchMessage>,
+        kind: RecordBatchKind,
+    ) -> Self {
+        Self { tx, kind }
+    }
+}
+
+impl RecordBatchSink for ChannelRecordBatchSink {
+    fn send_batch(&mut self, batch: RecordBatch) -> Result<(), GraphError> {
+        // sinks propagate their record batch kind to their messages
+        let record_batch_message = RecordBatchMessage {
+            batch,
+            kind: self.kind,
+        };
+
+        self.tx
+            .send(record_batch_message)
+            .map_err(|e| GraphError::IOErrorMsg(format!("RecordBatch receiver was dropped: {e}")))
+    }
+
+    fn finish(self) -> Result<(), GraphError> {
+        // implicitly drops self, so the transmitter (tx) is dropped as well
+        Ok(())
+    }
+}
+
+pub fn materialize_impl(
     graph: &impl GraphView,
     path: Option<&Path>,
     config: Config,
 ) -> Result<MaterializedGraph, GraphError> {
-    let storage = graph.core_graph().lock();
     let mut node_meta = Meta::new_for_nodes();
     let mut edge_meta = Meta::new_for_edges();
     let mut graph_props_meta = Meta::new_for_graph_props();
 
+    // Preserve property mappers from the source graph so that
+    // windowed views expose the same prop mappings even for keys with no
+    // values inside the window.
     node_meta.set_metadata_mapper(graph.node_meta().metadata_mapper().deep_clone());
     node_meta.set_temporal_prop_mapper(graph.node_meta().temporal_prop_mapper().deep_clone());
     edge_meta.set_metadata_mapper(graph.edge_meta().metadata_mapper().deep_clone());
@@ -261,53 +347,33 @@ fn materialize_impl(
     graph_props_meta
         .set_temporal_prop_mapper(graph.graph_props_meta().temporal_prop_mapper().deep_clone());
 
+    let base_layer_meta = graph.edge_meta().layer_meta();
     let layer_meta = edge_meta.layer_meta();
 
     // NOTE: layers must be set in layer_meta before the TemporalGraph is initialized to
     // make sure empty layers are created.
-    let layer_map: Vec<_> = match graph.layer_ids() {
-        LayerIds::None => {
-            // no layers to map
-            vec![]
-        }
+    match graph.layer_ids() {
+        LayerIds::None => {}
         LayerIds::All => {
-            let layers = storage.edge_meta().layer_meta().keys();
-            let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-
-            for (id, name) in storage.edge_meta().layer_meta().ids().zip(layers.iter()) {
-                let new_id = layer_meta.get_or_create_id(name).inner();
-                layer_map[id] = new_id;
+            for name in base_layer_meta.keys().iter() {
+                layer_meta.get_or_create_id(name);
             }
-
-            layer_map
         }
-        LayerIds::One(l_id) => {
-            let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-            let layer_name = storage.edge_meta().get_layer_name_by_id(*l_id);
-            let new_id = layer_meta.get_or_create_id(&layer_name).inner();
-
-            layer_map[l_id.0] = new_id;
-            layer_map
+        LayerIds::One(id) => {
+            layer_meta.get_or_create_id(&base_layer_meta.get_name(id.0));
         }
         LayerIds::Multiple(ids) => {
-            let mut layer_map = vec![0; storage.edge_meta().layer_meta().num_all_fields()];
-            let layers = storage.edge_meta().layer_meta().all_keys();
-
+            let all_layers = base_layer_meta.all_keys();
             for id in ids {
-                let layer_name = &layers[id.0];
-                let new_id = layer_meta.get_or_create_id(layer_name).inner();
-                layer_map[id.0] = new_id;
+                layer_meta.get_or_create_id(&all_layers[id.0]);
             }
-
-            layer_map
         }
-    };
+    }
 
-    node_meta.set_layer_mapper(layer_meta.clone());
+    node_meta.set_layer_mapper(layer_meta.deep_clone());
 
     // Create a new Extension instance for the new materialized graph.
     let ext = Extension::new(config, path)?;
-
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),
         node_meta,
@@ -318,286 +384,249 @@ fn materialize_impl(
 
     if let Some(earliest) = graph.earliest_time() {
         temporal_graph.update_time(earliest);
-    };
+    }
 
     if let Some(latest) = graph.latest_time() {
         temporal_graph.update_time(latest);
-    };
-
-    // Set event counter to be the same as old graph to avoid any possibility for duplicate event ids
-    temporal_graph
-        .storage()
-        .set_event_id(storage.read_event_id());
-
-    let temporal_graph = Arc::new(temporal_graph);
-    let graph_storage = GraphStorage::from(temporal_graph.clone());
-
-    {
-        // scope for the write lock
-
-        // reverse index pos -> new_vid
-        let index = Index::for_graph(graph);
-        let mut node_map = vec![VID::default(); index.len()];
-        let node_map_shared = atomic_usize_from_mut_slice(bytemuck::cast_slice_mut(&mut node_map));
-
-        index.par_iter().for_each(|(_, vid)| {
-            if let Some(pos) = index.index(&vid) {
-                let new_vid = temporal_graph.storage().nodes().reserve_vid(pos);
-                node_map_shared[pos].store(new_vid.index(), Ordering::Relaxed);
-            }
-        });
-
-        let get_new_vid = |old_vid: VID, index: &Index<VID>, node_map: &[VID]| -> VID {
-            let pos = index
-                .index(&old_vid)
-                .expect("old_vid should exist in index");
-            node_map[pos]
-        };
-        let mut new_storage = graph_storage.write_lock()?;
-
-        for layer_id in &layer_map {
-            new_storage.nodes.ensure_layer(LayerId(*layer_id));
-        }
-
-        new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-            for (pos, vid) in index.iter().enumerate() {
-                let new_id = node_map[pos];
-                if let Some(node_pos) = shard.resolve_pos(new_id) {
-                    let node = NodeView::new_internal(graph, vid);
-                    let gid = node.id();
-                    let mut writer = shard.writer();
-
-                    if let Some(node_type) = node.node_type() {
-                        let new_type_id = graph_storage
-                            .node_meta()
-                            .node_type_meta()
-                            .get_or_create_id(&node_type)
-                            .inner();
-                        writer.store_node_id_and_node_type(
-                            node_pos,
-                            STATIC_GRAPH_LAYER_ID,
-                            gid.as_ref(),
-                            new_type_id,
-                        );
-                    } else {
-                        writer.store_node_id(node_pos, STATIC_GRAPH_LAYER_ID, gid.clone());
-                    }
-
-                    graph_storage
-                        .write_session()?
-                        .set_node(gid.as_ref(), new_id)?;
-
-                    for (t, l, row) in node.rows() {
-                        writer.add_props(t, node_pos, LayerId(l.0), row); // TODO: Fix me
-                    }
-
-                    writer.update_c_props(
-                        node_pos,
-                        STATIC_GRAPH_LAYER_ID,
-                        node.metadata_ids()
-                            .filter_map(|id| node.get_metadata(id).map(|prop| (id, prop))),
-                    );
-                }
-            }
-
-            Ok::<(), MutationError>(())
-        })?;
-
-        let mut new_eids = vec![];
-        let mut max_eid = 0usize;
-        for (row, _) in graph.edges().iter().enumerate() {
-            let new_eid = new_storage.graph().storage().edges().reserve_new_eid(row);
-            new_eids.push(new_eid);
-            max_eid = new_eid.0.max(max_eid);
-        }
-        new_storage.resize_segments_to_eid(EID(max_eid));
-
-        for layer_id in &layer_map {
-            new_storage.edges.ensure_layer(LayerId(*layer_id));
-        }
-
-        new_storage.edges.par_iter_mut().try_for_each(|shard| {
-            for (row, edge) in graph.edges().iter().enumerate() {
-                let src = get_new_vid(edge.edge.src(), &index, &node_map);
-                let dst = get_new_vid(edge.edge.dst(), &index, &node_map);
-                let eid = new_eids[row];
-                if let Some(edge_pos) = shard.resolve_pos(eid) {
-                    let mut writer = shard.writer();
-                    // make the edge for the first time
-                    writer.add_static_edge(Some(edge_pos), src, dst, false);
-
-                    for edge in edge.explode_layers() {
-                        let layer = LayerId(layer_map[edge.edge.layer().unwrap().0]);
-                        for edge in edge.explode() {
-                            let t = edge.edge.time().unwrap();
-                            writer.add_edge(t, edge_pos, src, dst, [], layer);
-                        }
-                        //TODO: move this in edge.row()
-                        for (t, t_props) in edge
-                            .properties()
-                            .temporal()
-                            .values()
-                            .map(|tp| {
-                                let prop_id = tp.id();
-                                tp.iter_indexed()
-                                    .map(|(t, prop)| (t, prop_id, prop))
-                                    .collect::<Vec<_>>()
-                            })
-                            .kmerge_by(|(t, _, _), (t2, _, _)| t <= t2)
-                            .chunk_by(|(t, _, _)| *t)
-                            .into_iter()
-                        {
-                            let props = t_props
-                                .map(|(_, prop_id, prop)| (prop_id, prop))
-                                .collect::<Vec<_>>();
-                            writer.add_edge(t, edge_pos, src, dst, props, layer);
-                        }
-                        writer.update_c_props(
-                            edge_pos,
-                            src,
-                            dst,
-                            layer,
-                            edge.clone().metadata_ids().filter_map(move |prop_id| {
-                                edge.get_metadata(prop_id).map(|prop| (prop_id, prop))
-                            }),
-                        );
-                    }
-
-                    let time_semantics = graph.edge_time_semantics();
-                    let edge_entry = graph.core_edge(edge.edge.pid());
-                    for (t, layer) in time_semantics.edge_deletion_history(
-                        edge_entry.as_ref(),
-                        graph,
-                        graph.layer_ids(),
-                    ) {
-                        let layer = LayerId(layer_map[layer.0]);
-                        writer.delete_edge(t, edge_pos, src, dst, layer);
-                    }
-                }
-            }
-            Ok::<(), MutationError>(())
-        })?;
-
-        new_storage.nodes.par_iter_mut().try_for_each(|shard| {
-            for (row, edge) in graph.edges().iter().enumerate() {
-                let eid = new_eids[row];
-                let src_id = get_new_vid(edge.edge.src(), &index, &node_map);
-                let dst_id = get_new_vid(edge.edge.dst(), &index, &node_map);
-                let maybe_src_pos = shard.resolve_pos(src_id);
-                let maybe_dst_pos = shard.resolve_pos(dst_id);
-
-                if let Some(node_pos) = maybe_src_pos {
-                    let mut writer = shard.writer();
-                    writer.add_static_outbound_edge(node_pos, dst_id, eid);
-                }
-
-                if let Some(node_pos) = maybe_dst_pos {
-                    let mut writer = shard.writer();
-                    writer.add_static_inbound_edge(node_pos, src_id, eid);
-                }
-
-                for e in edge.explode_layers() {
-                    let layer = LayerId(layer_map[e.edge.layer().unwrap().0]);
-                    if let Some(node_pos) = maybe_src_pos {
-                        let mut writer = shard.writer();
-                        writer.add_outbound_edge::<i64>(
-                            None,
-                            node_pos,
-                            dst_id,
-                            eid.with_layer(layer),
-                        );
-                    }
-                    if let Some(node_pos) = maybe_dst_pos {
-                        let mut writer = shard.writer();
-                        writer.add_inbound_edge::<i64>(
-                            None,
-                            node_pos,
-                            src_id,
-                            eid.with_layer(layer),
-                        );
-                    }
-                }
-
-                for e in edge.explode() {
-                    if let Some(src_pos) = maybe_src_pos {
-                        let mut writer = shard.writer();
-
-                        let t = e.time().expect("exploded edge should have time");
-                        let l = LayerId(layer_map[e.edge.layer().unwrap().0]);
-                        writer.update_timestamp(t, src_pos, eid.with_layer(l));
-                    }
-                    if let Some(dst_pos) = maybe_dst_pos {
-                        if maybe_src_pos.is_none_or(|src_pos| src_pos != dst_pos) {
-                            let mut writer = shard.writer();
-
-                            let t = e.time().expect("exploded edge should have time");
-                            let l = LayerId(layer_map[e.edge.layer().unwrap().0]);
-                            writer.update_timestamp(t, dst_pos, eid.with_layer(l));
-                        }
-                    }
-                }
-
-                let edge_time_semantics = graph.edge_time_semantics();
-                let edge_entry = graph.core_edge(edge.edge.pid());
-                for (t, layer) in edge_time_semantics.edge_deletion_history(
-                    edge_entry.as_ref(),
-                    graph,
-                    graph.layer_ids(),
-                ) {
-                    let layer = LayerId(layer_map[layer.0]);
-                    if let Some(src_pos) = maybe_src_pos {
-                        let mut writer = shard.writer();
-                        writer.update_timestamp(t, src_pos, eid.with_layer_deletion(layer));
-                    }
-                    if let Some(dst_pos) = maybe_dst_pos {
-                        if maybe_src_pos.is_none_or(|src_pos| src_pos != dst_pos) {
-                            let mut writer = shard.writer();
-                            writer.update_timestamp(t, dst_pos, eid.with_layer_deletion(layer));
-                        }
-                    }
-                }
-            }
-
-            Ok::<(), MutationError>(())
-        })?;
-
-        // Copy over graph properties
-        {
-            let graph_writer = new_storage.graph_props.writer();
-            // Copy temporal properties
-            for (prop_name, temporal_prop) in graph.properties().temporal().iter() {
-                let prop_id = graph_storage
-                    .graph_props_meta()
-                    .temporal_prop_mapper()
-                    .get_or_create_id(&prop_name)
-                    .inner();
-
-                for (t, prop_value) in temporal_prop.iter_indexed() {
-                    graph_writer.add_properties(t, [(prop_id, prop_value)]);
-                }
-            }
-
-            // Copy metadata (constant properties)
-            let metadata_props: Vec<_> = graph
-                .metadata()
-                .iter_filtered()
-                .map(|(prop_name, prop_value)| {
-                    let prop_id = graph_storage
-                        .graph_props_meta()
-                        .metadata_mapper()
-                        .get_or_create_id(&prop_name)
-                        .inner();
-                    (prop_id, prop_value)
-                })
-                .collect();
-
-            if !metadata_props.is_empty() {
-                graph_writer.update_metadata(metadata_props);
-            }
-        }
     }
 
-    Ok(graph.new_base_graph(graph_storage))
+    temporal_graph
+        .storage()
+        .set_event_id(graph.core_graph().lock().read_event_id());
+
+    let graph_storage = GraphStorage::from(Arc::new(temporal_graph));
+    let materialized = graph.new_base_graph(graph_storage);
+
+    let stream_capacity = 10;
+    let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
+
+    let mut scope_result = Ok(());
+    // Use std::thread::scope rather than rayon::scope so the producer runs on its own OS thread.
+    // With rayon::scope on a single-thread pool, the main thread blocking on rx.recv() would starve the spawned producer.
+    std::thread::scope(|scope| {
+        let producer_tx = tx.clone();
+        let producer_handle = scope.spawn(move || {
+            let make_sink_factory = |kind| {
+                let tx = producer_tx.clone();
+                move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
+            };
+
+            // EdgesD must run before EdgesC: edges that exist only via
+            // deletions (e.g. in a windowed persistent graph) aren't
+            // produced by EdgesT, so the deletion pass is what
+            // materializes them. The edge-metadata loader then expects
+            // every layer-edge it sees to already exist.
+            // NodesC must run before NodesT as well.
+            ENCODE_POOL.install(|| -> Result<(), GraphError> {
+                encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
+                encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
+                encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
+                encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
+                encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
+                encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
+                encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
+                Ok(())
+            })
+        });
+
+        drop(tx);
+
+        let consumer_result = loop {
+            let message = match rx.recv() {
+                Ok(message) => message,
+                Err(_) => break Ok(()), // error here means the channel is empty and disconnected
+            };
+
+            let kind = message.kind();
+            let df_view = df_view_from_record_batch(message.into_batch());
+
+            let result = match kind {
+                RecordBatchKind::NodesC => {
+                    let node_c_props = df_columns_except(
+                        &df_view.names,
+                        &[NODE_GID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL],
+                    );
+                    let node_c_props_refs =
+                        node_c_props.iter().map(String::as_str).collect::<Vec<_>>();
+
+                    LOAD_POOL.install(|| {
+                        load_node_props_from_df(
+                            df_view,
+                            NODE_GID_COL,
+                            None,
+                            Some(TYPE_COL),
+                            None,
+                            None,
+                            &node_c_props_refs,
+                            None,
+                            &materialized,
+                            true,
+                        )
+                    })
+                }
+                RecordBatchKind::NodesT => {
+                    let node_t_props = df_columns_except(
+                        &df_view.names,
+                        &[
+                            NODE_GID_COL,
+                            NODE_VID_COL,
+                            TYPE_COL,
+                            TIME_COL,
+                            SECONDARY_INDEX_COL,
+                        ],
+                    );
+                    let node_t_props_refs =
+                        node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+
+                    load_nodes_from_df(
+                        df_view,
+                        TIME_COL,
+                        Some(SECONDARY_INDEX_COL),
+                        NODE_GID_COL,
+                        &node_t_props_refs,
+                        &[],
+                        None,
+                        None,
+                        Some(TYPE_COL),
+                        &materialized,
+                        true,
+                        None,
+                        None,
+                    )
+                }
+                RecordBatchKind::EdgesT => {
+                    let edge_t_props = df_columns_except(
+                        &df_view.names,
+                        &[
+                            TIME_COL,
+                            SECONDARY_INDEX_COL,
+                            SRC_VID_COL,
+                            SRC_GID_COL,
+                            DST_VID_COL,
+                            DST_GID_COL,
+                            EDGE_COL_ID,
+                            LAYER_COL,
+                            LAYER_ID_COL,
+                        ],
+                    );
+                    let edge_t_props_refs =
+                        edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+
+                    LOAD_POOL.install(|| {
+                        load_edges_from_df(
+                            df_view,
+                            ColumnNames::new(
+                                TIME_COL,
+                                Some(SECONDARY_INDEX_COL),
+                                SRC_GID_COL,
+                                DST_GID_COL,
+                                Some(LAYER_COL),
+                            ),
+                            true,
+                            &edge_t_props_refs,
+                            &[],
+                            None,
+                            None,
+                            &materialized,
+                            false,
+                        )
+                    })
+                }
+                RecordBatchKind::EdgesC => {
+                    let edge_c_props = df_columns_except(
+                        &df_view.names,
+                        &[
+                            SRC_VID_COL,
+                            SRC_GID_COL,
+                            DST_VID_COL,
+                            DST_GID_COL,
+                            EDGE_COL_ID,
+                            LAYER_COL,
+                        ],
+                    );
+                    let edge_c_props_refs =
+                        edge_c_props.iter().map(String::as_str).collect::<Vec<_>>();
+
+                    LOAD_POOL.install(|| {
+                        load_edge_props_from_df(
+                            df_view,
+                            ColumnNames::new("", None, SRC_GID_COL, DST_GID_COL, Some(LAYER_COL)),
+                            true,
+                            &edge_c_props_refs,
+                            None,
+                            None,
+                            &materialized,
+                        )
+                    })
+                }
+                RecordBatchKind::EdgesD => LOAD_POOL.install(|| {
+                    load_edge_deletions_from_df(
+                        df_view,
+                        ColumnNames::new(
+                            TIME_COL,
+                            Some(SECONDARY_INDEX_COL),
+                            SRC_GID_COL,
+                            DST_GID_COL,
+                            Some(LAYER_COL),
+                        ),
+                        true,
+                        None,
+                        &materialized,
+                    )
+                }),
+                RecordBatchKind::GraphT => {
+                    let graph_t_props =
+                        df_columns_except(&df_view.names, &[TIME_COL, SECONDARY_INDEX_COL]);
+                    let graph_t_props_refs =
+                        graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
+
+                    LOAD_POOL.install(|| {
+                        load_graph_props_from_df(
+                            df_view,
+                            TIME_COL,
+                            Some(SECONDARY_INDEX_COL),
+                            Some(&graph_t_props_refs),
+                            None,
+                            &materialized,
+                        )
+                    })
+                }
+                RecordBatchKind::GraphC => {
+                    let graph_c_props = df_columns_except(&df_view.names, &[TIME_COL]);
+                    let graph_c_props_refs =
+                        graph_c_props.iter().map(String::as_str).collect::<Vec<_>>();
+
+                    LOAD_POOL.install(|| {
+                        load_graph_props_from_df(
+                            df_view,
+                            TIME_COL,
+                            None,
+                            None,
+                            Some(&graph_c_props_refs),
+                            &materialized,
+                        )
+                    })
+                }
+            };
+
+            if let Err(err) = result {
+                break Err(err);
+            }
+        };
+
+        drop(rx);
+
+        let producer_result = producer_handle.join().unwrap_or_else(|_| {
+            Err(GraphError::IOErrorMsg(
+                "record batch producer scope exited without reporting a result".to_string(),
+            ))
+        });
+
+        scope_result = consumer_result.and(producer_result);
+    }); // std::thread::scope
+    scope_result?;
+
+    Ok(materialized)
 }
 
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
