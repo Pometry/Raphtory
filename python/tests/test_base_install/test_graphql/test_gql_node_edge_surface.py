@@ -540,6 +540,7 @@ def test_edge_nbr_on_exploded_edge():
         node(name: "A") {
           outEdges {
             list {
+              id
               explode { list { nbr { name } } }
             }
           }
@@ -558,11 +559,13 @@ def test_edge_nbr_on_exploded_edge():
                 "outEdges": {
                     "list": [
                         {
+                            "id": ["A", "A"],
                             "explode": {
                                 "list": [{"nbr": {"name": "A"}}],
                             }
                         },
                         {
+                            "id": ["A", "B"],
                             "explode": {
                                 "list": [
                                     {"nbr": {"name": "B"}},
@@ -572,6 +575,7 @@ def test_edge_nbr_on_exploded_edge():
                             }
                         },
                         {
+                            "id": ["A", "C"],
                             "explode": {
                                 "list": [
                                     {"nbr": {"name": "C"}},
