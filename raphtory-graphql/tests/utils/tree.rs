@@ -34,17 +34,21 @@ pub fn build_namespace_tree(parents: &[usize]) -> Graph {
 }
 
 /// Build paths for all leaf nodes in the tree.
-/// Example: a -> b -> c returns ["a/b/c"]
+/// "node_0" is treated as the root namespace.
+/// Example: node_0 -> node_1 -> node_2 returns ["node_1/node_2"]
 pub fn leaf_paths(tree: &Graph) -> Vec<String> {
     let mut stack = Vec::new();
     let root = tree.node("node_0").unwrap();
     let mut leaves = Vec::new();
 
-    stack.push((root, String::new()));
+    // Leave out node_0 since it is the root namespace.
+    for neighbour in root.out_neighbours() {
+        stack.push((neighbour, String::new()));
+    }
 
     while let Some((node, parent_path)) = stack.pop() {
-        // Prevent leading slash in paths.
         let node_path = if parent_path.is_empty() {
+            // Prevent leading slash in paths.
             node.name()
         } else {
             [parent_path, node.name()].join("/")
@@ -65,17 +69,21 @@ pub fn leaf_paths(tree: &Graph) -> Vec<String> {
 }
 
 /// Build paths for all branch nodes in the tree.
-/// Example: a -> b -> c returns ["a", "a/b"]
+/// "node_0" is treated as the root namespace.
+/// Example: node_0 -> node_1 -> node_2 returns ["node_1/"]
 pub fn branch_paths(tree: &Graph) -> Vec<String> {
     let mut stack = Vec::new();
     let root = tree.node("node_0").unwrap();
     let mut branches = Vec::new();
 
-    stack.push((root, String::new()));
+    // Leave out node_0 since it is the root namespace.
+    for neighbour in root.out_neighbours() {
+        stack.push((neighbour, String::new()));
+    }
 
     while let Some((node, parent_path)) = stack.pop() {
-        // Prevent leading slash in paths.
         let node_path = if parent_path.is_empty() {
+            // Prevent leading slash in paths.
             node.name()
         } else {
             [parent_path, node.name()].join("/")
