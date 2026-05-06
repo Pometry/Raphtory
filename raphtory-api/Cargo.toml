@@ -28,6 +28,7 @@ lock_api = { workspace = true }
 parking_lot = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
+numpy = { workspace = true, optional = true }
 rayon = { workspace = true }
 rand = { workspace = true }
 num-traits = { workspace = true }
@@ -51,7 +52,7 @@ serde_json.workspace = true
 [features]
 # Enables generating the pyo3 python bindings
 python = [
-    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain"
+    "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain", "dep:numpy"
 ]
 
 proto = []

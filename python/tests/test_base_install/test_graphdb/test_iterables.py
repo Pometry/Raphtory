@@ -1,5 +1,6 @@
 import math
 import sys
+from email.policy import strict
 
 import pandas as pd
 import pandas.core.frame
@@ -62,13 +63,14 @@ def test_pyprophistvaluelist():
     res = v.out_edges.properties.temporal.get(
         "value_dec"
     ).values()  # PyPropHistValueList([[10, 10, 100], [20], [2, 1, 5]])
-    assert res.sum() == [120, 20, 8]
-    assert res.min() == [10, 20, 1]
-    assert res.max() == [100, 20, 5]
-    assert sorted(res.count()) == [1, 3, 3]
-    assert res.median() == [10, 20, 2]
-    assert list(res.mean()) == [40, 20, 8 / 3]
-    assert list(res.average()) == [40, 20, 8 / 3]
+    nbrs = v.out_edges.nbr.id
+    assert dict(zip(nbrs, res.sum(), strict=True)) == {"2": 120, "4": 20, "5": 8}
+    assert dict(zip(nbrs, res.min(), strict=True)) == {"2": 10, "4": 20, "5": 1}
+    assert dict(zip(nbrs, res.max(), strict=True)) == {"2": 100, "4": 20, "5": 5}
+    assert dict(zip(nbrs, res.count(), strict=True)) == {"2": 3, "4": 1, "5": 3}
+    assert dict(zip(nbrs, res.median(), strict=True)) == {"2": 10, "4": 20, "5": 2}
+    assert dict(zip(nbrs, res.mean(), strict=True)) == {"2": 40, "4": 20, "5": 8 / 3}
+    assert dict(zip(nbrs, res.average(), strict=True)) == {"2": 40, "4": 20, "5": 8 / 3}
 
 
 def test_empty_lists():
@@ -88,23 +90,23 @@ def test_empty_lists():
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
     assert (
-        g.nodes.out_edges.properties.temporal.get("value_dec")
-        .values()
-        .median()
-        .median()
-        .median()
-        == 5
-    )
-    assert (
-        int(
             g.nodes.out_edges.properties.temporal.get("value_dec")
             .values()
-            .mean()
-            .mean()
-            .mean()
-            * 100
-        )
-        == 616
+            .median()
+            .median()
+            .median()
+            == 5
+    )
+    assert (
+            int(
+                g.nodes.out_edges.properties.temporal.get("value_dec")
+                .values()
+                .mean()
+                .mean()
+                .mean()
+                * 100
+            )
+            == 616
     )
 
 
@@ -217,9 +219,9 @@ def test_pypropvalue_list_listlist():
     assert res.mean() == res.average() == 18.5
     assert res_v.mean() == res_v.average() == 26.2
     assert (
-        res_ll.mean()
-        == res_ll.average()
-        == [26.2, 35.666666666666664, 11.666666666666666, 4.5, 5.0]
+            res_ll.mean()
+            == res_ll.average()
+            == [26.2, 35.666666666666664, 11.666666666666666, 4.5, 5.0]
     )
 
 
