@@ -223,6 +223,18 @@ impl PersistentGraph {
         Self(Arc::new(Storage::from_inner(internal_graph)))
     }
 
+    /// Return a read-only handle to this graph. Mutations on the returned
+    /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
+    /// `TemporalGraph` is shared — this is not a snapshot.
+    ///
+    /// **Warning**: while a read-only handle is live, writes through the
+    /// original `PersistentGraph` will block on the per-segment read locks
+    /// the handle holds. Drop the read-only handle before mutating the
+    /// original.
+    pub fn read_only(&self) -> Self {
+        Self(Arc::new(self.0.read_only()))
+    }
+
     /// Get event graph
     pub fn event_graph(&self) -> Graph {
         Graph::from_storage(self.0.clone())

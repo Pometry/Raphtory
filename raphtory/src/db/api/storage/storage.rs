@@ -220,7 +220,7 @@ impl Storage {
         Self {
             graph: self.graph.lock(),
             #[cfg(feature = "search")]
-            index: RwLock::new(GraphIndex::Empty),
+            index: RwLock::new(self.index.read().clone()),
         }
     }
 
