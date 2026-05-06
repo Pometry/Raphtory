@@ -1107,7 +1107,12 @@ def compare_df(df1, df2):
 
 
 def normalise_dict(d):
-    s = json.dumps(d, ensure_ascii=True, sort_keys=True)
+    s = json.dumps(
+        d,
+        ensure_ascii=True,
+        sort_keys=True,
+        default=lambda o: o.tolist() if isinstance(o, np.ndarray) else o,
+    )
     return s
 
 
