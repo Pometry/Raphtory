@@ -143,3 +143,101 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
         assert (
             meta_cached == meta
         ), "cached-path metadata should match the on-disk-path metadata"
+
+
+def test_metadata_update_in_single_segment_returns_latest():
+    """Update a metadata key twice with a single flush at the end. The on-disk
+    graph_props has one segment containing the latest value — `MetaGraph.metadata`
+    must surface that value over the namespace listing path (which doesn't load
+    the graph into cache)."""
+    work_dir = tempfile.mkdtemp()
+    graph_dir = os.path.join(work_dir, "g")
+
+    g = Graph(graph_dir)
+    g.add_node(1, "alice")
+    g.add_metadata({"version": "v1"})
+    g.update_metadata({"version": "v2"})
+    g.flush()
+    del g
+
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient(SERVER_URL)
+        meta = _list_metadata_by_path(client)
+        assert meta["g"]["version"] == "v2", (
+            f"expected latest in-segment value 'v2', got {meta['g'].get('version')!r}"
+        )
+
+
+def test_metadata_update_across_flushes_returns_newest_segment():
+    """The exact scenario the multi-segment fix targets:
+      - set ``version=v1``, flush  → segment A holds v1
+      - update to ``version=v2``, flush  → segment B holds v2
+
+    `read_constant_graph_properties` must return v2 (newest segment wins).
+    Before the fix, it iterated segments forward with `find_map`, returning v1
+    (the oldest)."""
+    work_dir = tempfile.mkdtemp()
+    graph_dir = os.path.join(work_dir, "g")
+
+    g = Graph(graph_dir)
+    g.add_node(1, "alice")
+    g.add_metadata({"version": "v1"})
+    g.flush()
+    g.update_metadata({"version": "v2"})
+    g.flush()
+    del g
+
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient(SERVER_URL)
+        meta = _list_metadata_by_path(client)
+        assert meta["g"]["version"] == "v2", (
+            f"expected newest-segment value 'v2', got {meta['g'].get('version')!r}"
+        )
+
+
+def test_metadata_many_updates_across_flushes_returns_last():
+    """Update the same key 500 times with a flush between each write so the
+    on-disk graph_props ends up with hundreds of segments, only the last of
+    which holds the final value. The reverse-segment scan must reach it."""
+    work_dir = tempfile.mkdtemp()
+    graph_dir = os.path.join(work_dir, "g")
+
+    g = Graph(graph_dir)
+    g.add_node(1, "alice")
+    g.add_metadata({"version": "v0"})
+    g.flush()
+    for i in range(1, 500):
+        g.update_metadata({"version": f"v{i}"})
+        g.flush()
+    del g
+
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient(SERVER_URL)
+        meta = _list_metadata_by_path(client)
+        assert meta["g"]["version"] == "v499", (
+            f"expected last-write value 'v499', got {meta['g'].get('version')!r}"
+        )
+
+
+def test_metadata_mixed_keys_across_flushes():
+    """Multiple keys with different update histories. `untouched` is set once
+    in segment A; `bumped` is updated in segment B. The listing must surface
+    the right value for each — neither key should leak the other's history."""
+    work_dir = tempfile.mkdtemp()
+    graph_dir = os.path.join(work_dir, "g")
+
+    g = Graph(graph_dir)
+    g.add_node(1, "alice")
+    g.add_metadata({"untouched": "stable", "bumped": "old"})
+    g.flush()
+    g.update_metadata({"bumped": "new"})
+    g.flush()
+    del g
+
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient(SERVER_URL)
+        meta = _list_metadata_by_path(client)
+        assert meta["g"]["untouched"] == "stable"
+        assert meta["g"]["bumped"] == "new", (
+            f"expected updated value 'new', got {meta['g'].get('bumped')!r}"
+        )
