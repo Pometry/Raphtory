@@ -487,8 +487,10 @@ fn decode_graph_storage(
                 SRC_VID_COL,
                 DST_VID_COL,
                 Some(LAYER_COL),
-            ),
-            true,
+            )
+            .with_layer_id_col(LAYER_ID_COL)
+            .with_edge_id_col(EDGE_COL_ID),
+            false,
             &t_prop_columns,
             &[],
             None,
@@ -510,9 +512,11 @@ fn decode_graph_storage(
                 SRC_VID_COL,
                 DST_VID_COL,
                 Some(LAYER_COL),
-            ),
+            )
+            .with_layer_id_col(LAYER_ID_COL)
+            .with_edge_id_col(EDGE_COL_ID),
             None,
-            true,
+            false,
             batch_size,
             None,
         )?;
@@ -546,7 +550,7 @@ fn decode_graph_storage(
             Some(LAYER_COL),
             batch_size,
             None,
-            true,
+            false,
         )?;
     }
     Ok(graph)

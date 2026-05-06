@@ -432,12 +432,7 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         let mut values = self
             .metadata_iter(layer_ids, prop_id)
             .filter(|(layer, _)| layer_filter(*layer));
-        let multi_layer_view = match layer_ids {
-            LayerIds::None | LayerIds::One(_) => false,
-            LayerIds::Multiple(ids) => ids.len() > 1,
-            LayerIds::All => view.num_layers() > 1,
-        };
-        if multi_layer_view {
+        if view.num_layers() > 1 {
             let mut values = values.peekable();
             if values.peek().is_some() {
                 Some(Prop::map(
