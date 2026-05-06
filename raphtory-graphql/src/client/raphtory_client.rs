@@ -116,9 +116,9 @@ impl RaphtoryGraphQLClient {
                     .join("\n\t"),
                 _ => format!("{}", errors),
             };
+
             return Err(ClientError::GraphQLErrors(format!(
-                "After sending query to the server:\n\t{}\nGot the following errors:\n\t{}",
-                query, message
+                "Error while executing query: {message}"
             )));
         }
 

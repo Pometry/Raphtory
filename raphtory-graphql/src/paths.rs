@@ -220,12 +220,14 @@ pub(crate) fn create_valid_path(
     if relative_path.contains(r"//") {
         return Err(InvalidPathReason::DoubleForwardSlash.into());
     }
+
     if relative_path.contains(r"\") {
         return Err(InvalidPathReason::BackslashError.into());
     }
 
     let mut full_path = base_path.clone();
     let mut cleanup_marker = None;
+
     // fail if any component is a Prefix (C://), tries to access root,
     // tries to access a parent dir or is a symlink which could break out of the working dir
     for component in user_facing_path.components() {
@@ -237,6 +239,7 @@ pub(crate) fn create_valid_path(
                             path: full_path.clone(),
                             dirty_marker: mark_dirty(&full_path)?,
                         });
+
                         fs::create_dir(&full_path)?;
                     }
                 }
@@ -329,11 +332,13 @@ impl ValidWriteableGraphFolder {
                 error,
             }
         })?;
+
         if !path.cleanup.is_some() {
             return Err(PathValidationError::GraphExistsError(
                 relative_path.to_string(),
             ));
         }
+
         Self::new(path, relative_path)
     }
 
@@ -567,15 +572,21 @@ pub(crate) fn mark_dirty(path: &Path) -> Result<PathBuf, InternalPathValidationE
         .to_str()
         .ok_or(InternalPathValidationError::NonUTFCharacters)?
         .to_string();
+
     let parent = path
         .parent()
         .ok_or(InternalPathValidationError::MissingParent)?;
+
     ensure_clean_folder(parent)?;
+
     let dirty_file_path = parent.join(DIRTY_PATH);
     let mut dirty_file = File::create_new(&dirty_file_path)?;
+
     dirty_file.write_all(&serde_json::to_vec(&RelativePath { path: cleanup_path })?)?;
+
     // make sure the dirty path is properly recorded before we proceed!
     dirty_file.sync_all()?;
+
     Ok(dirty_file_path)
 }
 

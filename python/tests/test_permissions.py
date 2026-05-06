@@ -1288,6 +1288,53 @@ def test_child_namespace_restriction_overrides_parent():
         assert "team/restricted/secret" in paths
 
 
+def test_parent_does_not_override_child_namespace_restriction():
+    """A direct child grant should remain effective after a broader parent grant."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_DEEP)
+        create_role("analyst")
+
+        update_deep = """query { updateGraph(path: "a/b/c") { addNode(time: 1, name: "child_write_node") { success } } }"""
+
+        # Grant child graph WRITE first and verify write access works.
+        grant_graph("analyst", "a/b/c", "WRITE")
+        response = gql(update_deep, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["updateGraph"]["addNode"]["success"] is True
+
+        # Then grant parent namespace READ; child graph WRITE should still win.
+        grant_namespace("analyst", "a", "READ")
+        response = gql(update_deep, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["updateGraph"]["addNode"]["success"] is True
+
+
+def test_most_specific_namespace_grant_applies():
+    """Grant READ at a/b/c/d/e then WRITE at a/b/c.
+    The descendant graph a/b/c/d/e/f/g should retain READ-level access under specificity rules.
+    """
+    CREATE_DEEP_LEAF = """mutation { newGraph(path:"a/b/c/d/e/f/g", graphType:EVENT) }"""
+    QUERY_DEEP_LEAF = """query { graph(path: "a/b/c/d/e/f/g") { path } }"""
+    UPDATE_DEEP_LEAF = """query { updateGraph(path: "a/b/c/d/e/f/g") { addNode(time: 1, name: "from_test") { success } } }"""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_DEEP_LEAF)
+        create_role("analyst")
+
+        grant_namespace("analyst", "a/b/c/d/e", "READ")
+        grant_namespace("analyst", "a/b/c", "WRITE")
+
+        response = gql(QUERY_DEEP_LEAF, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["graph"]["path"] == "a/b/c/d/e/f/g"
+
+        response = gql(UPDATE_DEEP_LEAF, headers=ANALYST_HEADERS)
+        assert response["data"] is None or response["data"].get("updateGraph") is None
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
 def test_discover_derivation():
     """grantGraph READ on a namespaced graph → ancestor namespace gets DISCOVER (visible in children)."""
     work_dir = tempfile.mkdtemp()

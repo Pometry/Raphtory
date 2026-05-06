@@ -96,7 +96,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Sets a new config.
     #[cfg(feature = "io")]
-    #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
@@ -352,6 +351,7 @@ pub fn materialize_impl(
 
     let base_layer_meta = graph.edge_meta().layer_meta();
     let layer_meta = edge_meta.layer_meta();
+
     // NOTE: layers must be set in layer_meta before the TemporalGraph is initialized to
     // make sure empty layers are created.
     match graph.layer_ids() {
@@ -371,8 +371,10 @@ pub fn materialize_impl(
             }
         }
     }
+
     node_meta.set_layer_mapper(layer_meta.deep_clone());
 
+    // Create a new Extension instance for the new materialized graph.
     let ext = Extension::new(config, path)?;
     let temporal_graph = TemporalGraph::new_with_meta(
         path.map(|p| p.into()),
