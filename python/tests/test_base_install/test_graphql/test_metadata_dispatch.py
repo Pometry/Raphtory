@@ -163,9 +163,9 @@ def test_metadata_update_in_single_segment_returns_latest():
     with GraphServer(work_dir).start():
         client = RaphtoryClient(SERVER_URL)
         meta = _list_metadata_by_path(client)
-        assert meta["g"]["version"] == "v2", (
-            f"expected latest in-segment value 'v2', got {meta['g'].get('version')!r}"
-        )
+        assert (
+            meta["g"]["version"] == "v2"
+        ), f"expected latest in-segment value 'v2', got {meta['g'].get('version')!r}"
 
 
 def test_metadata_update_across_flushes_returns_newest_segment():
@@ -190,9 +190,9 @@ def test_metadata_update_across_flushes_returns_newest_segment():
     with GraphServer(work_dir).start():
         client = RaphtoryClient(SERVER_URL)
         meta = _list_metadata_by_path(client)
-        assert meta["g"]["version"] == "v2", (
-            f"expected newest-segment value 'v2', got {meta['g'].get('version')!r}"
-        )
+        assert (
+            meta["g"]["version"] == "v2"
+        ), f"expected newest-segment value 'v2', got {meta['g'].get('version')!r}"
 
 
 def test_metadata_many_updates_across_flushes_returns_last():
@@ -214,9 +214,9 @@ def test_metadata_many_updates_across_flushes_returns_last():
     with GraphServer(work_dir).start():
         client = RaphtoryClient(SERVER_URL)
         meta = _list_metadata_by_path(client)
-        assert meta["g"]["version"] == "v499", (
-            f"expected last-write value 'v499', got {meta['g'].get('version')!r}"
-        )
+        assert (
+            meta["g"]["version"] == "v499"
+        ), f"expected last-write value 'v499', got {meta['g'].get('version')!r}"
 
 
 def test_node_metadata_many_updates_across_flushes_returns_last():
@@ -282,6 +282,6 @@ def test_metadata_mixed_keys_across_flushes():
         client = RaphtoryClient(SERVER_URL)
         meta = _list_metadata_by_path(client)
         assert meta["g"]["untouched"] == "stable"
-        assert meta["g"]["bumped"] == "new", (
-            f"expected updated value 'new', got {meta['g'].get('bumped')!r}"
-        )
+        assert (
+            meta["g"]["bumped"] == "new"
+        ), f"expected updated value 'new', got {meta['g'].get('bumped')!r}"

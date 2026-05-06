@@ -6441,6 +6441,7 @@ dependencies = [
  "lock_api",
  "minijinja",
  "num-traits",
+ "numpy",
  "parking_lot",
  "proptest",
  "pyo3",
