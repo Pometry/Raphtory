@@ -29,6 +29,7 @@ use crate::{
 #[cfg(feature = "python")]
 use crate::db::api::view::{DynamicGraph, IntoDynamic, StaticGraphViewOps};
 
+use either::Either;
 use hashbrown::HashMap;
 use raphtory_api::core::entities::{EID, VID};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
@@ -1476,7 +1477,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
             GenLockedIter::from(forward_map, move |forward_map| {
                 forward_map
                     .values()
-                    .map(move |(_, eid)| storage.edge_entry(*eid).out_ref())
+                    .map(move |(_, eid)| storage.edge_entry(Either::Left(*eid)).out_ref())
                     .into_dyn_boxed()
             })
             .into_dyn_boxed()
@@ -1515,7 +1516,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         let (_, eid) = self.forward_map.get(&src)?;
         Some(EdgeView::new(
             &self.graph,
-            self.graph.core_edge(*eid).out_ref(),
+            self.graph.core_edge(Either::Left(*eid)).out_ref(),
         ))
     }
     pub fn dst<'a>(&'a self, src: impl AsNodeRef) -> Option<NodeView<'a, &'a G>>
@@ -1535,7 +1536,7 @@ impl<'graph, G: GraphViewOps<'graph>> Matching<G> {
         let (_, eid) = self.reverse_map.get(&dst)?;
         Some(EdgeView::new(
             &self.graph,
-            self.graph.core_edge(*eid).out_ref(),
+            self.graph.core_edge(Either::Left(*eid)).out_ref(),
         ))
     }
 }

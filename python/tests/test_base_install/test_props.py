@@ -3,6 +3,7 @@ from utils import expect_unify_error, assert_in_all
 from decimal import Decimal
 from datetime import datetime, timezone
 import pytest
+import numpy as np
 
 
 def test_list_u64s():
@@ -221,7 +222,7 @@ def test_decimal_from_negative_int():
 
 
 def test_decimal_from_large_int():
-    p = Prop.decimal(2**62)
+    p = Prop.decimal(2 ** 62)
     assert str(p.dtype()) == "Decimal { scale: 0 }"
 
 
@@ -276,7 +277,7 @@ def test_decimal_list_in_graph():
         properties={"prices": Prop.list([Prop.decimal("1.25"), Prop.decimal("2.50")])},
     )
     vals = g.node("n").properties.get("prices")
-    assert vals == [Decimal("1.25"), Decimal("2.50")]
+    assert np.array_equal(vals, [Decimal("1.25"), Decimal("2.50")])
 
 
 def test_decimal_list_rejects_mixed_scales():

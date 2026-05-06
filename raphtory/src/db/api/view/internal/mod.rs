@@ -219,13 +219,13 @@ impl InheritNodeHistoryFilter for DynamicGraph {}
 
 impl InheritEdgeHistoryFilter for DynamicGraph {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritViewOps for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritStorageOps for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritStorageOps for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritNodeHistoryFilter for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritNodeHistoryFilter for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritEdgeHistoryFilter for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritEdgeHistoryFilter for &'graph1 G {}
 
 #[cfg(test)]
 mod test {

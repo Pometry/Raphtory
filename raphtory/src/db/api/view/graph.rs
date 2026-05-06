@@ -41,6 +41,7 @@ use crate::{
 use ahash::HashSet;
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::meta::{Meta, PropMapper},
@@ -194,6 +195,7 @@ pub trait SearchableGraphOps: Sized {
     fn is_indexed(&self) -> bool;
 }
 
+#[inline]
 fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'graph, G> {
     let graph = g.clone();
     let edges: Arc<dyn Fn() -> BoxedLIter<'graph, EdgeRef> + Send + Sync + 'graph> = match graph
@@ -210,7 +212,7 @@ fn edges_inner<'graph, G: GraphView + 'graph>(g: &G, locked: bool) -> Edges<'gra
             GenLockedIter::from((gs, layer_ids, graph), move |(gs, layer_ids, graph)| {
                 let edges = gs.edges();
                 let iter = edges.iter(layer_ids);
-                if graph.filtered() {
+                if graph.filtered_excluding_layers() {
                     iter.filter_map(|e| graph.filter_edge(e.as_ref()).then(|| e.out_ref()))
                         .into_dyn_boxed()
                 } else {
@@ -748,7 +750,28 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
 
     #[inline]
     fn count_nodes(&self) -> usize {
-        (&self).nodes().len()
+        if self.node_list_trusted() {
+            match self.node_list() {
+                NodeList::All => self.unfiltered_num_nodes(self.layer_ids()),
+                NodeList::List { elems } => elems.len(),
+            }
+        } else {
+            match self.node_list() {
+                NodeList::All => self
+                    .core_nodes()
+                    .as_ref()
+                    .par_iter()
+                    .filter(|node| self.filter_node(*node))
+                    .count(),
+                NodeList::List { elems } => {
+                    let nodes = self.core_nodes();
+                    elems
+                        .par_iter()
+                        .filter(|(_, node)| self.filter_node(nodes.node_entry(*node)))
+                        .count()
+                }
+            }
+        }
     }
 
     #[inline]
@@ -777,11 +800,7 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
                 .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
                 .sum()
         } else {
-            core_edges
-                .as_ref()
-                .par_iter(layer_ids)
-                .map(move |edge| edge_time_semantics.edge_exploded_count(edge.as_ref(), self))
-                .sum()
+            core_edges.as_ref().count_temporal_edges(layer_ids)
         }
     }
 
@@ -821,21 +840,26 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         let src = self.internalise_node(src.as_node_ref())?;
         let dst = self.internalise_node(dst.as_node_ref())?;
         let src_node = self.core_node(src);
+        if self.internal_nodes_filtered() {
+            if !self.internal_filter_node(src_node.as_ref(), layer_ids) {
+                return None;
+            }
+        }
         let edge_ref = src_node.find_edge(dst, layer_ids)?;
         match self.filter_state() {
             FilterState::Neither => {}
-            FilterState::Both | FilterState::BothIndependent | FilterState::Edges => {
-                let edge = self.core_edge(edge_ref.pid());
+            FilterState::Both
+            | FilterState::BothIndependent
+            | FilterState::Edges
+            | FilterState::Window => {
+                let edge = self.core_edge(Either::Right(edge_ref));
                 if !self.filter_edge(edge.as_ref()) {
                     return None;
                 }
             }
             FilterState::Nodes => {
-                if !self.filter_node(src_node.as_ref()) {
-                    return None;
-                }
                 let dst_node = self.core_node(dst);
-                if !self.filter_node(dst_node.as_ref()) {
+                if !self.internal_filter_node(dst_node.as_ref(), layer_ids) {
                     return None;
                 }
             }

@@ -30,6 +30,7 @@ use crate::{
     errors::{into_graph_err, GraphError},
     prelude::*,
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{properties::prop::PropType, LayerId},
@@ -118,7 +119,7 @@ impl<G: GraphView> EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(e.pid());
+            let edge = g.core_edge(Either::Right(e));
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");
@@ -337,7 +338,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> EdgeView<G> {
 
         if self
             .graph
-            .core_edge(self.edge.pid())
+            .core_edge(Either::Right(self.edge))
             .has_layer(&LayerIds::One(layer_id))
         {
             Ok(layer_id)
@@ -567,12 +568,12 @@ impl<'graph, G: GraphViewOps<'graph>> InternalMetadataOps for EdgeView<G> {
             let time_semantics = self.graph.edge_time_semantics();
             match self.edge.layer() {
                 None => time_semantics.edge_metadata(
-                    self.graph.core_edge(self.edge.pid()).as_ref(),
+                    self.graph.core_edge(Either::Right(self.edge)).as_ref(),
                     &self.graph,
                     id,
                 ),
                 Some(layer) => time_semantics.edge_metadata(
-                    self.graph.core_edge(self.edge.pid()).as_ref(),
+                    self.graph.core_edge(Either::Right(self.edge)).as_ref(),
                     LayeredGraph::new(&self.graph, LayerIds::One(layer)),
                     id,
                 ),
@@ -595,7 +596,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(self.edge.pid());
+            let edge = self.graph.core_edge(Either::Right(self.edge));
             match self.edge.time() {
                 None => match self.edge.layer() {
                     None => time_semantics.temporal_edge_prop_last(edge.as_ref(), &self.graph, id),
@@ -624,7 +625,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(self.edge.pid());
+            let edge = self.graph.core_edge(Either::Right(self.edge));
             let graph = &self.graph;
             match self.edge.time() {
                 None => match self.edge.layer() {
@@ -663,7 +664,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     fn temporal_iter_rev(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(self.edge.pid());
+            let edge = self.graph.core_edge(Either::Right(self.edge));
             let graph = &self.graph;
             match self.edge.time() {
                 None => match self.edge.layer() {
@@ -707,7 +708,7 @@ impl<G: GraphView> InternalTemporalPropertyViewOps for EdgeView<G> {
     fn temporal_value_at(&self, id: usize, t: EventTime) -> Option<Prop> {
         if edge_valid_layer(&self.graph, self.edge) {
             let time_semantics = self.graph.edge_time_semantics();
-            let edge = self.graph.core_edge(self.edge.pid());
+            let edge = self.graph.core_edge(Either::Right(self.edge));
 
             match self.edge.time() {
                 None => match self.edge.layer() {

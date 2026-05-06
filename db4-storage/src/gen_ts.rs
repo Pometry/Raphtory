@@ -321,6 +321,7 @@ where
 }
 
 impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
+    #[inline]
     pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + Send + Sync + 'a {
         let range = self.range;
         self.layer_id
@@ -352,6 +353,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
 
     type RangeType = Self;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         self.clone()
             .time_cells()

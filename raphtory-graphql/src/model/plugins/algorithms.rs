@@ -6,7 +6,6 @@ use async_graphql::{
 use dynamic_graphql::{internal::TypeName, SimpleObject};
 use futures_util::future::BoxFuture;
 use itertools::Itertools;
-use ordered_float::OrderedFloat;
 use raphtory::{
     algorithms::{
         centrality::pagerank::{unweighted_page_rank, PageRankState},
@@ -14,8 +13,7 @@ use raphtory::{
     },
     prelude::{GraphViewOps, NodeViewOps},
 };
-use raphtory_api::core::{entities::properties::prop::Prop, Direction};
-use std::collections::HashMap;
+use raphtory_api::core::Direction;
 
 #[derive(SimpleObject)]
 /// PageRank score.

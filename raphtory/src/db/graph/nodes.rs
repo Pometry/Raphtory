@@ -10,7 +10,7 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                internal::{FilterOps, GraphView, InternalFilter, InternalNodeSelect, NodeList},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -246,25 +246,13 @@ where
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
-        match &self.nodes {
-            Index::Full(_) => {
-                if self.is_list_filtered() {
-                    let g = self.locked_storage();
-                    self.par_iter_refs(g).count()
-                } else {
-                    match self.graph.node_list() {
-                        NodeList::All => self.graph.unfiltered_num_nodes(self.graph.layer_ids()),
-                        NodeList::List { elems } => elems.len(),
-                    }
-                }
-            }
-            Index::Partial(nodes) => {
-                if self.is_list_filtered() {
-                    let g = self.locked_storage();
-                    self.par_iter_refs(g).count()
-                } else {
-                    nodes.len()
-                }
+        if self.is_list_filtered() {
+            let g = self.locked_storage();
+            self.par_iter_refs(g).count()
+        } else {
+            match &self.nodes {
+                Index::Full(_) => self.graph.count_nodes(),
+                Index::Partial(nodes) => nodes.len(),
             }
         }
     }

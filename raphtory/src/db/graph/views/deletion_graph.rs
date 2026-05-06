@@ -289,6 +289,10 @@ impl GraphTimeSemanticsOps for PersistentGraph {
     fn edge_time_semantics(&self) -> TimeSemantics {
         TimeSemantics::persistent()
     }
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        false
+    }
 
     fn view_start(&self) -> Option<EventTime> {
         self.0.view_start()

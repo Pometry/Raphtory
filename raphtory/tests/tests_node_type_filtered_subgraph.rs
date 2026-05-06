@@ -10,9 +10,10 @@ use raphtory::{
         },
     },
     prelude::*,
-    test_utils::{build_graph, build_graph_strat, make_node_types},
+    test_utils::{build_graph, build_graph_strat, make_node_types, GraphFixture},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use serde_json::json;
 use std::ops::Range;
 
 #[test]
@@ -82,6 +83,18 @@ fn materialize_type_window_prop_test() {
         let gmw = gvw.materialize().unwrap();
         assert_graph_equal(&gvw, &gmw);
     })
+}
+
+#[test]
+fn materialize_type_window_prop_test_failure() {
+    let graph_f: GraphFixture = serde_json::from_value(json!({"nodes":{"9":{"props":{"t_props":[[1,[]]],"c_props":[]},"node_type":"one"},"8":{"props":{"t_props":[[1,[]]],"c_props":[]},"node_type":"one"}},"edges":[[[8,8,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let w = 1..2;
+    let node_types = ["one"];
+    let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
+    let gvw = g.window(w.start, w.end);
+    assert_eq!(gvw.node("8").unwrap().out_degree(), 0); // edge is not in the window
+    let gmw = gvw.materialize().unwrap();
+    assert_graph_equal(&gvw, &gmw);
 }
 
 #[test]

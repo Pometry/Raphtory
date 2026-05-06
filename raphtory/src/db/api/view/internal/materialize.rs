@@ -150,6 +150,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.edge_time_semantics())
     }
 
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        false
+    }
+
     fn view_start(&self) -> Option<EventTime> {
         for_all!(self, g => g.view_start())
     }

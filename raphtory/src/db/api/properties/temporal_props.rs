@@ -1,8 +1,21 @@
+use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
+use arrow::array::ArrayRef;
 use bigdecimal::BigDecimal;
+<<<<<<< fix_list_types
+use chrono::{DateTime, NaiveDateTime, Utc};
+=======
 use chrono::NaiveDateTime;
-use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropArray, PropType, PropUnwrap},
-    storage::{arc_str::ArcStr, timeindex::EventTime},
+>>>>>>> db_v4
+use raphtory_api::{
+    core::{
+        entities::properties::prop::{Prop, PropArray, PropArrayUnwrap, PropType, PropUnwrap},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{AsTime, EventTime},
+        },
+        utils::time::IntoTime,
+    },
+    iter::BoxedLIter,
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -10,16 +23,6 @@ use std::{
     fmt::{Debug, Formatter},
     iter::Zip,
     sync::Arc,
-};
-
-use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
-use arrow::array::ArrayRef;
-use raphtory_api::{
-    core::{
-        entities::properties::prop::PropArrayUnwrap, storage::timeindex::AsTime,
-        utils::time::IntoTime,
-    },
-    iter::BoxedLIter,
 };
 
 #[derive(Clone)]
@@ -379,6 +382,10 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_decimal(self) -> Option<BigDecimal> {
         self.latest().into_decimal()
+    }
+
+    fn into_dtime(self) -> Option<DateTime<Utc>> {
+        self.latest().into_dtime()
     }
 }
 
