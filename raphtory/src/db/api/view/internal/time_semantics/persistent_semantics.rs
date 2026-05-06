@@ -11,7 +11,7 @@ use crate::{
         },
         graph::views::layer_graph::LayeredGraph,
     },
-    prelude::{GraphViewOps, LayerOps},
+    prelude::GraphViewOps,
 };
 use ahash::AHashSet;
 use either::Either;

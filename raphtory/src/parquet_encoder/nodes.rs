@@ -10,21 +10,12 @@ use crate::{
         run_encode_indexed, RecordBatchSink, LAYER_COL, NODE_GID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
         SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
-    prelude::{NodeViewOps, Prop},
+    prelude::NodeViewOps,
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;
-use raphtory_api::{
-    core::{
-        entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, LayerIds},
-        storage::arc_str::ArcStr,
-    },
-    iter::IntoDynBoxed,
-};
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::nodes::{node_storage_ops::NodeStorageOps, nodes_ref::NodesStorageEntry},
-};
+use raphtory_api::iter::IntoDynBoxed;
+use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::nodes_ref::NodesStorageEntry};
 use rayon::iter::ParallelIterator;
 
 fn get_nodes_par_iter<'a, G: GraphView>(
