@@ -426,3 +426,50 @@ def test_namespaces():
         }
 
         assert result == correct
+
+
+def test_namespace_listing_does_not_load_each_graph():
+    """Listing many graphs in a namespace must not force a per-graph load
+    just to satisfy the standard MetaGraph fields. The previous behavior
+    eagerly loaded every graph when `metadata` was requested, which
+    exhausted file descriptors when the namespace held a large number of
+    graphs.
+
+    This test creates many graphs and asserts that a list query — including
+    `metadata` — completes successfully and returns each graph's metadata
+    *without* loading the graph (metadata is read directly from the on-disk
+    graph_props segment)."""
+    n_graphs = 200
+    work_dir = tempfile.mkdtemp()
+    with GraphServer(work_dir).start():
+        client = RaphtoryClient("http://localhost:1736")
+
+        g = Graph()
+        g.add_node(1, "alice", {"role": "engineer"})
+        g.add_metadata({"owner": "pometry"})
+        for i in range(n_graphs):
+            client.send_graph(f"bulk_{i}", g, overwrite=True)
+
+        result = client.query("""{
+              root {
+                graphs {
+                  list {
+                    path
+                    nodeCount
+                    edgeCount
+                    metadata { key value }
+                  }
+                }
+              }
+            }""")
+
+        graphs = result["root"]["graphs"]["list"]
+        assert len(graphs) == n_graphs
+
+        for entry in graphs:
+            assert entry["path"].startswith("bulk_")
+            assert entry["nodeCount"] == 1
+            assert entry["edgeCount"] == 0
+            metadata_keys = {item["key"]: item["value"] for item in entry["metadata"]}
+            assert "owner" in metadata_keys
+            assert metadata_keys["owner"] == "pometry"

@@ -241,8 +241,45 @@ impl Graph {
         })
     }
 
+    /// Load the graph as a read-only snapshot. Multiple processes can hold
+    /// a read-only handle to the same graph directory concurrently. Mutating
+    /// operations on the returned graph will fail.
+    #[cfg(feature = "io")]
+    pub fn load_read_only(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        Ok(Self {
+            inner: Arc::new(Storage::load_read_only(path.graph_path()?)?),
+        })
+    }
+
+    #[cfg(feature = "io")]
+    pub fn load_read_only_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        Ok(Self {
+            inner: Arc::new(Storage::load_read_only_with_config(
+                path.graph_path()?,
+                config,
+            )?),
+        })
+    }
+
     pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
         Self { inner }
+    }
+
+    /// Return a read-only handle to this graph. Mutations on the returned
+    /// graph fail with `Immutable::ReadLockedImmutable`. The underlying
+    /// `TemporalGraph` is shared — this is not a snapshot.
+    ///
+    /// **Warning**: while a read-only handle is live, writes through the
+    /// original `Graph` will block on the per-segment read locks the
+    /// handle holds. Drop the read-only handle before mutating the
+    /// original.
+    pub fn read_only(&self) -> Self {
+        Self {
+            inner: Arc::new(self.inner.read_only()),
+        }
     }
 
     pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
