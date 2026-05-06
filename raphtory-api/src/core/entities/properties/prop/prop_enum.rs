@@ -1,23 +1,39 @@
-use crate::core::{entities::properties::prop::PropType, storage::arc_str::ArcStr};
+use crate::core::{
+    entities::{
+        properties::prop::{prop_array::*, prop_ref_enum::PropRef, ArrowRow, PropNum, PropType},
+        GidRef,
+    },
+    storage::arc_str::ArcStr,
+};
+use arrow_array::{
+    cast::AsArray,
+    types::{
+        Date32Type, Date64Type, Decimal128Type, DecimalType, Float32Type, Float64Type, Int32Type,
+        Int64Type, TimestampMicrosecondType, TimestampMillisecondType, TimestampNanosecondType,
+        TimestampSecondType, UInt16Type, UInt32Type, UInt64Type, UInt8Type,
+    },
+    Array, ArrayRef, LargeListArray, StructArray,
+};
+use arrow_schema::{DataType, Field, FieldRef, TimeUnit};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
 use num_traits::{Bounded, FromPrimitive, ToPrimitive};
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use rustc_hash::{FxBuildHasher, FxHashMap};
+use serde::{
+    ser::{Error, SerializeMap, SerializeSeq},
+    Deserialize, Serialize, Serializer,
+};
 use std::{
     cmp::Ordering,
     collections::HashMap,
     fmt,
-    fmt::{Display, Error, Formatter},
-    hash::{Hash, Hasher},
+    fmt::{Display, Formatter},
+    hash::{DefaultHasher, Hash, Hasher},
+    num::Wrapping,
     sync::Arc,
 };
 use thiserror::Error;
-
-#[cfg(feature = "arrow")]
-use crate::core::entities::properties::prop::prop_array::*;
-use crate::core::entities::properties::prop::unify_types;
 
 pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
 
@@ -43,9 +59,7 @@ enum PropUntaggedDef {
     F64(f64),
     F32(f32),
     Bool(bool),
-    #[cfg(feature = "arrow")]
-    Array(PropArray),
-    List(Arc<Vec<Prop>>),
+    List(PropArray),
     Map(Arc<FxHashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
@@ -101,9 +115,7 @@ impl<'de> Deserialize<'de> for PropUntagged {
             PropUntaggedHelper::F64(v) => Prop::F64(v),
             PropUntaggedHelper::F32(v) => Prop::F32(v),
             PropUntaggedHelper::Str(v) => Prop::Str(v),
-            PropUntaggedHelper::List(v) => {
-                Prop::List(Arc::new(v.into_iter().map(|p| p.0).collect()))
-            }
+            PropUntaggedHelper::List(v) => Prop::list(v),
             PropUntaggedHelper::Map(v) => {
                 Prop::Map(Arc::new(v.into_iter().map(|(k, p)| (k, p.0)).collect()))
             }
@@ -125,7 +137,7 @@ impl PartialEq<Prop> for PropUntagged {
 }
 
 /// Denotes the types of properties allowed to be stored in the graph.
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, derive_more::From)]
 pub enum Prop {
     Str(ArcStr),
     U8(u8),
@@ -137,13 +149,48 @@ pub enum Prop {
     F64(f64),
     F32(f32),
     Bool(bool),
-    #[cfg(feature = "arrow")]
-    Array(PropArray),
-    List(Arc<Vec<Prop>>),
+    List(PropArray),
     Map(Arc<FxHashMap<ArcStr, Prop>>),
     NDTime(NaiveDateTime),
     DTime(DateTime<Utc>),
     Decimal(BigDecimal),
+}
+
+impl From<GidRef<'_>> for Prop {
+    fn from(value: GidRef<'_>) -> Self {
+        match value {
+            GidRef::U64(n) => Prop::U64(n),
+            GidRef::Str(s) => Prop::str(s),
+        }
+    }
+}
+
+impl<'a> From<PropRef<'a>> for Prop {
+    fn from(value: PropRef<'a>) -> Self {
+        match value {
+            PropRef::Str(s) => Prop::Str(s.into()),
+            PropRef::Num(n) => match n {
+                PropNum::U8(u) => Prop::U8(u),
+                PropNum::U16(u) => Prop::U16(u),
+                PropNum::I32(i) => Prop::I32(i),
+                PropNum::I64(i) => Prop::I64(i),
+                PropNum::U32(u) => Prop::U32(u),
+                PropNum::U64(u) => Prop::U64(u),
+                PropNum::F32(f) => Prop::F32(f),
+                PropNum::F64(f) => Prop::F64(f),
+            },
+            PropRef::Bool(b) => Prop::Bool(b),
+            PropRef::List(v) => Prop::List(v.as_ref().clone()),
+            PropRef::Map(m) => m
+                .into_prop()
+                .unwrap_or_else(|| Prop::Map(Arc::new(Default::default()))),
+            PropRef::NDTime(dt) => Prop::NDTime(dt),
+            PropRef::DTime(dt) => Prop::DTime(dt),
+            PropRef::Decimal { num, scale } => {
+                Prop::Decimal(BigDecimal::from_bigint(num.into(), scale as i64))
+            }
+        }
+    }
 }
 
 impl Hash for Prop {
@@ -166,8 +213,6 @@ impl Hash for Prop {
             }
             Prop::Bool(b) => b.hash(state),
             Prop::NDTime(dt) => dt.hash(state),
-            #[cfg(feature = "arrow")]
-            Prop::Array(b) => b.hash(state),
             Prop::DTime(dt) => dt.hash(state),
             Prop::List(v) => {
                 for prop in v.iter() {
@@ -175,10 +220,20 @@ impl Hash for Prop {
                 }
             }
             Prop::Map(m) => {
-                for (key, prop) in m.iter() {
-                    key.hash(state);
-                    prop.hash(state);
+                // Based on python set hash
+                let mut hash = Wrapping(1927868237u64);
+                hash *= (m.len() as u64).wrapping_add(1);
+                for v in m.iter() {
+                    let mut inner_hasher = DefaultHasher::new();
+                    v.hash(&mut inner_hasher);
+                    let inner_hash = Wrapping(inner_hasher.finish());
+                    hash ^= (inner_hash ^ (inner_hash << 16) ^ Wrapping(89869747u64))
+                        * Wrapping(3644798167u64);
                 }
+                hash ^= (hash >> 11) ^ (hash >> 25);
+                hash *= 69069;
+                hash += 907133923;
+                state.write_u64(hash.0);
             }
             Prop::Decimal(d) => d.hash(state),
         }
@@ -209,150 +264,289 @@ impl PartialOrd for Prop {
     }
 }
 
-pub fn validate_prop(prop: Prop) -> Result<Prop, InvalidBigDecimal> {
-    match prop {
-        Prop::Decimal(ref bd) => {
-            let (bint, scale) = bd.as_bigint_and_exponent();
-            if bint <= BigInt::from(DECIMAL_MAX) && scale <= 38 {
-                Ok(prop)
-            } else {
-                Err(InvalidBigDecimal(bd.clone()))
+pub struct SerdeArrowProp<'a>(pub &'a Prop);
+#[derive(Clone, Copy, Debug)]
+pub struct SerdeArrowList<'a>(pub &'a PropArray);
+
+#[derive(Clone, Copy, Debug)]
+pub struct SerdeArrowArray<'a>(pub &'a ArrayRef);
+#[derive(Clone, Copy)]
+pub struct SerdeArrowMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
+
+#[derive(Clone, Copy, Serialize)]
+pub struct SerdeRow<P: Serialize> {
+    value: Option<P>,
+}
+
+impl<'a> Serialize for SerdeArrowList<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match &self.0 {
+            PropArray::Vec(list) => {
+                let mut state = serializer.serialize_seq(Some(self.0.len()))?;
+                for prop in list.iter() {
+                    state.serialize_element(&SerdeArrowProp(prop))?;
+                }
+                state.end()
             }
+            PropArray::Array(array) => SerdeArrowArray(array).serialize(serializer),
         }
-        _ => Ok(prop),
     }
 }
 
-// auxiliary function to help with numerical conversion
-fn float_to_int<T>(val: f64) -> Result<T, String>
-where
-    T: FromPrimitive + Bounded + ToPrimitive,
-{
-    if val.is_nan() {
-        return Err("Cannot convert NaN to integer".into());
+impl<'a> Serialize for SerdeArrowMap<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(self.0.len()))?;
+        for (k, v) in self.0.iter() {
+            state.serialize_entry(k, &SerdeArrowProp(v))?;
+        }
+        state.end()
     }
+}
 
-    if val.is_infinite() {
-        return Err("Cannot convert infinite value to integer".into());
+impl<'a> Serialize for SerdeArrowProp<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self.0 {
+            Prop::I32(i) => serializer.serialize_i32(*i),
+            Prop::I64(i) => serializer.serialize_i64(*i),
+            Prop::F32(f) => serializer.serialize_f32(*f),
+            Prop::F64(f) => serializer.serialize_f64(*f),
+            Prop::U8(u) => serializer.serialize_u8(*u),
+            Prop::U16(u) => serializer.serialize_u16(*u),
+            Prop::U32(u) => serializer.serialize_u32(*u),
+            Prop::U64(u) => serializer.serialize_u64(*u),
+            Prop::Str(s) => serializer.serialize_str(s),
+            Prop::Bool(b) => serializer.serialize_bool(*b),
+            Prop::DTime(dt) => serializer.serialize_i64(dt.timestamp_millis()),
+            Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
+            Prop::List(l) => SerdeArrowList(l).serialize(serializer),
+            Prop::Map(m) => SerdeArrowMap(m).serialize(serializer),
+            Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
+        }
     }
+}
 
-    // Try to convert using num_traits
-    T::from_f64(val).ok_or_else(|| format!("Value is out of bounds for target type: {}", val))
+impl<'a> Serialize for SerdeArrowArray<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let dtype = self.0.data_type();
+        let len = self.0.len();
+        let mut state = serializer.serialize_seq(Some(len))?;
+        match dtype {
+            DataType::Boolean => {
+                for v in self.0.as_boolean().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Int32 => {
+                for v in self.0.as_primitive::<Int32Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Int64 => {
+                for v in self.0.as_primitive::<Int64Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::UInt8 => {
+                for v in self.0.as_primitive::<UInt8Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::UInt16 => {
+                for v in self.0.as_primitive::<UInt16Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::UInt32 => {
+                for v in self.0.as_primitive::<UInt32Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::UInt64 => {
+                for v in self.0.as_primitive::<UInt64Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Float32 => {
+                for v in self.0.as_primitive::<Float32Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Float64 => {
+                for v in self.0.as_primitive::<Float64Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Timestamp(unit, _) => match unit {
+                TimeUnit::Second => {
+                    for v in self.0.as_primitive::<TimestampSecondType>().iter() {
+                        state.serialize_element(&v)?;
+                    }
+                }
+                TimeUnit::Millisecond => {
+                    for v in self.0.as_primitive::<TimestampMillisecondType>().iter() {
+                        state.serialize_element(&v)?;
+                    }
+                }
+                TimeUnit::Microsecond => {
+                    for v in self.0.as_primitive::<TimestampMicrosecondType>().iter() {
+                        state.serialize_element(&v)?;
+                    }
+                }
+                TimeUnit::Nanosecond => {
+                    for v in self.0.as_primitive::<TimestampNanosecondType>().iter() {
+                        state.serialize_element(&v)?;
+                    }
+                }
+            },
+            DataType::Date32 => {
+                for v in self.0.as_primitive::<Date32Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Date64 => {
+                for v in self.0.as_primitive::<Date64Type>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Utf8 => {
+                for v in self.0.as_string::<i32>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::LargeUtf8 => {
+                for v in self.0.as_string::<i64>().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Utf8View => {
+                for v in self.0.as_string_view().iter() {
+                    state.serialize_element(&v)?;
+                }
+            }
+            DataType::Decimal128(precision, scale) => {
+                for v in self.0.as_primitive::<Decimal128Type>().iter() {
+                    let element = v.map(|v| Decimal128Type::format_decimal(v, *precision, *scale));
+                    state.serialize_element(&element)?
+                    // i128 not supported by serde_arrow!
+                }
+            }
+            DataType::Struct(_) => {
+                let struct_array = self.0.as_struct();
+                match struct_array.nulls() {
+                    None => {
+                        for i in 0..struct_array.len() {
+                            state.serialize_element(&ArrowRow::new(struct_array, i))?;
+                        }
+                    }
+                    Some(nulls) => {
+                        for (i, is_valid) in nulls.iter().enumerate() {
+                            state.serialize_element(
+                                &is_valid.then_some(ArrowRow::new(struct_array, i)),
+                            )?;
+                        }
+                    }
+                }
+            }
+            DataType::List(_) => {
+                let list = self.0.as_list::<i32>();
+                for array in list.iter() {
+                    state.serialize_element(&array.as_ref().map(SerdeArrowArray))?;
+                }
+            }
+            DataType::LargeList(_) => {
+                let list = self.0.as_list::<i64>();
+                for array in list.iter() {
+                    state.serialize_element(&array.as_ref().map(SerdeArrowArray))?;
+                }
+            }
+            DataType::Null => {
+                for _ in 0..self.0.len() {
+                    state.serialize_element(&None::<()>)?;
+                }
+            }
+            dtype => Err(Error::custom(format!("unsuported data type {dtype:?}")))?,
+        }
+        state.end()
+    }
+}
+
+pub fn validate_bd(bd: &BigDecimal) -> Result<(), InvalidBigDecimal> {
+    let (bint, scale) = bd.as_bigint_and_exponent();
+    if bint <= BigInt::from(DECIMAL_MAX) && scale <= 38 {
+        Ok(())
+    } else {
+        Err(InvalidBigDecimal(bd.clone()))
+    }
 }
 
 impl Prop {
     // auxiliary function to help with numerical conversion
-    fn try_into_int<T>(self) -> Result<T, Error>
+    pub fn cast_num<T>(self) -> Option<T>
     where
         T: FromPrimitive + Bounded,
     {
         match self {
-            Prop::U8(v) => T::from_u8(v).ok_or(Error),
-            Prop::U16(v) => T::from_u16(v).ok_or(Error),
-            Prop::I32(v) => T::from_i32(v).ok_or(Error),
-            Prop::I64(v) => T::from_i64(v).ok_or(Error),
-            Prop::U32(v) => T::from_u32(v).ok_or(Error),
-            Prop::U64(v) => T::from_u64(v).ok_or(Error),
-            Prop::F32(v) => {
-                let as_f64 = v as f64;
-                float_to_int::<i64>(as_f64)
-                    .map_err(|_| Error)
-                    .and_then(|i| T::from_i64(i).ok_or(Error))
-            }
-            Prop::F64(v) => float_to_int::<i64>(v)
-                .map_err(|_| Error)
-                .and_then(|i| T::from_i64(i).ok_or(Error)),
-            _ => Err(Error),
+            Prop::U8(v) => T::from_u8(v),
+            Prop::U16(v) => T::from_u16(v),
+            Prop::I32(v) => T::from_i32(v),
+            Prop::I64(v) => T::from_i64(v),
+            Prop::U32(v) => T::from_u32(v),
+            Prop::U64(v) => T::from_u64(v),
+            Prop::F32(v) => T::from_f32(v),
+            Prop::F64(v) => T::from_f64(v),
+            _ => None,
         }
     }
 
-    // auxiliary function to help with numerical conversion
-    fn into_f64(self) -> Result<f64, Error> {
-        let result = match self {
-            Prop::U8(v) => v.to_f64(),
-            Prop::U16(v) => v.to_f64(),
-            Prop::I32(v) => v.to_f64(),
-            Prop::I64(v) => v.to_f64(),
-            Prop::U32(v) => v.to_f64(),
-            Prop::U64(v) => v.to_f64(),
-            Prop::F32(v) => v.to_f64(),
-            Prop::F64(v) => Some(v),
-            _ => None,
-        };
-        result.ok_or(Error)
-    }
-
-    // auxiliary function to help with numerical conversion
-    fn try_into_f32(self) -> Result<Prop, Error> {
-        let as_f32 = match self {
-            Prop::U8(v) => v.to_f32(),
-            Prop::U16(v) => v.to_f32(),
-            Prop::I32(v) => v.to_f32(),
-            Prop::I64(v) => v.to_f32(),
-            Prop::U32(v) => v.to_f32(),
-            Prop::U64(v) => v.to_f32(),
-            Prop::F32(v) => Some(v),
-            Prop::F64(v) => {
-                // Check if f64 value fits in f32 range
-                if v.is_finite()
-                    && v.abs() <= f32::MAX as f64
-                    && (v == 0.0 || v.abs() >= f32::MIN_POSITIVE as f64)
-                {
-                    Some(v as f32)
-                } else if v.is_nan() || v.is_infinite() {
-                    Some(v as f32) // Preserve NaN and infinity
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-        as_f32.map(Prop::F32).ok_or(Error)
-    }
-
-    // convert prop into another prop type (primarily for numerical conversions)
-    pub fn try_cast(self, prop_type: PropType) -> Result<Prop, Error> {
+    /// convert prop into another prop type (primarily for numerical conversions)
+    pub fn try_cast(self, prop_type: PropType) -> Option<Prop> {
         // Early return if casting to the same type
         if self.dtype() == prop_type {
-            return Ok(self);
+            return Some(self);
         }
 
         match self {
             Prop::Str(v) => match prop_type {
-                PropType::Str => Ok(Prop::Str(v)),
-                PropType::U8 => v.parse::<u8>().map(Prop::U8).map_err(|_| Error),
-                PropType::U16 => v.parse::<u16>().map(Prop::U16).map_err(|_| Error),
-                PropType::I32 => v.parse::<i32>().map(Prop::I32).map_err(|_| Error),
-                PropType::I64 => v.parse::<i64>().map(Prop::I64).map_err(|_| Error),
-                PropType::U32 => v.parse::<u32>().map(Prop::U32).map_err(|_| Error),
-                PropType::U64 => v.parse::<u64>().map(Prop::U64).map_err(|_| Error),
-                PropType::F32 => v.parse::<f32>().map(Prop::F32).map_err(|_| Error),
-                PropType::F64 => v.parse::<f64>().map(Prop::F64).map_err(|_| Error),
-                PropType::Bool => v.parse::<bool>().map(Prop::Bool).map_err(|_| Error),
-                PropType::NDTime => v
-                    .parse::<NaiveDateTime>()
-                    .map(Prop::NDTime)
-                    .map_err(|_| Error),
-                PropType::DTime => v
-                    .parse::<DateTime<Utc>>()
-                    .map(Prop::DTime)
-                    .map_err(|_| Error),
+                PropType::Str => Some(Prop::Str(v)),
+                PropType::U8 => v.parse::<u8>().map(Prop::U8).ok(),
+                PropType::U16 => v.parse::<u16>().map(Prop::U16).ok(),
+                PropType::I32 => v.parse::<i32>().map(Prop::I32).ok(),
+                PropType::I64 => v.parse::<i64>().map(Prop::I64).ok(),
+                PropType::U32 => v.parse::<u32>().map(Prop::U32).ok(),
+                PropType::U64 => v.parse::<u64>().map(Prop::U64).ok(),
+                PropType::F32 => v.parse::<f32>().map(Prop::F32).ok(),
+                PropType::F64 => v.parse::<f64>().map(Prop::F64).ok(),
+                PropType::Bool => v.parse::<bool>().map(Prop::Bool).ok(),
+                PropType::NDTime => v.parse::<NaiveDateTime>().map(Prop::NDTime).ok(),
+                PropType::DTime => v.parse::<DateTime<Utc>>().map(Prop::DTime).ok(),
                 PropType::Decimal { scale } => v
                     .parse::<BigDecimal>()
                     .map(|v| Prop::Decimal(v.with_scale(scale)))
-                    .map_err(|_| Error),
-                _ => Err(Error),
+                    .ok(),
+                _ => None,
             },
             Prop::Bool(v) => match prop_type {
-                PropType::Str => Ok(Prop::Str(v.to_string().into())),
-                PropType::U8 => Ok(Prop::U8(if v { 1 } else { 0 })),
-                PropType::U16 => Ok(Prop::U16(if v { 1 } else { 0 })),
-                PropType::I32 => Ok(Prop::I32(if v { 1 } else { 0 })),
-                PropType::I64 => Ok(Prop::I64(if v { 1 } else { 0 })),
-                PropType::U32 => Ok(Prop::U32(if v { 1 } else { 0 })),
-                PropType::U64 => Ok(Prop::U64(if v { 1 } else { 0 })),
-                PropType::F32 => Ok(Prop::F32(if v { 1.0 } else { 0.0 })),
-                PropType::F64 => Ok(Prop::F64(if v { 1.0 } else { 0.0 })),
+                PropType::Str => Some(Prop::Str(v.to_string().into())),
+                PropType::U8 => Some(Prop::U8(v as _)),
+                PropType::U16 => Some(Prop::U16(v as _)),
+                PropType::I32 => Some(Prop::I32(v as _)),
+                PropType::I64 => Some(Prop::I64(v as _)),
+                PropType::U32 => Some(Prop::U32(v as _)),
+                PropType::U64 => Some(Prop::U64(v as _)),
+                PropType::F32 => Some(Prop::F32(if v { 1.0 } else { 0.0 })),
+                PropType::F64 => Some(Prop::F64(if v { 1.0 } else { 0.0 })),
                 PropType::Bool => unreachable!("Same type case handled above"),
                 PropType::Decimal { scale } => {
                     let val = if v {
@@ -360,87 +554,85 @@ impl Prop {
                     } else {
                         BigDecimal::from(0)
                     };
-                    Ok(Prop::Decimal(val.with_scale(scale)))
+                    Some(Prop::Decimal(val.with_scale(scale)))
                 }
-                _ => Err(Error),
+                _ => None,
             },
-            Prop::List(_v) => Err(Error),
-            Prop::Map(_v) => Err(Error),
+            Prop::List(_v) => None,
+            Prop::Map(_v) => None,
             Prop::NDTime(v) => match prop_type {
-                PropType::Str => Ok(Prop::Str(v.to_string().into())),
-                PropType::I64 => Ok(Prop::I64(v.and_utc().timestamp())),
+                PropType::Str => Some(Prop::Str(v.to_string().into())),
+                PropType::I64 => Some(Prop::I64(v.and_utc().timestamp())),
                 PropType::U64 => {
                     let ts = v.and_utc().timestamp();
                     if ts >= 0 {
-                        Ok(Prop::U64(ts as u64))
+                        Some(Prop::U64(ts as u64))
                     } else {
-                        Err(Error)
+                        None
                     }
                 }
-                PropType::DTime => Ok(Prop::DTime(v.and_utc())),
+                PropType::DTime => Some(Prop::DTime(v.and_utc())),
                 PropType::NDTime => unreachable!("Same type case handled above"),
-                _ => Err(Error),
+                _ => None,
             },
             Prop::DTime(v) => match prop_type {
-                PropType::Str => Ok(Prop::Str(v.to_rfc3339().into())),
-                PropType::I64 => Ok(Prop::I64(v.timestamp())),
+                PropType::Str => Some(Prop::Str(v.to_rfc3339().into())),
+                PropType::I64 => Some(Prop::I64(v.timestamp())),
                 PropType::U64 => {
                     let ts = v.timestamp();
                     if ts >= 0 {
-                        Ok(Prop::U64(ts as u64))
+                        Some(Prop::U64(ts as u64))
                     } else {
-                        Err(Error)
+                        None
                     }
                 }
-                PropType::NDTime => Ok(Prop::NDTime(v.naive_utc())),
+                PropType::NDTime => Some(Prop::NDTime(v.naive_utc())),
                 PropType::DTime => unreachable!("Same type case handled above"),
-                _ => Err(Error),
+                _ => None,
             },
-            #[cfg(feature = "arrow")]
-            Prop::Array(_v) => Err(Error),
             Prop::Decimal(v) => match prop_type {
-                PropType::Str => Ok(Prop::Str(v.to_string().into())),
+                PropType::Str => Some(Prop::Str(v.to_string().into())),
                 PropType::U8 => {
-                    let as_i64 = v.to_i64().ok_or(Error)?;
-                    u8::from_i64(as_i64).ok_or(Error).map(Prop::U8)
+                    let as_i64 = v.to_i64()?;
+                    u8::from_i64(as_i64).map(Prop::U8)
                 }
                 PropType::U16 => {
-                    let as_i64 = v.to_i64().ok_or(Error)?;
-                    u16::from_i64(as_i64).ok_or(Error).map(Prop::U16)
+                    let as_i64 = v.to_i64()?;
+                    u16::from_i64(as_i64).map(Prop::U16)
                 }
                 PropType::I32 => {
-                    let as_i64 = v.to_i64().ok_or(Error)?;
-                    i32::from_i64(as_i64).ok_or(Error).map(Prop::I32)
+                    let as_i64 = v.to_i64()?;
+                    i32::from_i64(as_i64).map(Prop::I32)
                 }
-                PropType::I64 => v.to_i64().ok_or(Error).map(Prop::I64),
+                PropType::I64 => v.to_i64().map(Prop::I64),
                 PropType::U32 => {
-                    let as_i64 = v.to_i64().ok_or(Error)?;
-                    u32::from_i64(as_i64).ok_or(Error).map(Prop::U32)
+                    let as_i64 = v.to_i64()?;
+                    u32::from_i64(as_i64).map(Prop::U32)
                 }
                 PropType::U64 => {
-                    let as_i64 = v.to_i64().ok_or(Error)?;
-                    u64::from_i64(as_i64).ok_or(Error).map(Prop::U64)
+                    let as_i64 = v.to_i64()?;
+                    u64::from_i64(as_i64).map(Prop::U64)
                 }
-                PropType::F32 => v.to_f32().ok_or(Error).map(Prop::F32),
-                PropType::F64 => v.to_f64().ok_or(Error).map(Prop::F64),
+                PropType::F32 => v.to_f32().map(Prop::F32),
+                PropType::F64 => v.to_f64().map(Prop::F64),
                 PropType::Bool => {
-                    let as_i64 = v.to_i64().ok_or(Error)?;
-                    Ok(Prop::Bool(as_i64 != 0))
+                    let as_i64 = v.to_i64()?;
+                    Some(Prop::Bool(as_i64 != 0))
                 }
-                PropType::Decimal { scale } => Ok(Prop::Decimal(v.with_scale(scale))),
-                _ => Err(Error),
+                PropType::Decimal { scale } => Some(Prop::Decimal(v.with_scale(scale))),
+                _ => None,
             },
             _ => match prop_type {
                 // Numeric conversions using num_traits
-                PropType::U8 => self.try_into_int::<u8>().map(Prop::U8),
-                PropType::U16 => self.try_into_int::<u16>().map(Prop::U16),
-                PropType::I32 => self.try_into_int::<i32>().map(Prop::I32),
-                PropType::I64 => self.try_into_int::<i64>().map(Prop::I64),
-                PropType::U32 => self.try_into_int::<u32>().map(Prop::U32),
-                PropType::U64 => self.try_into_int::<u64>().map(Prop::U64),
-                PropType::F32 => self.try_into_f32(),
-                PropType::F64 => self.into_f64().map(Prop::F64),
-                _ => Err(Error),
+                PropType::U8 => self.cast_num::<u8>().map(Prop::U8),
+                PropType::U16 => self.cast_num::<u16>().map(Prop::U16),
+                PropType::I32 => self.cast_num::<i32>().map(Prop::I32),
+                PropType::I64 => self.cast_num::<i64>().map(Prop::I64),
+                PropType::U32 => self.cast_num::<u32>().map(Prop::U32),
+                PropType::U64 => self.cast_num::<u64>().map(Prop::U64),
+                PropType::F32 => self.cast_num::<f32>().map(Prop::F32),
+                PropType::F64 => self.cast_num::<f64>().map(Prop::F64),
+                _ => None,
             },
         }
     }
@@ -478,8 +670,8 @@ impl Prop {
     }
 
     pub fn try_from_bd(bd: BigDecimal) -> Result<Prop, InvalidBigDecimal> {
-        let prop = Prop::Decimal(bd);
-        validate_prop(prop)
+        validate_bd(&bd)?;
+        Ok(Prop::Decimal(bd))
     }
 
     pub fn map(vals: impl IntoIterator<Item = (impl Into<ArcStr>, impl Into<Prop>)>) -> Self {
@@ -488,6 +680,13 @@ impl Prop {
             .map(|(k, v)| (k.into(), v.into()))
             .collect();
         Prop::Map(h_map.into())
+    }
+
+    pub fn as_map(&self) -> Option<SerdeArrowMap<'_>> {
+        match self {
+            Prop::Map(map) => Some(SerdeArrowMap(map)),
+            _ => None,
+        }
     }
 
     pub fn dtype(&self) -> PropType {
@@ -502,26 +701,9 @@ impl Prop {
             Prop::F32(_) => PropType::F32,
             Prop::F64(_) => PropType::F64,
             Prop::Bool(_) => PropType::Bool,
-            Prop::List(list) => {
-                let list_type = list
-                    .iter()
-                    .map(|p| Ok(p.dtype()))
-                    .reduce(|a, b| unify_types(&a?, &b?, &mut false))
-                    .transpose()
-                    .map(|e| e.unwrap_or(PropType::Empty))
-                    .unwrap_or_else(|e| panic!("Cannot unify types for list {:?}: {e:?}", list));
-                PropType::List(Box::new(list_type))
-            }
+            Prop::List(list) => PropType::List(Box::new(list.dtype())),
             Prop::Map(map) => PropType::map(map.iter().map(|(k, v)| (k, v.dtype()))),
             Prop::NDTime(_) => PropType::NDTime,
-            #[cfg(feature = "arrow")]
-            Prop::Array(arr) => {
-                let arrow_dtype = arr
-                    .as_array_ref()
-                    .expect("Should not call dtype on empty PropArray")
-                    .data_type();
-                PropType::Array(Box::new(prop_type_from_arrow_dtype(arrow_dtype)))
-            }
             Prop::DTime(_) => PropType::DTime,
             Prop::Decimal(d) => PropType::Decimal {
                 scale: d.as_bigint_and_scale().1,
@@ -531,6 +713,12 @@ impl Prop {
 
     pub fn str<S: Into<ArcStr>>(s: S) -> Prop {
         Prop::Str(s.into())
+    }
+
+    pub fn list<P: Into<Prop>, I: IntoIterator<Item = P>>(vals: I) -> Prop {
+        Prop::List(PropArray::Vec(
+            vals.into_iter().map_into().collect::<Vec<_>>().into(),
+        ))
     }
 
     pub fn add(self, other: Prop) -> Option<Prop> {
@@ -583,6 +771,44 @@ impl Prop {
     }
 }
 
+pub fn list_array_from_props<P: Serialize + fmt::Debug + Clone>(
+    dt: &DataType,
+    props: impl IntoIterator<Item = Option<P>>,
+) -> Result<LargeListArray, serde_arrow::Error> {
+    use arrow_schema::{Field, Fields};
+    use serde_arrow::ArrayBuilder;
+
+    let fields: Fields = vec![Field::new("value", dt.clone(), true)].into();
+
+    let mut builder = ArrayBuilder::from_arrow(&fields)?;
+
+    for value in props {
+        builder.push(SerdeRow { value })?;
+    }
+
+    let arrays = builder.to_arrow()?;
+
+    Ok(arrays.first().unwrap().as_list::<i64>().clone())
+}
+
+pub fn struct_array_from_props<P: Serialize>(
+    dt: &DataType,
+    props: impl IntoIterator<Item = Option<P>>,
+) -> Result<StructArray, serde_arrow::Error> {
+    use serde_arrow::ArrayBuilder;
+
+    let fields = [FieldRef::new(Field::new("value", dt.clone(), true))];
+
+    let mut builder = ArrayBuilder::from_arrow(&fields)?;
+
+    for p in props {
+        builder.push(SerdeRow { value: p })?
+    }
+
+    let arrays = builder.to_arrow()?;
+    Ok(arrays.first().unwrap().as_struct().clone())
+}
+
 impl Display for Prop {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
@@ -598,8 +824,6 @@ impl Display for Prop {
             Prop::Bool(value) => write!(f, "{}", value),
             Prop::DTime(value) => write!(f, "{}", value),
             Prop::NDTime(value) => write!(f, "{}", value),
-            #[cfg(feature = "arrow")]
-            Prop::Array(value) => write!(f, "{:?}", value),
             Prop::List(value) => {
                 write!(
                     f,
@@ -643,111 +867,15 @@ impl Display for Prop {
     }
 }
 
-impl From<ArcStr> for Prop {
-    fn from(value: ArcStr) -> Self {
-        Prop::Str(value)
-    }
-}
-
-impl From<&ArcStr> for Prop {
-    fn from(value: &ArcStr) -> Self {
-        Prop::Str(value.clone())
-    }
-}
-
-impl From<String> for Prop {
-    fn from(value: String) -> Self {
-        Prop::Str(value.into())
-    }
-}
-
-impl From<&String> for Prop {
-    fn from(s: &String) -> Self {
-        Prop::Str(s.as_str().into())
-    }
-}
-
-impl From<Arc<str>> for Prop {
-    fn from(s: Arc<str>) -> Self {
+impl From<&str> for Prop {
+    fn from(s: &str) -> Self {
         Prop::Str(s.into())
     }
 }
 
-impl From<&Arc<str>> for Prop {
-    fn from(value: &Arc<str>) -> Self {
-        Prop::Str(value.clone().into())
-    }
-}
-
-impl From<&str> for Prop {
-    fn from(s: &str) -> Self {
-        Prop::Str(s.to_owned().into())
-    }
-}
-
-impl From<i32> for Prop {
-    fn from(i: i32) -> Self {
-        Prop::I32(i)
-    }
-}
-
-impl From<u8> for Prop {
-    fn from(i: u8) -> Self {
-        Prop::U8(i)
-    }
-}
-
-impl From<u16> for Prop {
-    fn from(i: u16) -> Self {
-        Prop::U16(i)
-    }
-}
-
-impl From<i64> for Prop {
-    fn from(i: i64) -> Self {
-        Prop::I64(i)
-    }
-}
-
-impl From<BigDecimal> for Prop {
-    fn from(d: BigDecimal) -> Self {
-        Prop::Decimal(d)
-    }
-}
-
-impl From<u32> for Prop {
-    fn from(u: u32) -> Self {
-        Prop::U32(u)
-    }
-}
-
-impl From<u64> for Prop {
-    fn from(u: u64) -> Self {
-        Prop::U64(u)
-    }
-}
-
-impl From<f32> for Prop {
-    fn from(f: f32) -> Self {
-        Prop::F32(f)
-    }
-}
-
-impl From<f64> for Prop {
-    fn from(f: f64) -> Self {
-        Prop::F64(f)
-    }
-}
-
-impl From<DateTime<Utc>> for Prop {
-    fn from(f: DateTime<Utc>) -> Self {
-        Prop::DTime(f)
-    }
-}
-
-impl From<bool> for Prop {
-    fn from(b: bool) -> Self {
-        Prop::Bool(b)
+impl From<String> for Prop {
+    fn from(s: String) -> Self {
+        Prop::Str(s.into())
     }
 }
 
@@ -765,13 +893,19 @@ impl From<FxHashMap<ArcStr, Prop>> for Prop {
 
 impl From<Vec<Prop>> for Prop {
     fn from(value: Vec<Prop>) -> Self {
-        Prop::List(Arc::new(value))
+        Prop::List(value.into())
     }
 }
 
 impl From<&Prop> for Prop {
     fn from(value: &Prop) -> Self {
         value.clone()
+    }
+}
+
+impl From<ArrayRef> for Prop {
+    fn from(value: ArrayRef) -> Self {
+        Prop::List(PropArray::from(value))
     }
 }
 
@@ -795,7 +929,8 @@ pub trait IntoPropList {
 
 impl<I: IntoIterator<Item = K>, K: Into<Prop>> IntoPropList for I {
     fn into_prop_list(self) -> Prop {
-        Prop::List(Arc::new(self.into_iter().map(|v| v.into()).collect()))
+        let vec = self.into_iter().map(|v| v.into()).collect::<Vec<_>>();
+        Prop::List(vec.into())
     }
 }
 

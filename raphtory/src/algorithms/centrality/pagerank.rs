@@ -163,8 +163,13 @@ pub fn unweighted_page_rank<G: StaticGraphViewOps>(
         vec![Job::new(step1)],
         vec![Job::new(step2), Job::new(step3), Job::new(step4), step5],
         Some(vec![PageRankState::new(num_nodes); num_nodes]),
-        |_, _, _, local| {
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+        |_, _, _, local, index| {
+            TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+                g.clone(),
+                local,
+                index,
+                None,
+            ))
         },
         threads,
         iter_count,

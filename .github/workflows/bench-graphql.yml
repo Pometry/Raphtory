@@ -14,8 +14,11 @@ jobs:
     name: GraphQL Benchmark
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         name: Checkout
+        with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -31,7 +34,7 @@ jobs:
           make install-python clean
         #                     ↑ this is for freeing up space used by cargo before installing raphtory
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: 9
       - uses: grafana/setup-k6-action@v1
@@ -39,8 +42,10 @@ jobs:
           k6-version: "1.0.0"
       - name: Run GraphQL benchmarks
         run: cd graphql-bench && make bench-local
-      - name: Restore metadata file
-        run: git restore graphql-bench/data/apache/master/.raph # otherwise github-action-benchmark fails to create the commit
+      - name: Restore modified files
+        run: |
+          git restore Cargo.lock # modified by build; github-action-benchmark can't switch to gh-pages with dirty working tree
+          git restore graphql-bench/data/apache/master # otherwise github-action-benchmark fails to create the commit
       - name: Print bench results
         run: cat graphql-bench/output.json
       - name: Store benchmark results from master branch

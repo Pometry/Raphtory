@@ -12,6 +12,7 @@ use crate::{
 };
 use std::{
     fmt::{Debug, Formatter},
+    path::Path,
     sync::Arc,
 };
 
@@ -99,6 +100,10 @@ pub trait InheritStorageOps: Base {}
 
 pub trait InternalStorageOps {
     fn get_storage(&self) -> Option<&Storage>;
+
+    /// Returns the path if the underlying storage saves data to disk,
+    /// or `None` if the storage is in-memory only.
+    fn disk_storage_path(&self) -> Option<&Path>;
 }
 
 impl<G: InheritStorageOps> InternalStorageOps for G
@@ -107,6 +112,10 @@ where
 {
     fn get_storage(&self) -> Option<&Storage> {
         self.base().get_storage()
+    }
+
+    fn disk_storage_path(&self) -> Option<&Path> {
+        self.base().disk_storage_path()
     }
 }
 
@@ -196,6 +205,8 @@ impl Base for DynamicGraph {
 
 impl Immutable for DynamicGraph {}
 
+impl<'graph> Immutable for Arc<dyn BoxableGraphView + 'graph> {}
+
 impl InheritViewOps for DynamicGraph {}
 
 impl InheritCoreGraphOps for DynamicGraph {}
@@ -208,13 +219,13 @@ impl InheritNodeHistoryFilter for DynamicGraph {}
 
 impl InheritEdgeHistoryFilter for DynamicGraph {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritViewOps for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritViewOps for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritStorageOps for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritStorageOps for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritNodeHistoryFilter for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritNodeHistoryFilter for &'graph1 G {}
 
-impl<'graph1, 'graph2: 'graph1, G: GraphViewOps<'graph2>> InheritEdgeHistoryFilter for &'graph1 G {}
+impl<'graph1, 'graph2: 'graph1, G: GraphView + 'graph2> InheritEdgeHistoryFilter for &'graph1 G {}
 
 #[cfg(test)]
 mod test {
@@ -235,7 +246,7 @@ mod test {
     fn test_boxing() {
         // this tests that a boxed graph actually compiles
         let g = Graph::new();
-        g.add_node(0, 1u64, NO_PROPS, None).unwrap();
+        g.add_node(0, 1u64, NO_PROPS, None, None).unwrap();
         let boxed: Arc<dyn BoxableGraphView> = Arc::new(g);
         assert_eq!(
             boxed

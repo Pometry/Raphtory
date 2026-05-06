@@ -16,6 +16,7 @@ use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use rayon::ThreadPoolBuilder;
 use std::ops::Range;
 
 #[test]
@@ -165,7 +166,7 @@ fn test_materialize_only_deletion() {
 
 #[test]
 fn materialize_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true))| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true))| {
         let g = PersistentGraph::from(build_graph(&graph_f));
         let gm = g.materialize().unwrap();
         assert_graph_equal(&g, &gm);
@@ -174,7 +175,7 @@ fn materialize_prop_test() {
 
 #[test]
 fn materialize_window_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>())| {
         let g = PersistentGraph::from(build_graph(&graph_f));
         let gw = g.window(w.start, w.end);
         let gmw = gw.materialize().unwrap();
@@ -240,12 +241,27 @@ fn test_deletion_at_window_start() {
 
 #[test]
 fn materialize_window_layers_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2))| {
-        let g = PersistentGraph::from(build_graph(&graph_f));
-        let glw = g.valid_layers(l).window(w.start, w.end);
-        let gmlw = glw.materialize().unwrap();
-        assert_persistent_materialize_graph_equal(&glw, &gmlw);
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2), num_threads in 1..=16usize)| {
+        let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
+        pool.install(|| {
+            let g = PersistentGraph::from(build_graph(&graph_f));
+            let glw = g.valid_layers(l.clone()).window(w.start, w.end);
+            let gmlw = glw.materialize().unwrap();
+            assert_persistent_materialize_graph_equal(&glw, &gmlw);
+        })
+
     })
+}
+
+#[test]
+fn materialize_window_multilayer() {
+    let g = PersistentGraph::new();
+    g.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
+    g.delete_edge(3, 0, 0, Some("a")).unwrap();
+    let w = 0..10;
+    let glw = g.valid_layers("a").window(w.start, w.end);
+    let gmlw = glw.materialize().unwrap();
+    assert_persistent_materialize_graph_equal(&glw, &gmlw);
 }
 
 #[test]
@@ -305,8 +321,8 @@ fn materialize_broken_time() {
 #[test]
 fn test_materialize_window_start_before_node_add() {
     let g = PersistentGraph::new();
-    g.add_node(-1, 0, [("test", "test")], None).unwrap();
-    g.add_node(5, 0, [("test", "blob")], None).unwrap();
+    g.add_node(-1, 0, [("test", "test")], None, None).unwrap();
+    g.add_node(5, 0, [("test", "blob")], None, None).unwrap();
     g.add_edge(0, 0, 0, NO_PROPS, None).unwrap();
     let gw = g.window(-5, 8);
     let gmw = gw.materialize().unwrap();
@@ -370,7 +386,7 @@ fn test_materialize_window() {
 #[test]
 fn test_materialize_window_node_props() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", "test")], None).unwrap();
+    g.add_node(0, 1, [("test", "test")], None, None).unwrap();
 
     test_storage!(&g, |g| {
         let g = g.persistent_graph();
@@ -433,6 +449,21 @@ fn test_edge_properties() {
             .collect_vec(),
         vec![(5, Prop::str("test")), (11i64, Prop::str("test11"))],
     );
+}
+
+#[test]
+fn test_multiple_edge_properties() {
+    let g = PersistentGraph::new();
+    g.add_edge(0, 0, 1, [("test1", "test1")], None).unwrap();
+    g.add_edge(1, 0, 1, [("test2", "test2")], None).unwrap();
+
+    let e = g.edge(0, 1).unwrap();
+    assert_eq!(e.properties().get("test1").unwrap_str(), "test1");
+    assert_eq!(e.properties().get("test2").unwrap_str(), "test2");
+
+    let ew = e.window(1, 10);
+    assert_eq!(ew.properties().get("test1").unwrap_str(), "test1");
+    assert_eq!(ew.properties().get("test2").unwrap_str(), "test2");
 }
 
 #[test]
@@ -567,6 +598,14 @@ fn test_deletion_multiple_layers() {
 }
 
 #[test]
+fn test_materialize_node_type() {
+    let g = PersistentGraph::new();
+    g.delete_edge(0, 0, 0, None).unwrap();
+    g.node(0).unwrap().set_node_type("test").unwrap();
+    assert_graph_equal(&g, &g.materialize().unwrap());
+}
+
+#[test]
 fn test_edge_is_valid() {
     let g = PersistentGraph::new();
 
@@ -635,10 +674,10 @@ fn test_edge_latest_time() {
 fn test_node_property_semantics() {
     let g = PersistentGraph::new();
     let _v = g
-        .add_node(1, 1, [("test_prop", "test value")], None)
+        .add_node(1, 1, [("test_prop", "test value")], None, None)
         .unwrap();
     let v = g
-        .add_node(11, 1, [("test_prop", "test value 2")], None)
+        .add_node(11, 1, [("test_prop", "test value 2")], None, None)
         .unwrap();
     let v_from_graph = g.at(10).node(1).unwrap();
     assert_eq!(v.properties().get("test_prop").unwrap_str(), "test value 2");
@@ -732,7 +771,7 @@ fn test_exploded_latest_time_deleted() {
 #[test]
 fn test_empty_window_has_no_nodes() {
     let g = PersistentGraph::new();
-    g.add_node(1, 1, NO_PROPS, None).unwrap();
+    g.add_node(1, 1, NO_PROPS, None, None).unwrap();
     assert_eq!(g.window(2, 2).count_nodes(), 0);
     assert_eq!(g.window(1, 1).count_nodes(), 0);
     assert_eq!(g.window(0, 0).count_nodes(), 0);
@@ -1074,11 +1113,11 @@ fn test_deletion_at_start() {
 fn multiple_node_updates_at_same_time() {
     let g = PersistentGraph::new();
 
-    g.add_node(1, 1, [("prop1", 1)], None).unwrap();
-    g.add_node(2, 1, [("prop1", 2)], None).unwrap();
-    g.add_node(2, 1, [("prop1", 3)], None).unwrap();
-    g.add_node(8, 1, [("prop1", 4)], None).unwrap();
-    g.add_node(9, 1, [("prop1", 5)], None).unwrap();
+    g.add_node(1, 1, [("prop1", 1)], None, None).unwrap();
+    g.add_node(2, 1, [("prop1", 2)], None, None).unwrap();
+    g.add_node(2, 1, [("prop1", 3)], None, None).unwrap();
+    g.add_node(8, 1, [("prop1", 4)], None, None).unwrap();
+    g.add_node(9, 1, [("prop1", 5)], None, None).unwrap();
 
     assert_eq!(
         g.window(2, 10)
@@ -1097,7 +1136,7 @@ fn multiple_node_updates_at_same_time() {
 #[test]
 fn filtering_all_layers_keeps_explicitly_added_nodes() {
     let g = PersistentGraph::new();
-    g.add_node(0, 0, [("prop1", false)], None).unwrap();
+    g.add_node(0, 0, [("prop1", false)], None, None).unwrap();
     let view = g.valid_layers(Layer::None).window(0, 1);
     assert_eq!(view.count_nodes(), 1);
     assert_eq!(view.count_edges(), 0);

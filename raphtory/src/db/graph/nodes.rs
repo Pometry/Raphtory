@@ -10,7 +10,7 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, InternalFilter, InternalNodeSelect, NodeList},
+                internal::{FilterOps, GraphView, InternalFilter, InternalNodeSelect, NodeList},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },
@@ -33,7 +33,7 @@ pub struct Nodes<'graph, G, GH = G, F = Const<bool>> {
     pub(crate) base_graph: G,
     pub(crate) graph: GH,
     pub(crate) predicate: F,
-    pub(crate) nodes: Option<Index<VID>>,
+    pub(crate) nodes: Index<VID>,
     _marker: PhantomData<&'graph ()>,
 }
 
@@ -118,11 +118,13 @@ where
     G: GraphViewOps<'graph> + Clone,
 {
     pub fn new(graph: G) -> Self {
+        let base_graph = graph.clone();
+        let node_index = base_graph.core_graph().node_state_index();
         Self {
-            base_graph: graph.clone(),
-            graph: graph.clone(),
+            base_graph,
+            graph,
+            nodes: node_index.into(),
             predicate: NO_FILTER,
-            nodes: None,
             _marker: PhantomData,
         }
     }
@@ -134,7 +136,7 @@ where
     GH: GraphViewOps<'graph> + 'graph,
     F: NodeFilterOp + Clone + 'graph,
 {
-    pub fn new_filtered(base_graph: G, graph: GH, predicate: F, nodes: Option<Index<VID>>) -> Self {
+    pub fn new_filtered(base_graph: G, graph: GH, predicate: F, nodes: Index<VID>) -> Self {
         Self {
             base_graph,
             graph,
@@ -146,9 +148,21 @@ where
 
     pub fn node_list(&self) -> NodeList {
         match self.nodes.clone() {
-            None => self.graph.node_list(),
-            Some(elems) => NodeList::List { elems },
+            elems @ Index::Partial(_) => NodeList::List { elems },
+            _ => self.graph.node_list(),
         }
+    }
+
+    pub(crate) fn par_iter_refs(
+        &self,
+        g: GraphStorage,
+    ) -> impl ParallelIterator<Item = VID> + 'graph {
+        let view = self.base_graph.clone();
+        let node_select = self.predicate.clone();
+        self.node_list().nodes_par_iter(&g).filter(move |&vid| {
+            g.try_core_node(vid)
+                .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
+        })
     }
 
     pub fn indexed(&self, index: Index<VID>) -> Nodes<'graph, G, GH, F> {
@@ -156,18 +170,12 @@ where
             self.base_graph.clone(),
             self.graph.clone(),
             self.predicate.clone(),
-            Some(index),
+            index,
         )
     }
 
-    pub(crate) fn par_iter_refs(&self) -> impl ParallelIterator<Item = VID> + 'graph {
-        let g = self.base_graph.core_graph().lock();
-        let view = self.base_graph.clone();
-        let node_select = self.predicate.clone();
-        self.node_list().into_par_iter().filter(move |&vid| {
-            g.try_core_node(vid)
-                .is_some_and(|node| view.filter_node(node.as_ref()) && node_select.apply(&g, vid))
-        })
+    fn locked_storage(&self) -> GraphStorage {
+        self.base_graph.core_graph().lock()
     }
 
     #[inline]
@@ -176,10 +184,14 @@ where
         self.iter_vids(g)
     }
 
-    fn iter_vids(&self, g: GraphStorage) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
+    pub(crate) fn iter_vids(
+        &self,
+        g: GraphStorage,
+    ) -> impl Iterator<Item = VID> + Send + Sync + 'graph {
         let view = self.base_graph.clone();
         let selector = self.predicate.clone();
-        self.node_list().into_iter().filter(move |&vid| {
+
+        self.node_list().nodes_iter(&g).filter(move |&vid| {
             g.try_core_node(vid)
                 .is_some_and(|node| view.filter_node(node.as_ref()) && selector.apply(&g, vid))
         })
@@ -220,32 +232,27 @@ where
     pub fn par_iter(
         &self,
     ) -> impl ParallelIterator<Item = NodeView<'_, &GH>> + use<'_, 'graph, G, GH, F> {
-        self.par_iter_refs()
+        let g = self.base_graph.core_graph().lock();
+        self.par_iter_refs(g)
             .map(|v| NodeView::new_internal(&self.graph, v))
     }
 
     pub fn into_par_iter(self) -> impl ParallelIterator<Item = NodeView<'graph, GH>> + 'graph {
-        self.par_iter_refs()
+        let g = self.locked_storage();
+        self.par_iter_refs(g)
             .map(move |n| NodeView::new_internal(self.graph.clone(), n))
     }
 
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn len(&self) -> usize {
-        match self.nodes.as_ref() {
-            None => {
-                if self.is_list_filtered() {
-                    self.par_iter_refs().count()
-                } else {
-                    self.graph.node_list().len()
-                }
-            }
-            Some(nodes) => {
-                if self.is_filtered() {
-                    self.par_iter_refs().count()
-                } else {
-                    nodes.len()
-                }
+        if self.is_list_filtered() {
+            let g = self.locked_storage();
+            self.par_iter_refs(g).count()
+        } else {
+            match &self.nodes {
+                Index::Full(_) => self.graph.count_nodes(),
+                Index::Partial(nodes) => nodes.len(),
             }
         }
     }
@@ -301,7 +308,7 @@ where
     }
 
     pub fn is_list_filtered(&self) -> bool {
-        !self.graph.node_list_trusted() || self.predicate.is_filtered()
+        !self.graph.node_list_trusted() || self.predicate.is_domain_filtered()
     }
 
     pub fn is_filtered(&self) -> bool {
@@ -309,13 +316,10 @@ where
     }
 
     pub fn contains<V: AsNodeRef>(&self, node: V) -> bool {
-        (&self.base_graph)
+        (&&self.base_graph)
             .node(node)
             .filter(|node| {
-                self.nodes
-                    .as_ref()
-                    .map(|nodes| nodes.contains(&node.node))
-                    .unwrap_or(true)
+                self.nodes.contains(&node.node)
                     && self
                         .predicate
                         .apply(self.base_graph.core_graph(), node.node)
@@ -341,12 +345,17 @@ where
         &self,
         filter: Filter,
     ) -> Self::IterFiltered<Filter> {
+        let domain = filter.domain(self.graph.core_graph());
+        let nodes = match domain {
+            NodeList::All => self.nodes.clone(),
+            NodeList::List { elems } => self.nodes.intersection(&elems),
+        };
         let predicate = self.predicate.clone().and(filter);
         Nodes {
             base_graph: self.base_graph.clone(),
             graph: self.graph.clone(),
             predicate,
-            nodes: self.nodes.clone(),
+            nodes,
             _marker: Default::default(),
         }
     }

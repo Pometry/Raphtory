@@ -4,12 +4,17 @@ from dateutil import parser
 from raphtory.graphql import GraphServer, RaphtoryClient
 from datetime import datetime, timezone
 from numpy.testing import assert_equal as check_arr
-from utils import assert_set_eq, assert_has_metadata, assert_has_properties
+from utils import (
+    assert_set_eq,
+    assert_has_metadata,
+    assert_has_properties,
+    truncate_dt_to_ms,
+)
 
 
 def make_props():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah",
         "prop_float": 2.0,
@@ -46,7 +51,7 @@ def test_add_metadata():
 
         with pytest.raises(Exception) as excinfo:
             rg.add_metadata({"prop_float": 3.0})
-        assert "Attempted to change value of metadata" in str(excinfo.value)
+        assert "Cannot set previous value" in str(excinfo.value)
 
 
 def test_update_metadata():
@@ -73,20 +78,24 @@ def test_add_properties():
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
+        # Both datetimes deliberately resolve to the same millisecond — Raphtory
+        # gives each write its own event_id, so 3 history entries should land
+        # (one at t=1 and two at the shared datetime ms). Using fixed values
+        # rather than `datetime.now()` so the test is deterministic.
+        aware_dt = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        naive_dt = datetime(2024, 1, 1, 12, 0, 0)
         rg.add_property(1, props)
-        current_datetime = datetime.now(timezone.utc)
-        naive_datetime = datetime.now()
-        rg.add_property(current_datetime, props)
-        rg.add_property(naive_datetime, props)
+        rg.add_property(aware_dt, props)
+        rg.add_property(naive_dt, props)
         g = client.receive_graph("path/to/event_graph")
         assert_has_properties(g, props)
 
-        localized_datetime = naive_datetime.replace(tzinfo=timezone.utc)
+        localized_dt = naive_dt.replace(tzinfo=timezone.utc)
         timestamps = sorted(
             [
                 1,
-                int(current_datetime.timestamp() * 1000),
-                int(localized_datetime.timestamp() * 1000),
+                int(aware_dt.timestamp() * 1000),
+                int(localized_dt.timestamp() * 1000),
             ]
         )
 
@@ -142,7 +151,7 @@ def test_delete_edge():
         rg.delete_edge(2, "ben", "hamza")
         g = client.receive_graph("path/to/event_graph")
         assert g.edge("ben", "hamza").history.t.collect() == [1]
-        assert g.edge("ben", "hamza").deletions == [(2, 1)]
+        assert g.edge("ben", "hamza").deletions.t.collect() == [2]
 
         client.new_graph("path/to/persistent_graph", "PERSISTENT")
         rg = client.remote_graph("path/to/persistent_graph")
@@ -151,5 +160,5 @@ def test_delete_edge():
         rg.add_edge(1, "ben", "lucas", layer="colleagues")
         rg.delete_edge(2, "ben", "lucas", layer="colleagues")
         g = client.receive_graph("path/to/persistent_graph")
-        assert g.edge("ben", "hamza").deletions == [(2, 1)]
-        assert g.edge("ben", "lucas").deletions == [(2, 3)]
+        assert g.edge("ben", "hamza").deletions.t.collect() == [2]
+        assert g.edge("ben", "lucas").deletions.t.collect() == [2]

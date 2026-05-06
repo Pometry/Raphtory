@@ -69,11 +69,13 @@ impl Filter {
 
     pub fn is_in(
         field_name: impl Into<String>,
-        field_values: impl IntoIterator<Item = String>,
+        field_values: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
+            field_value: FilterValue::Set(Arc::new(
+                field_values.into_iter().map(|s| s.into()).collect(),
+            )),
             operator: FilterOperator::IsIn,
         }
     }
@@ -85,11 +87,13 @@ impl Filter {
     ///     field_values (list[str]):
     pub fn is_not_in(
         field_name: impl Into<String>,
-        field_values: impl IntoIterator<Item = String>,
+        field_values: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
         Self {
             field_name: field_name.into(),
-            field_value: FilterValue::Set(Arc::new(field_values.into_iter().collect())),
+            field_value: FilterValue::Set(Arc::new(
+                field_values.into_iter().map(|s| s.into()).collect(),
+            )),
             operator: FilterOperator::IsNotIn,
         }
     }

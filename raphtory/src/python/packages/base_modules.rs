@@ -1,7 +1,4 @@
 //ALGORITHMS
-
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     add_classes, add_functions,
     python::{
@@ -18,11 +15,13 @@ use crate::{
                 NestedHistoryTimestampIterable, NestedIntervalsIterable, PyHistory,
                 PyHistoryDateTime, PyHistoryEventId, PyHistoryTimestamp, PyIntervals,
             },
-            index::{PyIndexSpec, PyIndexSpecBuilder},
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                MetadataView, PropertiesView, PyMetadata, PyPropValueList, PyProperties,
-                PyTemporalProp, PyTemporalProperties,
+                MetadataView, PropertiesView, PyMetadata, PyPropHistItemsList,
+                PyPropHistItemsListList, PyPropHistValueList, PyPropHistValueListList,
+                PyPropValueList, PyPropValueListList, PyProperties, PyTemporalProp,
+                PyTemporalPropList, PyTemporalPropListList, PyTemporalProperties,
+                PyTemporalPropsList, PyTemporalPropsListList,
             },
             views::graph_view::PyGraphView,
         },
@@ -31,8 +30,8 @@ use crate::{
             graph_gen::*,
             graph_loader::*,
             vectors::{
-                embedding_server, PyOpenAIEmbeddings, PyVectorCache, PyVectorSelection,
-                PyVectorisedGraph,
+                embedding_server, PyEmbeddingServer, PyOpenAIEmbeddings, PyRunningEmbeddingServer,
+                PyVectorCache, PyVectorSelection, PyVectorisedGraph,
             },
         },
         types::{
@@ -53,7 +52,7 @@ use crate::{
                     NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
                     OptionArcStringIterable, OptionEventTimeIterable, OptionI64Iterable,
                     OptionUsizeIterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
-                    StringIterable, U64Iterable, UsizeIterable,
+                    PropIterable, StringIterable, U64Iterable, UsizeIterable,
                 },
             },
         },
@@ -66,6 +65,9 @@ use raphtory_api::python::{
     timeindex::{PyEventTime, PyOptionalEventTime},
     PyProp,
 };
+
+#[cfg(feature = "search")]
+use crate::python::graph::index::{PyIndexSpec, PyIndexSpecBuilder};
 
 pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
     //Graph classes
@@ -100,10 +102,11 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
         PyHistoryEventId,
         PyIntervals,
         PyWindowSet,
-        PyIndexSpecBuilder,
-        PyIndexSpec,
         PyProp
     );
+
+    #[cfg(feature = "search")]
+    add_classes!(m, PyIndexSpecBuilder, PyIndexSpec);
 
     #[pyfunction]
     /// Return Raphtory version.
@@ -116,8 +119,6 @@ pub fn add_raphtory_classes(m: &Bound<PyModule>) -> PyResult<()> {
 
     m.add_function(wrap_pyfunction!(version, m)?)?;
 
-    #[cfg(feature = "storage")]
-    add_classes!(m, PyDiskGraph);
     Ok(())
 }
 
@@ -173,6 +174,16 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         NestedResultUtcDateTimeIterable,
         MetadataListList,
         PyNestedPropsIterable,
+        PyPropValueListList,
+        PyTemporalPropsList,
+        PyTemporalPropsListList,
+        PyPropHistValueList,
+        PyPropHistValueListList,
+        PyTemporalPropList,
+        PyTemporalPropListList,
+        PyPropHistItemsList,
+        PyPropHistItemsListList,
+        PropIterable,
     );
     Ok(iterables_module)
 }
@@ -226,8 +237,6 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
     );
 
     add_classes!(&algorithm_module, PyMatching, PyInfected);
-    #[cfg(feature = "storage")]
-    add_functions!(&algorithm_module, connected_components);
     Ok(algorithm_module)
 }
 
@@ -266,6 +275,8 @@ pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr>
         PyVectorSelection,
         PyOpenAIEmbeddings,
         PyVectorCache,
+        PyEmbeddingServer,
+        PyRunningEmbeddingServer,
     );
     add_functions!(&vectors_module, embedding_server);
     Ok(vectors_module)

@@ -1,10 +1,15 @@
-use std::{ops::Deref, path::Path, sync::Arc};
-
+use crate::{
+    errors::{GraphError, GraphResult},
+    vectors::{
+        vector_collection::{CollectionPath, VectorCollection, VectorCollectionFactory},
+        Embedding,
+    },
+};
 use arrow_array::{
     builder::{FixedSizeListBuilder, Float32Builder},
     types::{Float32Type, UInt64Type},
     Array, ArrayRef, ArrowPrimitiveType, FixedSizeListArray, PrimitiveArray, RecordBatch,
-    RecordBatchIterator, UInt64Array,
+    UInt64Array,
 };
 use futures_util::TryStreamExt;
 use itertools::Itertools;
@@ -18,14 +23,7 @@ use lancedb::{
     table::{OptimizeAction, OptimizeOptions},
     Connection, DistanceType, Table,
 };
-
-use crate::{
-    errors::{GraphError, GraphResult},
-    vectors::{
-        vector_collection::{CollectionPath, VectorCollection, VectorCollectionFactory},
-        Embedding,
-    },
-};
+use std::{ops::Deref, path::Path, sync::Arc};
 
 const VECTOR_COL_NAME: &str = "vector";
 
@@ -90,14 +88,13 @@ impl VectorCollection for LanceDbCollection {
             builder.values().append_slice(&vector);
             builder.append(true);
         }
-        let batches = RecordBatchIterator::new(
-            vec![RecordBatch::try_new(
+        self.table
+            .add(RecordBatch::try_new(
                 self.schema(),
                 vec![Arc::new(UInt64Array::from(ids)), Arc::new(builder.finish())],
-            )],
-            self.schema(),
-        );
-        self.table.add(batches).execute().await?;
+            )?)
+            .execute()
+            .await?;
         Ok(())
     }
 
@@ -136,7 +133,6 @@ impl VectorCollection for LanceDbCollection {
         } else {
             limited
         };
-        let text = filtered.explain_plan(true).await?;
         let stream = filtered.execute().await?;
         let result = stream.try_collect::<Vec<_>>().await?;
 
@@ -244,8 +240,6 @@ fn get_schema(dim: usize) -> Arc<Schema> {
 
 #[cfg(test)]
 mod lancedb_tests {
-    use std::sync::Arc;
-
     use crate::vectors::{
         vector_collection::{
             lancedb::{LanceDb, LanceDbCollection},
@@ -253,6 +247,8 @@ mod lancedb_tests {
         },
         Embedding,
     };
+    use rand::Rng;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_search_with_candidates() {
@@ -348,7 +344,7 @@ mod lancedb_tests {
     fn embedding(id: usize) -> Embedding {
         use rand::{rngs::StdRng, Rng, SeedableRng};
         let mut rng = StdRng::seed_from_u64(id as u64);
-        let vector: Vec<f32> = (0..EMBEDDING_DIM).map(|_| rng.gen::<f32>()).collect();
+        let vector: Vec<f32> = (0..EMBEDDING_DIM).map(|_| rng.random::<f32>()).collect();
         vector.into()
     }
 

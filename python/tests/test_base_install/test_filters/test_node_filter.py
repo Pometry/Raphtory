@@ -436,21 +436,14 @@ def test_filter_nodes_by_column():
     graph.add_node(1, 4, {})
     graph.add_node(1, 5, {})
 
+    expected = {i: {"bool_col": v % 2 != 0} for (v, i) in enumerate(graph.nodes.id)}
     actual = alternating_mask(graph)
-    expected = {
-        1: {"bool_col": False},
-        2: {"bool_col": True},
-        3: {"bool_col": False},
-        4: {"bool_col": True},
-        5: {"bool_col": False},
-    }
     assert actual == expected
 
     filter_expr = filter.Node.by_state_column(actual, "bool_col")
     result_ids = sorted(graph.filter(filter_expr).nodes.id)
-    expected_ids = sorted([2, 4])
+    expected_ids = sorted(i for i, v in expected.items() if v["bool_col"])
     assert result_ids == expected_ids
 
     result_ids = sorted(graph.nodes[filter_expr].id)
-    expected_ids = sorted([2, 4])
     assert result_ids == expected_ids

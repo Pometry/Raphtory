@@ -13,7 +13,7 @@ use crate::{
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    graph::edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -59,7 +59,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for IsSelfLoopGraph<
         false
     }
 
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         edge.src() == edge.dst() && self.graph.internal_filter_edge(edge, layer_ids)
     }
 }

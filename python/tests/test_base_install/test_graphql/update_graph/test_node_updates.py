@@ -3,14 +3,14 @@ from datetime import datetime, timezone
 import pytest
 from dateutil import parser
 
-from utils import assert_has_properties, assert_has_metadata
+from utils import assert_has_properties, assert_has_metadata, truncate_dt_to_ms
 from raphtory.graphql import GraphServer, RaphtoryClient
 from numpy.testing import assert_equal as check_arr
 
 
 def make_props():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah",
         "prop_float": 2.0,
@@ -79,7 +79,7 @@ def test_add_metadata():
 
         with pytest.raises(Exception) as excinfo:
             rg.node("ben").add_metadata({"prop_float": 3.0})
-        assert "Attempted to change value of metadata" in str(excinfo.value)
+        assert "Cannot set previous value" in str(excinfo.value)
 
 
 def test_update_metadata():

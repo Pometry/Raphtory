@@ -19,8 +19,6 @@ pub trait InternalLayerOps: CoreGraphOps {
             GraphStorage::Mem(LockedGraph { graph, .. }) | GraphStorage::Unlocked(graph) => {
                 graph.layer_ids(key)
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(graph) => graph.layer_ids_from_names(key),
         }?;
         Ok(layer_ids.intersect(self.layer_ids()))
     }
@@ -31,8 +29,6 @@ pub trait InternalLayerOps: CoreGraphOps {
             GraphStorage::Unlocked(graph) | GraphStorage::Mem(LockedGraph { graph, .. }) => {
                 graph.valid_layer_ids(key)
             }
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(graph) => graph.valid_layer_ids_from_names(key),
         };
         layer_ids.intersect(self.layer_ids())
     }

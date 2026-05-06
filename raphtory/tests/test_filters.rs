@@ -5,7 +5,6 @@ use raphtory::{
 
 #[cfg(test)]
 mod test_composite_filters {
-
     use raphtory::{
         db::graph::views::filter::model::{
             edge_filter::EdgeFilter, filter::Filter, node_filter::NodeFilter,
@@ -132,8 +131,7 @@ mod test_property_semantics {
                         assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
                     },
                     views::filter::model::{
-                        node_filter::NodeFilter,
-                        property_filter::ops::{ListAggOps, PropertyFilterOps},
+                        node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
                         PropertyFilterFactory, TemporalPropertyFilterFactory,
                     },
                 },
@@ -176,7 +174,9 @@ mod test_property_semantics {
             ];
 
             for (id, label, props) in nodes.iter() {
-                graph.add_node(*id, label, props.clone(), None).unwrap();
+                graph
+                    .add_node(*id, label, props.clone(), None, None)
+                    .unwrap();
             }
 
             let metadata = [
@@ -220,7 +220,9 @@ mod test_property_semantics {
             ];
 
             for (id, label, props) in nodes.iter() {
-                graph.add_node(*id, label, props.clone(), None).unwrap();
+                graph
+                    .add_node(*id, label, props.clone(), None, None)
+                    .unwrap();
             }
 
             graph
@@ -337,14 +339,14 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
             assert_search_nodes_results(
                 init_graph,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
 
@@ -383,7 +385,9 @@ mod test_property_semantics {
                 let nodes = [(2, "N1", vec![("q1", Prop::U64(0u64))]), (2, "N2", vec![])];
 
                 for (id, label, props) in nodes.iter() {
-                    graph.add_node(*id, label, props.clone(), None).unwrap();
+                    graph
+                        .add_node(*id, label, props.clone(), None, None)
+                        .unwrap();
                 }
 
                 let metadata = [
@@ -436,7 +440,9 @@ mod test_property_semantics {
                 ];
 
                 for (id, label, props) in nodes.iter() {
-                    graph.add_node(*id, label, props.clone(), None).unwrap();
+                    graph
+                        .add_node(*id, label, props.clone(), None, None)
+                        .unwrap();
                 }
 
                 graph
@@ -449,14 +455,14 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
             assert_search_nodes_results(
                 init_graph,
                 IdentityGraphTransformer,
                 filter,
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
     }
@@ -726,7 +732,7 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
 
@@ -913,7 +919,7 @@ mod test_property_semantics {
                 IdentityGraphTransformer,
                 filter.clone(),
                 &expected_results,
-                TestVariants::NonDiskOnly,
+                TestVariants::All,
             );
         }
 
@@ -1128,7 +1134,7 @@ fn init_nodes_graph<
     ];
 
     for (time, id, props, node_type) in nodes {
-        graph.add_node(time, id, props, node_type).unwrap();
+        graph.add_node(time, id, props, node_type, None).unwrap();
     }
 
     let metadata = [
@@ -1276,7 +1282,7 @@ fn init_nodes_graph_with_num_ids<
     ];
 
     for (time, id, props, node_type) in nodes {
-        graph.add_node(time, id, props, node_type).unwrap();
+        graph.add_node(time, id, props, node_type, None).unwrap();
     }
 
     graph
@@ -1304,7 +1310,7 @@ fn init_nodes_graph_with_str_ids<
     ];
 
     for (time, id, node_type) in nodes {
-        graph.add_node(time, id, NO_PROPS, node_type).unwrap();
+        graph.add_node(time, id, NO_PROPS, node_type, None).unwrap();
     }
 
     graph
@@ -1658,10 +1664,7 @@ mod test_node_filter {
     use raphtory::{
         algorithms::alternating_mask::alternating_mask,
         db::{
-            api::{
-                state::{GenericNodeState, TypedNodeState},
-                view::{filter_ops::NodeSelect, Filter},
-            },
+            api::view::{filter_ops::NodeSelect, Filter},
             graph::{
                 assertions::{
                     assert_filter_nodes_results, assert_search_nodes_results,
@@ -1669,15 +1672,16 @@ mod test_node_filter {
                 },
                 views::filter::model::{
                     node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
-                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
+                    ViewWrapOps,
                 },
             },
         },
-        prelude::{AdditionOps, Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps, NO_PROPS},
+        prelude::{
+            AdditionOps, Graph, GraphViewOps, NodeFilter, NodeStateOps, NodeViewOps, TimeOps,
+            NO_PROPS,
+        },
     };
-    use raphtory_api::core::entities::VID;
-    use std::collections::HashMap;
 
     #[test]
     fn test_node_list_is_preserved() {
@@ -1734,7 +1738,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_in() {
-        let filter = NodeFilter::name().is_in(vec!["1".into()]);
+        let filter = NodeFilter::name().is_in(vec!["1"]);
         let expected_results = vec!["1"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1751,7 +1755,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_in(vec!["".into()]);
+        let filter = NodeFilter::name().is_in(vec![""]);
         let expected_results = Vec::<&str>::new();
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1768,7 +1772,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_in(vec!["2".into(), "3".into()]);
+        let filter = NodeFilter::name().is_in(vec!["2", "3"]);
         let expected_results = vec!["2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1788,7 +1792,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_name_not_in() {
-        let filter = NodeFilter::name().is_not_in(vec!["1".into()]);
+        let filter = NodeFilter::name().is_not_in(vec!["1"]);
         let expected_results = vec!["2", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1805,7 +1809,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::name().is_not_in(vec!["".into()]);
+        let filter = NodeFilter::name().is_not_in(vec![""]);
         let expected_results = vec!["1", "2", "3", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1865,7 +1869,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_in() {
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into()]);
+        let filter = NodeFilter::node_type().is_in(vec!["fire_nation"]);
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1882,7 +1886,7 @@ mod test_node_filter {
             TestVariants::All,
         );
 
-        let filter = NodeFilter::node_type().is_in(vec!["fire_nation".into(), "air_nomads".into()]);
+        let filter = NodeFilter::node_type().is_in(vec!["fire_nation", "air_nomads"]);
         let expected_results = vec!["1", "2", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -1902,7 +1906,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_node_type_not_in() {
-        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation".into()]);
+        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]);
         let expected_results = vec!["2", "4"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2069,9 +2073,7 @@ mod test_node_filter {
 
     #[test]
     fn test_filter_nodes_for_not_node_type() {
-        let filter = NodeFilter::node_type()
-            .is_not_in(vec!["fire_nation".into()])
-            .not();
+        let filter = NodeFilter::node_type().is_not_in(vec!["fire_nation"]).not();
         let expected_results = vec!["1", "3"];
         assert_filter_nodes_results(
             init_nodes_graph,
@@ -2475,13 +2477,20 @@ mod test_node_filter {
     #[test]
     fn test_filter_by_column() {
         let graph = Graph::new();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
-        graph.add_node(1, 2, NO_PROPS, None).unwrap();
-        graph.add_node(1, 3, NO_PROPS, None).unwrap();
-        graph.add_node(1, 4, NO_PROPS, None).unwrap();
-        graph.add_node(1, 5, NO_PROPS, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 3, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 4, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 5, NO_PROPS, None, None).unwrap();
 
         let mask = alternating_mask(&graph);
+        let expected_nodes: Vec<_> = graph
+            .nodes()
+            .name()
+            .iter_values()
+            .skip(1)
+            .step_by(2)
+            .collect();
 
         let filtered = graph
             .filter(NodeFilter::by_column(&mask, "bool_col").unwrap())
@@ -2493,7 +2502,7 @@ mod test_node_filter {
             .map(|n| n.id().to_string())
             .collect::<Vec<_>>();
 
-        assert_eq!(names, vec!["2", "4"]);
+        assert_eq!(names, expected_nodes);
 
         let filtered = graph
             .nodes()
@@ -2505,7 +2514,7 @@ mod test_node_filter {
             .map(|n| n.id().to_string())
             .collect::<Vec<_>>();
 
-        assert_eq!(names, vec!["2", "4"]);
+        assert_eq!(names, expected_nodes);
     }
 
     #[test]
@@ -5044,7 +5053,7 @@ mod test_node_property_filter_agg {
             graph::{
                 assertions::{
                     assert_filter_nodes_err, assert_filter_nodes_results,
-                    assert_search_nodes_results, TestVariants::NonDiskOnly,
+                    assert_search_nodes_results, TestVariants::All,
                 },
                 views::filter::{
                     model::{
@@ -5065,44 +5074,41 @@ mod test_node_property_filter_agg {
     use raphtory_storage::mutation::{
         addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     };
-    use std::{sync::Arc, vec};
 
     fn list_u8(xs: &[u8]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U8).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U8))
     }
     fn list_u16(xs: &[u16]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U16).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U16))
     }
     fn list_u32(xs: &[u32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U32))
     }
     fn list_u64(xs: &[u64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::U64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::U64))
     }
     fn list_i32(xs: &[i32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::I32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::I32))
     }
     fn list_i64(xs: &[i64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::I64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::I64))
     }
     fn list_f32(xs: &[f32]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::F32).collect()))
+        Prop::list(xs.iter().copied().map(Prop::F32))
     }
     fn list_f64(xs: &[f64]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::F64).collect()))
+        Prop::list(xs.iter().copied().map(Prop::F64))
     }
     fn list_str(xs: &[&str]) -> Prop {
-        Prop::List(Arc::new(
-            xs.iter().map(|s| Prop::Str(ArcStr::from(*s))).collect(),
-        ))
+        Prop::list(xs.iter().map(|s| Prop::Str(ArcStr::from(*s))))
     }
     fn list_bool(xs: &[bool]) -> Prop {
-        Prop::List(Arc::new(xs.iter().copied().map(Prop::Bool).collect()))
+        Prop::list(xs.iter().copied().map(Prop::Bool))
     }
 
     #[inline]
     fn list(v: Vec<Prop>) -> Prop {
-        Prop::List(Arc::new(v))
+        Prop::List(v.into())
     }
 
     pub fn init_nodes_graph<
@@ -5311,7 +5317,7 @@ mod test_node_property_filter_agg {
         ];
 
         for (t, id, props) in nodes {
-            graph.add_node(t, id, props, None).unwrap();
+            graph.add_node(t, id, props, None, None).unwrap();
         }
 
         let metadata: [(&str, Vec<(&str, Prop)>); 8] = [
@@ -5388,7 +5394,7 @@ mod test_node_property_filter_agg {
             IdentityGraphTransformer,
             filter.clone(),
             &expected,
-            NonDiskOnly,
+            All,
         );
 
         assert_search_nodes_results(
@@ -5396,7 +5402,7 @@ mod test_node_property_filter_agg {
             IdentityGraphTransformer,
             filter,
             &expected,
-            NonDiskOnly,
+            All,
         );
     }
 
@@ -5409,7 +5415,7 @@ mod test_node_property_filter_agg {
             IdentityGraphTransformer,
             filter.clone(),
             &expected,
-            NonDiskOnly,
+            All,
         );
 
         // assert_search_nodes_err(
@@ -5417,7 +5423,7 @@ mod test_node_property_filter_agg {
         //     IdentityGraphTransformer,
         //     filter,
         //     expected,
-        //     NonDiskOnly,
+        //     All,
         // );
     }
 
@@ -8702,7 +8708,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_src_in() {
-        let filter = EdgeFilter::src().name().is_in(vec!["1".into()]);
+        let filter = EdgeFilter::src().name().is_in(vec!["1"]);
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8719,7 +8725,7 @@ mod test_edge_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter::src().name().is_in(vec!["1".into(), "2".into()]);
+        let filter = EdgeFilter::src().name().is_in(vec!["1", "2"]);
         let expected_results = vec!["1->2", "2->1", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8739,7 +8745,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_src_not_in() {
-        let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]);
+        let filter = EdgeFilter::src().name().is_not_in(vec!["1"]);
         let expected_results = vec![
             "2->1",
             "2->3",
@@ -8811,7 +8817,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_dst_in() {
-        let filter = EdgeFilter::dst().name().is_in(vec!["2".into()]);
+        let filter = EdgeFilter::dst().name().is_in(vec!["2"]);
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8828,7 +8834,7 @@ mod test_edge_filter {
             TestVariants::All,
         );
 
-        let filter = EdgeFilter::dst().name().is_in(vec!["2".into(), "3".into()]);
+        let filter = EdgeFilter::dst().name().is_in(vec!["2", "3"]);
         let expected_results = vec!["1->2", "2->3"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -8848,7 +8854,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_dst_not_in() {
-        let filter = EdgeFilter::dst().name().is_not_in(vec!["1".into()]);
+        let filter = EdgeFilter::dst().name().is_not_in(vec!["1"]);
         let expected_results = vec![
             "1->2",
             "2->3",
@@ -9089,7 +9095,7 @@ mod test_edge_filter {
 
     #[test]
     fn test_filter_edges_for_not_src() {
-        let filter = EdgeFilter::src().name().is_not_in(vec!["1".into()]).not();
+        let filter = EdgeFilter::src().name().is_not_in(vec!["1"]).not();
         let expected_results = vec!["1->2"];
         assert_filter_edges_results(
             init_edges_graph,
@@ -9954,21 +9960,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
     }
 
@@ -9982,21 +9988,21 @@ mod test_edge_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_select_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         assert_search_edges_results(
             init_edges_graph_with_str_ids_del,
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
     }
 
@@ -12003,7 +12009,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12018,7 +12024,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -12038,7 +12044,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12053,7 +12059,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter.property("p1").eq("pometry").or(EdgeFilter
@@ -12078,7 +12084,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12093,7 +12099,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::src()
@@ -12113,7 +12119,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12128,7 +12134,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter
@@ -12148,7 +12154,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12163,7 +12169,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::src()
@@ -12183,7 +12189,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
         let filter = filter.try_as_composite_edge_filter().unwrap();
         assert_filter_edges_results(
@@ -12198,7 +12204,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = EdgeFilter::dst()
@@ -12254,7 +12260,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
 
         let filter = filter.try_as_composite_edge_filter().unwrap();
@@ -12270,7 +12276,7 @@ mod test_edge_composite_filter {
             IdentityGraphTransformer,
             filter.clone(),
             &expected_results,
-            TestVariants::NonDiskOnly,
+            TestVariants::All,
         );
     }
 

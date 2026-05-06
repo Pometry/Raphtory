@@ -104,7 +104,7 @@ pub fn triplet_count<G: StaticGraphViewOps>(g: &G, threads: Option<usize>) -> us
         vec![],
         vec![Job::new(step1)],
         None,
-        |egs, _, _, _| egs.finalize(&count),
+        |egs, _, _, _, _| egs.finalize(&count),
         threads,
         1,
         None,

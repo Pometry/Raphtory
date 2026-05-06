@@ -41,7 +41,6 @@ pub struct PyNodeIdFilterBuilder(Arc<NodeIdFilterBuilder>);
 impl PyNodeIdFilterBuilder {
     /// Returns a filter expression that checks whether the node ID
     /// is equal to the given value.
-    ///pub(crate) pub(crate)
     /// Arguments:
     ///     value (int): Node ID to compare against.
     ///
@@ -380,7 +379,7 @@ impl PyNodeFilter {
     /// Selects the node ID field for filtering.
     ///
     /// Returns:
-    ///     filter.NodeIdFilterBuilder
+    ///     filter.NodeIdFilterBuilder:
     #[staticmethod]
     fn id() -> PyNodeIdFilterBuilder {
         PyNodeIdFilterBuilder(Arc::new(NodeFilter::id()))
@@ -389,7 +388,7 @@ impl PyNodeFilter {
     /// Selects the node name field for filtering.
     ///
     /// Returns:
-    ///     filter.NodeNameFilterBuilder
+    ///     filter.NodeNameFilterBuilder:
     #[staticmethod]
     fn name() -> PyNodeNameFilterBuilder {
         PyNodeNameFilterBuilder(Arc::new(NodeFilter::name()))
@@ -398,7 +397,7 @@ impl PyNodeFilter {
     /// Selects the node type field for filtering.
     ///
     /// Returns:
-    ///     filter.NodeTypeFilterBuilder
+    ///     filter.NodeTypeFilterBuilder:
     #[staticmethod]
     fn node_type() -> PyNodeTypeFilterBuilder {
         PyNodeTypeFilterBuilder(Arc::new(NodeFilter::node_type()))
@@ -412,7 +411,7 @@ impl PyNodeFilter {
     ///     name (str): Property key.
     ///
     /// Returns:
-    ///     filter.PropertyFilterOps
+    ///     filter.PropertyFilterOps:
     #[staticmethod]
     fn property<'py>(
         py: Python<'py>,
@@ -431,7 +430,7 @@ impl PyNodeFilter {
     ///     name (str): Metadata key.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps:
     #[staticmethod]
     fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
         let b: MetadataFilterBuilder<NodeFilter> =
@@ -448,7 +447,7 @@ impl PyNodeFilter {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn window(start: EventTime, end: EventTime) -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.window(start, end)))
@@ -460,7 +459,7 @@ impl PyNodeFilter {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn at(time: EventTime) -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.at(time)))
@@ -472,7 +471,7 @@ impl PyNodeFilter {
     ///     time (int): Lower time bound.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn after(time: EventTime) -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.after(time)))
@@ -484,7 +483,7 @@ impl PyNodeFilter {
     ///     time (int): Upper time bound.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn before(time: EventTime) -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.before(time)))
@@ -493,7 +492,7 @@ impl PyNodeFilter {
     /// Evaluates filters against the latest available state of each node.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn latest() -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.latest()))
@@ -505,7 +504,7 @@ impl PyNodeFilter {
     ///     time (int): Snapshot time.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn snapshot_at(time: EventTime) -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.snapshot_at(time)))
@@ -514,7 +513,7 @@ impl PyNodeFilter {
     /// Evaluates filters against the most recent snapshot of the graph.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn snapshot_latest() -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.snapshot_latest()))
@@ -526,7 +525,7 @@ impl PyNodeFilter {
     ///     layer (str): Layer name.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn layer(layer: String) -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.layer(layer)))
@@ -538,7 +537,7 @@ impl PyNodeFilter {
     ///     layers (list[str]): Layer names.
     ///
     /// Returns:
-    ///     filter.NodeViewPropsFilterBuilder
+    ///     filter.NodeViewPropsFilterBuilder:
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyNodeViewPropsFilterBuilder {
         PyNodeViewPropsFilterBuilder(Arc::new(NodeFilter.layer(layers)))
@@ -547,12 +546,20 @@ impl PyNodeFilter {
     /// Matches nodes that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_active() -> PyFilterExpr {
         PyFilterExpr(Arc::new(NodeFilter.is_active()))
     }
 
+    /// Build a node filter from a boolean column of an existing node-state result.
+    ///
+    /// Arguments:
+    ///     state (OutputNodeState): A pre-computed node state (e.g. from an algorithm).
+    ///     col (str): Name of the boolean column on `state` whose values determine inclusion.
+    ///
+    /// Returns:
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn by_state_column(state: &PyOutputNodeState, col: String) -> PyResult<PyFilterExpr> {
         let op = NodeStateBoolColOp::new(&state.inner, &col)

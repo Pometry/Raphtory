@@ -1,6 +1,9 @@
-use crate::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+use crate::core::{
+    entities::properties::prop::{Prop, PropArray},
+    storage::arc_str::ArcStr,
+};
 use bigdecimal::BigDecimal;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use rustc_hash::FxHashMap;
 use std::sync::Arc;
 
@@ -55,8 +58,8 @@ pub trait PropUnwrap: Sized {
         self.into_bool().unwrap()
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>>;
-    fn unwrap_list(self) -> Arc<Vec<Prop>> {
+    fn into_list(self) -> Option<PropArray>;
+    fn unwrap_list(self) -> PropArray {
         self.into_list().unwrap()
     }
 
@@ -73,6 +76,15 @@ pub trait PropUnwrap: Sized {
     fn as_f64(&self) -> Option<f64>;
 
     fn into_decimal(self) -> Option<BigDecimal>;
+
+    fn unwrap_decimal(self) -> BigDecimal {
+        self.into_decimal().unwrap()
+    }
+    fn into_dtime(self) -> Option<DateTime<Utc>>;
+
+    fn unwrap_dtime(self) -> DateTime<Utc> {
+        self.into_dtime().unwrap()
+    }
 }
 
 impl<P: PropUnwrap> PropUnwrap for Option<P> {
@@ -116,7 +128,7 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
         self.and_then(|p| p.into_bool())
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+    fn into_list(self) -> Option<PropArray> {
         self.and_then(|p| p.into_list())
     }
 
@@ -134,6 +146,10 @@ impl<P: PropUnwrap> PropUnwrap for Option<P> {
 
     fn into_decimal(self) -> Option<BigDecimal> {
         self.and_then(|p| p.into_decimal())
+    }
+
+    fn into_dtime(self) -> Option<DateTime<Utc>> {
+        self.and_then(|p| p.into_dtime())
     }
 }
 
@@ -218,7 +234,7 @@ impl PropUnwrap for Prop {
         }
     }
 
-    fn into_list(self) -> Option<Arc<Vec<Prop>>> {
+    fn into_list(self) -> Option<PropArray> {
         if let Prop::List(v) = self {
             Some(v)
         } else {
@@ -228,6 +244,14 @@ impl PropUnwrap for Prop {
 
     fn into_map(self) -> Option<Arc<FxHashMap<ArcStr, Prop>>> {
         if let Prop::Map(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
+
+    fn into_dtime(self) -> Option<DateTime<Utc>> {
+        if let Prop::DTime(v) = self {
             Some(v)
         } else {
             None

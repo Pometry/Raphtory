@@ -10,9 +10,13 @@ use raphtory::{
     },
     prelude::*,
 };
+use raphtory_api::core::entities::LayerIds;
 use raphtory_storage::core_ops::CoreGraphOps;
 use rayon::prelude::*;
 
+/// Describes nodes of a specific type in a graph — its property keys and
+/// observed value types (and, for string-valued properties, the set of
+/// distinct values seen). One `NodeSchema` per node type.
 #[derive(ResolvedObject)]
 pub(crate) struct NodeSchema {
     pub(crate) type_id: usize,
@@ -30,15 +34,21 @@ impl NodeSchema {
 
 #[ResolvedObjectFields]
 impl NodeSchema {
+    /// The node type this schema describes (e.g. `"person"`, `"org"`).
+    /// Falls back to the default node type for untyped nodes.
     async fn type_name(&self) -> String {
         self.type_name_inner()
     }
 
-    /// Returns the list of property schemas for this node
+    /// Property schemas seen on nodes of this type — one entry per property key
+    /// ever set on a node of this type, with its observed `PropertyType` and (for
+    /// string-valued properties) the set of distinct values.
     async fn properties(&self) -> Vec<PropertySchema> {
         self.properties_inner()
     }
 
+    /// Metadata schemas seen on nodes of this type — like `properties`, but
+    /// covering metadata fields rather than temporal properties.
     async fn metadata(&self) -> Vec<PropertySchema> {
         self.metadata_inner()
     }
@@ -53,24 +63,16 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        let keys: Vec<String> = self
+        let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
             .temporal_prop_mapper()
-            .get_keys()
-            .into_iter()
-            .map(|k| k.to_string())
-            .collect();
-        let property_types: Vec<String> = self
-            .graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .dtypes()
-            .iter()
-            .map(|dtype| dtype.to_string())
-            .collect();
+            .locked()
+            .iter_ids_and_types()
+            .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
+            .unzip();
 
-        if self.graph.unfiltered_num_nodes() > 1000 {
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
             // large graph, do not collect detailed schema as it is expensive
             keys.into_iter()
                 .zip(property_types)
@@ -81,7 +83,7 @@ impl NodeSchema {
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().len()];
+                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
                     node_types_filter[self.type_id] = true;
                     let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
@@ -108,24 +110,16 @@ impl NodeSchema {
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
-        let keys: Vec<String> = self
+        let (keys, property_types): (Vec<_>, Vec<_>) = self
             .graph
             .node_meta()
             .metadata_mapper()
-            .get_keys()
-            .into_iter()
-            .map(|k| k.to_string())
-            .collect();
-        let property_types: Vec<String> = self
-            .graph
-            .node_meta()
-            .metadata_mapper()
-            .dtypes()
-            .iter()
-            .map(|dtype| dtype.to_string())
-            .collect();
+            .locked()
+            .iter_ids_and_types()
+            .map(|(_, k, dtype)| (k.to_string(), dtype.to_string()))
+            .unzip();
 
-        if self.graph.unfiltered_num_nodes() > 1000 {
+        if self.graph.unfiltered_num_nodes(&LayerIds::All) > 1000 {
             // large graph, do not collect detailed schema as it is expensive
             keys.into_iter()
                 .zip(property_types)
@@ -136,7 +130,7 @@ impl NodeSchema {
                 .zip(property_types)
                 .filter_map(|(key, dtype)| {
                     let mut node_types_filter =
-                        vec![false; self.graph.node_meta().node_type_meta().len()];
+                        vec![false; self.graph.node_meta().node_type_meta().num_all_fields()];
                     node_types_filter[self.type_id] = true;
                     let filter = TypeId.mask(node_types_filter.into());
                     let unique_values: ahash::HashSet<_> =
@@ -174,15 +168,16 @@ mod test {
 
     #[test]
     fn aggregate_schema() -> Result<(), GraphError> {
-        let g = Graph::new_with_shards(2);
+        let g = Graph::new();
 
         g.add_node(
             0,
             1,
             [("t", Prop::str("wallet")), ("cost", Prop::F64(99.5))],
             Some("a"),
+            None,
         )?;
-        g.add_node(1, 2, [("t", Prop::str("person"))], None)?;
+        g.add_node(1, 2, [("t", Prop::str("person"))], None, None)?;
         g.add_node(
             6,
             3,
@@ -198,6 +193,7 @@ mod test {
                 ("cost_b", Prop::F64(76.0)),
             ],
             Some("b"),
+            None,
         )?;
         g.add_node(
             7,
@@ -207,6 +203,7 @@ mod test {
                 ("bool_prop", Prop::Bool(true)),
             ],
             Some("b"),
+            None,
         )?;
 
         let node = g.node(1).unwrap();

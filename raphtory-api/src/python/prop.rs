@@ -1,21 +1,27 @@
 use crate::core::{
-    entities::properties::prop::{data_type_as_prop_type, Prop, PropType},
+    entities::properties::prop::{data_type_as_prop_type, Prop, PropArray, PropType, PropUnwrap},
     storage::arc_str::ArcStr,
 };
+use array_ext::*;
 use bigdecimal::BigDecimal;
+use chrono::{DateTime, NaiveDateTime, Utc};
+use numpy::{
+    datetime::{units::Milliseconds as NumpyMs, Datetime as NumpyDateTime},
+    IntoPyArray, PyArray as NumpyArray,
+};
 use pyo3::{
     exceptions::PyTypeError,
+    intern,
     prelude::*,
     pybacked::PyBackedStr,
-    sync::GILOnceCell,
+    sync::PyOnceLock,
     types::{PyBool, PyDict, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
-use pyo3_arrow::PyDataType;
+use pyo3_arrow::{PyArray, PyDataType};
 use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
-#[cfg(feature = "arrow")]
 mod array_ext {
     use pyo3::{intern, prelude::*, types::PyTuple};
     use pyo3_arrow::PyArray;
@@ -34,13 +40,86 @@ mod array_ext {
     }
 }
 
-#[cfg(feature = "arrow")]
-use {crate::core::entities::properties::prop::PropArray, array_ext::*, pyo3_arrow::PyArray};
-
-static DECIMAL_CLS: GILOnceCell<Py<PyType>> = GILOnceCell::new();
+static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
+
+impl<'py> IntoPyObject<'py> for PropArray {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let array = match self {
+            PropArray::Vec(props) => {
+                let mut iter = props.iter().peekable();
+                match iter.peek() {
+                    Some(Prop::U8(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u8()))
+                            .into_any()
+                    }
+                    Some(Prop::U16(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u16()))
+                            .into_any()
+                    }
+                    Some(Prop::U32(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u32()))
+                            .into_any()
+                    }
+                    Some(Prop::U64(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u64()))
+                            .into_any()
+                    }
+                    Some(Prop::I32(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_i32()))
+                            .into_any()
+                    }
+                    Some(Prop::I64(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_i64()))
+                            .into_any()
+                    }
+                    Some(Prop::F32(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_f32()))
+                            .into_any()
+                    }
+                    Some(Prop::F64(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_f64()))
+                            .into_any()
+                    }
+                    Some(Prop::Bool(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_bool()))
+                            .into_any()
+                    }
+                    Some(Prop::DTime(_)) => NumpyArray::from_iter(
+                        py,
+                        iter.filter_map(|p| {
+                            p.clone()
+                                .into_dtime()
+                                .map(|dt| NumpyDateTime::<NumpyMs>::from(dt.timestamp_millis()))
+                        }),
+                    )
+                    .into_any(),
+                    Some(Prop::NDTime(_)) => NumpyArray::from_iter(
+                        py,
+                        iter.filter_map(|p| {
+                            p.clone().into_ndtime().map(|dt| {
+                                NumpyDateTime::<NumpyMs>::from(dt.and_utc().timestamp_millis())
+                            })
+                        }),
+                    )
+                    .into_any(),
+                    _ => NumpyArray::from_iter(py, iter.filter_map(|p| p.into_py_any(py).ok()))
+                        .into_any(),
+                }
+            }
+            PropArray::Array(props) => PyArray::from_array_ref(props)
+                .into_pyarrow(py)?
+                .call_method(intern!(py, "to_numpy"), (false, false), None)?,
+        };
+        Ok(array)
+    }
 }
 
 impl<'py> IntoPyObject<'py> for Prop {
@@ -59,18 +138,10 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
             Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
             Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
-            #[cfg(feature = "arrow")]
-            Prop::Array(blob) => {
-                if let Some(arr_ref) = blob.into_array_ref() {
-                    PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
-                } else {
-                    py.None().into_bound(py)
-                }
-            }
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
-            Prop::List(v) => v.deref().clone().into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::List(v) => v.into_pyobject(py)?.into_any(),
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
             Prop::Decimal(d) => {
                 let decl_cls = get_decimal_cls(py)?;
@@ -80,81 +151,271 @@ impl<'py> IntoPyObject<'py> for Prop {
     }
 }
 
-#[pyclass(name = "Prop", module = "raphtory")]
+impl<'a, 'py: 'a> IntoPyObject<'py> for &'a Prop {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        Ok(match self {
+            Prop::Str(s) => s.into_pyobject(py)?.into_any(),
+            Prop::Bool(bool) => bool.into_bound_py_any(py)?,
+            Prop::U8(u8) => u8.into_pyobject(py)?.into_any(),
+            Prop::U16(u16) => u16.into_pyobject(py)?.into_any(),
+            Prop::I64(i64) => i64.into_pyobject(py)?.into_any(),
+            Prop::U64(u64) => u64.into_pyobject(py)?.into_any(),
+            Prop::F64(f64) => f64.into_pyobject(py)?.into_any(),
+            Prop::DTime(dtime) => dtime.into_pyobject(py)?.into_any(),
+            Prop::NDTime(ndtime) => ndtime.into_pyobject(py)?.into_any(),
+            Prop::I32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::U32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::F32(v) => v.into_pyobject(py)?.into_any(),
+            Prop::List(PropArray::Array(arr_ref)) => {
+                PyArray::from_array_ref(arr_ref.clone()).into_pyarrow(py)?
+            }
+            Prop::List(PropArray::Vec(v)) => v.into_pyobject(py)?.into_any(),
+            Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
+            Prop::Decimal(d) => {
+                let decl_cls = get_decimal_cls(py)?;
+                decl_cls.call1((d.to_string(),))?
+            }
+        })
+    }
+}
+
+#[pyclass(name = "Prop", module = "raphtory", eq)]
+#[derive(PartialEq)]
 pub struct PyProp(pub Prop);
 
 #[pymethods]
 impl PyProp {
+    /// Construct a `Prop` holding an unsigned 8-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u8(value: u8) -> Self {
         PyProp(Prop::U8(value))
     }
 
+    /// Construct a `Prop` holding an unsigned 16-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u16(value: u16) -> Self {
         PyProp(Prop::U16(value))
     }
 
+    /// Construct a `Prop` holding an unsigned 32-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u32(value: u32) -> Self {
         PyProp(Prop::U32(value))
     }
 
+    /// Construct a `Prop` holding an unsigned 64-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn u64(value: u64) -> Self {
         PyProp(Prop::U64(value))
     }
 
+    /// Construct a `Prop` holding a signed 32-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn i32(value: i32) -> Self {
         PyProp(Prop::I32(value))
     }
 
+    /// Construct a `Prop` holding a signed 64-bit integer.
+    ///
+    /// Arguments:
+    ///     value (int): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn i64(value: i64) -> Self {
         PyProp(Prop::I64(value))
     }
 
+    /// Construct a `Prop` holding a 32-bit float.
+    ///
+    /// Arguments:
+    ///     value (float): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn f32(value: f32) -> Self {
         PyProp(Prop::F32(value))
     }
 
+    /// Construct a `Prop` holding a 64-bit float.
+    ///
+    /// Arguments:
+    ///     value (float): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn f64(value: f64) -> Self {
         PyProp(Prop::F64(value))
     }
 
+    /// Construct a `Prop` holding a string.
+    ///
+    /// Arguments:
+    ///     value (str): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn str(value: &str) -> Self {
         PyProp(Prop::str(value))
     }
 
+    /// Construct a `Prop` holding a boolean.
+    ///
+    /// Arguments:
+    ///     value (bool): the value to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn bool(value: bool) -> Self {
         PyProp(Prop::Bool(value))
     }
 
+    /// Construct a `Prop` holding a list of values.
+    ///
+    /// Arguments:
+    ///     values (list): the values to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn list(values: &Bound<'_, PyAny>) -> PyResult<Self> {
         let elems: Vec<Prop> = values.extract()?;
-        Ok(PyProp(Prop::List(Arc::new(elems))))
+        Ok(PyProp(Prop::list(elems)))
     }
 
+    /// Construct a `Prop` holding a string-keyed map of values.
+    ///
+    /// Arguments:
+    ///     dict (dict[str, Any]): the map to wrap.
+    ///
+    /// Returns:
+    ///     Prop:
     #[staticmethod]
     pub fn map(dict: Bound<'_, PyDict>) -> PyResult<Self> {
         let items: HashMap<String, Prop> = dict.extract()?;
 
-        let mut map: FxHashMap<ArcStr, Prop> =
-            FxHashMap::with_capacity_and_hasher(items.len(), Default::default());
-
-        for (k, v) in items {
-            map.insert(ArcStr::from(k), v);
-        }
+        let map: FxHashMap<ArcStr, Prop> = items
+            .into_iter()
+            .map(|(k, v)| (ArcStr::from(k), v))
+            .collect();
 
         Ok(PyProp(Prop::Map(Arc::new(map))))
     }
 
+    /// Construct a `Prop` holding a timezone-aware datetime (stored as UTC).
+    /// Naive datetimes are accepted and interpreted as UTC, matching the
+    /// convention used elsewhere in Raphtory's time inputs.
+    ///
+    /// Arguments:
+    ///     value (datetime): a datetime. Naive datetimes are treated as UTC.
+    ///
+    /// Returns:
+    ///     Prop:
+    #[staticmethod]
+    pub fn aware_datetime(value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(dt) = value.extract::<DateTime<Utc>>() {
+            return Ok(PyProp(Prop::DTime(dt)));
+        }
+        if let Ok(naive) = value.extract::<NaiveDateTime>() {
+            return Ok(PyProp(Prop::DTime(naive.and_utc())));
+        }
+        Err(PyTypeError::new_err(format!(
+            "Could not convert {value:?} to a datetime"
+        )))
+    }
+
+    /// Construct a `Prop` holding a naive (timezone-unaware) datetime.
+    ///
+    /// Arguments:
+    ///     value (datetime): the value to wrap (any tz info is dropped).
+    ///
+    /// Returns:
+    ///     Prop:
+    #[staticmethod]
+    pub fn naive_datetime(value: NaiveDateTime) -> Self {
+        PyProp(Prop::NDTime(value))
+    }
+
+    /// Construct a `Prop` holding an arbitrary-precision decimal.
+    ///
+    /// Arguments:
+    ///     value (Decimal | str | int | float): the value to wrap. Strings must
+    ///         parse as a decimal. Note that floats only have ~15-17 digits of
+    ///         precision — pass a string or `decimal.Decimal` for higher precision.
+    ///
+    /// Returns:
+    ///     Prop:
+    #[staticmethod]
+    pub fn decimal(value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let bd = if value.get_type().name()?.contains("Decimal")? {
+            // decimal.Decimal — go via its str representation for full precision.
+            let s = value.str()?.to_cow()?.into_owned();
+            BigDecimal::from_str(&s)
+                .map_err(|_| PyTypeError::new_err(format!("Could not convert {s} to Decimal")))?
+        } else if let Ok(i) = value.extract::<i64>() {
+            BigDecimal::from(i)
+        } else if let Ok(u) = value.extract::<u64>() {
+            BigDecimal::from(u)
+        } else if let Ok(f) = value.extract::<f64>() {
+            BigDecimal::try_from(f)
+                .map_err(|_| PyTypeError::new_err(format!("Could not convert {f} to Decimal")))?
+        } else if let Ok(s) = value.extract::<String>() {
+            BigDecimal::from_str(&s)
+                .map_err(|_| PyTypeError::new_err(format!("Could not convert {s} to Decimal")))?
+        } else {
+            return Err(PyTypeError::new_err(format!(
+                "Could not convert {:?} to Decimal",
+                value
+            )));
+        };
+        let prop = Prop::try_from_bd(bd)
+            .map_err(|_| PyTypeError::new_err(format!("Decimal too large: {value:?}")))?;
+        Ok(PyProp(prop))
+    }
+
+    /// Returns the `PropType` of the wrapped value.
+    ///
+    /// Returns:
+    ///     PropType:
     pub fn dtype(&self) -> PropType {
         self.0.dtype()
     }
@@ -162,11 +423,19 @@ impl PyProp {
     pub fn __repr__(&self) -> String {
         format!("{}", self.0)
     }
+
+    fn __hash__(&self) -> u64 {
+        use std::hash::{DefaultHasher, Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        self.0.hash(&mut hasher);
+        hasher.finish()
+    }
 }
 
 // Manually implemented to make sure we don't end up with f32/i32/u32 from python ints/floats
-impl<'source> FromPyObject<'source> for Prop {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for Prop {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(pyref) = ob.extract::<PyRef<PyProp>>() {
             return Ok(pyref.0.clone());
         }
@@ -213,15 +482,12 @@ impl<'source> FromPyObject<'source> for Prop {
         if let Ok(s) = ob.extract::<String>() {
             return Ok(Prop::Str(s.into()));
         }
-
-        #[cfg(feature = "arrow")]
         if let Ok(arrow) = ob.extract::<PyArray>() {
             let (arr, _) = arrow.into_inner();
-            return Ok(Prop::Array(PropArray::Array(arr)));
+            return Ok(Prop::List(PropArray::Array(arr)));
         }
-
-        if let Ok(list) = ob.extract() {
-            return Ok(Prop::List(Arc::new(list)));
+        if let Ok(list) = ob.extract::<Vec<Prop>>() {
+            return Ok(Prop::List(PropArray::Vec(list.into())));
         }
 
         if let Ok(map) = ob.extract() {
@@ -229,8 +495,9 @@ impl<'source> FromPyObject<'source> for Prop {
         }
 
         Err(PyTypeError::new_err(format!(
-            "Could not convert {:?} to Prop",
-            ob
+            "Could not convert {:?} of type {:?} to Prop",
+            ob,
+            ob.get_type()
         )))
     }
 }
@@ -244,79 +511,149 @@ pub struct PyPropType(pub PropType);
 
 #[pymethods]
 impl PyPropType {
+    /// Unsigned 8-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u8() -> PropType {
         PropType::U8
     }
 
+    /// Unsigned 16-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u16() -> PropType {
         PropType::U16
     }
 
+    /// Unsigned 32-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u32() -> PropType {
         PropType::U32
     }
 
+    /// Unsigned 64-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn u64() -> PropType {
         PropType::U64
     }
 
+    /// Signed 32-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn i32() -> PropType {
         PropType::I32
     }
 
+    /// Signed 64-bit integer type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn i64() -> PropType {
         PropType::I64
     }
 
+    /// 32-bit float type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn f32() -> PropType {
         PropType::F32
     }
 
+    /// 64-bit float type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn f64() -> PropType {
         PropType::F64
     }
 
+    /// String type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn str() -> PropType {
         PropType::Str
     }
 
+    /// Boolean type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn bool() -> PropType {
         PropType::Bool
     }
 
+    /// Naive datetime type (timezone-unaware).
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn naive_datetime() -> PropType {
         PropType::NDTime
     }
 
+    /// Datetime type (timezone-aware).
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn datetime() -> PropType {
         PropType::DTime
     }
 
+    /// Arbitrary-precision decimal type with a fixed scale (number of digits
+    /// after the decimal point).
+    ///
+    /// Arguments:
+    ///     scale (int): the number of digits after the decimal point.
+    ///
+    /// Returns:
+    ///     PropType:
+    #[staticmethod]
+    pub fn decimal(scale: i64) -> PropType {
+        PropType::Decimal { scale }
+    }
+
+    /// List type with a single element type.
+    ///
+    /// Arguments:
+    ///     p (PropType): element type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn list(p: PropType) -> PropType {
         PropType::List(Box::new(p))
     }
 
+    /// Map type with string keys and typed values.
+    ///
+    /// Arguments:
+    ///     hash_map (dict[str, PropType]): mapping from key name to value type.
+    ///
+    /// Returns:
+    ///     PropType:
     #[staticmethod]
     pub fn map(hash_map: HashMap<String, PropType>) -> PropType {
         PropType::Map(Arc::new(hash_map))
-    }
-
-    #[staticmethod]
-    pub fn array(p: PropType) -> PropType {
-        PropType::Array(Box::new(p))
     }
 
     fn __repr__(&self) -> String {
@@ -342,9 +679,10 @@ impl<'py> IntoPyObject<'py> for PropType {
     }
 }
 
-impl<'source> FromPyObject<'source> for PropType {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        if let Ok(prop_type) = ob.downcast::<PyPropType>() {
+impl<'source> FromPyObject<'_, 'source> for PropType {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
+        if let Ok(prop_type) = ob.cast::<PyPropType>() {
             Ok(prop_type.get().0.clone())
         } else if let Ok(prop_type_str) = ob.extract::<PyBackedStr>() {
             match prop_type_str.deref().to_ascii_lowercase().as_str() {

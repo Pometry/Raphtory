@@ -1,7 +1,5 @@
 #![allow(non_snake_case)]
 
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
         alternating_mask::alternating_mask as alternating_mask_rs,
@@ -73,11 +71,9 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::{storage::timeindex::EventTime, Direction};
+use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
@@ -91,7 +87,7 @@ fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
         return Ok(vec![single_node]);
     }
 
-    if let Ok(py_list) = param.downcast::<PyList>() {
+    if let Ok(py_list) = param.cast::<PyList>() {
         let mut nodes = Vec::new();
         for item in py_list.iter() {
             let num = item.extract::<PyNodeRef>()?;
@@ -153,20 +149,13 @@ pub fn weakly_connected_components(
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their component ids
+///     OutputNodeState: NodeState mapping nodes to their component ids
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn strongly_connected_components(
     graph: &PyGraphView,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
     components::strongly_connected_components(&graph.graph).to_output_nodestate()
-}
-
-#[cfg(feature = "storage")]
-#[pyfunction]
-#[pyo3(signature = (graph))]
-pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
-    connected_components_rs(graph.0.as_ref())
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -269,7 +258,7 @@ pub fn out_component(
 ///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their pagerank score.
+///     OutputNodeState: NodeState mapping nodes to their pagerank score.
 #[pyfunction]
 #[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
 pub fn pagerank(
@@ -349,7 +338,7 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 ///     v: vec of node ids, if empty, will return results for every node in the graph
 ///
 /// Returns:
-///     PyOutputNodeState: Mapping of vertices to lcc score
+///     OutputNodeState: Mapping of vertices to lcc score
 #[pyfunction]
 #[pyo3(signature = (graph, v=None))]
 pub fn local_clustering_coefficient_batch(
@@ -604,6 +593,7 @@ pub fn global_temporal_three_node_motif_multi(
 /// Arguments:
 ///     graph (GraphView): A directed raphtory graph
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+///     threads (int, optional): Number of threads to use. Defaults to None.
 ///
 /// Returns:
 ///     NodeStateMotifs: A mapping from nodes to lists of motif counts (40 counts in the same order as the global motif counts) with the number of each motif that node participates in.
@@ -679,7 +669,7 @@ pub fn balance(
 ///     graph (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their associated degree centrality.
+///     OutputNodeState: NodeState mapping nodes to their associated degree centrality.
 #[pyfunction]
 #[pyo3[signature = (graph)]]
 pub fn degree_centrality(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
@@ -781,11 +771,11 @@ pub fn betweenness_centrality(
 ///
 /// Arguments:
 ///     graph (GraphView): A reference to the graph
-///     iter_count: Number of iterations
+///     iter_count (int): Number of iterations. Defaults to 20.
 ///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to community id
+///     OutputNodeState: NodeState mapping nodes to community id
 ///
 #[pyfunction]
 #[pyo3[signature = (graph, iter_count=20, seed=None)]]
@@ -821,10 +811,10 @@ pub fn k_core(
     threads: Option<usize>,
 ) -> Nodes<'static, DynamicGraph> {
     let v_set = k_core_set(&graph.graph, k, iter_count, threads);
-    let index = if v_set.len() == graph.graph.unfiltered_num_nodes() {
-        None
+    let index = if v_set.len() == graph.graph.unfiltered_num_nodes(&LayerIds::All) {
+        Index::for_graph(graph.graph.clone())
     } else {
-        Some(Index::from_iter(v_set))
+        Index::from_iter(v_set)
     };
     Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), NO_FILTER, index)
 }
@@ -867,7 +857,7 @@ pub fn temporal_SEIR(
     rng_seed: Option<u64>,
 ) -> Result<OutputTypedNodeState<'static, DynamicGraph>, SeedError> {
     let mut rng = match rng_seed {
-        None => StdRng::from_entropy(),
+        None => StdRng::from_os_rng(),
         Some(seed) => StdRng::seed_from_u64(seed),
     };
     temporal_SEIR_rs(
@@ -1000,7 +990,7 @@ pub fn temporal_rich_club_coefficient(
 ) -> PyResult<f64> {
     let py_iterator = views.try_iter()?;
     let views = py_iterator
-        .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
+        .map(|view| view.and_then(|view| Ok(view.cast::<PyGraphView>()?.get().graph.clone())))
         .collect::<PyResult<Vec<_>>>()?;
     Ok(temporal_rich_club_rs(&graph.graph, views, k, window_size))
 }
@@ -1093,7 +1083,7 @@ pub fn fast_rp(
 ///     graph (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     PyOutputNodeState: NodeState mapping nodes to their associated alternating masks.
+///     OutputNodeState: NodeState mapping nodes to their associated alternating masks.
 #[pyfunction]
 #[pyo3[signature = (graph)]]
 pub fn alternating_mask(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {

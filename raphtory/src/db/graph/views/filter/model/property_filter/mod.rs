@@ -26,6 +26,7 @@ use crate::{
         EdgeFilter, EdgeViewOps, GraphViewOps, LayerOps, NodeFilter, NodeViewOps, PropertiesOps,
     },
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
@@ -33,12 +34,12 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{sort_comparable_props, Prop, PropType},
         },
-        EID,
+        LayerId, EID,
     },
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
@@ -327,7 +328,7 @@ impl<M> PropertyFilter<M> {
         &self,
         graph: &G,
         prop_id: usize,
-        edge: EdgeStorageRef,
+        edge: EdgeEntryRef,
     ) -> bool {
         let edge = EdgeView::new(graph, edge.out_ref());
         match self.prop_ref {
@@ -357,9 +358,16 @@ impl<M> PropertyFilter<M> {
         prop_id: usize,
         e: EID,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> bool {
-        let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t).at_layer(layer));
+        let edge = EdgeView::new(
+            graph,
+            graph
+                .core_edge(Either::Left(e))
+                .out_ref()
+                .at(t)
+                .at_layer(layer),
+        );
         match self.prop_ref {
             PropertyRef::Metadata(_) => {
                 let props = edge.metadata();

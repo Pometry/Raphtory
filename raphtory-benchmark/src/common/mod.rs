@@ -1,26 +1,27 @@
 #![allow(dead_code)]
 
+#[cfg(feature = "vectors")]
 pub mod vectors;
 
 use criterion::{
     black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
-use rand::{distributions::Uniform, seq::*, Rng, SeedableRng};
+use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::logging::global_info_logger};
-use std::collections::HashSet;
+use std::{collections::HashSet, iter};
 use tempfile::TempDir;
 use tracing::info;
 
 fn make_index_gen() -> Box<dyn Iterator<Item = u64>> {
-    let rng = rand::thread_rng();
-    let range = Uniform::new(u64::MIN, u64::MAX);
+    let rng = rand::rng();
+    let range = Uniform::new(u64::MIN, u64::MAX).unwrap();
     Box::new(rng.sample_iter(range))
 }
 
 fn make_time_gen() -> Box<dyn Iterator<Item = i64>> {
-    let rng = rand::thread_rng();
-    let range = Uniform::new(i64::MIN, i64::MAX);
+    let rng = rand::rng();
+    let range = Uniform::new(i64::MIN, i64::MAX).unwrap();
     Box::new(rng.sample_iter(range))
 }
 
@@ -77,7 +78,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None),
+                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None, None),
                 BatchSize::SmallInput,
             )
         },
@@ -89,7 +90,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None),
+                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None, None),
                 BatchSize::SmallInput,
             )
         },
@@ -300,7 +301,7 @@ pub fn run_analysis_benchmarks<F, G>(
     });
 
     bench(group, "has_edge_existing", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (src, dst) = edges
             .iter()
             .choose(&mut rng)
@@ -313,7 +314,7 @@ pub fn run_analysis_benchmarks<F, G>(
         "has_edge_nonexisting",
         parameter,
         |b: &mut Bencher| {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let edge = loop {
                 let edge: (&GID, &GID) = (
                     nodes.iter().choose(&mut rng).expect("has_edge_nonexisting: non-empty graph (graph().nodes().id().iter() is empty)"),
@@ -328,7 +329,7 @@ pub fn run_analysis_benchmarks<F, G>(
     );
 
     bench(group, "active edge", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (edge, active_t) = edges_t
             .choose(&mut rng)
             .and_then(|(src, dst, t)| graph.edge(src, dst).map(|e| (e, t.t())))
@@ -344,7 +345,7 @@ pub fn run_analysis_benchmarks<F, G>(
     });
 
     bench(group, "edge has layer", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let edge = edges
             .iter()
             .choose(&mut rng)
@@ -364,7 +365,7 @@ pub fn run_analysis_benchmarks<F, G>(
     });
 
     bench(group, "has_node_existing", parameter, |b: &mut Bencher| {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let v = nodes
             .iter()
             .choose(&mut rng)
@@ -377,9 +378,9 @@ pub fn run_analysis_benchmarks<F, G>(
         "has_node_nonexisting",
         parameter,
         |b: &mut Bencher| {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             let v: u64 = loop {
-                let v: u64 = rng.gen();
+                let v: u64 = rng.random();
                 if !nodes.contains(&GID::U64(v)) {
                     break v;
                 }
@@ -513,12 +514,12 @@ pub fn run_graph_ops_benches(
 
     // subgraph
     let mut rng = rand::rngs::StdRng::seed_from_u64(73);
-    let nodes = graph
+    let nodes = (&&graph)
         .nodes()
         .into_iter()
-        .choose_multiple(&mut rng, graph.count_nodes() / 10)
+        .choose_multiple(&mut rng, 1.max(graph.count_nodes() / 10))
         .into_iter()
-        .map(|n| n.id())
+        .flat_map(|n| iter::once(n.id()).chain(n.out_neighbours().id().next())) // at least one edge per node
         .collect::<Vec<_>>();
     let subgraph = graph.subgraph(nodes);
     let group_name = format!("{graph_name}_subgraph_10pc");

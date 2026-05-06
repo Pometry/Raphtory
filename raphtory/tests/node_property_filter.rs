@@ -2,53 +2,34 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::{
-        api::{
-            properties::internal::InheritPropertiesOps,
-            state::ops::NodeOp,
-            view::{
-                filter_ops::{Filter, NodeSelect},
-                internal::{
-                    GraphView, Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter,
-                    InheritLayerOps, InheritListOps, InheritMaterialize, InheritNodeHistoryFilter,
-                    InheritStorageOps, InheritTimeSemantics, InternalNodeFilterOps, Static,
-                },
-                EdgeSelect,
-            },
-        },
+        api::view::filter_ops::{Filter, NodeSelect},
         graph::{
             assertions::assert_ok_or_missing_nodes,
             graph::assert_edges_equal,
-            views::filter::{
-                model::{
-                    node_filter::{ops::NodeFilterOps, NodeFilter},
-                    property_filter::ops::PropertyFilterOps,
-                    ComposableFilter, PropertyFilterFactory,
-                },
-                CreateFilter,
+            views::filter::model::{
+                node_filter::{ops::NodeFilterOps, NodeFilter},
+                property_filter::ops::PropertyFilterOps,
+                ComposableFilter, PropertyFilterFactory,
             },
         },
     },
-    prelude::{AdditionOps, Graph, GraphViewOps, TimeOps, NO_PROPS, *},
+    prelude::*,
     test_utils::{
         add_node_props, build_edge_list, build_graph_from_edge_list, build_node_props,
         node_filtered_graph,
     },
 };
-use raphtory_api::{core::storage::timeindex::AsTime, inherit::Base};
-use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
-    layer_ops::InternalLayerOps,
-};
+
 #[test]
 #[ignore]
 // TODO: Enable this once fixed
 fn test_node_filter_on_nodes() {
     let g = Graph::new();
-    g.add_node(0, "Jimi", [("band", "JH Experience")], None)
+    g.add_node(0, "Jimi", [("band", "JH Experience")], None, None)
         .unwrap();
-    g.add_node(1, "John", [("band", "Dead & Company")], None)
+    g.add_node(1, "John", [("band", "Dead & Company")], None, None)
         .unwrap();
-    g.add_node(2, "David", [("band", "Pink Floyd")], None)
+    g.add_node(2, "David", [("band", "Pink Floyd")], None, None)
         .unwrap();
 
     let filter_expr = NodeFilter::name()
@@ -88,10 +69,10 @@ fn test_node_filter_on_nodes() {
 #[test]
 fn test_node_property_filter_on_nodes() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", 1i64)], None).unwrap();
-    g.add_node(0, 2, [("test", 2i64)], None).unwrap();
-    g.add_node(1, 3, [("test", 3i64)], None).unwrap();
-    g.add_node(1, 4, [("test", 4i64)], None).unwrap();
+    g.add_node(0, 1, [("test", 1i64)], None, None).unwrap();
+    g.add_node(0, 2, [("test", 2i64)], None, None).unwrap();
+    g.add_node(1, 3, [("test", 3i64)], None, None).unwrap();
+    g.add_node(1, 4, [("test", 4i64)], None, None).unwrap();
 
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
@@ -182,9 +163,9 @@ fn test_node_property_filter_on_nodes() {
 #[test]
 fn test_node_property_filter_path() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", 1i64)], None).unwrap();
-    g.add_node(1, 2, [("test", 2i64)], None).unwrap();
-    g.add_node(1, 3, [("test", 3i64)], None).unwrap();
+    g.add_node(0, 1, [("test", 1i64)], None, None).unwrap();
+    g.add_node(1, 2, [("test", 2i64)], None, None).unwrap();
+    g.add_node(1, 3, [("test", 3i64)], None, None).unwrap();
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 1, NO_PROPS, None).unwrap();
@@ -198,7 +179,8 @@ fn test_node_property_filter_path() {
         filtered_nodes
             .out_neighbours()
             .id()
-            .map(|i| i.collect_vec())
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.sorted().collect_vec())
             .collect_vec(),
         vec![vec![GID::U64(1), GID::U64(3)], vec![]]
     );
@@ -207,7 +189,8 @@ fn test_node_property_filter_path() {
         filtered_nodes
             .out_neighbours()
             .degree()
-            .map(|i| i.collect_vec())
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.collect_vec())
             .collect_vec(),
         vec![vec![2, 2], vec![]]
     );
@@ -221,7 +204,8 @@ fn test_node_property_filter_path() {
         filtered_nodes_p
             .out_neighbours()
             .id()
-            .map(|i| i.collect_vec())
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.sorted().collect_vec())
             .collect_vec(),
         vec![vec![GID::U64(1), GID::U64(3)], vec![]]
     );
@@ -230,9 +214,9 @@ fn test_node_property_filter_path() {
 #[test]
 fn test_node_property_filter_on_graph() {
     let g = Graph::new();
-    g.add_node(0, 1, [("test", 1i64)], None).unwrap();
-    g.add_node(1, 2, [("test", 2i64)], None).unwrap();
-    g.add_node(1, 3, [("test", 3i64)], None).unwrap();
+    g.add_node(0, 1, [("test", 1i64)], None, None).unwrap();
+    g.add_node(1, 2, [("test", 2i64)], None, None).unwrap();
+    g.add_node(1, 3, [("test", 3i64)], None, None).unwrap();
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 3, NO_PROPS, None).unwrap();
     g.add_edge(1, 2, 1, NO_PROPS, None).unwrap();
@@ -451,16 +435,16 @@ fn test_filter_is_none() {
 fn test_filter_is_none_simple_graph() {
     let graph = Graph::new();
     graph
-        .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
+        .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"), None)
         .unwrap();
     graph
-        .add_node(2, 1, [("p6", 6)], Some("fire_nation"))
+        .add_node(2, 1, [("p6", 6)], Some("fire_nation"), None)
         .unwrap();
     graph
-        .add_node(2, 2, [("p4", 5)], Some("fire_nation"))
+        .add_node(2, 2, [("p4", 5)], Some("fire_nation"), None)
         .unwrap();
     graph
-        .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
+        .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"), None)
         .unwrap();
 
     assert_eq!(graph.count_nodes(), 3);

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use proptest::{arbitrary::any, proptest};
 use raphtory::{
     db::graph::graph::{assert_graph_equal, assert_graph_equal_timestamps},
@@ -33,6 +34,7 @@ fn test_materialize() {
         .get("layer1")
         .and_then(|prop| prop.latest())
         .is_none());
+
     assert!(gm
         .into_events()
         .unwrap()
@@ -76,11 +78,11 @@ fn materialize_prop_test() {
 #[test]
 fn test_subgraph() {
     let g = Graph::new();
-    g.add_node(0, 1, NO_PROPS, None).unwrap();
-    g.add_node(0, 2, NO_PROPS, None).unwrap();
-    g.add_node(0, 3, NO_PROPS, None).unwrap();
-    g.add_node(0, 4, NO_PROPS, None).unwrap();
-    g.add_node(0, 5, NO_PROPS, None).unwrap();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 2, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 3, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 4, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 5, NO_PROPS, None, None).unwrap();
 
     let nodes_subgraph = g.subgraph(vec![4, 5]);
     assert_eq!(
@@ -98,11 +100,11 @@ fn test_subgraph() {
 #[test]
 fn test_exclude_nodes() {
     let g = Graph::new();
-    g.add_node(0, 1, NO_PROPS, None).unwrap();
-    g.add_node(0, 2, NO_PROPS, None).unwrap();
-    g.add_node(0, 3, NO_PROPS, None).unwrap();
-    g.add_node(0, 4, NO_PROPS, None).unwrap();
-    g.add_node(0, 5, NO_PROPS, None).unwrap();
+    g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 2, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 3, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 4, NO_PROPS, None, None).unwrap();
+    g.add_node(0, 5, NO_PROPS, None, None).unwrap();
 
     let exclude_nodes_subgraph = g.exclude_nodes(vec![4, 5]);
     assert_eq!(
@@ -110,6 +112,7 @@ fn test_exclude_nodes() {
             .nodes()
             .name()
             .iter_values()
+            .sorted()
             .collect::<Vec<String>>(),
         vec!["1", "2", "3"]
     );
@@ -120,8 +123,8 @@ fn test_exclude_nodes() {
 #[test]
 fn testing_node_types() {
     let graph = Graph::new();
-    graph.add_node(0, "A", NO_PROPS, None).unwrap();
-    graph.add_node(1, "B", NO_PROPS, Some("H")).unwrap();
+    graph.add_node(0, "A", NO_PROPS, None, None).unwrap();
+    graph.add_node(1, "B", NO_PROPS, Some("H"), None).unwrap();
 
     test_storage!(&graph, |graph| {
         let node_a = graph.node("A").unwrap();
@@ -134,11 +137,15 @@ fn testing_node_types() {
     });
 
     // Nodes with No type can be overwritten
-    let node_a = graph.add_node(1, "A", NO_PROPS, Some("TYPEA")).unwrap();
+    let node_a = graph
+        .add_node(1, "A", NO_PROPS, Some("TYPEA"), None)
+        .unwrap();
     assert_eq!(node_a.node_type().as_str(), Some("TYPEA"));
 
     // Check that overwriting a node type returns an error
-    assert!(graph.add_node(2, "A", NO_PROPS, Some("TYPEB")).is_err());
+    assert!(graph
+        .add_node(2, "A", NO_PROPS, Some("TYPEB"), None)
+        .is_err());
     // Double check that the type did not actually change
     assert_eq!(graph.node("A").unwrap().node_type().as_str(), Some("TYPEA"));
     // Check that the update is not added to the graph
@@ -154,8 +161,8 @@ fn changing_property_type_errors() {
     g.add_properties(0, props_0.clone()).unwrap();
     assert!(g.add_properties(1, props_1.clone()).is_err());
 
-    g.add_node(0, 1, props_0.clone(), None).unwrap();
-    assert!(g.add_node(1, 1, props_1.clone(), None).is_err());
+    g.add_node(0, 1, props_0.clone(), None, None).unwrap();
+    assert!(g.add_node(1, 1, props_1.clone(), None, None).is_err());
 
     g.add_edge(0, 1, 2, props_0.clone(), None).unwrap();
     assert!(g.add_edge(1, 1, 2, props_1.clone(), None).is_err());

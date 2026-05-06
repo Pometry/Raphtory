@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     core::entities::nodes::node_ref::{AsNodeRef, NodeRef},
     db::{
@@ -8,7 +6,9 @@ use crate::{
                 convert_prop_map, ops::Const, GenericNodeState, MergePriority, NodeStateOutput,
                 OutputTypedNodeState, TransformedPropMap, TypedNodeState,
             },
-            view::DynamicGraph,
+            view::{
+                internal::IntoDynamicOrMutable, BoxableGraphView, DynamicGraph, StaticGraphViewOps,
+            },
         },
         graph::nodes::Nodes,
     },
@@ -16,7 +16,7 @@ use crate::{
     python::{
         graph::{
             node::{PyNode, PyNodes},
-            node_state::NodeFilterOp,
+            node_state::{NodeFilterOp, NodeView},
         },
         types::{repr::Repr, wrappers::iterators::PyBorrowingIterator},
         utils::PyNodeRef,
@@ -27,15 +27,12 @@ use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
     pyclass, pymethods,
     types::{PyAnyMethods, PyDict, PyDictMethods, PyNotImplemented},
-    Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyObject, PyResult, Python,
+    Borrowed, Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, PyAny, PyErr, PyResult, Python,
 };
 use raphtory_api::core::entities::properties::prop::PropUntagged;
+use std::{collections::HashMap, sync::Arc};
 
-#[pyclass(
-    name = "OutputNodeState",
-    module = "raphtory.output_node_state",
-    frozen
-)]
+#[pyclass(name = "OutputNodeState", module = "raphtory.node_state", frozen)]
 pub struct PyOutputNodeState {
     pub inner: OutputTypedNodeState<'static, DynamicGraph>,
 }
@@ -68,7 +65,7 @@ impl PyOutputNodeState {
         other: &Bound<'py, PyAny>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) = other.extract::<Vec<IndexMap<String, Option<Prop>>>>() {
@@ -76,8 +73,8 @@ impl PyOutputNodeState {
         } else if let Ok(other) =
             other.extract::<HashMap<PyNodeRef, HashMap<String, Option<Prop>>>>()
         {
-            self.inner.try_eq_hashmap(other).unwrap()
-        } else if let Ok(other) = other.downcast::<PyDict>() {
+            self.inner.try_eq_hashmap(other).unwrap_or(false)
+        } else if let Ok(other) = other.cast::<PyDict>() {
             self.inner.len() == other.len()
                 && other.items().try_iter().unwrap().all(|item| {
                     if let Ok((node_ref, value)) =
@@ -108,7 +105,10 @@ impl PyOutputNodeState {
         self.inner.repr()
     }
 
-    fn __getitem__(&self, node: PyNodeRef) -> PyResult<TransformedPropMap<'static, DynamicGraph>> {
+    fn __getitem__(
+        &self,
+        node: PyNodeRef,
+    ) -> PyResult<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>> {
         let node = node.as_node_ref();
         self.inner
             .get_by_node(node)
@@ -131,16 +131,16 @@ impl PyOutputNodeState {
     ///
     /// Arguments:
     ///     node (NodeInput): the node
-    ///     default (Optional[Dict]): the default value (dict of field name to value). Defaults to None.")]
+    ///     default (dict, optional): the default value (dict of field name to value). Defaults to None.
     ///
     /// Returns:
-    ///     Optional[Dict]: the value for the node or the default value")]
-    #[pyo3(signature = (node, default=None::<TransformedPropMap<'static, DynamicGraph>>))]
+    ///     Optional[dict]: the value for the node or the default value
+    #[pyo3(signature = (node, default=None::<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>>))]
     fn get(
         &self,
         node: PyNodeRef,
-        default: Option<TransformedPropMap<'static, DynamicGraph>>,
-    ) -> Option<TransformedPropMap<'static, DynamicGraph>> {
+        default: Option<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>>,
+    ) -> Option<TransformedPropMap<'static, Arc<dyn BoxableGraphView>>> {
         self.inner
             .get_by_node(node)
             .map_or(default, |value| Some(self.inner.convert(value)))
@@ -196,6 +196,7 @@ impl PyOutputNodeState {
     ///
     /// Arguments:
     ///     sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+    ///     k (int): Number of top entries to return.
     ///
     /// Returns:
     ///     OutputNodeState: Sorted NodeState
@@ -214,15 +215,15 @@ impl PyOutputNodeState {
     /// Group by value
     ///
     /// Arguments:
-    ///     cols (List[Str]): columns by which to group nodes
+    ///     cols (list[str]): columns by which to group nodes
     ///
     /// Returns:
-    ///     List[Tuple[Dict, Nodes]]: The grouped nodes
+    ///     list[tuple[dict, Nodes]]: The grouped nodes
     fn groups(
         &self,
         cols: Vec<String>,
     ) -> Vec<(
-        TransformedPropMap<'static, DynamicGraph>,
+        TransformedPropMap<'static, Arc<dyn BoxableGraphView>>,
         Nodes<'static, DynamicGraph>,
     )> {
         self.inner.get_groups(cols).unwrap()
@@ -232,24 +233,27 @@ impl PyOutputNodeState {
     //    self.inner.sort_by_id()
     //}
 
-    /// Convert TypedNodeState to Parquet
+    /// Convert OutputNodeState to Parquet
     ///
     /// Arguments:
-    ///     file_path (Str): filepath to which TypedNodeState is written
-    ///     id_column (Str): column containing IDs of nodes
+    ///     file_path (str): filepath to which OutputNodeState is written
+    ///     id_column (str): column containing IDs of nodes. Defaults to "id".
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn to_parquet(&self, file_path: String, id_column: String) {
         self.inner.state.to_parquet(file_path, Some(id_column));
     }
 
-    /// Get TypedNodeState from Parquet
+    /// Get OutputNodeState from Parquet
     ///
     /// Arguments:
-    ///     file_path (Str): filepath from which to read TypedNodeState
-    ///     id_column (Str): column to which node IDs will be written
+    ///     file_path (str): filepath from which to read OutputNodeState
+    ///     id_column (str): column to which node IDs will be written. Defaults to "id".
     ///
     /// Returns:
-    ///     TypedNodeState
+    ///     OutputNodeState:
     #[pyo3(signature = (file_path, id_column="id".to_string()))]
     fn from_parquet(&self, file_path: String, id_column: String) -> PyResult<Self> {
         Ok(PyOutputNodeState {
@@ -260,16 +264,16 @@ impl PyOutputNodeState {
         })
     }
 
-    /// Merge with another TypedNodeState (produces new TypedNodeState)
+    /// Merge with another OutputNodeState (produces new OutputNodeState)
     ///
     /// Arguments:
-    ///     other (TypedNodeState): TypedNodeState to merge with
-    ///     index_merge_priority (Str): "left" or "right" to take left or right index, "union" to union index sets
-    ///     default_column_merge_priority (Str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default
-    ///     column_merge_priority_map (Dict): map of column names (Str) to merge priority ("left", "right", or "exclude")
+    ///     other (OutputNodeState): OutputNodeState to merge with
+    ///     index_merge_priority (str): "left" or "right" to take left or right index, "union" to union index sets. Defaults to "left".
+    ///     default_column_merge_priority (str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default. Defaults to "left".
+    ///     column_merge_priority_map (dict, optional): map of column names (str) to merge priority ("left", "right", or "exclude"). Defaults to None.
     ///
     /// Returns:
-    ///     TypedNodeState
+    ///     OutputNodeState:
     #[pyo3(signature = (other, index_merge_priority="left".to_string(), default_column_merge_priority="left".to_string(), column_merge_priority_map=None::<HashMap<String, String>>))]
     fn merge<'py>(
         &self,
@@ -314,7 +318,7 @@ impl PyOutputNodeState {
             )
         }
 
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner.state.merge(
                 &other.inner.state,
@@ -341,7 +345,9 @@ impl<'py> IntoPyObject<'py> for OutputTypedNodeState<'static, DynamicGraph> {
     }
 }
 
-impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
+impl<'py, G: StaticGraphViewOps + IntoDynamicOrMutable> IntoPyObject<'py>
+    for NodeStateOutput<'static, G>
+{
     type Target = PyAny;
     type Output = Bound<'py, PyAny>;
     type Error = PyErr;
@@ -355,9 +361,11 @@ impl<'py> IntoPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
     }
 }
 
-impl<'py> FromPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        if let Ok(nodes) = ob.downcast::<PyNodes>() {
+impl<'a, 'py> FromPyObject<'a, 'py> for NodeStateOutput<'static, DynamicGraph> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        if let Ok(nodes) = obj.cast::<PyNodes>() {
             if nodes.get().nodes.predicate.is_filtered() {
                 return Err(PyTypeError::new_err(
                     "Trying to read filtered Nodes object.",
@@ -368,14 +376,34 @@ impl<'py> FromPyObject<'py> for NodeStateOutput<'static, DynamicGraph> {
             return Ok(NodeStateOutput::Nodes(nodes));
         }
 
-        if let Ok(node) = ob.downcast::<PyNode>() {
+        if let Ok(node) = obj.cast::<PyNode>() {
             return Ok(NodeStateOutput::Node(node.get().node.clone()));
         }
 
-        if let Ok(prop) = ob.extract::<Option<Prop>>() {
+        if let Ok(prop) = obj.extract::<Option<Prop>>() {
             return Ok(NodeStateOutput::Prop(prop.map(PropUntagged::from)));
         }
 
-        return Err(PyTypeError::new_err("Invalid type conversion"));
+        Err(PyTypeError::new_err("Invalid type conversion"))
+    }
+}
+
+impl<'a, 'py> FromPyObject<'a, 'py> for NodeStateOutput<'static, Arc<dyn BoxableGraphView>> {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let obj = NodeStateOutput::<'static, DynamicGraph>::extract(obj)?;
+        Ok(match obj {
+            NodeStateOutput::Node(node) => {
+                NodeStateOutput::Node(NodeView::new_internal(node.graph.0, node.node))
+            }
+            NodeStateOutput::Nodes(nodes) => NodeStateOutput::Nodes(Nodes::new_filtered(
+                nodes.base_graph.0,
+                nodes.graph.0,
+                nodes.predicate,
+                nodes.nodes,
+            )),
+            NodeStateOutput::Prop(prop) => NodeStateOutput::Prop(prop),
+        })
     }
 }

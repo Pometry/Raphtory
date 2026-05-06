@@ -15,13 +15,17 @@ import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
@@ -44,6 +48,7 @@ __all__ = [
     "decode_graph",
     "schema",
     "cli",
+    "has_permissions_extension",
 ]
 
 class GraphServer(object):
@@ -56,13 +61,26 @@ class GraphServer(object):
         cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
         log_level (str, optional): the log level for the server
         tracing (bool, optional): whether tracing should be enabled
+        tracing_level (str, optional): tracing verbosity (e.g. "ERROR", "WARN", "INFO", "DEBUG", "TRACE").
         otlp_agent_host (str, optional): OTLP agent host for tracing
         otlp_agent_port(str, optional): OTLP agent port for tracing
         otlp_tracing_service_name (str, optional): The OTLP tracing service name
         config_path (str | PathLike, optional): Path to the config file
-        auth_public_key:
-        auth_enabled_for_reads:
-        create_index:
+        auth_public_key (str, optional): Base64-encoded public key used to verify bearer tokens
+        require_auth_for_reads (bool, optional): Require auth tokens for read queries
+        create_index (bool, optional): Build a search index on startup
+        heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
+        exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
+        disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
+        max_batch_size (int, optional): Caps the number of queries accepted in a single batched request.
+        disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
+        max_page_size (int, optional): Maximum page size allowed on paged collection queries.
+        max_query_depth (int, optional): Maximum nesting depth of a query.
+        max_query_complexity (int, optional): Maximum estimated cost of a query, based on the number of fields selected.
+        max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
+        max_directives_per_field (int, optional): Maximum number of directives on any single field.
+        disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
+        permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
     """
 
     def __new__(
@@ -72,14 +90,26 @@ class GraphServer(object):
         cache_tti_seconds: Optional[int] = None,
         log_level: Optional[str] = None,
         tracing: Optional[bool] = None,
-        tracing_level=None,
+        tracing_level: Optional[str] = None,
         otlp_agent_host: Optional[str] = None,
         otlp_agent_port: Optional[str] = None,
         otlp_tracing_service_name: Optional[str] = None,
-        auth_public_key: Any = None,
-        auth_enabled_for_reads: Any = None,
+        auth_public_key: Optional[str] = None,
+        require_auth_for_reads: Optional[bool] = None,
         config_path: Optional[str | PathLike] = None,
-        create_index: Any = None,
+        create_index: Optional[bool] = None,
+        heavy_query_limit: Optional[int] = None,
+        exclusive_writes: Optional[bool] = None,
+        disable_batching: Optional[bool] = None,
+        max_batch_size: Optional[int] = None,
+        disable_lists: Optional[bool] = None,
+        max_page_size: Optional[int] = None,
+        max_query_depth: Optional[int] = None,
+        max_query_complexity: Optional[int] = None,
+        max_recursive_depth: Optional[int] = None,
+        max_directives_per_field: Optional[int] = None,
+        disable_introspection: Optional[bool] = None,
+        permissions_store_path: Optional[str | PathLike] = None,
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
@@ -109,15 +139,20 @@ class GraphServer(object):
             RunningGraphServer: The running server
         """
 
-    def turn_off_index(self):
-        """Turn off index for all graphs"""
+    def turn_off_index(self) -> None:
+        """
+        Turn off index for all graphs.
+
+        Returns:
+            None:
+        """
 
     def vectorise_all_graphs(
         self,
         embeddings: OpenAIEmbeddings,
         nodes: bool | str = True,
         edges: bool | str = True,
-    ):
+    ) -> None:
         """
         Vectorise all graphs in the server working directory.
 
@@ -125,6 +160,9 @@ class GraphServer(object):
             embeddings (OpenAIEmbeddings): the embeddings to use
             nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
             edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+
+        Returns:
+            None:
         """
 
     def vectorise_graph(
@@ -133,7 +171,7 @@ class GraphServer(object):
         embeddings: OpenAIEmbeddings,
         nodes: bool | str = True,
         edges: bool | str = True,
-    ):
+    ) -> None:
         """
         Vectorise the graph name in the server working directory.
 
@@ -142,6 +180,9 @@ class GraphServer(object):
             embeddings (OpenAIEmbeddings): the embeddings to use
             nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
             edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+
+        Returns:
+            None:
         """
 
 class RunningGraphServer(object):
@@ -149,20 +190,20 @@ class RunningGraphServer(object):
 
     def __enter__(self): ...
     def __exit__(self, _exc_type, _exc_val, _exc_tb): ...
-    def get_client(self):
+    def get_client(self) -> RaphtoryClient:
         """
-        Get the client for the server
+        Get the client for the server.
 
         Returns:
-        RaphtoryClient: the client
+            RaphtoryClient: the client.
         """
 
-    def stop(self):
+    def stop(self) -> None:
         """
-        Stop the server and wait for it to finish
+        Stop the server and wait for it to finish.
 
         Returns:
-        None:
+            None:
         """
 
 class RaphtoryClient(object):
@@ -189,14 +230,16 @@ class RaphtoryClient(object):
             None:
         """
 
-    def create_index(self, path: Any, index_spec, in_ram: bool = True) -> None:
+    def create_index(
+        self, path: str, index_spec: RemoteIndexSpec, in_ram: bool = True
+    ) -> None:
         """
         Create Index for graph on the server at 'path'
 
         Arguments:
-            path: the path of the graph to be created
-            RemoteIndexSpec (RemoteIndexSpec): spec specifying the properties that need to be indexed
-            in_ram (bool): create index in ram
+            path (str): the path of the graph to be created
+            index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+            in_ram (bool): create index in ram. Defaults to True.
 
         Returns:
             None:
@@ -266,7 +309,7 @@ class RaphtoryClient(object):
         Receive graph from a path path on the server
 
         Note:
-        This downloads a copy of the graph. Modifications are not persistet to the server.
+        This downloads a copy of the graph. Modifications are not persisted to the server.
 
         Arguments:
             path (str): the path of the graph to be received
@@ -741,34 +784,48 @@ class AllPropertySpec(object):
     def __repr__(self):
         """Return repr(self)."""
 
-def encode_graph(graph):
+def encode_graph(graph: Graph | PersistentGraph) -> str:
     """
     Encode a graph using Base64 encoding
 
     Arguments:
-    graph (Graph | PersistentGraph): the graph
+        graph (Graph | PersistentGraph): the graph
 
     Returns:
-    str: the encoded graph
+        str: the encoded graph
     """
 
-def decode_graph(graph):
+def decode_graph(graph: str) -> Union[Graph, PersistentGraph]:
     """
     Decode a Base64-encoded graph
 
     Arguments:
-    graph (str): the encoded graph
+        graph (str): the encoded graph
 
     Returns:
-    Union[Graph, PersistentGraph]: the decoded graph
+        Union[Graph, PersistentGraph]: the decoded graph
     """
 
-def schema():
+def schema() -> str:
     """
     Returns the raphtory graphql server schema
 
-    Returns
-    str: Graphql schema
+    Returns:
+        str: Graphql schema
     """
 
-def cli(): ...
+def cli() -> None:
+    """
+    Run the Raphtory GraphQL CLI from Python. Uses `sys.argv` for arguments.
+
+    Returns:
+        None:
+    """
+
+def has_permissions_extension() -> bool:
+    """
+    Returns True if the permissions extension (raphtory-auth) is compiled in.
+
+    Returns:
+        bool: True if the extension is built in, False otherwise.
+    """

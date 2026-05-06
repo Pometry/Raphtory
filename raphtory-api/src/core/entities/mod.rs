@@ -1,7 +1,7 @@
 use super::input::input_node::parse_u64_strict;
 use crate::iter::IntoDynBoxed;
 use bytemuck::{Pod, Zeroable};
-use edges::edge_ref::EdgeRef;
+use itertools::Itertools;
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -14,6 +14,7 @@ pub mod edges;
 pub mod layers;
 pub mod properties;
 
+use crate::core::entities::properties::prop::PropType;
 pub use layers::*;
 
 // The only reason this is public is because the physical IDs of the nodes don’t move.
@@ -36,6 +37,38 @@ impl VID {
 
     pub fn as_u64(&self) -> u64 {
         self.0 as u64
+    }
+
+    /// check if the VID points to a node
+    #[inline]
+    pub fn is_initialised(&self) -> bool {
+        self.0 != usize::MAX
+    }
+
+    #[inline]
+    /// either return `self` if it is initialised, otherwise run the `init` closure
+    pub fn or_init(self, init: impl FnOnce() -> VID) -> Self {
+        if self.is_initialised() {
+            self
+        } else {
+            init()
+        }
+    }
+
+    #[inline]
+    /// either return `Some(self)` if it is initialised, otherwise, run the `init` closure
+    pub fn or_maybe_init(self, init: impl FnOnce() -> Option<VID>) -> Option<Self> {
+        if self.is_initialised() {
+            Some(self)
+        } else {
+            init()
+        }
+    }
+
+    #[inline]
+    /// return `Some(self)` if initialised, otherwise, `None`
+    pub fn into_option(self) -> Option<Self> {
+        self.is_initialised().then_some(self)
     }
 }
 
@@ -64,15 +97,19 @@ impl Default for EID {
 }
 
 impl EID {
+    pub fn index(&self) -> usize {
+        self.0
+    }
+
     pub fn as_u64(self) -> u64 {
         self.0 as u64
     }
 
-    pub fn with_layer(self, layer: usize) -> ELID {
+    pub fn with_layer(self, layer: LayerId) -> ELID {
         ELID::new(self, layer)
     }
 
-    pub fn with_layer_deletion(self, layer: usize) -> ELID {
+    pub fn with_layer_deletion(self, layer: LayerId) -> ELID {
         ELID::new_deletion(self, layer)
     }
 }
@@ -92,6 +129,12 @@ impl From<usize> for EID {
 impl EID {
     pub fn from_u64(id: u64) -> Self {
         EID(id as usize)
+    }
+}
+
+impl From<ELID> for EID {
+    fn from(elid: ELID) -> Self {
+        elid.edge
     }
 }
 
@@ -115,22 +158,22 @@ const LAYER_FLAG: usize = 1usize.reverse_bits();
 pub const MAX_LAYER: usize = usize::MAX & !LAYER_FLAG;
 
 impl ELID {
-    pub fn new(edge: EID, layer: usize) -> Self {
+    pub fn new(edge: EID, layer: LayerId) -> Self {
         ELID {
             edge,
-            layer_and_deletion: layer,
+            layer_and_deletion: layer.0,
         }
     }
 
-    pub fn new_deletion(edge: EID, layer: usize) -> Self {
+    pub fn new_deletion(edge: EID, layer: LayerId) -> Self {
         ELID {
             edge,
-            layer_and_deletion: layer | LAYER_FLAG,
+            layer_and_deletion: layer.0 | LAYER_FLAG,
         }
     }
 
-    pub fn layer(&self) -> usize {
-        self.layer_and_deletion & !LAYER_FLAG
+    pub fn layer(&self) -> LayerId {
+        LayerId(self.layer_and_deletion & !LAYER_FLAG)
     }
 
     pub fn is_deletion(&self) -> bool {
@@ -226,7 +269,7 @@ impl GID {
         }
     }
 
-    pub fn to_str(&'_ self) -> Cow<'_, str> {
+    pub fn to_str(&self) -> Cow<'_, str> {
         match self {
             GID::U64(v) => Cow::Owned(v.to_string()),
             GID::Str(v) => Cow::Borrowed(v),
@@ -294,6 +337,40 @@ pub enum GidRef<'a> {
     Str(&'a str),
 }
 
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
+pub enum GidCow<'a> {
+    U64(u64),
+    Str(Cow<'a, str>),
+}
+
+impl<'a> From<GidRef<'a>> for GidCow<'a> {
+    fn from(value: GidRef<'a>) -> Self {
+        match value {
+            GidRef::U64(v) => Self::U64(v),
+            GidRef::Str(v) => Self::Str(Cow::Borrowed(v)),
+        }
+    }
+}
+
+impl<'a> GidCow<'a> {
+    pub fn as_ref<'b>(&'b self) -> GidRef<'b>
+    where
+        'a: 'b,
+    {
+        match self {
+            GidCow::U64(v) => GidRef::U64(*v),
+            GidCow::Str(v) => GidRef::Str(v),
+        }
+    }
+
+    pub fn into_owned(self) -> GID {
+        match self {
+            GidCow::U64(v) => GID::U64(v),
+            GidCow::Str(v) => GID::Str(v.into_owned()),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum GidType {
     U64,
@@ -313,11 +390,21 @@ impl Display for GidType {
     }
 }
 
+impl GidType {
+    pub fn from_prop_type(prop_type: &PropType) -> Option<Self> {
+        match prop_type {
+            PropType::Str => Some(GidType::Str),
+            PropType::U64 | PropType::U32 | PropType::I64 | PropType::I32 => Some(GidType::U64),
+            _ => None,
+        }
+    }
+}
+
 impl Display for GidRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GidRef::U64(v) => write!(f, "{}", v),
-            GidRef::Str(v) => write!(f, "{}", v),
+            GidRef::U64(v) => write!(f, "{v}"),
+            GidRef::Str(v) => write!(f, "{v}"),
         }
     }
 }
@@ -334,6 +421,12 @@ impl<'a> From<&'a GID> for GidRef<'a> {
 impl<'a> From<&'a str> for GidRef<'a> {
     fn from(value: &'a str) -> Self {
         GidRef::Str(value)
+    }
+}
+
+impl From<u64> for GidRef<'_> {
+    fn from(value: u64) -> Self {
+        GidRef::U64(value)
     }
 }
 
@@ -389,13 +482,13 @@ impl<'a> GidRef<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::core::entities::Multiple;
+    use crate::core::entities::{LayerId, Multiple};
 
     #[test]
     fn empty_bit_multiple() {
         let bm = super::Multiple::default();
         let actual = bm.into_iter().collect::<Vec<_>>();
-        let expected: Vec<usize> = vec![];
+        let expected: Vec<LayerId> = vec![];
         assert_eq!(actual, expected);
     }
 
@@ -416,21 +509,6 @@ mod test {
 }
 
 impl LayerIds {
-    pub fn find(&self, layer_id: usize) -> Option<usize> {
-        match self {
-            LayerIds::All => Some(layer_id),
-            LayerIds::One(id) => {
-                if *id == layer_id {
-                    Some(layer_id)
-                } else {
-                    None
-                }
-            }
-            LayerIds::Multiple(ids) => ids.contains(layer_id).then_some(layer_id),
-            LayerIds::None => None,
-        }
-    }
-
     pub fn intersect(&self, other: &LayerIds) -> LayerIds {
         match (self, other) {
             (LayerIds::None, _) => LayerIds::None,
@@ -445,7 +523,7 @@ impl LayerIds {
                 }
             }
             (LayerIds::Multiple(ids), other) => {
-                let ids: Vec<usize> = ids.iter().filter(|id| other.contains(id)).collect();
+                let ids: Vec<_> = ids.iter().filter(|id| other.contains(id)).collect();
                 match ids.len() {
                     0 => LayerIds::None,
                     1 => LayerIds::One(ids[0]),
@@ -455,18 +533,38 @@ impl LayerIds {
         }
     }
 
-    pub fn constrain_from_edge(&self, e: EdgeRef) -> Cow<'_, LayerIds> {
-        match e.layer() {
-            None => Cow::Borrowed(self),
-            Some(l) => self
-                .find(l)
-                .map(|id| Cow::Owned(LayerIds::One(id)))
-                .unwrap_or(Cow::Owned(LayerIds::None)),
+    pub fn union(&self, other: &LayerIds) -> LayerIds {
+        match (self, other) {
+            (LayerIds::All, _) | (_, LayerIds::All) => LayerIds::All,
+            (LayerIds::None, o) | (o, LayerIds::None) => o.clone(),
+            (LayerIds::One(id), LayerIds::One(other_id)) => {
+                if id == other_id {
+                    LayerIds::One(*id)
+                } else {
+                    LayerIds::Multiple([*id.min(other_id), *id.max(other_id)].into_iter().collect())
+                }
+            }
+            (LayerIds::Multiple(ids), LayerIds::Multiple(other_ids)) => {
+                LayerIds::Multiple(ids.iter().merge(other_ids.iter()).dedup().collect())
+            }
+            (LayerIds::One(id), LayerIds::Multiple(ids))
+            | (LayerIds::Multiple(ids), LayerIds::One(id)) => {
+                if ids.contains(*id) {
+                    LayerIds::Multiple(ids.clone())
+                } else {
+                    LayerIds::Multiple(ids.iter().merge(iter::once(*id)).collect())
+                }
+            }
         }
     }
 
-    pub fn contains(&self, layer_id: &usize) -> bool {
-        self.find(*layer_id).is_some()
+    pub fn contains(&self, layer_id: &LayerId) -> bool {
+        match self {
+            LayerIds::All => true,
+            LayerIds::One(id) => id == layer_id,
+            LayerIds::Multiple(ids) => ids.contains(*layer_id),
+            LayerIds::None => false,
+        }
     }
 
     pub fn is_none(&self) -> bool {
@@ -477,11 +575,24 @@ impl LayerIds {
         matches!(self, LayerIds::One(_))
     }
 
-    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = usize> {
+    pub fn is_all(&self) -> bool {
+        matches!(self, LayerIds::All)
+    }
+
+    pub fn iter(&self, num_layers: usize) -> impl Iterator<Item = LayerId> + use<'_> {
         match self {
             LayerIds::None => iter::empty().into_dyn_boxed(),
-            LayerIds::All => (0..num_layers).into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).map(LayerId).into_dyn_boxed(),
             LayerIds::One(id) => iter::once(*id).into_dyn_boxed(),
+            LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
+        }
+    }
+
+    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = LayerId> {
+        match self {
+            LayerIds::None => iter::empty().into_dyn_boxed(),
+            LayerIds::All => (0..num_layers).map(LayerId).into_dyn_boxed(),
+            LayerIds::One(id) => iter::once(id).into_dyn_boxed(),
             LayerIds::Multiple(ids) => ids.into_iter().into_dyn_boxed(),
         }
     }
@@ -489,6 +600,16 @@ impl LayerIds {
 
 impl From<Vec<usize>> for LayerIds {
     fn from(v: Vec<usize>) -> Self {
+        match v.len() {
+            0 => LayerIds::All,
+            1 => LayerIds::One(LayerId(v[0])),
+            _ => LayerIds::Multiple(v.into()),
+        }
+    }
+}
+
+impl From<Vec<LayerId>> for LayerIds {
+    fn from(v: Vec<LayerId>) -> Self {
         match v.len() {
             0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
@@ -501,6 +622,16 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
     fn from(v: [usize; N]) -> Self {
         match v.len() {
             0 => LayerIds::All,
+            1 => LayerIds::One(LayerId(v[0])),
+            _ => LayerIds::Multiple(v.into_iter().collect()),
+        }
+    }
+}
+
+impl<const N: usize> From<[LayerId; N]> for LayerIds {
+    fn from(v: [LayerId; N]) -> Self {
+        match v.len() {
+            0 => LayerIds::All,
             1 => LayerIds::One(v[0]),
             _ => LayerIds::Multiple(v.into_iter().collect()),
         }
@@ -509,24 +640,30 @@ impl<const N: usize> From<[usize; N]> for LayerIds {
 
 impl From<usize> for LayerIds {
     fn from(id: usize) -> Self {
+        LayerIds::One(LayerId(id))
+    }
+}
+
+impl From<LayerId> for LayerIds {
+    fn from(id: LayerId) -> Self {
         LayerIds::One(id)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::core::entities::{EID, MAX_LAYER};
+    use crate::core::entities::{LayerId, EID, MAX_LAYER};
     use proptest::{prop_assert, prop_assert_eq, proptest};
 
     #[test]
     fn test_elid_layer() {
         proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
-            let elid = EID(eid).with_layer(layer);
-            prop_assert_eq!(elid.layer(), layer);
+            let elid = EID(eid).with_layer(LayerId(layer));
+            prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(!elid.is_deletion());
 
             let elid_deleted = elid.into_deletion();
-            prop_assert_eq!(elid_deleted.layer(), layer);
+            prop_assert_eq!(elid_deleted.layer(), LayerId(layer));
             prop_assert_eq!(elid_deleted.edge, EID(eid));
             prop_assert!(elid_deleted.is_deletion())
         })
@@ -535,8 +672,8 @@ mod tests {
     #[test]
     fn test_elid_deletion() {
         proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
-            let elid = EID(eid).with_layer_deletion(layer);
-            prop_assert_eq!(elid.layer(), layer);
+            let elid = EID(eid).with_layer_deletion(LayerId(layer));
+            prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(elid.is_deletion());
             prop_assert_eq!(elid, elid.into_deletion());
             prop_assert_eq!(elid.edge.0, eid);

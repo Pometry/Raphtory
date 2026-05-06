@@ -54,7 +54,7 @@ where
     let beta = normalization_strength - 1.0;
     let num_iters = iter_weights.len() - 1;
     let weights = Arc::new(iter_weights);
-    let seed = seed.unwrap_or(rand::thread_rng().gen());
+    let seed = seed.unwrap_or(rand::rng().random());
 
     // initialize each vertex with a random vector according to FastRP's construction rules
     let step1 = {
@@ -98,8 +98,13 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _, local: Vec<FastRPState>| {
-            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), local, None))
+        |_, _, _, local: Vec<FastRPState>, index| {
+            TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+                g.clone(),
+                local,
+                index,
+                None,
+            ))
         },
         threads,
         num_iters,

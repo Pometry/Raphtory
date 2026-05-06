@@ -7,39 +7,40 @@ use crate::{
 use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, LayerIds, ELID, VID},
+    entities::{
+        edges::edge_ref::EdgeRef, layers::Multiple, properties::meta::STATIC_GRAPH_LAYER_ID,
+        LayerIds, ELID, VID,
+    },
     storage::timeindex::{EventTime, TimeIndexOps},
     Direction,
 };
-use raphtory_core::storage::timeindex::TimeIndexWindow;
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::nodes::{node_additions::NodeAdditions, node_storage_ops::NodeStorageOps},
-};
-use std::ops::Range;
+use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps};
+use std::{ops::Range, sync::Arc};
+use storage::gen_ts::LayerIter;
 
 #[derive(Debug, Clone)]
 pub struct NodeHistory<'a, G> {
-    pub(crate) additions: NodeAdditions<'a>,
+    pub(crate) edge_history: storage::NodeEdgeAdditions<'a>,
+    pub(crate) additions: storage::NodePropAdditions<'a>,
     pub(crate) view: G,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeEdgeHistory<'a, G> {
-    pub(crate) additions: NodeAdditions<'a>,
+    pub(crate) additions: storage::NodeEdgeAdditions<'a>,
     pub(crate) view: G,
 }
 
 #[derive(Debug, Clone)]
 pub struct NodePropHistory<'a, G> {
-    pub(crate) additions: NodeAdditions<'a>,
+    pub(crate) additions: storage::NodePropAdditions<'a>,
     pub(crate) view: G,
 }
 
 impl<'a, G: Clone> NodeHistory<'a, G> {
     pub fn edge_history(&self) -> NodeEdgeHistory<'a, G> {
         NodeEdgeHistory {
-            additions: self.additions.clone(),
+            additions: self.edge_history.clone(),
             view: self.view.clone(),
         }
     }
@@ -68,11 +69,11 @@ fn handle_update_iter<'graph, G: GraphViewOps<'graph>>(
 
 impl<'a, G: GraphViewOps<'a>> NodeEdgeHistory<'a, G> {
     pub fn history(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
-        handle_update_iter(self.additions.edge_events(), self.view.clone())
+        handle_update_iter(self.additions.clone().edge_events(), self.view.clone())
     }
 
     pub fn history_rev(&self) -> impl Iterator<Item = (EventTime, ELID)> + use<'a, G> {
-        handle_update_iter(self.additions.edge_events_rev(), self.view.clone())
+        handle_update_iter(self.additions.clone().edge_events_rev(), self.view.clone())
     }
 }
 
@@ -81,21 +82,7 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     type RangeType = Self;
 
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        let history = &self.additions;
-        match history {
-            NodeAdditions::Mem(h) => h.props_ts().active(w),
-            NodeAdditions::Range(h) => match h {
-                TimeIndexWindow::Empty => false,
-                TimeIndexWindow::Range { timeindex, range } => {
-                    let start = range.start.max(w.start);
-                    let end = range.end.min(w.end).max(start);
-                    timeindex.props_ts().active(start..end)
-                }
-                TimeIndexWindow::All(h) => h.props_ts().active(w),
-            },
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(h) => h.with_range(w).prop_events().any(|t| !t.is_empty()),
-        }
+        self.additions.active(w)
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
@@ -107,41 +94,27 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodePropHistory<'a, G> {
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        self.additions.prop_events()
+        self.additions.iter()
     }
 
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
-        self.additions.prop_events_rev()
+        self.additions.iter_rev()
     }
 
     fn len(&self) -> usize {
-        match &self.additions {
-            NodeAdditions::Mem(additions) => additions.props_ts.len(),
-            NodeAdditions::Range(additions) => match additions {
-                TimeIndexWindow::Empty => 0,
-                TimeIndexWindow::Range { timeindex, range } => {
-                    (&timeindex.props_ts).range(range.clone()).len()
-                }
-                TimeIndexWindow::All(timeindex) => timeindex.props_ts.len(),
-            },
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(additions) => additions.clone().prop_events().map(|t| t.len()).sum(),
-        }
+        self.additions.len()
     }
 
     fn is_empty(&self) -> bool {
-        match &self.additions {
-            NodeAdditions::Mem(additions) => additions.props_ts.is_empty(),
-            NodeAdditions::Range(additions) => match additions {
-                TimeIndexWindow::Empty => true,
-                TimeIndexWindow::Range { timeindex, range } => {
-                    (&timeindex.props_ts).range(range.clone()).is_empty()
-                }
-                TimeIndexWindow::All(timeindex) => timeindex.props_ts.is_empty(),
-            },
-            #[cfg(feature = "storage")]
-            NodeAdditions::Col(additions) => additions.clone().prop_events().all(|t| t.is_empty()),
-        }
+        self.additions.is_empty()
+    }
+
+    fn last(&self) -> Option<Self::IndexType> {
+        self.additions.last()
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        self.additions.first()
     }
 }
 
@@ -165,45 +138,43 @@ impl<'a, G: GraphViewOps<'a>> TimeIndexOps<'a> for NodeEdgeHistory<'a, G> {
         self.history().map(|(t, _)| t)
     }
 
+    fn last(&self) -> Option<Self::IndexType> {
+        if self.view.filtered() {
+            self.clone().iter_rev().next()
+        } else {
+            self.additions.last()
+        }
+    }
+
+    fn first(&self) -> Option<Self::IndexType> {
+        if self.view.filtered() {
+            self.clone().iter().next()
+        } else {
+            self.additions.first()
+        }
+    }
+
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         self.history_rev().map(|(t, _)| t)
     }
 
     fn len(&self) -> usize {
-        if matches!(self.view.filter_state(), FilterState::Neither) {
-            match &self.additions {
-                NodeAdditions::Mem(additions) => additions.edge_ts.len(),
-                NodeAdditions::Range(additions) => match additions {
-                    TimeIndexWindow::Empty => 0,
-                    TimeIndexWindow::Range { timeindex, range } => {
-                        (&timeindex.edge_ts).range(range.clone()).len()
-                    }
-                    TimeIndexWindow::All(timeindex) => timeindex.edge_ts.len(),
-                },
-                #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => additions.edge_history().count(),
-            }
+        if matches!(
+            self.view.filter_state(),
+            FilterState::Neither | FilterState::Window
+        ) {
+            self.additions.len()
         } else {
             self.history().count()
         }
     }
 
     fn is_empty(&self) -> bool {
-        if matches!(self.view.filter_state(), FilterState::Neither) {
-            match &self.additions {
-                NodeAdditions::Mem(additions) => additions.edge_ts.is_empty(),
-                NodeAdditions::Range(additions) => match additions {
-                    TimeIndexWindow::Empty => true,
-                    TimeIndexWindow::Range { timeindex, range } => {
-                        (&timeindex.edge_ts).range(range.clone()).is_empty()
-                    }
-                    TimeIndexWindow::All(timeindex) => timeindex.edge_ts.is_empty(),
-                },
-                #[cfg(feature = "storage")]
-                NodeAdditions::Col(additions) => {
-                    additions.clone().edge_events().all(|t| t.is_empty())
-                }
-            }
+        if matches!(
+            self.view.filter_state(),
+            FilterState::Neither | FilterState::Window
+        ) {
+            self.additions.is_empty()
         } else {
             self.history().next().is_none()
         }
@@ -218,10 +189,19 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
         self.prop_history().active(w.clone()) || self.edge_history().active(w)
     }
 
+    fn last(&self) -> Option<Self::IndexType> {
+        self.prop_history().last().max(self.edge_history().last())
+    }
+
     fn range(&self, w: Range<Self::IndexType>) -> Self {
+        let edge_history = self.edge_history.range(w.clone());
         let additions = self.additions.range(w);
         let view = self.view.clone();
-        NodeHistory { additions, view }
+        NodeHistory {
+            edge_history,
+            additions,
+            view,
+        }
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'b {
@@ -243,22 +223,67 @@ impl<'b, G: GraphViewOps<'b>> TimeIndexOps<'b> for NodeHistory<'b, G> {
     }
 }
 
+/// Build a `LayerIter` that includes `STATIC_GRAPH_LAYER_ID` in addition to any explicitly
+/// requested layers. Nodes added without a specific layer are stored in STATIC_GRAPH_LAYER_ID
+/// and should be visible in every layer-restricted view.
+fn layer_ids_with_static(layer_ids: &LayerIds) -> LayerIter<'_> {
+    match layer_ids {
+        // All layers already includes STATIC
+        LayerIds::All => LayerIter::LRef(layer_ids),
+        // No layers + static = just static
+        LayerIds::None => LayerIter::One(STATIC_GRAPH_LAYER_ID),
+        LayerIds::One(id) => {
+            if *id == STATIC_GRAPH_LAYER_ID {
+                LayerIter::One(*id)
+            } else {
+                // Return both the static layer and the requested layer, sorted for binary search
+                let mut ids = [STATIC_GRAPH_LAYER_ID, *id];
+                ids.sort();
+                LayerIter::Multiple(Multiple(Arc::from(ids.as_slice())))
+            }
+        }
+        LayerIds::Multiple(ids) => {
+            if ids.contains(STATIC_GRAPH_LAYER_ID) {
+                LayerIter::LRef(layer_ids)
+            } else {
+                let mut combined: Vec<_> = std::iter::once(STATIC_GRAPH_LAYER_ID)
+                    .chain(ids.iter())
+                    .collect();
+                combined.sort();
+                LayerIter::Multiple(Multiple(Arc::from(combined.as_slice())))
+            }
+        }
+    }
+}
+
 pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
     /// Get a filtered view of the update history of the node
     ///
     /// Note that this is an internal API that does not apply the window filtering!
-    fn history<G: GraphView + 'a>(self, view: G) -> NodeHistory<'a, G> {
-        let additions = self.additions();
-        NodeHistory { additions, view }
+    fn history<G: GraphView + 'a>(self, view: G, layer_ids: &'a LayerIds) -> NodeHistory<'a, G> {
+        // Nodes added without a specific layer go to STATIC_GRAPH_LAYER_ID and should appear
+        // active in any layer-restricted view. Nodes added with an explicit layer only appear
+        // in that layer's view.
+        let additions = self.node_additions(layer_ids_with_static(layer_ids));
+        let edge_history = self.node_edge_additions(layer_ids);
+        NodeHistory {
+            edge_history,
+            additions,
+            view,
+        }
     }
 
-    fn edge_history<G: GraphView + 'a>(self, view: G) -> NodeEdgeHistory<'a, G> {
-        self.history(view).edge_history()
-    }
-
-    fn filtered_edges_iter<G: GraphViewOps<'a>>(
+    fn edge_history<G: GraphView + 'a>(
         self,
         view: G,
+        layer_ids: &'a LayerIds,
+    ) -> NodeEdgeHistory<'a, G> {
+        self.history(view, layer_ids).edge_history()
+    }
+
+    fn filtered_edges_iter<G: GraphView + 'a>(
+        self,
+        view: &'a G,
         layer_ids: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + 'a {
@@ -267,25 +292,25 @@ pub trait FilteredNodeStorageOps<'a>: NodeStorageOps<'a> {
             FilterState::Neither => FilterVariants::Neither(iter),
             FilterState::Both => FilterVariants::Both(iter.filter(move |e| {
                 let gs = view.core_graph();
-                view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                     && view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
             FilterState::Nodes => FilterVariants::Nodes(iter.filter(move |e| {
                 let gs = view.core_graph();
                 view.filter_node(gs.core_node(e.remote()).as_ref())
             })),
-            FilterState::Edges | FilterState::BothIndependent => {
+            FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
                 FilterVariants::Edges(iter.filter(move |e| {
                     let gs = view.core_graph();
-                    view.filter_edge(gs.core_edge(e.pid()).as_ref())
+                    view.filter_edge(gs.core_edge(Either::Right(*e)).as_ref())
                 }))
             }
         }
     }
 
-    fn filtered_neighbours_iter<G: GraphViewOps<'a>>(
+    fn filtered_neighbours_iter<G: GraphView + 'a>(
         self,
-        view: G,
+        view: &'a G,
         layer_ids: &'a LayerIds,
         dir: Direction,
     ) -> impl Iterator<Item = VID> + 'a {

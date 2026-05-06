@@ -15,7 +15,7 @@ pub use lazy_node_state::{
     AvgIntervalStruct, DateTimeStruct, DateTimesStruct, EventIdStruct, EventIdsStruct,
     IntervalStruct, IntervalsStruct, LazyNodeState, TimeStampStruct, TimeStampsStruct,
 };
-pub use node_state::{Index, NodeState};
+pub use node_state::{Index, IndexIntoIter, NodeState};
 pub use node_state_ops::NodeStateOps;
 pub use node_state_ord_ops::{AsOrderedNodeStateOps, OrderedNodeStateOps};
 pub use ops::NodeOp;

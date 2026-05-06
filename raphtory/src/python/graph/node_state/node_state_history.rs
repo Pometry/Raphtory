@@ -232,7 +232,7 @@ impl HistoryView {
         other: &Bound<'py, PyAny>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) =
@@ -254,7 +254,7 @@ impl HistoryView {
                         .map(|v| v.iter().eq(value.iter()))
                         .unwrap_or(false)
                 })
-        } else if let Ok(other) = other.downcast::<PyDict>() {
+        } else if let Ok(other) = other.cast::<PyDict>() {
             NodeStateOps::len(&self.inner) == other.len()
                 && other.items().iter().all(|item| {
                     if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
@@ -423,7 +423,7 @@ impl<'py> pyo3::IntoPyObject<'py>
     }
 }
 
-impl<'py> FromPyObject<'py>
+impl<'py> FromPyObject<'_, 'py>
     for LazyNodeState<
         'static,
         HistoryOp<'static, DynamicGraph>,
@@ -432,13 +432,11 @@ impl<'py> FromPyObject<'py>
         DynNodeFilter,
     >
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<HistoryView>()?.get().inner().clone())
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<HistoryView>()?.get().inner().clone())
     }
 }
-
-#[allow(dead_code)]
-type HistoryOpType<G> = HistoryOp<'static, G>;
 
 /// A NodeState of History objects for each node.
 #[pyclass(module = "raphtory.node_state", frozen)]
@@ -574,7 +572,7 @@ impl NodeStateHistory {
         other: &Bound<'py, PyAny>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) =
@@ -596,7 +594,7 @@ impl NodeStateHistory {
                         .map(|v| v.iter().eq(value.iter()))
                         .unwrap_or(false)
                 })
-        } else if let Ok(other) = other.downcast::<PyDict>() {
+        } else if let Ok(other) = other.cast::<PyDict>() {
             self.inner.len() == other.len()
                 && other.items().iter().all(|item| {
                     if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
@@ -739,11 +737,12 @@ impl<'py> pyo3::IntoPyObject<'py>
     }
 }
 
-impl<'py> FromPyObject<'py>
+impl<'py> FromPyObject<'_, 'py>
     for NodeState<'static, History<'static, NodeView<'static, DynamicGraph>>, DynamicGraph>
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<NodeStateHistory>()?.get().inner().clone())
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<NodeStateHistory>()?.get().inner().clone())
     }
 }
 

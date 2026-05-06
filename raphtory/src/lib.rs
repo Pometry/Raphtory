@@ -37,13 +37,15 @@
 //!   1,
 //!   "Gandalf",
 //!   [("type", Prop::str("Character"))],
-//!   None
+//!   None,
+//!   None,
 //! ).unwrap();
 //!
 //! graph.add_node(
 //!   2,
 //!   "Frodo",
 //!   [("type", Prop::str("Character"))],
+//!   None,
 //!   None,
 //! ).unwrap();
 //!
@@ -104,9 +106,11 @@ pub mod vectors;
 pub mod io;
 
 pub mod api;
+pub mod arrow_loader;
 pub mod core;
 pub mod errors;
-#[cfg(feature = "proto")]
+pub mod parquet_encoder;
+#[cfg(feature = "io")]
 pub mod serialise;
 pub mod storage;
 
@@ -141,7 +145,7 @@ pub mod prelude {
                 },
                 view::{EdgeViewOps, GraphViewOps, LayerOps, NodeViewOps, TimeOps},
             },
-            graph::graph::Graph,
+            graph::{graph::Graph, views::deletion_graph::PersistentGraph},
         },
     };
 
@@ -151,16 +155,12 @@ pub mod prelude {
 
     pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
-    #[cfg(feature = "storage")]
-    pub use {
-        crate::db::api::storage::graph::storage_ops::disk_storage::IntoGraph,
-        raphtory_storage::disk::{DiskGraphStorage, ParquetLayerCols},
-    };
+    pub use storage::{persist::config::ConfigOps, Config};
 
-    #[cfg(feature = "proto")]
+    #[cfg(feature = "io")]
     pub use crate::serialise::{
         parquet::{ParquetDecoder, ParquetEncoder},
-        CacheOps, StableDecode, StableEncode,
+        StableDecode, StableEncode,
     };
 
     #[cfg(feature = "search")]

@@ -51,7 +51,7 @@ use pyo3::{
     pybacked::PyBackedStr,
     pyclass, pymethods,
     types::PyDict,
-    IntoPyObjectExt, PyObject, PyResult, Python,
+    Borrowed, IntoPyObjectExt, Py, PyAny, PyResult, Python,
 };
 use python::{
     types::repr::{iterator_repr, Repr},
@@ -117,7 +117,7 @@ impl PyNode {
     ///    other: The other node to compare to.
     ///
     /// Returns:
-    ///   True if the nodes are equal, false otherwise.
+    ///   True if the nodes are equal, false otherwise.:
     fn __eq__(&self, other: Bound<PyNode>) -> bool {
         self.node.id() == other.get().node.id()
     }
@@ -145,7 +145,7 @@ impl PyNode {
     /// Returns the hash of the node.
     ///
     /// Returns:
-    ///   The node id.
+    ///   The node id.:
     pub fn __hash__(&self) -> u64 {
         calculate_hash(&self.node.id())
     }
@@ -379,24 +379,29 @@ impl PyMutableNode {
     ///                                      is of type Prop representing the property value.
     ///                                      If None, no properties are updated.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
+    ///    layer (str, optional): The layer this update is recorded under. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value, if the operation is successful.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (t, properties=None, event_id=None))]
+    #[pyo3(signature = (t, properties=None, event_id=None, layer=None))]
     pub fn add_updates(
         &self,
         t: EventTimeComponent,
         properties: Option<HashMap<String, Prop>>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<(), GraphError> {
         match event_id {
-            None => self.node.add_updates(t, properties.unwrap_or_default()),
-            Some(event_id) => self
+            None => self
                 .node
-                .add_updates((t, event_id), properties.unwrap_or_default()),
+                .add_updates(t, properties.unwrap_or_default(), layer),
+            Some(event_id) => {
+                self.node
+                    .add_updates((t, event_id), properties.unwrap_or_default(), layer)
+            }
         }
     }
 
@@ -444,15 +449,18 @@ pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }
 
-impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<PyNodes>()?.get().nodes.clone())
+impl<'py> FromPyObject<'_, 'py> for Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter> {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<PyNodes>()?.get().nodes.clone())
     }
 }
 
-impl<'py> FromPyObject<'py> for Nodes<'static, DynamicGraph> {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let nodes = &ob.downcast::<PyNodes>()?.get().nodes;
+impl<'py> FromPyObject<'_, 'py> for Nodes<'static, DynamicGraph> {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let bound = ob.cast::<PyNodes>()?;
+        let nodes = &bound.get().nodes;
         if nodes.predicate.is_filtered() {
             Err(PyTypeError::new_err("Expected unfiltered nodes"))
         } else {
@@ -737,7 +745,7 @@ impl PyNodes {
         &self,
         include_property_history: bool,
         convert_datetime: bool,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let mut column_names = vec![String::from("name"), String::from("type")];
         let meta = self.nodes.graph().node_meta();
         let is_prop_both_temp_and_const = get_column_names_from_props(&mut column_names, meta);
@@ -783,7 +791,7 @@ impl PyNodes {
             })
             .collect();
 
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let kwargs = PyDict::new(py);
             kwargs.set_item("columns", column_names.clone())?;
             let pandas = PyModule::import(py, "pandas")?;
@@ -845,7 +853,7 @@ impl PyPathFromGraph {
     #[getter]
     fn id(&self) -> NestedGIDIterable {
         let path = self.path.clone();
-        (move || path.id()).into()
+        (move || path.id().map(|(_, v)| v)).into()
     }
 
     /// The node names.
@@ -855,7 +863,7 @@ impl PyPathFromGraph {
     #[getter]
     fn name(&self) -> NestedStringIterable {
         let path = self.path.clone();
-        (move || path.name()).into()
+        (move || path.name().map(|(_, v)| v)).into()
     }
 
     /// The node types.
@@ -865,7 +873,7 @@ impl PyPathFromGraph {
     #[getter]
     fn node_type(&self) -> NestedOptionArcStringIterable {
         let path = self.path.clone();
-        (move || path.node_type()).into()
+        (move || path.node_type().map(|(_, v)| v)).into()
     }
 
     /// The node earliest times.
@@ -875,7 +883,7 @@ impl PyPathFromGraph {
     #[getter]
     fn earliest_time(&self) -> NestedOptionEventTimeIterable {
         let path = self.path.clone();
-        (move || path.earliest_time()).into()
+        (move || path.earliest_time().map(|(_, v)| v)).into()
     }
 
     /// The node latest times.
@@ -885,7 +893,7 @@ impl PyPathFromGraph {
     #[getter]
     fn latest_time(&self) -> NestedOptionEventTimeIterable {
         let path = self.path.clone();
-        (move || path.latest_time()).into()
+        (move || path.latest_time().map(|(_, v)| v)).into()
     }
 
     /// Returns a history object for each node with time entries for when a node is added or change to a node is made.
@@ -897,7 +905,7 @@ impl PyPathFromGraph {
         let path = self.path.clone();
         (move || {
             path.history()
-                .map(|h_iter| h_iter.map(|h| h.into_arc_dyn()))
+                .map(|(_, h_iter)| h_iter.map(|h| h.into_arc_dyn()))
         })
         .into()
     }
@@ -917,7 +925,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn edge_history_count(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.edge_history_count()).into()
+        (move || path.edge_history_count().map(|(_, v)| v)).into()
     }
 
     /// Returns the node properties.
@@ -927,7 +935,7 @@ impl PyPathFromGraph {
     #[getter]
     fn properties(&self) -> PyNestedPropsIterable {
         let path = self.path.clone();
-        (move || path.properties()).into()
+        (move || path.properties().map(|(_, v)| v)).into()
     }
 
     /// Returns the node metadata.
@@ -937,7 +945,7 @@ impl PyPathFromGraph {
     #[getter]
     fn metadata(&self) -> MetadataListList {
         let path = self.path.clone();
-        (move || path.metadata()).into()
+        (move || path.metadata().map(|(_, v)| v)).into()
     }
 
     /// Returns the node degrees.
@@ -946,7 +954,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.degree()).into()
+        (move || path.degree().map(|(_, v)| v)).into()
     }
 
     /// Returns the node in-degrees.
@@ -955,7 +963,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn in_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.in_degree()).into()
+        (move || path.in_degree().map(|(_, v)| v)).into()
     }
 
     /// Returns the node out-degrees.
@@ -964,7 +972,7 @@ impl PyPathFromGraph {
     ///     NestedUsizeIterable:
     fn out_degree(&self) -> NestedUsizeIterable {
         let path = self.path.clone();
-        (move || path.out_degree()).into()
+        (move || path.out_degree().map(|(_, v)| v)).into()
     }
 
     /// filter nodes by type

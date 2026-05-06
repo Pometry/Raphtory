@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use itertools::Itertools;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{LayerIds, VID};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -70,7 +70,12 @@ pub fn local_clustering_coefficient_batch<G: StaticGraphViewOps, V: AsNodeRef>(
     v: Vec<V>,
 ) -> TypedNodeState<'static, LCCState, G> {
     if v.is_empty() {
-        calculate_lcc(graph, (0..graph.unfiltered_num_nodes()).map(VID).collect())
+        calculate_lcc(
+            graph,
+            (0..graph.unfiltered_num_nodes(&LayerIds::All))
+                .map(VID)
+                .collect(),
+        )
     } else {
         calculate_lcc(graph, v)
     }

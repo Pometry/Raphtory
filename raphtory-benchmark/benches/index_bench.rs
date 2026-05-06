@@ -27,7 +27,6 @@ fn bench_graph_index_load(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("graph_index_load");
     group.sample_size(100);
-
     group.bench_function(BenchmarkId::from_parameter("load_once"), |b| {
         b.iter(|| Graph::decode(black_box(&path)).unwrap());
     });

@@ -2,12 +2,17 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::LazyLock;
 use tokio::sync::oneshot;
 
-static WRITE_POOL: LazyLock<ThreadPool> =
-    LazyLock::new(|| ThreadPoolBuilder::new().build().unwrap());
+static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .thread_name(|t| format!("RAP-write-{t}"))
+        .build()
+        .unwrap()
+});
 
 static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
+        .thread_name(|t| format!("RAP-compute-{t}"))
         .build()
         .unwrap()
 });
@@ -37,16 +42,16 @@ pub async fn blocking_write<R: Send + 'static, F: FnOnce() -> R + Send + 'static
 
 #[cfg(test)]
 mod deadlock_tests {
-    use parking_lot::Mutex;
-    use reqwest::{Client, StatusCode};
-    use std::{sync::Arc, time::Duration};
-    use tempfile::TempDir;
-
     use crate::{
         rayon::{COMPUTE_POOL, WRITE_POOL},
         routes::Health,
         GraphServer,
     };
+    use parking_lot::Mutex;
+    use raphtory::db::api::storage::storage::Config;
+    use reqwest::{Client, StatusCode};
+    use std::{sync::Arc, time::Duration};
+    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_deadlock_in_read_pool() {
@@ -70,7 +75,7 @@ mod deadlock_tests {
 
     async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let tempdir = TempDir::new().unwrap();
-        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None)
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
             .await
             .unwrap();
         let _running = server.start_with_port(port).await.unwrap();

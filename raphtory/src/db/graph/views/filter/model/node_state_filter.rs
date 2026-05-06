@@ -17,7 +17,7 @@ use raphtory_storage::graph::graph::GraphStorage;
 /// Does NOT depend on the graph type `G` at runtime; it only needs the column + optional keys.
 #[derive(Clone)]
 pub struct NodeStateBoolColOp {
-    keys: Option<Index<VID>>,
+    keys: Index<VID>,
     col: BooleanArray,
 }
 
@@ -52,10 +52,7 @@ impl NodeStateBoolColOp {
 
     #[inline]
     fn row_index(&self, node: VID) -> Option<usize> {
-        match &self.keys {
-            Some(index) => index.index(&node),
-            None => Some(node.0),
-        }
+        self.keys.index(&node)
     }
 
     #[inline]

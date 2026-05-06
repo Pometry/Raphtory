@@ -62,7 +62,22 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
         (self.nodes)()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = PathFromNode<'graph, G>> + Send + 'graph {
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = (NodeView<'graph, G>, PathFromNode<'graph, G>)> + Send + 'graph {
+        let base_graph = self.base_graph.clone();
+        let op = self.op.clone();
+        self.base_iter().map(move |v| {
+            let op = op.clone();
+            let node_op = Arc::new(move || op(v));
+            (
+                NodeView::new_internal(base_graph.clone(), v),
+                PathFromNode::new_one_hop_filtered(base_graph.clone(), node_op),
+            )
+        })
+    }
+
+    pub fn iter_values(&self) -> impl Iterator<Item = PathFromNode<'graph, G>> + Send + 'graph {
         let base_graph = self.base_graph.clone();
         let op = self.op.clone();
         self.base_iter().map(move |v| {
@@ -116,7 +131,7 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
     }
 
     pub fn collect(&self) -> Vec<Vec<NodeView<'graph, G>>> {
-        self.iter().map(|path| path.collect()).collect()
+        self.iter_values().map(|path| path.collect()).collect()
     }
 
     pub fn combined_history(&self) -> History<'graph, Self> {
@@ -126,7 +141,8 @@ impl<'graph, G: GraphViewOps<'graph>> PathFromGraph<'graph, G> {
 
 impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromGraph<'graph, G> {
     type Graph = G;
-    type ValueType<T: ArrowNodeOp + 'graph> = BoxedLIter<'graph, BoxedLIter<'graph, T::Output>>;
+    type ValueType<T: ArrowNodeOp + 'graph> =
+        BoxedLIter<'graph, (NodeView<'graph, G>, BoxedLIter<'graph, T::Output>)>;
     type PropType = NodeView<'graph, G>;
     type PathType = PathFromGraph<'graph, G>;
     type Edges = NestedEdges<'graph, G>;
@@ -139,14 +155,8 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromGraph<
     where
         <F as NodeOp>::Output: 'graph,
     {
-        let storage = self.base_graph.core_graph().lock();
-        self.iter_refs()
-            .map(move |it| {
-                let op = op.clone();
-                let storage = storage.clone();
-                it.map(move |node| op.apply(&storage, node))
-                    .into_dyn_boxed()
-            })
+        self.iter()
+            .map(move |(node, path)| (node, path.map(op.clone())))
             .into_dyn_boxed()
     }
 
@@ -192,7 +202,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for PathFromGraph<
 }
 
 impl<'graph, G: GraphViewOps<'graph>> IntoIterator for PathFromGraph<'graph, G> {
-    type Item = PathFromNode<'graph, G>;
+    type Item = (NodeView<'graph, G>, PathFromNode<'graph, G>);
     type IntoIter = BoxedLIter<'graph, Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -202,7 +212,10 @@ impl<'graph, G: GraphViewOps<'graph>> IntoIterator for PathFromGraph<'graph, G> 
             .map(move |node| {
                 let op = op.clone();
                 let node_op = Arc::new(move || op(node));
-                PathFromNode::new_one_hop_filtered(base_graph.clone(), node_op)
+                (
+                    NodeView::new_internal(base_graph.clone(), node),
+                    PathFromNode::new_one_hop_filtered(base_graph.clone(), node_op),
+                )
             })
             .into_dyn_boxed()
     }

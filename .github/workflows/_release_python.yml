@@ -41,8 +41,10 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
         with:
@@ -134,9 +136,11 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.base }}
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - uses: actions/setup-python@v4
         with:
           python-version: |
@@ -179,9 +183,11 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.base }}
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - uses: actions/setup-python@v4
         with:
           python-version: |
@@ -207,7 +213,7 @@ jobs:
     name: Publish to PyPi
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: pyartifacts-*
           merge-multiple: true
@@ -225,7 +231,7 @@ jobs:
           skip_existing: true
           verify_metadata: false
       - name: Deleting artifacts
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v6
         with:
           failOnError: false
           name: |

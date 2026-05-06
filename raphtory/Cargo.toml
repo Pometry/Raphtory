@@ -18,10 +18,13 @@ homepage.workspace = true
 raphtory-api.workspace = true
 raphtory-core.workspace = true
 raphtory-storage.workspace = true
-pometry-storage.workspace = true
+raphtory-itertools.workspace = true
+storage.workspace = true
+db4-graph.workspace = true
 iter-enum = { workspace = true, features = ["rayon"] }
 hashbrown = { workspace = true }
 chrono = { workspace = true }
+crossbeam-channel = { workspace = true }
 itertools = { workspace = true }
 num-traits = { workspace = true }
 num-integer = { workspace = true }
@@ -49,7 +52,14 @@ ahash = { workspace = true }
 roaring = { workspace = true }
 strsim = { workspace = true }
 walkdir = { workspace = true }
-uuid = { workspace = true }
+parquet = { workspace = true }
+arrow-json = { workspace = true }
+arrow-csv = { workspace = true }
+arrow = { workspace = true, features = ["chrono-tz"] }
+arrow-array.workspace = true
+arrow-schema.workspace = true
+arrow-select.workspace = true
+serde_arrow.workspace = true
 datafusion-physical-expr-common = { workspace = true }
 datafusion-physical-expr = { workspace = true }
 datafusion-physical-plan = { workspace = true }
@@ -70,19 +80,6 @@ memmap2 = { workspace = true, optional = true }
 prost = { workspace = true, optional = true }
 prost-types = { workspace = true, optional = true }
 
-# arrow otional dependencies
-parquet = { workspace = true }
-arrow-json = { workspace = true, optional = true }
-arrow-csv = { workspace = true, optional = true}
-arrow-array = { workspace = true, features = ["chrono-tz"] }
-arrow-schema = { workspace = true }
-arrow-ipc = {workspace = true}
-arrow-buffer = {workspace = true}
-arrow-select = { workspace = true }
-arrow-data ={ workspace = true }
-serde_arrow = {workspace = true, features = ["arrow-56"] }
-arrow = { workspace = true, features = ["chrono-tz"] }
-
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
 
@@ -94,8 +91,8 @@ bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
-moka = { workspace = true, optional = true }
-lancedb = {workspace = true, optional = true }
+moka = { workspace = true, optional = true, features = ["future"] }
+lancedb = { workspace = true, optional = true }
 axum = "0.8.4" # TODO put this in the proper place and make optional
 
 # python binding optional dependencies
@@ -105,7 +102,7 @@ num = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
 tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
-
+pythonize = { workspace = true, optional = true }
 
 # test utils
 proptest = { workspace = true, optional = true }
@@ -119,15 +116,19 @@ tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
-raphtory = { path = ".", features = ["test-utils"] } # enable test-utils for integration tests (version is not set to make cargo publish work)
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
+raphtory = { workspace = true, features = ["test-utils"] } # enable test-utils for integration tests
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tikv-jemallocator = "0.6.1"
 
 [build-dependencies]
 prost-build = { workspace = true, optional = true }
 
 [features]
 default = []
+
+# enables progress bars
+progress = ["dep:kdam"]
 # Enables the graph loader io module
 io = [
     "dep:neo4rs",
@@ -136,7 +137,9 @@ io = [
     "dep:csv",
     "dep:reqwest",
     "dep:tokio",
-    "proto",
+    "dep:tempfile",
+    "dep:zip",
+    "dep:kdam",
 ]
 
 # search
@@ -160,44 +163,29 @@ vectors = [
 # Enables generating the pyo3 python bindings
 python = [
     "io",
-    "arrow",
-    "search",
+    "progress",
     "vectors",
-    "proto",
     "dep:pyo3",
     "dep:numpy",
     "dep:num",
     "dep:display-error-chain",
-    "pyo3-arrow",
+    "dep:pyo3-arrow",
+    "dep:pythonize",
     "raphtory-api/python",
     "raphtory-core/python",
     "kdam/notebook",
 ]
-# storage
-storage = [
-    "arrow",
-    "raphtory-api/storage",
-    "raphtory-storage/storage",
-    "dep:memmap2",
-    "dep:tempfile",
-]
-arrow = [
-    "raphtory-api/arrow",
-    "raphtory-core/arrow",
-    "dep:arrow-json",
-    "dep:arrow-csv",
-]
+
 
 proto = [
     "dep:prost",
     "dep:prost-types",
-    "dep:zip",
     "dep:prost-build",
     "dep:memmap2",
-    "arrow",
     "io",
 ]
 
 test-utils = [
-    "dep:proptest", "dep:proptest-derive", "arrow"
+    "dep:proptest",
+    "dep:proptest-derive"
 ]

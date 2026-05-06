@@ -9,14 +9,15 @@ use raphtory::{
     test_utils::{build_graph, build_graph_strat},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use serde_json::json;
 use std::collections::BTreeSet;
 
 #[test]
 fn test_materialize_no_edges() {
     let graph = Graph::new();
 
-    graph.add_node(1, 1, NO_PROPS, None).unwrap();
-    graph.add_node(2, 2, NO_PROPS, None).unwrap();
+    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+    graph.add_node(2, 2, NO_PROPS, None, None).unwrap();
 
     test_storage!(&graph, |graph| {
         let sg = graph.subgraph([1, 2, 1]); // <- duplicated nodes should have no effect
@@ -84,10 +85,10 @@ fn layer_materialize() {
 #[test]
 fn test_cc() {
     let graph = Graph::new();
-    graph.add_node(0, 0, NO_PROPS, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None).unwrap();
-    graph.add_node(1, 2, NO_PROPS, None).unwrap();
-    graph.add_node(1, 4, NO_PROPS, None).unwrap();
+    graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 2, NO_PROPS, None, None).unwrap();
+    graph.add_node(1, 4, NO_PROPS, None, None).unwrap();
     graph.add_edge(0, 0, 1, NO_PROPS, Some("1")).unwrap();
     graph.add_edge(1, 3, 4, NO_PROPS, Some("1")).unwrap();
     let sg = graph.subgraph([0, 1, 3, 4]);
@@ -212,7 +213,9 @@ pub mod test_filters_node_subgraph {
             ];
 
             for (id, name, props) in &nodes {
-                graph.add_node(*id, name, props.clone(), None).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), None, None)
+                    .unwrap();
             }
 
             graph
@@ -520,7 +523,7 @@ fn nodes_without_updates_are_filtered() {
 
 #[test]
 fn materialize_proptest() {
-    proptest!(|(graph in build_graph_strat(10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+    proptest!(|(graph in build_graph_strat(10, 10, 10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = Graph::from(build_graph(&graph));
         let subgraph = graph.subgraph(nodes);
         assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());
@@ -528,8 +531,21 @@ fn materialize_proptest() {
 }
 
 #[test]
+fn materialize_proptest_failure() {
+    let graph_f = serde_json::from_value(json!({"nodes":{},"edges":[[[1,1,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}],[[0,0,null],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let graph = Graph::from(build_graph(&graph_f));
+    let subgraph = graph.subgraph([1]);
+    let nodes = subgraph.default_layer().nodes().id().collect_vec();
+    dbg!(nodes);
+    assert_eq!(subgraph.default_layer().count_nodes(), 0);
+    assert_eq!(subgraph.count_edges(), 1);
+    let materialised = subgraph.materialize().unwrap();
+    assert_graph_equal(&subgraph, &materialised);
+}
+
+#[test]
 fn materialize_persistent_proptest() {
-    proptest!(|(graph in build_graph_strat(10, 10, true), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
+    proptest!(|(graph in build_graph_strat(10, 10, 10, 10, true), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = PersistentGraph::from(build_graph(&graph));
         let subgraph = graph.subgraph(nodes);
         assert_graph_equal(&subgraph, &subgraph.materialize().unwrap());

@@ -3,11 +3,19 @@ macro_rules! _py_numeric_methods {
     ($name:ident, $item:ty, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Sum of all values in the iterable.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn sum(&self) -> $pyitem {
                 let v: $item = self.iter().sum();
                 v.into()
             }
 
+            /// Mean of all values in the iterable.
+            ///
+            /// Returns:
+            ///     float:
             pub fn mean(&self) -> f64 {
                 use $crate::python::types::wrappers::iterables::MeanExt;
                 self.iter().mean()
@@ -21,10 +29,18 @@ macro_rules! _py_ord_max_min_methods {
     ($name:ident, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Maximum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn max(&self) -> Option<$pyitem> {
                 self.iter().max().map(|v| v.into())
             }
 
+            /// Minimum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn min(&self) -> Option<$pyitem> {
                 self.iter().min().map(|v| v.into())
             }
@@ -37,9 +53,17 @@ macro_rules! _py_float_max_min_methods {
     ($name:ident, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Maximum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn max(&self) -> Option<$pyitem> {
                 self.iter().max_by(|a, b| a.total_cmp(b)).map(|v| v.into())
             }
+            /// Minimum value in the iterable, or `None` if empty.
+            ///
+            /// Returns:
+            ///     Any:
             pub fn min(&self) -> Option<$pyitem> {
                 self.iter().min_by(|a, b| a.total_cmp(b)).map(|v| v.into())
             }
@@ -72,6 +96,10 @@ macro_rules! _py_iterable_collect_method {
     ($name:ident, $pyitem:ty) => {
         #[pymethods]
         impl $name {
+            /// Materialise the iterable as a Python list.
+            ///
+            /// Returns:
+            ///     list:
             pub fn collect(&self) -> Vec<$pyitem> {
                 self.iter().map(|v| v.into()).collect()
             }
@@ -227,13 +255,14 @@ macro_rules! py_iterable_comp {
             fn clone(&self) -> Self {
                 match self {
                     Self::Vec(v) => Self::Vec(v.clone()),
-                    Self::This(v) => Self::This(Python::with_gil(|py| v.clone_ref(py))),
+                    Self::This(v) => Self::This(Python::attach(|py| v.clone_ref(py))),
                 }
             }
         }
 
-        impl<'source> FromPyObject<'source> for $cmp_internal {
-            fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+        impl<'source> FromPyObject<'_, 'source> for $cmp_internal {
+            type Error = PyErr;
+            fn extract(ob: Borrowed<'_, 'source, PyAny>) -> PyResult<Self> {
                 if let Ok(s) = ob.extract::<Py<$name>>() {
                     Ok($cmp_internal::This(s))
                 } else if let Ok(v) = ob.extract::<Vec<$cmp_item>>() {
@@ -246,7 +275,7 @@ macro_rules! py_iterable_comp {
 
         impl From<$name> for $cmp_internal {
             fn from(value: $name) -> Self {
-                let py_value = Python::with_gil(|py| Py::new(py, value)).unwrap();
+                let py_value = Python::attach(|py| Py::new(py, value)).unwrap();
                 Self::This(py_value)
             }
         }
@@ -265,7 +294,7 @@ macro_rules! py_iterable_comp {
 
         impl PartialEq for $cmp_internal {
             fn eq(&self, other: &Self) -> bool {
-                Python::with_gil(|py| self.iter_py(py).eq(other.iter_py(py)))
+                Python::attach(|py| self.iter_py(py).eq(other.iter_py(py)))
             }
         }
 

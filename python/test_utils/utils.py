@@ -1,17 +1,16 @@
 import json
+import os
 import re
 import tempfile
 import time
 from datetime import datetime
-from typing import TypeVar, Callable
-import os
-import pytest
 from functools import wraps
+from typing import Callable, TypeVar
 
+import pytest
 from dateutil import parser
-
-from raphtory.graphql import GraphServer
 from raphtory import Graph, PersistentGraph
+from raphtory.graphql import GraphServer
 
 B = TypeVar("B")
 
@@ -23,6 +22,40 @@ def sort_dict_recursive(d) -> dict:
         return {key: sort_dict_recursive(d[key]) for key in sorted(d)}
     elif isinstance(d, list):
         return [sort_dict_recursive(v) for v in d]
+    else:
+        return d
+
+
+def gql_sort_key(v):
+    if isinstance(v, dict):
+        direct = v.get("name", v.get("id", ""))
+        if direct:
+            return direct
+        # sort by src/dst for edges
+        src = gql_sort_key(v.get("src"))
+        dst = gql_sort_key(v.get("dst"))
+        if src:
+            if dst:
+                return [src, dst]
+            else:
+                return src
+        else:
+            return dst
+    else:
+        return ""
+
+
+def sort_by_gql_name_or_id(d):
+    if isinstance(d, dict):
+        output = {}
+        for key, value in d.items():
+            if key == "ids":
+                output[key] = sorted(value)
+            else:
+                output[key] = sort_by_gql_name_or_id(value)
+        return output
+    elif isinstance(d, list):
+        return sorted((sort_by_gql_name_or_id(v) for v in d), key=gql_sort_key)
     else:
         return d
 
@@ -123,7 +156,7 @@ def measure(name: str, f: Callable[..., B], *args, print_result: bool = True) ->
     return result
 
 
-def run_graphql_test(query, expected_output, graph):
+def run_graphql_test(query, expected_output, graph, sort_output=False):
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
@@ -132,12 +165,15 @@ def run_graphql_test(query, expected_output, graph):
 
         # Convert response to a dictionary if needed and compare
         response_dict = json.loads(response) if isinstance(response, str) else response
+        if sort_output:
+            response_dict = sort_by_gql_name_or_id(response_dict)
+            expected_output = sort_by_gql_name_or_id(expected_output)
         assert (
             response_dict == expected_output
         ), f"left={sort_dict_recursive(response_dict)}\nright={sort_dict_recursive(expected_output)}"
 
 
-def run_group_graphql_test(queries_and_expected_outputs, graph):
+def run_group_graphql_test(queries_and_expected_outputs, graph, sort_output=False):
     tmp_work_dir = tempfile.mkdtemp()
     with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
         client = server.get_client()
@@ -148,8 +184,11 @@ def run_group_graphql_test(queries_and_expected_outputs, graph):
             response_dict = (
                 json.loads(response) if isinstance(response, str) else response
             )
-            assert sort_dict_recursive(response_dict) == sort_dict_recursive(
-                expected_output
+            if sort_output:
+                response_dict = sort_by_gql_name_or_id(response_dict)
+                expected_output = sort_by_gql_name_or_id(expected_output)
+            assert (
+                response_dict == expected_output
             ), f"Expected:\n{sort_dict_recursive(expected_output)}\nGot:\n{sort_dict_recursive(response_dict)}"
 
 
@@ -232,27 +271,40 @@ def assert_set_eq(left, right):
 
 def assert_has_properties(entity, props):
     for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.properties.get(k))
-            assert v == actual
-        else:
-            assert entity.properties.get(k) == v
+        actual = entity.properties.get(k)
+        # Convert PyArrow arrays and other array-like objects to lists for comparison
+        if hasattr(actual, "to_pylist"):
+            actual = actual.to_pylist()
+        elif hasattr(actual, "tolist"):
+            actual = actual.tolist()
+        assert actual == v
 
 
 def assert_has_metadata(entity, props):
     for k, v in props.items():
-        if isinstance(v, datetime):
-            actual = parser.parse(entity.metadata.get(k))
-            assert v == actual
-        else:
-            assert entity.metadata.get(k) == v
+        actual = entity.metadata.get(k)
+        # Convert PyArrow arrays and other array-like objects to lists for comparison
+        if hasattr(actual, "to_pylist"):
+            actual = actual.to_pylist()
+        elif hasattr(actual, "tolist"):
+            actual = actual.tolist()
+        assert actual == v, f"Expected metadata {k!r} to be {v!r}, but got {actual!r}"
 
 
 def expect_unify_error(fn):
-    with pytest.raises(BaseException, match="Cannot unify"):
+    with pytest.raises(BaseException) as e:
+        # check the message
         fn()
+    print(e.value)
+    assert "Failed to unify props" in str(e.value)
 
 
 def assert_in_all(haystack: str, needles):
     for n in needles:
         assert n in haystack, f"expected to find {n!r} in {haystack!r}"
+
+
+# Needed because datetimes generated using .now() have sub millisecond precision which raphtory does not support.
+# Equality checks are failing because of this (in assert_has_properties and assert_has_metadata).
+def truncate_dt_to_ms(dt: datetime) -> datetime:
+    return dt.replace(microsecond=(dt.microsecond // 1000) * 1000)

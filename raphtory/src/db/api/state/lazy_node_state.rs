@@ -1,6 +1,6 @@
 use super::node_state_ops::ToOwnedValue;
 use crate::{
-    core::entities::{nodes::node_ref::AsNodeRef, VID},
+    core::entities::nodes::node_ref::AsNodeRef,
     db::{
         api::{
             state::{
@@ -29,7 +29,10 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
-use raphtory_api::core::storage::timeindex::{AsTime, EventTime, TimeError};
+use raphtory_api::core::{
+    entities::VID,
+    storage::timeindex::{AsTime, EventTime, TimeError},
+};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
@@ -230,11 +233,11 @@ impl<
             NodeState::new(
                 self.nodes.graph.clone(),
                 values.into(),
-                Some(Index::new(keys)),
+                Index::Partial(keys.into()),
             )
         } else {
             let values = self.collect_vec();
-            NodeState::new(self.nodes.graph.clone(), values.into(), None)
+            NodeState::new_from_eval(self.nodes.graph.clone(), values.into())
         }
     }
 
@@ -252,14 +255,13 @@ impl<
             Ok(NodeState::new(
                 self.nodes.base_graph.clone(),
                 values?.into(),
-                Some(Index::new(keys)),
+                Index::new(keys),
             ))
         } else {
             let values: Result<Vec<T>, E> = self.collect::<Result<Vec<T>, E>>();
-            Ok(NodeState::new(
+            Ok(NodeState::new_from_eval(
                 self.nodes.base_graph.clone(),
                 values?.into(),
-                None,
             ))
         }
     }
@@ -270,21 +272,21 @@ impl<
         O: NodeOp<Output = Result<T, E>>,
     {
         if self.nodes.is_filtered() {
-            let (keys, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
+            let (_, values): (IndexSet<_, ahash::RandomState>, Vec<T>) = self
                 .par_iter()
                 .filter_map(|(node, value)| value.ok().map(|value| (node.node, value)))
                 .unzip();
             NodeState::new(
                 self.nodes.base_graph.clone(),
                 values.into(),
-                Some(Index::new(keys)),
+                Index::for_graph(self.nodes.graph.clone()),
             )
         } else {
             let values: Vec<T> = self
                 .par_iter_values()
                 .filter_map(|value| value.ok())
                 .collect();
-            NodeState::new(self.nodes.base_graph.clone(), values.into(), None)
+            NodeState::new_from_eval(self.nodes.base_graph.clone(), values.into())
         }
     }
 
@@ -301,20 +303,21 @@ impl<
             GenericNodeState::new_from_eval_with_index(
                 self.nodes.base_graph.clone(),
                 values,
-                Some(Index::new(keys)),
+                Index::new(keys),
                 None,
             )
         } else {
             let storage = self.graph().core_graph().lock();
             let values = self
                 .nodes
-                .par_iter_refs()
+                .par_iter_refs(storage.clone())
                 .map(move |vid| self.op.arrow_apply(&storage, vid))
                 .collect();
+            let index = Index::for_graph(self.graph());
             GenericNodeState::new_from_eval_with_index(
                 self.nodes.base_graph.clone(),
                 values,
-                None,
+                index,
                 None,
             )
         }
@@ -631,14 +634,14 @@ impl<
     fn iter_values(&'a self) -> impl Iterator<Item = Self::Value> + 'a {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .iter_refs()
+            .iter_vids(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
     fn par_iter_values(&'a self) -> impl ParallelIterator<Item = Self::Value> + 'a {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .par_iter_refs()
+            .par_iter_refs(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
@@ -646,7 +649,7 @@ impl<
     fn into_iter_values(self) -> impl Iterator<Item = Self::OwnedValue> + Send + Sync + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .iter_refs()
+            .iter_vids(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
@@ -654,7 +657,7 @@ impl<
     fn into_par_iter_values(self) -> impl ParallelIterator<Item = Self::OwnedValue> + 'graph {
         let storage = self.graph().core_graph().lock();
         self.nodes
-            .par_iter_refs()
+            .par_iter_refs(storage.clone())
             .map(move |vid| self.op.apply(&storage, vid))
     }
 
@@ -682,24 +685,22 @@ impl<
         &'a self,
         index: usize,
     ) -> Option<(NodeView<'a, &'a Self::Graph>, Self::Value)> {
-        if self.graph().filtered() {
-            self.iter().nth(index)
-        } else {
+        if self.graph().node_list_trusted() {
             let vid = match self.nodes().node_list() {
-                NodeList::All { len } => {
-                    if index < len {
-                        VID(index)
-                    } else {
-                        return None;
-                    }
-                }
-                NodeList::List { elems } => elems.key(index)?,
+                NodeList::All => self
+                    .graph()
+                    .core_graph()
+                    .node_state_index()
+                    .global_index(index)?,
+                NodeList::List { elems } => elems.value(index)?,
             };
             let cg = self.graph().core_graph();
             Some((
                 NodeView::new_internal(self.graph(), vid),
                 self.op.apply(cg, vid),
             ))
+        } else {
+            self.iter().nth(index)
         }
     }
 
@@ -723,7 +724,7 @@ impl<
         Self::BaseGraph: 'graph,
         Self::Graph: 'graph,
     {
-        NodeState::new(graph, values.into(), Some(Index::new(keys)))
+        NodeState::new(graph, values.into(), Index::new(keys))
     }
 }
 

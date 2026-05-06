@@ -1,17 +1,20 @@
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     core::storage::timeindex::EventTime,
     db::{
         api::view::internal::*,
         graph::{graph::Graph, views::deletion_graph::PersistentGraph},
     },
+    errors::GraphError,
     prelude::*,
 };
-use raphtory_api::{iter::BoxedLDIter, GraphType};
+use raphtory_api::{iter::BoxedLIter, GraphType};
 use raphtory_storage::{graph::graph::GraphStorage, mutation::InheritMutationOps};
-use serde::{Deserialize, Serialize};
 use std::ops::Range;
+use storage::Config;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone)]
 pub enum MaterializedGraph {
     EventGraph(Graph),
     PersistentGraph(PersistentGraph),
@@ -91,11 +94,50 @@ impl MaterializedGraph {
             MaterializedGraph::PersistentGraph(g) => Some(g),
         }
     }
+
+    #[cfg(feature = "io")]
+    pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        let meta = path.read_metadata()?;
+        if meta.is_diskgraph {
+            match meta.graph_type {
+                GraphType::EventGraph => Ok(Self::EventGraph(Graph::load(path)?)),
+                GraphType::PersistentGraph => {
+                    Ok(Self::PersistentGraph(PersistentGraph::load(path)?))
+                }
+            }
+        } else {
+            Err(GraphError::NotADiskGraph)
+        }
+    }
+
+    #[cfg(feature = "io")]
+    pub fn load_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let meta = path.read_metadata()?;
+        if meta.is_diskgraph {
+            match meta.graph_type {
+                GraphType::EventGraph => {
+                    Ok(Self::EventGraph(Graph::load_with_config(path, config)?))
+                }
+                GraphType::PersistentGraph => Ok(Self::PersistentGraph(
+                    PersistentGraph::load_with_config(path, config)?,
+                )),
+            }
+        } else {
+            Err(GraphError::NotADiskGraph)
+        }
+    }
 }
 
 impl InternalStorageOps for MaterializedGraph {
     fn get_storage(&self) -> Option<&Storage> {
         for_all!(self, g => g.get_storage())
+    }
+
+    fn disk_storage_path(&self) -> Option<&Path> {
+        for_all!(self, g => g.disk_storage_path())
     }
 }
 
@@ -106,6 +148,11 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
 
     fn edge_time_semantics(&self) -> TimeSemantics {
         for_all!(self, g => g.edge_time_semantics())
+    }
+
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        false
     }
 
     fn view_start(&self) -> Option<EventTime> {
@@ -136,7 +183,7 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         for_all!(self, g => g.has_temporal_prop(prop_id))
     }
 
-    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLDIter<'_, (EventTime, Prop)> {
+    fn temporal_prop_iter(&self, prop_id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter(prop_id))
     }
 
@@ -149,8 +196,17 @@ impl GraphTimeSemanticsOps for MaterializedGraph {
         prop_id: usize,
         start: EventTime,
         end: EventTime,
-    ) -> BoxedLDIter<'_, (EventTime, Prop)> {
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
         for_all!(self, g => g.temporal_prop_iter_window(prop_id, start, end))
+    }
+
+    fn temporal_prop_iter_window_rev(
+        &self,
+        prop_id: usize,
+        start: EventTime,
+        end: EventTime,
+    ) -> BoxedLIter<'_, (EventTime, Prop)> {
+        for_all!(self, g => g.temporal_prop_iter_window_rev(prop_id, start, end))
     }
 
     fn temporal_prop_last_at(&self, prop_id: usize, t: EventTime) -> Option<(EventTime, Prop)> {
@@ -214,7 +270,7 @@ mod test_materialised_graph_dispatch {
     #[test]
     fn materialised_graph_has_core_ops() {
         let mg = MaterializedGraph::from(Graph::new());
-        assert_eq!(mg.unfiltered_num_nodes(), 0);
+        assert_eq!(mg.unfiltered_num_nodes(&LayerIds::All), 0);
     }
 
     #[test]
@@ -247,7 +303,7 @@ mod test_materialised_graph_dispatch {
 
         let mg = g.materialize().unwrap();
 
-        let v = mg.add_node(0, 1, NO_PROPS, None).unwrap();
+        let v = mg.add_node(0, 1, NO_PROPS, None, None).unwrap();
         assert_eq!(v.id(), GID::U64(1))
     }
 }

@@ -23,6 +23,7 @@ use pyo3::{
     exceptions::{PyException, PyTypeError},
     prelude::*,
     types::{PyFunction, PyList},
+    Borrowed,
 };
 use raphtory_api::core::{
     storage::timeindex::{AsTime, EventTime},
@@ -33,6 +34,16 @@ use tokio::runtime::Runtime;
 
 type DynamicVectorisedGraph = VectorisedGraph<DynamicGraph>;
 
+/// OpenAI-compatible embedding configuration. Pass an instance of this to
+/// `VectorCache(...)` to drive `vectorise(...)`.
+///
+/// Arguments:
+///     model (str): The OpenAI embedding model to use. Defaults to "text-embedding-3-small".
+///     api_base (str, optional): Base URL for the OpenAI-compatible API. If None, falls back to OpenAI's default endpoint. Defaults to None.
+///     api_key_env (str, optional): Environment variable name to read the API key from. If None, reads from `OPENAI_API_KEY`. Defaults to None.
+///     org_id (str, optional): OpenAI organization id. If None, no org id is sent. Defaults to None.
+///     project_id (str, optional): OpenAI project id. If None, no project id is sent. Defaults to None.
+///     dim (int, optional): Embedding dimension override. If None, the model's native dimension is used. Defaults to None.
 #[pyclass(name = "OpenAIEmbeddings")]
 #[derive(Clone)]
 pub struct PyOpenAIEmbeddings {
@@ -79,6 +90,12 @@ impl From<PyOpenAIEmbeddings> for OpenAIEmbeddings {
     }
 }
 
+/// Cache wrapping an embedding model. Pass to `Graph.vectorise(model=...)`
+/// or other vectorisation entry points.
+///
+/// Arguments:
+///     v_cache (OpenAIEmbeddings): Embedding model configuration.
+///     cache (str, optional): Path to persist the embedding cache on disk. Defaults to None.
 #[pyclass(name = "VectorCache")]
 #[derive(Clone)]
 pub struct PyVectorCache {
@@ -105,15 +122,23 @@ impl PyVectorCache {
 
 impl EmbeddingFunction for Arc<Py<PyFunction>> {
     fn call(&self, text: &str) -> Vec<f32> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             // TODO: remove unwraps?
             let any = self.call1(py, (text,)).unwrap();
-            let list = any.downcast_bound::<PyList>(py).unwrap();
+            let list = any.cast_bound::<PyList>(py).unwrap();
             list.iter().map(|value| value.extract().unwrap()).collect()
         })
     }
 }
 
+/// Wrap a Python callable so it can be served as an OpenAI-compatible
+/// embedding endpoint via `EmbeddingServer.serve(...)`.
+///
+/// Arguments:
+///     function (Callable[[str], list[float]]): A callable that maps a text input to its embedding vector.
+///
+/// Returns:
+///     EmbeddingServer:
 #[pyfunction]
 pub fn embedding_server(function: Py<PyFunction>) -> PyEmbeddingServer {
     PyEmbeddingServer {
@@ -142,12 +167,28 @@ impl PyEmbeddingServer {
 
 #[pymethods]
 impl PyEmbeddingServer {
+    /// Run the embedding server in the foreground until it's stopped.
+    ///
+    /// Arguments:
+    ///     port (int): Port to listen on.
+    ///     host (str, optional): Host interface to bind to. Defaults to None.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(signature = (port, host=None))]
     fn run(&self, port: u16, host: Option<&str>) {
         let (runtime, execution) = self.create_running_server(host, port);
         runtime.block_on(execution.wait());
     }
 
+    /// Start the embedding server in the background and return a handle.
+    ///
+    /// Arguments:
+    ///     port (int): Port to listen on.
+    ///     host (str, optional): Host interface to bind to. Defaults to None.
+    ///
+    /// Returns:
+    ///     RunningEmbeddingServer: handle to stop the server.
     #[pyo3(signature = (port, host=None))]
     fn start(&self, port: u16, host: Option<&str>) -> PyRunningEmbeddingServer {
         let (runtime, execution) = self.create_running_server(host, port);
@@ -159,13 +200,17 @@ impl PyEmbeddingServer {
 }
 
 #[pyclass(name = "RunningEmbeddingServer")]
-struct PyRunningEmbeddingServer {
+pub struct PyRunningEmbeddingServer {
     runtime: Runtime,
     execution: Option<EmbeddingServer>, // TODO: rename EmbeddingServer to ServerHandle?
 }
 
 #[pymethods]
 impl PyRunningEmbeddingServer {
+    /// Stop the running embedding server.
+    ///
+    /// Returns:
+    ///     None:
     fn stop(&mut self) -> PyResult<()> {
         if let Some(execution) = &mut self.execution {
             self.runtime.block_on(execution.stop());
@@ -183,9 +228,9 @@ impl PyRunningEmbeddingServer {
     fn __exit__(
         &mut self,
         // py: Python,
-        _exc_type: PyObject,
-        _exc_val: PyObject,
-        _exc_tb: PyObject,
+        _exc_type: Py<PyAny>,
+        _exc_val: Py<PyAny>,
+        _exc_tb: Py<PyAny>,
     ) -> PyResult<()> {
         self.stop()
     }
@@ -221,15 +266,16 @@ impl PyQuery {
     }
 }
 
-impl<'source> FromPyObject<'source> for PyQuery {
-    fn extract_bound(query: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyQuery {
+    type Error = PyErr;
+    fn extract(query: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(text) = query.extract::<String>() {
             return Ok(PyQuery::Raw(text));
         }
         if let Ok(embedding) = query.extract::<Vec<f32>>() {
             return Ok(PyQuery::Computed(embedding.into()));
         }
-        let message = format!("query '{query}' must be a str, or a list of float");
+        let message = format!("query '{query:?}' must be a str, or a list of float");
         Err(PyTypeError::new_err(message))
     }
 }
@@ -303,10 +349,9 @@ impl PyGraphView {
     /// Create a VectorisedGraph from the current graph.
     ///
     /// Args:
-    ///   embedding (Callable[[list], list]): Specify the embedding function used to vectorise documents into embeddings.
+    ///   model (VectorCache): Cache wrapping the embedding model used to embed documents.
     ///   nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
     ///   edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
-    ///   cache (str, optional): Path used to store the cache of embeddings.
     ///   verbose (bool): Enable to print logs reporting progress. Defaults to False.
     ///
     /// Returns:
@@ -372,12 +417,18 @@ impl<'py> IntoPyObject<'py> for DynamicVectorSelection {
 /// of those documents using a query and similarity scores.
 #[pymethods]
 impl PyVectorisedGraph {
-    /// Optmize the vector index
+    /// Optimise the vector index.
+    ///
+    /// Returns:
+    ///     None:
     fn optimize_index(&self) -> PyResult<()> {
         Ok(block_on(self.0.optimize_index())?)
     }
 
     /// Return an empty selection of entities.
+    ///
+    /// Returns:
+    ///     VectorSelection:
     fn empty_selection(&self) -> DynamicVectorSelection {
         self.0.empty_selection()
     }

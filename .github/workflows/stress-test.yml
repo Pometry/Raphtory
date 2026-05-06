@@ -11,8 +11,11 @@ jobs:
     name: GraphQL Stress Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         name: Checkout
+        with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -21,23 +24,22 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - name: Install maturin
-        run: pip install maturin==1.8.3
-      - name: Build raphtory
-        run: |
-          make install-python clean
-        #                     ↑ this is for freeing up space used by cargo before installing raphtory
+      - uses: ./.github/actions/setup_rust
+        name: Setup Rust
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: 9
       - uses: grafana/setup-k6-action@v1
         with:
           k6-version: "1.0.0"
       - name: Run stress test
+        env:
+          RUST_BACKTRACE: 1
         run: |
+          cargo build --package raphtory-server --bin raphtory-server --profile=build-fast
+          ./target/build-fast/raphtory-server server --work-dir graphs &
           cd graphql-bench
-          raphtory server &
           make stress-test
       - name: Upload k6 report
         if: always()

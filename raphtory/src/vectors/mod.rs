@@ -272,6 +272,7 @@ mod vector_tests {
             "Frodo",
             [("age".to_string(), Prop::str("30"))],
             Some("hobbit"),
+            None,
         )
         .unwrap();
 
@@ -308,6 +309,7 @@ mod vector_tests {
                 ("age".to_string(), Prop::str("120")),
             ],
             None,
+            None,
         )
         .unwrap();
         g.add_node(
@@ -317,6 +319,7 @@ mod vector_tests {
                 ("type".to_string(), Prop::str("hobbit")),
                 ("age".to_string(), Prop::str("30")),
             ],
+            None,
             None,
         )
         .unwrap();
@@ -329,6 +332,7 @@ mod vector_tests {
                 ("type".to_string(), Prop::str("human")),
                 ("age".to_string(), Prop::str("40")),
             ],
+            None,
             None,
         )
         .unwrap();

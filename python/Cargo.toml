@@ -21,17 +21,23 @@ crate-type = ["cdylib"]
 pyo3 = { workspace = true }
 raphtory = { workspace = true, features = [
     "python",
-    "search",
     "vectors",
-    "proto",
 ] }
 raphtory-graphql = { workspace = true, features = [
-    "python", "search"
+    "python",
 ] }
+auth = { workspace = true }
+clam-core = { workspace = true, features = ["python"] }
+
 
 [features]
-storage = ["raphtory/storage", "raphtory-graphql/storage"]
 extension-module = ["pyo3/extension-module"]
+search = ["raphtory/search", "raphtory-graphql/search"]
+proto = ["raphtory/proto"]
+
 
 [build-dependencies]
 pyo3-build-config = { workspace = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tikv-jemallocator.workspace = true

@@ -1,34 +1,21 @@
-use crate::{
-    entities::properties::tprop::{IllegalPropType, TProp},
-    storage::{
-        lazy_vec::{IllegalSet, LazyVec},
-        timeindex::EventTime,
-    },
-};
+use crate::storage::{lazy_vec::IllegalSet, TPropColumnError};
 use raphtory_api::core::entities::properties::prop::Prop;
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use thiserror::Error;
-
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
-pub struct Props {
-    // properties
-    pub(crate) metadata: LazyVec<Option<Prop>>,
-    pub(crate) temporal_props: LazyVec<TProp>,
-}
 
 #[derive(Error, Debug)]
 pub enum TPropError {
     #[error(transparent)]
-    IllegalSet(#[from] IllegalSet<TProp>),
-    #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
+    ColumnError(#[from] TPropColumnError),
 }
 
 #[derive(Error, Debug)]
 pub enum MetadataError {
     #[error("Attempted to change value of metadata, old: {old}, new: {new}")]
     IllegalUpdate { old: Prop, new: Prop },
+
+    #[error(transparent)]
+    ColumnError(#[from] TPropColumnError),
 }
 
 impl From<IllegalSet<Option<Prop>>> for MetadataError {
@@ -36,47 +23,6 @@ impl From<IllegalSet<Option<Prop>>> for MetadataError {
         let old = value.previous_value.unwrap_or(Prop::str("NONE"));
         let new = value.new_value.unwrap_or(Prop::str("NONE"));
         MetadataError::IllegalUpdate { old, new }
-    }
-}
-
-impl Props {
-    pub fn new() -> Self {
-        Self {
-            metadata: Default::default(),
-            temporal_props: Default::default(),
-        }
-    }
-
-    pub fn add_prop(&mut self, t: EventTime, prop_id: usize, prop: Prop) -> Result<(), TPropError> {
-        self.temporal_props.update(prop_id, |p| Ok(p.set(t, prop)?))
-    }
-
-    pub fn add_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
-        Ok(self.metadata.set(prop_id, Some(prop))?)
-    }
-
-    pub fn update_metadata(&mut self, prop_id: usize, prop: Prop) -> Result<(), MetadataError> {
-        self.metadata.update(prop_id, |n| {
-            *n = Some(prop);
-            Ok(())
-        })
-    }
-
-    pub fn metadata(&self, prop_id: usize) -> Option<&Prop> {
-        let prop = self.metadata.get(prop_id)?;
-        prop.as_ref()
-    }
-
-    pub fn temporal_prop(&self, prop_id: usize) -> Option<&TProp> {
-        self.temporal_props.get(prop_id)
-    }
-
-    pub fn metadata_ids(&self) -> impl Iterator<Item = usize> + '_ {
-        self.metadata.filled_ids()
-    }
-
-    pub fn temporal_prop_ids(&self) -> impl Iterator<Item = usize> + Send + Sync + '_ {
-        self.temporal_props.filled_ids()
     }
 }
 

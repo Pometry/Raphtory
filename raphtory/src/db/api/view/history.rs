@@ -26,6 +26,7 @@ use crate::{
     prelude::*,
 };
 use chrono::{DateTime, Utc};
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::{
     core::{entities::LayerIds, storage::timeindex::TimeError},
@@ -104,7 +105,7 @@ impl<'a, T: InternalHistoryOps + 'a> History<'a, T> {
         History::new(MergedHistory::new(self.0, right.0))
     }
 
-    fn into_iter_rev(self) -> BoxedLIter<'a, EventTime> {
+    pub fn into_iter_rev(self) -> BoxedLIter<'a, EventTime> {
         GenLockedIter::from(self.0, |item| item.iter_rev()).into_dyn_boxed()
     }
 
@@ -486,7 +487,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistor
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_history(node.as_ref(), &self.graph)
+                .node_history(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -497,7 +498,7 @@ impl<'graph, G: GraphViewOps<'graph> + Send + Sync + Send + Sync> InternalHistor
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_history_rev(node.as_ref(), &self.graph)
+                .node_history_rev(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -529,7 +530,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                 Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
-                    let edge = g.core_edge(e.pid());
+                    let edge = g.core_edge(either::Either::Right(e));
                     match e.layer() {
                         None => GenLockedIter::from(edge, move |edge| {
                             time_semantics
@@ -564,7 +565,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                 Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
-                    let edge = g.core_edge(e.pid());
+                    let edge = g.core_edge(Either::Right(e));
                     match e.layer() {
                         None => GenLockedIter::from(edge, move |edge| {
                             time_semantics
@@ -608,9 +609,9 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                 None => match e.layer() {
                     None => g
                         .edge_time_semantics()
-                        .edge_exploded_count(g.core_edge(e.pid()).as_ref(), g),
+                        .edge_exploded_count(g.core_edge(Either::Right(e)).as_ref(), g),
                     Some(layer) => g.edge_time_semantics().edge_exploded_count(
-                        g.core_edge(e.pid()).as_ref(),
+                        g.core_edge(Either::Right(e)).as_ref(),
                         LayeredGraph::new(g, LayerIds::One(layer)),
                     ),
                 },
@@ -722,7 +723,7 @@ impl<G: GraphViewOps<'static>> IntoArcDynHistoryOps for PathFromNode<'static, G>
 
 impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromGraph<'graph, G> {
     fn iter(&self) -> BoxedLIter<'_, EventTime> {
-        self.iter()
+        self.iter_values()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter(item))
             })
@@ -731,7 +732,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromGraph<'grap
     }
 
     fn iter_rev(&self) -> BoxedLIter<'_, EventTime> {
-        self.iter()
+        self.iter_values()
             .map(|path_from_node| {
                 GenLockedIter::from(path_from_node, |item| InternalHistoryOps::iter_rev(item))
             })
@@ -740,13 +741,13 @@ impl<'graph, G: GraphViewOps<'graph>> InternalHistoryOps for PathFromGraph<'grap
     }
 
     fn earliest_time(&self) -> Option<EventTime> {
-        self.iter()
+        self.iter_values()
             .filter_map(|path_from_node| InternalHistoryOps::earliest_time(&path_from_node))
             .min()
     }
 
     fn latest_time(&self) -> Option<EventTime> {
-        self.iter()
+        self.iter_values()
             .filter_map(|path_from_node| InternalHistoryOps::latest_time(&path_from_node))
             .max()
     }
@@ -1123,7 +1124,7 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(e.pid());
+            let edge = g.core_edge(Either::Right(e));
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");
@@ -1166,7 +1167,7 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(e.pid());
+            let edge = g.core_edge(Either::Right(e));
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");

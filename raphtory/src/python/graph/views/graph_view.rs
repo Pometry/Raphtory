@@ -24,7 +24,7 @@ use crate::{
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
-                node_subgraph::NodeSubgraph,
+                node_subgraph::{NodeSubgraph, UnfilteredSubgraph},
                 valid_graph::ValidGraph,
                 window_graph::WindowedGraph,
             },
@@ -39,10 +39,10 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-use pyo3::prelude::*;
+use pyo3::{prelude::*, Borrowed};
 use raphtory_api::{core::storage::arc_str::ArcStr, python::timeindex::PyOptionalEventTime};
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 impl<'py> IntoPyObject<'py> for MaterializedGraph {
     type Target = PyAny;
@@ -67,9 +67,10 @@ impl<'py> IntoPyObject<'py> for DynamicGraph {
     }
 }
 
-impl<'source> FromPyObject<'source> for DynamicGraph {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
-        ob.extract::<PyRef<PyGraphView>>().map(|g| g.graph.clone())
+impl<'py> FromPyObject<'_, 'py> for DynamicGraph {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.extract::<PyRef<PyGraphView>>()?.graph.clone())
     }
 }
 /// Graph view is a read-only version of a graph at a certain point in time.
@@ -105,6 +106,16 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for WindowedGra
 }
 
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for LayeredGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for UnfilteredSubgraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -419,12 +430,24 @@ impl PyGraphView {
         self.graph.exclude_nodes(nodes)
     }
 
-    /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a copy of the data seen within the view instead of just a mask over the original graph
+    /// Returns a 'materialized' clone of the graph view - i.e. a new graph with a
+    /// copy of the data seen within the view instead of just a mask over the original graph.
     ///
     /// Returns:
     ///    GraphView: Returns a graph clone
     fn materialize(&self) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize()
+    }
+
+    /// Materializes the graph view into a folder on disk.
+    ///
+    /// Arguments:
+    ///     path (str | PathLike): destination folder for the materialised graph.
+    ///
+    /// Returns:
+    ///     GraphView: the materialised graph at `path`.
+    fn materialize_at(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
+        self.graph.materialize_at(&path)
     }
 
     /// Displays the graph

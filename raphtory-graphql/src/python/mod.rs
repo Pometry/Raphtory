@@ -1,6 +1,7 @@
 use crate::{
     model::App,
     url_encode::{url_decode_graph, url_encode_graph, UrlDecodeError},
+    GQLError,
 };
 use pyo3::{
     exceptions::{PyTypeError, PyValueError},
@@ -8,7 +9,7 @@ use pyo3::{
     types::{PyDict, PyList, PyNone},
     IntoPyObjectExt,
 };
-use raphtory::db::api::view::MaterializedGraph;
+use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
 use raphtory_api::python::error::adapt_err_value;
 use serde_json::{Map, Number, Value as JsonValue};
 
@@ -86,8 +87,8 @@ fn translate_to_python(py: Python, value: serde_json::Value) -> PyResult<Bound<P
 
 /// Returns the raphtory graphql server schema
 ///
-/// Returns
-/// str: Graphql schema
+/// Returns:
+///     str: Graphql schema
 #[pyfunction]
 pub fn schema() -> String {
     let schema = App::create_schema().finish().unwrap(); //will only fail if something wrong with the build
@@ -97,10 +98,10 @@ pub fn schema() -> String {
 /// Encode a graph using Base64 encoding
 ///
 /// Arguments:
-/// graph (Graph | PersistentGraph): the graph
+///     graph (Graph | PersistentGraph): the graph
 ///
 /// Returns:
-/// str: the encoded graph
+///     str: the encoded graph
 #[pyfunction]
 pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
     let result = url_encode_graph(graph);
@@ -113,13 +114,13 @@ pub(crate) fn encode_graph(graph: MaterializedGraph) -> PyResult<String> {
 /// Decode a Base64-encoded graph
 ///
 /// Arguments:
-/// graph (str): the encoded graph
+///     graph (str): the encoded graph
 ///
 /// Returns:
-/// Union[Graph, PersistentGraph]: the decoded graph
+///     Union[Graph, PersistentGraph]: the decoded graph
 #[pyfunction]
 pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
-    let result = url_decode_graph(graph);
+    let result = url_decode_graph(graph, Config::default());
     match result {
         Ok(g) => Ok(g),
         Err(e) => Err(PyValueError::new_err(format!("Error decoding: {:?}", e))),
@@ -128,6 +129,12 @@ pub(crate) fn decode_graph(graph: &str) -> PyResult<MaterializedGraph> {
 
 impl From<UrlDecodeError> for PyErr {
     fn from(value: UrlDecodeError) -> Self {
+        adapt_err_value(&value)
+    }
+}
+
+impl From<GQLError> for PyErr {
+    fn from(value: GQLError) -> Self {
         adapt_err_value(&value)
     }
 }

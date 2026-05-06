@@ -1,6 +1,17 @@
 use itertools::Itertools;
-use raphtory::{prelude::*, test_storage, test_utils::test_graph};
-use raphtory_api::core::storage::{arc_str::ArcStr, timeindex::AsTime};
+use raphtory::{
+    db::{
+        api::view::Filter,
+        graph::views::filter::model::{EdgeViewFilterOps, ViewWrapOps},
+    },
+    prelude::*,
+    test_storage,
+    test_utils::test_graph,
+};
+use raphtory_api::core::{
+    entities::LayerId,
+    storage::{arc_str::ArcStr, timeindex::AsTime},
+};
 use std::collections::HashMap;
 
 #[test]
@@ -14,7 +25,7 @@ fn test_properties() {
         let e1_w = graph.window(0, 1).edge(1, 2).unwrap();
         assert_eq!(
             HashMap::from_iter(e1.properties().as_vec()),
-            props.clone().into()
+            props.into_iter().collect::<HashMap<_, _>>()
         );
         assert!(e1_w.properties().as_vec().is_empty())
     });
@@ -100,7 +111,7 @@ fn test_property_additions() {
             .into_iter()
             .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
             .chain([(ArcStr::from("test2"), "_default".into_prop())])
-            .collect()
+            .collect::<HashMap<_, _>>()
     );
     assert_eq!(
         e.layers("test2").unwrap().properties().as_map(),
@@ -108,7 +119,7 @@ fn test_property_additions() {
             .into_iter()
             .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
             .chain([(ArcStr::from("test2"), "test2".into_prop())])
-            .collect()
+            .collect::<HashMap<_, _>>()
     );
     assert_eq!(e1_w.properties().as_map(), HashMap::default())
 }
@@ -117,7 +128,7 @@ fn test_property_additions() {
 fn test_metadata_additions() {
     let g = Graph::new();
     let e = g.add_edge(0, 1, 2, NO_PROPS, Some("test")).unwrap();
-    assert_eq!(e.edge.layer(), Some(0));
+    assert_eq!(e.edge.layer(), Some(LayerId(1))); // 0 is static graph
     assert!(e.add_metadata([("test1", "test1")], None).is_ok()); // adds properties to layer `"test"`
     assert!(e.add_metadata([("test", "test")], Some("test2")).is_err()); // cannot add properties to a different layer
     e.add_metadata([("test", "test")], Some("test")).unwrap(); // layer is consistent
@@ -139,4 +150,41 @@ fn test_layers_earliest_time() {
     let g = Graph::new();
     let e = g.add_edge(1, 1, 2, NO_PROPS, Some("test")).unwrap();
     assert_eq!(e.earliest_time().map(|t| t.t()), Some(1));
+}
+
+#[test]
+fn test_edge_layers() {
+    let graph = Graph::new();
+
+    graph
+        .add_edge(0, 1, 2, NO_PROPS, Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_edge(0, 2, 3, [("a", "test")], Some("fire_nation"))
+        .unwrap();
+    graph
+        .add_edge(0, 3, 4, [("b", 4)], Some("air_nomads"))
+        .unwrap();
+
+    let filter_expr = EdgeFilter.layer("fire_nation").is_active();
+    let ids = graph
+        .filter(filter_expr)
+        .unwrap()
+        .edges()
+        .iter()
+        .map(|n| n.src().name() + "->" + &n.dst().name())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, ["1->2", "2->3"]);
+
+    let filter_expr = EdgeFilter.layer("air_nomads").is_active();
+    let ids = graph
+        .filter(filter_expr)
+        .unwrap()
+        .edges()
+        .iter()
+        .map(|n| n.src().name() + "->" + &n.dst().name())
+        .collect::<Vec<_>>();
+
+    assert_eq!(ids, ["3->4"]);
 }

@@ -17,7 +17,7 @@ pub fn gen_embedding_for_bench(text: &str) -> Embedding {
     let hash = hasher.finish();
 
     let mut rng: StdRng = SeedableRng::seed_from_u64(hash);
-    (0..1536).map(|_| rng.gen()).collect()
+    (0..1536).map(|_| rng.random()).collect()
 }
 
 async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
@@ -30,7 +30,7 @@ async fn embedding_model(texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> 
 pub fn create_graph_for_vector_bench(size: usize) -> Graph {
     let graph = Graph::new();
     for id in 0..size {
-        graph.add_node(0, id as u64, NO_PROPS, None).unwrap();
+        graph.add_node(0, id as u64, NO_PROPS, None, None).unwrap();
     }
     graph
 }

@@ -48,26 +48,36 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
         Self::One(v, e)
     }
 
-    pub fn push(&mut self, v: K, e: V) {
+    /// Push a new node and edge into the adjacency set.
+    ///
+    /// If the node already exists, it will not be added again.
+    /// Returns `true` if the node was added, `false` if it already existed
+    pub fn push(&mut self, v: K, e: V) -> bool {
         match self {
             AdjSet::Empty => {
                 *self = Self::new(v, e);
+                true
             }
             AdjSet::One(vv, ee) => {
                 if *vv < v {
                     *self = Self::Small {
                         vs: vec![*vv, v],
                         edges: vec![*ee, e],
-                    }
+                    };
+                    true
                 } else if *vv > v {
                     *self = Self::Small {
                         vs: vec![v, *vv],
                         edges: vec![e, *ee],
-                    }
+                    };
+                    true
+                } else {
+                    // already exists
+                    false
                 }
             }
             AdjSet::Small { vs, edges } => match vs.binary_search(&v) {
-                Ok(_) => {}
+                Ok(_) => false,
                 Err(i) => {
                     if vs.len() < SMALL_SET {
                         vs.insert(i, v);
@@ -78,11 +88,10 @@ impl<K: Ord + Copy + Hash + Send + Sync, V: Into<usize> + Copy + Send + Sync> Ad
                         map.insert(v, e);
                         *self = Self::Large { vs: map }
                     }
+                    true
                 }
             },
-            AdjSet::Large { vs } => {
-                vs.insert(v, e);
-            }
+            AdjSet::Large { vs } => vs.insert(v, e).is_none(),
         }
     }
 

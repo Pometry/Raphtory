@@ -156,6 +156,10 @@ py_eq!(MetadataView, PyPropsListCmp);
 
 #[pymethods]
 impl MetadataView {
+    /// Metadata keys present across the underlying entities.
+    ///
+    /// Returns:
+    ///     list[str]:
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .next()
@@ -163,12 +167,21 @@ impl MetadataView {
             .unwrap_or_default()
     }
 
+    /// Metadata values aligned with `keys()`.
+    ///
+    /// Returns:
+    ///     list[PyPropValueList]:
     pub fn values(&self) -> Vec<PyPropValueList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
+
+    /// Pairs of `(key, value list)` for every metadata key.
+    ///
+    /// Returns:
+    ///     list[tuple[str, PyPropValueList]]:
     pub fn items(&self) -> Vec<(ArcStr, PyPropValueList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
@@ -177,6 +190,13 @@ impl MetadataView {
         self.get(key).ok_or(PyKeyError::new_err("No such property"))
     }
 
+    /// Look up a metadata value by key.
+    ///
+    /// Arguments:
+    ///     key (str): metadata key.
+    ///
+    /// Returns:
+    ///     Optional[PyPropValueList]:
     pub fn get(&self, key: ArcStr) -> Option<PyPropValueList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
@@ -197,6 +217,11 @@ impl MetadataView {
         self.keys().into_iter().into()
     }
 
+    /// Materialise the metadata as a plain dict mapping each key to the
+    /// list of values seen across the underlying entities.
+    ///
+    /// Returns:
+    ///     dict[str, list]:
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Option<Prop>>> {
         self.items()
             .into_iter()
@@ -210,6 +235,10 @@ py_eq!(MetadataListList, PyMetadataListListCmp);
 
 #[pymethods]
 impl MetadataListList {
+    /// Metadata keys present across the underlying entities.
+    ///
+    /// Returns:
+    ///     list[str]:
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .flat_map(|mut it| it.next().map(|p| p.keys().collect()))
@@ -217,12 +246,21 @@ impl MetadataListList {
             .unwrap_or_default()
     }
 
+    /// Per-key list of value lists.
+    ///
+    /// Returns:
+    ///     list[PyPropValueListList]:
     pub fn values(&self) -> Vec<PyPropValueListList> {
         self.keys()
             .into_iter()
             .map(|k| self.get(k).expect("key exists"))
             .collect()
     }
+
+    /// Pairs of `(key, value list-of-lists)` for every metadata key.
+    ///
+    /// Returns:
+    ///     list[tuple[str, PyPropValueListList]]:
     pub fn items(&self) -> Vec<(ArcStr, PyPropValueListList)> {
         self.keys().into_iter().zip(self.values()).collect()
     }
@@ -235,6 +273,13 @@ impl MetadataListList {
         self.keys().into_iter().into()
     }
 
+    /// Look up the metadata for `key` across all entities.
+    ///
+    /// Arguments:
+    ///     key (str): metadata key.
+    ///
+    /// Returns:
+    ///     Optional[PyPropValueListList]:
     pub fn get(&self, key: ArcStr) -> Option<PyPropValueListList> {
         self.__contains__(&key).then(|| {
             let builder = self.builder.clone();
@@ -257,6 +302,10 @@ impl MetadataListList {
             .is_some_and(|p| p.contains(key))
     }
 
+    /// Materialise as a dict mapping each key to a list of value lists.
+    ///
+    /// Returns:
+    ///     dict[str, list]:
     pub fn as_dict(&self) -> HashMap<ArcStr, Vec<Vec<Option<Prop>>>> {
         self.items()
             .into_iter()

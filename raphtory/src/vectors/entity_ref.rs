@@ -7,6 +7,7 @@ use crate::{
 };
 use either::Either;
 use raphtory_api::core::entities::GID;
+use raphtory_core::entities::EID;
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
 
 // TODO: try to make private again if possible
@@ -71,7 +72,7 @@ impl EntityRef {
                 Either::Left(graph.node_id(raphtory_api::core::entities::VID((*id) as usize)))
             }
             EntityRef::Edge(id) => {
-                let edge = graph.core_edge((*id as usize).into());
+                let edge = graph.core_edge(Either::Left(EID(*id as usize)));
                 let src = graph.node_id(edge.src());
                 let dst = graph.node_id(edge.dst());
                 Either::Right((src, dst))

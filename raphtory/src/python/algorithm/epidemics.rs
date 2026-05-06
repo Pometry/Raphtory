@@ -75,9 +75,10 @@ impl<'py> IntoPyObject<'py> for Infected {
     }
 }
 
-impl<'py> FromPyObject<'py> for Infected {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let res = ob.downcast::<PyInfected>()?;
+impl<'py> FromPyObject<'_, 'py> for Infected {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let res = ob.cast::<PyInfected>()?;
         Ok(res.get().inner)
     }
 }
@@ -88,8 +89,9 @@ pub enum PySeed {
     Probability(f64),
 }
 
-impl<'source> FromPyObject<'source> for PySeed {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PySeed {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         let res = if ob.is_instance_of::<PyInt>() {
             Self::Number(ob.extract()?)
         } else if ob.is_instance_of::<PyFloat>() {

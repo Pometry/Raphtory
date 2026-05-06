@@ -109,6 +109,7 @@ mod search_tests {
                     "pometry",
                     [("p1", "tango".into_prop())],
                     Some("fire_nation"),
+                    None,
                 )
                 .unwrap();
             graph
@@ -117,6 +118,7 @@ mod search_tests {
                     "shivam_kapoor",
                     [("p1", "charlie_bravo".into_prop())],
                     Some("fire_nation"),
+                    None,
                 )
                 .unwrap();
 
@@ -218,9 +220,9 @@ mod search_tests {
                 )
                 .unwrap();
 
-            graph.add_node(1, "shivam", NO_PROPS, None).unwrap();
-            graph.add_node(1, "raphtory", NO_PROPS, None).unwrap();
-            graph.add_node(1, "pometry", NO_PROPS, None).unwrap();
+            graph.add_node(1, "shivam", NO_PROPS, None, None).unwrap();
+            graph.add_node(1, "raphtory", NO_PROPS, None, None).unwrap();
+            graph.add_node(1, "pometry", NO_PROPS, None, None).unwrap();
 
             graph.create_index_in_ram().unwrap();
 
@@ -281,6 +283,7 @@ mod search_tests {
     #[ignore = "this test is for experiments with the jira graph"]
     fn load_jira_graph() -> Result<(), GraphError> {
         global_info_logger();
+
         let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
         assert!(graph.count_nodes() > 0);
 

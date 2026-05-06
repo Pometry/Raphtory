@@ -12,12 +12,12 @@ use std::error::Error;
 #[test]
 fn test_neighbours_history() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
-    let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
-    let node2 = graph.add_node(2, "node2", NO_PROPS, None).unwrap();
-    let node3 = graph.add_node(3, "node3", NO_PROPS, None).unwrap();
+    let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
+    let node2 = graph.add_node(2, "node2", NO_PROPS, None, None).unwrap();
+    let node3 = graph.add_node(3, "node3", NO_PROPS, None, None).unwrap();
     let _edge = graph.add_edge(4, &node, &node2, NO_PROPS, None).unwrap();
     let _edge2 = graph.add_edge(5, &node, &node3, NO_PROPS, None).unwrap();
-    let node4 = graph.add_node(6, "node4", NO_PROPS, None).unwrap();
+    let node4 = graph.add_node(6, "node4", NO_PROPS, None, None).unwrap();
     let _edge3 = graph.add_edge(7, &node2, &node4, NO_PROPS, None).unwrap();
 
     let history = graph.node("node").unwrap().neighbours().combined_history();
@@ -37,15 +37,15 @@ fn test_neighbours_history() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_intervals() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
-    let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
-    graph.add_node(4, "node", NO_PROPS, None).unwrap();
-    graph.add_node(10, "node", NO_PROPS, None).unwrap();
-    graph.add_node(30, "node", NO_PROPS, None).unwrap();
+    let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(4, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(10, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(30, "node", NO_PROPS, None, None).unwrap();
     let interval = Intervals(&node);
     assert_eq!(interval.collect(), &[3, 6, 20]);
 
     // make sure there are no intervals (1 time entry)
-    let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+    let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.collect(), Vec::<i64>::new());
     Ok(())
@@ -54,12 +54,12 @@ fn test_intervals() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_intervals_same_timestamp() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
-    let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
-    graph.add_node(1, "node", NO_PROPS, None).unwrap();
+    let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
     let interval = Intervals(&node);
     assert_eq!(interval.collect(), &[0]);
 
-    graph.add_node(2, "node", NO_PROPS, None).unwrap();
+    graph.add_node(2, "node", NO_PROPS, None, None).unwrap();
     assert_eq!(interval.collect(), &[0, 1]);
     Ok(())
 }
@@ -67,15 +67,15 @@ fn test_intervals_same_timestamp() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_intervals_mean() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
-    let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
-    graph.add_node(4, "node", NO_PROPS, None).unwrap();
-    graph.add_node(10, "node", NO_PROPS, None).unwrap();
-    graph.add_node(30, "node", NO_PROPS, None).unwrap();
+    let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(4, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(10, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(30, "node", NO_PROPS, None, None).unwrap();
     let interval = Intervals(&node);
     assert_eq!(interval.mean(), Some(29f64 / 3f64));
 
     // make sure mean is None if there is no interval to be calculated (1 time entry)
-    let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+    let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.mean(), None);
     Ok(())
@@ -84,15 +84,15 @@ fn test_intervals_mean() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_intervals_median() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
-    let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
-    graph.add_node(30, "node", NO_PROPS, None).unwrap();
-    graph.add_node(31, "node", NO_PROPS, None).unwrap();
-    graph.add_node(40, "node", NO_PROPS, None).unwrap(); // intervals are 29, 1, 9
+    let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(30, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(31, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(40, "node", NO_PROPS, None, None).unwrap(); // intervals are 29, 1, 9
     let interval = Intervals(&node);
     assert_eq!(interval.median(), Some(9));
 
     // make sure median is None if there is no interval to be calculated (1 time entry)
-    let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+    let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.median(), None);
     Ok(())
@@ -101,15 +101,15 @@ fn test_intervals_median() -> Result<(), Box<dyn Error>> {
 #[test]
 fn test_intervals_max() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
-    let node = graph.add_node(1, "node", NO_PROPS, None).unwrap();
-    graph.add_node(30, "node", NO_PROPS, None).unwrap();
-    graph.add_node(31, "node", NO_PROPS, None).unwrap();
-    graph.add_node(40, "node", NO_PROPS, None).unwrap(); // intervals are 29, 1, 9
+    let node = graph.add_node(1, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(30, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(31, "node", NO_PROPS, None, None).unwrap();
+    graph.add_node(40, "node", NO_PROPS, None, None).unwrap(); // intervals are 29, 1, 9
     let interval = Intervals(&node);
     assert_eq!(interval.max(), Some(29));
 
     // make sure max is None if there is no interval to be calculated (1 time entry)
-    let node2 = graph.add_node(1, "node2", NO_PROPS, None).unwrap();
+    let node2 = graph.add_node(1, "node2", NO_PROPS, None, None).unwrap();
     let interval2 = Intervals(&node2);
     assert_eq!(interval2.max(), None);
     Ok(())
@@ -120,11 +120,17 @@ fn test_intervals_max() -> Result<(), Box<dyn Error>> {
 fn test_basic() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
     let dumbledore_node = graph
-        .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
+        .add_node(
+            1,
+            "Dumbledore",
+            [("type", Prop::str("Character"))],
+            None,
+            None,
+        )
         .unwrap();
 
     let harry_node = graph
-        .add_node(2, "Harry", [("type", Prop::str("Character"))], None)
+        .add_node(2, "Harry", [("type", Prop::str("Character"))], None, None)
         .unwrap();
 
     let character_edge = graph
@@ -180,12 +186,18 @@ fn test_basic() -> Result<(), Box<dyn Error>> {
 fn test_single_layer() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
     let dumbledore_node = graph
-        .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
+        .add_node(
+            1,
+            "Dumbledore",
+            [("type", Prop::str("Character"))],
+            None,
+            None,
+        )
         .unwrap();
     let dumbledore_node_id = dumbledore_node.id();
 
     let harry_node = graph
-        .add_node(2, "Harry", [("type", Prop::str("Character"))], None)
+        .add_node(2, "Harry", [("type", Prop::str("Character"))], None, None)
         .unwrap();
     let harry_node_id = harry_node.id();
 
@@ -200,7 +212,13 @@ fn test_single_layer() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let broom_node = graph
-        .add_node(4, "Broom", [("type", Prop::str("Magical Object"))], None)
+        .add_node(
+            4,
+            "Broom",
+            [("type", Prop::str("Magical Object"))],
+            None,
+            None,
+        )
         .unwrap();
     let broom_node_id = broom_node.id();
 
@@ -339,11 +357,17 @@ fn test_single_layer() -> Result<(), Box<dyn Error>> {
 fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     let graph = Graph::new();
     let _dumbledore_node = graph
-        .add_node(1, "Dumbledore", [("type", Prop::str("Character"))], None)
+        .add_node(
+            1,
+            "Dumbledore",
+            [("type", Prop::str("Character"))],
+            None,
+            None,
+        )
         .unwrap();
 
     let _harry_node = graph
-        .add_node(2, "Harry", [("type", Prop::str("Character"))], None)
+        .add_node(2, "Harry", [("type", Prop::str("Character"))], None, None)
         .unwrap();
 
     let _character_edge = graph
@@ -357,7 +381,13 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
         .unwrap();
 
     let _broom_node = graph
-        .add_node(4, "Broom", [("type", Prop::str("Magical Object"))], None)
+        .add_node(
+            4,
+            "Broom",
+            [("type", Prop::str("Magical Object"))],
+            None,
+            None,
+        )
         .unwrap();
 
     let _broom_harry_magical_edge = graph
@@ -422,21 +452,7 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     ];
 
     // lazy_node_state returns an iterator of history objects, not ordered
-    let expected_history_all_unordered = [
-        EventTime::new(1, 0),
-        EventTime::new(3, 2),
-        EventTime::new(4, 5),
-        EventTime::new(5, 7),
-        EventTime::new(2, 1),
-        EventTime::new(3, 2),
-        EventTime::new(4, 4),
-        EventTime::new(5, 6),
-        EventTime::new(4, 3),
-        EventTime::new(4, 4),
-        EventTime::new(4, 5),
-        EventTime::new(5, 6),
-        EventTime::new(5, 7),
-    ];
+    let expected_history_all_unordered = [vec![4, 4, 4, 5, 5], vec![1, 3, 4, 5], vec![2, 3, 4, 5]];
 
     // Test that the merged history contains all timestamps from all nodes
     // Each operation adds a timestamp, so we should have timestamps from node additions and edge additions
@@ -462,20 +478,25 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     assert_eq!(individual_histories, nodes_history_as_history.collect());
 
     // Test timestamp conversion
-    let timestamps: Vec<_> = all_nodes_history
+    let timestamps: Vec<Vec<_>> = all_nodes_history
         .t()
-        .iter_values()
-        .flat_map(|ts| ts.collect())
+        .iter()
+        .sorted_by_key(|(n, _)| n.id())
+        .map(|(_, ts)| ts.collect())
         .collect();
     assert!(!timestamps.is_empty());
-    assert_eq!(timestamps, expected_history_all_unordered.map(|t| t.t()));
+    assert_eq!(timestamps, expected_history_all_unordered);
 
     // Test intervals
-    let intervals: Vec<_> = all_nodes_history.intervals().collect();
+    let intervals = all_nodes_history.intervals();
     assert_eq!(intervals.len(), 3); // One per node
     assert_eq!(
-        intervals.iter().map(|i| i.collect()).collect::<Vec<_>>(),
-        vec!(vec![2, 1, 1], vec![1, 1, 1], vec![0, 0, 1, 0])
+        intervals
+            .iter()
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, i)| i.collect())
+            .collect::<Vec<_>>(),
+        vec!(vec![0, 0, 1, 0], vec![2, 1, 1], vec![1, 1, 1])
     );
 
     // Test windowed operations
@@ -544,22 +565,27 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     // These return LazyNodeState with different operations
     assert_eq!(
         earliest_times
-            .iter_values()
-            .map(|t| t.unwrap())
+            .iter()
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, t)| t.unwrap())
             .collect_vec(),
         [
+            EventTime::new(4, 3),
             EventTime::new(1, 0),
-            EventTime::new(2, 1),
-            EventTime::new(4, 3)
+            EventTime::new(2, 1)
         ]
     );
 
     assert_eq!(
-        latest_times.iter_values().map(|t| t.unwrap()).collect_vec(),
+        latest_times
+            .iter()
+            .sorted_by_key(|(n, _)| n.id())
+            .map(|(_, t)| t.unwrap())
+            .collect_vec(),
         [
             EventTime::new(5, 7),
-            EventTime::new(5, 6),
-            EventTime::new(5, 7)
+            EventTime::new(5, 7),
+            EventTime::new(5, 6)
         ]
     );
 
@@ -575,11 +601,12 @@ fn test_lazy_node_state() -> Result<(), Box<dyn Error>> {
     // Test event id access
     let event_ids_lazy: Vec<_> = all_nodes_history
         .event_id()
-        .iter_values()
-        .flat_map(|s| s.collect())
+        .iter()
+        .sorted_by_key(|(n, _)| n.id())
+        .flat_map(|(_, s)| s.collect())
         .collect();
     let event_ids_normal: Vec<_> = nodes_history_as_history.event_id().collect();
-    assert_eq!(event_ids_lazy, [0, 2, 5, 7, 1, 2, 4, 6, 3, 4, 5, 6, 7]); // unordered
+    assert_eq!(event_ids_lazy, [3, 4, 5, 6, 7, 0, 2, 5, 7, 1, 2, 4, 6,]); // unordered
     assert_eq!(event_ids_normal, [0, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6, 7, 7]); // ordered
 
     // Test combined window and layer filtering

@@ -26,9 +26,10 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.base }}
+          token: '${{ secrets.PULL_TOKEN }}'
       - id: version
         run: echo "version=$(make print-version)" >> $GITHUB_OUTPUT
   call-release-rust-workflow:

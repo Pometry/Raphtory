@@ -10,12 +10,16 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use either::Either;
+use raphtory_api::core::{
+    entities::{LayerId, LayerIds},
+    storage::dict_mapper::MaybeNew,
+};
 use raphtory_storage::{
     core_ops::CoreGraphOps,
     graph::{edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage},
 };
-use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
+use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
@@ -209,10 +213,10 @@ impl EdgeIndex {
 
     pub(crate) fn index_edges_fields(&self, graph: &GraphStorage) -> Result<(), GraphError> {
         let mut writer = self.entity_index.index.writer(100_000_000)?;
-        (0..graph.count_edges())
-            .into_par_iter()
-            .try_for_each(|e_id| {
-                let edge = graph.core_edge(EID(e_id));
+        graph
+            .edges()
+            .par_iter(&LayerIds::All)
+            .try_for_each(|edge| {
                 let e_view = EdgeView::new(graph, edge.out_ref());
                 self.index_edge(e_view, &writer)?;
                 Ok::<(), GraphError>(())
@@ -239,7 +243,7 @@ impl EdgeIndex {
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
         t: EventTime,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let eid_u64 = edge_id.inner().as_u64();
@@ -249,7 +253,7 @@ impl EdgeIndex {
         edge_id
             .if_new(|eid| {
                 let mut writer = self.entity_index.index.writer(100_000_000)?;
-                let ese = graph.core_edge(eid);
+                let ese = graph.core_edge(Either::Left(eid));
                 let src = graph.node_name(ese.src());
                 let dst = graph.node_name(ese.dst());
                 let edge_doc = self.create_document(eid_u64, src, dst);
@@ -279,7 +283,7 @@ impl EdgeIndex {
     pub(crate) fn add_edge_metadata(
         &self,
         edge_id: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.entity_index.metadata_indexes.read_recursive();
@@ -298,7 +302,7 @@ impl EdgeIndex {
     pub(crate) fn update_edge_metadata(
         &self,
         edge_id: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         let indexes = self.entity_index.metadata_indexes.read_recursive();

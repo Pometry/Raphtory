@@ -1,10 +1,13 @@
-use crate::python::{
-    client::raphtory_client::PyRaphtoryClient,
-    server::{is_online, wait_server, BridgeCommand},
-    RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
+use crate::{
+    client::is_online,
+    python::{
+        client::raphtory_client::PyRaphtoryClient,
+        server::{wait_server, BridgeCommand},
+        RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
+    },
 };
 use crossbeam_channel::Sender as CrossbeamSender;
-use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyObject, PyResult, Python};
+use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyAny, PyResult, Python};
 use std::{
     thread::{sleep, JoinHandle},
     time::Duration,
@@ -79,16 +82,16 @@ impl PyRunningGraphServer {
             Ok(())
         })?;
         let server = &mut self.server_handler;
-        py.allow_threads(|| wait_server(server))
+        py.detach(|| wait_server(server))
     }
 }
 
 #[pymethods]
 impl PyRunningGraphServer {
-    /// Get the client for the server
+    /// Get the client for the server.
     ///
     /// Returns:
-    /// RaphtoryClient: the client
+    ///     RaphtoryClient: the client.
     pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
         // TODO: return an authenticated server with rw access to everything?
         self.apply_if_alive(|handler| {
@@ -98,10 +101,10 @@ impl PyRunningGraphServer {
         })
     }
 
-    /// Stop the server and wait for it to finish
+    /// Stop the server and wait for it to finish.
     ///
     /// Returns:
-    /// None:
+    ///     None:
     pub(crate) fn stop(&mut self, py: Python) -> PyResult<()> {
         self.stop_server(py)
     }
@@ -113,9 +116,9 @@ impl PyRunningGraphServer {
     fn __exit__(
         &mut self,
         py: Python,
-        _exc_type: PyObject,
-        _exc_val: PyObject,
-        _exc_tb: PyObject,
+        _exc_type: Py<PyAny>,
+        _exc_val: Py<PyAny>,
+        _exc_tb: Py<PyAny>,
     ) -> PyResult<()> {
         self.stop_server(py)
     }

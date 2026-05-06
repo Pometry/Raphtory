@@ -1,7 +1,7 @@
 use ahash::HashSet;
 use proptest::{prelude::Strategy, proptest, sample::Index};
 use raphtory::{
-    algorithms::components::weakly_connected_components,
+    algorithms::components::{weakly_connected_components, ConnectedComponent},
     db::api::{
         mutation::AdditionOps,
         state::{NodeStateValue, TypedNodeState},
@@ -10,7 +10,12 @@ use raphtory::{
     prelude::*,
     test_storage,
 };
-use std::{collections::BTreeSet, hash::Hash};
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::{BTreeSet, HashMap},
+    fmt::{Debug, Formatter},
+    hash::Hash,
+};
 
 fn assert_same_partition<
     V: NodeStateValue + Hash + Eq + 'static,
@@ -159,10 +164,54 @@ fn windowed_connected_components() {
     });
 }
 
+#[test]
+fn layered_connected_components() {
+    let g = Graph::new();
+    g.add_edge(0, 1, 2, NO_PROPS, Some("ZERO-TWO")).unwrap();
+    g.add_edge(1, 1, 3, NO_PROPS, Some("ZERO-TWO")).unwrap();
+    g.add_edge(2, 4, 5, NO_PROPS, Some("ZERO-TWO")).unwrap();
+    g.add_edge(3, 6, 7, NO_PROPS, Some("THREE-FIVE")).unwrap();
+    g.add_edge(4, 8, 9, NO_PROPS, Some("THREE-FIVE")).unwrap();
+
+    let g_layer_zero_two = g.layers("ZERO-TWO").unwrap();
+
+    assert_eq!(g_layer_zero_two.nodes().id(), [1, 2, 3, 4, 5]);
+    let g_layer_three_five = g.layers("THREE-FIVE").unwrap();
+
+    let res_zero_two = weakly_connected_components(&g_layer_zero_two);
+    let c1 = res_zero_two.get_by_node(1).unwrap();
+    let c2 = res_zero_two.get_by_node(4).unwrap();
+
+    let expected_zero_two: HashMap<u64, ConnectedComponent> =
+        [(1, c1), (2, c1), (3, c1), (4, c2), (5, c2)].into();
+
+    assert_eq!(res_zero_two, expected_zero_two);
+
+    let res_three_five = weakly_connected_components(&g_layer_three_five);
+
+    let c6 = res_three_five.get_by_node(6).unwrap().component_id;
+    let c7 = res_three_five.get_by_node(8).unwrap().component_id;
+
+    let expected_three_five: HashMap<u64, usize> = [(6u64, c6), (7, c6), (8, c7), (9, c7)].into();
+    assert_eq!(res_three_five, expected_three_five);
+}
+
+#[derive(Serialize, Deserialize)]
+struct ComponentTestInput {
+    edges: Vec<(u64, u64)>,
+    components: Vec<HashSet<u64>>,
+}
+
+impl Debug for ComponentTestInput {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&serde_json::to_string(self).unwrap())
+    }
+}
+
 fn random_component_edges(
     num_components: usize,
     num_nodes_per_component: usize,
-) -> impl Strategy<Value = (Vec<(u64, u64)>, Vec<HashSet<u64>>)> {
+) -> impl Strategy<Value = ComponentTestInput> {
     let vs = proptest::collection::vec(
         proptest::collection::vec(
             (
@@ -185,14 +234,14 @@ fn random_component_edges(
             }
             components.push(component.into_iter().collect());
         }
-        (edges, components)
+        ComponentTestInput { edges, components }
     })
 }
 
 #[test]
 fn weakly_connected_components_proptest() {
     proptest!(|(input in random_component_edges(10, 100))|{
-        let (edges, components) = input;
+        let ComponentTestInput {edges, components } = input;
         let g = Graph::new();
         for (src, dst) in edges {
             g.add_edge(0, src, dst, NO_PROPS, None).unwrap();
@@ -437,7 +486,7 @@ mod in_component_test {
                 .nodes()
                 .in_neighbours()
                 .iter()
-                .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
+                .flat_map(|(_, ns)| ns.iter().filter_map(|c| c.id().as_u64()))
                 .collect();
 
         assert_eq!(unfiltered_ids, vec![99]);
@@ -481,7 +530,7 @@ mod components_test {
             out_component, out_component_filtered, out_components, out_components_filtered,
         },
         db::{
-            api::{mutation::AdditionOps, view::history::InternalHistoryOps},
+            api::mutation::AdditionOps,
             graph::views::filter::{
                 model::{
                     graph_filter::GraphFilter, property_filter::ops::PropertyFilterOps,
@@ -493,7 +542,6 @@ mod components_test {
         prelude::*,
         test_storage,
     };
-    use raphtory_api::core::entities::VID;
     use std::collections::HashMap;
 
     fn check_node(graph: &Graph, node_id: u64, mut correct: Vec<(u64, usize)>) {
@@ -706,13 +754,13 @@ mod components_test {
         graph.add_edge(1, 2, 99, NO_PROPS, Some("B")).unwrap();
         graph.add_edge(1, 99, 100, NO_PROPS, Some("B")).unwrap();
 
-        let mut unfiltered_ids: Vec<u64> =
+        let unfiltered_ids: Vec<u64> =
             out_component_filtered(graph.node(1).unwrap(), GraphFilter.layer("A"))
                 .unwrap()
                 .nodes()
                 .out_neighbours()
                 .iter()
-                .flat_map(|ns| ns.iter().filter_map(|c| c.id().as_u64()))
+                .flat_map(|(_, ns)| ns.iter().filter_map(|c| c.id().as_u64()))
                 .collect();
 
         assert_eq!(unfiltered_ids, vec![99]);
@@ -723,16 +771,16 @@ mod components_test {
         let graph = Graph::new();
 
         graph
-            .add_node(1, 1, vec![("p1", Prop::U64(1))], None)
+            .add_node(1, 1, vec![("p1", Prop::U64(1))], None, None)
             .unwrap();
         graph
-            .add_node(1, 2, vec![("p1", Prop::U64(2))], None)
+            .add_node(1, 2, vec![("p1", Prop::U64(2))], None, None)
             .unwrap();
         graph
-            .add_node(1, 3, vec![("p1", Prop::U64(3))], None)
+            .add_node(1, 3, vec![("p1", Prop::U64(3))], None, None)
             .unwrap();
         graph
-            .add_node(1, 4, vec![("p1", Prop::U64(4))], None)
+            .add_node(1, 4, vec![("p1", Prop::U64(4))], None, None)
             .unwrap();
 
         graph.add_edge(1, 1, 2, NO_PROPS, Some("A")).unwrap();

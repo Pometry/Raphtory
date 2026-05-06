@@ -10,9 +10,10 @@ use raphtory::{
         },
     },
     prelude::*,
-    test_utils::{build_graph, build_graph_strat, make_node_types},
+    test_utils::{build_graph, build_graph_strat, make_node_types, GraphFixture},
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
+use serde_json::json;
 use std::ops::Range;
 
 #[test]
@@ -39,7 +40,9 @@ fn test_type_filtered_subgraph() {
     ];
 
     for (id, name, props, layer) in &nodes {
-        graph.add_node(*id, name, props.clone(), *layer).unwrap();
+        graph
+            .add_node(*id, name, props.clone(), *layer, None)
+            .unwrap();
     }
 
     let filtered_graph = graph
@@ -65,7 +68,7 @@ fn test_type_filtered_subgraph() {
 
 #[test]
 fn materialize_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), node_types in make_node_types())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), node_types in make_node_types())| {
         let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
         let gm = g.materialize().unwrap();
         assert_graph_equal(&g, &gm);
@@ -74,7 +77,7 @@ fn materialize_prop_test() {
 
 #[test]
 fn materialize_type_window_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
         let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
         let gvw = g.window(w.start, w.end);
         let gmw = gvw.materialize().unwrap();
@@ -83,8 +86,20 @@ fn materialize_type_window_prop_test() {
 }
 
 #[test]
+fn materialize_type_window_prop_test_failure() {
+    let graph_f: GraphFixture = serde_json::from_value(json!({"nodes":{"9":{"props":{"t_props":[[1,[]]],"c_props":[]},"node_type":"one"},"8":{"props":{"t_props":[[1,[]]],"c_props":[]},"node_type":"one"}},"edges":[[[8,8,"a"],{"props":{"t_props":[[0,[]]],"c_props":[]},"deletions":[]}]]})).unwrap();
+    let w = 1..2;
+    let node_types = ["one"];
+    let g = Graph::from(build_graph(&graph_f)).subgraph_node_types(node_types);
+    let gvw = g.window(w.start, w.end);
+    assert_eq!(gvw.node("8").unwrap().out_degree(), 0); // edge is not in the window
+    let gmw = gvw.materialize().unwrap();
+    assert_graph_equal(&gvw, &gmw);
+}
+
+#[test]
 fn materialize_window_type_prop_test() {
-    proptest!(|(graph_f in build_graph_strat(10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
+    proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>(), node_types in make_node_types())| {
         let g = Graph::from(build_graph(&graph_f));
         let gvw = g.window(w.start, w.end).subgraph_node_types(node_types);
         let gmw = gvw.materialize().unwrap();
@@ -226,7 +241,9 @@ mod test_filters_node_type_filtered_subgraph {
 
             // Add nodes to the graph
             for (id, name, props, layer) in &nodes {
-                graph.add_node(*id, name, props.clone(), *layer).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), *layer, None)
+                    .unwrap();
             }
 
             graph
@@ -470,7 +487,9 @@ mod test_filters_node_type_filtered_subgraph {
             ];
 
             for (id, name, props, layer) in &nodes {
-                graph.add_node(*id, name, props.clone(), *layer).unwrap();
+                graph
+                    .add_node(*id, name, props.clone(), *layer, None)
+                    .unwrap();
             }
 
             graph
@@ -487,7 +506,7 @@ mod test_filters_node_type_filtered_subgraph {
                 },
                 views::filter::model::PropertyFilterFactory,
             },
-            prelude::{EdgeFilter, EdgeViewOps, GraphViewOps},
+            prelude::EdgeFilter,
         };
 
         #[test]

@@ -1,28 +1,28 @@
 from __future__ import unicode_literals
-from decimal import Decimal
+
 import math
-import sys
+import os
+import pickle
 import random
 import re
-
-import pandas as pd
-import pandas.core.frame
-import pytest
-import pyarrow as pa
-from raphtory import Graph, PersistentGraph
-from raphtory import algorithms
-from raphtory import graph_loader
+import shutil
+import string
+import sys
 import tempfile
+from decimal import Decimal
 from math import isclose
 from datetime import date, datetime, timezone
 import string
 from pathlib import Path
-from pytest import fixture
-from numpy.testing import assert_equal as check_arr
-import os
-import shutil
+
 import numpy as np
-import pickle
+import pandas as pd
+import pandas.core.frame
+import pyarrow as pa
+import pytest
+from numpy.testing import assert_equal as check_arr
+from pytest import fixture
+from raphtory import Graph, PersistentGraph, algorithms, graph_loader
 from utils import with_disk_graph
 
 base_dir = Path(__file__).parent
@@ -256,29 +256,19 @@ def test_windowed_graph_edges():
     def check(g):
         view = g.window(0, sys.maxsize)
 
-        tedges = [v.edges for v in view.nodes]
-        edges = []
-        for e_iter in tedges:
-            for e in e_iter:
-                edges.append([e.src.id, e.dst.id])
+        edges = {v.id: sorted(v.edges.id) for v in view.nodes}
+        assert edges == {
+            1: [(1, 1), (1, 2), (1, 3)],
+            2: [(1, 2), (3, 2)],
+            3: [(1, 3), (3, 2)],
+        }
 
-        assert edges == [[1, 1], [1, 2], [1, 3], [1, 2], [3, 2], [1, 3], [3, 2]]
+        in_edges = {v.id: sorted(v.in_edges.id) for v in view.nodes}
+        assert in_edges == {1: [(1, 1)], 2: [(1, 2), (3, 2)], 3: [(1, 3)]}
 
-        tedges = [v.in_edges for v in view.nodes]
-        in_edges = []
-        for e_iter in tedges:
-            for e in e_iter:
-                in_edges.append([e.src.id, e.dst.id])
+        out_edges = {v.id: sorted(v.out_edges.id) for v in view.nodes}
 
-        assert in_edges == [[1, 1], [1, 2], [3, 2], [1, 3]]
-
-        tedges = [v.out_edges for v in view.nodes]
-        out_edges = []
-        for e_iter in tedges:
-            for e in e_iter:
-                out_edges.append([e.src.id, e.dst.id])
-
-        assert out_edges == [[1, 1], [1, 2], [1, 3], [3, 2]]
+        assert out_edges == {1: [(1, 1), (1, 2), (1, 3)], 2: [], 3: [(3, 2)]}
 
     check(g)
 
@@ -321,14 +311,20 @@ def test_windowed_graph_neighbours():
 
         view = g.window(min_size, max_size)
 
-        neighbours = view.nodes.neighbours.id.collect()
-        assert neighbours == [[1, 2, 3], [1, 3], [1, 2]]
+        neighbours = dict(
+            zip(view.nodes.id, (sorted(v) for v in view.nodes.neighbours.id))
+        )
+        assert neighbours == {1: [1, 2, 3], 2: [1, 3], 3: [1, 2]}
 
-        in_neighbours = view.nodes.in_neighbours.id.collect()
-        assert in_neighbours == [[1, 2], [1, 3], [1]]
+        in_neighbours = dict(
+            zip(view.nodes.id, (sorted(v) for v in view.nodes.in_neighbours.id))
+        )
+        assert in_neighbours == {1: [1, 2], 2: [1, 3], 3: [1]}
 
-        out_neighbours = view.nodes.out_neighbours.id.collect()
-        assert out_neighbours == [[1, 2, 3], [1], [2]]
+        out_neighbours = dict(
+            zip(view.nodes.id, (sorted(v) for v in view.nodes.out_neighbours.id))
+        )
+        assert out_neighbours == {1: [1, 2, 3], 2: [1], 3: [2]}
 
     check(g)
 
@@ -502,7 +498,7 @@ def test_graph_properties():
     sp.sort()
     assert sp == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5"]
     assert g.metadata["prop 1"] == 1
-    assert g.metadata["prop 4"] == [1, 2]
+    assert np.array_equal(g.metadata["prop 4"], [1, 2])
     assert g.metadata["prop 5"] == {"x": 1, "y": "ok"}
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
@@ -1170,7 +1166,7 @@ def test_arrow_array_properties():
     days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
     g.add_edge(1, 1, 2, {"prop1": 1, "prop2": 2, "prop3": days})
     e = g.edge(1, 2)
-    assert e.properties["prop3"] == days
+    assert np.array_equal(e.properties["prop3"], days)
 
 
 def test_map_and_list_property():
@@ -1179,7 +1175,7 @@ def test_map_and_list_property():
     e_props = g.edge(1, 2).properties
     assert "map" in e_props
     assert e_props["map"]["test"] == 1
-    assert e_props["map"]["list"] == [1, 2, 3]
+    assert np.array_equal(e_props["map"]["list"], [1, 2, 3])
 
 
 def test_exploded_edge_time():
@@ -1257,7 +1253,7 @@ def test_save_missing_dir():
     g = create_graph()
     tmpdirname = tempfile.TemporaryDirectory()
     inner_folder = "".join(random.choice(string.ascii_letters) for _ in range(10))
-    graph_path = tmpdirname.name + "/" + inner_folder + "/test_graph.bin"
+    graph_path = tmpdirname.name + "/" + inner_folder + "/test_graph"
     with pytest.raises(Exception):
         g.save_to_file(graph_path)
 
@@ -1687,46 +1683,39 @@ def test_node_history():
 
 
 def test_edge_history():
+    expected_history = {(1, 2): [1, 3], (1, 3): [2], (1, 4): [4]}
     g = Graph()
+    for (src, dst), timestamps in expected_history.items():
+        for t in timestamps:
+            g.add_edge(t, src, dst)
 
-    g.add_edge(1, 1, 2)
-    g.add_edge(2, 1, 3)
-    g.add_edge(3, 1, 2)
-    g.add_edge(4, 1, 4)
+    view = g.window(1, 5)
+    view2 = g.window(1, 4)
 
-    @with_disk_graph
-    def check(g):
-        view = g.window(1, 5)
-        view2 = g.window(1, 4)
+    check_arr(g.edge(1, 2).history.t.collect(), expected_history[(1, 2)])
+    check_arr(view.edge(1, 4).history.t.collect(), expected_history[(1, 4)])
+    check_arr(g.edges.history.t.collect(), [expected_history[e] for e in g.edges.id])
+    assert sorted(view2.edges.id) == [(1, 2), (1, 3)]
+    check_arr(
+        view2.edges.history.t.collect(), [expected_history[e] for e in view2.edges.id]
+    )
 
-        check_arr(g.edge(1, 2).history.t.collect(), [1, 3])
-        check_arr(view.edge(1, 4).history.t.collect(), [4])
-        check_arr(g.edges.history.t.collect(), [[1, 3], [2], [4]])
-        check_arr(view2.edges.history.t.collect(), [[1, 3], [2]])
+    old_way = []
+    for e in g.edges:
+        old_way.append(e.history.collect())
+    check_arr(g.edges.history.collect(), old_way)
 
-        old_way = []
-        for e in g.edges:
-            old_way.append(e.history.collect())
-        check_arr(g.edges.history.collect(), old_way)
+    res = g.nodes.edges.history.t.collect()
+    for node, v in zip(g.nodes, res):
+        for e, vv in zip(node.edges.id, v):
+            check_arr(vv, expected_history[e])
 
-        check_arr(
-            g.nodes.edges.history.t.collect(),
-            [
-                [[1, 3], [2], [4]],
-                [[1, 3]],
-                [[2]],
-                [[4]],
-            ],
-        )
-
-        old_way2 = []
-        for edges in g.nodes.edges:
-            for edge in edges:
-                old_way2.append(edge.history.collect())
-        new_way = g.nodes.edges.history.collect()
-        check_arr([np.array(item) for sublist in new_way for item in sublist], old_way2)
-
-    check(g)
+    old_way2 = []
+    for edges in g.nodes.edges:
+        for edge in edges:
+            old_way2.append(edge.history.collect())
+    new_way = g.nodes.edges.history.collect()
+    check_arr([np.array(item) for sublist in new_way for item in sublist], old_way2)
 
 
 def test_lotr_edge_history():
@@ -2230,7 +2219,7 @@ def test_exclude_nodes():
     @with_disk_graph
     def check(g):
         exclude_nodes = g.exclude_nodes([1])
-        assert exclude_nodes.nodes.id.collect() == [2, 3]
+        assert sorted(exclude_nodes.nodes.id.collect()) == [2, 3]
 
     check(g)
 
@@ -2274,9 +2263,11 @@ def test_materialize_graph():
             assert mg.node(4).metadata.get("abc") == "xyz"
             check_arr(mg.node(1).history.t.collect(), [-1, 0, 0, 1, 1, 2])
             check_arr(mg.node(4).history.t.collect(), [6, 8])
-            assert mg.nodes.id.collect() == [1, 2, 3, 4]
+            assert len(mg.nodes.id.collect()) == 4
+            assert set(mg.nodes.id.collect()) == {1, 3, 2, 4}
             assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
-            assert g.nodes.id.collect() == mg.nodes.id.collect()
+            assert len(g.nodes.id.collect()) == len(mg.nodes.id.collect())
+            assert set(g.nodes.id.collect()) == set(mg.nodes.id.collect())
             assert set(g.edges.id) == set(mg.edges.id)
             assert mg.node(1).metadata == {}
             assert mg.node(4).metadata == {"abc": "xyz"}
@@ -2632,12 +2623,8 @@ def test_type_filter():
     g.add_node(1, 3, node_type="timer")
     g.add_node(1, 4, node_type="wallet")
 
-    @with_disk_graph
-    def check(g):
-        assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
-        assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
-
-    check(g)
+    assert sorted(node.name for node in g.nodes.type_filter(["wallet"])) == ["1", "4"]
+    assert g.subgraph_node_types(["timer"]).nodes.name.sorted_by_id() == ["2", "3"]
 
     g = PersistentGraph()
     g.add_node(1, 1, node_type="wallet")
@@ -2645,23 +2632,19 @@ def test_type_filter():
     g.add_node(3, 3, node_type="timer")
     g.add_node(4, 4, node_type="wallet")
 
-    # @with_disk_graph # FIXME PersistentGraph cannot be used with with_disk_graph
-    def check(g):
-        assert [node.name for node in g.nodes.type_filter(["wallet"])] == ["1", "4"]
-        assert g.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
+    assert sorted(node.name for node in g.nodes.type_filter(["wallet"])) == ["1", "4"]
+    assert sorted(g.subgraph_node_types(["timer"]).nodes.name.collect()) == ["2", "3"]
 
-        subgraph = g.subgraph([1, 2, 3])
-        assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ["1"]
-        assert subgraph.subgraph_node_types(["timer"]).nodes.name.collect() == [
-            "2",
-            "3",
-        ]
+    subgraph = g.subgraph([1, 2, 3])
+    assert [node.name for node in subgraph.nodes.type_filter(["wallet"])] == ["1"]
+    assert sorted(subgraph.subgraph_node_types(["timer"]).nodes.name.collect()) == [
+        "2",
+        "3",
+    ]
 
-        w = g.window(1, 4)
-        assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
-        assert w.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
-
-    check(g)
+    w = g.window(1, 4)
+    assert [node.name for node in w.nodes.type_filter(["wallet"])] == ["1"]
+    assert sorted(w.subgraph_node_types(["timer"]).nodes.name.collect()) == ["2", "3"]
 
     g = Graph()
     g.add_node(1, 1, node_type="wallet")
@@ -2672,13 +2655,12 @@ def test_type_filter():
     g.add_edge(2, 2, 3, layer="layer1")
     g.add_edge(3, 2, 4, layer="layer2")
 
-    @with_disk_graph
-    def check(g):
-        layer = g.layers(["layer1"])
-        assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ["1"]
-        assert layer.subgraph_node_types(["timer"]).nodes.name.collect() == ["2", "3"]
-
-    check(g)
+    layer = g.layers(["layer1"])
+    assert [node.name for node in layer.nodes.type_filter(["wallet"])] == ["1"]
+    assert sorted(layer.subgraph_node_types(["timer"]).nodes.name.collect()) == [
+        "2",
+        "3",
+    ]
 
     g = Graph()
     g.add_node(1, 1, node_type="a")
@@ -2698,84 +2680,117 @@ def test_type_filter():
     g.add_edge(2, 5, 6, layer="a")
     g.add_edge(2, 3, 6, layer="a")
 
-    # @with_disk_graph # FIXME: add support for type_filters + layers support on edges
-    def check(g):
-        assert g.nodes.type_filter([""]).name.collect() == ["7", "8", "9"]
+    assert sorted(g.nodes.type_filter([""]).name.collect()) == ["7", "8", "9"]
 
-        assert g.nodes.type_filter(["a"]).name.collect() == ["1", "4"]
-        assert g.nodes.type_filter(["a", "c"]).name.collect() == ["1", "4", "5"]
-        assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [
-            ["2"],
-            ["2", "5"],
-        ]
+    assert sorted(g.nodes.type_filter(["a"]).name.collect()) == ["1", "4"]
+    assert sorted(g.nodes.type_filter(["a", "c"]).name.collect()) == ["1", "4", "5"]
+    assert dict(
+        zip(
+            g.nodes.type_filter(["a"]).id,
+            (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name),
+        )
+    ) == {
+        1: ["2"],
+        4: ["2", "5"],
+    }
 
-        assert g.nodes.degree().collect() == [1, 3, 2, 2, 2, 2, 0, 0, 0]
-        assert g.nodes.type_filter(["a"]).degree().collect() == [1, 2]
-        assert g.nodes.type_filter(["d"]).degree().collect() == []
-        assert g.nodes.type_filter([]).name.collect() == []
+    assert g.nodes.degree() == {1: 1, 2: 3, 3: 2, 4: 2, 5: 2, 6: 2, 7: 0, 8: 0, 9: 0}
+    assert g.nodes.type_filter(["a"]).degree() == {1: 1, 4: 2}
+    assert g.nodes.type_filter(["d"]).degree().collect() == []
+    assert g.nodes.type_filter([]).name.collect() == []
 
-        assert len(g.nodes) == 9
-        assert len(g.nodes.type_filter(["b"])) == 2
-        assert len(g.nodes.type_filter(["d"])) == 0
+    assert len(g.nodes) == 9
+    assert len(g.nodes.type_filter(["b"])) == 2
+    assert len(g.nodes.type_filter(["d"])) == 0
 
-        assert g.nodes.type_filter(["d"]).neighbours.name.collect() == []
-        assert g.nodes.type_filter(["a"]).neighbours.name.collect() == [
-            ["2"],
-            ["2", "5"],
-        ]
-        assert g.nodes.type_filter(["a", "c"]).neighbours.name.collect() == [
-            ["2"],
-            ["2", "5"],
-            ["4", "6"],
-        ]
+    assert g.nodes.type_filter(["d"]).neighbours.name.collect() == []
+    assert dict(
+        zip(
+            g.nodes.type_filter(["a"]).id,
+            (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name),
+        )
+    ) == {
+        1: ["2"],
+        4: ["2", "5"],
+    }
+    assert dict(
+        zip(
+            g.nodes.type_filter(["a", "c"]).id,
+            (sorted(v) for v in g.nodes.type_filter(["a", "c"]).neighbours.name),
+        )
+    ) == {
+        1: ["2"],
+        4: ["2", "5"],
+        5: ["4", "6"],
+    }
 
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["c"]
-        ).name.collect() == [
-            [],
-            ["5"],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
-            [],
-            [],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["b", "c"]
-        ).name.collect() == [["2"], ["2", "5"]]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["d"]
-        ).name.collect() == [
-            [],
-            [],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.neighbours.name.collect() == [
-            ["1", "3", "4"],
-            ["1", "3", "4", "4", "6"],
-        ]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["c"]
-        ).neighbours.name.collect() == [[], ["4", "6"]]
-        assert g.nodes.type_filter(["a"]).neighbours.type_filter(
-            ["d"]
-        ).neighbours.name.collect() == [[], []]
+    assert dict(
+        zip(
+            g.nodes.type_filter(["a"]).id,
+            g.nodes.type_filter(["a"]).neighbours.type_filter(["c"]).name.collect(),
+        )
+    ) == {
+        1: [],
+        4: ["5"],
+    }
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
+        [],
+        [],
+    ]
+    assert dict(
+        zip(
+            g.nodes.type_filter(["a"]).id,
+            (
+                sorted(v)
+                for v in g.nodes.type_filter(["a"])
+                .neighbours.type_filter(["b", "c"])
+                .name
+            ),
+        )
+    ) == {1: ["2"], 4: ["2", "5"]}
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(["d"]).name.collect() == [
+        [],
+        [],
+    ]
+    assert dict(
+        zip(
+            g.nodes.type_filter(["a"]).id,
+            (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.neighbours.name),
+        )
+    ) == {
+        1: ["1", "3", "4"],
+        4: ["1", "3", "4", "4", "6"],
+    }
+    assert dict(
+        zip(
+            g.nodes.type_filter(["a"]).id,
+            (
+                sorted(v)
+                for v in g.nodes.type_filter(["a"])
+                .neighbours.type_filter(["c"])
+                .neighbours.name
+            ),
+        )
+    ) == {1: [], 4: ["4", "6"]}
+    assert g.nodes.type_filter(["a"]).neighbours.type_filter(
+        ["d"]
+    ).neighbours.name.collect() == [[], []]
 
-        assert g.node("2").neighbours.type_filter(["b"]).name.collect() == ["3"]
-        assert g.node("2").neighbours.type_filter(["d"]).name.collect() == []
-        assert g.node("2").neighbours.type_filter([]).name.collect() == []
-        assert g.node("2").neighbours.type_filter(["c", "a"]).name.collect() == [
-            "1",
-            "4",
-        ]
-        assert g.node("2").neighbours.type_filter(["c"]).neighbours.name.collect() == []
-        assert g.node("2").neighbours.neighbours.name.collect() == [
-            "2",
-            "2",
-            "6",
-            "2",
-            "5",
-        ]
-
-    check(g)
+    assert g.node("2").neighbours.type_filter(["b"]).name.collect() == ["3"]
+    assert g.node("2").neighbours.type_filter(["d"]).name.collect() == []
+    assert g.node("2").neighbours.type_filter([]).name.collect() == []
+    assert sorted(g.node("2").neighbours.type_filter(["c", "a"]).name.collect()) == [
+        "1",
+        "4",
+    ]
+    assert g.node("2").neighbours.type_filter(["c"]).neighbours.name.collect() == []
+    assert sorted(g.node("2").neighbours.neighbours.name.collect()) == [
+        "2",
+        "2",
+        "2",
+        "5",
+        "6",
+    ]
 
 
 def test_time_exploded_edges():
@@ -2827,24 +2842,16 @@ def test_leading_zeroes_ids():
     g.add_node(0, "001")
     g.add_node(0, "0001")
 
-    @with_disk_graph
-    def check(g):
-        assert g.count_nodes() == 4
-        assert g.nodes.name.collect() == ["1", "01", "001", "0001"]
-
-    check(g)
+    assert g.count_nodes() == 4
+    assert sorted(g.nodes.name.collect()) == ["0001", "001", "01", "1"]
 
     g = Graph()
     g.add_node(0, 0)
     g.add_node(1, 0)
 
-    # @with_disk_graph # FIXME: need special handling for nodes additions from Graph
-    def check(g):
-        check_arr(g.node(0).history.t.collect(), [0, 1])
-        check_arr(g.node("0").history.t.collect(), [0, 1])
-        assert g.nodes.name.collect() == ["0"]
-
-    check(g)
+    check_arr(g.node(0).history.t.collect(), [0, 1])
+    check_arr(g.node("0").history.t.collect(), [0, 1])
+    assert g.nodes.name.collect() == ["0"]
 
 
 def test_node_types():
@@ -2986,7 +2993,6 @@ def test_unique_temporal_properties():
     g.add_node(18, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
     g.add_node(19, 3, {"map": {"name": "bob", "value list": [1, 2]}})
 
-    # @with_disk_graph # FIXME List, Map and NDTime properties are not supported
     def check(g):
         assert list(g.edge(1, 2).properties.temporal.get("status")) == [
             (1, "open"),
@@ -3025,7 +3031,9 @@ def test_unique_temporal_properties():
             False,
             True,
         ]
-        assert sorted(g.node(3).properties.temporal.get("list").unique()) == [
+        assert sorted(
+            list(v) for v in g.node(3).properties.temporal.get("list").unique()
+        ) == [
             [1, 2, 3],
             [2, 3],
         ]
@@ -3044,7 +3052,7 @@ def test_unique_temporal_properties():
         sorted_expected_list = sorted(
             expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
         )
-        assert sorted_actual_list == sorted_expected_list
+        check_arr(sorted_actual_list, sorted_expected_list)
 
     check(g)
 

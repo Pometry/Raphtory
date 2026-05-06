@@ -15,7 +15,7 @@ use crate::{
 };
 use chrono::{DateTime, Utc};
 use numpy::{IntoPyArray, PyArray};
-use pyo3::{exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, BoundObject};
+use pyo3::{exceptions::PyTypeError, prelude::*, pybacked::PyBackedStr, Borrowed, BoundObject};
 use raphtory_api::core::entities::{
     properties::prop::{Prop, PropUnwrap},
     VID,
@@ -34,8 +34,9 @@ pub enum PyNodeRef {
     Internal(VID),
 }
 
-impl<'source> FromPyObject<'source> for PyNodeRef {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyNodeRef {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(s) = ob.extract::<PyBackedStr>() {
             Ok(PyNodeRef::ExternalStr(s))
         } else if let Ok(gid) = ob.extract::<u64>() {
@@ -177,7 +178,7 @@ impl PyWindowSet {
 
 #[pyclass(name = "Iterable")]
 pub struct PyGenericIterable {
-    build_iter: Box<dyn Fn() -> BoxedIter<PyResult<PyObject>> + Send + Sync>,
+    build_iter: Box<dyn Fn() -> BoxedIter<PyResult<Py<PyAny>>> + Send + Sync>,
 }
 
 impl<F, I: Send + Sync, T> From<F> for PyGenericIterable
@@ -187,10 +188,10 @@ where
     T: for<'py> IntoPyObject<'py> + 'static,
 {
     fn from(value: F) -> Self {
-        let build_py_iter: Box<dyn Fn() -> BoxedIter<PyResult<PyObject>> + Send + Sync> =
+        let build_py_iter: Box<dyn Fn() -> BoxedIter<PyResult<Py<PyAny>>> + Send + Sync> =
             Box::new(move || {
                 Box::new(value().map(|item| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         Ok(item
                             .into_pyobject(py)
                             .map_err(|e| e.into())?
@@ -214,11 +215,11 @@ impl PyGenericIterable {
 
 #[pyclass(name = "Iterator", unsendable)]
 pub struct PyGenericIterator {
-    iter: Box<dyn Iterator<Item = PyResult<PyObject>>>,
+    iter: Box<dyn Iterator<Item = PyResult<Py<PyAny>>>>,
 }
 
 impl PyGenericIterator {
-    pub fn new(iter: Box<dyn Iterator<Item = PyResult<PyObject>>>) -> Self {
+    pub fn new(iter: Box<dyn Iterator<Item = PyResult<Py<PyAny>>>>) -> Self {
         Self { iter }
     }
     pub fn from_result_iter<I, T, E>(iter: I) -> Self
@@ -228,7 +229,7 @@ impl PyGenericIterator {
         PyErr: From<E>,
     {
         let py_iter = Box::new(iter.map(|result| {
-            Python::with_gil(|py| match result {
+            Python::attach(|py| match result {
                 Ok(item) => Ok(item
                     .into_pyobject(py)
                     .map_err(|e| e.into())?
@@ -248,7 +249,7 @@ where
 {
     fn from(value: I) -> Self {
         let py_iter = Box::new(value.map(|item| {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 Ok(item
                     .into_pyobject(py)
                     .map_err(|e| e.into())?
@@ -261,7 +262,7 @@ where
 }
 
 impl IntoIterator for PyGenericIterator {
-    type Item = PyResult<PyObject>;
+    type Item = PyResult<Py<PyAny>>;
 
     type IntoIter = Box<dyn Iterator<Item = Self::Item>>;
 
@@ -275,7 +276,7 @@ impl PyGenericIterator {
     fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
         slf
     }
-    fn __next__(&mut self) -> Option<PyResult<PyObject>> {
+    fn __next__(&mut self) -> Option<PyResult<Py<PyAny>>> {
         self.iter.next()
     }
 }
@@ -412,13 +413,13 @@ impl<'py> IntoPyObject<'py> for NumpyArray {
 // This function takes a function that returns a future instead of taking just a future because
 // a task might return an unsendable future but what we can do is making a function returning that
 // future which is sendable itself
-pub(crate) fn execute_async_task<T, F, O>(task: T) -> O
+pub fn execute_async_task<T, F, O>(task: T) -> O
 where
     T: FnOnce() -> F + Send + 'static,
     F: Future<Output = O> + 'static,
     O: Send + 'static,
 {
-    Python::with_gil(|py| py.allow_threads(move || get_runtime().block_on(task())))
+    Python::attach(|py| py.detach(move || get_runtime().block_on(task())))
 }
 
 static RUNTIME: OnceLock<Runtime> = OnceLock::new();

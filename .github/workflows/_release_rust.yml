@@ -35,8 +35,10 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
           ref: ${{ inputs.base }}
       - name: Setup rust
         uses: dtolnay/rust-toolchain@master

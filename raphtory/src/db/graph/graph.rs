@@ -9,18 +9,20 @@
 //! ```rust
 //! use raphtory::prelude::*;
 //! let graph = Graph::new();
-//! graph.add_node(0, "Alice", NO_PROPS, None).unwrap();
-//! graph.add_node(1, "Bob", NO_PROPS, None).unwrap();
+//! graph.add_node(0, "Alice", NO_PROPS, None, None).unwrap();
+//! graph.add_node(1, "Bob", NO_PROPS, None, None).unwrap();
 //! graph.add_edge(2, "Alice", "Bob", NO_PROPS, None).unwrap();
 //! graph.count_edges();
 //! ```
 //!
 use super::views::deletion_graph::PersistentGraph;
+#[cfg(feature = "io")]
+use crate::serialise::GraphPaths;
 use crate::{
     db::{
         api::{
             state::ops::NodeFilterOp,
-            storage::storage::Storage,
+            storage::storage::{Config, PersistenceStrategy, Storage},
             view::{
                 internal::{
                     GraphView, InheritEdgeHistoryFilter, InheritNodeHistoryFilter,
@@ -31,6 +33,7 @@ use crate::{
         },
         graph::{edges::Edges, node::NodeView, nodes::Nodes},
     },
+    errors::GraphError,
     prelude::*,
 };
 use raphtory_api::{
@@ -42,7 +45,6 @@ use raphtory_storage::{
     mutation::InheritMutationOps,
 };
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     fmt::{Display, Formatter},
@@ -50,15 +52,14 @@ use std::{
     ops::Deref,
     sync::Arc,
 };
+use storage::Extension;
 
 #[repr(transparent)]
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Graph {
     pub(crate) inner: Arc<Storage>,
 }
 
-impl InheritCoreGraphOps for Graph {}
-impl InheritLayerOps for Graph {}
 impl From<Arc<Storage>> for Graph {
     fn from(inner: Arc<Storage>) -> Self {
         Self { inner }
@@ -73,7 +74,195 @@ impl From<GraphStorage> for Graph {
     }
 }
 
+impl Base for Graph {
+    type Base = Storage;
+
+    #[inline(always)]
+    fn base(&self) -> &Self::Base {
+        &self.inner
+    }
+}
+
+impl InheritMutationOps for Graph {}
+
+impl InheritViewOps for Graph {}
+
+impl InheritStorageOps for Graph {}
+
+impl InheritNodeHistoryFilter for Graph {}
+
+impl InheritEdgeHistoryFilter for Graph {}
+
+impl InheritCoreGraphOps for Graph {}
+
+impl InheritLayerOps for Graph {}
+
 impl Static for Graph {}
+
+impl Display for Graph {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.inner)
+    }
+}
+
+impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
+where
+    Self: 'graph,
+{
+    fn eq(&self, other: &G) -> bool {
+        graph_equal(self, other)
+    }
+}
+
+impl Graph {
+    /// Create a new graph
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::new();
+    /// ```
+    pub fn new() -> Self {
+        Self {
+            inner: Arc::new(Storage::default()),
+        }
+    }
+
+    /// Create a new graph with config
+    ///
+    /// Returns:
+    ///
+    /// A raphtory graph
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use raphtory::prelude::*;
+    ///
+    /// let g = Graph::new_with_config(Config::default().with_max_node_page_len(262144)).unwrap();
+    /// ```
+    pub fn new_with_config(config: Config) -> Result<Self, GraphError> {
+        Ok(Self {
+            inner: Arc::new(Storage::new_with_config(config)?),
+        })
+    }
+
+    /// Create a new graph at a specific path
+    ///
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph with storage at the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::new_at_path("/path/to/storage");
+    /// ```
+    #[cfg(feature = "io")]
+    pub fn new_at_path(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+
+        path.init()?;
+        let graph_storage_path = path.graph_path()?;
+        let storage = Storage::new_at_path(graph_storage_path)?;
+
+        let graph = Self {
+            inner: Arc::new(storage),
+        };
+
+        path.write_metadata(&graph)?;
+        Ok(graph)
+    }
+
+    #[cfg(feature = "io")]
+    pub fn new_at_path_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        if !Extension::disk_storage_enabled() {
+            return Err(GraphError::DiskGraphNotEnabled);
+        }
+
+        path.init()?;
+
+        let graph = Self {
+            inner: Arc::new(Storage::new_at_path_with_config(
+                path.graph_path()?,
+                config,
+            )?),
+        };
+
+        path.write_metadata(&graph)?;
+        Ok(graph)
+    }
+
+    /// Load a graph from a specific path
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load("/path/to/storage");
+    #[cfg(feature = "io")]
+    pub fn load(path: &(impl GraphPaths + ?Sized)) -> Result<Self, GraphError> {
+        // TODO: add support for loading indexes and vectors
+        Ok(Self {
+            inner: Arc::new(Storage::load(path.graph_path()?)?),
+        })
+    }
+
+    /// Load a graph from a specific path, overriding config
+    /// # Arguments
+    /// * `path` - The path to the storage location
+    /// * `config` - The new config (note that it is not possible to change the page sizes)
+    /// # Returns
+    /// A raphtory graph loaded from the specified path
+    /// # Example
+    /// ```no_run
+    /// use raphtory::prelude::Graph;
+    /// let g = Graph::load("/path/to/storage");
+    #[cfg(feature = "io")]
+    pub fn load_with_config(
+        path: &(impl GraphPaths + ?Sized),
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        // TODO: add support for loading indexes and vectors
+        Ok(Self {
+            inner: Arc::new(Storage::load_with_config(path.graph_path()?, config)?),
+        })
+    }
+
+    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
+        Self { inner }
+    }
+
+    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
+        let inner = Arc::new(Storage::from_inner(graph_storage));
+        Self { inner }
+    }
+
+    pub fn event_graph(&self) -> Graph {
+        self.clone()
+    }
+
+    /// Get persistent graph
+    pub fn persistent_graph(&self) -> PersistentGraph {
+        PersistentGraph::from_storage(self.inner.clone())
+    }
+}
+
+// ###########################################
+// Methods for checking equality of graphs
+// ###########################################
 
 pub fn graph_equal<'graph1, 'graph2, G1: GraphViewOps<'graph1>, G2: GraphViewOps<'graph2>>(
     g1: &G1,
@@ -101,10 +290,10 @@ fn normalise_temporal_map<T: AsTime + Copy>(
     for (k, v) in map {
         let mut v2: Vec<(i64, Prop)> = v.iter().map(|(t, p)| (t.t(), p.clone())).collect();
 
-        // stable deterministic ordering for same timestamp too
+        // stable deterministic ordering for events at the same timestamp
         v2.sort_by(|(t1, p1), (t2, p2)| {
             t1.cmp(t2)
-                .then_with(|| format!("{p1:?}").cmp(&format!("{p2:?}")))
+                .then_with(|| canonical_prop_repr(p1).cmp(&canonical_prop_repr(p2)))
         });
 
         out.insert(k.clone(), v2);
@@ -113,6 +302,52 @@ fn normalise_temporal_map<T: AsTime + Copy>(
     out
 }
 
+/// Render a `Prop` as a string that is invariant to `PropArray` variant
+/// (`Vec` vs `Array`) and to `FxHashMap` iteration order (which is undefined).
+/// Used as a stable sort key in test assertions.
+fn canonical_prop_repr(p: &Prop) -> String {
+    let mut s = String::new();
+    write_canonical_prop(&mut s, p);
+    s
+}
+
+fn write_canonical_prop(out: &mut String, p: &Prop) {
+    use std::fmt::Write;
+    match p {
+        Prop::List(arr) => {
+            out.push_str("List([");
+            let mut first = true;
+            for item in arr.iter() {
+                if !first {
+                    out.push_str(", ");
+                }
+                first = false;
+                write_canonical_prop(out, &item);
+            }
+            out.push_str("])");
+        }
+        Prop::Map(m) => {
+            let mut keys: Vec<&ArcStr> = m.keys().collect();
+            keys.sort();
+            out.push_str("Map({");
+            let mut first = true;
+            for k in keys {
+                if !first {
+                    out.push_str(", ");
+                }
+                first = false;
+                let _ = write!(out, "{k:?}: ");
+                write_canonical_prop(out, &m[k]);
+            }
+            out.push_str("})");
+        }
+        other => {
+            let _ = write!(out, "{other:?}");
+        }
+    }
+}
+
+#[track_caller]
 pub fn assert_node_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     n1: NodeView<'graph, G1>,
     n2: NodeView<'graph, G2>,
@@ -120,6 +355,7 @@ pub fn assert_node_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'gra
     assert_node_equal_layer(n1, n2, "", false, false)
 }
 
+#[track_caller]
 pub fn assert_node_equal_layer<'graph, G1: GraphView + 'graph, G2: GraphView + 'graph>(
     n1: NodeView<'graph, G1>,
     n2: NodeView<'graph, G2>,
@@ -325,6 +561,7 @@ pub fn assert_node_equal_layer<'graph, G1: GraphView + 'graph, G2: GraphView + '
     }
 }
 
+#[track_caller]
 pub fn assert_nodes_equal<
     'graph,
     G1: GraphViewOps<'graph>,
@@ -340,6 +577,7 @@ pub fn assert_nodes_equal<
     assert_nodes_equal_layer(nodes1, nodes2, "", false, false);
 }
 
+#[track_caller]
 pub fn assert_nodes_equal_layer<
     'graph,
     G1: GraphViewOps<'graph>,
@@ -356,19 +594,26 @@ pub fn assert_nodes_equal_layer<
     only_timestamps: bool,
 ) {
     let mut nodes1: Vec<_> = nodes1.collect();
-    nodes1.sort();
     let mut nodes2: Vec<_> = nodes2.collect();
-    nodes2.sort();
+
+    nodes1.par_sort_unstable();
+    nodes2.par_sort_unstable();
+
     assert_eq!(
         nodes1.len(),
         nodes2.len(),
         "mismatched number of nodes{layer_tag}",
     );
-    for (n1, n2) in nodes1.into_iter().zip(nodes2) {
-        assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps);
-    }
+
+    nodes1
+        .into_par_iter()
+        .zip_eq(nodes2.into_par_iter())
+        .for_each(|(n1, n2)| {
+            assert_node_equal_layer(n1, n2, layer_tag, persistent, only_timestamps)
+        });
 }
 
+#[track_caller]
 pub fn assert_edges_equal<
     'graph1,
     'graph2,
@@ -381,6 +626,7 @@ pub fn assert_edges_equal<
     assert_edges_equal_layer(edges1, edges2, "", false, false);
 }
 
+#[track_caller]
 pub fn assert_edges_equal_layer<
     'graph1,
     'graph2,
@@ -400,152 +646,156 @@ pub fn assert_edges_equal_layer<
         edges2.len(),
         "mismatched number of edges{layer_tag}",
     );
-    edges1.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
-    edges2.sort_by(|e1, e2| e1.id().cmp(&e2.id()));
+    edges1.par_sort_unstable_by(|e1, e2| e1.id().cmp(&e2.id()));
+    edges2.par_sort_unstable_by(|e1, e2| e1.id().cmp(&e2.id()));
 
-    for (e1, e2) in edges1.into_iter().zip(edges2) {
-        assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
-        if persistent || only_timestamps {
-            assert_eq!(
-                e1.earliest_time().map(|t| t.t()),
-                e2.earliest_time().map(|t| t.t()),
-                "mismatched earliest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-            assert_eq!(
-                e1.latest_time().map(|t| t.t()),
-                e2.latest_time().map(|t| t.t()),
-                "mismatched latest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        } else {
-            assert_eq!(
-                e1.earliest_time(),
-                e2.earliest_time(),
-                "mismatched earliest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-            assert_eq!(
-                e1.latest_time(),
-                e2.latest_time(),
-                "mismatched latest time for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        }
-        assert_eq!(
-            e1.metadata().as_map(),
-            e2.metadata().as_map(),
-            "mismatched metadata for edge {:?}{layer_tag}",
-            e1.id(),
-        );
-        if only_timestamps {
-            assert_eq!(
-                e1.properties()
-                    .temporal()
-                    .iter()
-                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
-                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
-                e2.properties()
-                    .temporal()
-                    .iter()
-                    .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
-                    .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
-                "mismatched temporal properties for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-
-            let mut e1_updates: Vec<_> = e1
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
-                .collect();
-            e1_updates.sort();
-
-            let mut e2_updates: Vec<_> = e2
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
-                .collect();
-            e2_updates.sort();
-            assert_eq!(
-                e1_updates,
-                e2_updates,
-                "mismatched updates for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        } else {
-            let left = normalise_temporal_map(&e1.properties().temporal().as_map());
-            let right = normalise_temporal_map(&e2.properties().temporal().as_map());
-
-            assert_eq!(
-                left,
-                right,
-                "mismatched temporal properties for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-
-            let mut e1_updates: Vec<_> = e1
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-                .collect();
-            e1_updates.sort();
-
-            let mut e2_updates: Vec<_> = e2
-                .explode()
-                .iter()
-                .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
-                .collect();
-            e2_updates.sort();
-            assert_eq!(
-                e1_updates,
-                e2_updates,
-                "mismatched updates for edge {:?}{layer_tag}",
-                e1.id(),
-            );
-        }
-        assert_eq!(
-            e1.is_valid(),
-            e2.is_valid(),
-            "mismatched is_valid for edge {:?}{layer_tag}",
-            e1.id()
-        );
-        if persistent {
-            let earliest = e1.timeline_start();
-            match earliest {
-                None => {
-                    assert!(
-                        e2.timeline_start().is_none(),
-                        "expected empty timeline for edge {:?}{layer_tag}",
-                        e1.id()
-                    )
-                }
-                Some(earliest) => {
-                    assert_eq!(
-                        e1.after(earliest.t()).is_active(),
-                        e2.after(earliest.t()).is_active(),
-                        "mismatched is_active for edge {:?}{layer_tag}",
-                        e1.id()
-                    );
-                }
+    edges1
+        .into_par_iter()
+        .zip_eq(edges2.into_par_iter())
+        .for_each(|(e1, e2)| {
+            assert_eq!(e1.id(), e2.id(), "mismatched edge ids{layer_tag}");
+            if persistent || only_timestamps {
+                assert_eq!(
+                    e1.earliest_time().map(|t| t.t()),
+                    e2.earliest_time().map(|t| t.t()),
+                    "mismatched earliest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+                assert_eq!(
+                    e1.latest_time().map(|t| t.t()),
+                    e2.latest_time().map(|t| t.t()),
+                    "mismatched latest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            } else {
+                assert_eq!(
+                    e1.earliest_time(),
+                    e2.earliest_time(),
+                    "mismatched earliest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+                assert_eq!(
+                    e1.latest_time(),
+                    e2.latest_time(),
+                    "mismatched latest time for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
             }
-        } else {
             assert_eq!(
-                e1.is_active(),
-                e2.is_active(),
-                "mismatched is_active for edge {:?}{layer_tag}",
+                e1.metadata().as_map(),
+                e2.metadata().as_map(),
+                "mismatched metadata for edge {:?}{layer_tag}",
+                e1.id(),
+            );
+            if only_timestamps {
+                assert_eq!(
+                    e1.properties()
+                        .temporal()
+                        .iter()
+                        .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                        .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                    e2.properties()
+                        .temporal()
+                        .iter()
+                        .map(|(key, value)| (key, value.iter().map(|(t, p)| (t.t(), p)).collect()))
+                        .collect::<HashMap<ArcStr, Vec<(i64, Prop)>>>(),
+                    "mismatched temporal properties for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+
+                let mut e1_updates: Vec<_> = e1
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                    .collect();
+                e1_updates.sort();
+
+                let mut e2_updates: Vec<_> = e2
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap().t()))
+                    .collect();
+                e2_updates.sort();
+                assert_eq!(
+                    e1_updates,
+                    e2_updates,
+                    "mismatched updates for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            } else {
+                let left = normalise_temporal_map(&e1.properties().temporal().as_map());
+                let right = normalise_temporal_map(&e2.properties().temporal().as_map());
+
+                assert_eq!(
+                    left,
+                    right,
+                    "mismatched temporal properties for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+
+                let mut e1_updates: Vec<_> = e1
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                    .collect();
+                e1_updates.sort();
+
+                let mut e2_updates: Vec<_> = e2
+                    .explode()
+                    .iter()
+                    .map(|e| (e.layer_name().unwrap(), e.time().unwrap()))
+                    .collect();
+                e2_updates.sort();
+                assert_eq!(
+                    e1_updates,
+                    e2_updates,
+                    "mismatched updates for edge {:?}{layer_tag}",
+                    e1.id(),
+                );
+            }
+            assert_eq!(
+                e1.is_valid(),
+                e2.is_valid(),
+                "mismatched is_valid for edge {:?}{layer_tag}",
                 e1.id()
             );
-        }
-        assert_eq!(
-            e1.is_deleted(),
-            e2.is_deleted(),
-            "mismatched is_deleted for edge {:?}{layer_tag}",
-            e1.id()
-        );
-    }
+            if persistent {
+                let earliest = e1.timeline_start();
+                match earliest {
+                    None => {
+                        assert!(
+                            e2.timeline_start().is_none(),
+                            "expected empty timeline for edge {:?}{layer_tag}",
+                            e1.id()
+                        )
+                    }
+                    Some(earliest) => {
+                        assert_eq!(
+                            e1.after(earliest.t()).is_active(),
+                            e2.after(earliest.t()).is_active(),
+                            "mismatched is_active for edge {:?}{layer_tag}",
+                            e1.id()
+                        );
+                    }
+                }
+            } else {
+                assert_eq!(
+                    e1.is_active(),
+                    e2.is_active(),
+                    "mismatched is_active for edge {:?}{layer_tag}",
+                    e1.id()
+                );
+            }
+            assert_eq!(
+                e1.is_deleted(),
+                e2.is_deleted(),
+                "mismatched is_deleted for edge {:?}{layer_tag}",
+                e1.id()
+            );
+        });
 }
 
+#[track_caller]
 fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
@@ -626,6 +876,7 @@ fn assert_graph_equal_layer<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
     );
 }
 
+#[track_caller]
 fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
@@ -634,28 +885,31 @@ fn assert_graph_equal_inner<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'
 ) {
     black_box({
         assert_graph_equal_layer(g1, g2, None, persistent, only_timestamps);
+
         let left_layers: HashSet<_> = g1.unique_layers().collect();
         let right_layers: HashSet<_> = g2.unique_layers().collect();
+
         assert_eq!(
             left_layers, right_layers,
             "mismatched layers: left {:?}, right {:?}",
             left_layers, right_layers
         );
 
-        for layer in left_layers {
+        left_layers.par_iter().for_each(|layer| {
             assert_graph_equal_layer(
                 &g1.layers(layer.deref())
                     .unwrap_or_else(|_| panic!("Left graph missing layer {layer})")),
                 &g2.layers(layer.deref())
                     .unwrap_or_else(|_| panic!("Right graph missing layer {layer}")),
-                Some(&layer),
+                Some(layer),
                 persistent,
                 only_timestamps,
             );
-        }
+        });
     })
 }
 
+#[track_caller]
 pub fn assert_graph_equal<'graph, G1: GraphViewOps<'graph>, G2: GraphViewOps<'graph>>(
     g1: &G1,
     g2: &G2,
@@ -670,7 +924,9 @@ pub fn assert_graph_equal_timestamps<'graph, G1: GraphViewOps<'graph>, G2: Graph
     assert_graph_equal_inner(g1, g2, false, true)
 }
 
-/// Equality check for materialized persistent graph that ignores the updates generated by the materialise at graph.earliest_time()
+/// Equality check for materialized persistent graph that ignores the
+/// updates generated by the materialise at graph.earliest_time().
+#[track_caller]
 pub fn assert_persistent_materialize_graph_equal<
     'graph,
     G1: GraphViewOps<'graph>,
@@ -680,87 +936,4 @@ pub fn assert_persistent_materialize_graph_equal<
     g2: &G2,
 ) {
     assert_graph_equal_inner(g1, g2, true, false)
-}
-
-impl Display for Graph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.inner)
-    }
-}
-
-impl<'graph, G: GraphViewOps<'graph>> PartialEq<G> for Graph
-where
-    Self: 'graph,
-{
-    fn eq(&self, other: &G) -> bool {
-        graph_equal(self, other)
-    }
-}
-
-impl Base for Graph {
-    type Base = Storage;
-
-    #[inline(always)]
-    fn base(&self) -> &Self::Base {
-        &self.inner
-    }
-}
-
-impl InheritMutationOps for Graph {}
-
-impl InheritViewOps for Graph {}
-
-impl InheritStorageOps for Graph {}
-
-impl InheritNodeHistoryFilter for Graph {}
-
-impl InheritEdgeHistoryFilter for Graph {}
-
-impl Graph {
-    /// Create a new graph
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use raphtory::prelude::Graph;
-    /// let g = Graph::new();
-    /// ```
-    pub fn new() -> Self {
-        Self {
-            inner: Arc::new(Storage::default()),
-        }
-    }
-
-    /// Create a new graph with specified number of shards
-    ///
-    /// Returns:
-    ///
-    /// A raphtory graph
-    pub fn new_with_shards(num_shards: usize) -> Self {
-        Self {
-            inner: Arc::new(Storage::new(num_shards)),
-        }
-    }
-
-    pub(crate) fn from_storage(inner: Arc<Storage>) -> Self {
-        Self { inner }
-    }
-
-    pub(crate) fn from_internal_graph(graph_storage: GraphStorage) -> Self {
-        let inner = Arc::new(Storage::from_inner(graph_storage));
-        Self { inner }
-    }
-
-    pub fn event_graph(&self) -> Graph {
-        self.clone()
-    }
-
-    /// Get persistent graph
-    pub fn persistent_graph(&self) -> PersistentGraph {
-        PersistentGraph::from_storage(self.inner.clone())
-    }
 }

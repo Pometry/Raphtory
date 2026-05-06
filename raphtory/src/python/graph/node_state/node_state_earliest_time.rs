@@ -186,7 +186,7 @@ impl EarliestDateTimeView {
         other: &Bound<'py, PyAny>,
         py: Python<'py>,
     ) -> Result<Bound<'py, PyAny>, std::convert::Infallible> {
-        let res = if let Ok(other) = other.downcast::<Self>() {
+        let res = if let Ok(other) = other.cast::<Self>() {
             let other = Bound::get(other);
             self.inner == other.inner
         } else if let Ok(other) = other.extract::<Vec<Option<DateTime<Utc>>>>() {
@@ -198,7 +198,7 @@ impl EarliestDateTimeView {
                 && other
                     .into_iter()
                     .all(|(node, value)| self.inner.get_by_node(node) == Some(Ok(value)))
-        } else if let Ok(other) = other.downcast::<PyDict>() {
+        } else if let Ok(other) = other.cast::<PyDict>() {
             self.inner.len() == other.len()
                 && other.items().iter().all(|item| {
                     if let Ok((node_ref, value)) = item.extract::<(PyNodeRef, Bound<'py, PyAny>)>()
@@ -252,10 +252,10 @@ impl EarliestDateTimeView {
     ///
     /// Arguments:
     ///     node (NodeInput): the node
-    #[doc = "    default (Optional[datetime]): the default value. Defaults to None."]
+    ///     default (Optional[datetime]): the default value. Defaults to None.
     ///
     /// Returns:
-    #[doc = "    Optional[datetime]: the value for the node or the default value"]
+    ///     Optional[datetime]: the value for the node or the default value
     #[pyo3(signature = (node, default=None::<DateTime<Utc>>))]
     fn get(
         &self,
@@ -584,10 +584,11 @@ impl<'py> pyo3::IntoPyObject<'py>
     }
 }
 
-impl<'py> FromPyObject<'py>
+impl<'py> FromPyObject<'_, 'py>
     for LazyNodeState<'static, EarliestDateTime, DynamicGraph, DynamicGraph, DynNodeFilter>
 {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        Ok(ob.downcast::<EarliestDateTimeView>()?.get().inner().clone())
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        Ok(ob.cast::<EarliestDateTimeView>()?.get().inner().clone())
     }
 }

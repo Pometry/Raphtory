@@ -49,7 +49,7 @@ impl OutState {
                 state.base_graph.clone(),
                 state.base_graph.clone(),
                 Const(true),
-                Some(Index::from_iter(value.out_components)),
+                Index::from_iter(value.out_components),
             ),
         }
     }
@@ -119,16 +119,19 @@ where
     });
 
     let mut runner = TaskRunner::new(ctx);
+    let index = Index::for_graph(g);
 
-    Ok(runner.run(
+    Ok(runner.run_with_index(
+        index,
         vec![Job::new(step1)],
         vec![],
         None,
-        |_, _, _, local: Vec<OutState>| {
+        |_, _, _, local: Vec<OutState>, index| {
             TypedNodeState::new_mapped(
-                GenericNodeState::new_from_eval(
+                GenericNodeState::new_from_eval_with_index(
                     g.clone(),
                     local,
+                    index,
                     Some(HashMap::from([(
                         "out_components".to_string(),
                         (NodeStateOutputType::Nodes, None),

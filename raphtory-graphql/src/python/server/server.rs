@@ -4,6 +4,7 @@ use crate::{
         otlp_config::TracingLevel,
     },
     python::server::{running_server::PyRunningGraphServer, wait_server, BridgeCommand},
+    server::apply_server_extension,
     GraphServer,
 };
 use pyo3::{
@@ -11,6 +12,7 @@ use pyo3::{
     prelude::*,
 };
 use raphtory::{
+    db::api::storage::storage::Config,
     python::{
         packages::vectors::{PyOpenAIEmbeddings, TemplateConfig},
         utils::block_on,
@@ -27,13 +29,26 @@ use std::{path::PathBuf, thread};
 ///     cache_tti_seconds (int, optional): the inactive time in seconds after which a graph is evicted from the cache
 ///     log_level (str, optional): the log level for the server
 ///     tracing (bool, optional): whether tracing should be enabled
+///     tracing_level (str, optional): tracing verbosity (e.g. "ERROR", "WARN", "INFO", "DEBUG", "TRACE").
 ///     otlp_agent_host (str, optional): OTLP agent host for tracing
 ///     otlp_agent_port(str, optional): OTLP agent port for tracing
 ///     otlp_tracing_service_name (str, optional): The OTLP tracing service name
 ///     config_path (str | PathLike, optional): Path to the config file
-///     auth_public_key:
-///     auth_enabled_for_reads:
-///     create_index:
+///     auth_public_key (str, optional): Base64-encoded public key used to verify bearer tokens
+///     require_auth_for_reads (bool, optional): Require auth tokens for read queries
+///     create_index (bool, optional): Build a search index on startup
+///     heavy_query_limit (int, optional): Maximum number of expensive traversal queries (outComponent, inComponent, edges, outEdges, inEdges, neighbours, outNeighbours, inNeighbours) allowed to run simultaneously. Extra queries are parked on a semaphore.
+///     exclusive_writes (bool, optional): If True, ingestion/write operations run one at a time and block reads until complete.
+///     disable_batching (bool, optional): If True, batched GraphQL requests are rejected. Prevents bypassing per-request depth/complexity limits.
+///     max_batch_size (int, optional): Caps the number of queries accepted in a single batched request.
+///     disable_lists (bool, optional): If True, bulk `list` endpoints on collections are disabled. Clients must use `page` instead.
+///     max_page_size (int, optional): Maximum page size allowed on paged collection queries.
+///     max_query_depth (int, optional): Maximum nesting depth of a query.
+///     max_query_complexity (int, optional): Maximum estimated cost of a query, based on the number of fields selected.
+///     max_recursive_depth (int, optional): Internal safety limit to prevent stack overflows from pathologically structured queries (async-graphql default is 32).
+///     max_directives_per_field (int, optional): Maximum number of directives on any single field.
+///     disable_introspection (bool, optional): If True, schema introspection is disabled entirely.
+///     permissions_store_path (str | PathLike, optional): Path to the permissions store (used by the optional auth extension).
 #[pyclass(name = "GraphServer", module = "raphtory.graphql")]
 pub struct PyGraphServer(GraphServer);
 
@@ -67,7 +82,33 @@ fn template_from_python(
 impl PyGraphServer {
     #[new]
     #[pyo3(
-        signature = (work_dir, cache_capacity = None, cache_tti_seconds = None, log_level = None, tracing=None, tracing_level=None, otlp_agent_host=None, otlp_agent_port=None, otlp_tracing_service_name=None, auth_public_key=None, auth_enabled_for_reads=None, config_path = None, create_index = None)
+        signature = (
+            work_dir,
+            cache_capacity = None,
+            cache_tti_seconds = None,
+            log_level = None,
+            tracing=None,
+            tracing_level=None,
+            otlp_agent_host=None,
+            otlp_agent_port=None,
+            otlp_tracing_service_name=None,
+            auth_public_key=None,
+            require_auth_for_reads=None,
+            config_path = None,
+            create_index = None,
+            heavy_query_limit = None,
+            exclusive_writes = None,
+            disable_batching = None,
+            max_batch_size = None,
+            disable_lists = None,
+            max_page_size = None,
+            max_query_depth = None,
+            max_query_complexity = None,
+            max_recursive_depth = None,
+            max_directives_per_field = None,
+            disable_introspection = None,
+            permissions_store_path = None
+        )
     )]
     fn py_new(
         work_dir: PathBuf,
@@ -80,9 +121,21 @@ impl PyGraphServer {
         otlp_agent_port: Option<String>,
         otlp_tracing_service_name: Option<String>,
         auth_public_key: Option<String>,
-        auth_enabled_for_reads: Option<bool>,
+        require_auth_for_reads: Option<bool>,
         config_path: Option<PathBuf>,
         create_index: Option<bool>,
+        heavy_query_limit: Option<usize>,
+        exclusive_writes: Option<bool>,
+        disable_batching: Option<bool>,
+        max_batch_size: Option<usize>,
+        disable_lists: Option<bool>,
+        max_page_size: Option<usize>,
+        max_query_depth: Option<usize>,
+        max_query_complexity: Option<usize>,
+        max_recursive_depth: Option<usize>,
+        max_directives_per_field: Option<usize>,
+        disable_introspection: Option<bool>,
+        permissions_store_path: Option<PathBuf>,
     ) -> PyResult<Self> {
         let mut app_config_builder = AppConfigBuilder::new();
         if let Some(log_level) = log_level {
@@ -120,22 +173,66 @@ impl PyGraphServer {
         app_config_builder = app_config_builder
             .with_auth_public_key(auth_public_key)
             .map_err(|_| PyValueError::new_err(PUBLIC_KEY_DECODING_ERR_MSG))?;
-        if let Some(auth_enabled_for_reads) = auth_enabled_for_reads {
+        if let Some(require_auth_for_reads) = require_auth_for_reads {
             app_config_builder =
-                app_config_builder.with_auth_enabled_for_reads(auth_enabled_for_reads);
+                app_config_builder.with_require_auth_for_reads(require_auth_for_reads);
         }
         #[cfg(feature = "search")]
         if let Some(create_index) = create_index {
             app_config_builder = app_config_builder.with_create_index(create_index);
         }
+        if heavy_query_limit.is_some() {
+            app_config_builder = app_config_builder.with_heavy_query_limit(heavy_query_limit);
+        }
+        if let Some(exclusive_writes) = exclusive_writes {
+            app_config_builder = app_config_builder.with_exclusive_writes(exclusive_writes);
+        }
+        if let Some(disable_batching) = disable_batching {
+            app_config_builder = app_config_builder.with_disable_batching(disable_batching);
+        }
+        if max_batch_size.is_some() {
+            app_config_builder = app_config_builder.with_max_batch_size(max_batch_size);
+        }
+        if let Some(disable_lists) = disable_lists {
+            app_config_builder = app_config_builder.with_disable_lists(disable_lists);
+        }
+        if max_page_size.is_some() {
+            app_config_builder = app_config_builder.with_max_page_size(max_page_size);
+        }
+        if max_query_depth.is_some() {
+            app_config_builder = app_config_builder.with_max_query_depth(max_query_depth);
+        }
+        if max_query_complexity.is_some() {
+            app_config_builder = app_config_builder.with_max_query_complexity(max_query_complexity);
+        }
+        if max_recursive_depth.is_some() {
+            app_config_builder = app_config_builder.with_max_recursive_depth(max_recursive_depth);
+        }
+        if max_directives_per_field.is_some() {
+            app_config_builder =
+                app_config_builder.with_max_directives_per_field(max_directives_per_field);
+        }
+        if let Some(disable_introspection) = disable_introspection {
+            app_config_builder =
+                app_config_builder.with_disable_introspection(disable_introspection);
+        }
         let app_config = Some(app_config_builder.build());
 
-        let server = block_on(GraphServer::new(work_dir, app_config, config_path))?;
+        let server = block_on(GraphServer::new(
+            work_dir,
+            app_config,
+            config_path,
+            Config::default(),
+        ))?;
+        let server = apply_server_extension(server, permissions_store_path.as_deref());
         Ok(PyGraphServer(server))
     }
 
     // TODO: remove this, should be config
-    /// Turn off index for all graphs
+    /// Turn off index for all graphs.
+    ///
+    /// Returns:
+    ///     None:
     fn turn_off_index(mut slf: PyRefMut<Self>) {
         slf.0.turn_off_index()
     }
@@ -147,6 +244,9 @@ impl PyGraphServer {
     ///     embeddings (OpenAIEmbeddings): the embeddings to use
     ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(
         signature = (name, embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -160,7 +260,7 @@ impl PyGraphServer {
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
         // allow threads just in case the embedding server is using the same python runtime
-        py.allow_threads(|| {
+        py.detach(|| {
             block_on(async move {
                 self.0
                     .vectorise_graph(name, &template, embeddings.into())
@@ -176,6 +276,9 @@ impl PyGraphServer {
     ///     embeddings (OpenAIEmbeddings): the embeddings to use
     ///     nodes (bool | str): if nodes have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
     ///     edges (bool | str): if edges have to be embedded or not or the custom template to use if a str is provided. Defaults to True.
+    ///
+    /// Returns:
+    ///     None:
     #[pyo3(
         signature = (embeddings, nodes = TemplateConfig::Bool(true), edges = TemplateConfig::Bool(true))
     )]
@@ -188,7 +291,7 @@ impl PyGraphServer {
     ) -> PyResult<()> {
         let template = template_from_python(nodes, edges)?;
         // allow threads just in case the embedding server is using the same python runtime
-        py.allow_threads(|| {
+        py.detach(|| {
             block_on(async move {
                 self.0
                     .vectorise_all_graphs(&template, embeddings.into())
@@ -264,6 +367,6 @@ impl PyGraphServer {
     )]
     pub fn run(&self, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
         let mut server = self.start(py, port, timeout_ms)?.server_handler;
-        py.allow_threads(|| wait_server(&mut server))
+        py.detach(|| wait_server(&mut server))
     }
 }

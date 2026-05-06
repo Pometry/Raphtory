@@ -14,7 +14,7 @@ use crate::db::{
 use raphtory_api::{core::entities::LayerIds, inherit::Base};
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    graph::edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
 };
 
 #[derive(Debug, Clone)]
@@ -71,7 +71,7 @@ impl<G: GraphView, F: NodeFilterOp> InternalEdgeFilterOps for EdgeNodeFilteredGr
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         if !self.graph.internal_filter_edge(edge, layer_ids) {
             return false;
         }

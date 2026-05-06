@@ -1,63 +1,67 @@
-#[cfg(feature = "search")]
-use crate::search::graph_index::GraphIndex;
 use crate::{
-    core::entities::{graph::tgraph::TemporalGraph, nodes::node_ref::NodeRef},
+    core::entities::nodes::node_ref::NodeRef,
     db::api::view::{
         internal::{InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InternalStorageOps},
         Base, InheritViewOps,
     },
+    errors::{into_graph_err, GraphError},
 };
-use parking_lot::{RwLock, RwLockWriteGuard};
+use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
-    entities::{EID, VID},
+    entities::{
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop, PropType},
+        },
+        GidRef, LayerId, EID, VID,
+    },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
-};
-use raphtory_storage::graph::graph::GraphStorage;
-use serde::{Deserialize, Serialize};
-use std::{
-    fmt::{Display, Formatter},
-    ops::{Deref, DerefMut},
-    sync::Arc,
-};
-use tracing::info;
-
-#[cfg(feature = "search")]
-use crate::search::graph_index::MutableGraphIndex;
-use crate::{db::api::view::IndexSpec, errors::GraphError};
-use raphtory_api::core::entities::{
-    properties::prop::{Prop, PropType},
-    GidRef,
-};
-use raphtory_core::storage::{
-    raw_edges::{EdgeWGuard, WriteLockedEdges},
-    EntryMut, NodeSlot, WriteLockedNodes,
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::{locked::WriteLockedGraph, nodes::node_storage_ops::NodeStorageOps},
+    graph::graph::GraphStorage,
     layer_ops::InheritLayerOps,
     mutation::{
-        addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
+        addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
         property_addition_ops::InternalPropertyAdditionOps,
+        EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
+    recovery_ops::RecoveryOps,
 };
-#[cfg(feature = "proto")]
+use std::{
+    fmt::{Display, Formatter},
+    path::Path,
+    sync::Arc,
+};
+use storage::wal::LSN;
+
+#[cfg(feature = "search")]
 use {
-    crate::serialise::incremental::{GraphWriter, InternalCache},
-    crate::serialise::GraphFolder,
-    once_cell::sync::OnceCell,
+    crate::{
+        db::api::view::IndexSpec,
+        search::graph_index::{GraphIndex, MutableGraphIndex},
+        serialise::{GraphFolder, GraphPaths},
+    },
+    parking_lot::RwLock,
+    raphtory_api::core::entities::properties::prop::IntoProp,
+    raphtory_storage::core_ops::CoreGraphOps,
+    std::{
+        io::{Seek, Write},
+        ops::{Deref, DerefMut},
+    },
+    tracing::info,
+    zip::ZipWriter,
 };
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+// Re-export for raphtory dependencies to use when creating graphs.
+pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+
+#[derive(Debug, Default)]
 pub struct Storage {
     graph: GraphStorage,
-    #[cfg(feature = "proto")]
-    #[serde(skip)]
-    pub(crate) cache: OnceCell<GraphWriter>,
     #[cfg(feature = "search")]
-    #[serde(skip)]
     pub(crate) index: RwLock<GraphIndex>,
-    // vector index
 }
 
 impl From<GraphStorage> for Storage {
@@ -88,31 +92,82 @@ impl Base for Storage {
 const IN_MEMORY_INDEX_NOT_PERSISTED: &str = "In-memory index not persisted. Not supported";
 
 impl Storage {
-    pub(crate) fn new(num_locks: usize) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::new(num_locks))),
-            #[cfg(feature = "proto")]
-            cache: OnceCell::new(),
+            graph: GraphStorage::Unlocked(Arc::new(TemporalGraph::default())),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
         }
+    }
+
+    pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let config = Config::default();
+        let ext = Extension::new(config, Some(path.as_ref()))?;
+        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
+    pub(crate) fn new_with_config(config: Config) -> Result<Self, GraphError> {
+        let ext = Extension::new(config, None)?;
+        let temporal_graph = TemporalGraph::new(ext)?;
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
+    pub(crate) fn new_at_path_with_config(
+        path: impl AsRef<Path>,
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let ext = Extension::new(config, Some(path.as_ref()))?;
+        let temporal_graph = TemporalGraph::new_at_path_with_ext(path, ext)?;
+
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
+    fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
+        let temporal_graph = TemporalGraph::load(path, ext)?;
+
+        // Run crash recovery if needed.
+        temporal_graph.run_recovery()?;
+
+        Ok(Self {
+            graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
+    pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load(path)?;
+
+        Self::load_with_extension(path, ext)
+    }
+
+    pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load_with_config(path, config)?;
+
+        Self::load_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
         Self {
             graph,
-            #[cfg(feature = "proto")]
-            cache: OnceCell::new(),
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
-        }
-    }
-
-    #[cfg(feature = "proto")]
-    #[inline]
-    fn if_cache(&self, map_fn: impl FnOnce(&GraphWriter)) {
-        if let Some(cache) = self.cache.get() {
-            map_fn(cache)
         }
     }
 
@@ -179,8 +234,7 @@ impl Storage {
                     drop(guard);
                     let mut guard = self.index.write();
                     if let e @ GraphIndex::Empty = guard.deref_mut() {
-                        let cached_graph_path = self.get_cache().map(|cache| cache.folder.clone());
-                        let index = GraphIndex::create(&self.graph, false, cached_graph_path)?;
+                        let index = GraphIndex::create(&self.graph, false, None)?;
                         *e = index;
                     }
                 }
@@ -224,7 +278,7 @@ impl Storage {
         self.index.read_recursive().is_indexed()
     }
 
-    pub(crate) fn persist_index_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk(&self, path: &impl GraphPaths) -> Result<(), GraphError> {
         let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
@@ -236,14 +290,18 @@ impl Storage {
         Ok(())
     }
 
-    pub(crate) fn persist_index_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_index_to_disk_zip<W: Write + Seek>(
+        &self,
+        writer: &mut ZipWriter<W>,
+        prefix: &str,
+    ) -> Result<(), GraphError> {
         let guard = self.get_index().read_recursive();
         if guard.is_indexed() {
             if guard.path().is_none() {
                 info!("{}", IN_MEMORY_INDEX_NOT_PERSISTED);
                 return Ok(());
             }
-            self.if_index(|index| index.persist_to_disk_zip(path))?;
+            self.if_index(|index| index.persist_to_disk_zip(writer, prefix))?;
         }
         Ok(())
     }
@@ -259,6 +317,10 @@ impl InternalStorageOps for Storage {
     fn get_storage(&self) -> Option<&Storage> {
         Some(self)
     }
+
+    fn disk_storage_path(&self) -> Option<&Path> {
+        self.graph.disk_storage_path()
+    }
 }
 
 impl InheritNodeHistoryFilter for Storage {}
@@ -266,71 +328,73 @@ impl InheritEdgeHistoryFilter for Storage {}
 
 impl InheritViewOps for Storage {}
 
-impl InternalAdditionOps for Storage {
+#[derive(Clone)]
+pub struct StorageWriteSession<'a> {
+    session: UnlockedSession<'a>,
+    storage: &'a Storage,
+}
+
+pub struct AtomicAddEdgeSession<'a> {
+    session: AtomicAddEdge<'a, Extension>,
+    storage: &'a Storage,
+}
+
+impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
+    fn internal_add_update(
+        &mut self,
+        t: EventTime,
+        layer: LayerId,
+        props: impl IntoIterator<Item = (usize, Prop)>,
+    ) {
+        self.session.internal_add_update(t, layer, props)
+    }
+
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
+        self.session.internal_delete_edge(t, layer)
+    }
+
+    fn set_lsn(&mut self, lsn: LSN) {
+        self.session.set_lsn(lsn);
+    }
+
+    fn src(&self) -> MaybeNew<VID> {
+        self.session.src()
+    }
+
+    fn dst(&self) -> MaybeNew<VID> {
+        self.session.dst()
+    }
+
+    fn eid(&self) -> MaybeNew<EID> {
+        self.session.eid()
+    }
+}
+
+impl<'a> SessionAdditionOps for StorageWriteSession<'a> {
     type Error = GraphError;
 
-    fn write_lock(&self) -> Result<WriteLockedGraph<'_>, Self::Error> {
-        Ok(self.graph.write_lock()?)
+    fn read_event_id(&self) -> Result<usize, Self::Error> {
+        Ok(self.session.read_event_id()?)
     }
 
-    fn write_lock_nodes(&self) -> Result<WriteLockedNodes<'_>, Self::Error> {
-        Ok(self.graph.write_lock_nodes()?)
-    }
-
-    fn write_lock_edges(&self) -> Result<WriteLockedEdges<'_>, Self::Error> {
-        Ok(self.graph.write_lock_edges()?)
+    fn set_event_id(&self, event_id: usize) -> Result<(), Self::Error> {
+        Ok(self.session.set_event_id(event_id)?)
     }
 
     fn next_event_id(&self) -> Result<usize, Self::Error> {
-        Ok(self.graph.next_event_id()?)
+        Ok(self.session.next_event_id()?)
     }
 
     fn reserve_event_ids(&self, num_ids: usize) -> Result<usize, Self::Error> {
-        Ok(self.graph.reserve_event_ids(num_ids)?)
+        Ok(self.session.reserve_event_ids(num_ids)?)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, GraphError> {
-        let id = self.graph.resolve_layer(layer)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_layer(layer, id));
-
-        Ok(id)
-    }
-
-    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, GraphError> {
-        match id {
-            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
-            NodeRef::External(gid) => {
-                let id = self.graph.resolve_node(id)?;
-
-                #[cfg(feature = "proto")]
-                self.if_cache(|cache| cache.resolve_node(id, gid));
-
-                Ok(id)
-            }
-        }
+    fn set_max_event_id(&self, value: usize) -> Result<usize, Self::Error> {
+        Ok(self.session.set_max_event_id(value)?)
     }
 
     fn set_node(&self, gid: GidRef, vid: VID) -> Result<(), Self::Error> {
-        Ok(self.graph.set_node(gid, vid)?)
-    }
-
-    fn resolve_node_and_type(
-        &self,
-        id: NodeRef,
-        node_type: &str,
-    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, GraphError> {
-        let node_and_type = self.graph.resolve_node_and_type(id, node_type)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| {
-            let (vid, _) = node_and_type.inner();
-            let node_entry = self.graph.core_node(vid.inner());
-            cache.resolve_node_and_type(node_and_type, node_type, node_entry.id())
-        });
-
-        Ok(node_and_type)
+        Ok(self.session.set_node(gid, vid)?)
     }
 
     fn resolve_graph_property(
@@ -338,13 +402,10 @@ impl InternalAdditionOps for Storage {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self
-            .graph
+            .session
             .resolve_graph_property(prop, dtype.clone(), is_static)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_graph_property(prop, id, dtype, is_static));
 
         Ok(id)
     }
@@ -354,13 +415,10 @@ impl InternalAdditionOps for Storage {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self
-            .graph
+            .session
             .resolve_node_property(prop, dtype.clone(), is_static)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_node_property(prop, id, &dtype, is_static));
 
         Ok(id)
     }
@@ -370,122 +428,185 @@ impl InternalAdditionOps for Storage {
         prop: &str,
         dtype: PropType,
         is_static: bool,
-    ) -> Result<MaybeNew<usize>, GraphError> {
+    ) -> Result<MaybeNew<usize>, Self::Error> {
         let id = self
-            .graph
+            .session
             .resolve_edge_property(prop, dtype.clone(), is_static)?;
 
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.resolve_edge_property(prop, id, &dtype, is_static));
-
         Ok(id)
+    }
+}
+
+impl InternalAdditionOps for Storage {
+    type Error = GraphError;
+
+    type WS<'a> = StorageWriteSession<'a>;
+    type AtomicAddEdge<'a> = AtomicAddEdgeSession<'a>;
+
+    fn write_lock(&self) -> Result<WriteLockedGraph<'_, Extension>, Self::Error> {
+        Ok(self.graph.write_lock()?)
+    }
+
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
+        let id = self.graph.resolve_layer(layer)?;
+        Ok(id)
+    }
+
+    fn resolve_node(&self, id: NodeRef) -> Result<MaybeNew<VID>, Self::Error> {
+        match id {
+            NodeRef::Internal(id) => Ok(MaybeNew::Existing(id)),
+            NodeRef::External(_) => {
+                let id = self.graph.resolve_node(id)?;
+
+                Ok(id)
+            }
+        }
+    }
+
+    fn resolve_and_update_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<MaybeNew<(MaybeNew<VID>, MaybeNew<usize>)>, Self::Error> {
+        let node_and_type = self.graph.resolve_and_update_node_and_type(id, node_type)?;
+
+        #[cfg(feature = "search")]
+        node_and_type
+            .if_new(|(node_id, _)| {
+                let name = match id {
+                    NodeRef::Internal(vid) => self.graph.node_name(vid),
+                    NodeRef::External(gid) => gid.to_string(),
+                };
+                self.if_index_mut(|index| index.add_new_node(node_id.inner(), name, node_type))
+            })
+            .transpose()?;
+
+        Ok(node_and_type)
+    }
+
+    fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
+        let session = self.graph.write_session()?;
+        Ok(StorageWriteSession {
+            session,
+            storage: self,
+        })
+    }
+
+    fn atomic_add_edge(
+        &self,
+        src: NodeRef,
+        dst: NodeRef,
+        e_id: Option<EID>,
+    ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
+        let session = self.graph.atomic_add_edge(src, dst, e_id)?;
+        Ok(AtomicAddEdgeSession {
+            session,
+            storage: self,
+        })
     }
 
     fn internal_add_node(
         &self,
         t: EventTime,
         v: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_node(t, v, props)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_node_update(t, v, props));
+        props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
+        #[cfg(feature = "search")]
+        let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
+        // don't fail early on indexing, actually update the graph even if indexing failed
+        let writer = self.graph.internal_add_node(t, v, props, layer_id)?;
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_node_update(&self.graph, t, MaybeNew::New(v), props))?;
+        index_res?;
 
-        Ok(())
+        Ok(writer)
     }
 
-    fn internal_add_edge(
+    fn validate_props<PN: AsRef<str>>(
         &self,
-        t: EventTime,
-        src: VID,
-        dst: VID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        let id = self.graph.internal_add_edge(t, src, dst, props, layer)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| {
-            cache.resolve_edge(id, src, dst);
-            cache.add_edge_update(t, id.inner(), props, layer);
-        });
-
-        #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_edge_update(&self.graph, id, t, layer, props))?;
-
-        Ok(id)
+        is_static: bool,
+        meta: &Meta,
+        prop: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<(usize, Prop)>, Self::Error> {
+        Ok(self.graph.validate_props(is_static, meta, prop)?)
     }
 
-    fn internal_add_edge_update(
+    fn validate_props_with_status<PN: AsRef<str>>(
         &self,
-        t: EventTime,
-        edge: EID,
-        props: &[(usize, Prop)],
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_edge_update(t, edge, props, layer)?;
+        is_static: bool,
+        meta: &Meta,
+        props: impl Iterator<Item = (PN, Prop)>,
+    ) -> Result<Vec<MaybeNew<(PN, usize, Prop)>>, Self::Error> {
+        Ok(self
+            .graph
+            .validate_props_with_status(is_static, meta, props)?)
+    }
 
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_edge_update(t, edge, props, layer));
+    fn validate_gids<'a>(
+        &self,
+        gids: impl IntoIterator<Item = GidRef<'a>>,
+    ) -> Result<(), Self::Error> {
+        Ok(self.graph.validate_gids(gids)?)
+    }
 
-        #[cfg(feature = "search")]
-        self.if_index_mut(|index| {
-            index.add_edge_update(&self.graph, MaybeNew::Existing(edge), t, layer, props)
-        })?;
+    fn resolve_node_and_type(
+        &self,
+        id: NodeRef,
+        node_type: Option<&str>,
+    ) -> Result<(VID, usize), Self::Error> {
+        Ok(self.graph.resolve_node_and_type(id, node_type)?)
+    }
 
-        Ok(())
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        Ok(self.graph.bulk_load_resolve_node(id)?)
+    }
+
+    fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
+        self.graph.atomic_add_node(node).map_err(into_graph_err)
     }
 }
 
 impl InternalPropertyAdditionOps for Storage {
     type Error = GraphError;
-    fn internal_add_properties(
+
+    fn internal_add_properties<P: AsPropRef>(
         &self,
         t: EventTime,
+        props: &[(usize, P)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_properties(t, props)?)
+    }
+
+    fn internal_add_metadata<P: AsPropRef>(
+        &self,
+        props: &[(usize, P)],
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_add_metadata(props)?)
+    }
+
+    fn internal_update_metadata(
+        &self,
         props: &[(usize, Prop)],
-    ) -> Result<(), GraphError> {
-        self.graph.internal_add_properties(t, props)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_graph_tprops(t, props));
-
-        Ok(())
+    ) -> Result<GraphPropWriterT<'_>, GraphError> {
+        Ok(self.graph.internal_update_metadata(props)?)
     }
 
-    fn internal_add_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_add_metadata(props)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_graph_cprops(props));
-
-        Ok(())
-    }
-
-    fn internal_update_metadata(&self, props: &[(usize, Prop)]) -> Result<(), GraphError> {
-        self.graph.internal_update_metadata(props)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_graph_cprops(props));
-
-        Ok(())
-    }
-
-    fn internal_add_node_metadata(
+    fn internal_add_node_metadata<P: AsPropRef>(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
+        props: Vec<(usize, P)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
+        #[cfg(feature = "search")]
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
+
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_node_cprops(vid, props));
-
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_node_metadata(vid, props))?;
+        self.if_index_mut(|index| index.add_node_metadata(vid, &props_for_index))?;
 
         Ok(lock)
     }
@@ -493,32 +614,37 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_update_node_metadata(
         &self,
         vid: VID,
-        props: &[(usize, Prop)],
-    ) -> Result<EntryMut<'_, RwLockWriteGuard<'_, NodeSlot>>, Self::Error> {
+        props: Vec<(usize, Prop)>,
+    ) -> Result<NodeWriterT<'_>, Self::Error> {
+        #[cfg(feature = "search")]
+        let props_for_index = props.clone();
+
         let lock = self.graph.internal_update_node_metadata(vid, props)?;
 
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_node_cprops(vid, props));
-
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.update_node_metadata(vid, props))?;
+        self.if_index_mut(|index| index.update_node_metadata(vid, &props_for_index))?;
 
         Ok(lock)
     }
 
-    fn internal_add_edge_metadata(
+    fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
-        let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
+        layer: LayerId,
+        props: Vec<(usize, P)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
+        // FIXME: this whole thing is not great
 
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.add_edge_metadata(eid, layer, props))?;
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
+
+        let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
+
+        #[cfg(feature = "search")]
+        self.if_index_mut(|index| index.add_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
     }
@@ -526,54 +652,21 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
-        props: &[(usize, Prop)],
-    ) -> Result<EdgeWGuard<'_>, Self::Error> {
+        layer: LayerId,
+        props: Vec<(usize, Prop)>,
+    ) -> Result<EdgeWriterT<'_>, Self::Error> {
+        // FIXME: this whole thing is not great
+
+        #[cfg(feature = "search")]
+        let props_for_index = props.clone();
+
         let lock = self
             .graph
             .internal_update_edge_metadata(eid, layer, props)?;
 
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.add_edge_cprops(eid, layer, props));
-
         #[cfg(feature = "search")]
-        self.if_index_mut(|index| index.update_edge_metadata(eid, layer, props))?;
+        self.if_index_mut(|index| index.update_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
-    }
-}
-
-impl InternalDeletionOps for Storage {
-    type Error = GraphError;
-    fn internal_delete_edge(
-        &self,
-        t: EventTime,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        let eid = self.graph.internal_delete_edge(t, src, dst, layer)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| {
-            cache.resolve_edge(eid, src, dst);
-            cache.delete_edge(eid.inner(), t, layer);
-        });
-
-        Ok(eid)
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: EventTime,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_delete_existing_edge(t, eid, layer)?;
-
-        #[cfg(feature = "proto")]
-        self.if_cache(|cache| cache.delete_edge(eid, t, layer));
-
-        Ok(())
     }
 }

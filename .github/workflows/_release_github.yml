@@ -24,7 +24,10 @@ jobs:
         include:
           - os: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - run: |
           git config --global user.email "ben.steer@pometry.com"
           git config --global user.name "Pometry-Team"

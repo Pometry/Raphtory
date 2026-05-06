@@ -10,7 +10,7 @@ use crate::{
     },
     db::{
         api::{
-            mutation::{time_from_input, CollectProperties},
+            mutation::time_from_input_session,
             properties::internal::{
                 InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
             },
@@ -29,18 +29,29 @@ use crate::{
     prelude::*,
 };
 use raphtory_api::core::{
-    entities::properties::prop::PropType,
+    entities::{
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
+        LayerId, ELID,
+    },
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
-use raphtory_core::entities::ELID;
-use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
+use raphtory_storage::{
+    core_ops::CoreGraphOps,
+    durability_ops::DurabilityOps,
+    graph::graph::GraphStorage,
+    mutation::{
+        addition_ops::{InternalAdditionOps, NodeWriteLock},
+        MutationError,
+    },
+};
 use std::{
     fmt,
     hash::{Hash, Hasher},
     marker::PhantomData,
     sync::Arc,
 };
+use storage::wal::{GraphWalOps, WalOps};
 
 /// View of a Node in a Graph
 #[derive(Copy, Clone)]
@@ -151,7 +162,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_edge_history(node.as_ref(), &self.graph)
+                .node_edge_history(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
     }
@@ -161,7 +172,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_edge_history_rev(node.as_ref(), &self.graph)
+                .node_edge_history_rev(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
     }
@@ -224,7 +235,11 @@ impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps> InternalTemporalProperties
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        Box::new(0..self.graph.node_meta().temporal_prop_mapper().len())
+        self.graph
+            .node_meta()
+            .temporal_prop_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 }
 
@@ -240,11 +255,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
-        let res = semantics
-            .node_tprop_iter(node.as_ref(), &self.graph, id)
-            .next_back()
-            .map(|(_, v)| v);
-        res
+        semantics
+            .node_tprop_last(node.as_ref(), &self.graph, id)
+            .map(|(_, v)| v)
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
@@ -263,8 +276,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, |node| {
             semantics
-                .node_tprop_iter(node.as_ref(), &self.graph, id)
-                .rev()
+                .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
@@ -280,7 +292,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
 }
 
 impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
-    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, Vec<(usize, Prop)>)>
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, LayerId, Vec<(usize, Prop)>)>
     where
         'graph: 'a,
     {
@@ -310,8 +322,11 @@ impl<'graph, G: CoreGraphOps> InternalMetadataOps for NodeView<'graph, G> {
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        Box::new(0..self.graph.node_meta().metadata_mapper().len())
-        // self.graph.node_metadata_ids(self.node)
+        self.graph
+            .node_meta()
+            .metadata_mapper()
+            .ids()
+            .into_dyn_boxed()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
@@ -377,56 +392,219 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
 }
 
 impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static, G> {
-    pub fn add_metadata<C: CollectProperties>(&self, properties: C) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = properties.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .resolve_node_property(name, dtype, true)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
-        self.graph
-            .internal_add_node_metadata(self.node, &properties)
+    pub fn add_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        props: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<(), GraphError> {
+        let is_update = false;
+        self.add_metadata_impl(props, is_update)
+    }
+
+    pub fn update_metadata<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        props: impl IntoIterator<Item = (PN, P)>,
+    ) -> Result<(), GraphError> {
+        let is_update = true;
+        self.add_metadata_impl(props, is_update)
+    }
+
+    /// Adds metadata properties to the node.
+    ///
+    /// When `is_update` is true, existing properties are updated, otherwise
+    /// an error is returned if the property already exists.
+    fn add_metadata_impl<PN: AsRef<str>, P: Into<Prop>>(
+        &self,
+        properties: impl IntoIterator<Item = (PN, P)>,
+        is_update: bool,
+    ) -> Result<(), GraphError> {
+        let transaction_manager = self
+            .graph
+            .core_graph()
+            .transaction_manager()
             .map_err(into_graph_err)?;
+        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let transaction_id = transaction_manager.begin_transaction();
+
+        let props_with_status = self.graph.core_graph().validate_props_with_status(
+            true,
+            self.graph.node_meta(),
+            properties.into_iter().map(|(n, p)| (n, p.into())),
+        )?;
+
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let vid = self.node;
+
+        let mut writer = if is_update {
+            self.graph
+                .internal_update_node_metadata(vid, props)
+                .map_err(into_graph_err)?
+        } else {
+            self.graph
+                .internal_add_node_metadata(vid, props)
+                .map_err(into_graph_err)?
+        };
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let lsn = wal
+            .log_add_node_metadata(transaction_id, vid, props_for_wal)
+            .map_err(into_graph_err)?;
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 
     pub fn set_node_type(&self, new_type: &str) -> Result<(), GraphError> {
-        self.graph
-            .resolve_node_and_type(NodeRef::Internal(self.node), new_type)
+        let transaction_manager = self
+            .graph
+            .core_graph()
+            .transaction_manager()
             .map_err(into_graph_err)?;
+        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let vid = self.node;
+
+        let mut writer = self
+            .graph
+            .atomic_add_node(NodeRef::Internal(vid))
+            .map_err(into_graph_err)?;
+
+        if !writer.can_set_type() {
+            // Ignore if the new type is the same as the existing type, else return an error.
+            self.graph
+                .node_meta()
+                .get_node_type_id(new_type)
+                .filter(|&new_type_id| writer.get_type() == new_type_id)
+                .ok_or(MutationError::NodeTypeError)?;
+        }
+
+        let new_type_id = self
+            .graph
+            .node_meta()
+            .get_or_create_node_type_id(new_type)
+            .inner();
+
+        writer.set_type(new_type_id);
+
+        let lsn = wal
+            .log_set_node_type(transaction_id, vid, new_type, new_type_id)
+            .map_err(into_graph_err)?;
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(())
     }
 
-    pub fn update_metadata<C: CollectProperties>(&self, props: C) -> Result<(), GraphError> {
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
-                .graph
-                .resolve_node_property(name, dtype, true)
-                .map_err(into_graph_err)?
-                .inner())
-        })?;
-        self.graph
-            .internal_update_node_metadata(self.node, &properties)
-            .map_err(into_graph_err)?;
-        Ok(())
-    }
-
-    pub fn add_updates<C: CollectProperties, T: TryIntoInputTime>(
+    pub fn add_updates<
+        T: TryIntoInputTime,
+        PN: AsRef<str>,
+        PI: Into<Prop>,
+        PII: IntoIterator<Item = (PN, PI)>,
+    >(
         &self,
         time: T,
-        props: C,
+        props: PII,
+        layer: Option<&str>,
     ) -> Result<(), GraphError> {
-        let t = time_from_input(&self.graph, time)?;
-        let properties: Vec<(usize, Prop)> = props.collect_properties(|name, dtype| {
-            Ok(self
+        let transaction_manager = self
+            .graph
+            .core_graph()
+            .transaction_manager()
+            .map_err(into_graph_err)?;
+        let wal = self.graph.core_graph().wal().map_err(into_graph_err)?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let session = self.graph.write_session().map_err(|err| err.into())?;
+
+        let props_with_status = self
+            .graph
+            .validate_props_with_status(
+                false,
+                self.graph.node_meta(),
+                props.into_iter().map(|(k, v)| (k, v.into())),
+            )
+            .map_err(into_graph_err)?;
+        let layer_id = match layer {
+            None => STATIC_GRAPH_LAYER_ID,
+            Some(_) => self
                 .graph
-                .resolve_node_property(name, dtype, false)
+                .resolve_layer(layer)
                 .map_err(into_graph_err)?
-                .inner())
-        })?;
-        self.graph
-            .internal_add_node(t, self.node, &properties)
-            .map_err(into_graph_err)
+                .inner(),
+        };
+
+        let t = time_from_input_session(&session, time)?;
+        let vid = self.node;
+
+        let mut writer = self
+            .graph
+            .atomic_add_node(NodeRef::Internal(vid))
+            .map_err(into_graph_err)?;
+
+        let props = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (_, prop_id, prop) = maybe_new.as_ref().inner();
+                (*prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        writer.internal_add_update(t, layer_id, props);
+
+        let props_for_wal = props_with_status
+            .iter()
+            .map(|maybe_new| {
+                let (prop_name, prop_id, prop) = maybe_new.as_ref().inner();
+                (prop_name.as_ref(), *prop_id, prop.clone())
+            })
+            .collect::<Vec<_>>();
+
+        let lsn = wal
+            .log_add_node(
+                transaction_id,
+                t,
+                None,
+                vid,
+                None,
+                props_for_wal,
+                layer,
+                layer_id,
+            )
+            .map_err(into_graph_err)?;
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
+        Ok(())
     }
 }

@@ -1,14 +1,14 @@
 import tempfile
 from datetime import datetime, timezone
 import pytest
-from utils import assert_has_metadata, assert_has_properties
+from utils import assert_has_metadata, assert_has_properties, truncate_dt_to_ms
 from raphtory.graphql import GraphServer, RaphtoryClient
 from numpy.testing import assert_equal as check_arr
 
 
 def make_props():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah",
         "prop_float": 2.0,
@@ -33,8 +33,8 @@ def make_props():
 
 
 def make_props2():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah2",
         "prop_float": 3.0,
@@ -95,7 +95,7 @@ def test_add_metadata():
 
         with pytest.raises(Exception) as excinfo:
             rg.edge("ben", "hamza").add_metadata({"prop_float": 3.0})
-        assert "Attempted to change value of metadata" in str(excinfo.value)
+        assert "Cannot set previous value" in str(excinfo.value)
 
 
 def test_update_metadata():
@@ -139,5 +139,5 @@ def test_delete():
         edge = rg.add_edge(1, "ben", "lucas", layer="colleagues")
         edge.delete(2, layer="colleagues")
         g = client.receive_graph("path/to/persistent_graph")
-        assert g.edge("ben", "hamza").deletions == [(2, 1)]
-        assert g.edge("ben", "lucas").deletions == [(2, 3)]
+        assert g.edge("ben", "hamza").deletions.t == [2]
+        assert g.edge("ben", "lucas").deletions.t == [2]

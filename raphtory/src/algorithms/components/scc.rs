@@ -2,7 +2,7 @@ use crate::{
     core::entities::VID,
     db::{
         api::{
-            state::{GenericNodeState, TypedNodeState},
+            state::{GenericNodeState, Index, TypedNodeState},
             view::StaticGraphViewOps,
         },
         graph::node::NodeView,
@@ -102,12 +102,14 @@ where
     G: StaticGraphViewOps,
 {
     let groups = tarjan_scc(graph);
+    let index = Index::for_graph(graph);
 
-    let mut values = vec![SCCState::default(); graph.unfiltered_num_nodes()];
+    let mut values = vec![SCCState::default(); index.len()];
 
     for (id, group) in groups.into_iter().enumerate() {
-        for VID(node) in group {
-            values[node] = SCCState { component_id: id };
+        for vid in &group {
+            let pos = index.index(vid).unwrap();
+            values[pos] = SCCState { component_id: id };
         }
     }
 

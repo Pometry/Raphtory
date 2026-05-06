@@ -35,7 +35,7 @@ impl PyDocument {
     /// Returns:
     ///     Optional[Any]:
     #[getter]
-    fn entity(&self, py: Python) -> PyResult<PyObject> {
+    fn entity(&self, py: Python) -> PyResult<Py<PyAny>> {
         match &self.0.entity {
             DocumentEntity::Node(entity) => entity.clone().into_py_any(py),
             DocumentEntity::Edge(entity) => entity.clone().into_py_any(py),
@@ -68,6 +68,10 @@ impl PyEmbedding {
         self.repr()
     }
 
+    /// Returns the embedding as a `pyarrow.Array` of floats.
+    ///
+    /// Returns:
+    ///     pyarrow.Array:
     fn to_arrow(&self) -> PyArray {
         PyArray::from_array_ref(Arc::new(self.0.inner().clone()))
     }
