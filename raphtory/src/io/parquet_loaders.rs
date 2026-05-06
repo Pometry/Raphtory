@@ -1,7 +1,5 @@
 use crate::{
-    db::api::view::StaticGraphViewOps,
-    errors::GraphError,
-    io::arrow::{
+    arrow_loader::{
         dataframe::*,
         df_loaders::{
             edges::{load_edges_from_df_prefetch, ColumnNames},
@@ -9,6 +7,8 @@ use crate::{
             *,
         },
     },
+    db::api::view::StaticGraphViewOps,
+    errors::GraphError,
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
 };
 use arrow::{
@@ -242,6 +242,7 @@ pub fn load_node_metadata_from_parquet<
             metadata_properties,
             shared_metadata,
             graph,
+            false,
         )?;
     }
 

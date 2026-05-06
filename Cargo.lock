@@ -6348,6 +6348,7 @@ dependencies = [
  "bytemuck",
  "bzip2 0.4.4",
  "chrono",
+ "crossbeam-channel",
  "csv",
  "dashmap",
  "datafusion-expr-common",
@@ -6591,6 +6592,7 @@ dependencies = [
  "raphtory",
  "raphtory-auth-noop",
  "raphtory-graphql",
+ "tikv-jemallocator",
 ]
 
 [[package]]

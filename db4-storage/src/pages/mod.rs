@@ -182,7 +182,8 @@ impl<
         let t_len = edge_meta
             .all_layer_iter()
             .map(|(layer_id, _)| edge_storage.t_len(layer_id.0))
-            .sum::<usize>();
+            .sum::<usize>()
+            + node_storage.t_len();
 
         Ok(Self {
             nodes: node_storage,

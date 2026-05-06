@@ -282,6 +282,10 @@ impl<P: InternalPropertiesOps + Clone> TemporalProperties<P> {
         self.keys().zip(self.values())
     }
 
+    pub fn iter_ids(&self) -> impl Iterator<Item = (usize, TemporalPropertyView<P>)> + '_ {
+        self.props.temporal_prop_ids().zip(self.values())
+    }
+
     pub fn iter_filtered(&self) -> impl Iterator<Item = (ArcStr, TemporalPropertyView<P>)> + '_ {
         self.iter().filter(|(_, v)| !v.is_empty())
     }
