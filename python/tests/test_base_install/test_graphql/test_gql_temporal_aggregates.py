@@ -1,5 +1,9 @@
-from utils import run_group_graphql_test
+import json
+import tempfile
+
+from utils import PORT, run_group_graphql_test
 from raphtory import Graph
+from raphtory.graphql import GraphServer
 
 
 def create_graph() -> Graph:
@@ -463,3 +467,131 @@ def test_edge_temporal_aggregates_across_layers():
     queries_and_expected_outputs.append((query, expected_output))
 
     run_group_graphql_test(queries_and_expected_outputs, graph)
+
+
+def _run_typed_accessors_cases(graph, cases):
+    """Run queries against a fresh server.
+
+    `cases` is a list of `(query, expected, transform)` where `transform` is
+    applied to both the response and the expected value before comparison
+    (needed for fields like `unique` whose ordering is non-deterministic).
+    """
+    tmp_work_dir = tempfile.mkdtemp()
+    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
+        client = server.get_client()
+        client.send_graph(path="g", graph=graph)
+        for query, expected, transform in cases:
+            response = client.query(query)
+            response_dict = (
+                json.loads(response) if isinstance(response, str) else response
+            )
+            actual = transform(response_dict) if transform else response_dict
+            expected_t = transform(expected) if transform else expected
+            assert actual == expected_t, f"Expected:\n{expected_t}\nGot:\n{actual}"
+
+
+def _sort_unique(path):
+    """Returns a transform that sorts the `unique` list at the given dict path."""
+
+    def transform(d):
+        d = json.loads(json.dumps(d))  # deep copy
+        cur = d
+        for step in path:
+            cur = cur[step]
+        cur["unique"] = sorted(cur["unique"])
+        return d
+
+    return transform
+
+
+def test_temporal_property_typed_accessors():
+    """`values`, `latest`, `at`, and `unique` on `TemporalProperty` return
+    properly typed values (numbers stay numbers, bools stay bools, etc.)."""
+    graph = create_graph()  # node "A" with score [10, 20, 30, 40] at t=100..400
+    # bool property on the same node so we exercise non-numeric typing too
+    graph.add_node(100, "A", properties={"flag": True})
+    graph.add_node(200, "A", properties={"flag": False})
+    graph.add_node(300, "A", properties={"flag": True})
+
+    cases = []
+    path = ["graph", "node", "properties", "temporal", "get"]
+
+    # numeric values stay numeric; `at(t)` returns the latest value at-or-before t
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "A") {
+          properties {
+            temporal {
+              get(key: "score") {
+                values
+                latest
+                atEarly: at(t: 50)
+                atMid:   at(t: 250)
+                atExact: at(t: 200)
+                atLate:  at(t: 1000)
+                unique
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {
+            "node": {
+                "properties": {
+                    "temporal": {
+                        "get": {
+                            "values": [10, 20, 30, 40],
+                            "latest": 40,
+                            "atEarly": None,
+                            "atMid": 20,
+                            "atExact": 20,
+                            "atLate": 40,
+                            "unique": [10, 20, 30, 40],
+                        }
+                    }
+                }
+            }
+        }
+    }
+    cases.append((query, expected, _sort_unique(path)))
+
+    # bools stay bools through values/latest/unique
+    query = """
+    {
+      graph(path: "g") {
+        node(name: "A") {
+          properties {
+            temporal {
+              get(key: "flag") {
+                values
+                latest
+                unique
+              }
+            }
+          }
+        }
+      }
+    }
+    """
+    expected = {
+        "graph": {
+            "node": {
+                "properties": {
+                    "temporal": {
+                        "get": {
+                            "values": [True, False, True],
+                            "latest": True,
+                            "unique": [False, True],
+                        }
+                    }
+                }
+            }
+        }
+    }
+    cases.append((query, expected, _sort_unique(path)))
+
+    _run_typed_accessors_cases(graph, cases)

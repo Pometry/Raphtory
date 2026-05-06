@@ -434,8 +434,8 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     // we still need the writer in case we need to flush
                     if shard.page().is_dirty() {
                         let mut _writer = shard.writer();
-                        return;
                     }
+                    return;
                 }
 
                 let zip = izip!(

@@ -13,7 +13,10 @@ use raphtory::{
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
-///
+/// Lightweight summary of a stored graph — its name, path, counts, and
+/// filesystem timestamps — served without deserializing the full graph.
+/// Useful for listing what's available on the server before committing to a
+/// full load.
 #[derive(ResolvedObject, Clone)]
 pub(crate) struct MetaGraph {
     folder: ExistingGraphFolder,

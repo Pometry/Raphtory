@@ -1,6 +1,7 @@
-from raphtory import Prop
+from raphtory import Graph, Prop
 from utils import expect_unify_error, assert_in_all
 from decimal import Decimal
+from datetime import datetime, timezone
 import pytest
 
 
@@ -157,4 +158,129 @@ def test_map_with_nested_list_that_is_heterogeneous_rejected():
                 "bad": Prop.list([Prop.u64(1), Prop.i64(-1)]),
             }
         ).dtype()
+    )
+
+
+def test_aware_datetime():
+    dt = datetime(2024, 6, 1, 12, 30, 45, tzinfo=timezone.utc)
+    p = Prop.aware_datetime(dt)
+    assert str(p.dtype()) == "DTime"
+    assert "2024-06-01" in repr(p)
+
+
+def test_aware_datetime_treats_naive_as_utc():
+    """Naive datetimes are accepted and interpreted as UTC, consistent with
+    how `EventTime` and other Raphtory time inputs handle them."""
+    naive = datetime(2024, 6, 1, 12, 30, 45)
+    aware = datetime(2024, 6, 1, 12, 30, 45, tzinfo=timezone.utc)
+    assert Prop.aware_datetime(naive) == Prop.aware_datetime(aware)
+
+
+def test_naive_datetime():
+    dt = datetime(2024, 6, 1, 12, 30, 45)
+    p = Prop.naive_datetime(dt)
+    assert str(p.dtype()) == "NDTime"
+    assert "2024-06-01" in repr(p)
+
+
+def test_decimal_from_string():
+    p = Prop.decimal("1234.5678")
+    # Decimal stores scale; dtype reports it.
+    assert str(p.dtype()) == "Decimal { scale: 4 }"
+
+
+def test_decimal_from_negative_string():
+    p = Prop.decimal("-0.001")
+    assert str(p.dtype()) == "Decimal { scale: 3 }"
+
+
+def test_decimal_from_string_zero_scale():
+    p = Prop.decimal("42")
+    assert str(p.dtype()) == "Decimal { scale: 0 }"
+
+
+def test_decimal_from_python_decimal():
+    p = Prop.decimal(Decimal("99.99"))
+    assert str(p.dtype()) == "Decimal { scale: 2 }"
+
+
+def test_decimal_from_python_decimal_high_precision():
+    """`decimal.Decimal` preserves precision regardless of float limits."""
+    p = Prop.decimal(Decimal("1.234567890123456789012345"))
+    assert str(p.dtype()) == "Decimal { scale: 24 }"
+
+
+def test_decimal_from_int():
+    p = Prop.decimal(7)
+    assert str(p.dtype()) == "Decimal { scale: 0 }"
+
+
+def test_decimal_from_negative_int():
+    p = Prop.decimal(-42)
+    assert str(p.dtype()) == "Decimal { scale: 0 }"
+
+
+def test_decimal_from_large_int():
+    p = Prop.decimal(2**62)
+    assert str(p.dtype()) == "Decimal { scale: 0 }"
+
+
+def test_decimal_from_float():
+    p = Prop.decimal(1.5)
+    assert "Decimal" in str(p.dtype())
+
+
+def test_decimal_from_negative_float():
+    p = Prop.decimal(-3.25)
+    assert "Decimal" in str(p.dtype())
+
+
+def test_decimal_rejects_non_numeric_string():
+    with pytest.raises(TypeError):
+        Prop.decimal("not a number")
+
+
+def test_decimal_rejects_unsupported_type():
+    with pytest.raises(TypeError):
+        Prop.decimal([1, 2, 3])
+
+
+def test_decimal_in_graph_roundtrips():
+    """Decimal Props attach to graph entities and are readable back."""
+    g = Graph()
+    g.add_node(1, "n", properties={"price": Prop.decimal("19.99")})
+    val = g.node("n").properties.get("price")
+    assert val == Decimal("19.99")
+
+
+def test_decimal_in_graph_from_int_then_read_back():
+    g = Graph()
+    g.add_node(1, "n", properties={"count": Prop.decimal(42)})
+    val = g.node("n").properties.get("count")
+    assert val == Decimal("42")
+
+
+def test_decimal_in_graph_from_float_then_read_back():
+    g = Graph()
+    g.add_node(1, "n", properties={"ratio": Prop.decimal(1.5)})
+    val = g.node("n").properties.get("ratio")
+    assert val == Decimal("1.5")
+
+
+def test_decimal_list_in_graph():
+    """Lists of Decimal Props inherit a unified scale."""
+    g = Graph()
+    g.add_node(
+        1,
+        "n",
+        properties={"prices": Prop.list([Prop.decimal("1.25"), Prop.decimal("2.50")])},
+    )
+    vals = g.node("n").properties.get("prices")
+    assert vals == [Decimal("1.25"), Decimal("2.50")]
+
+
+def test_decimal_list_rejects_mixed_scales():
+    """Mixing decimal scales in a list errors at unification time."""
+    expect_unify_error(
+        lambda: Prop.list([Prop.decimal("1.25"), Prop.decimal("2.5")]).dtype()
     )

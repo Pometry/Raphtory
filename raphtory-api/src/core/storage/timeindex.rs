@@ -248,7 +248,7 @@ impl EventTime {
         if self.1 > 0 {
             Self(self.0, self.1 - 1)
         } else if self.0 > i64::MIN {
-            Self(self.0 - 1, 0)
+            Self(self.0 - 1, usize::MAX)
         } else {
             *self
         }
@@ -287,5 +287,18 @@ impl AsTime for EventTime {
 
     fn new(t: i64, s: usize) -> Self {
         Self(t, s)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn symetric_next_previous() {
+        proptest::proptest!(|(t in i64::MIN..=i64::MAX, s in 0..=usize::MAX)| {
+            let event_time = EventTime(t, s);
+            assert_eq!(event_time, event_time.next().previous());
+            assert_eq!(event_time, event_time.previous().next());
+        });
     }
 }

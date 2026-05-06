@@ -44,7 +44,7 @@ use parquet::{
 use raphtory_api::core::entities::{
     properties::{
         meta::STATIC_GRAPH_LAYER_ID,
-        prop::{Prop, PropType, PropUntagged, PropUnwrap},
+        prop::{Prop, PropUntagged, PropUnwrap},
     },
     LayerIds,
 };
@@ -58,7 +58,7 @@ use serde_arrow::{
 use std::{
     cmp::{Ordering, PartialEq},
     collections::{BinaryHeap, HashMap},
-    fmt::{Debug, Formatter, Pointer},
+    fmt::{Debug, Formatter},
     fs::File,
     hash::BuildHasher,
     marker::PhantomData,

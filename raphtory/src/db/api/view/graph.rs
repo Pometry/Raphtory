@@ -32,9 +32,9 @@ use crate::{
     errors::GraphError,
     parquet_encoder::{
         encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
-        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_COL_ID,
-        DST_COL_VID, EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
-        SECONDARY_INDEX_COL, SRC_COL_ID, SRC_COL_VID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_GID_COL,
+        DST_VID_COL, EDGE_COL_ID, ENCODE_POOL, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::*,
 };

@@ -265,6 +265,25 @@ impl NodeTimeSemanticsOps for TimeSemantics {
     ) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'graph {
         for_all_iter!(self, semantics => semantics.node_edge_history_rev_window(node, view, layer_ids, w))
     }
+
+    fn node_tprop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<(EventTime, Prop)> {
+        for_all!(self, semantics => semantics.node_tprop_last(node, view, prop_id))
+    }
+
+    fn node_tprop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        node: NodeStorageRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<(EventTime, Prop)> {
+        for_all!(self, semantics => semantics.node_tprop_last_window(node, view, prop_id, w))
+    }
 }
 
 impl EdgeTimeSemanticsOps for TimeSemantics {
@@ -681,6 +700,25 @@ impl EdgeTimeSemanticsOps for TimeSemantics {
         w: Range<EventTime>,
     ) -> Option<Prop> {
         for_all!(self, semantics => semantics.temporal_edge_prop_last_at_window(e, view, prop_id, t, w))
+    }
+
+    fn temporal_edge_prop_last<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+    ) -> Option<Prop> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_last(e, view, prop_id))
+    }
+
+    fn temporal_edge_prop_last_window<'graph, G: GraphView + 'graph>(
+        &self,
+        e: EdgeEntryRef<'graph>,
+        view: G,
+        prop_id: usize,
+        w: Range<EventTime>,
+    ) -> Option<Prop> {
+        for_all!(self, semantics => semantics.temporal_edge_prop_last_window(e, view, prop_id, w))
     }
 
     fn temporal_edge_prop_hist<'graph, G: GraphView + 'graph>(

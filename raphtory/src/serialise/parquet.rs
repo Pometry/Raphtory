@@ -12,9 +12,9 @@ use crate::{
     },
     parquet_encoder::{
         encode_edge_cprop, encode_edge_deletions, encode_edge_tprop, encode_graph_cprop,
-        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_COL_ID,
-        DST_COL_VID, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_ID_COL, NODE_VID_COL,
-        SECONDARY_INDEX_COL, SRC_COL_ID, SRC_COL_VID, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        encode_graph_tprop, encode_nodes_cprop, encode_nodes_tprop, RecordBatchSink, DST_GID_COL,
+        DST_VID_COL, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::*,
     serialise::GraphPaths,
@@ -398,7 +398,7 @@ fn decode_graph_storage(
     let c_node_path = path.as_ref().join(NODES_C_PATH);
 
     if std::fs::exists(&c_node_path)? {
-        let exclude = vec![NODE_ID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL];
+        let exclude = vec![NODE_GID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL];
         let (c_prop_columns, _) = collect_prop_columns(&c_node_path, &exclude)?;
         let c_prop_columns = c_prop_columns
             .iter()
@@ -408,7 +408,7 @@ fn decode_graph_storage(
         load_node_metadata_from_parquet(
             &graph,
             &c_node_path,
-            NODE_ID_COL,
+            NODE_GID_COL,
             None,
             Some(TYPE_COL),
             Some(NODE_VID_COL),
@@ -426,7 +426,7 @@ fn decode_graph_storage(
 
     if std::fs::exists(&t_node_path)? {
         let exclude = vec![
-            NODE_ID_COL,
+            NODE_GID_COL,
             NODE_VID_COL,
             TYPE_COL,
             TIME_COL,
@@ -464,10 +464,10 @@ fn decode_graph_storage(
         let exclude = vec![
             TIME_COL,
             SECONDARY_INDEX_COL,
-            SRC_COL_VID,
-            SRC_COL_ID,
-            DST_COL_VID,
-            DST_COL_ID,
+            SRC_VID_COL,
+            SRC_GID_COL,
+            DST_VID_COL,
+            DST_GID_COL,
             LAYER_COL,
             LAYER_ID_COL,
             EDGE_COL_ID,
@@ -484,8 +484,8 @@ fn decode_graph_storage(
             ColumnNames::new(
                 TIME_COL,
                 Some(SECONDARY_INDEX_COL),
-                SRC_COL_ID,
-                DST_COL_ID,
+                SRC_VID_COL,
+                DST_VID_COL,
                 Some(LAYER_COL),
             ),
             true,
@@ -507,8 +507,8 @@ fn decode_graph_storage(
             ColumnNames::new(
                 TIME_COL,
                 Some(SECONDARY_INDEX_COL),
-                SRC_COL_ID,
-                DST_COL_ID,
+                SRC_VID_COL,
+                DST_VID_COL,
                 Some(LAYER_COL),
             ),
             None,
@@ -522,10 +522,10 @@ fn decode_graph_storage(
 
     if std::fs::exists(&c_edge_path)? {
         let exclude = vec![
-            SRC_COL_VID,
-            SRC_COL_ID,
-            DST_COL_VID,
-            DST_COL_ID,
+            SRC_VID_COL,
+            SRC_GID_COL,
+            DST_VID_COL,
+            DST_GID_COL,
             LAYER_COL,
             EDGE_COL_ID,
         ];
@@ -538,8 +538,8 @@ fn decode_graph_storage(
         load_edge_metadata_from_parquet(
             &graph,
             &c_edge_path,
-            SRC_COL_ID,
-            DST_COL_ID,
+            SRC_VID_COL,
+            DST_VID_COL,
             &metadata,
             None,
             None,
