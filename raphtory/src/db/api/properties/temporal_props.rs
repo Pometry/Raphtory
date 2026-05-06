@@ -1,7 +1,7 @@
 use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
 use arrow::array::ArrayRef;
 use bigdecimal::BigDecimal;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, NaiveDateTime, Utc};
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropArray, PropArrayUnwrap, PropType, PropUnwrap},
@@ -378,6 +378,10 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
 
     fn into_decimal(self) -> Option<BigDecimal> {
         self.latest().into_decimal()
+    }
+
+    fn into_dtime(self) -> Option<DateTime<Utc>> {
+        self.latest().into_dtime()
     }
 }
 

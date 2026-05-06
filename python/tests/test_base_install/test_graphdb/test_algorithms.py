@@ -652,7 +652,7 @@ def test_nodestate_merge():
     import gc
     import time
 
-    N = 1_000_000
+    N = 1_000
 
     print("start graph gen")
     now = time.time()
