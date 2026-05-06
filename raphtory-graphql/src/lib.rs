@@ -1851,4 +1851,79 @@ mod graphql_test {
         )
         .await;
     }
+
+    #[tokio::test]
+    async fn test_node_types() {
+        // Ensure node types are returned correctly by the server.
+        let node_types = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon"];
+        let graph = Graph::new();
+
+        for (node_id, node_type) in node_types.iter().enumerate() {
+            graph
+                .add_node(0, node_id as u64, NO_PROPS, Some(node_type), None)
+                .expect("add_node");
+        }
+
+        let tmp_dir = tempdir().unwrap();
+        let graph_name = "graph_with_node_types";
+        let graphs = HashMap::from([(graph_name.to_string(), graph.into())]);
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
+
+        // Drop and reload data to mimic server restart.
+        drop(data);
+
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        let schema = App::create_schema().data(data).finish().unwrap();
+
+        let query = format!(
+            r#"
+        query {{
+          graph(path: "{graph_name}", graphType: EVENT) {{
+            nodes {{
+              list {{
+                nodeType
+              }}
+            }}
+          }}
+        }}
+      "#
+        );
+
+        let res = schema.execute(Request::new(query).data(Access::Rw)).await;
+
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+
+        let gql_data = res.data.into_json().unwrap();
+
+        let list = gql_data
+            .get("graph")
+            .and_then(|g| g.get("nodes"))
+            .and_then(|n| n.get("list"))
+            .unwrap();
+
+        let Value::Array(nodes) = list else {
+            panic!("graph.nodes.list should be an array, got {list:?}");
+        };
+
+        assert_eq!(nodes.len(), 5, "expected 5 nodes, got {:?}", nodes.len());
+
+        let retrieved: HashSet<String> = nodes
+            .iter()
+            .map(|node| {
+                node.get("nodeType")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_else(|| panic!("nodeType missing or not a string: {node:?}"))
+                    .to_owned()
+            })
+            .collect();
+
+        let expected: HashSet<String> = node_types.iter().map(|s| (*s).to_string()).collect();
+
+        assert_eq!(
+            retrieved, expected,
+            "node types returned by GraphQL should match those set on ingest"
+        );
+    }
 }
