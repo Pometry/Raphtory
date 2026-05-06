@@ -1,7 +1,11 @@
 use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
 use arrow::array::ArrayRef;
 use bigdecimal::BigDecimal;
+<<<<<<< fix_list_types
 use chrono::{DateTime, NaiveDateTime, Utc};
+=======
+use chrono::NaiveDateTime;
+>>>>>>> db_v4
 use raphtory_api::{
     core::{
         entities::properties::prop::{Prop, PropArray, PropArrayUnwrap, PropType, PropUnwrap},
