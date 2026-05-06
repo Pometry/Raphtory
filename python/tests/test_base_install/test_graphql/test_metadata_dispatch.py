@@ -69,8 +69,7 @@ def _read_is_diskgraph(graph_dir):
 def _list_metadata_by_path(client):
     """Query metadata for every graph in the namespace via the standard
     listing field. Returns ``{path: {key: value}}``."""
-    result = client.query(
-        """{
+    result = client.query("""{
             root {
                 graphs {
                     list {
@@ -79,8 +78,7 @@ def _list_metadata_by_path(client):
                     }
                 }
             }
-        }"""
-    )
+        }""")
     return {
         entry["path"]: {item["key"]: item["value"] for item in entry["metadata"]}
         for entry in result["root"]["graphs"]["list"]
@@ -107,12 +105,12 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
     # accidentally wrote both graphs in the same format would leave the
     # test still passing (metadata round-trips for either format), and
     # the parquet dispatch path would silently stop being exercised.
-    assert _read_is_diskgraph(disk_graph_dir) is True, (
-        "disk_graph was not saved as a disk graph"
-    )
-    assert _read_is_diskgraph(parquet_graph_dir) is False, (
-        "parquet_graph was not saved as parquet"
-    )
+    assert (
+        _read_is_diskgraph(disk_graph_dir) is True
+    ), "disk_graph was not saved as a disk graph"
+    assert (
+        _read_is_diskgraph(parquet_graph_dir) is False
+    ), "parquet_graph was not saved as parquet"
 
     with GraphServer(work_dir).start():
         client = RaphtoryClient(SERVER_URL)
@@ -123,9 +121,10 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
         # directly from the corresponding on-disk format.
         meta = _list_metadata_by_path(client)
 
-        assert set(meta.keys()) == {"disk_graph", "parquet_graph"}, (
-            f"unexpected graphs in namespace listing: {sorted(meta)}"
-        )
+        assert set(meta.keys()) == {
+            "disk_graph",
+            "parquet_graph",
+        }, f"unexpected graphs in namespace listing: {sorted(meta)}"
 
         assert meta["disk_graph"]["format"] == "disk"
         assert meta["disk_graph"]["owner"] == "pometry"
@@ -141,6 +140,6 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
         client.query('{ graph(path: "parquet_graph") { created } }')
 
         meta_cached = _list_metadata_by_path(client)
-        assert meta_cached == meta, (
-            "cached-path metadata should match the on-disk-path metadata"
-        )
+        assert (
+            meta_cached == meta
+        ), "cached-path metadata should match the on-disk-path metadata"
