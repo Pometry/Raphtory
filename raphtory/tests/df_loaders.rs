@@ -664,6 +664,8 @@ mod io_tests {
             None,
             &g,
             false,
+            None,
+            None,
         )
         .unwrap();
 
@@ -928,6 +930,7 @@ mod parquet_tests {
                         )],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),
@@ -1192,12 +1195,24 @@ mod parquet_tests {
                         c_props: vec![("b".to_string(), Prop::DTime(dt))],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),
         );
 
         build_and_check_parquet_encoding(nodes.into());
+    }
+
+    #[test]
+    fn node_only_layer_roundtrips_with_separate_edge_layer() {
+        let graph = Graph::new();
+        graph.add_node(0, 1, NO_PROPS, None, Some("a")).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, Some("b")).unwrap();
+
+        check_parquet_encoding(&graph, None);
+        assert_eq!(graph.valid_layers("a").count_nodes(), 1);
+        assert_eq!(graph.valid_layers("b").count_edges(), 1);
     }
 
     fn check_graph_props(nf: PropUpdatesFixture, only_timestamps: bool) {
@@ -1237,6 +1252,7 @@ mod parquet_tests {
                         c_props: vec![("b".to_string(), Prop::str("baa"))],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),

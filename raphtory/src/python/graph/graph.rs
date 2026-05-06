@@ -1011,6 +1011,8 @@ impl PyGraph {
                     &metadata,
                     shared_metadata.as_ref(),
                     None,
+                    None,
+                    None,
                     arced_schema.clone(),
                 )?;
             }

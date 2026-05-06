@@ -212,6 +212,8 @@ pub fn load_node_metadata_from_parquet<
     node_type_id_col: Option<&str>, // for inner parquet use only
     metadata_properties: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
     batch_size: Option<usize>,
     schema: Option<Arc<HashMap<String, PropType>>>,
 ) -> Result<(), GraphError> {
@@ -219,6 +221,7 @@ pub fn load_node_metadata_from_parquet<
         .chain(node_type_id_col)
         .chain(node_type_col)
         .chain(node_id_col)
+        .chain(layer_col)
         .collect::<Vec<_>>();
 
     cols_to_check.extend_from_slice(metadata_properties);
@@ -243,6 +246,8 @@ pub fn load_node_metadata_from_parquet<
             shared_metadata,
             graph,
             false,
+            layer,
+            layer_col,
         )?;
     }
 

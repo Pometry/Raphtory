@@ -13,7 +13,10 @@ use proptest::{arbitrary::any, prelude::*};
 use proptest_derive::Arbitrary;
 use rand::seq::SliceRandom;
 use raphtory_api::core::{
-    entities::properties::prop::{PropType, DECIMAL_MAX},
+    entities::properties::{
+        meta::STATIC_GRAPH_LAYER,
+        prop::{PropType, DECIMAL_MAX},
+    },
     storage::{
         arc_str::{ArcStr, OptionAsStr},
         timeindex::AsTime,
@@ -245,6 +248,21 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
             "graph missing expected layer {:?}",
             layer
         );
+    }
+
+    for (_, updates) in fixture.nodes() {
+        if updates.props.t_props.is_empty() {
+            continue;
+        }
+        // node_layer=None means STATIC_GRAPH_LAYER (id 0), which is not surfaced by has_layer,
+        // so skip the assertion
+        if let Some(layer) = updates.node_layer.as_str() {
+            assert!(
+                graph.has_layer(layer),
+                "graph missing expected node layer {:?}",
+                layer
+            );
+        }
     }
 
     // check earliest/latest time
@@ -659,6 +677,8 @@ impl Debug for PropUpdatesFixture {
 pub struct NodeUpdatesFixture {
     pub props: PropUpdatesFixture,
     pub node_type: Option<Cow<'static, str>>,
+    #[serde(default)] // backwards compatibility with old proptest regressions
+    pub node_layer: Option<Cow<'static, str>>,
 }
 
 impl Debug for NodeUpdatesFixture {
@@ -792,6 +812,7 @@ where
                                 ..Default::default()
                             },
                             node_type: None,
+                            node_layer: None,
                         },
                     )
                 })
@@ -878,6 +899,14 @@ pub fn make_node_type() -> impl Strategy<Value = Option<Cow<'static, str>>> {
     ])
 }
 
+pub fn make_node_layer() -> impl Strategy<Value = Option<Cow<'static, str>>> {
+    proptest::sample::select(vec![
+        None,
+        Some(Cow::Borrowed("a")),
+        Some(Cow::Borrowed("b")),
+    ])
+}
+
 pub fn make_node_types() -> impl Strategy<Value = Vec<&'static str>> {
     proptest::sample::subsequence(vec!["_default", "one", "two"], 0..=3)
 }
@@ -930,8 +959,16 @@ fn node_updates(
     schema: Vec<(String, PropType)>,
     num_updates: RangeInclusive<usize>,
 ) -> impl Strategy<Value = NodeUpdatesFixture> {
-    (prop_updates(schema, num_updates), make_node_type())
-        .prop_map(|(props, node_type)| NodeUpdatesFixture { props, node_type })
+    (
+        prop_updates(schema, num_updates),
+        make_node_type(),
+        make_node_layer(),
+    )
+        .prop_map(|(props, node_type, node_layer)| NodeUpdatesFixture {
+            props,
+            node_type,
+            node_layer,
+        })
 }
 
 fn edge_updates(
@@ -1112,8 +1149,10 @@ pub fn build_graph(graph_fix: &GraphFixture) -> Arc<Storage> {
     }
 
     for (node, updates) in graph_fix.nodes() {
+        let node_layer = updates.node_layer.as_str();
         for (t, props) in updates.props.t_props.iter() {
-            g.add_node(*t, node, props.clone(), None, None).unwrap();
+            g.add_node(*t, node, props.clone(), None, node_layer)
+                .unwrap();
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
@@ -1133,6 +1172,12 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         .edges()
         .filter(|(_, updates)| !updates.deletions.is_empty() || !updates.props.t_props.is_empty())
         .map(|((_, _, layer), _)| layer.unwrap_or("_default"))
+        .chain(
+            graph_fix
+                .nodes()
+                .filter(|(_, updates)| !updates.props.t_props.is_empty())
+                .map(|(_, updates)| updates.node_layer.as_str().unwrap_or(STATIC_GRAPH_LAYER)),
+        )
         .collect();
 
     // make sure the graph has the layers in the right order
@@ -1181,11 +1226,52 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         }
     }
 
+    // Match `valid_layers([...])` node visibility:
+    //   * `add_node(.., None)` updates land in STATIC_GRAPH_LAYER, which is
+    //     always visible regardless of the layer filter (because
+    //     `node.has_layers(...)` short-circuits on `additions().is_empty()`,
+    //     and `additions()` reads STATIC).
+    //   * `add_node(.., Some(L))` updates only contribute to layer L's
+    //     storage, so the node-add updates don't fire unless L is in the
+    //     requested filter.
+    // Node *type* and *metadata* live at STATIC_GRAPH_LAYER regardless of how
+    // the node was added (`set_type` / `add_metadata` always write to layer 0
+    // — see [property_addition_ops.rs]), so they remain visible under any
+    // layer filter. We must apply them whenever the node ends up existing in
+    // the resulting graph (which can happen via an edge endpoint even when the
+    // node-add was skipped) — otherwise `valid_layers` shows e.g. type "two"
+    // while the rebuilt expected graph shows None.
     for (node, updates) in graph_fix.nodes() {
-        for (t, props) in updates.props.t_props.iter() {
-            g.add_node((*t, counter), node, props.clone(), None, None)
+        // Property keys exist in the source graph's node_meta even when the
+        // node is filtered out by layer. Register them in the expected graph's
+        // meta too so e.g. `valid_layers([])` consistently surfaces an empty
+        // list for prop "1" rather than the prop being absent on one side.
+        for (_, props) in updates.props.t_props.iter() {
+            for (key, value) in props {
+                session
+                    .resolve_node_property(key, value.dtype(), false)
+                    .unwrap();
+            }
+        }
+        for (key, value) in updates.props.c_props.iter() {
+            session
+                .resolve_node_property(key, value.dtype(), true)
                 .unwrap();
-            counter += 1;
+        }
+
+        let node_layer = updates.node_layer.as_str();
+        let visible = match node_layer {
+            None => true,
+            Some(l) => layers.contains(&l),
+        };
+        if visible {
+            for (t, props) in updates.props.t_props.iter() {
+                g.add_node((*t, counter), node, props.clone(), None, node_layer)
+                    .unwrap();
+                counter += 1;
+            }
+        } else {
+            counter += updates.props.t_props.len();
         }
         if let Some(node) = g.node(node) {
             node.add_metadata(updates.props.c_props.clone()).unwrap();
@@ -1270,6 +1356,10 @@ pub enum GraphMutation {
         props: Vec<(String, Prop)>,
         node_type: Option<Cow<'static, str>>,
         metadata: Vec<(String, Prop)>,
+        // `#[serde(default)]` keeps existing JSON regression files (which
+        // predate per-node layers and don't have this key) deserialisable.
+        #[serde(default)]
+        layer: Option<Cow<'static, str>>,
     },
     AddEdge {
         src: u64,
@@ -1353,6 +1443,7 @@ pub fn generate_mutations(
         for (node, update_fixture) in fixture.nodes.clone() {
             let mut c_props = update_fixture.props.c_props;
             let node_type = update_fixture.node_type;
+            let node_layer = update_fixture.node_layer;
 
             for (time, props) in update_fixture.props.t_props {
                 let metadata = mem::take(&mut c_props);
@@ -1365,6 +1456,7 @@ pub fn generate_mutations(
                     props,
                     node_type: node_type.clone(),
                     metadata,
+                    layer: node_layer.clone(),
                 })
             }
         }

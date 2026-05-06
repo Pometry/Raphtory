@@ -41,19 +41,15 @@ use crate::{
 use ahash::HashSet;
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::meta::{Meta, PropMapper},
     storage::{arc_str::ArcStr, timeindex::EventTime},
     Direction,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-        nodes::node_storage_ops::NodeStorageOps,
-    },
-    mutation::addition_ops::SessionAdditionOps,
+use raphtory_storage::graph::{
+    edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+    nodes::node_storage_ops::NodeStorageOps,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
@@ -83,6 +79,12 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Materializes the view into a new graph.
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Inherits config from the graph.
+    ///
+    /// Arguments:
+    ///     path: Option<&Path>: An optional path used to store the new graph.
+    ///
+    /// Returns:
+    ///     MaterializedGraph: Returns a new materialized graph.
     #[cfg(feature = "io")]
     fn materialize_at(
         &self,
@@ -94,7 +96,10 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// Materializes the view into a new graph.
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Sets a new config.
-    #[cfg(feature = "io")]
+    ///
+    /// # Arguments
+    ///     path: The path for the new graph.
+    ///     config: The new config.
     #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
@@ -459,6 +464,8 @@ pub fn materialize_impl(
                             None,
                             &materialized,
                             true,
+                            None,
+                            None,
                         )
                     })
                 }
@@ -471,6 +478,7 @@ pub fn materialize_impl(
                             TYPE_COL,
                             TIME_COL,
                             SECONDARY_INDEX_COL,
+                            LAYER_COL,
                         ],
                     );
                     let node_t_props_refs =
@@ -489,7 +497,7 @@ pub fn materialize_impl(
                         &materialized,
                         true,
                         None,
-                        None,
+                        Some(LAYER_COL),
                     )
                 }
                 RecordBatchKind::EdgesT => {

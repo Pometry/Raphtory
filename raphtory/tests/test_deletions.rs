@@ -254,6 +254,23 @@ fn materialize_window_layers_prop_test() {
 }
 
 #[test]
+fn materialize_window_preserves_named_node_layer_props() {
+    let g = PersistentGraph::new();
+    g.add_node(1, 1, [("p", 1)], None, Some("b")).unwrap();
+    g.add_node(20, 2, [("p", 2)], None, Some("b")).unwrap();
+
+    let view = g.valid_layers(["a", "b"]).window(10, 30);
+    let materialized = view.materialize().unwrap();
+
+    assert_persistent_materialize_graph_equal(&view, &materialized);
+
+    let all_view = g.valid_layers(Vec::<&str>::new()).window(10, 30);
+    let all_materialized = all_view.materialize().unwrap();
+
+    assert_persistent_materialize_graph_equal(&all_view, &all_materialized);
+}
+
+#[test]
 fn materialize_window_multilayer() {
     let g = PersistentGraph::new();
     g.add_edge(1, 0, 0, NO_PROPS, None).unwrap();
