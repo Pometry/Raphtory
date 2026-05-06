@@ -4,6 +4,7 @@ use crate::graph::{
     locked::LockedGraph,
     nodes::{node_entry::NodeStorageEntry, node_storage_ops::NodeStorageOps, nodes::NodesStorage},
 };
+use either::Either;
 use raphtory_api::{
     core::{
         entities::{
@@ -18,7 +19,7 @@ use raphtory_api::{
     inherit::Base,
     iter::{BoxedIter, BoxedLIter, IntoDynBoxed},
 };
-use raphtory_core::entities::nodes::node_ref::NodeRef;
+use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{iter, sync::Arc};
 use storage::resolver::GIDResolverOps;
 
@@ -102,7 +103,7 @@ pub trait CoreGraphOps: Send + Sync {
     }
 
     #[inline]
-    fn core_edge(&self, eid: EID) -> EdgeStorageEntry<'_> {
+    fn core_edge(&self, eid: Either<EID, EdgeRef>) -> EdgeStorageEntry<'_> {
         self.core_graph().edge_entry(eid)
     }
 

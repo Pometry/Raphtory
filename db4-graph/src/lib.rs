@@ -163,6 +163,11 @@ where
         self.logical_to_physical.flush()
     }
 
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        self.storage.vacuum()?;
+        Ok(())
+    }
+
     pub fn disk_storage_path(&self) -> Option<&Path> {
         self.graph_dir()
             .filter(|_| Extension::disk_storage_enabled())
@@ -402,7 +407,7 @@ where
         WriteLockedGraph::new(self)
     }
 
-    pub fn update_time(&self, earliest: EventTime) {
+    pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
 }

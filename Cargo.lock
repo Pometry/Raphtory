@@ -1213,6 +1213,7 @@ dependencies = [
  "comfy-table",
  "criterion",
  "db4-storage",
+ "either",
  "env_logger 0.10.2",
  "fastrand",
  "flate2",
@@ -2575,12 +2576,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "disjoint-sets"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ccbbca7d6a247007ca2535c616d4bb4a5fcad176ef0218671f96b88c52c3d34"
-
-[[package]]
 name = "display-error-chain"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2712,7 +2707,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32e90c2accc4b07a8456ea0debdc2e7587bdd890680d71173a15d4ae604f6eef"
 dependencies = [
  "log",
- "regex",
 ]
 
 [[package]]
@@ -3115,7 +3109,6 @@ dependencies = [
  "cfg-if",
  "libc",
  "r-efi 6.0.0",
- "rand_core 0.10.1",
  "wasip2",
  "wasip3",
 ]
@@ -3746,15 +3739,6 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
 dependencies = [
  "either",
 ]
@@ -6138,17 +6122,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
-name = "quickcheck"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95c589f335db0f6aaa168a7cd27b1fc6920f5e1470c804f814d9cd6e62a0f70b"
-dependencies = [
- "env_logger 0.11.10",
- "log",
- "rand 0.10.1",
-]
-
-[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6262,16 +6235,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2e8e8bcc7961af1fdac401278c6a831614941f6164ee3bf4ce61b7edb162207"
-dependencies = [
- "getrandom 0.4.2",
- "rand_core 0.10.1",
-]
-
-[[package]]
 name = "rand_chacha"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6308,12 +6271,6 @@ checksum = "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
 dependencies = [
  "getrandom 0.3.4",
 ]
-
-[[package]]
-name = "rand_core"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
 name = "rand_distr"
@@ -6400,7 +6357,6 @@ dependencies = [
  "datafusion-physical-plan",
  "db4-graph",
  "db4-storage",
- "disjoint-sets",
  "display-error-chain",
  "dotenv",
  "either",
@@ -6444,6 +6400,7 @@ dependencies = [
  "raphtory",
  "raphtory-api",
  "raphtory-core",
+ "raphtory-itertools",
  "raphtory-storage",
  "rayon",
  "regex",
@@ -6461,7 +6418,6 @@ dependencies = [
  "tikv-jemallocator",
  "tokio",
  "tracing",
- "uuid",
  "walkdir",
  "zip",
 ]
@@ -6495,7 +6451,6 @@ dependencies = [
  "serde",
  "serde_arrow",
  "serde_json",
- "sorted_vector_map",
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
@@ -6523,7 +6478,6 @@ dependencies = [
  "criterion",
  "csv",
  "fake",
- "itertools 0.13.0",
  "once_cell",
  "rand 0.9.4",
  "rand_distr 0.5.1",
@@ -6531,7 +6485,6 @@ dependencies = [
  "raphtory-api",
  "rayon",
  "serde",
- "sorted_vector_map",
  "tempfile",
  "tokio",
  "tracing",
@@ -6660,6 +6613,7 @@ dependencies = [
  "bigdecimal",
  "db4-graph",
  "db4-storage",
+ "either",
  "iter-enum",
  "itertools 0.13.0",
  "num-traits",
@@ -7603,16 +7557,6 @@ checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "sorted_vector_map"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9167648c2ababdbe45294fe7f7b0ab56555fd754990a7637a5a420774461368"
-dependencies = [
- "itertools 0.11.0",
- "quickcheck",
 ]
 
 [[package]]

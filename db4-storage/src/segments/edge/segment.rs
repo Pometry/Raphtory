@@ -24,7 +24,7 @@ use raphtory_api::core::{
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::LayerIds,
+    entities::{LayerIds, edges::edge_ref::EdgeRef},
     storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
@@ -343,8 +343,9 @@ impl MemEdgeSegment {
         Iterator::min(self.layers.iter().filter_map(|seg| seg.earliest()))
     }
 
-    pub fn t_len(&self) -> usize {
-        self.layers.iter().map(|seg| seg.t_len()).sum()
+    #[inline]
+    pub fn t_len(&self, layer_id: usize) -> usize {
+        self.layers.get(layer_id).map_or(0, |layer| layer.t_len())
     }
 }
 
@@ -380,7 +381,7 @@ impl ArcLockedSegmentView {
             .get(layer_id.0)
             .into_iter()
             .flat_map(|layer| layer.filled_positions())
-            .map(move |pos| MemEdgeRef::new(pos, &self.inner))
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
     }
 
     fn edge_par_iter_layer<'a>(
@@ -392,19 +393,23 @@ impl ArcLockedSegmentView {
             .get(layer_id.0)
             .into_par_iter()
             .flat_map(|layer| layer.filled_positions_par())
-            .map(move |pos| MemEdgeRef::new(pos, &self.inner))
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
     }
 }
 
 impl LockedESegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemEdgeRef<'a>;
 
-    fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>
+    fn entry_ref<'a>(
+        &'a self,
+        edge_pos: impl Into<LocalPOS>,
+        edge_ref: Option<EdgeRef>,
+    ) -> Self::EntryRef<'a>
     where
         Self: 'a,
     {
         let edge_pos = edge_pos.into();
-        MemEdgeRef::new(edge_pos, &self.inner)
+        MemEdgeRef::new(edge_pos, &self.inner, edge_ref)
     }
 
     #[box_on_debug_lifetime]
@@ -462,8 +467,8 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.head().earliest()
     }
 
-    fn t_len(&self) -> usize {
-        self.head().t_len()
+    fn t_len(&self, layer_id: usize) -> usize {
+        self.head().t_len(layer_id)
     }
 
     fn num_layers(&self) -> usize {
@@ -571,8 +576,8 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         locked_head.get_edge(edge_pos, layer_id)
     }
 
-    fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a> {
-        MemEdgeEntry::new(edge_pos, self.head())
+    fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a> {
+        MemEdgeEntry::new(edge_pos, self.head(), edge_ref)
     }
 
     fn layer_entry<'a>(
@@ -585,7 +590,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
             let layer = locked_head.as_ref().get(layer_id.0)?;
             layer
                 .has_item(edge_pos)
-                .then(|| MemEdgeEntry::new(edge_pos, locked_head))
+                .then(|| MemEdgeEntry::new(edge_pos, locked_head, None))
         })
     }
 
@@ -683,7 +688,7 @@ mod test {
         );
 
         // Verify time length increased
-        assert_eq!(segment.t_len(), 3);
+        assert_eq!(segment.t_len(0), 3);
     }
 
     #[test]

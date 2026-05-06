@@ -17,6 +17,7 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
+use either::Either;
 use raphtory_api::core::entities::LayerIds;
 use std::{
     fmt::{Debug, Formatter},
@@ -210,10 +211,10 @@ where
                         }
                         None => {
                             let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
-                            lg.filter_edge(edges_locked.edge(e_ref.pid()))
+                            lg.filter_edge(edges_locked.edge(Either::Right(*e_ref)))
                         }
                     },
-                    None => filtered_graph.filter_edge(edges_locked.edge(e_ref.pid())),
+                    None => filtered_graph.filter_edge(edges_locked.edge(Either::Right(*e_ref))),
                 }))
             }),
         }
@@ -386,10 +387,10 @@ where
                         }
                         None => {
                             let lg = LayeredGraph::new(&filtered_graph, LayerIds::One(l));
-                            lg.filter_edge(edges_locked.edge(e_ref.pid()))
+                            lg.filter_edge(edges_locked.edge(Either::Right(*e_ref)))
                         }
                     },
-                    None => filtered_graph.filter_edge(edges_locked.edge(e_ref.pid())),
+                    None => filtered_graph.filter_edge(edges_locked.edge(Either::Right(*e_ref))),
                 }))
             }),
         }

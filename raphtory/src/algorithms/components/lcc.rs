@@ -34,9 +34,13 @@ impl LargestConnectedComponent for Graph {
         let connected_components = weakly_connected_components(self).groups();
 
         let lcc = connected_components
-            .into_iter_subgraphs()
+            .into_iter_groups()
             .map(|(_, subgraph)| subgraph)
-            .max_by(|l, r| l.count_nodes().cmp(&r.count_nodes()));
+            .max_by(|l, r| l.len().cmp(&r.len()))
+            .map(|nodes| NodeSubgraph {
+                graph: self.clone(),
+                nodes: nodes.nodes,
+            });
 
         lcc.unwrap_or(self.subgraph(Vec::<VID>::new()))
     }

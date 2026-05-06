@@ -2,7 +2,7 @@ use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator}
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
-        properties::{prop::Prop, tprop::TPropOps},
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
         LayerId, LayerIds, LayerVariants, EID, VID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
@@ -79,10 +79,8 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
 }
 
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
-    fn edge_ref(self, dir: Dir) -> EdgeRef {
-        EdgeRef::new(self.eid(), self.src(), self.dst(), dir)
-    }
-
+    fn edge_ref(self, dir: Dir) -> EdgeRef;
+    #[inline]
     fn out_ref(self) -> EdgeRef {
         self.edge_ref(Dir::Out)
     }
@@ -167,6 +165,11 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 }
 
 impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
+    #[inline]
+    fn edge_ref(self, dir: Dir) -> EdgeRef {
+        EdgeRefOps::edge_ref(self, dir).expect("valid edge entry should have edge ref info")
+    }
+
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
@@ -183,28 +186,18 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
-            LayerIds::All => self.edge(LayerId(0)).is_some(),
-            LayerIds::One(id) => self.edge(*id).is_some(),
+            LayerIds::All => self.has_layer_inner(STATIC_GRAPH_LAYER_ID),
+            LayerIds::One(id) => self.has_layer_inner(*id),
             LayerIds::Multiple(ids) => self.has_layers(ids),
         }
     }
 
     fn src(self) -> VID {
-        EdgeRefOps::src(&self).unwrap_or_else(|| {
-            panic!(
-                "EdgeRefOps::src should not return None for eid {:?}",
-                self.eid(),
-            )
-        })
+        EdgeRefOps::src(&self).expect("valid edge entry should have src")
     }
 
     fn dst(self) -> VID {
-        EdgeRefOps::dst(&self).unwrap_or_else(|| {
-            panic!(
-                "EdgeRefOps::dst should not return None for eid {:?}",
-                self.eid(),
-            )
-        })
+        EdgeRefOps::dst(&self).expect("valid edge entry should have dst")
     }
 
     fn eid(self) -> EID {
