@@ -1303,6 +1303,25 @@ class Graph(GraphView):
             PersistentGraph: the graph with persistent semantics applied
         """
 
+    def read_only(self) -> Graph:
+        """
+        Return a read-only handle to this graph.
+
+        Mutations on the returned graph (``add_node``, ``add_edge``,
+        ``add_metadata``, etc.) raise an error containing ``"locked"``.
+        The underlying data is shared with the original handle — this is
+        not a snapshot.
+
+        .. warning::
+            While this handle is live, the original graph cannot be
+            mutated either: writes from it will block on the read locks
+            held by this handle. Drop the read-only handle (``del ro``)
+            before mutating the original.
+
+        Returns:
+            Graph: a read-only handle to the same graph data.
+        """
+
     def save_to_file(self, path: str) -> None:
         """
          Saves the Graph to the given path in parquet format.

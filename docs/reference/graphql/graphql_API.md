@@ -4401,6 +4401,12 @@ int:
 
 Returns the metadata of the graph.
 
+Reads metadata without forcing a full graph load: from the
+in-memory cache if the graph is already loaded, otherwise directly
+from disk (parquet metadata for parquet-backed graphs, the
+`graph_props` segment for disk-backed graphs). This keeps
+`MetaGraph.metadata` cheap for namespace listings of many graphs.
+
 </td>
 </tr>
 </tbody>
@@ -5075,6 +5081,16 @@ the given keys.
 <td>
 
 List of `{key, value}` pairs to upsert.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutablegraph.flush">flush</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Persist any in-memory state for this graph to disk so other
+processes attaching a read-only handle observe up-to-date data.
 
 </td>
 </tr>
