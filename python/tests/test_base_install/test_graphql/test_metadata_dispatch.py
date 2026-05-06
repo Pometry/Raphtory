@@ -197,8 +197,8 @@ def test_metadata_update_across_flushes_returns_newest_segment():
 
 def test_metadata_many_updates_across_flushes_returns_last():
     """Update the same key 500 times with a flush between each write so the
-    on-disk graph_props ends up with hundreds of segments, only the last of
-    which holds the final value. The reverse-segment scan must reach it."""
+    on-disk graph_props ends up with many segments. The latest value must
+    be observable through `MetaGraph.metadata`."""
     work_dir = tempfile.mkdtemp()
     graph_dir = os.path.join(work_dir, "g")
 
@@ -217,6 +217,50 @@ def test_metadata_many_updates_across_flushes_returns_last():
         assert meta["g"]["version"] == "v499", (
             f"expected last-write value 'v499', got {meta['g'].get('version')!r}"
         )
+
+
+def test_node_metadata_many_updates_across_flushes_returns_last():
+    """Same scenario as `test_metadata_many_updates_across_flushes_returns_last`
+    but for node metadata: many `update_metadata` calls with a flush after
+    each, then reload and check that the final value is observable."""
+    work_dir = tempfile.mkdtemp()
+    graph_dir = os.path.join(work_dir, "g")
+
+    g = Graph(graph_dir)
+    g.add_node(0, "alice")
+    alice = g.node("alice")
+    alice.add_metadata({"role": "v0"})
+    g.flush()
+    for i in range(1, 500):
+        g.node("alice").update_metadata({"role": f"v{i}"})
+        g.flush()
+    del g
+    del alice
+
+    g = Graph.load(graph_dir, read_only=True)
+    role = g.node("alice").metadata.get("role")
+    assert role == "v499", f"expected last-write value 'v499', got {role!r}"
+
+
+def test_edge_metadata_many_updates_across_flushes_returns_last():
+    """As above but for edge metadata: many `update_metadata` calls with a
+    flush after each, then reload and check that the final value is
+    observable."""
+    work_dir = tempfile.mkdtemp()
+    graph_dir = os.path.join(work_dir, "g")
+
+    g = Graph(graph_dir)
+    g.add_edge(0, "alice", "bob")
+    g.edge("alice", "bob").add_metadata({"weight": "v0"})
+    g.flush()
+    for i in range(1, 500):
+        g.edge("alice", "bob").update_metadata({"weight": f"v{i}"})
+        g.flush()
+    del g
+
+    g = Graph.load(graph_dir, read_only=True)
+    weight = g.edge("alice", "bob").metadata.get("weight")
+    assert weight == "v499", f"expected last-write value 'v499', got {weight!r}"
 
 
 def test_metadata_mixed_keys_across_flushes():
