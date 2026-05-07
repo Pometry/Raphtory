@@ -195,7 +195,8 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         layer_id: LayerId,
         props: &[(usize, P)],
     ) -> Result<(), StorageError> {
-        self.writer.check_metadata(edge_pos, layer_id, props)
+        self.writer.check_metadata(edge_pos, layer_id, props)?;
+        self.page.check_metadata_immut(edge_pos, layer_id, props)
     }
 
     pub fn update_c_props<P: AsPropRef>(
