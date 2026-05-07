@@ -1534,20 +1534,18 @@ def test_node_earliest_time():
     g.add_node(2, 1, {})
 
     # FIXME: need special handling for nodes additions from Graph
-    def check(g):
-        view = g.at(1)
-        assert view.node(1).earliest_time == 1
-        assert view.node(1).latest_time == 1
+    view = g.at(1)
+    assert view.node(1).earliest_time == 1
+    assert view.node(1).latest_time == 1
 
-        view = g.after(0)
-        assert view.node(1).earliest_time == 1
-        assert view.node(1).latest_time == 2
+    view = g.after(0)
+    assert view.node(1).earliest_time == 1
+    assert view.node(1).latest_time == 2
 
-        view = g.before(3)
-        assert view.node(1).earliest_time == 0
-        assert view.node(1).latest_time == 2
+    view = g.before(3)
+    assert view.node(1).earliest_time == 0
+    assert view.node(1).latest_time == 2
 
-    check(g)
 
 
 def test_node_history():
@@ -1560,12 +1558,10 @@ def test_node_history():
     g.add_node(8, 1, {})
 
     # FIXME: need special handling for nodes additions from Graph
-    def check(g):
-        check_arr(g.node(1).history.t.collect(), [1, 2, 3, 4, 8])
-        view = g.window(1, 8)
-        check_arr(view.node(1).history.t.collect(), [1, 2, 3, 4])
+    check_arr(g.node(1).history.t.collect(), [1, 2, 3, 4, 8])
+    view = g.window(1, 8)
+    check_arr(view.node(1).history.t.collect(), [1, 2, 3, 4])
 
-    check(g)
 
     g = Graph()
 
@@ -1575,12 +1571,10 @@ def test_node_history():
     g.add_node(8, "Lord Farquaad", {})
 
     # FIXME: need special handling for nodes additions from Graph
-    def check(g):
-        check_arr(g.node("Lord Farquaad").history.t.collect(), [4, 6, 7, 8])
-        view = g.window(1, 8)
-        check_arr(view.node("Lord Farquaad").history.t.collect(), [4, 6, 7])
+    check_arr(g.node("Lord Farquaad").history.t.collect(), [4, 6, 7, 8])
+    view = g.window(1, 8)
+    check_arr(view.node("Lord Farquaad").history.t.collect(), [4, 6, 7])
 
-    check(g)
 
 
 def test_edge_history():
@@ -1736,33 +1730,31 @@ def test_layer():
     g.add_edge(0, 1, 4, layer="layer2")
 
     # FIXME: no multi layer support
-    def check(g):
-        assert g.default_layer().count_edges() == 1
-        assert g.layers(["layer1"]).count_edges() == 3
-        assert g.layers(["layer2"]).count_edges() == 1
+    assert g.default_layer().count_edges() == 1
+    assert g.layers(["layer1"]).count_edges() == 3
+    assert g.layers(["layer2"]).count_edges() == 1
 
-        assert g.exclude_layers(["layer1"]).count_edges() == 2
-        assert g.exclude_layer("layer1").count_edges() == 2
-        assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
-        assert g.exclude_layer("layer2").count_edges() == 4
+    assert g.exclude_layers(["layer1"]).count_edges() == 2
+    assert g.exclude_layer("layer1").count_edges() == 2
+    assert g.exclude_layers(["layer1", "layer2"]).count_edges() == 1
+    assert g.exclude_layer("layer2").count_edges() == 4
 
-        with pytest.raises(
-            Exception,
-            match=re.escape(
-                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-            ),
-        ):
-            g.layers(["test_layer"])
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+        ),
+    ):
+        g.layers(["test_layer"])
 
-        with pytest.raises(
-            Exception,
-            match=re.escape(
-                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-            ),
-        ):
-            g.edge(1, 2).layers(["test_layer"])
+    with pytest.raises(
+        Exception,
+        match=re.escape(
+            """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+        ),
+    ):
+        g.edge(1, 2).layers(["test_layer"])
 
-    check(g)
 
 
 def test_layer_node():
@@ -1789,18 +1781,16 @@ def test_rolling_as_iterable():
     g.add_node(4, 4)
 
     # FIXME: need special handling for nodes additions from Graph
-    def check(g):
-        rolling = g.rolling(1)
+    rolling = g.rolling(1)
 
-        # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
-        # So the following should work fine:
-        n_nodes = [w.count_nodes() for w in rolling]
-        time_index = [w.start for w in rolling]
+    # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
+    # So the following should work fine:
+    n_nodes = [w.count_nodes() for w in rolling]
+    time_index = [w.start for w in rolling]
 
-        assert n_nodes == [1, 0, 0, 1]
-        assert time_index == [1, 2, 3, 4]
+    assert n_nodes == [1, 0, 0, 1]
+    assert time_index == [1, 2, 3, 4]
 
-    check(g)
 
 
 def test_layer_name():
@@ -1926,16 +1916,14 @@ def test_datetime_props():
     g = Graph()
 
     # FIXME: DateTime properties
-    def check(g):
-        dt1 = datetime(2020, 1, 1, 23, 59, 59, 999000)
-        g.add_node(0, 0, {"time": dt1})
-        assert g.node(0).properties.get("time") == dt1
+    dt1 = datetime(2020, 1, 1, 23, 59, 59, 999000)
+    g.add_node(0, 0, {"time": dt1})
+    assert g.node(0).properties.get("time") == dt1
 
-        dt2 = datetime(2020, 1, 1, 23, 59, 59, 999999)
-        g.add_node(0, 1, {"time": dt2})
-        assert g.node(1).properties.get("time") == dt2
+    dt2 = datetime(2020, 1, 1, 23, 59, 59, 999999)
+    g.add_node(0, 1, {"time": dt2})
+    assert g.node(1).properties.get("time") == dt2
 
-    check(g)
 
 
 def test_date_time():
@@ -2019,23 +2007,21 @@ def test_datetime_add_node():
     g.add_node(datetime(2014, 2, 6), 5)
 
     # FIXME: need special handling for nodes additions from Graph
-    def check(g):
-        view = g.window("2014-02-02", "2014-02-04")
-        view2 = g.window("2014-02-02", "2014-02-05")
+    view = g.window("2014-02-02", "2014-02-04")
+    view2 = g.window("2014-02-02", "2014-02-05")
 
-        assert view.start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view.end == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+    assert view.start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view.end == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-        assert view2.earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view2.latest_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
+    assert view2.earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.latest_time == datetime(2014, 2, 4, 0, 0, tzinfo=utc)
 
-        assert view2.node(1).start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
-        assert view2.node(1).end == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
+    assert view2.node(1).start == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
+    assert view2.node(1).end == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
 
-        assert view.node(2).earliest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
-        assert view.node(2).latest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+    assert view.node(2).earliest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
+    assert view.node(2).latest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
-    check(g)
 
 
 def test_equivalent_nodes_edges_and_sets():
@@ -2127,91 +2113,87 @@ def test_materialize_graph():
     assert g.metadata == sprop
 
     # FIXME: need special handling for nodes additions from Graph, support for metadata on edges
-    def check(g):
-        def check_g_inner(mg):
-            assert mg.node(1).properties.get("type") == "wallet"
-            assert mg.node(4).metadata == {"abc": "xyz"}
-            assert mg.node(4).metadata.get("abc") == "xyz"
-            check_arr(mg.node(1).history.t.collect(), [-1, 0, 0, 1, 1, 2])
-            check_arr(mg.node(4).history.t.collect(), [6, 8])
-            assert len(mg.nodes.id.collect()) == 4
-            assert set(mg.nodes.id.collect()) == {1, 3, 2, 4}
-            assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
-            assert len(g.nodes.id.collect()) == len(mg.nodes.id.collect())
-            assert set(g.nodes.id.collect()) == set(mg.nodes.id.collect())
-            assert set(g.edges.id) == set(mg.edges.id)
-            assert mg.node(1).metadata == {}
-            assert mg.node(4).metadata == {"abc": "xyz"}
-            assert g.edge(1, 2).id == (1, 2)
-            assert mg.edge(1, 2).id == (1, 2)
-            assert mg.has_edge(1, 2)
-            assert g.has_edge(1, 2)
-            assert mg.has_edge(2, 1)
-            assert g.has_edge(2, 1)
+    def check_g_inner(mg):
+        assert mg.node(1).properties.get("type") == "wallet"
+        assert mg.node(4).metadata == {"abc": "xyz"}
+        assert mg.node(4).metadata.get("abc") == "xyz"
+        check_arr(mg.node(1).history.t.collect(), [-1, 0, 0, 1, 1, 2])
+        check_arr(mg.node(4).history.t.collect(), [6, 8])
+        assert len(mg.nodes.id.collect()) == 4
+        assert set(mg.nodes.id.collect()) == {1, 3, 2, 4}
+        assert set(mg.edges.id) == {(1, 1), (1, 2), (1, 3), (2, 1), (3, 2), (2, 4)}
+        assert len(g.nodes.id.collect()) == len(mg.nodes.id.collect())
+        assert set(g.nodes.id.collect()) == set(mg.nodes.id.collect())
+        assert set(g.edges.id) == set(mg.edges.id)
+        assert mg.node(1).metadata == {}
+        assert mg.node(4).metadata == {"abc": "xyz"}
+        assert g.edge(1, 2).id == (1, 2)
+        assert mg.edge(1, 2).id == (1, 2)
+        assert mg.has_edge(1, 2)
+        assert g.has_edge(1, 2)
+        assert mg.has_edge(2, 1)
+        assert g.has_edge(2, 1)
 
-        check_g_inner(g)
+    check_g_inner(g)
 
-        mg = g.materialize()
+    mg = g.materialize()
 
-        check_g_inner(mg)
+    check_g_inner(mg)
 
-        sprop2 = {"sprop 3": 11, "sprop 4": 10}
-        mg.add_metadata(sprop2)
-        sprop.update(sprop2)
-        assert mg.metadata == sprop
+    sprop2 = {"sprop 3": 11, "sprop 4": 10}
+    mg.add_metadata(sprop2)
+    sprop.update(sprop2)
+    assert mg.metadata == sprop
 
-    check(g)
 
 
 def test_deletions():
     g = create_graph_with_deletions()
 
     # FIXME: add support for edge deletions
-    def check(g):
-        deleted_edge = g.edge(edges[0][1], edges[0][2])
-        for e in edges:
-            assert g.at(e[0]).has_edge(e[1], e[2])
-            assert g.after(e[0]).has_edge(e[1], e[2])
+    deleted_edge = g.edge(edges[0][1], edges[0][2])
+    for e in edges:
+        assert g.at(e[0]).has_edge(e[1], e[2])
+        assert g.after(e[0]).has_edge(e[1], e[2])
 
-        for e in edges[:-1]:
-            # last update is an existing edge
-            assert not g.before(e[0]).has_edge(e[1], e[2])
+    for e in edges[:-1]:
+        # last update is an existing edge
+        assert not g.before(e[0]).has_edge(e[1], e[2])
 
-        # deleted at window start
-        assert deleted_edge.window(10, 20).is_deleted()
-        assert not deleted_edge.window(10, 20).is_valid()
-        assert deleted_edge.window(10, 20).earliest_time.is_none()
-        assert deleted_edge.window(10, 20).latest_time.is_none()
+    # deleted at window start
+    assert deleted_edge.window(10, 20).is_deleted()
+    assert not deleted_edge.window(10, 20).is_valid()
+    assert deleted_edge.window(10, 20).earliest_time.is_none()
+    assert deleted_edge.window(10, 20).latest_time.is_none()
 
-        # deleted before window start
-        assert deleted_edge.window(15, 20).is_deleted()
-        assert not deleted_edge.window(15, 20).is_valid()
-        assert deleted_edge.window(15, 20).earliest_time.is_none()
-        assert deleted_edge.window(15, 20).latest_time.is_none()
+    # deleted before window start
+    assert deleted_edge.window(15, 20).is_deleted()
+    assert not deleted_edge.window(15, 20).is_valid()
+    assert deleted_edge.window(15, 20).earliest_time.is_none()
+    assert deleted_edge.window(15, 20).latest_time.is_none()
 
-        # deleted in window
-        assert deleted_edge.window(5, 20).is_deleted()
-        assert not deleted_edge.window(5, 20).is_valid()
-        assert deleted_edge.window(5, 20).earliest_time == 5
-        assert deleted_edge.window(5, 20).latest_time == 10
+    # deleted in window
+    assert deleted_edge.window(5, 20).is_deleted()
+    assert not deleted_edge.window(5, 20).is_valid()
+    assert deleted_edge.window(5, 20).earliest_time == 5
+    assert deleted_edge.window(5, 20).latest_time == 10
 
-        # check deleted edge is gone at 10
-        assert not g.after(start=10).has_edge(edges[0][1], edges[0][2])
-        assert not g.at(10).has_edge(edges[0][1], edges[0][2])
-        assert g.before(10).has_edge(edges[0][1], edges[0][2])
+    # check deleted edge is gone at 10
+    assert not g.after(start=10).has_edge(edges[0][1], edges[0][2])
+    assert not g.at(10).has_edge(edges[0][1], edges[0][2])
+    assert g.before(10).has_edge(edges[0][1], edges[0][2])
 
-        # check not deleted edges are still there
-        for e in edges[1:]:
-            assert g.after(start=10).has_edge(e[1], e[2])
+    # check not deleted edges are still there
+    for e in edges[1:]:
+        assert g.after(start=10).has_edge(e[1], e[2])
 
-        assert list(deleted_edge.explode().latest_time) == [10]
-        assert list(deleted_edge.explode().earliest_time) == [edges[0][0]]
+    assert list(deleted_edge.explode().latest_time) == [10]
+    assert list(deleted_edge.explode().earliest_time) == [edges[0][0]]
 
-        # check rolling and expanding behaviour
-        assert not list(g.before(1).node(1).after(1).rolling(1))
-        assert not list(g.after(0).edge(1, 1).before(1).expanding(1))
+    # check rolling and expanding behaviour
+    assert not list(g.before(1).node(1).after(1).rolling(1))
+    assert not list(g.after(0).edge(1, 1).before(1).expanding(1))
 
-    check(g)
 
 
 def test_edge_layer():
@@ -2220,13 +2202,11 @@ def test_edge_layer():
     g.add_edge(1, 2, 3, layer="layer 2").add_metadata({"test_prop": "test_val 2"})
 
     # FIXME: add support for edge metadata
-    def check(g):
-        assert g.edges.metadata.get("test_prop") == [
-            {"layer 1": "test_val"},
-            {"layer 2": "test_val 2"},
-        ]
+    assert g.edges.metadata.get("test_prop") == [
+        {"layer 1": "test_val"},
+        {"layer 2": "test_val 2"},
+    ]
 
-    check(g)
 
 
 def test_layers_earliest_time():
@@ -2234,11 +2214,9 @@ def test_layers_earliest_time():
     e = g.add_edge(1, 1, 2, layer="test")
 
     # FIXME: add support for multiple layers
-    def check(g):
-        e = g.edge(1, 2)
-        assert e.earliest_time == 1
+    e = g.edge(1, 2)
+    assert e.earliest_time == 1
 
-    check(g)
 
 
 def test_edge_explode_layers():
@@ -2249,32 +2227,30 @@ def test_edge_explode_layers():
     g.add_edge(1, 2, 1, {"layer": 2}, layer="2")
 
     # FIXME: add edge multi layer support
-    def check(g):
-        layered_edges = g.edge(1, 2).explode_layers()
-        e_layers = [ee.layer_names for ee in layered_edges]
-        e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
-        assert e_layers == e_layer_prop
+    layered_edges = g.edge(1, 2).explode_layers()
+    e_layers = [ee.layer_names for ee in layered_edges]
+    e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
+    assert e_layers == e_layer_prop
 
-        nested_layered_edges = g.nodes.out_edges.explode_layers()
-        e_layers = [[ee.layer_names for ee in edges] for edges in nested_layered_edges]
-        e_layer_prop = [
-            [[str(ee.properties["layer"])] for ee in layered_edges]
-            for layered_edges in nested_layered_edges
-        ]
-        assert e_layers == e_layer_prop
+    nested_layered_edges = g.nodes.out_edges.explode_layers()
+    e_layers = [[ee.layer_names for ee in edges] for edges in nested_layered_edges]
+    e_layer_prop = [
+        [[str(ee.properties["layer"])] for ee in layered_edges]
+        for layered_edges in nested_layered_edges
+    ]
+    assert e_layers == e_layer_prop
 
-        nested_layered_edges = g.nodes.out_neighbours.out_edges.explode_layers()
-        e_layers = [
-            [ee.layer_names for ee in layered_edges]
-            for layered_edges in nested_layered_edges
-        ]
-        e_layer_prop = [
-            [[str(ee.properties["layer"])] for ee in layered_edges]
-            for layered_edges in nested_layered_edges
-        ]
-        assert e_layers == e_layer_prop
+    nested_layered_edges = g.nodes.out_neighbours.out_edges.explode_layers()
+    e_layers = [
+        [ee.layer_names for ee in layered_edges]
+        for layered_edges in nested_layered_edges
+    ]
+    e_layer_prop = [
+        [[str(ee.properties["layer"])] for ee in layered_edges]
+        for layered_edges in nested_layered_edges
+    ]
+    assert e_layers == e_layer_prop
 
-    check(g)
 
 
 def test_starend_edges():
@@ -2783,37 +2759,35 @@ def test_unique_temporal_properties():
     g.add_node(3, 3, {"name": "avatar2"})
 
     # FIXME: temporal properties
-    def check(g):
-        assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(True) == [
-            (2, "open"),
-            (3, "review"),
-            (4, "open"),
-            (10, "in-progress"),
-        ]
-        assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(False) == [
-            (1, "open"),
-            (3, "review"),
-            (4, "open"),
-            (5, "in-progress"),
-        ]
-        assert g.properties.temporal.get("name").ordered_dedupe(True) == [
-            (1, "tarzan"),
-            (3, "tarzan2"),
-        ]
-        assert g.properties.temporal.get("name").ordered_dedupe(False) == [
-            (1, "tarzan"),
-            (2, "tarzan2"),
-        ]
-        assert g.node(3).properties.temporal.get("name").ordered_dedupe(True) == [
-            (1, "avatar1"),
-            (3, "avatar2"),
-        ]
-        assert g.node(3).properties.temporal.get("name").ordered_dedupe(False) == [
-            (1, "avatar1"),
-            (2, "avatar2"),
-        ]
+    assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(True) == [
+        (2, "open"),
+        (3, "review"),
+        (4, "open"),
+        (10, "in-progress"),
+    ]
+    assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(False) == [
+        (1, "open"),
+        (3, "review"),
+        (4, "open"),
+        (5, "in-progress"),
+    ]
+    assert g.properties.temporal.get("name").ordered_dedupe(True) == [
+        (1, "tarzan"),
+        (3, "tarzan2"),
+    ]
+    assert g.properties.temporal.get("name").ordered_dedupe(False) == [
+        (1, "tarzan"),
+        (2, "tarzan2"),
+    ]
+    assert g.node(3).properties.temporal.get("name").ordered_dedupe(True) == [
+        (1, "avatar1"),
+        (3, "avatar2"),
+    ]
+    assert g.node(3).properties.temporal.get("name").ordered_dedupe(False) == [
+        (1, "avatar1"),
+        (2, "avatar2"),
+    ]
 
-    check(g)
 
     g.add_node(4, 3, {"i64": 1})
     g.add_node(5, 3, {"i64": 1})
@@ -2834,68 +2808,66 @@ def test_unique_temporal_properties():
     g.add_node(18, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
     g.add_node(19, 3, {"map": {"name": "bob", "value list": [1, 2]}})
 
-    def check(g):
-        assert list(g.edge(1, 2).properties.temporal.get("status")) == [
-            (1, "open"),
-            (2, "open"),
-            (3, "review"),
-            (4, "open"),
-            (5, "in-progress"),
-            (10, "in-progress"),
-        ]
-        assert sorted(g.edge(1, 2).properties.temporal.get("status").unique()) == [
-            "in-progress",
-            "open",
-            "review",
-        ]
-        assert list(g.properties.temporal.get("name")) == [
-            (1, "tarzan"),
-            (2, "tarzan2"),
-            (3, "tarzan2"),
-        ]
-        assert sorted(g.properties.temporal.get("name").unique()) == [
-            "tarzan",
-            "tarzan2",
-        ]
-        assert list(g.node(3).properties.temporal.get("name")) == [
-            (1, "avatar1"),
-            (2, "avatar2"),
-            (3, "avatar2"),
-        ]
-        assert sorted(g.node(3).properties.temporal.get("name").unique()) == [
-            "avatar1",
-            "avatar2",
-        ]
-        assert sorted(g.node(3).properties.temporal.get("i64").unique()) == [1, 5]
-        assert sorted(g.node(3).properties.temporal.get("f64").unique()) == [1.2, 1.3]
-        assert sorted(g.node(3).properties.temporal.get("bool").unique()) == [
-            False,
-            True,
-        ]
-        assert sorted(
-            list(v) for v in g.node(3).properties.temporal.get("list").unique()
-        ) == [
-            [1, 2, 3],
-            [2, 3],
-        ]
-        assert sorted(g.node(3).properties.temporal.get("date").unique()) == [
-            datetime_obj,
-            datetime_obj2,
-        ]
-        actual_list = g.node(3).properties.temporal.get("map").unique()
-        expected_list = [
-            {"name": "bob", "value list": [1, 2]},
-            {"name": "bob", "value list": [1, 2, 3]},
-        ]
-        sorted_actual_list = sorted(
-            actual_list, key=lambda d: (d["name"], tuple(d["value list"]))
-        )
-        sorted_expected_list = sorted(
-            expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
-        )
-        check_arr(sorted_actual_list, sorted_expected_list)
+    assert list(g.edge(1, 2).properties.temporal.get("status")) == [
+        (1, "open"),
+        (2, "open"),
+        (3, "review"),
+        (4, "open"),
+        (5, "in-progress"),
+        (10, "in-progress"),
+    ]
+    assert sorted(g.edge(1, 2).properties.temporal.get("status").unique()) == [
+        "in-progress",
+        "open",
+        "review",
+    ]
+    assert list(g.properties.temporal.get("name")) == [
+        (1, "tarzan"),
+        (2, "tarzan2"),
+        (3, "tarzan2"),
+    ]
+    assert sorted(g.properties.temporal.get("name").unique()) == [
+        "tarzan",
+        "tarzan2",
+    ]
+    assert list(g.node(3).properties.temporal.get("name")) == [
+        (1, "avatar1"),
+        (2, "avatar2"),
+        (3, "avatar2"),
+    ]
+    assert sorted(g.node(3).properties.temporal.get("name").unique()) == [
+        "avatar1",
+        "avatar2",
+    ]
+    assert sorted(g.node(3).properties.temporal.get("i64").unique()) == [1, 5]
+    assert sorted(g.node(3).properties.temporal.get("f64").unique()) == [1.2, 1.3]
+    assert sorted(g.node(3).properties.temporal.get("bool").unique()) == [
+        False,
+        True,
+    ]
+    assert sorted(
+        list(v) for v in g.node(3).properties.temporal.get("list").unique()
+    ) == [
+        [1, 2, 3],
+        [2, 3],
+    ]
+    assert sorted(g.node(3).properties.temporal.get("date").unique()) == [
+        datetime_obj,
+        datetime_obj2,
+    ]
+    actual_list = g.node(3).properties.temporal.get("map").unique()
+    expected_list = [
+        {"name": "bob", "value list": [1, 2]},
+        {"name": "bob", "value list": [1, 2, 3]},
+    ]
+    sorted_actual_list = sorted(
+        actual_list, key=lambda d: (d["name"], tuple(d["value list"]))
+    )
+    sorted_expected_list = sorted(
+        expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
+    )
+    check_arr(sorted_actual_list, sorted_expected_list)
 
-    check(g)
 
 
 def test_create_node_graph():
