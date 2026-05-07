@@ -45,7 +45,7 @@ where
 
     fn flush(&self) -> Result<(), StorageError>;
 
-    fn check_metadata_disk<PR: AsPropRef>(
+    fn check_metadata_immut<PR: AsPropRef>(
         &self,
         props: &[(usize, PR)],
     ) -> Result<(), StorageError>;

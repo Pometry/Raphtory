@@ -616,7 +616,7 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         Ok(())
     }
 
-    fn check_metadata_disk<PR: AsPropRef>(
+    fn check_metadata_immut<PR: AsPropRef>(
         &self,
         _edge_pos: LocalPOS,
         _layer_id: LayerId,

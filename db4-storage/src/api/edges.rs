@@ -123,7 +123,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     fn flush(&self) -> Result<(), StorageError>;
 
-    fn check_metadata_disk<PR: AsPropRef>(
+    fn check_metadata_immut<PR: AsPropRef>(
         &self,
         edge_pos: LocalPOS,
         layer_id: LayerId,

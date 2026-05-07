@@ -167,7 +167,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         props: &[(usize, P)],
     ) -> Result<(), StorageError> {
         self.mut_segment.check_metadata(pos, layer_id, props)?;
-        self.page.check_metadata_disk(pos, layer_id, props)
+        self.page.check_metadata_immut(pos, layer_id, props)
     }
 
     pub fn update_c_props<P: AsPropRef>(
