@@ -615,6 +615,15 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     fn flush(&self) -> Result<(), StorageError> {
         Ok(())
     }
+
+    fn check_metadata_disk<PR: AsPropRef>(
+        &self,
+        _edge_pos: LocalPOS,
+        _layer_id: LayerId,
+        _props: &[(usize, PR)],
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

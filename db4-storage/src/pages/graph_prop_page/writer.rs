@@ -43,7 +43,8 @@ impl<'a, GS: GraphPropSegmentOps> GraphPropWriter<'a, GS> {
     }
 
     pub fn check_metadata<P: AsPropRef>(&self, props: &[(usize, P)]) -> Result<(), StorageError> {
-        self.mem_segment.check_metadata(props)
+        self.mem_segment.check_metadata(props)?;
+        self.graph_props.check_metadata_disk(props)
     }
 
     pub fn set_lsn(&mut self, lsn: LSN) {
