@@ -19,9 +19,8 @@ use raphtory_api::core::{
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers,
         nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, MAX_LAYER, VID,
+        GidRef, EID, MAX_EID, VID,
     },
     storage::timeindex::EventTime,
 };
@@ -242,11 +241,6 @@ impl InternalAdditionOps for TemporalGraph {
                 self.edge_meta().layer_meta().get_name(id.inner().0),
                 id.inner().0,
             );
-        }
-        if let MaybeNew::New(id) = id {
-            if id.0 > MAX_LAYER {
-                Err(TooManyLayers)?;
-            }
         }
         Ok(id)
     }
