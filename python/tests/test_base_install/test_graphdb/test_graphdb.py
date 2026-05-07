@@ -17,7 +17,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import pandas.core.frame
 import pyarrow as pa
 import pytest
 from numpy.testing import assert_equal as check_arr

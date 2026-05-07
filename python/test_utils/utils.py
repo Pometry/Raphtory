@@ -60,13 +60,11 @@ def sort_by_gql_name_or_id(d):
         return d
 
 
-def with_disk_variants(init_fn, variants=None):
+def with_variants(init_fn, variants=None):
     if variants is None:
         variants = [
             "graph",
             "persistent_graph",
-            "event_disk_graph",
-            "persistent_disk_graph",
         ]
 
     if isinstance(variants, str):

@@ -1,9 +1,9 @@
 from raphtory import filter
 from filters_setup import init_graph
-from utils import with_disk_variants
+from utils import with_variants
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edge_composite_filter():
     def check(graph):
         filter_expr1 = filter.Edge.property("p2") == 2
@@ -70,7 +70,7 @@ def test_edge_composite_filter():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_not_edge_composite_filter():
     def check(graph):
         filter_expr1 = filter.Edge.dst().name() == "1"

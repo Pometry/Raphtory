@@ -5,7 +5,7 @@ from filters_setup import (
     init_edges_graph2,
     combined,
 )
-from utils import with_disk_variants
+from utils import with_variants
 import pytest
 
 
@@ -23,8 +23,7 @@ def init_graph_for_event_ids(graph):
     return graph
 
 
-# Disk graph doesn't have constant edge properties
-@with_disk_variants(init_edges_graph, variants=["graph"])
+@with_variants(init_edges_graph, variants=["graph"])
 def test_metadata_semantics():
     def check(graph):
         filter_expr = filter.Edge.metadata("p1") == 1
@@ -46,7 +45,7 @@ def test_metadata_semantics():
     return check
 
 
-@with_disk_variants(init_edges_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_edges_graph, variants=["graph"])
 def test_temporal_any_semantics():
     def check(graph):
         filter_expr = filter.Edge.property("p1").temporal().any() == 1
@@ -68,9 +67,9 @@ def test_temporal_any_semantics():
     return check
 
 
-@with_disk_variants(
+@with_variants(
     init_fn=combined([init_edges_graph, init_graph_for_event_ids]),
-    variants=["graph", "event_disk_graph"],
+    variants=["graph"],
 )
 def test_temporal_any_semantics_for_event_ids():
     def check(graph):
@@ -95,7 +94,7 @@ def test_temporal_any_semantics_for_event_ids():
     return check
 
 
-@with_disk_variants(init_edges_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_edges_graph, variants=["graph"])
 def test_temporal_last_semantics():
     def check(graph):
         filter_expr = filter.Edge.property("p1").temporal().last() == 1
@@ -108,9 +107,9 @@ def test_temporal_last_semantics():
     return check
 
 
-@with_disk_variants(
+@with_variants(
     init_fn=combined([init_edges_graph, init_graph_for_event_ids]),
-    variants=["graph", "event_disk_graph"],
+    variants=["graph"],
 )
 def test_temporal_latest_semantics_for_event_ids3():
     def check(graph):
@@ -131,7 +130,7 @@ def test_temporal_latest_semantics_for_event_ids3():
     return check
 
 
-@with_disk_variants(init_edges_graph, variants=["graph"])
+@with_variants(init_edges_graph, variants=["graph"])
 def test_property_semantics():
     def check(graph):
         filter_expr = filter.Edge.property("p1") == 1
@@ -150,8 +149,7 @@ def test_property_semantics():
     return check
 
 
-# Disk graph doesn't have constant edge properties
-@with_disk_variants(init_edges_graph, variants=["event_disk_graph"])
+@with_variants(init_edges_graph, variants=["graph"])
 def test_property_semantics2():
     def check(graph):
         filter_expr = filter.Edge.property("p1") == 1
@@ -164,7 +162,7 @@ def test_property_semantics2():
     return check
 
 
-@with_disk_variants(
+@with_variants(
     init_fn=combined([init_edges_graph, init_graph_for_event_ids]),
     variants=["graph"],
 )
@@ -187,10 +185,9 @@ def test_property_semantics_for_event_ids():
     return check
 
 
-# TODO: Const properties not supported for disk_graph.
-@with_disk_variants(
+@with_variants(
     init_fn=combined([init_edges_graph, init_graph_for_event_ids]),
-    variants=["event_disk_graph"],
+    variants=["graph"],
 )
 def test_property_semantics_for_event_ids_dsg():
     def check(graph):
@@ -211,7 +208,7 @@ def test_property_semantics_for_event_ids_dsg():
     return check
 
 
-@with_disk_variants(init_edges_graph1, variants=["graph"])
+@with_variants(init_edges_graph1, variants=["graph"])
 def test_property_semantics_only_metadata():
     def check(graph):
         filter_expr = filter.Edge.metadata("p1") == 1
@@ -222,8 +219,7 @@ def test_property_semantics_only_metadata():
     return check
 
 
-# Disk graph doesn't have constant edge properties
-@with_disk_variants(init_edges_graph1, variants=["event_disk_graph"])
+@with_variants(init_edges_graph1, variants=["graph"])
 def test_property_semantics_only_metadata2():
     def check(graph):
         filter_expr = filter.Edge.metadata("p1") == 1
@@ -236,7 +232,7 @@ def test_property_semantics_only_metadata2():
     return check
 
 
-@with_disk_variants(init_edges_graph2, variants=["graph", "event_disk_graph"])
+@with_variants(init_edges_graph2, variants=["graph"])
 def test_property_semantics_only_temporal():
     def check(graph):
         filter_expr = filter.Edge.property("p1") == 1

@@ -1,9 +1,9 @@
 from raphtory import filter
 from filters_setup import init_graph, create_test_graph
-from utils import with_disk_variants
+from utils import with_variants
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_node_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.property("p2") == 2
@@ -48,7 +48,7 @@ def test_node_composite_filter():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_not_node_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.name() == "2"
@@ -66,7 +66,7 @@ def test_not_node_composite_filter():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
 def test_out_neighbours_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.name() == "d"
@@ -85,7 +85,7 @@ def test_out_neighbours_composite_filter():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
 def test_in_neighbours_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.name() == "a"
@@ -109,7 +109,7 @@ def test_in_neighbours_composite_filter():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
 def test_neighbours_composite_filter():
     def check(graph):
         filter_expr = filter.Node.property("prop4") == False

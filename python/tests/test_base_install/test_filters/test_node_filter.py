@@ -1,10 +1,10 @@
 from raphtory import filter
 from filters_setup import init_graph, init_graph2, create_test_graph
-from utils import with_disk_variants
+from utils import with_variants
 import pytest
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_name_eq():
     def check(graph):
         filter_expr = filter.Node.name() == "3"
@@ -15,7 +15,7 @@ def test_filter_nodes_for_node_name_eq():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_name_ne():
     def check(graph):
         filter_expr = filter.Node.name() != "2"
@@ -26,7 +26,7 @@ def test_filter_nodes_for_node_name_ne():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_name_in():
     def check(graph):
         filter_expr = filter.Node.name().is_in(["1"])
@@ -42,7 +42,7 @@ def test_filter_nodes_for_node_name_in():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_name_not_in():
     def check(graph):
         filter_expr = filter.Node.name().is_not_in(["1"])
@@ -53,7 +53,7 @@ def test_filter_nodes_for_node_name_not_in():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_eq():
     def check(graph):
         filter_expr = filter.Node.node_type() == "fire_nation"
@@ -64,7 +64,7 @@ def test_filter_nodes_for_node_type_eq():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_ne():
     def check(graph):
         filter_expr = filter.Node.node_type() != "fire_nation"
@@ -75,7 +75,7 @@ def test_filter_nodes_for_node_type_ne():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_in():
     def check(graph):
         filter_expr = filter.Node.node_type().is_in(["fire_nation"])
@@ -91,7 +91,7 @@ def test_filter_nodes_for_node_type_in():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_not_in():
     def check(graph):
         filter_expr = filter.Node.node_type().is_not_in(["fire_nation"])
@@ -102,7 +102,7 @@ def test_filter_nodes_for_node_type_not_in():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_starts_with():
     def check(graph):
         filter_expr = filter.Node.node_type().starts_with("fire")
@@ -118,7 +118,7 @@ def test_filter_nodes_for_node_type_starts_with():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_ends_with():
     def check(graph):
         filter_expr = filter.Node.node_type().ends_with("tion")
@@ -134,7 +134,7 @@ def test_filter_nodes_for_node_type_ends_with():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_contains():
     def check(graph):
         filter_expr = filter.Node.node_type().contains("fire")
@@ -145,7 +145,7 @@ def test_filter_nodes_for_node_type_contains():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_type_not_contains():
     def check(graph):
         filter_expr = filter.Node.node_type().not_contains("fire")
@@ -156,7 +156,7 @@ def test_filter_nodes_for_node_type_not_contains():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_fuzzy_search():
     def check(graph):
         filter_expr = filter.Node.node_type().fuzzy_search("fire", 2, True)
@@ -177,7 +177,7 @@ def test_filter_nodes_for_fuzzy_search():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_not_node_type():
     def check(graph):
         filter_expr = filter.Node.node_type().is_not_in(["fire_nation"])
@@ -188,7 +188,7 @@ def test_filter_nodes_for_not_node_type():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_with_str_ids_for_node_id_eq():
     def check(graph):
         filter_expr = filter.Node.id() == "3"
@@ -199,7 +199,7 @@ def test_filter_nodes_with_str_ids_for_node_id_eq():
     return check
 
 
-@with_disk_variants(init_graph2)
+@with_variants(init_graph2)
 def test_filter_nodes_with_num_ids_for_node_id_eq():
     def check(graph):
         filter_expr = filter.Node.id() == 3
@@ -210,7 +210,7 @@ def test_filter_nodes_with_num_ids_for_node_id_eq():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_with_str_ids_for_node_id_ne():
     def check(graph):
         filter_expr = filter.Node.id() != "3"
@@ -221,7 +221,7 @@ def test_filter_nodes_with_str_ids_for_node_id_ne():
     return check
 
 
-@with_disk_variants(init_graph2)
+@with_variants(init_graph2)
 def test_filter_nodes_with_num_ids_for_node_id_ne():
     def check(graph):
         filter_expr = filter.Node.id() != 3
@@ -232,7 +232,7 @@ def test_filter_nodes_with_num_ids_for_node_id_ne():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_with_str_ids_for_node_id_is_in():
     def check(graph):
         filter_expr = filter.Node.id().is_in(["1"])
@@ -243,7 +243,7 @@ def test_filter_nodes_with_str_ids_for_node_id_is_in():
     return check
 
 
-@with_disk_variants(init_graph2)
+@with_variants(init_graph2)
 def test_filter_nodes_with_num_ids_for_node_id_is_in():
     def check(graph):
         filter_expr = filter.Node.id().is_in([1])
@@ -254,7 +254,7 @@ def test_filter_nodes_with_num_ids_for_node_id_is_in():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_with_str_ids_for_node_id_is_not_in():
     def check(graph):
         filter_expr = filter.Node.id().is_not_in(["1"])
@@ -265,7 +265,7 @@ def test_filter_nodes_with_str_ids_for_node_id_is_not_in():
     return check
 
 
-@with_disk_variants(init_graph2)
+@with_variants(init_graph2)
 def test_filter_nodes_with_num_ids_for_node_id_is_not_in():
     def check(graph):
         filter_expr = filter.Node.id().is_not_in([1])
@@ -276,7 +276,7 @@ def test_filter_nodes_with_num_ids_for_node_id_is_not_in():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_with_str_ids_error():
     def check(graph):
         filter_expr = filter.Node.id() == 3
@@ -289,7 +289,7 @@ def test_filter_nodes_with_str_ids_error():
     return check
 
 
-@with_disk_variants(init_graph2)
+@with_variants(init_graph2)
 def test_filter_nodes_with_num_ids_error():
     def check(graph):
         filter_expr = filter.Node.id() == "3"
@@ -302,7 +302,7 @@ def test_filter_nodes_with_num_ids_error():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph, variants=["graph", "persistent_graph"])
 def test_filter_nodes_is_active():
     def check(graph):
         filter_expr = filter.Node.is_active()
@@ -313,7 +313,7 @@ def test_filter_nodes_is_active():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph, variants=["graph", "persistent_graph"])
 def test_select_nodes_is_active():
     def check(graph):
         filter_expr = filter.Node.is_active()
@@ -324,7 +324,7 @@ def test_select_nodes_is_active():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph, variants=["graph", "persistent_graph"])
 def test_filter_nodes_windowed_is_active():
     def check(graph):
         filter_expr = filter.Node.window(1, 2).is_active()
@@ -335,7 +335,7 @@ def test_filter_nodes_windowed_is_active():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
 def test_filter_nodes_windowed_is_active_not():
     def check(graph):
         filter_expr = filter.Node.window(1, 2).is_active()
@@ -346,7 +346,7 @@ def test_filter_nodes_windowed_is_active_not():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph, variants=["graph", "persistent_graph"])
 def test_filter_nodes_latest_is_active():
     def check(graph):
         filter_expr = filter.Node.latest().is_active()
@@ -357,7 +357,7 @@ def test_filter_nodes_latest_is_active():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph, variants=["graph", "persistent_graph"])
 def test_select_nodes_latest_is_active():
     def check(graph):
         filter_expr = filter.Node.latest().is_active()
@@ -368,7 +368,7 @@ def test_select_nodes_latest_is_active():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_filter_nodes_snapshot_latest_is_active():
     def check(graph):
         filter_expr = filter.Node.snapshot_latest().is_active()
@@ -381,7 +381,7 @@ def test_filter_nodes_snapshot_latest_is_active():
     return check
 
 
-@with_disk_variants(init_graph, variants=["persistent_graph"])
+@with_variants(init_graph, variants=["persistent_graph"])
 def test_filter_nodes_snapshot_latest_is_active_persistent():
     def check(graph):
         filter_expr = filter.Node.snapshot_latest().is_active()
@@ -392,7 +392,7 @@ def test_filter_nodes_snapshot_latest_is_active_persistent():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph, variants=["graph", "persistent_graph"])
 def test_filter_nodes_at_is_active():
     def check(graph):
         filter_expr = filter.Node.at(2).is_active()
@@ -403,7 +403,7 @@ def test_filter_nodes_at_is_active():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph, variants=["graph", "persistent_graph"])
 def test_select_nodes_at_is_active():
     def check(graph):
         filter_expr = filter.Node.at(2).is_active()
@@ -414,7 +414,7 @@ def test_select_nodes_at_is_active():
     return check
 
 
-@with_disk_variants(init_graph2)
+@with_variants(init_graph2)
 def test_filter_nodes_neighbours():
     def check(graph):
         filter_expr = filter.Graph.window(1, 5)
