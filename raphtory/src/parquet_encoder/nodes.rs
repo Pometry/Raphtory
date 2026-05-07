@@ -7,8 +7,8 @@ use crate::{
     errors::GraphError,
     parquet_encoder::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode_indexed, RecordBatchSink, LAYER_COL, NODE_GID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
-        SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        run_encode_indexed, RecordBatchSink, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        ROW_GROUP_SIZE, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::NodeViewOps,
 };
@@ -59,7 +59,8 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                 Field::new(TYPE_COL, DataType::Utf8, true),
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(LAYER_COL, DataType::Utf8, true),
+                Field::new(LAYER_COL, DataType::Utf8, false),
+                Field::new(LAYER_ID_COL, DataType::UInt64, false),
             ]
         },
         |nodes, g, decoder, sink| {
@@ -77,10 +78,8 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                                 export_id: node.id(),
                                 export_vid: node.node.0,
                                 export_node_type: node.node_type(),
-                                // emit null for STATIC_GRAPH_LAYER so
-                                // the loader's null-row fallback restores it
-                                export_layer: (layer_id.0 != 0)
-                                    .then(|| layer_meta.get_name(layer_id.0)),
+                                export_layer: layer_meta.get_name(layer_id.0),
+                                export_layer_id: layer_id.0,
                                 cols,
                                 t,
                                 props,

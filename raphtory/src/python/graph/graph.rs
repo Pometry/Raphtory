@@ -787,6 +787,7 @@ impl PyGraph {
                     layer,
                     layer_col,
                     None,
+                    None,
                     true,
                     arced_schema.clone(),
                 )?;

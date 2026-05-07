@@ -102,6 +102,7 @@ pub(crate) fn load_nodes_from_arrow_c_stream<
             true,
             layer,
             layer_col,
+            None,
         )
     })
 }
@@ -512,6 +513,7 @@ pub(crate) fn load_nodes_from_csv_path<
         true,
         layer,
         layer_col,
+        None,
     )
 }
 

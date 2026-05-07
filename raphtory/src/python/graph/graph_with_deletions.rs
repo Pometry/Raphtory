@@ -735,6 +735,7 @@ impl PyPersistentGraph {
                     layer,
                     layer_col,
                     None,
+                    None,
                     true,
                     arced_schema.clone(),
                 )?;

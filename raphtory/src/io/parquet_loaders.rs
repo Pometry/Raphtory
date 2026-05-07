@@ -56,6 +56,7 @@ pub fn load_nodes_from_parquet<
     shared_metadata: Option<&HashMap<String, Prop>>,
     layer: Option<&str>,
     layer_col: Option<&str>,
+    layer_idx_col: Option<&str>,
     batch_size: Option<usize>,
     resolve_nodes: bool,
     schema: Option<Arc<HashMap<String, PropType>>>,
@@ -75,6 +76,9 @@ pub fn load_nodes_from_parquet<
 
     if let Some(ref layer_col) = layer_col {
         cols_to_check.push(layer_col.as_ref());
+    }
+    if let Some(ref layer_idx_col) = layer_idx_col {
+        cols_to_check.push(layer_idx_col.as_ref());
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -99,6 +103,7 @@ pub fn load_nodes_from_parquet<
             resolve_nodes,
             layer,
             layer_col,
+            layer_idx_col,
         )?;
     }
 

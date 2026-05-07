@@ -197,9 +197,13 @@ pub(crate) struct ParquetTNode<'a> {
     pub export_id: GID,
     pub export_vid: usize,
     pub export_node_type: Option<ArcStr>,
-    /// `None` means STATIC_GRAPH_LAYER (id 0). We can't round-trip "_static_graph" through the loader
-    /// We leave LAYER_COL null for those rows and let the loader fall back.
-    pub export_layer: Option<ArcStr>,
+    /// Layer name as stored in the source's `node_meta.layer_meta()`.
+    /// Always set (including STATIC_GRAPH_LAYER → "_static_graph") so the
+    /// loader's LAYER_ID_COL fast path (`set_id`) can mirror the source's
+    /// `(name, id)` assignment exactly without leaving any reverse-map slot
+    /// empty.
+    pub export_layer: ArcStr,
+    pub export_layer_id: usize,
     pub cols: &'a [ArcStr],
     pub t: EventTime,
     pub props: Vec<(usize, Prop)>,
@@ -218,6 +222,7 @@ impl<'a> Serialize for ParquetTNode<'a> {
         state.serialize_entry(TIME_COL, &self.t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.t.1)?;
         state.serialize_entry(LAYER_COL, &self.export_layer)?;
+        state.serialize_entry(LAYER_ID_COL, &self.export_layer_id)?;
 
         for (name, prop) in self.props.iter() {
             state.serialize_entry(&self.cols[*name], &SerdeArrowProp(prop))?;

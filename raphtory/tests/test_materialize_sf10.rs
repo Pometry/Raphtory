@@ -521,6 +521,7 @@ fn get_parquet_df_loader_time(
             None,
             None,
             None,
+            None,
             false,
             None,
         )

@@ -208,30 +208,49 @@ impl<'a> LayerCol<'a> {
                 }
                 Ok(Cow::Owned(res))
             }
-            (col, Some(_layer_ids)) => {
-                // We used to call `set_id(name, source_layer_id)` to mirror the
-                // source's layer-id assignment exactly. That path corrupts the
-                // forward map when a slot is already taken by another name (or
-                // when slots are filled out of order, leaving gaps that
-                // `keys()` then surfaces as empty layer names). Resolve by
-                // name instead — the `layer_id_col` u64 values from the
-                // parquet file are ignored and the loaded graph picks its own
-                // ids. ELIDs constructed from `layer_col_resolved[row]` stay
-                // self-consistent because we use the resolved (loaded) ids.
+            (col, Some(layer_ids)) => {
+                // Fast path: mirror the source's (name, layer_id) assignment
+                // via `set_id` so the loaded graph's layer ids match the
+                // source's exactly. `set_id` is only safe when the slot isn't
+                // already claimed by a different name — the materialize path
+                // pre-creates layers via `get_or_create_id` (so it can keep
+                // empty layers visible), and naively `set_id`-ing the source
+                // ids on top would either overwrite those pre-init slots or
+                // leave the same name at two different reverse-map indices.
+                // We therefore consult the forward map first: if the name is
+                // already registered, reuse its existing id; otherwise install
+                // it at the source id.
+                let mut last_pair = None;
+                let mut last_resolved_id = 0usize;
                 let mut res = vec![0usize; col.len()];
-                let mut last_name = None;
-                let mut last_layer = None;
-                for (row, name) in col.iter().enumerate() {
-                    if last_name == name && last_layer.is_some() {
-                        if let Some(layer) = last_layer {
-                            res[row] = layer;
-                        }
-                        continue;
+
+                let edge_layer_mapper = graph.edge_meta().layer_meta();
+                let node_layer_mapper = graph.node_meta().layer_meta();
+
+                let mut locked_edge_lm = edge_layer_mapper.write();
+                let mut locked_node_lm = node_layer_mapper.write();
+
+                for (row, pair) in col
+                    .iter()
+                    .map(|name| name.unwrap_or("_default"))
+                    .zip(layer_ids)
+                    .enumerate()
+                {
+                    let (name, id) = pair;
+                    if last_pair != Some(pair) {
+                        let resolved = match locked_edge_lm.map().get(name).copied() {
+                            Some(existing) => existing,
+                            None => {
+                                let id_usize = *id as usize;
+                                locked_edge_lm.set_id(name, id_usize);
+                                locked_node_lm.set_id(name, id_usize);
+                                id_usize
+                            }
+                        };
+                        last_resolved_id = resolved;
+                        last_pair = Some(pair);
                     }
-                    let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
-                    last_layer = Some(layer);
-                    res[row] = layer;
-                    last_name = name;
+                    res[row] = last_resolved_id;
                 }
                 Ok(Cow::Owned(res))
             }

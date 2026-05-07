@@ -648,6 +648,7 @@ mod io_tests {
             true,
             None,
             None,
+            None,
         )
         .unwrap();
 
@@ -755,6 +756,7 @@ mod io_tests {
             Some("node_type"), // node_type_col (column name) — conflict!
             &g,
             true,
+            None,
             None,
             None,
         )

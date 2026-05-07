@@ -64,6 +64,10 @@ pub fn load_nodes_from_df<
     resolve_nodes: bool,
     layer_id: Option<&str>,
     layer_id_col: Option<&str>,
+    // Numeric layer-id column (u64). When present together with `layer_id_col`,
+    // the loader uses the LAYER_ID_COL fast path that mirrors the source's
+    // `(name, id)` mapping via `set_id` — used by the parquet round-trip.
+    layer_idx_col: Option<&str>,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
@@ -83,6 +87,9 @@ pub fn load_nodes_from_df<
             node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
         let node_type_index = node_type_index.transpose()?;
         let layer_index = layer_id_col
+            .map(|name| df_view.get_index(name))
+            .transpose()?;
+        let layer_idx_index = layer_idx_col
             .map(|name| df_view.get_index(name))
             .transpose()?;
 
@@ -124,13 +131,34 @@ pub fn load_nodes_from_df<
                 })?;
             let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
             let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
-            // When no layer is specified, node properties go to STATIC_GRAPH_LAYER_ID.
-            // resolve_layer(None) would return "_default" (LayerId 1), which is wrong for nodes.
-            // Null entries inside a layer column likewise mean STATIC_GRAPH_LAYER, so we use
-            // resolve_node_layer rather than resolve_layer.
+            // Two paths:
+            //   * Fast path (parquet round-trip): both `layer_id_col` (string)
+            //     and `layer_idx_col` (u64) are provided. Use
+            //     `LayerCol::resolve_layer` with the numeric ids — this calls
+            //     `set_id(name, source_id)` to mirror the source's layer-id
+            //     assignment exactly. Symmetrical with the t_edge loader.
+            //   * Slow path (user-facing CSV/parquet without numeric ids):
+            //     resolve by name. `resolve_node_layer` maps null entries to
+            //     STATIC_GRAPH_LAYER (matching `add_node(.., None)`'s
+            //     semantics), unlike `resolve_layer` which would map null to
+            //     "_default".
             let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
                 let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
-                Some(layer_col.resolve_node_layer(graph)?)
+                let layer_idx_values = layer_idx_index
+                    .map(|idx| {
+                        df.chunk[idx]
+                            .as_primitive_opt::<UInt64Type>()
+                            .ok_or_else(|| {
+                                LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
+                            })
+                            .map(|array| array.values().as_ref())
+                    })
+                    .transpose()?;
+                Some(if layer_idx_values.is_some() {
+                    layer_col.resolve_layer(layer_idx_values, graph)?
+                } else {
+                    layer_col.resolve_node_layer(graph)?
+                })
             } else {
                 None
             };
