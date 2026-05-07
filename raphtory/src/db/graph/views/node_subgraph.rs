@@ -2,12 +2,13 @@ use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::api::{
         properties::internal::InheritPropertiesOps,
-        state::Index,
+        state::{ops::GraphView, Index},
         view::internal::{
-            EdgeList, GraphTimeSemanticsOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-            InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
-            InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
-            InternalNodeFilterOps, ListOps, NodeList, NodeTimeSemanticsOps, Static,
+            EdgeList, FilterOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
+            InheritEdgeLayerFilterOps, InheritExplodedEdgeFilterOps, InheritLayerOps,
+            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
+            InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
+            InternalExplodedEdgeFilterOps, InternalNodeFilterOps, ListOps, NodeList, Static,
         },
     },
     prelude::GraphViewOps,
@@ -20,13 +21,76 @@ use raphtory_api::{
     inherit::Base,
 };
 use raphtory_storage::{
-    core_ops::{CoreGraphOps, InheritCoreGraphOps},
+    core_ops::InheritCoreGraphOps,
     graph::{
         edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
     },
 };
 use std::fmt::{Debug, Formatter};
+
+#[derive(Clone, Debug)]
+pub struct UnfilteredSubgraph<G> {
+    graph: G,
+    nodes: Index<VID>,
+}
+
+impl<G> Immutable for UnfilteredSubgraph<G> {}
+
+impl<G> Static for UnfilteredSubgraph<G> {}
+
+impl<G> UnfilteredSubgraph<G> {
+    pub fn new(graph: G, nodes: Index<VID>) -> Self {
+        Self { graph, nodes }
+    }
+}
+
+impl<G> Base for UnfilteredSubgraph<G> {
+    type Base = G;
+
+    fn base(&self) -> &Self::Base {
+        &self.graph
+    }
+}
+
+impl<G> InheritCoreGraphOps for UnfilteredSubgraph<G> {}
+impl<G> InheritStorageOps for UnfilteredSubgraph<G> {}
+impl<G> InheritTimeSemantics for UnfilteredSubgraph<G> {}
+impl<G> InheritPropertiesOps for UnfilteredSubgraph<G> {}
+impl<G> InheritMaterialize for UnfilteredSubgraph<G> {}
+impl<G> InheritLayerOps for UnfilteredSubgraph<G> {}
+impl<G> InheritNodeHistoryFilter for UnfilteredSubgraph<G> {}
+impl<G> InheritEdgeHistoryFilter for UnfilteredSubgraph<G> {}
+impl<'graph, G: GraphView> InheritExplodedEdgeFilterOps for UnfilteredSubgraph<G> {}
+impl<'graph, G: GraphView> InheritEdgeLayerFilterOps for UnfilteredSubgraph<G> {}
+impl<'graph, G: GraphView> InheritEdgeFilterOps for UnfilteredSubgraph<G> {}
+
+impl<G: InternalNodeFilterOps> InternalNodeFilterOps for UnfilteredSubgraph<G> {
+    fn internal_nodes_filtered(&self) -> bool {
+        true
+    }
+    fn internal_node_list_trusted(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    fn edge_filter_includes_node_filter(&self) -> bool {
+        false
+    }
+
+    fn edge_layer_filter_includes_node_filter(&self) -> bool {
+        false
+    }
+
+    fn exploded_edge_filter_includes_node_filter(&self) -> bool {
+        false
+    }
+    #[inline]
+    fn internal_filter_node(&self, node: NodeStorageRef, layer_ids: &LayerIds) -> bool {
+        self.nodes.contains(&node.vid()) && self.graph.internal_filter_node(node, layer_ids)
+    }
+}
+impl<G: GraphView> InheritListOps for UnfilteredSubgraph<G> {}
 
 #[derive(Clone)]
 pub struct NodeSubgraph<G> {
@@ -66,18 +130,20 @@ impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for NodeSubgraph<
 
 impl<'graph, G: GraphViewOps<'graph>> NodeSubgraph<G> {
     pub fn new(graph: G, nodes: impl IntoIterator<Item = impl AsNodeRef>) -> Self {
-        let nodes: Index<_> = nodes
+        let index: Index<_> = nodes
             .into_iter()
             .filter_map(|v| (&&graph).node(v).map(|n| n.node))
             .collect();
-        let filter = NodeSubgraph {
+
+        let filter = UnfilteredSubgraph {
             graph: &graph,
-            nodes: nodes.clone(),
+            nodes: index.clone(),
         };
-        let time_semantics = filter.node_time_semantics();
-        let nodes: Index<_> = nodes
-            .into_iter()
-            .filter(|vid| time_semantics.node_valid(filter.core_node(*vid).as_ref(), &filter)) // need to bypass higher-level optimisation as it assumes the node list is already filtered
+
+        let nodes_storage = graph.core_nodes();
+        let nodes: Index<_> = index
+            .iter()
+            .filter(|vid| filter.filter_node(nodes_storage.node_entry(*vid)))
             .collect();
         Self { graph, nodes }
     }
@@ -138,7 +204,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for NodeSubgrap
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for NodeSubgraph<G> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.graph.internal_edge_filtered()
+        true
     }
 
     #[inline]
@@ -159,17 +225,22 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for NodeSubgraph<G> 
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for NodeSubgraph<G> {
+    #[inline]
     fn internal_nodes_filtered(&self) -> bool {
         true
     }
+
+    #[inline]
     fn internal_node_list_trusted(&self) -> bool {
         true
     }
 
+    #[inline]
     fn edge_layer_filter_includes_node_filter(&self) -> bool {
         self.graph.edge_layer_filter_includes_node_filter()
     }
 
+    #[inline]
     fn exploded_edge_filter_includes_node_filter(&self) -> bool {
         self.graph.exploded_edge_filter_includes_node_filter()
     }

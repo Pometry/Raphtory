@@ -25,6 +25,9 @@ pub trait GraphTimeSemanticsOps {
 
     fn edge_time_semantics(&self) -> TimeSemantics;
 
+    /// Returns true if the graph has a window filter that removes events
+    fn window_filtered(&self) -> bool;
+
     /// Returns the start of the current view or `None` if unbounded
     fn view_start(&self) -> Option<EventTime>;
 
@@ -150,6 +153,12 @@ impl<G: DelegateTimeSemantics + ?Sized> GraphTimeSemanticsOps for G {
     fn edge_time_semantics(&self) -> TimeSemantics {
         self.graph().edge_time_semantics()
     }
+
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        self.graph().window_filtered()
+    }
+
     #[inline]
     fn view_start(&self) -> Option<EventTime> {
         self.graph().view_start()

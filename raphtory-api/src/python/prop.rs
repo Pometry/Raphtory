@@ -1,18 +1,24 @@
 use crate::core::{
-    entities::properties::prop::{data_type_as_prop_type, Prop, PropType},
+    entities::properties::prop::{data_type_as_prop_type, Prop, PropArray, PropType, PropUnwrap},
     storage::arc_str::ArcStr,
 };
+use array_ext::*;
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
+use numpy::{
+    datetime::{units::Milliseconds as NumpyMs, Datetime as NumpyDateTime},
+    IntoPyArray, PyArray as NumpyArray,
+};
 use pyo3::{
     exceptions::PyTypeError,
+    intern,
     prelude::*,
     pybacked::PyBackedStr,
     sync::PyOnceLock,
     types::{PyBool, PyDict, PyType},
     Bound, FromPyObject, IntoPyObject, IntoPyObjectExt, Py, PyAny, PyErr, PyResult, Python,
 };
-use pyo3_arrow::PyDataType;
+use pyo3_arrow::{PyArray, PyDataType};
 use rustc_hash::FxHashMap;
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
@@ -34,14 +40,86 @@ mod array_ext {
     }
 }
 
-use crate::core::entities::properties::prop::PropArray;
-use array_ext::*;
-use pyo3_arrow::PyArray;
-
 static DECIMAL_CLS: PyOnceLock<Py<PyType>> = PyOnceLock::new();
 
 fn get_decimal_cls(py: Python<'_>) -> PyResult<&Bound<'_, PyType>> {
     DECIMAL_CLS.import(py, "decimal", "Decimal")
+}
+
+impl<'py> IntoPyObject<'py> for PropArray {
+    type Target = PyAny;
+    type Output = Bound<'py, PyAny>;
+    type Error = PyErr;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        let array = match self {
+            PropArray::Vec(props) => {
+                let mut iter = props.iter().peekable();
+                match iter.peek() {
+                    Some(Prop::U8(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u8()))
+                            .into_any()
+                    }
+                    Some(Prop::U16(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u16()))
+                            .into_any()
+                    }
+                    Some(Prop::U32(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u32()))
+                            .into_any()
+                    }
+                    Some(Prop::U64(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_u64()))
+                            .into_any()
+                    }
+                    Some(Prop::I32(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_i32()))
+                            .into_any()
+                    }
+                    Some(Prop::I64(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_i64()))
+                            .into_any()
+                    }
+                    Some(Prop::F32(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_f32()))
+                            .into_any()
+                    }
+                    Some(Prop::F64(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_f64()))
+                            .into_any()
+                    }
+                    Some(Prop::Bool(_)) => {
+                        NumpyArray::from_iter(py, iter.filter_map(|p| p.clone().into_bool()))
+                            .into_any()
+                    }
+                    Some(Prop::DTime(_)) => NumpyArray::from_iter(
+                        py,
+                        iter.filter_map(|p| {
+                            p.clone()
+                                .into_dtime()
+                                .map(|dt| NumpyDateTime::<NumpyMs>::from(dt.timestamp_millis()))
+                        }),
+                    )
+                    .into_any(),
+                    Some(Prop::NDTime(_)) => NumpyArray::from_iter(
+                        py,
+                        iter.filter_map(|p| {
+                            p.clone().into_ndtime().map(|dt| {
+                                NumpyDateTime::<NumpyMs>::from(dt.and_utc().timestamp_millis())
+                            })
+                        }),
+                    )
+                    .into_any(),
+                    _ => NumpyArray::from_iter(py, iter.filter_map(|p| p.into_py_any(py).ok()))
+                        .into_any(),
+                }
+            }
+            PropArray::Array(props) => PyArray::from_array_ref(props)
+                .into_pyarrow(py)?
+                .call_method(intern!(py, "to_numpy"), (false, false), None)?,
+        };
+        Ok(array)
+    }
 }
 
 impl<'py> IntoPyObject<'py> for Prop {
@@ -63,10 +141,7 @@ impl<'py> IntoPyObject<'py> for Prop {
             Prop::I32(v) => v.into_pyobject(py)?.into_any(),
             Prop::U32(v) => v.into_pyobject(py)?.into_any(),
             Prop::F32(v) => v.into_pyobject(py)?.into_any(),
-            Prop::List(PropArray::Array(arr_ref)) => {
-                PyArray::from_array_ref(arr_ref).into_pyarrow(py)?
-            }
-            Prop::List(PropArray::Vec(v)) => v.into_pyobject(py)?.into_any(), // Fixme: optimise the clone here?
+            Prop::List(v) => v.into_pyobject(py)?.into_any(),
             Prop::Map(v) => v.deref().clone().into_pyobject(py)?.into_any(),
             Prop::Decimal(d) => {
                 let decl_cls = get_decimal_cls(py)?;

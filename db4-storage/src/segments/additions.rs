@@ -63,6 +63,7 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
 
     type RangeType = Self;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         match self {
             MemAdditions::Props(props) => props.active(w),

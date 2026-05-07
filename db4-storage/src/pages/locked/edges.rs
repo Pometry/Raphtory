@@ -125,9 +125,10 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {
-        for LockedEdgePage { page, lock, .. } in &mut self.writers {
-            page.vacuum(lock.deref_mut())?;
-        }
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedEdgePage { page, lock, .. } = writer;
+            page.vacuum(lock.deref_mut())
+        })?;
         Ok(())
     }
 

@@ -24,6 +24,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use storage::api::edges::EdgeRefOps;
 use tantivy::{
     schema::{Schema, SchemaBuilder, FAST, INDEXED, STORED},
     Index,
@@ -213,20 +214,19 @@ impl EntityIndex {
             let indexes = self.metadata_indexes.read_recursive();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                (0..graph.count_edges())
-                    .into_par_iter()
-                    .try_for_each(|e_id| {
-                        let edge = graph.core_edge(EID(e_id));
-                        for (layer_id, prop_value) in edge.metadata_iter(&LayerIds::All, prop_id) {
-                            let prop_doc = prop_index.create_edge_metadata_document(
-                                e_id as u64,
-                                layer_id,
-                                prop_value.borrow(),
-                            )?;
-                            writer.add_document(prop_doc)?;
-                        }
-                        Ok::<(), GraphError>(())
-                    })?;
+                let edges = graph.core_edges();
+                edges.par_iter(&LayerIds::All).try_for_each(|edge| {
+                    let e_id = edge.edge_id();
+                    for (layer_id, prop_value) in edge.metadata_iter(&LayerIds::All, prop_id) {
+                        let prop_doc = prop_index.create_edge_metadata_document(
+                            e_id.as_u64(),
+                            layer_id,
+                            prop_value.borrow(),
+                        )?;
+                        writer.add_document(prop_doc)?;
+                    }
+                    Ok::<(), GraphError>(())
+                })?;
                 writer.commit()?;
             }
         }
@@ -260,25 +260,22 @@ impl EntityIndex {
             let indexes = self.temporal_property_indexes.read_recursive();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                (0..graph.count_edges())
-                    .into_par_iter()
-                    .try_for_each(|e_id| {
-                        let edge = graph.core_edge(EID(e_id));
-                        for (layer_id, prop_value) in
-                            edge.temporal_prop_iter(&LayerIds::All, prop_id)
-                        {
-                            for (t, prop_value) in prop_value.iter() {
-                                let prop_doc = prop_index.create_edge_temporal_property_document(
-                                    t,
-                                    e_id as u64,
-                                    layer_id,
-                                    &prop_value,
-                                )?;
-                                writer.add_document(prop_doc)?;
-                            }
+                let edges = graph.core_edges();
+                edges.par_iter(&LayerIds::All).try_for_each(|edge| {
+                    let e_id = edge.edge_id();
+                    for (layer_id, prop_value) in edge.temporal_prop_iter(&LayerIds::All, prop_id) {
+                        for (t, prop_value) in prop_value.iter() {
+                            let prop_doc = prop_index.create_edge_temporal_property_document(
+                                t,
+                                e_id.as_u64(),
+                                layer_id,
+                                &prop_value,
+                            )?;
+                            writer.add_document(prop_doc)?;
                         }
-                        Ok::<(), GraphError>(())
-                    })?;
+                    }
+                    Ok::<(), GraphError>(())
+                })?;
                 writer.commit()?;
             }
         }

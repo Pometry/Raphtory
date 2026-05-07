@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+#[cfg(feature = "vectors")]
 pub mod vectors;
 
 use criterion::{

@@ -851,21 +851,20 @@ fn graph_degree_window() {
     for (t, src, dst) in &vs {
         graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
     }
-    test_storage!(&graph, |graph| {
-        let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
-        let actual = (1..=3)
-            .map(|i| {
-                let v = graph.node(i).unwrap();
-                (
-                    v.window(-1, 7).in_degree(),
-                    v.window(1, 7).out_degree(),
-                    v.window(0, 1).degree(),
-                )
-            })
-            .collect::<Vec<_>>();
 
-        assert_eq!(actual, expected);
-    });
+    let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
+    let actual = (1..=3)
+        .map(|i| {
+            let v = graph.node(i).unwrap();
+            (
+                v.window(-1, 7).in_degree(),
+                v.window(1, 7).out_degree(),
+                v.window(0, 1).degree(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(actual, expected);
 }
 
 #[test]
@@ -884,21 +883,19 @@ fn graph_edges_window() {
     for (t, src, dst) in &vs {
         graph.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
     }
-    test_storage!(&graph, |graph| {
-        let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
-        let actual = (1..=3)
-            .map(|i| {
-                let v = graph.node(i).unwrap();
-                (
-                    v.window(-1, 7).in_edges().iter().count(),
-                    v.window(1, 7).out_edges().iter().count(),
-                    v.window(0, 1).edges().iter().count(),
-                )
-            })
-            .collect::<Vec<_>>();
+    let expected = vec![(2, 3, 1), (1, 0, 0), (1, 0, 0)];
+    let actual = (1..=3)
+        .map(|i| {
+            let v = graph.node(i).unwrap();
+            (
+                v.window(-1, 7).in_edges().iter().count(),
+                v.window(1, 7).out_edges().iter().count(),
+                v.window(0, 1).edges().iter().count(),
+            )
+        })
+        .collect::<Vec<_>>();
 
-        assert_eq!(actual, expected);
-    });
+    assert_eq!(actual, expected);
 }
 
 #[test]
@@ -3010,10 +3007,8 @@ fn test_layer_name() {
         .add_edge(0, 0, 2, NO_PROPS, Some("awesome layer"))
         .unwrap();
 
-    test_storage!(&graph, |graph| {
-        assert_eq!(graph.edge(0, 1).unwrap().layer_names(), ["_default"]);
-        assert_eq!(graph.edge(0, 2).unwrap().layer_names(), ["awesome layer"]);
-    });
+    assert_eq!(graph.edge(0, 1).unwrap().layer_names(), ["_default"]);
+    assert_eq!(graph.edge(0, 2).unwrap().layer_names(), ["awesome layer"]);
 }
 
 #[test]
@@ -3821,79 +3816,76 @@ fn test_group_by() {
     g.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
     g.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
     g.add_edge(0, 4, 5, NO_PROPS, None).unwrap();
+    let groups_from_lazy = g.nodes().out_degree().groups();
 
-    test_storage!(&g, |g| {
-        let groups_from_lazy = g.nodes().out_degree().groups();
+    let groups_from_eager = g.nodes().out_degree().compute().groups();
 
-        let groups_from_eager = g.nodes().out_degree().compute().groups();
+    let expected_groups: HashMap<usize, Arc<[GID]>> = HashMap::from([
+        (0, Arc::from_iter([GID::U64(3), GID::U64(5)])),
+        (1, Arc::from_iter([GID::U64(1), GID::U64(2), GID::U64(4)])),
+    ]);
 
-        let expected_groups: HashMap<usize, Arc<[GID]>> = HashMap::from([
-            (0, Arc::from_iter([GID::U64(3), GID::U64(5)])),
-            (1, Arc::from_iter([GID::U64(1), GID::U64(2), GID::U64(4)])),
-        ]);
+    let expected_subgraphs: HashMap<usize, Arc<[GID]>> = HashMap::from([
+        (0, Arc::from_iter([])),
+        (1, Arc::from_iter([GID::U64(1), GID::U64(2)])),
+    ]);
 
-        let expected_subgraphs: HashMap<usize, Arc<[GID]>> = HashMap::from([
-            (0, Arc::from_iter([])),
-            (1, Arc::from_iter([GID::U64(1), GID::U64(2)])),
-        ]);
+    assert_eq!(
+        groups_from_lazy
+            .iter()
+            .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
+            .collect::<HashMap<_, _>>(),
+        expected_groups
+    );
 
+    assert_eq!(
+        groups_from_lazy
+            .clone()
+            .into_iter_groups()
+            .map(|(v, nodes)| (v, nodes.id().sort_by_values(false).values().clone()))
+            .collect::<HashMap<_, _>>(),
+        expected_groups
+    );
+
+    assert_eq!(
+        groups_from_lazy
+            .iter_subgraphs()
+            .map(|(v, graph)| (
+                *v,
+                graph.nodes().id().sort_by_values(false).values().clone()
+            ))
+            .collect::<HashMap<_, _>>(),
+        expected_subgraphs
+    );
+
+    assert_eq!(
+        groups_from_lazy
+            .clone()
+            .into_iter_subgraphs()
+            .map(|(v, graph)| (v, graph.nodes().id().sort_by_values(false).values().clone()))
+            .collect::<HashMap<_, _>>(),
+        expected_subgraphs
+    );
+
+    assert_eq!(
+        groups_from_eager
+            .iter()
+            .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
+            .collect::<HashMap<_, _>>(),
+        expected_groups
+    );
+
+    assert_eq!(groups_from_lazy.len(), expected_groups.len());
+
+    for (i, (v, nodes)) in groups_from_eager.iter().enumerate() {
+        let (v2, nodes2) = groups_from_eager.group(i).unwrap();
+        assert_eq!(v, v2);
+        assert!(nodes.iter().eq(nodes2.iter()));
+        let (v3, graph) = groups_from_eager.group_subgraph(i).unwrap();
+        assert_eq!(v, v3);
         assert_eq!(
-            groups_from_lazy
-                .iter()
-                .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
-                .collect::<HashMap<_, _>>(),
-            expected_groups
+            graph.nodes().id().sort_by_values(false),
+            expected_subgraphs[v].deref()
         );
-
-        assert_eq!(
-            groups_from_lazy
-                .clone()
-                .into_iter_groups()
-                .map(|(v, nodes)| (v, nodes.id().sort_by_values(false).values().clone()))
-                .collect::<HashMap<_, _>>(),
-            expected_groups
-        );
-
-        assert_eq!(
-            groups_from_lazy
-                .iter_subgraphs()
-                .map(|(v, graph)| (
-                    *v,
-                    graph.nodes().id().sort_by_values(false).values().clone()
-                ))
-                .collect::<HashMap<_, _>>(),
-            expected_subgraphs
-        );
-
-        assert_eq!(
-            groups_from_lazy
-                .clone()
-                .into_iter_subgraphs()
-                .map(|(v, graph)| (v, graph.nodes().id().sort_by_values(false).values().clone()))
-                .collect::<HashMap<_, _>>(),
-            expected_subgraphs
-        );
-
-        assert_eq!(
-            groups_from_eager
-                .iter()
-                .map(|(v, nodes)| (*v, nodes.id().sort_by_values(false).values().clone()))
-                .collect::<HashMap<_, _>>(),
-            expected_groups
-        );
-
-        assert_eq!(groups_from_lazy.len(), expected_groups.len());
-
-        for (i, (v, nodes)) in groups_from_eager.iter().enumerate() {
-            let (v2, nodes2) = groups_from_eager.group(i).unwrap();
-            assert_eq!(v, v2);
-            assert!(nodes.iter().eq(nodes2.iter()));
-            let (v3, graph) = groups_from_eager.group_subgraph(i).unwrap();
-            assert_eq!(v, v3);
-            assert_eq!(
-                graph.nodes().id().sort_by_values(false),
-                expected_subgraphs[v].deref()
-            );
-        }
-    });
+    }
 }

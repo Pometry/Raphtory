@@ -26,6 +26,11 @@ impl GraphTimeSemanticsOps for GraphStorage {
         TimeSemantics::event()
     }
 
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        false
+    }
+
     fn view_start(&self) -> Option<EventTime> {
         None
     }

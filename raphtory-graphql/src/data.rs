@@ -17,18 +17,14 @@ use raphtory::{
     errors::GraphError,
     serialise::GraphPaths,
     vectors::{
-        cache::{CachedEmbeddingModel, VectorCache},
-        storage::LazyDiskVectorCache,
-        template::DocumentTemplate,
-        vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
-    collections::HashMap,
     fs, io,
     io::{Read, Seek},
-    ops::{Deref, DerefMut},
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
