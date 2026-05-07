@@ -304,6 +304,37 @@ def test_analyst_cannot_write_without_write_grant():
         assert "Access denied" in response["errors"][0]["message"]
 
 
+FLUSH_JIRA = """query { updateGraph(path: "jira") { flush } }"""
+
+
+def test_analyst_can_flush_with_write_grant():
+    """'access':'ro' user with WRITE grant on a specific graph can call flush
+    via updateGraph (which already gates on graph WRITE)."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "WRITE")
+
+        response = gql(FLUSH_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" not in response, response
+        assert response["data"]["updateGraph"]["flush"] is True
+
+
+def test_analyst_cannot_flush_without_write_grant():
+    """'access':'ro' user with READ-only grant cannot call flush — the
+    `updateGraph` gate rejects the request before flush runs."""
+    work_dir = tempfile.mkdtemp()
+    with make_server(work_dir).start():
+        gql(CREATE_JIRA)
+        create_role("analyst")
+        grant_graph("analyst", "jira", "READ")  # READ only, no WRITE
+
+        response = gql(FLUSH_JIRA, headers=ANALYST_HEADERS)
+        assert "errors" in response
+        assert "Access denied" in response["errors"][0]["message"]
+
+
 def test_analyst_can_create_graph_in_namespace():
     """'access':'ro' user with namespace WRITE grant can create a new graph in that namespace."""
     work_dir = tempfile.mkdtemp()
