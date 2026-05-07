@@ -31,7 +31,7 @@ def test_datetime_with_timezone():
         localized_datetime = timezone.localize(naive_datetime)
         g.add_node(localized_datetime, 1)
 
-    # @with_disk_graph FIXME: need special handling for nodes additions from Graph
+    # FIXME: need special handling for nodes additions from Graph
     def check(g):
         assert g.node(1).history.dt.collect() == results
 
