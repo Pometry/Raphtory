@@ -388,39 +388,35 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             exact_layers.dedup();
         }
 
-        let exact_window = w.clone();
         exact_layers.into_iter().flat_map(move |layer_id| {
             let mut rows = node
-                .temp_prop_rows_range(Some(exact_window.clone()))
+                .temp_prop_rows_range(Some(w.clone()))
                 .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
                 .collect_vec();
 
             let has_prior_addition = node
                 .node_additions(layer_id)
-                .range(EventTime::MIN..exact_window.start)
+                .range(EventTime::MIN..w.start)
                 .iter()
                 .next()
                 .is_some();
-            let has_row_at_start = rows.iter().any(|(t, _, _)| *t == exact_window.start);
+            let start_t = w.start.t();
+            let next_t = EventTime::start(start_t.saturating_add(1));
+            let has_row_in_start_t = rows.iter().any(|(t, _, _)| t.t() == start_t);
 
-            if has_prior_addition && !has_row_at_start {
+            if has_prior_addition && !has_row_in_start_t {
                 let layer_view = LayeredGraph::new(view.clone(), LayerIds::One(layer_id));
                 let row = layer_view
                     .node_meta()
                     .temporal_prop_mapper()
                     .ids()
                     .filter_map(|prop_id| {
-                        self.node_tprop_iter_window(
-                            node,
-                            layer_view.clone(),
-                            prop_id,
-                            exact_window.clone(),
-                        )
-                        .find(|(t, _)| *t == exact_window.start)
-                        .map(|(_, prop)| (prop_id, prop))
+                        self.node_tprop_iter_window(node, layer_view.clone(), prop_id, w.clone())
+                            .find(|(t, _)| *t >= w.start && *t < next_t)
+                            .map(|(_, prop)| (prop_id, prop))
                     })
                     .collect::<Vec<_>>();
-                rows.push((exact_window.start, layer_id.0, row));
+                rows.push((w.start, layer_id.0, row));
             }
 
             rows.sort_unstable_by_key(|(t, _, _)| *t);
