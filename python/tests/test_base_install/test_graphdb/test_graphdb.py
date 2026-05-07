@@ -345,8 +345,8 @@ def test_getitem():
     @with_disk_graph
     def check(g):
         assert (
-                g.node(1).properties.temporal.get("cost")
-                == g.node(1).properties.temporal["cost"]
+            g.node(1).properties.temporal.get("cost")
+            == g.node(1).properties.temporal["cost"]
         )
 
     check(g)
@@ -641,7 +641,7 @@ def test_node_properties():
                 assert g.at(time).node(1).properties.temporal.get(key) is None
                 assert g.at(time).nodes.properties.temporal.get(key) is None
                 assert (
-                        g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
+                    g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
                 )
             else:
                 assert g.at(time).node(1).properties.temporal.get(key).items() == value
@@ -860,8 +860,8 @@ def test_node_properties():
         assert sorted(g.node(1).properties.temporal.keys()) == expected_names_no_static
         assert sorted(g.nodes.properties.temporal.keys()) == expected_names_no_static
         assert (
-                sorted(g.nodes.out_neighbours.properties.temporal.keys())
-                == expected_names_no_static
+            sorted(g.nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static
         )
 
         expected_names_no_static_at_1 = ["prop 1", "prop 2", "prop 3", "prop 4"]
@@ -871,12 +871,12 @@ def test_node_properties():
             "prop 4",
         ]
         assert (
-                sorted(g.at(1).nodes.properties.temporal.keys())
-                == expected_names_no_static_at_1
+            sorted(g.at(1).nodes.properties.temporal.keys())
+            == expected_names_no_static_at_1
         )
         assert (
-                sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
-                == expected_names_no_static_at_1
+            sorted(g.at(1).nodes.out_neighbours.properties.temporal.keys())
+            == expected_names_no_static_at_1
         )
 
         # testing has_property
@@ -893,7 +893,7 @@ def test_node_properties():
         assert "prop 5" not in g.nodes.out_neighbours.properties
 
         assert (
-                "prop 2" not in g.at(1).node(1).properties.as_dict()
+            "prop 2" not in g.at(1).node(1).properties.as_dict()
         )  # TODO should be as dict?
         #       assert "prop 2" not in g.at(1).nodes.properties #TODO Do these make sense any more?
         #        assert "prop 2" not in g.at(1).nodes.out_neighbours.properties #TODO Do these make sense any more?
@@ -1072,7 +1072,7 @@ def test_edge_properties():
         assert "prop 2" in g.edge(1, 2).properties
         assert "prop 5" not in g.edge(1, 2).properties
         assert (
-                "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
+            "prop 2" not in g.at(1).edge(1, 2).properties.as_dict()
         )  # TODO should be as dict? - Properties now returns all keys here
 
     def check(g):
@@ -1849,18 +1849,18 @@ def test_layer():
         assert g.exclude_layer("layer2").count_edges() == 4
 
         with pytest.raises(
-                Exception,
-                match=re.escape(
-                    """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-                ),
+            Exception,
+            match=re.escape(
+                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+            ),
         ):
             g.layers(["test_layer"])
 
         with pytest.raises(
-                Exception,
-                match=re.escape(
-                    """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
-                ),
+            Exception,
+            match=re.escape(
+                """Invalid layer: test_layer. Valid layers: ["_default", "layer1", "layer2"]"""
+            ),
         ):
             g.edge(1, 2).layers(["test_layer"])
 
@@ -1937,20 +1937,20 @@ def test_layer_name():
     assert str(e.value) == error_msg
 
     assert [
-               list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
-           ] == [
-               ["_default", "awesome layer"],
-               ["_default", "awesome layer"],
-               ["_default", "awesome layer"],
-           ]
+        list(iterator) for iterator in g.nodes.neighbours.edges.explode().layer_name
+    ] == [
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"],
+    ]
     assert [
-               list(iterator)
-               for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
-           ] == [
-               ["_default", "awesome layer"],
-               ["_default", "awesome layer"],
-               ["_default", "awesome layer"],
-           ]
+        list(iterator)
+        for iterator in g.nodes.neighbours.edges.explode_layers().layer_name
+    ] == [
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"],
+        ["_default", "awesome layer"],
+    ]
 
 
 def test_time():
@@ -1984,12 +1984,12 @@ def test_time():
         # assert str(e.value) == error_msg
 
         assert [
-                   list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
-               ] == [
-                   [0, 0, 1],
-                   [0, 0, 1],
-                   [0, 0, 1],
-               ]
+            list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
+        ] == [
+            [0, 0, 1],
+            [0, 0, 1],
+            [0, 0, 1],
+        ]
 
     check(g)
 
@@ -2524,8 +2524,8 @@ def test_weird_windows():
     @with_disk_graph
     def check(g):
         with pytest.raises(
-                Exception,
-                match="'ddd' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
+            Exception,
+            match="'ddd' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
         ):
             g.window("ddd", "aaa")
 
@@ -2690,9 +2690,9 @@ def test_type_filter():
             (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name),
         )
     ) == {
-               1: ["2"],
-               4: ["2", "5"],
-           }
+        1: ["2"],
+        4: ["2", "5"],
+    }
 
     assert g.nodes.degree() == {1: 1, 2: 3, 3: 2, 4: 2, 5: 2, 6: 2, 7: 0, 8: 0, 9: 0}
     assert g.nodes.type_filter(["a"]).degree() == {1: 1, 4: 2}
@@ -2710,19 +2710,19 @@ def test_type_filter():
             (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.name),
         )
     ) == {
-               1: ["2"],
-               4: ["2", "5"],
-           }
+        1: ["2"],
+        4: ["2", "5"],
+    }
     assert dict(
         zip(
             g.nodes.type_filter(["a", "c"]).id,
             (sorted(v) for v in g.nodes.type_filter(["a", "c"]).neighbours.name),
         )
     ) == {
-               1: ["2"],
-               4: ["2", "5"],
-               5: ["4", "6"],
-           }
+        1: ["2"],
+        4: ["2", "5"],
+        5: ["4", "6"],
+    }
 
     assert dict(
         zip(
@@ -2730,9 +2730,9 @@ def test_type_filter():
             g.nodes.type_filter(["a"]).neighbours.type_filter(["c"]).name.collect(),
         )
     ) == {
-               1: [],
-               4: ["5"],
-           }
+        1: [],
+        4: ["5"],
+    }
     assert g.nodes.type_filter(["a"]).neighbours.type_filter([]).name.collect() == [
         [],
         [],
@@ -2743,8 +2743,8 @@ def test_type_filter():
             (
                 sorted(v)
                 for v in g.nodes.type_filter(["a"])
-            .neighbours.type_filter(["b", "c"])
-            .name
+                .neighbours.type_filter(["b", "c"])
+                .name
             ),
         )
     ) == {1: ["2"], 4: ["2", "5"]}
@@ -2758,17 +2758,17 @@ def test_type_filter():
             (sorted(v) for v in g.nodes.type_filter(["a"]).neighbours.neighbours.name),
         )
     ) == {
-               1: ["1", "3", "4"],
-               4: ["1", "3", "4", "4", "6"],
-           }
+        1: ["1", "3", "4"],
+        4: ["1", "3", "4", "4", "6"],
+    }
     assert dict(
         zip(
             g.nodes.type_filter(["a"]).id,
             (
                 sorted(v)
                 for v in g.nodes.type_filter(["a"])
-            .neighbours.type_filter(["c"])
-            .neighbours.name
+                .neighbours.type_filter(["c"])
+                .neighbours.name
             ),
         )
     ) == {1: [], 4: ["4", "6"]}
@@ -2817,20 +2817,20 @@ def test_time_exploded_edges():
             for edge in edges:
                 time_nested.append(edge.time)
         assert [
-                   item
-                   for sublist in g.nodes.edges.explode().time.collect()
-                   for item in sublist
-               ] == time_nested
+            item
+            for sublist in g.nodes.edges.explode().time.collect()
+            for item in sublist
+        ] == time_nested
 
         date_time_nested = []
         for edges in g.nodes.edges.explode():
             for edge in edges:
                 date_time_nested.append(edge.time.dt)
         assert [
-                   item
-                   for sublist in g.nodes.edges.explode().time.dt.collect()
-                   for item in sublist
-               ] == date_time_nested
+            item
+            for sublist in g.nodes.edges.explode().time.dt.collect()
+            for item in sublist
+        ] == date_time_nested
 
     check(g)
 
@@ -3031,7 +3031,9 @@ def test_unique_temporal_properties():
             False,
             True,
         ]
-        assert sorted(list(v) for v in g.node(3).properties.temporal.get("list").unique()) == [
+        assert sorted(
+            list(v) for v in g.node(3).properties.temporal.get("list").unique()
+        ) == [
             [1, 2, 3],
             [2, 3],
         ]
@@ -3290,6 +3292,7 @@ def datadir(tmpdir, request):
         except Exception as e:
             raise e
     return tmpdir
+
 
 # def currently_broken_fuzzy_search(): #TODO: Fix fuzzy searching for properties
 # g = Graph()

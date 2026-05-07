@@ -222,7 +222,7 @@ def test_decimal_from_negative_int():
 
 
 def test_decimal_from_large_int():
-    p = Prop.decimal(2 ** 62)
+    p = Prop.decimal(2**62)
     assert str(p.dtype()) == "Decimal { scale: 0 }"
 
 
