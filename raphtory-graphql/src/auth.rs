@@ -183,10 +183,10 @@ where
             let req = batch_req.data(access).data(role);
 
             let contains_update = match &req {
-                BatchRequest::Single(request) => request.query.contains("updateGraph"),
+                BatchRequest::Single(request) => is_exclusive_write(&request.query),
                 BatchRequest::Batch(requests) => requests
                     .iter()
-                    .any(|request| request.query.contains("updateGraph")),
+                    .any(|request| is_exclusive_write(&request.query)),
             };
             if contains_update {
                 if let Some(lock) = &self.lock {
@@ -205,6 +205,14 @@ where
             }
         }
     }
+}
+
+/// Operations that must run with exclusive access to the graph store, blocking
+/// all other concurrent requests. `deleteNamespace` is included because it
+/// removes a whole subtree and would race with concurrent inserts/deletes
+/// inside that subtree.
+fn is_exclusive_write(query: &str) -> bool {
+    query.contains("updateGraph") || query.contains("deleteNamespace")
 }
 
 fn is_query_heavy(query: &str) -> bool {

@@ -7,6 +7,8 @@ use crate::{
         blocking_io,
         graph::{
             filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            namespace::Namespace,
+            namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
         },
     },
@@ -320,6 +322,47 @@ impl Data {
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
         self.cache.remove(path).await;
+        Ok(())
+    }
+
+    pub async fn delete_namespace(&self, path: &str) -> Result<(), DeletionError> {
+        if path.is_empty() {
+            return Err(DeletionError::PathValidation(
+                PathValidationError::NamespaceDoesNotExist(path.to_string()),
+            ));
+        }
+        let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
+        for item in namespace.get_all_children() {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.invalidate(g.local_path()).await;
+                self.cache.remove(g.local_path()).await;
+            }
+        }
+        let root = namespace.current_dir().to_path_buf();
+        let dirty_file = mark_dirty(&root).map_err(|err| {
+            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        blocking_io(move || {
+            fs::remove_dir_all(&root)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| DeletionError::from_inner(path, err))?;
+        Ok(())
+    }
+
+    pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
+        let target = crate::paths::validate_path_for_namespace_create(
+            self.work_dir.clone(),
+            path,
+        )?;
+        blocking_io(move || {
+            fs::create_dir_all(&target)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| InsertionError::from_inner(path, err))?;
         Ok(())
     }
 

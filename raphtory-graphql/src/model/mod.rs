@@ -282,11 +282,11 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir.clone());
         let list = blocking_compute(move || {
-            root.get_all_children()
-                .filter_map(|child| match child {
+            std::iter::once(root.clone())
+                .chain(root.get_all_children().filter_map(|child| match child {
                     NamespacedItem::Namespace(item) => Some(item),
                     NamespacedItem::MetaGraph(_) => None,
-                })
+                }))
                 .sorted()
                 .collect()
         })
@@ -491,6 +491,66 @@ impl Mut {
         .await?;
         data.insert_graph(folder, g).await?;
         Ok(path.to_owned())
+    }
+
+    /// Create an empty namespace at `path`.
+    ///
+    /// Creates any missing parent namespaces along the way. Requires WRITE
+    /// permission on the parent namespace. Rejects paths that already host a
+    /// graph or an existing namespace, and paths that fail validation.
+    ///
+    /// Returns:: the path of the created namespace
+    async fn create_namespace<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, ns, path, "create")?;
+        data.create_namespace(path).await?;
+        Ok(path.to_string())
+    }
+
+    /// Delete a namespace and all of its descendants (graphs and sub-namespaces).
+    ///
+    /// Requires WRITE permission on the parent namespace, on the namespace
+    /// itself, and on every descendant graph and sub-namespace. Cached graphs
+    /// at any deleted path are invalidated. Rejects empty and non-existent
+    /// paths.
+    ///
+    /// Returns:: true on success
+    async fn delete_namespace<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Path to delete relative to the root namespace.")] path: &str,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let parent_ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, parent_ns, path, "delete")?;
+        require_namespace_write(ctx, &data.auth_policy, path, path, "delete")?;
+
+        let namespace = Namespace::try_new(data.work_dir.clone(), path.to_string())?;
+        let ns_clone = namespace.clone();
+        let descendants: Vec<NamespacedItem> =
+            blocking_compute(move || ns_clone.get_all_children().collect()).await;
+        for item in &descendants {
+            match item {
+                NamespacedItem::Namespace(n) => {
+                    require_namespace_write(
+                        ctx,
+                        &data.auth_policy,
+                        n.relative_path(),
+                        path,
+                        "delete",
+                    )?;
+                }
+                NamespacedItem::MetaGraph(g) => {
+                    require_graph_write(ctx, &data.auth_policy, g.local_path())?;
+                }
+            }
+        }
+
+        data.delete_namespace(path).await?;
+        Ok(true)
     }
 
     /// Returns a subgraph given a set of nodes from an existing graph in the server.
