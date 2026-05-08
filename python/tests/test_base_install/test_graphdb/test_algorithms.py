@@ -564,17 +564,10 @@ def test_label_propagation_algorithm():
     for time, src, dst in edges_str:
         g.add_edge(time, src, dst)
     seed = [5] * 32
-    result_node = algorithms.label_propagation(g, 10, seed)
-    result = []
-    print(result_node)
-    for community_id in (2, 8):
-        community = set()
-        for node_id, value in result_node.items():
-            if value["community_id"] == community_id:
-                community.add(node_id.name)
-        result.append(community)
-    expected = [{"R2", "R3", "R1"}, {"G", "B4", "B3", "B2", "B1", "B5"}]
-    assert result == expected
+    labels = algorithms.label_propagation(g, 10, seed)
+    groups = sorted(sorted(v.id) for _, v in labels.groups(["community_id"]))
+    expected = [["B1", "B2", "B3", "B4", "B5", "G"], ["R1", "R2", "R3"]]
+    assert groups == expected
 
 
 def test_k_core():

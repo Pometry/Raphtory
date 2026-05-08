@@ -52,7 +52,7 @@ pub trait FilterOps {
     fn node_and_edge_filters_independent(&self) -> bool;
 
     fn filtered(&self) -> bool;
-    #[inline]
+
     fn filtered_excluding_layers(&self) -> bool;
 
     fn node_list_trusted(&self) -> bool;
