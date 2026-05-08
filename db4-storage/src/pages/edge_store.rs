@@ -234,6 +234,14 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .sum()
     }
 
+    /// The total update count (includes edge additions and deletions) for all layers
+    pub fn num_updates(&self) -> usize {
+        self.segments()
+            .iter()
+            .map(|(_, page)| page.num_updates())
+            .sum()
+    }
+
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.prop_meta
     }

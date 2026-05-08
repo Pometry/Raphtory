@@ -179,11 +179,7 @@ impl<
             node_meta.get_or_create_node_type_id(node_type);
         }
 
-        let t_len = edge_meta
-            .all_layer_iter()
-            .map(|(layer_id, _)| edge_storage.t_len(layer_id.0))
-            .sum::<usize>()
-            + node_storage.t_len();
+        let t_len = edge_storage.num_updates() + node_storage.t_len();
 
         Ok(Self {
             nodes: node_storage,
