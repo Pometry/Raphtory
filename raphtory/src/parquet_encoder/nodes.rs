@@ -14,7 +14,7 @@ use crate::{
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
 use itertools::Itertools;
-use raphtory_api::iter::IntoDynBoxed;
+use raphtory_api::{core::entities::properties::meta::STATIC_GRAPH_LAYER_ID, iter::IntoDynBoxed};
 use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::nodes_ref::NodesStorageEntry};
 use rayon::iter::ParallelIterator;
 
@@ -59,7 +59,7 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                 Field::new(TYPE_COL, DataType::Utf8, true),
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
-                Field::new(LAYER_COL, DataType::Utf8, false),
+                Field::new(LAYER_COL, DataType::Utf8, true),
                 Field::new(LAYER_ID_COL, DataType::UInt64, false),
             ]
         },
@@ -78,7 +78,9 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                                 export_id: node.id(),
                                 export_vid: node.node.0,
                                 export_node_type: node.node_type(),
-                                export_layer: layer_meta.get_name(layer_id.0),
+                                // null for STATIC_GRAPH_LAYER
+                                export_layer: (layer_id != STATIC_GRAPH_LAYER_ID)
+                                    .then(|| layer_meta.get_name(layer_id.0)),
                                 export_layer_id: layer_id.0,
                                 cols,
                                 t,

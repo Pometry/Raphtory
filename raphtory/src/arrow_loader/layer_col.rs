@@ -131,8 +131,9 @@ impl<'a> LayerCol<'a> {
         }
     }
 
-    /// Resolve layer ids for a node-loading column, where a null entry means STATIC_GRAPH_LAYER (id 0)
-    /// This differs from `resolve_layer`, which maps null to "_default" via `graph.resolve_layer(None)`
+    /// Resolve layer ids for a node-loading column, where a null entry means STATIC_GRAPH_LAYER (id 0).
+    /// This differs from `resolve_layer`, which maps null to "_default" via `graph.resolve_layer(None)`.
+    /// Used by materialize and user-facing loaders (no LAYER_ID_COL fast path like in resolve_layer).
     pub fn resolve_node_layer<'b>(
         self,
         graph: &(impl AdditionOps + Send + Sync),
@@ -209,20 +210,10 @@ impl<'a> LayerCol<'a> {
                 Ok(Cow::Owned(res))
             }
             (col, Some(layer_ids)) => {
-                // Fast path: mirror the source's (name, layer_id) assignment
-                // via `set_id` so the loaded graph's layer ids match the
-                // source's exactly. `set_id` is only safe when the slot isn't
-                // already claimed by a different name — the materialize path
-                // pre-creates layers via `get_or_create_id` (so it can keep
-                // empty layers visible), and naively `set_id`-ing the source
-                // ids on top would either overwrite those pre-init slots or
-                // leave the same name at two different reverse-map indices.
-                // We therefore consult the forward map first: if the name is
-                // already registered, reuse its existing id; otherwise install
-                // it at the source id.
+                // Fast path assumes all layers from the source graph are present.
+                // If some are missing (like materialize on filtered/windowed graphs),
+                // this can introduce gaps in the layer mappers and empty layer names.
                 let mut last_pair = None;
-                let mut last_resolved_id = 0usize;
-                let mut res = vec![0usize; col.len()];
 
                 let edge_layer_mapper = graph.edge_meta().layer_meta();
                 let node_layer_mapper = graph.node_meta().layer_meta();
@@ -230,29 +221,17 @@ impl<'a> LayerCol<'a> {
                 let mut locked_edge_lm = edge_layer_mapper.write();
                 let mut locked_node_lm = node_layer_mapper.write();
 
-                for (row, pair) in col
-                    .iter()
-                    .map(|name| name.unwrap_or("_default"))
-                    .zip(layer_ids)
-                    .enumerate()
-                {
-                    let (name, id) = pair;
+                for pair @ (name_opt, id) in col.iter().zip(layer_ids) {
                     if last_pair != Some(pair) {
-                        let resolved = match locked_edge_lm.map().get(name).copied() {
-                            Some(existing) => existing,
-                            None => {
-                                let id_usize = *id as usize;
-                                locked_edge_lm.set_id(name, id_usize);
-                                locked_node_lm.set_id(name, id_usize);
-                                id_usize
-                            }
-                        };
-                        last_resolved_id = resolved;
-                        last_pair = Some(pair);
+                        // dont set anything if name_opt is None (goes in static graph layer)
+                        if let Some(name) = name_opt {
+                            locked_edge_lm.set_id(name, *id as usize);
+                            locked_node_lm.set_id(name, *id as usize);
+                        }
                     }
-                    res[row] = last_resolved_id;
+                    last_pair = Some(pair);
                 }
-                Ok(Cow::Owned(res))
+                Ok(Cow::Borrowed(bytemuck::cast_slice(layer_ids)))
             }
         }
     }

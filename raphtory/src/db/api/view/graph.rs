@@ -478,6 +478,8 @@ pub fn materialize_impl(
                     let node_t_props_refs =
                         node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
+                    // don't pass node layer ids because the graph may be filtered/windowed,
+                    // and any missing layer would introduce gaps in the layer mappers
                     load_nodes_from_df(
                         df_view,
                         TIME_COL,
@@ -492,7 +494,7 @@ pub fn materialize_impl(
                         true,
                         None,
                         Some(LAYER_COL),
-                        Some(LAYER_ID_COL),
+                        None,
                     )
                 }
                 RecordBatchKind::EdgesT => {

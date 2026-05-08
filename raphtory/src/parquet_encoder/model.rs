@@ -197,12 +197,7 @@ pub(crate) struct ParquetTNode<'a> {
     pub export_id: GID,
     pub export_vid: usize,
     pub export_node_type: Option<ArcStr>,
-    /// Layer name as stored in the source's `node_meta.layer_meta()`.
-    /// Always set (including STATIC_GRAPH_LAYER → "_static_graph") so the
-    /// loader's LAYER_ID_COL fast path (`set_id`) can mirror the source's
-    /// `(name, id)` assignment exactly without leaving any reverse-map slot
-    /// empty.
-    pub export_layer: ArcStr,
+    pub export_layer: Option<ArcStr>, // `None` for STATIC_GRAPH_LAYER
     pub export_layer_id: usize,
     pub cols: &'a [ArcStr],
     pub t: EventTime,
