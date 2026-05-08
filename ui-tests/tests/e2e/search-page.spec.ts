@@ -2,6 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import {
     fillInCondition,
     searchForEntity,
+    selectGraphInQueryBuilder,
     waitForLayoutToFinish,
 } from './utils';
 
@@ -34,7 +35,7 @@ async function searchAndPinNodes(page: Page, amount: number) {
         page.getByRole('button', { name: 'Open all items in a new graph' }),
     ).toBeVisible();
     const pinnedRows = page.getByRole('table').locator('tbody tr');
-    await expect(pinnedRows).toHaveCount(Math.min(5, amount));
+    await expect(pinnedRows).toHaveCount(Math.min(8, amount));
 }
 
 test('Search for a graph in the query builder, navigate direct connections table, check activity log and navigate to graph page', async ({
@@ -49,15 +50,15 @@ test('Search for a graph in the query builder, navigate direct connections table
     const selectedTab = page.getByRole('tab', { name: 'Selected' });
     await expect(selectedTab).toHaveAttribute('aria-selected', 'true');
     await rows.nth(2).click();
-    await page.locator('button[aria-label="next page"]').click();
+    await page.getByRole('button', { name: 'next page', exact: true }).click();
     await expect(page.getByText('Page 2 of 2')).toBeVisible();
-    await expect(page.getByRole('table').nth(2)).toBeVisible();
+    await expect(page.getByRole('table').nth(1)).toBeVisible();
     await expect(
-        page.getByRole('table').nth(2).locator('tbody tr'),
+        page.getByRole('table').nth(1).locator('tbody tr'),
     ).toHaveCount(1);
-    const activityLogTab = page.getByRole('tab', { name: 'Activity Log' });
-    await expect(activityLogTab).toBeVisible();
-    await activityLogTab.click();
+    const traceLogTab = page.getByRole('tab', { name: 'Trace Log' });
+    await expect(traceLogTab).toBeVisible();
+    await traceLogTab.click();
     await expect(page.getByText('Event')).toBeVisible();
     await expect(page.getByText('Timestamp')).toBeVisible();
     await rows.first().dblclick();
@@ -68,10 +69,8 @@ test('Search for a graph in the query builder, navigate direct connections table
 
 test('Clear search results in query builder', async ({ page }) => {
     await searchForEntity(page, { type: 'node', nodeType: 'Person' });
-    await page
-        .getByRole('button', { name: 'Clear', exact: true })
-        .first()
-        .click();
+    await page.getByRole('button', { name: 'Clear all', exact: true }).click();
+    await expect(page.getByText('Start Your Search')).toBeVisible();
     await page
         .getByRole('button', {
             name: 'Select a graph',
@@ -110,19 +109,25 @@ test('Pin and unpin a node with right hand side menu on search cards', async ({
             name: 'Unpin',
         })
         .click();
-    await expect(pinnedRows).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: 'Pinned' })).toBeHidden();
 });
 
 test('Unpin all nodes from pinned tab', async ({ page }) => {
     await searchAndPinNodes(page, 2);
+    await expect(page.getByRole('tab', { name: 'Pinned' })).toBeVisible();
     const unpinAllButton = page.getByRole('button', {
         name: 'Unpin all items',
         exact: true,
     });
     await expect(unpinAllButton).toBeVisible();
     await unpinAllButton.click();
-    const pinnedRows = page.getByRole('table').locator('tbody tr');
-    await expect(pinnedRows).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: 'Pinned' })).toBeHidden();
+    await expect(
+        page.getByRole('button', {
+            name: 'Unpin all items',
+            exact: true,
+        }),
+    ).toBeHidden();
 });
 
 test('View information in right hand side panel and open in graph view button in right click menu', async ({
@@ -138,8 +143,7 @@ test('View information in right hand side panel and open in graph view button in
             name: 'View information',
         })
         .click();
-    await page.getByRole('button', { name: 'Explorer' }).isVisible();
-    await page.getByRole('button', { name: 'Explorer' }).click();
+    await page.getByText('NETWORK').isVisible();
     await rows.first().click({ button: 'right' });
     const openInGraphButton = page.getByRole('menuitem', {
         name: 'Open in graph view',
@@ -178,10 +182,10 @@ test('pin and unpin via right hand side menu button', async ({ page }) => {
         .first()
         .click();
     await page.getByRole('tab', { name: 'Pinned' }).click();
-    await page.getByRole('button', { name: 'Pedro Age' }).click();
+    await rows.first().click();
     await page.getByRole('button', { name: 'select merge strategy' }).click();
     await page.getByRole('menuitem', { name: 'Unpin Node' }).click();
-    await expect(page.getByText('No pinned nodes.')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Pinned' })).toBeHidden();
 });
 
 test('Search for relationships in query builder', async ({ page }) => {
@@ -191,10 +195,12 @@ test('Search for relationships in query builder', async ({ page }) => {
         dst: 'Pedro',
         layers: ['meets', 'founds', 'transfers'],
     });
-    await page
-        .getByRole('button', { name: 'Ben - Pedro Layers: meets' })
-        .click();
-    await page.getByRole('button', { name: 'Edge Statistics' }).click();
+    await page.getByRole('button', { name: 'Ben - Pedro Edge meets' }).click();
+    await page.getByRole('button', { name: 'EDGE STATISTICS' }).click();
+    await page.waitForTimeout(100);
+    await expect(page.getByText('Madrid', { exact: true })).toBeVisible();
+    await expect(page.getByText('Layer Names')).toBeVisible();
+    await expect(page.getByText('meets', { exact: true }).last()).toBeVisible();
     await page.getByRole('button', { name: 'Open', exact: true }).click();
     await page.getByRole('link', { name: 'Ben' }).click();
     await page.waitForSelector('text=Overview');
@@ -205,19 +211,10 @@ test('Search for relationships in query builder', async ({ page }) => {
 
 test('Search for relationships in certain date range', async ({ page }) => {
     await page.goto('/search');
-    await page
-        .getByRole('button', {
-            name: 'Select a graph',
-        })
-        .click();
-    await page
-        .getByRole('row', { name: /^vanilla$/ })
-        .waitFor({ state: 'visible' });
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    await page
-        .getByRole('row', { name: /^event$/ })
-        .waitFor({ state: 'visible' });
-    await page.getByRole('row', { name: /^event$/ }).click();
+    await selectGraphInQueryBuilder(page, {
+        namespace: 'vanilla',
+        graphName: 'event',
+    });
     await page
         .getByRole('button', {
             name: 'Confirm',
@@ -242,16 +239,6 @@ test('Search for relationships in certain date range', async ({ page }) => {
         .getByRole('button', { name: 'calendar view is open, switch' })
         .click();
     await page.getByRole('radio', { name: '2023' }).click();
-    await page
-        .getByRole('button', {
-            name: 'Choose date, selected date is 1 Jan',
-        })
-        .or(
-            page.getByRole('textbox', {
-                name: 'Choose date, selected date is 1 Jan',
-            }),
-        )
-        .click();
     for (let i = 0; i < 10; i++) {
         await page.getByRole('button', { name: 'Next month' }).click();
     }
@@ -260,6 +247,14 @@ test('Search for relationships in certain date range', async ({ page }) => {
         .locator('button')
         .first()
         .click();
+    // Handle the narrower version of the date picker (which appears in tests
+    // sometimes for unknown reasons)
+    const okButtonVisible = await page
+        .getByRole('button', { name: 'OK' })
+        .isVisible();
+    if (okButtonVisible) {
+        await page.getByRole('button', { name: 'OK' }).click();
+    }
     await page.getByRole('combobox').filter({ hasText: 'Entity' }).click();
     await page.getByRole('option', { name: 'Relationship' }).click();
     await page.getByRole('textbox', { name: 'Source ID' }).click();
@@ -267,8 +262,9 @@ test('Search for relationships in certain date range', async ({ page }) => {
     await page.getByRole('textbox', { name: 'Destination ID' }).click();
     await page.getByRole('textbox', { name: 'Destination ID' }).fill('Pedro');
     await page.getByRole('button', { name: 'Search', exact: true }).click();
-    await page.getByRole('button', { name: 'Hamza - Pedro Layers:' }).click();
-    await page.getByRole('button', { name: 'Edge Statistics' }).click();
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Hamza - Pedro' }).click();
+    await page.getByRole('button', { name: 'EDGE STATISTICS' }).click();
     await expect(page.getByText('meets, transfers')).toBeVisible();
 });
 
@@ -289,14 +285,16 @@ test('Delete condition in query builder', async ({ page }) => {
     await searchForEntity(page, {
         type: 'node',
         nodeType: 'Company',
-        conditions: [{ name: 'ID', value: 'Pom' }],
+        conditions: [
+            {
+                name: 'ID',
+                value: 'Pom',
+                op: { current: 'Is', new: 'Contains' },
+            },
+        ],
     });
     await page.getByText('Nothing turned up!').isVisible();
-    await page
-        .locator(
-            '.MuiButtonBase-root.MuiIconButton-root.MuiIconButton-sizeMedium.css-g6vrc0-MuiButtonBase-root-MuiIconButton-root',
-        )
-        .click();
+    await page.getByLabel('Remove condition').click();
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await waitForLayoutToFinish(page);
     await expect(page.getByRole('table')).toBeVisible();
@@ -304,7 +302,6 @@ test('Delete condition in query builder', async ({ page }) => {
 });
 
 test('is, is not condition statements in query builder', async ({ page }) => {
-    test.setTimeout(60000);
     await searchForEntity(page, {
         type: 'node',
         nodeType: 'Person',
@@ -315,7 +312,7 @@ test('is, is not condition statements in query builder', async ({ page }) => {
     await expect(page.getByRole('table').locator('tbody tr')).toHaveCount(1);
 
     await fillInCondition(page, {
-        op: { current: 'Is', new: 'Is Not' },
+        op: { current: 'Is', new: 'Not' },
         value: 'Pedro',
     });
     await page.getByRole('button', { name: 'Search', exact: true }).click();
@@ -332,17 +329,51 @@ test('includes, excludes condition statements in query builder', async ({
         type: 'node',
         nodeType: 'Person',
         conditions: [
-            { name: 'ID', op: { current: 'Is', new: 'Includes' }, value: 'Pe' },
+            { name: 'ID', op: { current: 'Is', new: 'Contains' }, value: 'Pe' },
         ],
     });
     await waitForLayoutToFinish(page);
     await expect(page.getByRole('table').locator('tbody tr')).toHaveCount(1);
 
     await fillInCondition(page, {
-        op: { current: 'Includes', new: 'Excludes' },
+        op: { current: 'Contains', new: 'Excludes' },
         value: 'Pe',
     });
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await waitForLayoutToFinish(page);
     await expect(page.getByRole('table').locator('tbody tr')).toHaveCount(2);
+});
+
+test('Multiple condition rows can be added independently', async ({ page }) => {
+    await searchForEntity(page, { type: 'node', nodeType: 'Person' });
+
+    await fillInCondition(page, { name: 'age', value: '28' });
+    await fillInCondition(page, { name: 'ID', value: 'Pedro', blur: true });
+    await expect(page.getByPlaceholder('Value')).toHaveCount(2);
+
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.getByText('Start Your Search')).toBeHidden();
+
+    await expect(page.getByRole('table').locator('tbody tr')).toHaveCount(1);
+});
+
+test('Condition value shows dropdown for few variants and text field for many', async ({
+    page,
+}) => {
+    test.setTimeout(60000);
+    await searchForEntity(page, {
+        type: 'node',
+        nodeType: 'Person',
+        graph: 'variant_test',
+    });
+    await fillInCondition(page, { name: 'status' });
+    await page.getByRole('combobox').nth(3).click();
+    await page.getByRole('option', { name: 'active', exact: true }).click();
+    await page.getByRole('combobox').nth(3).click();
+    await page.getByRole('option', { name: 'inactive', exact: true }).click();
+    await page.getByRole('button', { name: 'Remove condition' }).click();
+    await fillInCondition(page, { name: 'code', value: 'A1' });
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.getByText('Start Your Search')).toBeHidden();
+    await expect(page.getByRole('table').locator('tbody tr')).toHaveCount(1);
 });
