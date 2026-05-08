@@ -601,6 +601,15 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
     }
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        _pos: LocalPOS,
+        _layer_id: LayerId,
+        _props: &[(usize, PR)],
+    ) -> Result<(), StorageError> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -6,9 +6,10 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
 use raphtory::{
-    db::api::storage::storage::{Extension, PersistenceStrategy},
+    db::api::storage::storage::read_constant_graph_properties,
+    errors::GraphError,
     prelude::{GraphViewOps, PropertiesOps},
-    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata},
+    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
 };
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
@@ -105,26 +106,39 @@ impl MetaGraph {
     }
 
     /// Returns the metadata of the graph.
+    ///
+    /// Reads metadata without forcing a full graph load: from the
+    /// in-memory cache if the graph is already loaded, otherwise directly
+    /// from disk (parquet metadata for parquet-backed graphs, the
+    /// `graph_props` segment for disk-backed graphs). This keeps
+    /// `MetaGraph.metadata` cheap for namespace listings of many graphs.
     async fn metadata(&self, ctx: &Context<'_>) -> Result<Vec<GqlProperty>> {
         let data: &Data = ctx.data_unchecked();
-        let maybe_cached = if Extension::disk_storage_enabled() {
-            let graph = data.get_graph(self.folder.local_path()).await?;
-            Some(graph)
-        } else {
-            data.get_cached_graph(self.folder.local_path()).await
-        };
-        let res = match maybe_cached {
-            None => decode_graph_metadata(self.folder.graph_folder())?
-                .into_iter()
-                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
-                .collect(),
-            Some(graph) => graph
+        if let Some(graph) = data.get_cached_graph(self.folder.local_path()).await {
+            return Ok(graph
                 .graph
                 .metadata()
                 .iter()
                 .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))
-                .collect(),
-        };
-        Ok(res)
+                .collect());
+        }
+
+        if self.meta().await?.is_diskgraph {
+            let graph_path = self
+                .folder
+                .graph_folder()
+                .graph_path()
+                .map_err(GraphError::from)?;
+            let pairs = read_constant_graph_properties(&graph_path).map_err(GraphError::from)?;
+            return Ok(pairs
+                .into_iter()
+                .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
+                .collect());
+        }
+
+        Ok(decode_graph_metadata(self.folder.graph_folder())?
+            .into_iter()
+            .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
+            .collect())
     }
 }

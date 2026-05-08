@@ -6,7 +6,11 @@ use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuar
 use raphtory_api::core::entities::{
     LayerId,
     edges::edge_ref::Dir,
-    properties::{meta::Meta, prop::Prop, tprop::TPropOps},
+    properties::{
+        meta::Meta,
+        prop::{AsPropRef, Prop},
+        tprop::TPropOps,
+    },
 };
 use raphtory_core::{
     entities::{EID, LayerIds, VID, edges::edge_ref::EdgeRef},
@@ -118,6 +122,13 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn immut_lsn(&self) -> LSN;
 
     fn flush(&self) -> Result<(), StorageError>;
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        edge_pos: LocalPOS,
+        layer_id: LayerId,
+        props: &[(usize, PR)],
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedESegment: Send + Sync + std::fmt::Debug {

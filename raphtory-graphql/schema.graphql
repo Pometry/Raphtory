@@ -2575,6 +2575,12 @@ type MetaGraph {
 	edgeCount: Int!
 	"""
 	Returns the metadata of the graph.
+	
+	Reads metadata without forcing a full graph load: from the
+	in-memory cache if the graph is already loaded, otherwise directly
+	from disk (parquet metadata for parquet-backed graphs, the
+	`graph_props` segment for disk-backed graphs). This keeps
+	`MetaGraph.metadata` cheap for namespace listings of many graphs.
 	"""
 	metadata: [Property!]!
 }
@@ -3060,6 +3066,11 @@ type MutableGraph {
 		"""
 		properties: [PropertyInput!]!
 	): Boolean!
+	"""
+	Persist any in-memory state for this graph to disk so other
+	processes attaching a read-only handle observe up-to-date data.
+	"""
+	flush: Boolean!
 }
 
 """
