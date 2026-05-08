@@ -612,9 +612,9 @@ pub fn materialize_impl(
 
         drop(rx);
 
-        let producer_result = producer_handle.join().unwrap_or_else(|_| {
+        let producer_result = producer_handle.join().unwrap_or_else(|err| {
             Err(GraphError::IOErrorMsg(
-                "record batch producer scope exited without reporting a result".to_string(),
+                format!("record batch producer scope exited without reporting a result: {}", err),
             ))
         });
 
