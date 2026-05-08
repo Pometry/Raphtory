@@ -6,7 +6,7 @@ use crate::{
                 ops::{FilterOps, GraphView},
                 Index,
             },
-            view::{internal::List, GraphViewOps},
+            view::internal::List,
         },
         graph::node::NodeView,
     },
@@ -26,7 +26,7 @@ use raphtory_core::entities::VID;
 use raphtory_storage::graph::nodes::nodes_ref::NodesStorageEntry;
 use rayon::prelude::*;
 
-fn get_nodes_par_iter<'a, G: GraphView>(
+pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
     g: &'a G,
     node_list: &'a List<VID>,
     nodes_locked: &'a NodesStorageEntry,
@@ -57,7 +57,7 @@ fn get_nodes_par_iter<'a, G: GraphView>(
         List::List {
             elems: Index::Partial(index),
         } => {
-            let chunk_size = index.len() / rayon::current_num_threads().max(1);
+            let chunk_size = (index.len() / rayon::current_num_threads().max(1)).max(1);
             let list_trusted = g.node_list_trusted();
             let iter = index
                 .par_iter()
