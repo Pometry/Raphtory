@@ -246,6 +246,10 @@ impl<T: HasRow> SegmentContainer<T> {
         self.properties.t_len()
     }
 
+    pub fn deletions_len(&self) -> usize {
+        self.properties.deletions_count()
+    }
+
     /// Reserves a local row for the given item position.
     /// If the item position already exists, it returns a mutable reference to the existing item.
     /// Left variant indicates that the item was already present,

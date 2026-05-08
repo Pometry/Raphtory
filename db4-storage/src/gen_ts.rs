@@ -1,11 +1,12 @@
 use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter3};
+use std::ops::Range;
+
 use raphtory_api::core::entities::LayerId;
 use raphtory_core::{
     entities::{ELID, LayerIds, layers::Multiple},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use raphtory_itertools::FastMergeExt;
-use std::ops::Range;
 
 #[derive(Clone, Debug)]
 pub enum LayerIter<'a> {
