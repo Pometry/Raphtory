@@ -172,14 +172,18 @@ impl<
         let node_meta = node_storage.prop_meta();
 
         // Load graph temporal properties and metadata.
-        let graph_prop_storage =
-            Arc::new(GraphPropStorageInner::load(graph_props_path, ext.clone())?);
+        let graph_prop_storage = Arc::new(GraphPropStorageInner::<GS, EXT>::load(
+            graph_props_path,
+            ext.clone(),
+        )?);
 
         for node_type in ext.config().node_types().iter() {
             node_meta.get_or_create_node_type_id(node_type);
         }
 
-        let t_len = edge_storage.num_updates() + node_storage.t_len();
+        let t_len = edge_storage.num_updates()
+            + node_storage.t_len()
+            + graph_prop_storage.segment().num_updates();
 
         Ok(Self {
             nodes: node_storage,

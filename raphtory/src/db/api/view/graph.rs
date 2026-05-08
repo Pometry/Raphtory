@@ -731,7 +731,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     #[inline]
     fn latest_time(&self) -> Option<EventTime> {
         if self.layer_ids().is_all() && !self.filtered() {
-            self.latest_time_global().map(EventTime::end)
+            let event_id = self.read_event_id();
+            self.latest_time_global()
+                .map(|t| EventTime::new(t, event_id))
         } else {
             self.properties()
                 .temporal()
