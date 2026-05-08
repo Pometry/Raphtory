@@ -1,4 +1,4 @@
-use raphtory_api::core::{entities::MAX_EID, storage::arc_str::ArcStr};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::fmt::Debug;
 use thiserror::Error;
 

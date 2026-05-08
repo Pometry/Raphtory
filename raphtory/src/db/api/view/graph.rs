@@ -42,19 +42,15 @@ use ahash::HashSet;
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::meta::{Meta, PropMapper},
     storage::{arc_str::ArcStr, timeindex::EventTime},
     Direction,
 };
 use raphtory_core::utils::iter::GenLockedIter;
-use raphtory_storage::{
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
-        nodes::node_storage_ops::NodeStorageOps,
-    },
-    mutation::addition_ops::SessionAdditionOps,
+use raphtory_storage::graph::{
+    edges::edge_storage_ops::EdgeStorageOps, graph::GraphStorage,
+    nodes::node_storage_ops::NodeStorageOps,
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;

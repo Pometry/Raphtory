@@ -7,7 +7,7 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use numpy::{
     datetime::{units::Milliseconds as NumpyMs, Datetime as NumpyDateTime},
-    IntoPyArray, PyArray as NumpyArray,
+    PyArray as NumpyArray,
 };
 use pyo3::{
     exceptions::PyTypeError,

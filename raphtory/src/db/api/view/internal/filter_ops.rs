@@ -1,8 +1,4 @@
-use crate::db::api::view::internal::{
-    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView, InternalEdgeFilterOps,
-    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
-    NodeTimeSemanticsOps,
-};
+use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
 use either::Either;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
@@ -12,13 +8,9 @@ use raphtory_api::core::{
     entities::{LayerId, LayerIds, ELID},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
-    layer_ops::InternalLayerOps,
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 
 #[derive(Debug)]

@@ -20,7 +20,7 @@ use raphtory_api::core::{
 use raphtory_core::{
     entities::{
         nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, MAX_EID, VID,
+        GidRef, EID, VID,
     },
     storage::timeindex::EventTime,
 };

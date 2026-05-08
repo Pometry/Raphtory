@@ -1,6 +1,7 @@
 use raphtory_api::core::storage::dict_mapper::DictMapper;
 use std::sync::Arc;
 
+#[cfg(any(test, feature = "test-utils"))]
 pub mod assertions;
 pub mod edge;
 pub mod edges;

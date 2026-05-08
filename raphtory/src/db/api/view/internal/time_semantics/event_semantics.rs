@@ -9,7 +9,6 @@ use crate::db::api::{
     },
 };
 use either::Either;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
