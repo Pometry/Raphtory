@@ -1,8 +1,8 @@
 import eslint from '@eslint/js';
 import { globalIgnores } from 'eslint/config';
-import importPlugin from 'eslint-plugin-import';
+import { flatConfigs as importFlatConfigs } from 'eslint-plugin-import-x';
 import react from 'eslint-plugin-react';
-import reactRefresh from 'eslint-plugin-react-refresh';
+import reactRefreshPlugin from 'eslint-plugin-react-refresh';
 import unusedImports from 'eslint-plugin-unused-imports';
 import globals from 'globals';
 import tseslint, { configs as tsEslintConfigs } from 'typescript-eslint';
@@ -23,8 +23,8 @@ export default tseslint.config(
             },
 
             extends: [
-                importPlugin.flatConfigs.recommended,
-                importPlugin.flatConfigs.typescript,
+                importFlatConfigs.recommended,
+                importFlatConfigs.typescript,
             ],
             //     fixupConfigRules(
             //     compat.extends(
@@ -40,7 +40,7 @@ export default tseslint.config(
 
             settings: {
                 // typescript: true,
-                'import/resolver': {
+                'import-x/resolver': {
                     typescript: true,
                     node: true,
                 },
@@ -51,14 +51,14 @@ export default tseslint.config(
 
             plugins: {
                 react,
-                'react-refresh': reactRefresh,
+                'react-refresh': reactRefreshPlugin,
                 'unused-imports': unusedImports,
             },
 
             rules: {
                 'react-refresh/only-export-components': 'warn',
-                'import/no-empty-named-blocks': 'error',
-                'import/order': [
+                'import-x/no-empty-named-blocks': 'error',
+                'import-x/order': [
                     'error',
                     {
                         groups: [
@@ -101,13 +101,13 @@ export default tseslint.config(
                         argsIgnorePattern: '^_',
                     },
                 ],
-                'import/no-duplicates': [
+                'import-x/no-duplicates': [
                     'error',
                     {
                         considerQueryString: true,
                     },
                 ],
-                'import/no-unresolved': [
+                'import-x/no-unresolved': [
                     'error',
                     {
                         ignore: ['^~icons/'],
