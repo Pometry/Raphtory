@@ -142,7 +142,7 @@ from raphtory import Graph
 import pandas as pd
 
 monkey_edges_df = pd.read_csv(
-    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0], dayfirst=True,
 )
 monkey_edges_df["DateTime"] = pd.to_datetime(monkey_edges_df["DateTime"])
 monkey_edges_df.dropna(axis=0, inplace=True)
@@ -176,8 +176,8 @@ print(df)
 ///
 
 ```{.python continuation hide}
-assert str(grunting_graph) == "Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1562253540000, event_id=2531))"
-assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1561042620000, event_id=871), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=EventTime(timestamp=1560526320000, event_id=366), latest_time=EventTime(timestamp=1562253540000, event_id=2531), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))"
+assert str(grunting_graph) == "Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=EventTime(t=1560526320000, dt=2019-06-14T15:32:00+00:00, event_id=365), latest_time=EventTime(t=1562253540000, dt=2019-07-04T15:19:00+00:00, event_id=2531))"
+assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=EventTime(t=1560526320000, dt=2019-06-14T15:32:00+00:00, event_id=365), latest_time=EventTime(t=1561042620000, dt=2019-06-20T14:57:00+00:00, event_id=871), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=EventTime(t=1560526320000, dt=2019-06-14T15:32:00+00:00, event_id=366), latest_time=EventTime(t=1562253540000, dt=2019-07-04T15:19:00+00:00, event_id=2531), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))"
 ```
 
 !!! Output
@@ -235,8 +235,8 @@ assert str(grunting_graph.edges) == "Edges(Edge(source=ANGELE, target=FELIPE, ea
     13                                    [1560526320000]  
     14                                    [1561110180000]  
 
-    Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1562253540000, event_id=2531))
-    Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=EventTime(timestamp=1560526320000, event_id=365), latest_time=EventTime(timestamp=1561042620000, event_id=871), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=EventTime(timestamp=1560526320000, event_id=366), latest_time=EventTime(timestamp=1562253540000, event_id=2531), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))
+    Graph(number_of_nodes=2, number_of_edges=2, number_of_temporal_edges=6, earliest_time=EventTime(t=1560526320000, dt=2019-06-14T15:32:00+00:00, event_id=365), latest_time=EventTime(t=1562253540000, dt=2019-07-04T15:19:00+00:00, event_id=2531))
+    Edges(Edge(source=ANGELE, target=FELIPE, earliest_time=EventTime(t=1560526320000, dt=2019-06-14T15:32:00+00:00, event_id=365), latest_time=EventTime(t=1561042620000, dt=2019-06-20T14:57:00+00:00, event_id=871), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]), Edge(source=FELIPE, target=ANGELE, earliest_time=EventTime(t=1560526320000, dt=2019-06-14T15:32:00+00:00, event_id=366), latest_time=EventTime(t=1562253540000, dt=2019-07-04T15:19:00+00:00, event_id=2531), properties={Weight: 1}, layer(s)=[Grunting-Lipsmacking]))
     Exploding the grunting-Lipsmacking layer
         src     dst                 layer  \
     0  ANGELE  FELIPE  Grunting-Lipsmacking   

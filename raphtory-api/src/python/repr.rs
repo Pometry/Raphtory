@@ -246,7 +246,7 @@ impl Repr for BigDecimal {
 
 impl<T: TimeZone> Repr for DateTime<T> {
     fn repr(&self) -> String {
-        self.to_rfc2822()
+        self.to_rfc3339()
     }
 }
 
