@@ -178,13 +178,12 @@ impl QueryRoot {
         graph_type: Option<GqlGraphType>,
     ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        // Permission denial → Ok(None): indistinguishable from "graph not found" for the caller.
-        let (folder, graph) = match data
+        // Ok(None) = permission denied (hides existence/access level); Err = load failed.
+        let Some((folder, graph)) = data
             .get_graph_with_read_permission(ctx, path, graph_type)
-            .await
-        {
-            Ok(x) => x,
-            Err(_) => return Ok(None),
+            .await?
+        else {
+            return Ok(None);
         };
         Ok(Some(GqlGraph::new(folder, graph)))
     }
@@ -326,9 +325,7 @@ impl QueryRoot {
         #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let (_, graph) = data
-            .get_graph_with_read_permission(ctx, &path, None)
-            .await?;
+        let (_, graph) = data.get_graph_requiring_read(ctx, &path, None).await?;
         let materialized = blocking_compute(move || graph.materialize())
             .await
             .map_err(|e| async_graphql::Error::new(e.to_string()))?;
@@ -513,7 +510,7 @@ impl Mut {
         require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
         let (_, parent_graph) = data
-            .get_graph_with_read_permission(ctx, parent_path, None)
+            .get_graph_requiring_read(ctx, parent_path, None)
             .await?;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {

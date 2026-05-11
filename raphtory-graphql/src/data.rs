@@ -579,15 +579,13 @@ async fn apply_access_filter(
 // ---------------------------------------------------------------------------
 
 impl Data {
-    /// Loads a graph and applies row filter + property redaction from the caller's access
-    /// permission. Returns the graph folder (for metadata) and the filtered `DynamicGraph`.
-    pub(crate) async fn get_graph_with_read_permission(
+    /// Loads and filters the graph using an already-verified permission. Private shared core.
+    async fn load_and_filter(
         &self,
-        ctx: &Context<'_>,
         path: &str,
+        perm: GraphPermission,
         graph_type: Option<GqlGraphType>,
     ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
-        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
         let gwv = self.get_graph(path).await?;
         let typed_graph = match graph_type {
             Some(GqlGraphType::Event) => match gwv.graph {
@@ -614,6 +612,34 @@ impl Data {
             raw
         };
         Ok((gwv.folder, graph))
+    }
+
+    /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
+    /// existence and access level). Load failure → `Err` (graph was deleted, etc.).
+    pub(crate) async fn get_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<Option<(ExistingGraphFolder, DynamicGraph)>> {
+        match require_at_least_read(ctx, &self.auth_policy, path) {
+            Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Err(_) => Ok(None),
+        }
+    }
+
+    /// For resolvers that must surface the specific denial reason (`receive_graph`,
+    /// `create_subgraph`). A caller with no namespace visibility gets "does not exist"
+    /// (hides graph existence). A caller who can already see the graph in listings gets
+    /// "Access denied" (they already know it's there; now they know they need READ).
+    pub(crate) async fn get_graph_requiring_read(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        self.load_and_filter(path, perm, graph_type).await
     }
 
     /// Checks read permission then returns the raw `GraphWithVectors` (unfiltered).
