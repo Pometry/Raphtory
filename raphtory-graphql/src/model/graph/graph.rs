@@ -692,7 +692,10 @@ impl GqlGraph {
         #[graphql(desc = "Destination graph path relative to the root namespace.")] path: String,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref()).await?.graph;
+        let other_g = data
+            .get_graph_with_write_permission(ctx, path.as_ref())
+            .await?
+            .graph;
         let g = self.graph.clone();
         blocking_compute(move || {
             other_g.import_nodes(g.nodes(), true)?;

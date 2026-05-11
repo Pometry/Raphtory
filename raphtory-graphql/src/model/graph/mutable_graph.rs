@@ -904,7 +904,7 @@ mod tests {
         .await
         .unwrap();
 
-        let graph_with_vectors = data.get_graph(graph_name).await.unwrap();
+        let graph_with_vectors = data.get_graph_for_test(graph_name).await.unwrap();
         let mutable_graph = GqlMutableGraph::from(graph_with_vectors);
 
         (mutable_graph, data, tmp_dir, embedding_server)
