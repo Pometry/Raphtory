@@ -13,7 +13,19 @@ use std::{
 };
 
 #[derive(
-    Debug, Copy, Clone, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize, Pod, Zeroable,
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Serialize,
+    Deserialize,
+    Pod,
+    Zeroable,
 )]
 #[repr(transparent)]
 pub struct LayerId(pub usize);

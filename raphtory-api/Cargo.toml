@@ -44,6 +44,7 @@ itertools = { workspace = true }
 iter-enum = { workspace = true }
 minijinja = { workspace = true, optional = true }
 display-error-chain = { workspace = true, optional = true }
+indexmap.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

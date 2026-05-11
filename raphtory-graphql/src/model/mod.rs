@@ -1,6 +1,6 @@
 use crate::{
     auth::{AuthError, ContextValidation},
-    auth_policy::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission},
+    auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission},
     data::Data,
     model::{
         graph::{
@@ -36,7 +36,7 @@ use raphtory::{
             storage::storage::{Extension, PersistenceStrategy},
             view::{DynamicGraph, Filter, IntoDynamic, MaterializedGraph},
         },
-        graph::views::{deletion_graph::PersistentGraph, filter::model::NodeViewFilterOps},
+        graph::views::deletion_graph::PersistentGraph,
     },
     errors::{GraphError, GraphResult},
     prelude::*,

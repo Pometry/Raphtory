@@ -20,12 +20,6 @@ use raphtory_api::{
 use raphtory_core::utils::iter::GenLockedIter;
 use std::sync::Arc;
 
-impl Repr for EventTime {
-    fn repr(&self) -> String {
-        self.to_string()
-    }
-}
-
 /// History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, event ids, and intervals.
 #[pyclass(name = "History", module = "raphtory", frozen)]
 #[derive(Clone)]

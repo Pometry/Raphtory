@@ -84,18 +84,18 @@ print(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}")
 ///
 
 ```{.python continuation hide}
-assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))"
+assert str(f"Before time 6: {G.before(6).nodes} {G.before(6).edges.explode()}") == "Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1), layer(s)=[_default]))"
 ```
 
 !!! Output
 
-    ```output
-    Before time 1: Nodes() Edges()
-    Before time 2: Nodes() Edges()
-    Before time 3: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=3, event_id=0), layer(s)=[_default]))
-    Before time 5: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=2, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=0), layer(s)=[_default]))
-    Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1)), Node(name=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(timestamp=2, event_id=0), latest_time=EventTime(timestamp=5, event_id=1), layer(s)=[_default]))
-    ```
+```output
+Before time 1: Nodes() Edges()
+Before time 2: Nodes() Edges()
+Before time 3: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=3, dt=1970-01-01T00:00:00.003+00:00, event_id=0), layer(s)=[_default]))
+Before time 5: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=0), layer(s)=[_default]))
+Before time 6: Nodes(Node(name=Alice, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1)), Node(name=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1))) Edges(Edge(source=Alice, target=Bob, earliest_time=EventTime(t=2, dt=1970-01-01T00:00:00.002+00:00, event_id=0), latest_time=EventTime(t=5, dt=1970-01-01T00:00:00.005+00:00, event_id=1), layer(s)=[_default]))
+```
 
 Here we see that the `before(T)` bound is exclusive of the end point \\(T\\), creating an intersection between the time interval \\(-\infty < t < T\\) and \\(2 \leq t < 5\\) where \\(T\\) is the argument of `before`.
 

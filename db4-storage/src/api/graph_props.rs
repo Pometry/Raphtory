@@ -29,6 +29,8 @@ where
 
     fn entry(&self) -> Self::Entry<'_>;
 
+    fn num_updates(&self) -> usize;
+
     fn increment_est_size(&self, size: usize);
 
     fn est_size(&self) -> usize;

@@ -1,8 +1,4 @@
-use crate::db::api::view::internal::{
-    EdgeTimeSemanticsOps, GraphTimeSemanticsOps, GraphView, InternalEdgeFilterOps,
-    InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps, InternalNodeFilterOps,
-    NodeTimeSemanticsOps,
-};
+use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
 use either::Either;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
@@ -12,13 +8,9 @@ use raphtory_api::core::{
     entities::{LayerId, LayerIds, ELID},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
-    layer_ops::InternalLayerOps,
+use raphtory_storage::graph::{
+    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 
 #[derive(Debug)]
@@ -52,7 +44,7 @@ pub trait FilterOps {
     fn node_and_edge_filters_independent(&self) -> bool;
 
     fn filtered(&self) -> bool;
-    #[inline]
+
     fn filtered_excluding_layers(&self) -> bool;
 
     fn node_list_trusted(&self) -> bool;
@@ -120,7 +112,7 @@ impl<G: GraphView> InnerFilterOps for G {
         self.layer_ids().contains(&eid.layer())
             && self.internal_filter_exploded_edge(eid, t, self.layer_ids())
             && (self.exploded_filter_independent() || {
-                let edge = self.core_edge(Either::Left(eid.edge));
+                let edge = self.core_edge(Either::Left(eid.eid()));
                 (self.exploded_edge_filter_includes_edge_layer_filter()
                     || self.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
                     && (self.exploded_edge_filter_includes_edge_filter()

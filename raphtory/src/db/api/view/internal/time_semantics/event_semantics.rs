@@ -9,7 +9,6 @@ use crate::db::api::{
     },
 };
 use either::Either;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
@@ -391,7 +390,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view.layer_ids().contains(&eid.layer())
             && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
             && (view.exploded_filter_independent() || {
-                let edge = view.core_edge(Either::Left(eid.edge));
+                let edge = view.core_edge(Either::Left(eid.eid()));
                 (view.exploded_edge_filter_includes_edge_layer_filter()
                     || view.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
                     && (view.exploded_edge_filter_includes_edge_filter()
