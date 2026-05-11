@@ -334,7 +334,6 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
     ) -> impl Iterator<Item = LayerId> + 'a {
         self.layer_ids_iter(layer_ids)
             .filter(move |layer_id| view.internal_filter_edge_layer(self, *layer_id))
-            .map(|layer_id| layer_id)
     }
 
     fn filtered_additions_iter<G: GraphView + 'a>(
