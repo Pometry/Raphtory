@@ -6672,6 +6672,9 @@ class OptionalEventTime(object):
     def __ne__(self, value):
         """Return self!=value."""
 
+    def __repr__(self):
+        """Return repr(self)."""
+
     @property
     def as_tuple(self) -> Optional[tuple[int, int]]:
         """
