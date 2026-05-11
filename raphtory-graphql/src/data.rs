@@ -17,18 +17,14 @@ use raphtory::{
     errors::GraphError,
     serialise::GraphPaths,
     vectors::{
-        cache::{CachedEmbeddingModel, VectorCache},
-        storage::LazyDiskVectorCache,
-        template::DocumentTemplate,
-        vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
-    collections::HashMap,
     fs, io,
     io::{Read, Seek},
-    ops::{Deref, DerefMut},
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -254,6 +250,13 @@ impl Data {
         self.cache
             .insert(graph.folder.local_path().into(), graph)
             .await;
+        // moka's `insert(..).await` is eventually consistent — the entry is
+        // queued and may not be visible to `cache.get(..)` immediately. Force
+        // the pending insert through so a follow-up `MetaGraph.metadata`
+        // hitting the listing path sees the cached graph instead of falling
+        // through to `read_constant_graph_properties`, which would read the
+        // on-disk graph_props before the writer has flushed them.
+        self.cache.run_pending_tasks().await;
         Ok(())
     }
 

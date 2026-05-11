@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap};
+use std::collections::HashMap;
 
 use crate::algo_tests::assert_eq_hashmaps_approx;
 use itertools::Itertools;

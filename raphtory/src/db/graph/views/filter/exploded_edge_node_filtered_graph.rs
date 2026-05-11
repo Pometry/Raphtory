@@ -13,6 +13,7 @@ use crate::db::{
     },
     graph::views::filter::model::edge_filter::Endpoint,
 };
+use either::Either;
 use raphtory_api::{
     core::{
         entities::{LayerIds, ELID},
@@ -102,7 +103,7 @@ impl<G: GraphView, F: NodeFilterOp> InternalExplodedEdgeFilterOps
             return false;
         }
 
-        let edge = self.graph.core_edge(eid.edge);
+        let edge = self.graph.core_edge(Either::Left(eid.edge));
 
         let vid = match self.endpoint {
             Endpoint::Src => edge.src(),

@@ -85,6 +85,14 @@ impl<'a, TS: TimeIndexOps<'a, IndexType = EventTime, RangeType = TS>, G: GraphVi
         }
     }
 
+    fn last(&self) -> Option<Self::IndexType> {
+        if self.view.internal_exploded_edge_filtered() {
+            self.clone().iter_rev().next()
+        } else {
+            self.time_index.last()
+        }
+    }
+
     fn iter_rev(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
         if self.view.internal_exploded_edge_filtered() {
             let view = self.view.clone();
@@ -464,16 +472,14 @@ impl FilteredEdgesStorageOps for EdgesStorage {
         let par_iter = self.par_iter(layer_ids);
         match view.filter_state() {
             FilterState::Neither => FilterVariants::Neither(par_iter),
-            FilterState::Both => FilterVariants::Both(par_iter.filter(move |&e| {
-                view.filter_edge(e)
-                    && view.filter_node(view.core_node(e.src()).as_ref())
-                    && view.filter_node(view.core_node(e.dst()).as_ref())
-            })),
+            FilterState::Both => {
+                FilterVariants::Both(par_iter.filter(move |&e| view.filter_edge(e)))
+            }
             FilterState::Nodes => FilterVariants::Nodes(par_iter.filter(move |&e| {
-                view.filter_node(view.core_node(e.src()).as_ref())
-                    && view.filter_node(view.core_node(e.dst()).as_ref())
+                view.internal_filter_node(view.core_node(e.src()).as_ref(), layer_ids)
+                    && view.internal_filter_node(view.core_node(e.dst()).as_ref(), layer_ids)
             })),
-            FilterState::Edges | FilterState::BothIndependent => {
+            FilterState::Edges | FilterState::BothIndependent | FilterState::Window => {
                 FilterVariants::Edges(par_iter.filter(move |&e| view.filter_edge(e)))
             }
         }

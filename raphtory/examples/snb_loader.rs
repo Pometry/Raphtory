@@ -1,9 +1,6 @@
 #[cfg(feature = "io")]
-use raphtory::io::{
-    arrow::df_loaders::edges::ColumnNames,
-    parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet},
-};
-use raphtory::{errors::GraphError, prelude::*};
+use raphtory::io::parquet_loaders::{load_edges_from_parquet, load_nodes_from_parquet};
+use raphtory::{arrow_loader::df_loaders::edges::ColumnNames, errors::GraphError, prelude::*};
 use std::path::{Path, PathBuf};
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.

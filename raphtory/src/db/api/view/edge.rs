@@ -20,6 +20,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, LayerOps, NodeViewOps, TimeOps},
 };
+use either::Either;
 use ouroboros::self_referencing;
 use raphtory_api::{
     core::{
@@ -64,7 +65,7 @@ fn exploded<'graph, G: GraphView + 'graph>(
     let time_semantics = view.edge_time_semantics();
     ExplodedIterBuilder {
         graph: view,
-        edge_builder: |view| view.core_edge(edge_ref.pid()),
+        edge_builder: |view| view.core_edge(Either::Right(edge_ref)),
         iter_builder: move |edge, graph| {
             time_semantics
                 .edge_exploded(edge.as_ref(), graph, graph.layer_ids())
@@ -84,7 +85,7 @@ fn exploded_layers<'graph, G: GraphView + 'graph>(
     let time_semantics = view.edge_time_semantics();
     ExplodedIterBuilder {
         graph: view,
-        edge_builder: |view| view.core_edge(edge_ref.pid()),
+        edge_builder: |view| view.core_edge(Either::Right(edge_ref)),
         iter_builder: move |edge, graph| {
             time_semantics
                 .edge_layers(edge.as_ref(), graph, graph.layer_ids())
@@ -263,7 +264,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
-                let edge = g.core_edge(e.pid());
+                let edge = g.core_edge(Either::Right(e));
                 match e.time() {
                     None => match e.layer() {
                         None => time_semantics.edge_is_valid(edge.as_ref(), g),
@@ -289,7 +290,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
         self.map(|g, e| {
             if edge_valid_layer(g, e) {
                 let time_semantics = g.edge_time_semantics();
-                let edge = g.core_edge(e.pid());
+                let edge = g.core_edge(Either::Right(e));
                 match e.time() {
                     None => match e.layer() {
                         None => time_semantics.edge_is_deleted(edge.as_ref(), g),
@@ -360,7 +361,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
     fn is_active(&self) -> Self::ValueType<bool> {
         self.map(move |g, e| {
             if edge_valid_layer(g, e) {
-                let edge = g.core_edge(e.pid());
+                let edge = g.core_edge(Either::Right(e));
                 let time_semantics = g.edge_time_semantics();
                 match e.time() {
                     None => match e.layer() {
@@ -432,15 +433,16 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 let time_semantics = g.edge_time_semantics();
                 match e.time() {
                     None => match e.layer() {
-                        None => time_semantics.edge_earliest_time(g.core_edge(e.pid()).as_ref(), g),
+                        None => time_semantics
+                            .edge_earliest_time(g.core_edge(Either::Right(e)).as_ref(), g),
                         Some(layer) => time_semantics.edge_earliest_time(
-                            g.core_edge(e.pid()).as_ref(),
+                            g.core_edge(Either::Right(e)).as_ref(),
                             LayeredGraph::new(g, LayerIds::One(layer)),
                         ),
                     },
 
                     Some(t) => time_semantics.edge_exploded_earliest_time(
-                        g.core_edge(e.pid()).as_ref(),
+                        g.core_edge(Either::Right(e)).as_ref(),
                         g,
                         t,
                         e.layer().expect("exploded edge should have layer"),
@@ -459,15 +461,16 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                 let time_semantics = g.edge_time_semantics();
                 match e.time() {
                     None => match e.layer() {
-                        None => time_semantics.edge_latest_time(g.core_edge(e.pid()).as_ref(), g),
+                        None => time_semantics
+                            .edge_latest_time(g.core_edge(Either::Right(e)).as_ref(), g),
 
                         Some(layer) => time_semantics.edge_latest_time(
-                            g.core_edge(e.pid()).as_ref(),
+                            g.core_edge(Either::Right(e)).as_ref(),
                             LayeredGraph::new(g, LayerIds::One(layer)),
                         ),
                     },
                     Some(t) => time_semantics.edge_exploded_latest_time(
-                        g.core_edge(e.pid()).as_ref(),
+                        g.core_edge(Either::Right(e)).as_ref(),
                         g,
                         t,
                         e.layer().expect("exploded edge should have layer"),
@@ -507,7 +510,7 @@ impl<'graph, E: BaseEdgeViewOps<'graph>> EdgeViewOps<'graph> for E {
                     None => {
                         let time_semantics = g.edge_time_semantics();
                         time_semantics
-                            .edge_layers(g.core_edge(e.pid()).as_ref(), g, g.layer_ids())
+                            .edge_layers(g.core_edge(Either::Right(e)).as_ref(), g, g.layer_ids())
                             .map(|layer| layer_names[layer.0].clone())
                             .collect()
                     }

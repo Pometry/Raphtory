@@ -5,10 +5,15 @@ use crate::{
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::entities::{
     LayerId,
-    properties::{meta::Meta, prop::Prop, tprop::TPropOps},
+    edges::edge_ref::Dir,
+    properties::{
+        meta::Meta,
+        prop::{AsPropRef, Prop},
+        tprop::TPropOps,
+    },
 };
 use raphtory_core::{
-    entities::{EID, LayerIds, VID},
+    entities::{EID, LayerIds, VID, edges::edge_ref::EdgeRef},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use rayon::iter::ParallelIterator;
@@ -32,7 +37,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
 
-    fn t_len(&self) -> usize;
+    fn t_len(&self, layer_id: usize) -> usize;
     fn num_layers(&self) -> usize;
     // Persistent layer count, not used for up-to-date counts
     fn layer_count(&self, layer_id: LayerId) -> u32;
@@ -97,7 +102,7 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
-    fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a>;
+    fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a>;
 
     fn layer_entry<'a>(
         &'a self,
@@ -117,6 +122,13 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn immut_lsn(&self) -> LSN;
 
     fn flush(&self) -> Result<(), StorageError>;
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        edge_pos: LocalPOS,
+        layer_id: LayerId,
+        props: &[(usize, PR)],
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedESegment: Send + Sync + std::fmt::Debug {
@@ -124,7 +136,11 @@ pub trait LockedESegment: Send + Sync + std::fmt::Debug {
     where
         Self: 'a;
 
-    fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>
+    fn entry_ref<'a>(
+        &'a self,
+        edge_pos: impl Into<LocalPOS>,
+        edge_ref: Option<EdgeRef>,
+    ) -> Self::EntryRef<'a>
     where
         Self: 'a;
 
@@ -157,11 +173,7 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     type Deletions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
-    fn edge(self, layer_id: LayerId) -> Option<(VID, VID)>;
-
-    fn has_layer_inner(self, layer_id: LayerId) -> bool {
-        self.edge(layer_id).is_some()
-    }
+    fn has_layer_inner(self, layer_id: LayerId) -> bool;
 
     fn internal_num_layers(self) -> usize;
 
@@ -177,4 +189,5 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     fn dst(&self) -> Option<VID>;
 
     fn edge_id(&self) -> EID;
+    fn edge_ref(self, dir: Dir) -> Option<EdgeRef>;
 }

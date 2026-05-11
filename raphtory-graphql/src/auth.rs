@@ -8,7 +8,7 @@ use async_graphql::{
 };
 use async_graphql_poem::{GraphQLBatchRequest, GraphQLBatchResponse, GraphQLRequest};
 use futures_util::StreamExt;
-use jsonwebtoken::{decode, Algorithm, Validation};
+use jsonwebtoken::{decode, Validation};
 use poem::{
     error::{BadRequest, TooManyRequests, Unauthorized},
     Body, Endpoint, FromRequest, IntoResponse, Request, Response, Result,

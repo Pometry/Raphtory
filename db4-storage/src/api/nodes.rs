@@ -5,7 +5,7 @@ use raphtory_api::{
         Direction,
         entities::properties::{
             meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
-            prop::{Prop, PropUnwrap},
+            prop::{AsPropRef, Prop, PropUnwrap},
             tprop::TPropOps,
         },
     },
@@ -137,6 +137,13 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     fn num_layers(&self) -> usize;
 
     fn layer_count(&self, layer_id: LayerId) -> u32;
+
+    fn check_metadata_immut<P: AsPropRef>(
+        &self,
+        pos: LocalPOS,
+        layer_id: LayerId,
+        props: &[(usize, P)],
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedNSSegment: Debug + Send + Sync {

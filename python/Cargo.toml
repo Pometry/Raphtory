@@ -39,5 +39,5 @@ proto = ["raphtory/proto"]
 [build-dependencies]
 pyo3-build-config = { workspace = true }
 
-#[target.'cfg(not(target_env = "msvc"))'.dependencies]
-#tikv-jemallocator.workspace = true
+[target.'cfg(target_os = "macos")'.dependencies]
+tikv-jemallocator.workspace = true

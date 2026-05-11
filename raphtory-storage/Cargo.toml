@@ -18,6 +18,7 @@ raphtory-api-macros = { workspace = true }
 raphtory-core = { workspace = true }
 storage.workspace = true
 db4-graph.workspace = true
+either.workspace = true
 parking_lot.workspace = true
 rayon = { workspace = true }
 iter-enum = { workspace = true }

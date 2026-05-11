@@ -26,6 +26,7 @@ use crate::{
     prelude::*,
 };
 use chrono::{DateTime, Utc};
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::{
     core::{entities::LayerIds, storage::timeindex::TimeError},
@@ -529,7 +530,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                 Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
-                    let edge = g.core_edge(e.pid());
+                    let edge = g.core_edge(either::Either::Right(e));
                     match e.layer() {
                         None => GenLockedIter::from(edge, move |edge| {
                             time_semantics
@@ -564,7 +565,7 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                 Some(t) => iter::once(t).into_dyn_boxed(),
                 None => {
                     let time_semantics = g.edge_time_semantics();
-                    let edge = g.core_edge(e.pid());
+                    let edge = g.core_edge(Either::Right(e));
                     match e.layer() {
                         None => GenLockedIter::from(edge, move |edge| {
                             time_semantics
@@ -608,9 +609,9 @@ impl<G: BoxableGraphView + Clone> InternalHistoryOps for EdgeView<G> {
                 None => match e.layer() {
                     None => g
                         .edge_time_semantics()
-                        .edge_exploded_count(g.core_edge(e.pid()).as_ref(), g),
+                        .edge_exploded_count(g.core_edge(Either::Right(e)).as_ref(), g),
                     Some(layer) => g.edge_time_semantics().edge_exploded_count(
-                        g.core_edge(e.pid()).as_ref(),
+                        g.core_edge(Either::Right(e)).as_ref(),
                         LayeredGraph::new(g, LayerIds::One(layer)),
                     ),
                 },
@@ -1123,7 +1124,7 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(e.pid());
+            let edge = g.core_edge(Either::Right(e));
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");
@@ -1166,7 +1167,7 @@ impl<G: BoxableGraphView + Clone> InternalDeletionOps for EdgeView<G> {
         let e = self.edge;
         if edge_valid_layer(g, e) {
             let time_semantics = g.edge_time_semantics();
-            let edge = g.core_edge(e.pid());
+            let edge = g.core_edge(Either::Right(e));
             match e.time() {
                 Some(t) => {
                     let layer = e.layer().expect("exploded edge should have layer");

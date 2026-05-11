@@ -76,6 +76,13 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
         matches!(self, List::All)
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            List::All => false,
+            List::List { elems } => elems.is_empty(),
+        }
+    }
+
     pub fn empty() -> Self {
         List::List {
             elems: Index::default(),

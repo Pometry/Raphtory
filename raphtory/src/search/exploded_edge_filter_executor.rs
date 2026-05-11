@@ -25,6 +25,7 @@ use crate::{
         query_builder::QueryBuilder,
     },
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{LayerId, EID},
@@ -343,7 +344,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
             .filter_map(|(tie, eid, layer_id)| {
                 if filtered_graph.filter_exploded_edge(eid.with_layer(LayerId(layer_id)), tie) {
                     let e_ref = graph
-                        .core_edge(eid)
+                        .core_edge(Either::Left(eid))
                         .out_ref()
                         .at(tie)
                         .at_layer(LayerId(layer_id));
@@ -366,7 +367,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         let edges = edge_ids
             .into_iter()
             .filter_map(|id| {
-                let e_ref = graph.core_edge(EID(id as usize));
+                let e_ref = graph.core_edge(Either::Left(EID(id as usize)));
                 filtered_graph
                     .filter_edge(e_ref.as_ref())
                     .then(|| EdgeView::new(graph.clone(), e_ref.out_ref()))

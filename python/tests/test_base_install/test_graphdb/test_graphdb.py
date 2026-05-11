@@ -498,7 +498,7 @@ def test_graph_properties():
     sp.sort()
     assert sp == ["prop 1", "prop 2", "prop 3", "prop 4", "prop 5"]
     assert g.metadata["prop 1"] == 1
-    assert g.metadata["prop 4"] == [1, 2]
+    assert np.array_equal(g.metadata["prop 4"], [1, 2])
     assert g.metadata["prop 5"] == {"x": 1, "y": "ok"}
 
     props = {"prop 4": 11, "prop 5": "world", "prop 6": False}
@@ -1166,7 +1166,7 @@ def test_arrow_array_properties():
     days = pa.array([1, 12, 17, 23, 28], type=pa.uint8())
     g.add_edge(1, 1, 2, {"prop1": 1, "prop2": 2, "prop3": days})
     e = g.edge(1, 2)
-    assert e.properties["prop3"] == days
+    assert np.array_equal(e.properties["prop3"], days)
 
 
 def test_map_and_list_property():
@@ -1175,7 +1175,7 @@ def test_map_and_list_property():
     e_props = g.edge(1, 2).properties
     assert "map" in e_props
     assert e_props["map"]["test"] == 1
-    assert e_props["map"]["list"] == [1, 2, 3]
+    assert np.array_equal(e_props["map"]["list"], [1, 2, 3])
 
 
 def test_exploded_edge_time():
@@ -2993,7 +2993,6 @@ def test_unique_temporal_properties():
     g.add_node(18, 3, {"map": {"name": "bob", "value list": [1, 2, 3]}})
     g.add_node(19, 3, {"map": {"name": "bob", "value list": [1, 2]}})
 
-    # @with_disk_graph # FIXME List, Map and NDTime properties are not supported
     def check(g):
         assert list(g.edge(1, 2).properties.temporal.get("status")) == [
             (1, "open"),
@@ -3032,7 +3031,9 @@ def test_unique_temporal_properties():
             False,
             True,
         ]
-        assert sorted(g.node(3).properties.temporal.get("list").unique()) == [
+        assert sorted(
+            list(v) for v in g.node(3).properties.temporal.get("list").unique()
+        ) == [
             [1, 2, 3],
             [2, 3],
         ]
@@ -3051,7 +3052,7 @@ def test_unique_temporal_properties():
         sorted_expected_list = sorted(
             expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
         )
-        assert sorted_actual_list == sorted_expected_list
+        check_arr(sorted_actual_list, sorted_expected_list)
 
     check(g)
 

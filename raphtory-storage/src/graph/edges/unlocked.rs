@@ -1,3 +1,4 @@
+use either::Either;
 use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerId};
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::entities::{LayerIds, EID};
@@ -15,7 +16,7 @@ impl<'a> UnlockedEdges<'a> {
     }
 
     pub fn edge(&self, e_id: EID) -> EdgeStorageEntry<'a> {
-        EdgeStorageEntry::Unlocked(self.0.edges().edge(e_id))
+        EdgeStorageEntry::Unlocked(self.0.edges().edge(Either::Left(e_id)))
     }
 
     pub fn iter_layer(self, layer_id: LayerId) -> impl Iterator<Item = EdgeStorageEntry<'a>> + 'a {

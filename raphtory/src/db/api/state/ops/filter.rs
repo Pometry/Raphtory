@@ -20,10 +20,7 @@ use crate::{
 };
 use raphtory_api::core::entities::VID;
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps},
-};
+use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
