@@ -19,7 +19,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::{storage::arc_str::OptionAsStr, utils::time::IntoTime};
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},

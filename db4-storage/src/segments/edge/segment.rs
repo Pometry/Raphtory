@@ -347,6 +347,13 @@ impl MemEdgeSegment {
     pub fn t_len(&self, layer_id: usize) -> usize {
         self.layers.get(layer_id).map_or(0, |layer| layer.t_len())
     }
+
+    pub fn num_updates(&self) -> usize {
+        self.layers
+            .iter()
+            .map(|layer| layer.properties.num_updates())
+            .sum()
+    }
 }
 
 impl Drop for MemEdgeSegment {
@@ -519,6 +526,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn edges_counter(&self) -> &AtomicU32 {
         &self.num_edges
+    }
+
+    fn num_updates(&self) -> usize {
+        self.head().num_updates()
     }
 
     fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemEdgeSegment> {

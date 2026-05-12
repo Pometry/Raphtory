@@ -54,7 +54,7 @@ fn build_progress_bar(des: String, num_rows: Option<usize>) -> Result<Bar, Graph
         bar_builder = bar_builder.total(num_rows);
     }
 
-    if !progress_bars_enabled() {
+    if !progress_bars_enabled() || num_rows.is_some_and(|num_rows| num_rows < 10_000) {
         bar_builder = bar_builder.disable(true);
     }
 

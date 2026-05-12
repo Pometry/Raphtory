@@ -123,7 +123,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps
                 self.filter.matches_exploded_edge(
                     &self.graph,
                     self.prop_id,
-                    eid.edge,
+                    eid.eid(),
                     t,
                     eid.layer(),
                 )

@@ -1,13 +1,13 @@
-use arrow_array::Float32Array;
-use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
-
 use crate::db::{
     api::view::StaticGraphViewOps,
     graph::{edge::EdgeView, node::NodeView},
 };
-#[cfg(feature = "python")]
-use crate::python::types::repr::Repr;
+use arrow_array::Float32Array;
+use serde::{ser::SerializeSeq, Deserialize, Serialize, Serializer};
 use std::{future::Future, ops::Deref, pin::Pin};
+
+#[cfg(feature = "python")]
+use raphtory_api::python::repr::Repr;
 
 pub mod cache;
 pub mod custom;

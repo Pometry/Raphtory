@@ -1,4 +1,4 @@
-use raphtory_api::core::{entities::MAX_LAYER, storage::arc_str::ArcStr};
+use raphtory_api::core::storage::arc_str::ArcStr;
 use std::fmt::Debug;
 use thiserror::Error;
 
@@ -8,10 +8,6 @@ pub struct InvalidLayer {
     invalid_layer: ArcStr,
     valid_layers: Vec<String>,
 }
-
-#[derive(Error, Debug)]
-#[error("At most {MAX_LAYER} layers are supported.")]
-pub struct TooManyLayers;
 
 impl InvalidLayer {
     pub fn new(invalid_layer: ArcStr, valid_layers: Vec<String>) -> Self {

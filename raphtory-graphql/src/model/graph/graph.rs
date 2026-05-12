@@ -20,7 +20,6 @@ use crate::{
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidGraphPaths},
     rayon::blocking_compute,
-    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};

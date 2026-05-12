@@ -103,7 +103,7 @@ impl<G: GraphView, F: NodeFilterOp> InternalExplodedEdgeFilterOps
             return false;
         }
 
-        let edge = self.graph.core_edge(Either::Left(eid.edge));
+        let edge = self.graph.core_edge(Either::Left(eid.eid()));
 
         let vid = match self.endpoint {
             Endpoint::Src => edge.src(),

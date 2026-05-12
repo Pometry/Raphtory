@@ -72,6 +72,14 @@ impl<P: PersistenceStrategy> GraphPropSegmentOps for GraphPropSegmentView<P> {
         MemGraphPropEntry::new(head)
     }
 
+    fn num_updates(&self) -> usize {
+        self.head()
+            .layers()
+            .iter()
+            .map(|l| l.t_len())
+            .sum::<usize>()
+    }
+
     fn increment_est_size(&self, size: usize) {
         self.est_size.fetch_add(size, Ordering::Relaxed);
     }
