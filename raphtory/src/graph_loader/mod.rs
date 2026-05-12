@@ -103,7 +103,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use tempfile::NamedTempFile;
+use tempfile::{NamedTempFile, PersistError};
 use zip::read::ZipArchive;
 
 pub mod company_house;
@@ -134,7 +134,11 @@ pub fn fetch_file(
         let mut content = Cursor::new(response.bytes()?);
         let mut file = NamedTempFile::new()?;
         copy(&mut content, &mut file)?;
-        file.persist(&filepath)?;
+        if let Err(e) = file.persist(&filepath) {
+            if !filepath.exists() {
+                Err(e.error)?;
+            }
+        }
     }
     Ok(filepath)
 }
