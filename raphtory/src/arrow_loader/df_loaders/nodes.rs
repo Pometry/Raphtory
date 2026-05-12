@@ -47,6 +47,7 @@ use crate::arrow_loader::{
 #[cfg(feature = "progress")]
 use kdam::BarExt;
 
+/// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -62,12 +63,9 @@ pub fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
     resolve_nodes: bool,
-    layer_id: Option<&str>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
     layer_id_col: Option<&str>,
-    // Numeric layer-id column (u64). When present together with `layer_id_col`,
-    // the loader uses the LAYER_ID_COL fast path that mirrors the source's
-    // `(name, id)` mapping via `set_id` — used by the parquet round-trip.
-    layer_idx_col: Option<&str>,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
@@ -86,10 +84,8 @@ pub fn load_nodes_from_df<
         let node_type_index =
             node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
         let node_type_index = node_type_index.transpose()?;
-        let layer_index = layer_id_col
-            .map(|name| df_view.get_index(name))
-            .transpose()?;
-        let layer_idx_index = layer_idx_col
+        let layer_col_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
+        let layer_id_index = layer_id_col
             .map(|name| df_view.get_index(name))
             .transpose()?;
 
@@ -132,19 +128,11 @@ pub fn load_nodes_from_df<
             let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
             let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
             // Two paths:
-            //   * Fast path (parquet round-trip): both `layer_id_col` (string)
-            //     and `layer_idx_col` (u64) are provided. Use
-            //     `LayerCol::resolve_layer` with the numeric ids — this calls
-            //     `set_id(name, source_id)` to mirror the source's layer-id
-            //     assignment exactly. Symmetrical with the t_edge loader.
-            //   * Slow path (user-facing CSV/parquet without numeric ids):
-            //     resolve by name. `resolve_node_layer` maps null entries to
-            //     STATIC_GRAPH_LAYER (matching `add_node(.., None)`'s
-            //     semantics), unlike `resolve_layer` which would map null to
-            //     "_default".
-            let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
-                let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
-                let layer_idx_values = layer_idx_index
+            // Fast path (parquet round-trip) when both layer_col and layer_id_col are provided.
+            // Slow path (user-facing CSV/parquet without numeric ids) resolve by name
+            let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
+                let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
+                let layer_idx_values = layer_id_index
                     .map(|idx| {
                         df.chunk[idx]
                             .as_primitive_opt::<UInt64Type>()
@@ -155,8 +143,10 @@ pub fn load_nodes_from_df<
                     })
                     .transpose()?;
                 Some(if layer_idx_values.is_some() {
+                    // `None` layers handled here when layer ids are provided, even for nodes
                     layer_col.resolve_layer(layer_idx_values, graph)?
                 } else {
+                    // maps `None` layers to STATIC_GRAPH_LAYER instead of "_default" like in edges
                     layer_col.resolve_node_layer(graph)?
                 })
             } else {
@@ -309,7 +299,7 @@ pub fn load_node_props_from_df<
         .map(|node_col| df_view.get_index(node_col.as_ref()))
         .transpose()?;
 
-    let layer_index = layer_id_col
+    let layer_id_index = layer_id_col
         .map(|name| df_view.get_index(name))
         .transpose()?;
 
@@ -345,8 +335,8 @@ pub fn load_node_props_from_df<
         let node_col = df.node_col(node_gid_index)?;
         // Per-row layer; null entries (and absent column) → STATIC_GRAPH_LAYER_ID.
         // resolve_layer(None) would map to "_default", which is wrong for nodes.
-        let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
-            let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
+        let layer_col_resolved = if layer_id.is_some() || layer_id_index.is_some() {
+            let layer_col = lift_layer_col(layer_id, layer_id_index, &df)?;
             Some(layer_col.resolve_node_layer(graph)?)
         } else {
             None

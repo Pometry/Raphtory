@@ -180,6 +180,68 @@ impl<'a> LayerCol<'a> {
         }
     }
 
+    // pub fn resolve_layer_old<'b>(
+    //     self,
+    //     layer_id_col: Option<&'b [u64]>,
+    //     graph: &(impl AdditionOps + Send + Sync),
+    //     is_node_layer: bool,
+    // ) -> Result<Cow<'b, [usize]>, GraphError> {
+    //     match (self, layer_id_col) {
+    //         (LayerCol::Name { name, len }, _) => {
+    //             if is_node_layer && name.is_none() {
+    //                 // avoid resolving None to "_default" like in edges by avoiding resolve_layer(None)
+    //                 Ok(Cow::Owned(vec![0usize; len]))
+    //             } else {
+    //                 let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
+    //                 Ok(Cow::Owned(vec![layer; len]))
+    //             }
+    //         }
+    //         (col, None) => {
+    //             let mut res = vec![0usize; col.len()];
+    //             let mut last_name = None;
+    //             let mut last_layer = None;
+    //             for (row, name) in col.iter().enumerate() {
+    //                 if last_name == name && last_layer.is_some() {
+    //                     if let Some(layer) = last_layer {
+    //                         res[row] = layer;
+    //                     }
+    //                     continue;
+    //                 }
+    //
+    //                 let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
+    //                 last_layer = Some(layer);
+    //                 res[row] = layer;
+    //                 last_name = name;
+    //             }
+    //             Ok(Cow::Owned(res))
+    //         }
+    //         (col, Some(layer_ids)) => {
+    //             // Fast path assumes all layers from the source graph are present.
+    //             // If some are missing (like materialize on filtered/windowed graphs),
+    //             // this can introduce gaps in the layer mappers and empty layer names.
+    //             let mut last_pair = None;
+    //
+    //             let edge_layer_mapper = graph.edge_meta().layer_meta();
+    //             let node_layer_mapper = graph.node_meta().layer_meta();
+    //
+    //             let mut locked_edge_lm = edge_layer_mapper.write();
+    //             let mut locked_node_lm = node_layer_mapper.write();
+    //
+    //             for pair @ (name_opt, id) in col.iter().zip(layer_ids) {
+    //                 if last_pair != Some(pair) {
+    //                     // dont set anything if name_opt is None (goes in static graph layer)
+    //                     if let Some(name) = name_opt {
+    //                         locked_edge_lm.set_id(name, *id as usize);
+    //                         locked_node_lm.set_id(name, *id as usize);
+    //                     }
+    //                 }
+    //                 last_pair = Some(pair);
+    //             }
+    //             Ok(Cow::Borrowed(bytemuck::cast_slice(layer_ids)))
+    //         }
+    //     }
+    // }
+
     pub fn resolve_layer<'b>(
         self,
         layer_id_col: Option<&'b [u64]>,
