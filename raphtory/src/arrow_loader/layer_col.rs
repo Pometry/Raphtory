@@ -131,143 +131,46 @@ impl<'a> LayerCol<'a> {
         }
     }
 
-    /// Resolve layer ids for a node-loading column, where a null entry means STATIC_GRAPH_LAYER (id 0).
-    /// This differs from `resolve_layer`, which maps null to "_default" via `graph.resolve_layer(None)`.
-    /// Used by materialize and user-facing loaders (no LAYER_ID_COL fast path like in resolve_layer).
-    pub fn resolve_node_layer<'b>(
-        self,
-        graph: &(impl AdditionOps + Send + Sync),
-    ) -> Result<Cow<'b, [usize]>, GraphError> {
-        match self {
-            // avoid resolving None to _default like in edges
-            LayerCol::Name { name: None, len } => Ok(Cow::Owned(vec![0usize; len])),
-            LayerCol::Name {
-                name: Some(name),
-                len,
-            } => {
-                let layer = graph
-                    .resolve_layer(Some(name.as_ref()))
-                    .map_err(into_graph_err)?
-                    .inner()
-                    .0;
-                Ok(Cow::Owned(vec![layer; len]))
-            }
-            col => {
-                let mut res = vec![0usize; col.len()];
-                let mut last_name: Option<&str> = None;
-                let mut last_layer: usize = 0;
-                for (row, name) in col.iter().enumerate() {
-                    match name {
-                        None => res[row] = 0,
-                        Some(n) => {
-                            if last_name == Some(n) {
-                                res[row] = last_layer;
-                            } else {
-                                let layer = graph
-                                    .resolve_layer(Some(n))
-                                    .map_err(into_graph_err)?
-                                    .inner()
-                                    .0;
-                                res[row] = layer;
-                                last_name = Some(n);
-                                last_layer = layer;
-                            }
-                        }
-                    }
-                }
-                Ok(Cow::Owned(res))
-            }
-        }
-    }
-
-    // pub fn resolve_layer_old<'b>(
-    //     self,
-    //     layer_id_col: Option<&'b [u64]>,
-    //     graph: &(impl AdditionOps + Send + Sync),
-    //     is_node_layer: bool,
-    // ) -> Result<Cow<'b, [usize]>, GraphError> {
-    //     match (self, layer_id_col) {
-    //         (LayerCol::Name { name, len }, _) => {
-    //             if is_node_layer && name.is_none() {
-    //                 // avoid resolving None to "_default" like in edges by avoiding resolve_layer(None)
-    //                 Ok(Cow::Owned(vec![0usize; len]))
-    //             } else {
-    //                 let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
-    //                 Ok(Cow::Owned(vec![layer; len]))
-    //             }
-    //         }
-    //         (col, None) => {
-    //             let mut res = vec![0usize; col.len()];
-    //             let mut last_name = None;
-    //             let mut last_layer = None;
-    //             for (row, name) in col.iter().enumerate() {
-    //                 if last_name == name && last_layer.is_some() {
-    //                     if let Some(layer) = last_layer {
-    //                         res[row] = layer;
-    //                     }
-    //                     continue;
-    //                 }
-    //
-    //                 let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
-    //                 last_layer = Some(layer);
-    //                 res[row] = layer;
-    //                 last_name = name;
-    //             }
-    //             Ok(Cow::Owned(res))
-    //         }
-    //         (col, Some(layer_ids)) => {
-    //             // Fast path assumes all layers from the source graph are present.
-    //             // If some are missing (like materialize on filtered/windowed graphs),
-    //             // this can introduce gaps in the layer mappers and empty layer names.
-    //             let mut last_pair = None;
-    //
-    //             let edge_layer_mapper = graph.edge_meta().layer_meta();
-    //             let node_layer_mapper = graph.node_meta().layer_meta();
-    //
-    //             let mut locked_edge_lm = edge_layer_mapper.write();
-    //             let mut locked_node_lm = node_layer_mapper.write();
-    //
-    //             for pair @ (name_opt, id) in col.iter().zip(layer_ids) {
-    //                 if last_pair != Some(pair) {
-    //                     // dont set anything if name_opt is None (goes in static graph layer)
-    //                     if let Some(name) = name_opt {
-    //                         locked_edge_lm.set_id(name, *id as usize);
-    //                         locked_node_lm.set_id(name, *id as usize);
-    //                     }
-    //                 }
-    //                 last_pair = Some(pair);
-    //             }
-    //             Ok(Cow::Borrowed(bytemuck::cast_slice(layer_ids)))
-    //         }
-    //     }
-    // }
-
+    /// We differentiate between node layers and edge layers using `is_node_layer` because the default layer differs.
     pub fn resolve_layer<'b>(
         self,
         layer_id_col: Option<&'b [u64]>,
         graph: &(impl AdditionOps + Send + Sync),
+        is_node_layer: bool,
     ) -> Result<Cow<'b, [usize]>, GraphError> {
         match (self, layer_id_col) {
             (LayerCol::Name { name, len }, _) => {
-                let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
-                Ok(Cow::Owned(vec![layer; len]))
+                if is_node_layer && name.is_none() {
+                    // avoid resolving None to "_default" (like in edges) by avoiding resolve_layer(None)
+                    Ok(Cow::Owned(vec![0usize; len]))
+                } else {
+                    let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
+                    Ok(Cow::Owned(vec![layer; len]))
+                }
             }
             (col, None) => {
                 let mut res = vec![0usize; col.len()];
-                let mut last_name = None;
-                let mut last_layer = None;
+                let mut last_name: Option<&str> = None;
+                let mut last_layer: Option<usize> = None;
                 for (row, name) in col.iter().enumerate() {
-                    if last_name == name && last_layer.is_some() {
-                        if let Some(layer) = last_layer {
-                            res[row] = layer;
+                    match name {
+                        None if is_node_layer => res[row] = 0,
+                        // `name` below can be None if we're resolving edge layer
+                        // resolve_layer(None) returns "_default" which is good for edges and wrong for nodes
+                        name => {
+                            if last_name == name && last_layer.is_some() {
+                                if let Some(layer) = last_layer {
+                                    res[row] = layer;
+                                }
+                            } else {
+                                let layer =
+                                    graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
+                                res[row] = layer;
+                                last_name = name;
+                                last_layer = Some(layer);
+                            }
                         }
-                        continue;
                     }
-
-                    let layer = graph.resolve_layer(name).map_err(into_graph_err)?.inner().0;
-                    last_layer = Some(layer);
-                    res[row] = layer;
-                    last_name = name;
                 }
                 Ok(Cow::Owned(res))
             }
@@ -285,7 +188,7 @@ impl<'a> LayerCol<'a> {
 
                 for pair @ (name_opt, id) in col.iter().zip(layer_ids) {
                     if last_pair != Some(pair) {
-                        // dont set anything if name_opt is None (goes in static graph layer)
+                        // don't set anything if name_opt is None (goes in static graph layer)
                         if let Some(name) = name_opt {
                             locked_edge_lm.set_id(name, *id as usize);
                             locked_node_lm.set_id(name, *id as usize);

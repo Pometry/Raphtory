@@ -256,7 +256,7 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
                     .map(|array| array.values().as_ref())
             })
             .transpose()?;
-        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph)?;
+        let layer_col_resolved = layer.resolve_layer(layer_id_values, graph, false)?;
 
         let (src_vids, dst_vids, gid_str_cache) = get_or_resolve_node_vids(
             graph,
