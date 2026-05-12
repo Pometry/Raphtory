@@ -2,19 +2,71 @@ use crate::{graph::GraphWithVectors, paths::ValidGraphPaths, rayon::EVICT_POOL};
 use ahash::HashMap;
 use dashmap::{DashMap, Entry};
 use parking_lot::Mutex;
-use quick_cache::{unsync::Cache, DefaultHashBuilder, Lifecycle, UnitWeighter, Weighter};
+use quick_cache::{
+    sync::{Cache, Drain, EntryAction, EntryResult},
+    DefaultHashBuilder, Lifecycle, UnitWeighter, Weighter,
+};
 use raphtory::{
     db::api::{storage::storage::PersistenceStrategy, view::internal::InternalStorageOps},
     prelude::AdditionOps,
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{future::Future, marker::PhantomData, sync::Arc};
-use tokio::join;
+use tokio::{join, sync::Notify};
 use tracing::{debug, error};
+
+#[derive(Clone)]
+enum DroppingState {
+    Dropping {
+        wait: Arc<Notify>,
+        graph: Arc<GraphWithVectors>,
+    },
+    Replacing {
+        wait: Arc<Notify>,
+    },
+    DroppedWhileReplacing {
+        wait: Arc<Notify>,
+    },
+}
+
+impl DroppingState {
+    fn into_wait(self) -> Arc<Notify> {
+        match self {
+            Self::Dropping { wait, .. }
+            | Self::Replacing { wait }
+            | Self::DroppedWhileReplacing { wait } => wait,
+        }
+    }
+
+    fn as_wait(&self) -> &Arc<Notify> {
+        match self {
+            Self::Dropping { wait, .. }
+            | Self::Replacing { wait }
+            | Self::DroppedWhileReplacing { wait } => wait,
+        }
+    }
+
+    fn new_dropping(graph: Arc<GraphWithVectors>) -> Self {
+        let wait = Arc::new(Notify::new());
+        Self::Dropping { wait, graph }
+    }
+
+    fn as_dropping(&mut self, dropping_graph: Arc<GraphWithVectors>) {
+        match self {
+            DroppingState::Dropping { graph, .. } => {
+                *graph = dropping_graph;
+            }
+            DroppingState::Replacing { wait } => {
+                *self = DroppingState::DroppedWhileReplacing { wait: wait.clone() }
+            }
+            DroppingState::DroppedWhileReplacing { .. } => {}
+        }
+    }
+}
 
 #[derive(Default, Clone)]
 pub struct ArcPinned {
-    dropping: Arc<HashMap<String, Arc<GraphWithVectors>>>,
+    dropping: Arc<DashMap<String, DroppingState>>,
 }
 
 pub struct CacheShard {
@@ -37,7 +89,14 @@ impl Lifecycle<String, Arc<GraphWithVectors>> for ArcPinned {
 
     #[inline]
     fn is_pinned(&self, _key: &String, val: &Arc<GraphWithVectors>) -> bool {
-        Arc::strong_count(val) > 1
+        if Arc::strong_count(val) > 1 {
+            return true;
+        }
+        if val.is_dirty() {
+
+            return true;
+        }
+        false
     }
 
     #[inline]
@@ -45,22 +104,36 @@ impl Lifecycle<String, Arc<GraphWithVectors>> for ArcPinned {
         ()
     }
 
-    fn on_evict(&self, _state: &mut Self::RequestState, key: String, val: Arc<GraphWithVectors>) {
-        if val.is_dirty() {
-            self.dropping.insert(key.clone(), val.clone());
+    fn on_evict(&self, _state: &mut Self::RequestState, key: String, graph: Arc<GraphWithVectors>) {
+        debug_assert_eq!(
+            Arc::strong_count(&graph),
+            1,
+            "We should have the only reference to the graph on eviction"
+        );
+        if graph.is_dirty() {
+            match self.dropping.entry(key.clone()) {
+                Entry::Occupied(mut entry) => {
+                    entry.get_mut().as_dropping(graph.clone());
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(DroppingState::new_dropping(graph.clone()));
+                }
+            };
             let dropping_map = self.dropping.clone();
             EVICT_POOL.spawn(move || {
                 debug!(
                     "Graph {} removed from cache (flushing)",
-                    val.folder.local_path()
+                    graph.folder.local_path()
                 );
-                drop_graph(val);
-                dropping_map.remove(&key);
+                drop_graph(graph);
+                if let Some((_, state)) = dropping_map.remove(&key) {
+                    state.into_wait().notify_waiters() // this makes sure graph is fully dropped before waking up other tasks
+                };
             })
         } else {
             debug!(
                 "Graph {} removed from cache (clean)",
-                val.folder.local_path()
+                graph.folder.local_path()
             )
         }
     }
@@ -84,16 +157,34 @@ impl GraphCache {
         Self { cache, dropping }
     }
 
-    /// Get item for key, resurrecting it if it is currently being dropped or looking it up in the cache
-    pub fn get(&self, key: String) -> Option<Arc<GraphWithVectors>> {
-        match self.dropping.dropping.entry(key) {
-            Entry::Occupied(entry) => {
-                let (key, value) = entry.remove_entry();
-                self.cache.insert(key, value.clone());
-                Some(value)
-            }
-            Entry::Vacant(entry) => self.cache.get(&entry.into_key()),
+    fn resurrect(&self, key: &str, graph: &Arc<GraphWithVectors>) {
+        // resurrect the graph
+        let entry = self
+            .cache
+            .entry(&key, None, |key, graph| EntryAction::Retain(()));
+        if let EntryResult::Vacant(placeholder) = entry {
+            placeholder.insert(graph.clone()).unwrap_or_else(|graph| {
+                error!("Failed to resurrect graph {}", graph.folder.local_path());
+            });
         }
+    }
+
+    /// Get item for key, resurrecting it if it is currently being dropped or looking it up in the cache
+    pub async fn get(&self, key: String) -> Option<Arc<GraphWithVectors>> {
+        let wait = match self.dropping.dropping.entry(key.clone()) {
+            Entry::Occupied(entry) => match entry.get() {
+                DroppingState::Dropping { graph, .. } => {
+                    self.resurrect(&key, graph);
+                    return Some(graph.clone());
+                }
+                DroppingState::Replacing { wait }
+                | DroppingState::DroppedWhileReplacing { wait } => wait,
+            },
+            Entry::Vacant(entry) => return self.cache.get(&entry.into_key()),
+        };
+        // have to wait for replacement to finish before trying again
+        wait.notified().await;
+        self.get(key).await
     }
 
     /// Get item for key, resurrecting it if it is currently being dropped or looking it up in the cache.
@@ -103,11 +194,16 @@ impl GraphCache {
         key: String,
         with: impl Future<Output = Result<Arc<GraphWithVectors>, E>>,
     ) -> Result<Arc<GraphWithVectors>, E> {
-        match self.dropping.dropping.entry(key) {
-            Entry::Occupied(entry) => {
-                let (key, value) = entry.remove_entry();
-                self.cache.insert(key, value.clone());
-                Ok(value)
+        let wait = match self.dropping.dropping.entry(key) {
+            Entry::Occupied(mut entry) => {
+                match entry.get() {
+                    DroppingState::Dropping { graph, .. } => {
+                        self.resurrect(entry.key(), graph);
+                        return Ok(graph.clone())
+                    }
+                    DroppingState::Replacing { wait } |
+                    DroppingState::DroppedWhileReplacing { wait } => {wait}
+                }
             }
             Entry::Vacant(entry) => {
                 self.cache
@@ -120,7 +216,7 @@ impl GraphCache {
     pub async fn insert_with<E>(
         &self,
         key: String,
-        with: impl Future<Output = Result<Arc<GraphWithVectors>>, E>,
+        with: impl Future<Output = Result<Arc<GraphWithVectors>, E>>,
     ) -> Result<(), E> {
         self.dropping.dropping.remove(&key); // make sure we don't resurrect the old graph if it is still being dropped
         let cache_guard = tokio::spawn(
@@ -130,8 +226,8 @@ impl GraphCache {
         let new_graph = tokio::spawn(with);
         let (guard, graph) = join!(cache_guard, new_graph);
 
-        match res {
-            EntryResult::Replaced(guard, _) | EntryResult::Vacant(guard) => {}
+        match guard? {
+            EntryResult::Replaced(guard, _) | EntryResult::Vacant(guard) => guard.insert(graph??),
             _ => {
                 unreachable!()
             }
