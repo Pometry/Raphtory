@@ -1,7 +1,9 @@
 use crate::{
     core::entities::LayerIds,
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
             EdgeTimeSemanticsOps, FilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
             InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
@@ -64,6 +66,8 @@ impl<'graph, G: GraphViewOps<'graph>> Immutable for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for CachedView<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for CachedView<G> {}
 
