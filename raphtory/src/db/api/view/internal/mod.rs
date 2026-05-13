@@ -2,7 +2,9 @@ use crate::{
     db::{
         api::{
             properties::internal::{
+                EdgePropertySchemaOps, InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps,
                 InheritPropertiesOps, InternalMetadataOps, InternalPropertiesOps,
+                NodePropertySchemaOps,
             },
             storage::storage::Storage,
         },
@@ -56,6 +58,8 @@ pub trait BoxableGraphView:
     + InternalPropertiesOps
     + InternalMetadataOps
     + InternalStorageOps
+    + NodePropertySchemaOps
+    + EdgePropertySchemaOps
     + Send
     + Sync
 {
@@ -74,6 +78,8 @@ impl<
             + InternalPropertiesOps
             + InternalMetadataOps
             + InternalStorageOps
+            + NodePropertySchemaOps
+            + EdgePropertySchemaOps
             + Send
             + Sync,
     > BoxableGraphView for G
@@ -95,6 +101,9 @@ impl<G: InheritViewOps + CoreGraphOps> InheritTimeSemantics for G {}
 impl<G: InheritViewOps> InheritMaterialize for G {}
 
 impl<G: InheritViewOps> InheritPropertiesOps for G {}
+
+impl<G: InheritViewOps> InheritNodePropertySchemaOps for G {}
+impl<G: InheritViewOps> InheritEdgePropertySchemaOps for G {}
 
 pub trait InheritStorageOps: Base {}
 

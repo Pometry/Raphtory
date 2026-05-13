@@ -25,7 +25,8 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, filter::node_filtered_graph::NodeFilteredGraph,
-                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
+                node_subgraph::NodeSubgraph, property_redacted_graph::PropertyRedaction,
+                valid_graph::ValidGraph, PropertyRedactedGraph,
             },
         },
     },
@@ -116,6 +117,15 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
         &self,
         nodes: I,
     ) -> NodeSubgraph<Self>;
+
+    /// Create a view that hides the property keys specified in `redaction`.
+    /// Build the redaction with [`PropertyRedaction`]'s `with_*` methods, e.g.:
+    /// ```ignore
+    /// graph.exclude_properties(
+    ///     PropertyRedaction::default().with_node_props(["salary"]).with_edge_meta(["ref"])
+    /// )
+    /// ```
+    fn exclude_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<Self>;
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
@@ -709,6 +719,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
             .map(|node| node.node);
 
         NodeSubgraph::new(self.clone(), nodes_to_include)
+    }
+
+    fn exclude_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<G> {
+        PropertyRedactedGraph::new(self.clone(), redaction)
     }
 
     /// Return all the layer ids in the graph

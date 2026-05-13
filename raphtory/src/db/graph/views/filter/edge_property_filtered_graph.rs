@@ -2,7 +2,9 @@ use crate::{
     core::entities::LayerIds,
     db::{
         api::{
-            properties::internal::InheritPropertiesOps,
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
             view::internal::{
                 Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -53,6 +55,14 @@ impl<'graph, G: GraphViewOps<'graph>> InheritListOps for EdgePropertyFilteredGra
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for EdgePropertyFilteredGraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps
+    for EdgePropertyFilteredGraph<G>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps
+    for EdgePropertyFilteredGraph<G>
+{
+}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for EdgePropertyFilteredGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgeHistoryFilter for EdgePropertyFilteredGraph<G> {}
