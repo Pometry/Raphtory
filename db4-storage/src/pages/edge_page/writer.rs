@@ -177,6 +177,7 @@ impl<'a, MP: DerefMut<Target = MemEdgeSegment> + std::fmt::Debug, ES: EdgeSegmen
         self.page.segment_id()
     }
 
+    #[inline]
     fn increment_layer_num_edges(&self, layer_id: LayerId) {
         self.graph_stats.increment(layer_id);
     }

@@ -762,7 +762,7 @@ fn update_edge_properties<ES: EdgeSegmentOps<Extension = Extension>>(
 ) {
     let mut t_props = vec![];
     let mut c_props = vec![];
-    let mut writer = shard.writer();
+    let mut writer = shard.bulk_writer();
 
     for (row, src, dst, time, secondary_index, eid, layer, exists) in zip {
         if let Some(eid_pos) = writer.resolve_pos(eid) {
@@ -802,7 +802,7 @@ fn update_inbound_edges<NS: NodeSegmentOps<Extension = Extension>>(
     zip: impl Iterator<Item = (usize, VID, VID, EID, i64, usize, usize, bool, bool)>,
     delete: bool,
 ) {
-    let mut writer = shard.writer();
+    let mut writer = shard.bulk_writer();
     for (
         _row,
         src,
@@ -858,7 +858,7 @@ fn add_and_resolve_outbound_edges<
     locked_page: &mut LockedNodePage<'_, NS>,
     delete: bool,
 ) {
-    let mut writer = locked_page.writer();
+    let mut writer = locked_page.bulk_writer();
     for (row, src, dst, time, secondary_index, layer) in zip {
         if let Some(src_pos) = writer.resolve_pos(src) {
             let t = EventTime(time, secondary_index);
@@ -946,7 +946,7 @@ pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[(GidRef<'_>, VID)],
     locked_page: &mut LockedNodePage<'_, NS>,
 ) {
-    let mut writer = locked_page.writer();
+    let mut writer = locked_page.bulk_writer();
     for (src_gid, vid) in gid_str_cache.iter() {
         if let Some(src_pos) = writer.resolve_pos(*vid) {
             writer.store_node_id(src_pos, STATIC_GRAPH_LAYER_ID, (*src_gid).into());
