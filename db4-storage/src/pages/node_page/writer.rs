@@ -101,7 +101,6 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         self.mut_segment.increment_est_size(add);
 
         if is_new_node && !self.page.has_node(src_pos, layer_id) {
-            // self.l_counter.increment(layer_id);
             layer_counter(layer_id);
         }
     }
