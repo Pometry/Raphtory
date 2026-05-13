@@ -7,7 +7,6 @@ use crate::{
 };
 use ahash::HashMap;
 use dashmap::{DashMap, Entry};
-use parking_lot::Mutex;
 use quick_cache::{
     sync::{Cache, Drain, EntryAction, EntryResult},
     DefaultHashBuilder, Lifecycle, UnitWeighter, Weighter,

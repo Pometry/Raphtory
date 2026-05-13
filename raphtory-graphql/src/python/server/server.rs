@@ -85,7 +85,6 @@ impl PyGraphServer {
         signature = (
             work_dir,
             cache_capacity = None,
-            cache_tti_seconds = None,
             log_level = None,
             tracing=None,
             tracing_level=None,
@@ -113,7 +112,6 @@ impl PyGraphServer {
     fn py_new(
         work_dir: PathBuf,
         cache_capacity: Option<u64>,
-        cache_tti_seconds: Option<u64>,
         log_level: Option<String>,
         tracing: Option<bool>,
         tracing_level: Option<String>,
@@ -166,9 +164,6 @@ impl PyGraphServer {
         }
         if let Some(cache_capacity) = cache_capacity {
             app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
-        }
-        if let Some(cache_tti_seconds) = cache_tti_seconds {
-            app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
         }
         app_config_builder = app_config_builder
             .with_auth_public_key(auth_public_key)
