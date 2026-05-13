@@ -165,14 +165,6 @@ pub(crate) fn encode_nodes_cprop<G: GraphView, S: RecordBatchSink>(
             ]
         },
         |nodes, _g, decoder, sink| {
-            // ONE row per node. Node metadata is layer-less in the public API
-            // (NodeView::add_metadata always writes to STATIC_GRAPH_LAYER, and
-            // the storage's gid()/node_type_id() always read from layer 0), so
-            // there is nothing layer-shaped to emit at the c_node level. The
-            // per-layer node counters are restored by the t_node pass — every
-            // explicit `add_node(.., Some(layer))` produces a temporal row at
-            // that layer, and the loader's `add_props` path increments the
-            // layer counter for first-seen nodes.
             for node_rows in nodes
                 .map(move |node| ParquetCNode {
                     node,

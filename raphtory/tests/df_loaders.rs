@@ -1371,23 +1371,10 @@ mod parquet_tests {
         assert_graph_equal(&g, &g2);
     }
 
-    // Minimal reproducer for the layered-node round-trip bug exposed by
-    // parquet_tests::write_graph_to_parquet / test_parquet_bytes_proptest.
-    // A node added with `add_node(.., Some("a"))` should round-trip with layer
-    // "a" registered in the loaded graph and contribute to that layer's
-    // node count.
-    /// Regression for the layer-id clobbering bug: when t_node ran before
-    /// t_edge in the parquet decode, t_node's `resolve_layer` calls
-    /// auto-assigned layer ids in some order, then the t_edge loader's
-    /// `set_id` (driven by the LAYER_ID_COL fast path) overwrote those
-    /// reverse-map slots with the SOURCE's ids. The forward map ended up with
-    /// two layer names mapping to a single id, scrambling per-layer node
-    /// counts (gid 1 added at "a" in source ended up showing in both "a" and
-    /// "_default" in the loaded graph because "_default" got force-set to the
-    /// same id "a" had already taken).
-    /// Fixed by (a) reordering decode_graph_storage to load all edge passes
-    /// before t_node and (b) dropping the LAYER_ID_COL set_id fast path in
-    /// `LayerCol::resolve_layer` — both passes now resolve by name.
+    // Regression test for when graphs who call add_edge() before add_node() had issues with parquet encode/decode
+    // because layer ids would get overwritten in the layer mappers due to the layer id fast path being broken.
+    // The edge default layer would get resolved by name to layer id 1, and then overwritten by
+    // t_node fast path in ingestion (which sets layer ids directly and layer id 1 is not the edge default layer).
     #[test]
     fn test_parquet_node_layer_after_default_edge() {
         let g = Graph::new();

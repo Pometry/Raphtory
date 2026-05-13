@@ -1226,26 +1226,12 @@ pub fn build_graph_layer(graph_fix: &GraphFixture, layers: &[&str]) -> Arc<Stora
         }
     }
 
-    // Match `valid_layers([...])` node visibility:
-    //   * `add_node(.., None)` updates land in STATIC_GRAPH_LAYER, which is
-    //     always visible regardless of the layer filter (because
-    //     `node.has_layers(...)` short-circuits on `additions().is_empty()`,
-    //     and `additions()` reads STATIC).
-    //   * `add_node(.., Some(L))` updates only contribute to layer L's
-    //     storage, so the node-add updates don't fire unless L is in the
-    //     requested filter.
-    // Node *type* and *metadata* live at STATIC_GRAPH_LAYER regardless of how
-    // the node was added (`set_type` / `add_metadata` always write to layer 0
-    // — see [property_addition_ops.rs]), so they remain visible under any
-    // layer filter. We must apply them whenever the node ends up existing in
+    // Make sure to apply node type and metadata (c_props) whenever the node is present in
     // the resulting graph (which can happen via an edge endpoint even when the
-    // node-add was skipped) — otherwise `valid_layers` shows e.g. type "two"
-    // while the rebuilt expected graph shows None.
+    // node-add was skipped)
     for (node, updates) in graph_fix.nodes() {
-        // Property keys exist in the source graph's node_meta even when the
-        // node is filtered out by layer. Register them in the expected graph's
-        // meta too so e.g. `valid_layers([])` consistently surfaces an empty
-        // list for prop "1" rather than the prop being absent on one side.
+        // Register property keys in the expected graph's meta too so it consistently surfaces an empty
+        // list for a prop with no values rather than the prop key being absent on one side.
         for (_, props) in updates.props.t_props.iter() {
             for (key, value) in props {
                 session
@@ -1356,8 +1342,7 @@ pub enum GraphMutation {
         props: Vec<(String, Prop)>,
         node_type: Option<Cow<'static, str>>,
         metadata: Vec<(String, Prop)>,
-        // `#[serde(default)]` keeps existing JSON regression files (which
-        // predate per-node layers and don't have this key) deserialisable.
+        // backwards compatible with existing JSON regression files
         #[serde(default)]
         layer: Option<Cow<'static, str>>,
     },

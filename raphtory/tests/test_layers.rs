@@ -63,15 +63,7 @@ fn test_failure3() {
     assert_graph_equal(&g_layer, &g_layer_expected);
 }
 
-// Regression for the build_graph_layer node-layer filter:
-//   * a node added with `add_node(.., None)` lands in STATIC_GRAPH_LAYER and
-//     must remain visible under any layer filter (it gets the same treatment
-//     as `valid_layers` gives it via the `additions().is_empty()` short-circuit).
-//   * a node added with `add_node(.., Some("a"))` only contributes to layer
-//     "a"'s storage, so under `valid_layers(["b"])` it must disappear.
-// build_graph_layer used to skip the layer dimension entirely, which mismatched
-// the source graph's `valid_layers` view and broke prop_test_layering for any
-// fixture that generated `node_layer = "a" | "b"`.
+// Regression for the build_graph_layer node-layer filter
 #[test]
 fn test_node_layer_visibility_under_valid_layers() {
     let graph_f: GraphFixture = serde_json::from_value(json!({

@@ -422,13 +422,44 @@ fn decode_graph_storage(
         )?;
     }
 
-    // Edges must load before t_node. The edge fast path uses LAYER_ID_COL +
-    // `set_id` to mirror the source's layer-id assignment exactly. If t_node
-    // ran first, its `resolve_layer` calls would auto-assign different ids to
-    // the same layer names — and the edge pass's later `set_id` would then
-    // clobber the forward-map entry, leaving two layer names sharing a single
-    // id. After the reorder, edges register layers first; t_node's
-    // `resolve_layer` then finds the existing entries and reuses them.
+    let t_node_path = path.as_ref().join(NODES_T_PATH);
+
+    if std::fs::exists(&t_node_path)? {
+        let exclude = vec![
+            NODE_GID_COL,
+            NODE_VID_COL,
+            TYPE_COL,
+            TIME_COL,
+            SECONDARY_INDEX_COL,
+            LAYER_COL,
+            LAYER_ID_COL,
+        ];
+        let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
+        let t_prop_columns = t_prop_columns
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>();
+
+        load_nodes_from_parquet(
+            &graph,
+            &t_node_path,
+            TIME_COL,
+            Some(SECONDARY_INDEX_COL),
+            NODE_VID_COL,
+            None,
+            None,
+            &t_prop_columns,
+            &[],
+            None,
+            None,
+            Some(LAYER_COL),
+            Some(LAYER_ID_COL),
+            batch_size,
+            false,
+            None,
+        )?;
+    }
+
     let t_edge_path = path.as_ref().join(EDGES_T_PATH);
 
     if std::fs::exists(&t_edge_path)? {
@@ -522,44 +553,6 @@ fn decode_graph_storage(
             batch_size,
             None,
             false,
-        )?;
-    }
-
-    let t_node_path = path.as_ref().join(NODES_T_PATH);
-
-    if std::fs::exists(&t_node_path)? {
-        let exclude = vec![
-            NODE_GID_COL,
-            NODE_VID_COL,
-            TYPE_COL,
-            TIME_COL,
-            SECONDARY_INDEX_COL,
-            LAYER_COL,
-            LAYER_ID_COL,
-        ];
-        let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
-        let t_prop_columns = t_prop_columns
-            .iter()
-            .map(|s| s.as_str())
-            .collect::<Vec<_>>();
-
-        load_nodes_from_parquet(
-            &graph,
-            &t_node_path,
-            TIME_COL,
-            Some(SECONDARY_INDEX_COL),
-            NODE_VID_COL,
-            None,
-            None,
-            &t_prop_columns,
-            &[],
-            None,
-            None,
-            Some(LAYER_COL),
-            Some(LAYER_ID_COL),
-            batch_size,
-            false,
-            None,
         )?;
     }
 

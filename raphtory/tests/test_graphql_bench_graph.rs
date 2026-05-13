@@ -83,9 +83,8 @@ fn remove_dir_all_ignore_not_found(path: impl AsRef<Path>) -> io::Result<()> {
 }
 
 /// Load the graphql-bench master graph from its raw parquet directories by calling each
-/// of the per-section loaders directly. This mirrors what
-/// `decode_graph_storage` does internally, but builds an in-memory Graph from
-/// scratch so VIDs get reassigned contiguously.
+/// of the per-section loaders directly (load_*_from_parquet functions).
+/// This builds an in-memory Graph from scratch so VIDs get reassigned contiguously and segments grow naturally.
 fn load_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
     let graph = Graph::new();
 
