@@ -263,16 +263,6 @@ impl GraphServer {
 
         let work_dir = self.data.work_dir.clone();
 
-        // Otherwise evictions are only triggered when the cache is actively touched
-        let cache_clone = self.data.cache.clone();
-        let cache_task: AbortOnDrop<()> = AbortOnDrop(tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
-            loop {
-                interval.tick().await;
-                cache_clone.run_pending_tasks().await;
-            }
-        }));
-
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
             .generate_endpoint(tp.clone().map(|tp| tp.tracer(tracer_name)))
@@ -296,7 +286,6 @@ impl GraphServer {
         Ok(RunningGraphServer {
             signal_sender,
             server_result,
-            cache_task,
         })
     }
 
@@ -393,13 +382,11 @@ impl<T> Future for AbortOnDrop<T> {
 pub struct RunningGraphServer {
     signal_sender: Sender<()>,
     server_result: AbortOnDrop<IoResult<()>>,
-    cache_task: AbortOnDrop<()>,
 }
 
 impl RunningGraphServer {
     /// Stop the server.
     pub async fn stop(&self) {
-        self.cache_task.abort();
         let _ignored = self.signal_sender.send(()).await;
     }
 

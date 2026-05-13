@@ -23,6 +23,7 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
+    sync::Arc,
 };
 
 #[derive(Debug)]
@@ -166,17 +167,17 @@ impl GqlMutableGraph {
         )]
         graph_type: Option<GqlGraphType>,
     ) -> GqlGraph {
-        let folder = self.graph.folder.clone();
+        let folder = self.graph.folder().clone();
         match graph_type {
-            Some(GqlGraphType::Event) => match self.graph.graph.clone() {
+            Some(GqlGraphType::Event) => match self.graph.graph().clone() {
                 MaterializedGraph::EventGraph(g) => GqlGraph::new(folder, g),
                 MaterializedGraph::PersistentGraph(g) => GqlGraph::new(folder, g.event_graph()),
             },
-            Some(GqlGraphType::Persistent) => match self.graph.graph.clone() {
+            Some(GqlGraphType::Persistent) => match self.graph.graph().clone() {
                 MaterializedGraph::EventGraph(g) => GqlGraph::new(folder, g.persistent_graph()),
                 MaterializedGraph::PersistentGraph(g) => GqlGraph::new(folder, g),
             },
-            None => GqlGraph::new(folder, self.graph.graph.clone()),
+            None => GqlGraph::new(folder, self.graph.graph().clone()),
         }
     }
 
@@ -524,8 +525,14 @@ impl GqlMutableGraph {
     async fn flush(&self) -> Result<bool, GraphError> {
         let self_clone = self.clone();
         blocking_write(move || {
-            self_clone.graph.graph.flush()?;
-            Ok(true)
+            self_clone.graph.set_flushing(true);
+            self_clone.graph.set_dirty(false);
+            let res = self_clone.graph.graph().flush();
+            if res.is_err() {
+                self_clone.graph.set_dirty(true)
+            }
+            self_clone.graph.set_flushing(false);
+            res.map(|_| true)
         })
         .await
     }
@@ -959,7 +966,7 @@ mod tests {
         let limit = 5;
         let result = mutable_graph
             .graph
-            .vectors
+            .vectors()
             .unwrap()
             .nodes_by_similarity(&embedding.into(), limit, None)
             .execute()
@@ -1035,7 +1042,7 @@ mod tests {
         let limit = 5;
         let result = mutable_graph
             .graph
-            .vectors
+            .vectors()
             .unwrap()
             .nodes_by_similarity(&embedding.into(), limit, None)
             .execute()
@@ -1116,7 +1123,7 @@ mod tests {
         let limit = 5;
         let result = mutable_graph
             .graph
-            .vectors
+            .vectors()
             .unwrap()
             .edges_by_similarity(&embedding.into(), limit, None)
             .execute()

@@ -4,7 +4,7 @@ use crate::{
     config::{
         app_config::AppConfigBuilder,
         auth_config::{DEFAULT_REQUIRE_AUTH_FOR_READS, PUBLIC_KEY_DECODING_ERR_MSG},
-        cache_config::{DEFAULT_CAPACITY, DEFAULT_TTI_SECONDS},
+        cache_config::DEFAULT_CAPACITY,
         concurrency_config::{
             DEFAULT_DISABLE_BATCHING, DEFAULT_DISABLE_LISTS, DEFAULT_EXCLUSIVE_WRITES,
         },
@@ -54,9 +54,6 @@ struct ServerArgs {
 
     #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", default_value_t = DEFAULT_CAPACITY, help = "Cache capacity")]
     cache_capacity: u64,
-
-    #[arg(long, env = "RAPHTORY_CACHE_TTI_SECONDS", default_value_t = DEFAULT_TTI_SECONDS, help = "Cache time-to-idle in seconds")]
-    cache_tti_seconds: u64,
 
     #[arg(long, env = "RAPHTORY_LOG_LEVEL", default_value = DEFAULT_LOG_LEVEL, help = "Log level")]
     log_level: String,
@@ -199,7 +196,6 @@ where
         Commands::Server(server_args) => {
             let mut builder = AppConfigBuilder::new()
                 .with_cache_capacity(server_args.cache_capacity)
-                .with_cache_tti_seconds(server_args.cache_tti_seconds)
                 .with_log_level(server_args.log_level)
                 .with_tracing(server_args.tracing)
                 .with_tracing_level(server_args.tracing_level)

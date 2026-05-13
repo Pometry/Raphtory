@@ -438,7 +438,7 @@ impl Mut {
         let overwrite = overwrite.unwrap_or(false);
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
-        data.insert_graph(folder, src.graph).await?;
+        data.insert_graph(folder, src.graph().clone()).await?;
 
         Ok(true)
     }

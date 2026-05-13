@@ -21,7 +21,6 @@ use crate::{
 use async_graphql::Context;
 use dynamic_graphql::Enum;
 use futures_util::FutureExt;
-use moka::future::Cache;
 use raphtory::{
     db::{
         api::{
@@ -57,6 +56,8 @@ pub enum MutationErrorInner {
     IO(#[from] io::Error),
     #[error(transparent)]
     InvalidInternal(#[from] InternalPathValidationError),
+    #[error("Cache operation failed, simultaneous mutation occurred")]
+    CacheReplacementError,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -195,10 +196,6 @@ impl Data {
             .auth_policy = Some(policy);
     }
 
-    async fn invalidate(&self, path: &str) {
-        self.cache.remove(path);
-    }
-
     pub fn validate_path_for_insert(
         &self,
         path: &str,
@@ -214,7 +211,7 @@ impl Data {
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
-    async fn get_graph(&self, path: &str) -> Result<Arc<GraphWithVectors>, GQLError> {
+    async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
             .get_or_insert(path.into(), self.read_graph_from_disk(path))
             .await
@@ -225,12 +222,12 @@ impl Data {
     pub(crate) async fn get_graph_for_test(
         &self,
         path: &str,
-    ) -> Result<GraphWithVectors, Arc<GQLError>> {
+    ) -> Result<GraphWithVectors, GQLError> {
         self.get_graph(path).await
     }
 
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
-        self.cache.get(path.into()).await
+        self.cache.get(path.into())
     }
 
     pub async fn insert_graph(
@@ -238,25 +235,19 @@ impl Data {
         writeable_folder: ValidWriteableGraphFolder,
         graph: MaterializedGraph,
     ) -> Result<(), InsertionError> {
-        self.invalidate(writeable_folder.local_path()).await;
+        let key = writeable_folder.local_path().to_owned();
         let config = self.graph_conf.clone();
-        let graph = blocking_compute(move || {
-            writeable_folder.write_graph_data(graph.clone(), config)?;
-            let folder = writeable_folder.finish()?;
-            let graph = GraphWithVectors::new(graph, None, folder.as_existing()?);
-            Ok::<_, InsertionError>(graph)
-        })
-        .await?;
         self.cache
-            .insert(graph.folder.local_path().into(), graph)
-            .await;
-        // moka's `insert(..).await` is eventually consistent — the entry is
-        // queued and may not be visible to `cache.get(..)` immediately. Force
-        // the pending insert through so a follow-up `MetaGraph.metadata`
-        // hitting the listing path sees the cached graph instead of falling
-        // through to `read_constant_graph_properties`, which would read the
-        // on-disk graph_props before the writer has flushed them.
-        self.cache.run_pending_tasks().await;
+            .insert_with(
+                &key,
+                blocking_compute(move || {
+                    writeable_folder.write_graph_data(graph.clone(), config)?;
+                    let folder = writeable_folder.finish()?;
+                    let graph = GraphWithVectors::new(graph, None, folder.as_existing()?);
+                    Ok::<_, InsertionError>(graph)
+                }),
+            )
+            .await?;
         Ok(())
     }
 
@@ -266,13 +257,16 @@ impl Data {
         folder: ValidWriteableGraphFolder,
         bytes: R,
     ) -> Result<(), InsertionError> {
-        self.invalidate(folder.local_path()).await;
         let conf = self.graph_conf.clone();
-        blocking_io(move || {
-            folder.write_graph_bytes(bytes, conf)?;
-            folder.finish()
-        })
-        .await?;
+        self.cache
+            .invalidate_with(
+                &folder.local_path().to_string(),
+                blocking_io(move || {
+                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.finish()
+                }),
+            )
+            .await?;
         Ok(())
     }
 
@@ -280,14 +274,18 @@ impl Data {
         &self,
         graph_folder: ExistingGraphFolder,
     ) -> Result<(), MutationErrorInner> {
+        let key = graph_folder.local_path().to_string();
         let dirty_file = mark_dirty(graph_folder.root())?;
-        self.invalidate(graph_folder.local_path()).await;
-        blocking_io(move || {
-            fs::remove_dir_all(graph_folder.root())?;
-            fs::remove_file(dirty_file)?;
-            Ok::<_, MutationErrorInner>(())
-        })
-        .await?;
+        self.cache
+            .invalidate_with(
+                &key,
+                blocking_io(move || {
+                    fs::remove_dir_all(graph_folder.root())?;
+                    fs::remove_file(dirty_file)?;
+                    Ok::<_, MutationErrorInner>(())
+                }),
+            )
+            .await?;
         Ok(())
     }
 
@@ -332,10 +330,14 @@ impl Data {
         model: CachedEmbeddingModel,
     ) -> Result<(), GQLError> {
         let graph = match self.get_cached_graph(folder.local_path()).await {
-            None => self.read_graph_from_disk_inner(folder.clone()).await?,
-            Some(graph) => graph,
+            None => self
+                .read_graph_from_disk_inner(folder.clone())
+                .await?
+                .graph()
+                .clone(),
+            Some(graph) => graph.graph().clone(),
         };
-        self.vectorise_with_template(graph.graph, folder, template, model)
+        self.vectorise_with_template(graph, folder, template, model)
             .await;
         self.cache.remove(folder.local_path()).await;
         Ok(())
@@ -565,19 +567,21 @@ impl Data {
     ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
         let gwv = self.get_graph(path).await?;
         let typed_graph = match graph_type {
-            Some(GqlGraphType::Event) => match gwv.graph {
-                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g),
+            Some(GqlGraphType::Event) => match gwv.graph() {
+                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.clone()),
                 MaterializedGraph::PersistentGraph(g) => {
                     MaterializedGraph::EventGraph(g.event_graph())
                 }
             },
-            Some(GqlGraphType::Persistent) => match gwv.graph {
+            Some(GqlGraphType::Persistent) => match gwv.graph() {
                 MaterializedGraph::EventGraph(g) => {
                     MaterializedGraph::PersistentGraph(g.persistent_graph())
                 }
-                MaterializedGraph::PersistentGraph(g) => MaterializedGraph::PersistentGraph(g),
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.clone())
+                }
             },
-            None => gwv.graph,
+            None => gwv.graph().clone(),
         };
         let raw = typed_graph.into_dynamic();
         let graph = if let GraphPermission::Read {
@@ -588,7 +592,7 @@ impl Data {
         } else {
             raw
         };
-        Ok((gwv.folder, graph))
+        Ok((gwv.folder().clone(), graph))
     }
 
     /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
@@ -629,9 +633,8 @@ impl Data {
         path: &str,
     ) -> async_graphql::Result<GraphWithVectors> {
         require_at_least_read(ctx, &self.auth_policy, path)?;
-        self.get_graph(path)
-            .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+        let graph = self.get_graph(path).await?;
+        Ok(graph)
     }
 
     /// Checks write permission then returns the raw `GraphWithVectors` for mutation operations.
@@ -641,9 +644,8 @@ impl Data {
         path: &str,
     ) -> async_graphql::Result<GraphWithVectors> {
         require_graph_write(ctx, &self.auth_policy, path)?;
-        self.get_graph(path)
-            .await
-            .map_err(|e| async_graphql::Error::new(e.to_string()))
+        let graph = self.get_graph(path).await?;
+        Ok(graph)
     }
 
     /// Checks read permission then returns the vectorised graph, if any.
@@ -658,25 +660,14 @@ impl Data {
         if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
             return Ok(None);
         }
-        Ok(self
-            .get_graph(path)
-            .await
-            .ok()
-            .and_then(|g| g.vectors)
-            .map(Into::into))
+        let graph = self.get_graph(path).await?;
+        Ok(graph.vectors().cloned().map(|g| g.into()))
     }
 }
 
 impl Drop for DataInner {
     fn drop(&mut self) {
-        // On drop, serialize graphs that don't have underlying storage.
-        for (_, graph) in self.cache.iter() {
-            if graph.is_dirty() {
-                if let Err(e) = graph.folder.replace_graph_data(graph.graph) {
-                    error!("Error encoding graph to disk on drop: {e}");
-                }
-            }
-        }
+        self.cache.flush_and_clear();
     }
 }
 
@@ -753,10 +744,7 @@ pub(crate) mod data_tests {
         graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
         graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
@@ -769,7 +757,6 @@ pub(crate) mod data_tests {
         assert!(!data.cache.contains_key("test_g"));
 
         data.get_graph("test_g").await.unwrap(); // wait for any eviction
-        data.cache.run_pending_tasks().await;
         assert_eq!(data.cache.iter().count(), 1);
 
         sleep(Duration::from_secs(3)).await;
@@ -813,10 +800,7 @@ pub(crate) mod data_tests {
         fs::create_dir_all(&g6_path).unwrap();
         fs::write(g6_path.join("random-file"), "some-random-content").unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 
         let data = Data::new(work_dir, &configs, Default::default());
 
@@ -877,10 +861,7 @@ pub(crate) mod data_tests {
         let graph1_original_time = graph1_metadata.modified().unwrap();
         let graph2_original_time = graph2_metadata.modified().unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(10)
-            .with_cache_tti_seconds(300)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(10).build();
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
@@ -888,7 +869,7 @@ pub(crate) mod data_tests {
         let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_path().is_some() {
+        if loaded_graph1.graph().disk_storage_path().is_some() {
             assert!(
                 !loaded_graph1.is_dirty(),
                 "Graph1 should not be dirty when loaded from disk"
@@ -961,10 +942,7 @@ pub(crate) mod data_tests {
         let graph2_original_time = graph2_metadata.modified().unwrap();
 
         // Create cache with time to idle 3 seconds to force eviction
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(10)
-            .with_cache_tti_seconds(3)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(10).build();
 
         let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
@@ -992,10 +970,9 @@ pub(crate) mod data_tests {
 
         // Sleep to trigger eviction
         sleep(Duration::from_secs(3)).await;
-        data.cache.run_pending_tasks().await;
 
         // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
-        if loaded_graph1.graph.disk_storage_path().is_some() {
+        if loaded_graph1.graph().disk_storage_path().is_some() {
             // Check modification times after eviction
             let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
             let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();

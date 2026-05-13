@@ -1,4 +1,10 @@
-use crate::{graph::GraphWithVectors, paths::ValidGraphPaths, rayon::EVICT_POOL};
+use crate::{
+    data::{InsertionError, MutationErrorInner},
+    graph::GraphWithVectors,
+    paths::ValidGraphPaths,
+    rayon::{blocking_compute, EVICT_POOL},
+    GQLError,
+};
 use ahash::HashMap;
 use dashmap::{DashMap, Entry};
 use parking_lot::Mutex;
@@ -15,237 +21,191 @@ use std::{future::Future, marker::PhantomData, sync::Arc};
 use tokio::{join, sync::Notify};
 use tracing::{debug, error};
 
-#[derive(Clone)]
-enum DroppingState {
-    Dropping {
-        wait: Arc<Notify>,
-        graph: Arc<GraphWithVectors>,
-    },
-    Replacing {
-        wait: Arc<Notify>,
-    },
-    DroppedWhileReplacing {
-        wait: Arc<Notify>,
-    },
-}
-
-impl DroppingState {
-    fn into_wait(self) -> Arc<Notify> {
-        match self {
-            Self::Dropping { wait, .. }
-            | Self::Replacing { wait }
-            | Self::DroppedWhileReplacing { wait } => wait,
-        }
-    }
-
-    fn as_wait(&self) -> &Arc<Notify> {
-        match self {
-            Self::Dropping { wait, .. }
-            | Self::Replacing { wait }
-            | Self::DroppedWhileReplacing { wait } => wait,
-        }
-    }
-
-    fn new_dropping(graph: Arc<GraphWithVectors>) -> Self {
-        let wait = Arc::new(Notify::new());
-        Self::Dropping { wait, graph }
-    }
-
-    fn as_dropping(&mut self, dropping_graph: Arc<GraphWithVectors>) {
-        match self {
-            DroppingState::Dropping { graph, .. } => {
-                *graph = dropping_graph;
-            }
-            DroppingState::Replacing { wait } => {
-                *self = DroppingState::DroppedWhileReplacing { wait: wait.clone() }
-            }
-            DroppingState::DroppedWhileReplacing { .. } => {}
-        }
-    }
-}
-
-#[derive(Default, Clone)]
-pub struct ArcPinned {
-    dropping: Arc<DashMap<String, DroppingState>>,
-}
+#[derive(Default, Copy, Clone)]
+pub struct ArcPinned;
 
 pub struct CacheShard {
-    dropping: ArcPinned,
-    cache: Cache<String, Arc<GraphWithVectors>, UnitWeighter, DefaultHashBuilder, ArcPinned>,
+    cache: Cache<String, GraphWithVectors, UnitWeighter, DefaultHashBuilder, ArcPinned>,
 }
 
-fn drop_graph(val: Arc<GraphWithVectors>) -> () {
-    let graph = val.graph;
+fn flush_graph(val: GraphWithVectors) -> () {
+    val.set_flushing(true);
+    val.set_dirty(false); // make sure this is reset before the flush so any mutation that gets triggered afterwards will set the graph back to dirty
+    let graph = val.graph();
     if let Err(e) = graph.flush() {
-        error!("Failed to flush graph {}: {e}", val.folder.local_path())
+        error!("Failed to flush graph {}: {e}", val.folder().local_path())
     }
-    if let Err(e) = val.folder.replace_graph_data(graph) {
-        error!("Failed to write graph {}: {e}", val.folder.local_path())
+    if let Err(e) = val.folder().replace_graph_data(graph.clone()) {
+        error!("Failed to write graph {}: {e}", val.folder().local_path())
     }
+    val.set_flushing(false);
 }
 
-impl Lifecycle<String, Arc<GraphWithVectors>> for ArcPinned {
+impl Lifecycle<String, GraphWithVectors> for ArcPinned {
     type RequestState = ();
 
     #[inline]
-    fn is_pinned(&self, _key: &String, val: &Arc<GraphWithVectors>) -> bool {
-        if Arc::strong_count(val) > 1 {
-            return true;
-        }
-        if val.is_dirty() {
+    fn begin_request(&self) -> Self::RequestState {}
 
+    #[inline]
+    fn is_pinned(&self, _key: &String, val: &GraphWithVectors) -> bool {
+        if val.ref_count() > 1 {
             return true;
         }
-        false
+
+        if val.is_dirty() {
+            if !val.is_flushing() {
+                let graph = val.clone();
+                EVICT_POOL.spawn(move || {
+                    debug!("Flushing graph {}", graph.folder().local_path());
+                    flush_graph(graph);
+                })
+            }
+            return true;
+        }
+
+        val.is_flushing()
     }
 
     #[inline]
-    fn begin_request(&self) -> Self::RequestState {
-        ()
-    }
-
-    fn on_evict(&self, _state: &mut Self::RequestState, key: String, graph: Arc<GraphWithVectors>) {
+    fn on_evict(&self, state: &mut Self::RequestState, key: String, graph: GraphWithVectors) {
         debug_assert_eq!(
-            Arc::strong_count(&graph),
+            graph.ref_count(),
             1,
             "We should have the only reference to the graph on eviction"
         );
-        if graph.is_dirty() {
-            match self.dropping.entry(key.clone()) {
-                Entry::Occupied(mut entry) => {
-                    entry.get_mut().as_dropping(graph.clone());
-                }
-                Entry::Vacant(entry) => {
-                    entry.insert(DroppingState::new_dropping(graph.clone()));
-                }
-            };
-            let dropping_map = self.dropping.clone();
-            EVICT_POOL.spawn(move || {
-                debug!(
-                    "Graph {} removed from cache (flushing)",
-                    graph.folder.local_path()
-                );
-                drop_graph(graph);
-                if let Some((_, state)) = dropping_map.remove(&key) {
-                    state.into_wait().notify_waiters() // this makes sure graph is fully dropped before waking up other tasks
-                };
-            })
-        } else {
-            debug!(
-                "Graph {} removed from cache (clean)",
-                graph.folder.local_path()
-            )
-        }
+        debug_assert!(!graph.is_dirty(), "Graph should be clean on eviction");
+        debug_assert!(
+            !graph.is_flushing(),
+            "Graph should be already flushed on eviction"
+        );
+
+        debug!(
+            "Graph {} removed from cache (clean)",
+            graph.folder().local_path()
+        );
     }
 }
 
 pub struct GraphCache {
-    cache: Cache<String, Arc<GraphWithVectors>, UnitWeighter, DefaultHashBuilder, ArcPinned>,
-    dropping: ArcPinned,
+    cache: Cache<String, GraphWithVectors, UnitWeighter, DefaultHashBuilder, ArcPinned>,
 }
 
 impl GraphCache {
     pub fn new(items_capacity: usize) -> Self {
-        let dropping = ArcPinned::default();
         let cache = Cache::with(
             items_capacity,
             items_capacity as u64,
             Default::default(),
             Default::default(),
-            dropping.clone(),
+            Default::default(),
         );
-        Self { cache, dropping }
+        Self { cache }
     }
 
-    fn resurrect(&self, key: &str, graph: &Arc<GraphWithVectors>) {
-        // resurrect the graph
-        let entry = self
-            .cache
-            .entry(&key, None, |key, graph| EntryAction::Retain(()));
-        if let EntryResult::Vacant(placeholder) = entry {
-            placeholder.insert(graph.clone()).unwrap_or_else(|graph| {
-                error!("Failed to resurrect graph {}", graph.folder.local_path());
-            });
-        }
+    /// Get item for key if it is cached
+    pub fn get(&self, key: &str) -> Option<GraphWithVectors> {
+        self.cache.get(key)
     }
 
-    /// Get item for key, resurrecting it if it is currently being dropped or looking it up in the cache
-    pub async fn get(&self, key: String) -> Option<Arc<GraphWithVectors>> {
-        let wait = match self.dropping.dropping.entry(key.clone()) {
-            Entry::Occupied(entry) => match entry.get() {
-                DroppingState::Dropping { graph, .. } => {
-                    self.resurrect(&key, graph);
-                    return Some(graph.clone());
-                }
-                DroppingState::Replacing { wait }
-                | DroppingState::DroppedWhileReplacing { wait } => wait,
-            },
-            Entry::Vacant(entry) => return self.cache.get(&entry.into_key()),
-        };
-        // have to wait for replacement to finish before trying again
-        wait.notified().await;
-        self.get(key).await
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.cache.contains_key(key)
     }
 
-    /// Get item for key, resurrecting it if it is currently being dropped or looking it up in the cache.
-    /// If the item is not found, insert it using the provided future
+    pub fn iter(&self) -> impl Iterator<Item = (String, GraphWithVectors)> + use<'_> {
+        self.cache.iter()
+    }
+
+    /// Get item for key. If the item is not found, insert it using the provided future
     pub async fn get_or_insert<E>(
         &self,
-        key: String,
-        with: impl Future<Output = Result<Arc<GraphWithVectors>, E>>,
-    ) -> Result<Arc<GraphWithVectors>, E> {
-        let wait = match self.dropping.dropping.entry(key) {
-            Entry::Occupied(mut entry) => {
-                match entry.get() {
-                    DroppingState::Dropping { graph, .. } => {
-                        self.resurrect(entry.key(), graph);
-                        return Ok(graph.clone())
-                    }
-                    DroppingState::Replacing { wait } |
-                    DroppingState::DroppedWhileReplacing { wait } => {wait}
-                }
-            }
-            Entry::Vacant(entry) => {
-                self.cache
-                    .get_or_insert_async(&entry.into_key(), with)
-                    .await
-            }
-        }
+        key: &str,
+        with: impl Future<Output = Result<GraphWithVectors, E>>,
+    ) -> Result<GraphWithVectors, E> {
+        self.cache.get_or_insert_async(key, with).await
     }
 
+    /// Insert a new item into the cache, replacing an existing item if it exists
     pub async fn insert_with<E>(
         &self,
-        key: String,
-        with: impl Future<Output = Result<Arc<GraphWithVectors>, E>>,
-    ) -> Result<(), E> {
-        self.dropping.dropping.remove(&key); // make sure we don't resurrect the old graph if it is still being dropped
-        let cache_guard = tokio::spawn(
-            self.cache
-                .entry_async(&key, |key, value| EntryAction::<()>::ReplaceWithGuard),
-        );
-        let new_graph = tokio::spawn(with);
-        let (guard, graph) = join!(cache_guard, new_graph);
-
-        match guard? {
-            EntryResult::Replaced(guard, _) | EntryResult::Vacant(guard) => guard.insert(graph??),
+        key: &str,
+        with: impl Future<Output = Result<GraphWithVectors, E>>,
+    ) -> Result<(), InsertionError>
+    where
+        InsertionError: From<E>,
+    {
+        let new_graph = with.await?;
+        let cache_guard = self
+            .cache
+            .entry_async(key, |key, value| EntryAction::<()>::ReplaceWithGuard)
+            .await;
+        match cache_guard {
+            EntryResult::Replaced(guard, old_graph) => {
+                drop(old_graph);
+                guard.insert(new_graph)
+            }
+            EntryResult::Vacant(guard) => guard.insert(new_graph),
             _ => {
                 unreachable!()
             }
         }
+        .map_err(|_| InsertionError::Insertion {
+            graph: key.to_string(),
+            error: MutationErrorInner::CacheReplacementError,
+        })?;
+        Ok(())
     }
 
-    /// drain all items from the cache
-    pub fn drain(
-        &self,
-    ) -> Drain<'_, String, Arc<GraphWithVectors>, UnitWeighter, DefaultHashBuilder, ArcPinned> {
-        self.cache.drain()
+    /// clear all items from the cache, flushing them if needed
+    pub fn flush_and_clear(&self) {
+        for (_, graph) in self.cache.drain() {
+            flush_graph(graph);
+        }
     }
 
     /// remove a graph from the cache without triggering the eviction drop logic
-    pub fn remove(&self, key: &str) -> Option<Arc<GraphWithVectors>> {
-        self.cache
-            .remove(key)
-            .or_else(|| self.dropping.dropping.remove(key))
-            .map(|(_, v)| v)
+    /// Note that the cache entry is available again immediately!
+    pub async fn remove(&self, key: &str) -> Option<GraphWithVectors> {
+        let res = self
+            .cache
+            .entry_async(key, |key, graph| EntryAction::<()>::Remove)
+            .await;
+        match res {
+            EntryResult::Removed(_, graph) => Some(graph),
+            _ => None,
+        }
+    }
+
+    /// remove a graph from the cache, locking the cache entry until the graph is dropped
+    /// this is different from remove which returns the graph and unlocks the entry immediately
+    pub async fn delete(&self, key: &str) {
+        let res = self
+            .cache
+            .entry_async(key, |key, graph| EntryAction::<()>::ReplaceWithGuard)
+            .await;
+
+        match res {
+            EntryResult::Replaced(_guard, graph) => {
+                blocking_compute(move || drop(graph)).await;
+            }
+            _ => {}
+        }
+    }
+
+    /// remove a graph from the cache, locking the cache entry until the graph is dropped and the future has completed.
+    /// if the graph exists, it is dropped first before the future runs
+    pub async fn invalidate_with<E>(&self, key: &str, with: impl Future<Output = E>) -> E {
+        let guard = self
+            .cache
+            .entry_async(key, |key, graph| EntryAction::<()>::ReplaceWithGuard)
+            .await;
+
+        match guard {
+            EntryResult::Replaced(_guard, graph) => {
+                blocking_compute(move || drop(graph)).await;
+                with.await
+            }
+            _ => with.await,
+        }
     }
 }

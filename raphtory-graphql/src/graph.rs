@@ -34,32 +34,62 @@ use raphtory::prelude::IndexMutationOps;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
-    pub graph: MaterializedGraph,
-    pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: ExistingGraphFolder,
-    pub(crate) is_dirty: Arc<AtomicBool>,
+    inner: Arc<GraphWithVectorsInner>,
+}
+
+struct GraphWithVectorsInner {
+    graph: MaterializedGraph,
+    vectors: Option<VectorisedGraph<MaterializedGraph>>,
+    folder: ExistingGraphFolder,
+    is_dirty: AtomicBool,
+    is_flushing: AtomicBool,
 }
 
 impl GraphWithVectors {
-    pub(crate) fn new(
+    pub fn new(
         graph: MaterializedGraph,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
         folder: ExistingGraphFolder,
     ) -> Self {
-        Self {
+        let inner = Arc::new(GraphWithVectorsInner {
             graph,
             vectors,
             folder,
-            is_dirty: Arc::new(AtomicBool::new(false)),
-        }
+            is_dirty: AtomicBool::new(false),
+            is_flushing: AtomicBool::new(false),
+        });
+        Self { inner }
     }
 
-    pub(crate) fn set_dirty(&self, is_dirty: bool) {
-        self.is_dirty.store(is_dirty, Ordering::SeqCst);
+    pub fn graph(&self) -> &MaterializedGraph {
+        &self.inner.graph
     }
 
-    pub(crate) fn is_dirty(&self) -> bool {
-        self.is_dirty.load(Ordering::SeqCst)
+    pub fn vectors(&self) -> Option<&VectorisedGraph<MaterializedGraph>> {
+        self.inner.vectors.as_ref()
+    }
+
+    pub fn folder(&self) -> &ExistingGraphFolder {
+        &self.inner.folder
+    }
+    pub fn set_dirty(&self, is_dirty: bool) {
+        self.inner.is_dirty.store(is_dirty, Ordering::Release);
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.inner.is_dirty.load(Ordering::Acquire)
+    }
+
+    pub fn is_flushing(&self) -> bool {
+        self.inner.is_flushing.load(Ordering::Acquire)
+    }
+
+    pub fn set_flushing(&self, is_flushing: bool) {
+        self.inner.is_flushing.store(is_flushing, Ordering::Release)
+    }
+
+    pub fn ref_count(&self) -> usize {
+        Arc::strong_count(&self.inner)
     }
 
     /// Generates and stores embeddings for a batch of nodes.
@@ -67,7 +97,7 @@ impl GraphWithVectors {
         &self,
         nodes: Vec<T>,
     ) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
+        if let Some(vectors) = &self.inner.vectors {
             vectors.update_nodes(nodes).await?;
         }
 
@@ -79,7 +109,7 @@ impl GraphWithVectors {
         &self,
         edges: Vec<(T, T)>,
     ) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
+        if let Some(vectors) = &self.inner.vectors {
             vectors.update_edges(edges).await?;
         }
 
@@ -116,12 +146,7 @@ impl GraphWithVectors {
             graph.create_index()?;
         }
 
-        Ok(Self {
-            graph: graph.clone(),
-            vectors,
-            folder: folder.clone().into(),
-            is_dirty: Arc::new(AtomicBool::new(false)),
-        })
+        Ok(Self::new(graph, vectors, folder.clone()))
     }
 }
 
@@ -129,7 +154,7 @@ impl Base for GraphWithVectors {
     type Base = MaterializedGraph;
     #[inline]
     fn base(&self) -> &Self::Base {
-        &self.graph
+        &self.inner.graph
     }
 }
 
