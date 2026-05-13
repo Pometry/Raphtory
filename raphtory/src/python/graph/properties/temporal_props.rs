@@ -1,22 +1,18 @@
 use crate::{
     db::api::{
         properties::{
-            dyn_props::{DynTemporalProperties, DynTemporalProperty},
-            internal::InternalPropertiesOps,
-            TemporalProperties, TemporalPropertyView,
-        },
-        view::{
+            TemporalProperties, TemporalPropertyView, dyn_props::{DynTemporalProperties, DynTemporalProperty}, internal::InternalPropertiesOps
+        }, state::GenericNodeState, view::{
             history::History,
             internal::{DynamicGraph, Static},
-        },
+        }
     },
     python::{
         graph::{
-            history::{HistoryIterable, NestedHistoryIterable, PyHistory},
-            properties::{PyPropValueList, PyPropValueListList},
+            history::{HistoryIterable, NestedHistoryIterable, PyHistory}, node_state::PyOutputNodeState, properties::{PyPropValueList, PyPropValueListList}
         },
         types::{
-            repr::{iterator_dict_repr, iterator_repr, Repr},
+            repr::{Repr, iterator_dict_repr, iterator_repr},
             wrappers::{
                 iterables::{NestedUsizeIterable, PropIterable, UsizeIterable},
                 iterators::PyBorrowingIterator,
@@ -26,6 +22,7 @@ use crate::{
         utils::{NumpyArray, PyGenericIterator},
     },
 };
+use indexmap::IndexMap;
 use itertools::Itertools;
 use pyo3::{
     exceptions::{PyKeyError, PyTypeError},
@@ -33,12 +30,13 @@ use pyo3::{
     Borrowed,
 };
 use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropUnwrap},
+    entities::properties::prop::{Prop, PropUntagged, PropUnwrap},
     storage::{
         arc_str::ArcStr,
         timeindex::{AsTime, EventTime},
     },
 };
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, ops::Deref, sync::Arc};
 
 impl<P: Into<DynTemporalProperties>> From<P> for PyTemporalProperties {
@@ -1149,6 +1147,12 @@ impl PyPropValueList {
     ///     PropValue: The average of each property values, or None if count is zero.
     pub fn average(&self) -> PropValue {
         self.mean()
+    }
+
+    pub fn arrow_compute(&self, graph: DynamicGraph, col_name: String) -> PyOutputNodeState {
+        PyOutputNodeState::new(GenericNodeState::new_from_eval_mapped(graph.clone(), self.collect(), move |v| {
+            IndexMap::<String, Option<PropUntagged>>::from([(col_name.clone(), v.map(Into::<PropUntagged>::into))])
+        }, None))
     }
 }
 
