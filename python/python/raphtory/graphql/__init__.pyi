@@ -87,7 +87,6 @@ class GraphServer(object):
         cls,
         work_dir: str | PathLike,
         cache_capacity: Optional[int] = None,
-        cache_tti_seconds: Optional[int] = None,
         log_level: Optional[str] = None,
         tracing: Optional[bool] = None,
         tracing_level: Optional[str] = None,
