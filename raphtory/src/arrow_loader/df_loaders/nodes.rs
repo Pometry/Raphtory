@@ -398,13 +398,6 @@ pub fn load_node_props_from_df<
 
                         if !c_props.is_empty() {
                             writer.update_c_props(mut_node, row_layer, c_props.drain(..));
-                        } else if row_layer != STATIC_GRAPH_LAYER_ID {
-                            // even when c_props is empty, we still call this to make the node count in this layer
-                            writer.update_c_props(
-                                mut_node,
-                                row_layer,
-                                std::iter::empty::<(usize, Prop)>(),
-                            );
                         }
                     };
                 }
