@@ -2651,8 +2651,9 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "dynamic-graphql"
-version = "0.10.1"
-source = "git+https://github.com/miratepuffin/dynamic-graphql?branch=add-arg-descriptions#69a07c5fe3c16b4baf76f676c96cde5865cae1de"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9d58055cecef1736f42bee8819059054e18239cda3d5de56b0c8836c2a2322b"
 dependencies = [
  "async-graphql",
  "dynamic-graphql-derive",
@@ -2661,8 +2662,9 @@ dependencies = [
 
 [[package]]
 name = "dynamic-graphql-derive"
-version = "0.10.1"
-source = "git+https://github.com/miratepuffin/dynamic-graphql?branch=add-arg-descriptions#69a07c5fe3c16b4baf76f676c96cde5865cae1de"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff1e2aa3d6affef7ce88263e83c0110b11f57409cf25aa81689bcc5f023a602e"
 dependencies = [
  "Inflector",
  "darling 0.20.11",
@@ -6122,6 +6124,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
+name = "quick_cache"
+version = "0.6.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a70b1b8b47e31d0498ecbc3c5470bb931399a8bfed1fd79d1717a61ce7f96e3"
+dependencies = [
+ "ahash",
+ "equivalent",
+ "hashbrown 0.16.1",
+ "parking_lot",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6536,6 +6550,7 @@ dependencies = [
  "clap",
  "config",
  "crossbeam-channel",
+ "dashmap",
  "dynamic-graphql",
  "futures-util",
  "itertools 0.13.0",
@@ -6551,6 +6566,7 @@ dependencies = [
  "poem",
  "pretty_assertions",
  "pyo3",
+ "quick_cache",
  "raphtory",
  "raphtory-api",
  "raphtory-storage",

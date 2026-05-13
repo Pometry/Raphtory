@@ -1,6 +1,7 @@
 use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission},
+    cache::GraphCache,
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::{
@@ -142,7 +143,7 @@ pub(crate) fn get_relative_path(
 /// Inner struct with a drop implementation that cleans up the graphs
 pub struct DataInner {
     pub(crate) work_dir: PathBuf,
-    pub(crate) cache: Cache<String, GraphWithVectors>,
+    pub(crate) cache: GraphCache,
     pub(crate) vector_cache: LazyDiskVectorCache,
     pub(crate) graph_conf: Config,
     pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
@@ -167,25 +168,7 @@ impl Data {
     pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
         let cache_configs = &configs.cache;
 
-        let cache = Cache::<String, GraphWithVectors>::builder()
-            .max_capacity(cache_configs.capacity)
-            .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
-            .async_eviction_listener(|_, graph, cause| {
-                // The eviction listener gets called any time a graph is removed from the cache,
-                // not just when it is evicted. Only serialize on evictions.
-                async move {
-                    if !cause.was_evicted() {
-                        return;
-                    }
-                    if let Err(e) =
-                        blocking_compute(move || graph.folder.replace_graph_data(graph.graph)).await
-                    {
-                        error!("Error encoding graph to disk on eviction: {e}");
-                    }
-                }
-                .boxed()
-            })
-            .build();
+        let cache = GraphCache::new(cache_configs.capacity as usize);
 
         #[cfg(feature = "search")]
         let create_index = configs.index.create_index;
@@ -213,8 +196,7 @@ impl Data {
     }
 
     async fn invalidate(&self, path: &str) {
-        self.cache.invalidate(path).await;
-        self.cache.run_pending_tasks().await; // make sure the item is actually dropped
+        self.cache.remove(path);
     }
 
     pub fn validate_path_for_insert(
@@ -232,9 +214,9 @@ impl Data {
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
-    async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, Arc<GQLError>> {
+    async fn get_graph(&self, path: &str) -> Result<Arc<GraphWithVectors>, GQLError> {
         self.cache
-            .try_get_with(path.into(), self.read_graph_from_disk(path))
+            .get_or_insert(path.into(), self.read_graph_from_disk(path))
             .await
     }
 
@@ -248,12 +230,7 @@ impl Data {
     }
 
     pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
-        self.cache.get(path).await
-    }
-
-    pub fn has_graph(&self, path: &str) -> bool {
-        self.cache.contains_key(path)
-            || ExistingGraphFolder::try_from(self.work_dir.clone(), path).is_ok()
+        self.cache.get(path.into()).await
     }
 
     pub async fn insert_graph(

@@ -20,6 +20,7 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
+pub mod cache;
 pub mod cli;
 pub mod config;
 #[cfg(feature = "python")]
