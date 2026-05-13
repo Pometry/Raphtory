@@ -117,7 +117,7 @@ impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
         } else {
             return false;
         };
-        let (page_id, pos) = resolve_pos(elid.edge, max_page_len);
+        let (page_id, pos) = resolve_pos(elid.eid(), max_page_len);
         self.writers.get(page_id).is_some_and(|page| {
             let locked_head = page.lock.deref();
             page.page.has_edge(pos, elid.layer(), locked_head)

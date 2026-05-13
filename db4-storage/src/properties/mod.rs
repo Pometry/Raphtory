@@ -264,6 +264,15 @@ impl Properties {
     pub fn t_len(&self) -> usize {
         self.t_properties.len()
     }
+
+    pub fn num_updates(&self) -> usize {
+        self.t_properties.len()
+            + self
+                .deletions
+                .iter()
+                .map(|tcell| tcell.len())
+                .sum::<usize>()
+    }
 }
 
 impl<'a> PropMutEntry<'a> {

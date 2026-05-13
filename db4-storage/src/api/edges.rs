@@ -63,6 +63,9 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    /// total number of addition and deletion events
+    fn num_updates(&self) -> usize;
+
     fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment>;
 
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>;

@@ -30,7 +30,7 @@ use raphtory_storage::{
         nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
     },
 };
-use std::{iter, ops::Range};
+use std::{iter, ops::Range, sync::Arc};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 fn alive_before<
@@ -124,7 +124,7 @@ fn node_has_valid_edges<'graph, G: GraphView>(
         .history_rev()
         .any(|(_, e)| {
             // scan backwards in time over filtered history and keep track of deletions
-            let eid = e.edge;
+            let eid = e.eid();
             let layer = e.layer();
             if e.is_deletion() {
                 deleted.insert((eid, layer));
@@ -365,8 +365,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows()
+        node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -375,6 +376,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         let mut exact_layers = node.layer_ids_iter(view.layer_ids()).collect_vec();
         if !view.layer_ids().is_all()
@@ -390,7 +392,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 
         exact_layers.into_iter().flat_map(move |layer_id| {
             let mut rows = node
-                .temp_prop_rows_range(Some(w.clone()))
+                .temp_prop_rows_range(Some(w.clone()), prop_ids.clone())
                 .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
                 .collect_vec();
 
@@ -406,10 +408,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
 
             if has_prior_addition && !has_row_in_start_t {
                 let layer_view = LayeredGraph::new(view.clone(), LayerIds::One(layer_id));
-                let row = layer_view
-                    .node_meta()
-                    .temporal_prop_mapper()
-                    .ids()
+                let row = prop_ids
+                    .iter()
+                    .copied()
                     .filter_map(|prop_id| {
                         self.node_tprop_iter_window(node, layer_view.clone(), prop_id, w.clone())
                             .find(|(t, _)| *t >= w.start && *t < next_t)
@@ -594,7 +595,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 && !view.internal_edge_filtered()
                 && !view.internal_edge_layer_filtered())
                 || {
-                    let edge = view.core_edge(Either::Left(eid.edge));
+                    let edge = view.core_edge(Either::Left(eid.eid()));
                     view.internal_filter_edge_layer(edge.as_ref(), layer)
                         && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
                         && view.filter_edge_from_nodes(edge.as_ref())
@@ -602,7 +603,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         {
             if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
                 && (!view.internal_nodes_filtered() || {
-                    let edge = view.core_edge(Either::Left(eid.edge));
+                    let edge = view.core_edge(Either::Left(eid.eid()));
                     view.internal_filter_node(view.core_node(edge.src()).as_ref(), view.layer_ids())
                         && view.internal_filter_node(
                             view.core_node(edge.dst()).as_ref(),
@@ -672,7 +673,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 return true;
             }
 
-            let edge = view.core_edge(Either::Left(elid.edge));
+            let edge = view.core_edge(Either::Left(elid.eid()));
             let e = edge.as_ref();
             let layer = elid.layer();
             !e.filtered_deletions(layer, &view)

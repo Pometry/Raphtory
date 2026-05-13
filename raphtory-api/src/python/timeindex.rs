@@ -1,8 +1,12 @@
-use crate::core::{
-    storage::timeindex::{AsTime, EventTime, TimeError},
-    utils::time::{
-        InputTime, IntoTime, ParseTimeError, TryIntoInputTime, TryIntoTime, TryIntoTimeNeedsEventId,
+use crate::{
+    core::{
+        storage::timeindex::{AsTime, EventTime, TimeError},
+        utils::time::{
+            InputTime, IntoTime, ParseTimeError, TryIntoInputTime, TryIntoTime,
+            TryIntoTimeNeedsEventId,
+        },
     },
+    python::repr::Repr,
 };
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, Utc};
 use pyo3::{
@@ -356,13 +360,9 @@ pub struct PyOptionalEventTime {
     inner: Option<EventTime>,
 }
 
-impl PyOptionalEventTime {
-    // Repr trait is in raphtory crate so it can't be implemented here
-    pub fn repr(&self) -> String {
-        match self.inner {
-            Some(v) => v.to_string(), // couldn't use .repr() because it's in the raphtory crate
-            None => "None".to_string(),
-        }
+impl Repr for PyOptionalEventTime {
+    fn repr(&self) -> String {
+        self.inner.repr()
     }
 }
 
@@ -495,6 +495,10 @@ impl PyOptionalEventTime {
         } else {
             Err(PyTypeError::new_err("Unsupported comparison: EventTime can only be compared with a str, datetime, float, integer, a tuple/list of two of those types, or another EventTime."))
         }
+    }
+
+    pub fn __repr__(&self) -> String {
+        self.repr()
     }
 }
 

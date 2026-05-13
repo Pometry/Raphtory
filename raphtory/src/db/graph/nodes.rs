@@ -10,7 +10,7 @@ use crate::{
                 Index, LazyNodeState,
             },
             view::{
-                internal::{FilterOps, GraphView, InternalFilter, InternalNodeSelect, NodeList},
+                internal::{FilterOps, InternalFilter, InternalNodeSelect, NodeList},
                 BaseNodeViewOps, BoxedLIter, DynamicGraph, IntoDynBoxed, IntoDynamic,
             },
         },

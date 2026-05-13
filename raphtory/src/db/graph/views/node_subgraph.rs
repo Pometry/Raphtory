@@ -1,7 +1,9 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, LayerIds, VID},
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         state::{ops::GraphView, Index},
         view::internal::{
             EdgeList, FilterOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
@@ -57,6 +59,8 @@ impl<G> InheritCoreGraphOps for UnfilteredSubgraph<G> {}
 impl<G> InheritStorageOps for UnfilteredSubgraph<G> {}
 impl<G> InheritTimeSemantics for UnfilteredSubgraph<G> {}
 impl<G> InheritPropertiesOps for UnfilteredSubgraph<G> {}
+impl<G: GraphView> InheritNodePropertySchemaOps for UnfilteredSubgraph<G> {}
+impl<G: GraphView> InheritEdgePropertySchemaOps for UnfilteredSubgraph<G> {}
 impl<G> InheritMaterialize for UnfilteredSubgraph<G> {}
 impl<G> InheritLayerOps for UnfilteredSubgraph<G> {}
 impl<G> InheritNodeHistoryFilter for UnfilteredSubgraph<G> {}
@@ -123,6 +127,8 @@ impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for NodeSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for NodeSubgraph<G> {}
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for NodeSubgraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeHistoryFilter for NodeSubgraph<G> {}

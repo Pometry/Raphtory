@@ -10,10 +10,7 @@ use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
 };
-use raphtory_core::entities::{
-    graph::tgraph::TooManyLayers,
-    properties::props::{MetadataError, TPropError},
-};
+use raphtory_core::entities::properties::props::{MetadataError, TPropError};
 use std::sync::Arc;
 use storage::{
     error::StorageError,
@@ -39,8 +36,6 @@ pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 pub enum MutationError {
     #[error(transparent)]
     Immutable(#[from] Immutable),
-    #[error(transparent)]
-    TooManyLayers(#[from] TooManyLayers),
     #[error("Node type already set")]
     NodeTypeError,
     #[error(transparent)]

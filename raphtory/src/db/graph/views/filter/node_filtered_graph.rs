@@ -1,6 +1,8 @@
 use crate::{
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         state::ops::NodeFilterOp,
         view::internal::{
             Immutable, InheritAllEdgeFilterOps, InheritEdgeHistoryFilter, InheritLayerOps,
@@ -58,6 +60,14 @@ impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritAllEdgeFilterOps
 {
 }
 impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritPropertiesOps
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritNodePropertySchemaOps
+    for NodeFilteredGraph<G, F>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, F: NodeFilterOp> InheritEdgePropertySchemaOps
     for NodeFilteredGraph<G, F>
 {
 }

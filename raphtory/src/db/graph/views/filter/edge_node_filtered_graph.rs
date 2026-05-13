@@ -1,6 +1,8 @@
 use crate::db::{
     api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         state::ops::NodeFilterOp,
         view::internal::{
             GraphView, Immutable, InheritEdgeHistoryFilter, InheritEdgeLayerFilterOps,
@@ -53,6 +55,8 @@ impl<G: GraphView, F: NodeFilterOp> InheritListOps for EdgeNodeFilteredGraph<G, 
 impl<G: GraphView, F: NodeFilterOp> InheritMaterialize for EdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritNodeFilterOps for EdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritPropertiesOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritNodePropertySchemaOps for EdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritEdgePropertySchemaOps for EdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritTimeSemantics for EdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritNodeHistoryFilter for EdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritEdgeHistoryFilter for EdgeNodeFilteredGraph<G, F> {}

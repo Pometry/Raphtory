@@ -25,7 +25,8 @@ use crate::{
             nodes::Nodes,
             views::{
                 cached_view::CachedView, filter::node_filtered_graph::NodeFilteredGraph,
-                node_subgraph::NodeSubgraph, valid_graph::ValidGraph,
+                node_subgraph::NodeSubgraph, property_redacted_graph::PropertyRedaction,
+                valid_graph::ValidGraph, PropertyRedactedGraph,
             },
         },
     },
@@ -42,7 +43,6 @@ use ahash::HashSet;
 use arrow::array::RecordBatch;
 use db4_graph::TemporalGraph;
 use either::Either;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::properties::meta::{Meta, PropMapper},
     storage::{arc_str::ArcStr, timeindex::EventTime},
@@ -55,7 +55,7 @@ use raphtory_storage::graph::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
-use std::{path::Path, sync::Arc};
+use std::{any::Any, path::Path, sync::Arc};
 use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
 
 #[cfg(feature = "search")]
@@ -116,6 +116,15 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
         &self,
         nodes: I,
     ) -> NodeSubgraph<Self>;
+
+    /// Create a view that hides the property keys specified in `redaction`.
+    /// Build the redaction with [`PropertyRedaction`]'s `with_*` methods, e.g.:
+    /// ```ignore
+    /// graph.exclude_properties(
+    ///     PropertyRedaction::default().with_node_props(["salary"]).with_edge_meta(["ref"])
+    /// )
+    /// ```
+    fn exclude_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<Self>;
 
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr>;
@@ -396,34 +405,35 @@ pub fn materialize_impl(
     let stream_capacity = 10;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
-    let mut scope_result = Ok(());
+    // let mut scope_result = Ok(());
     // Use std::thread::scope rather than rayon::scope so the producer runs on its own OS thread.
     // With rayon::scope on a single-thread pool, the main thread blocking on rx.recv() would starve the spawned producer.
     std::thread::scope(|scope| {
         let producer_tx = tx.clone();
-        let producer_handle = scope.spawn(move || {
-            let make_sink_factory = |kind| {
-                let tx = producer_tx.clone();
-                move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
-            };
+        let producer_handle: std::thread::ScopedJoinHandle<'_, Result<(), GraphError>> = scope
+            .spawn(move || {
+                let make_sink_factory = |kind| {
+                    let tx = producer_tx.clone();
+                    move |_, _, _| Ok(ChannelRecordBatchSink::new(tx.clone(), kind))
+                };
 
-            // EdgesD must run before EdgesC: edges that exist only via
-            // deletions (e.g. in a windowed persistent graph) aren't
-            // produced by EdgesT, so the deletion pass is what
-            // materializes them. The edge-metadata loader then expects
-            // every layer-edge it sees to already exist.
-            // NodesC must run before NodesT as well.
-            ENCODE_POOL.install(|| -> Result<(), GraphError> {
-                encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
-                encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
-                encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
-                encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
-                encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
-                encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
-                encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
-                Ok(())
-            })
-        });
+                // EdgesD must run before EdgesC: edges that exist only via
+                // deletions (e.g. in a windowed persistent graph) aren't
+                // produced by EdgesT, so the deletion pass is what
+                // materializes them. The edge-metadata loader then expects
+                // every layer-edge it sees to already exist.
+                // NodesC must run before NodesT as well.
+                ENCODE_POOL.install(|| -> Result<(), GraphError> {
+                    encode_nodes_cprop(graph, make_sink_factory(RecordBatchKind::NodesC))?;
+                    encode_nodes_tprop(graph, make_sink_factory(RecordBatchKind::NodesT))?;
+                    encode_edge_tprop(graph, make_sink_factory(RecordBatchKind::EdgesT))?;
+                    encode_edge_deletions(graph, make_sink_factory(RecordBatchKind::EdgesD))?;
+                    encode_edge_cprop(graph, make_sink_factory(RecordBatchKind::EdgesC))?;
+                    encode_graph_tprop(graph, make_sink_factory(RecordBatchKind::GraphT))?;
+                    encode_graph_cprop(graph, make_sink_factory(RecordBatchKind::GraphC))?;
+                    Ok(())
+                })
+            });
 
         drop(tx);
 
@@ -616,20 +626,31 @@ pub fn materialize_impl(
                 break Err(err);
             }
         };
+        let _ = consumer_result?;
 
         drop(rx);
 
-        let producer_result = producer_handle.join().unwrap_or_else(|_| {
-            Err(GraphError::IOErrorMsg(
-                "record batch producer scope exited without reporting a result".to_string(),
-            ))
-        });
+        let _ = producer_handle.join().unwrap_or_else(|e| {
+            Err(GraphError::IOErrorMsg(format!(
+                "Producer thread panicked: {:?}",
+                panic_message(&e)
+            )))
+        })?;
 
-        scope_result = consumer_result.and(producer_result);
-    }); // std::thread::scope
-    scope_result?;
+        Ok::<_, GraphError>(())
+    })?; // std::thread::scope
 
     Ok(materialized)
+}
+
+fn panic_message(payload: &(dyn Any + Send)) -> &str {
+    if let Some(s) = payload.downcast_ref::<&'static str>() {
+        s
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.as_str()
+    } else {
+        "<non-string panic payload>"
+    }
 }
 
 impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
@@ -706,6 +727,10 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
         NodeSubgraph::new(self.clone(), nodes_to_include)
     }
 
+    fn exclude_properties(&self, redaction: &PropertyRedaction) -> PropertyRedactedGraph<G> {
+        PropertyRedactedGraph::new(self.clone(), redaction)
+    }
+
     /// Return all the layer ids in the graph
     fn unique_layers(&self) -> BoxedIter<ArcStr> {
         self.get_layer_names_from_ids(self.layer_ids())
@@ -738,7 +763,9 @@ impl<'graph, G: GraphView + 'graph> GraphViewOps<'graph> for G {
     #[inline]
     fn latest_time(&self) -> Option<EventTime> {
         if self.layer_ids().is_all() && !self.filtered() {
-            self.latest_time_global().map(EventTime::end)
+            let event_id = self.read_event_id();
+            self.latest_time_global()
+                .map(|t| EventTime::new(t, event_id))
         } else {
             self.properties()
                 .temporal()

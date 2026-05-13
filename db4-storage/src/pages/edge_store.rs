@@ -234,6 +234,14 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
             .sum()
     }
 
+    /// The total update count (includes edge additions and deletions) for all layers
+    pub fn num_updates(&self) -> usize {
+        self.segments()
+            .iter()
+            .map(|(_, page)| page.num_updates())
+            .sum()
+    }
+
     pub fn prop_meta(&self) -> &Arc<Meta> {
         &self.prop_meta
     }
@@ -468,7 +476,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
 
     pub fn get_edge(&self, e_id: ELID) -> Option<(VID, VID)> {
         let layer = e_id.layer();
-        let e_id = e_id.edge;
+        let e_id = e_id.eid();
         let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len());
         let segment = self.segments.get(segment_id)?;
         segment.get_edge(local_edge, layer, segment.head())

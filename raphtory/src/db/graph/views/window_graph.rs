@@ -42,7 +42,8 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritMetadataPropertiesOps, InternalTemporalPropertiesOps,
+                InheritEdgePropertySchemaOps, InheritMetadataPropertiesOps,
+                InheritNodePropertySchemaOps, InternalTemporalPropertiesOps,
                 InternalTemporalPropertyViewOps,
             },
             state::Index,
@@ -176,6 +177,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritStorageOps for WindowedGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMetadataPropertiesOps for WindowedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for WindowedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
 
