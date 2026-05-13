@@ -2,7 +2,6 @@ use crate::{
     auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
-    graph::GraphWithVectors,
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
@@ -541,7 +540,11 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         #[cfg(feature = "search")]
         {
-            let graph = data.get_graph_with_write_permission(ctx, path).await?.graph;
+            let graph = data
+                .get_graph_with_write_permission(ctx, path)
+                .await?
+                .graph()
+                .clone();
             match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;
