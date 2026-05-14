@@ -3,29 +3,18 @@ use crate::{
     graph::GraphWithVectors,
     paths::ValidGraphPaths,
     rayon::{blocking_compute, EVICT_POOL},
-    GQLError,
 };
-use ahash::HashMap;
-use dashmap::{DashMap, Entry};
 use quick_cache::{
-    sync::{Cache, Drain, EntryAction, EntryResult},
-    DefaultHashBuilder, Lifecycle, UnitWeighter, Weighter,
+    sync::{Cache, EntryAction, EntryResult},
+    DefaultHashBuilder, Lifecycle, UnitWeighter,
 };
-use raphtory::{
-    db::api::{storage::storage::PersistenceStrategy, view::internal::InternalStorageOps},
-    prelude::AdditionOps,
-};
+use raphtory::prelude::AdditionOps;
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::{future::Future, marker::PhantomData, sync::Arc};
-use tokio::{join, sync::Notify};
+use std::future::Future;
 use tracing::{debug, error};
 
 #[derive(Default, Copy, Clone)]
 pub struct ArcPinned;
-
-pub struct CacheShard {
-    cache: Cache<String, GraphWithVectors, UnitWeighter, DefaultHashBuilder, ArcPinned>,
-}
 
 fn flush_graph(val: GraphWithVectors) -> () {
     val.set_flushing(true);

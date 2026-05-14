@@ -294,8 +294,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "Only relative paths are allowed to be used within the working_dir: /test"
-                in str(excinfo.value)
+                    "Only relative paths are allowed to be used within the working_dir: /test"
+                    in str(excinfo.value)
             )
 
         query = """{
@@ -309,8 +309,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "References to the parent dir are not allowed within the path: test/../../"
-                in str(excinfo.value)
+                    "References to the parent dir are not allowed within the path: test/../../"
+                    in str(excinfo.value)
             )
 
         query = """{
@@ -324,8 +324,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "References to the current dir are not allowed within the path: ./test"
-                in str(excinfo.value)
+                    "References to the current dir are not allowed within the path: ./test"
+                    in str(excinfo.value)
             )
 
         query = """{
@@ -339,8 +339,8 @@ def test_wrong_paths():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
             assert (
-                "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
-                in str(excinfo.value)
+                    "The path to the graph contains a subpath to an existing graph: test/second/internal/graph1"
+                    in str(excinfo.value)
             )
 
 
@@ -441,8 +441,8 @@ def test_namespace_listing_does_not_load_each_graph():
     graph_props segment)."""
     n_graphs = 200
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_node(1, "alice", {"role": "engineer"})

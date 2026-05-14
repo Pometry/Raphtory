@@ -23,7 +23,6 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
-    sync::Arc,
 };
 
 #[derive(Debug)]

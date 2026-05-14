@@ -383,12 +383,10 @@ impl InheritViewOps for Storage {}
 #[derive(Clone)]
 pub struct StorageWriteSession<'a> {
     session: UnlockedSession<'a>,
-    storage: &'a Storage,
 }
 
 pub struct AtomicAddEdgeSession<'a> {
     session: AtomicAddEdge<'a, Extension>,
-    storage: &'a Storage,
 }
 
 impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
@@ -538,10 +536,7 @@ impl InternalAdditionOps for Storage {
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         let session = self.graph.write_session()?;
-        Ok(StorageWriteSession {
-            session,
-            storage: self,
-        })
+        Ok(StorageWriteSession { session })
     }
 
     fn atomic_add_edge(
@@ -551,10 +546,7 @@ impl InternalAdditionOps for Storage {
         e_id: Option<EID>,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
         let session = self.graph.atomic_add_edge(src, dst, e_id)?;
-        Ok(AtomicAddEdgeSession {
-            session,
-            storage: self,
-        })
+        Ok(AtomicAddEdgeSession { session })
     }
 
     fn internal_add_node(

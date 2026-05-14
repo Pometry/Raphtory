@@ -20,7 +20,6 @@ use crate::{
 };
 use async_graphql::Context;
 use dynamic_graphql::Enum;
-use futures_util::FutureExt;
 use raphtory::{
     db::{
         api::{
