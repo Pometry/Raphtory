@@ -60,8 +60,8 @@ def test_new_graph():
     work_dir = tempfile.TemporaryDirectory()
     server = GraphServer(work_dir.name)
     with embeddings.start(7340):
-        with server.start():
-            client = RaphtoryClient("http://localhost:1736")
+        with server.start() as server:
+            client = server.get_client()
             client.new_graph("abb", "EVENT")
             rg = client.remote_graph("abb")
             setup_graph(rg)
@@ -79,8 +79,8 @@ def test_upload_graph():
     temp_dir = tempfile.TemporaryDirectory()
     server = GraphServer(work_dir.name)
     with embeddings.start(7340):
-        with server.start():
-            client = RaphtoryClient("http://localhost:1736")
+        with server.start() as server:
+            client = server.get_client()
             g = Graph()
             setup_graph(g)
             g_path = temp_dir.name + "/abb"
@@ -104,8 +104,8 @@ def test_vectorised_graph_window_accepts_time_input_shapes():
     work_dir = tempfile.TemporaryDirectory()
     server = GraphServer(work_dir.name)
     with embeddings.start(7340):
-        with server.start():
-            client = RaphtoryClient("http://localhost:1736")
+        with server.start() as server:
+            client = server.get_client()
             client.new_graph("abb", "EVENT")
             rg = client.remote_graph("abb")
             setup_graph(rg)
@@ -163,6 +163,6 @@ def test_include_graph():
             nodes="{{ name }}",
             edges=False,
         )
-        with server.start():
-            client = RaphtoryClient("http://localhost:1736")
+        with server.start() as server:
+            client = server.get_client()
             assert_correct_documents(client)

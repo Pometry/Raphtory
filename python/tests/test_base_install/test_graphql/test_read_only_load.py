@@ -31,8 +31,6 @@ pytestmark = pytest.mark.skipif(
     reason="disk-backed graph tests require the storage feature",
 )
 
-SERVER_URL = "http://localhost:1736"
-
 
 def _persist_graph(graph_dir):
     """Build a disk-backed graph at `graph_dir`, populate it, flush it, and
@@ -65,8 +63,8 @@ def test_read_only_load_while_server_owns_directory():
     read-only handle should both succeed and report the same data.
     """
     work_dir, graph_dir = _make_work_dir_with_graph()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         # Trigger the server to load the graph so it holds the writer.
         client.query('{ graph(path: "g") { created } }')
@@ -104,8 +102,8 @@ def test_graphql_and_read_only_handle_interleaved():
     read-only handle to the same directory. Both pathways should keep
     serving consistent results across multiple round-trips."""
     work_dir, graph_dir = _make_work_dir_with_graph()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         # Prime the server's load.
         client.query('{ graph(path: "g") { created } }')
         ro = Graph.load(graph_dir, read_only=True)
@@ -130,8 +128,8 @@ def test_read_only_load_blocks_all_mutation_paths():
       - graph-level metadata (never touches the id resolver at all)
     """
     work_dir, graph_dir = _make_work_dir_with_graph()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.query('{ graph(path: "g") { created } }')
         ro = Graph.load(graph_dir, read_only=True)
 
@@ -148,7 +146,7 @@ def test_read_only_load_blocks_all_mutation_paths():
                 mutate()
             msg = str(exc.value).lower()
             assert (
-                "locked" in msg or "immutable" in msg
+                    "locked" in msg or "immutable" in msg
             ), f"{name} did not raise a locked/immutable error: {exc.value}"
 
 
@@ -159,8 +157,8 @@ def test_writer_load_against_live_server_directory_fails():
     `read_only=True` is not accidentally a no-op flag — it really is the
     only way to coexist with a live writer."""
     work_dir, graph_dir = _make_work_dir_with_graph()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         # Force the server to take the writer lock by loading the graph.
         client.query('{ graph(path: "g") { created } }')
 
@@ -172,8 +170,8 @@ def test_multiple_read_only_handles_can_coexist_with_server():
     """Two simultaneous read-only handles + the server writer = three total
     attachments to the same graph directory."""
     work_dir, graph_dir = _make_work_dir_with_graph()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.query('{ graph(path: "g") { created } }')
 
         ro1 = Graph.load(graph_dir, read_only=True)
@@ -212,8 +210,8 @@ def test_flush_via_update_graph_makes_writes_visible_to_read_only_handle():
     when it opens) wouldn't see writes the server has made via
     `updateGraph` since the last flush."""
     work_dir, graph_dir = _make_work_dir_with_graph()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         # Server loads as writer.
         client.query('{ graph(path: "g") { created } }')
 
@@ -234,8 +232,8 @@ def test_flush_via_update_graph_makes_writes_visible_to_read_only_handle():
 
 def test_read_only_load_from_a_separate_python_process():
     work_dir, graph_dir = _make_work_dir_with_graph()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.query('{ graph(path: "g") { created } }')
 
         result = subprocess.run(

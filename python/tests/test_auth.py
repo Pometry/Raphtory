@@ -17,8 +17,6 @@ PRIVATE_KEY = """-----BEGIN PRIVATE KEY-----
 MC4CAQAwBQYDK2VwBCIEIFzEcSO/duEjjX4qKxDVy4uLqfmiEIA6bEw1qiPyzTQg
 -----END PRIVATE KEY-----"""
 
-RAPHTORY = "http://localhost:1736"
-
 READ_JWT = jwt.encode({"access": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
 READ_HEADERS = {
     "Authorization": f"Bearer {READ_JWT}",
@@ -69,6 +67,10 @@ QUERY_GRAPH = """query { graph(path: "test") { path } }"""
 TEST_QUERIES = [QUERY_NAMESPACES, QUERY_GRAPH, QUERY_ROOT]
 
 
+def raphtory_url(port: int) -> str:
+    return f"http://localhost:{port}"
+
+
 def assert_successful_response(response: requests.Response):
     assert "errors" not in response.json()
     assert type(response.json()["data"]) == dict
@@ -76,22 +78,23 @@ def assert_successful_response(response: requests.Response):
 
 
 # TODO: implement this so we can use the with sintax
-def add_test_graph():
+def add_test_graph(port):
     requests.post(
-        RAPHTORY, headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH})
+        raphtory_url(port), headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH})
     )
 
 
 def test_expired_token():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
         exp = time() - 100
         token = jwt.encode({"access": "ro", "exp": exp}, PRIVATE_KEY, algorithm="EdDSA")
         headers = {
             "Authorization": f"Bearer {token}",
         }
         response = requests.post(
-            RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_ROOT})
+            raphtory_url(port), headers=headers, data=json.dumps({"query": QUERY_ROOT})
         )
         assert response.status_code == 401
 
@@ -100,7 +103,7 @@ def test_expired_token():
             "Authorization": f"Bearer {token}",
         }
         response = requests.post(
-            RAPHTORY, headers=headers, data=json.dumps({"query": QUERY_ROOT})
+            raphtory_url(port), headers=headers, data=json.dumps({"query": QUERY_ROOT})
         )
         assert response.status_code == 401
 
@@ -108,17 +111,18 @@ def test_expired_token():
 @pytest.mark.parametrize("query", TEST_QUERIES)
 def test_default_read_access(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
-        add_test_graph()
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
+        add_test_graph(port)
         data = json.dumps({"query": query})
 
-        response = requests.post(RAPHTORY, data=data)
+        response = requests.post(raphtory_url(port), data=data)
         assert response.status_code == 401
 
-        response = requests.post(RAPHTORY, headers=READ_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=READ_HEADERS, data=data)
         assert_successful_response(response)
 
-        response = requests.post(RAPHTORY, headers=WRITE_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
 
 
@@ -126,18 +130,19 @@ def test_default_read_access(query):
 def test_disabled_read_access(query):
     work_dir = tempfile.mkdtemp()
     with GraphServer(
-        work_dir, auth_public_key=PUB_KEY, require_auth_for_reads=False
-    ).start():
-        add_test_graph()
+            work_dir, auth_public_key=PUB_KEY, require_auth_for_reads=False
+    ).start() as server:
+        port = server.port()
+        add_test_graph(port)
         data = json.dumps({"query": query})
 
-        response = requests.post(RAPHTORY, data=data)
+        response = requests.post(raphtory_url(port), data=data)
         assert_successful_response(response)
 
-        response = requests.post(RAPHTORY, headers=READ_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=READ_HEADERS, data=data)
         assert_successful_response(response)
 
-        response = requests.post(RAPHTORY, headers=WRITE_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
 
 
@@ -178,21 +183,22 @@ query {
 @pytest.mark.parametrize("query", [ADD_NODE, ADD_EDGE, ADD_TEMP_PROP, ADD_CONST_PROP])
 def test_update_graph(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
-        add_test_graph()
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
+        add_test_graph(port)
         data = json.dumps({"query": query})
 
-        response = requests.post(RAPHTORY, data=data)
+        response = requests.post(raphtory_url(port), data=data)
         assert response.status_code == 401
 
-        response = requests.post(RAPHTORY, headers=READ_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=READ_HEADERS, data=data)
         assert response.json()["data"] is None
         assert (
-            response.json()["errors"][0]["message"]
-            == "The requested endpoint requires write access"
+                response.json()["errors"][0]["message"]
+                == "The requested endpoint requires write access"
         )
 
-        response = requests.post(RAPHTORY, headers=WRITE_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
 
 
@@ -208,28 +214,30 @@ CREATE_SUBGRAPH = """mutation { createSubgraph(parentPath:"test", newPath: "subg
 )
 def test_mutations(query):
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
-        add_test_graph()
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
+        add_test_graph(port)
         data = json.dumps({"query": query})
 
-        response = requests.post(RAPHTORY, data=data)
+        response = requests.post(raphtory_url(port), data=data)
         assert response.status_code == 401
 
-        response = requests.post(RAPHTORY, headers=READ_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=READ_HEADERS, data=data)
         assert response.json()["data"] is None
         assert (
-            response.json()["errors"][0]["message"]
-            == "The requested endpoint requires write access"
+                response.json()["errors"][0]["message"]
+                == "The requested endpoint requires write access"
         )
 
-        response = requests.post(RAPHTORY, headers=WRITE_HEADERS, data=data)
+        response = requests.post(raphtory_url(port), headers=WRITE_HEADERS, data=data)
         assert_successful_response(response)
 
 
 def test_raphtory_client():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
-        client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
+        client = RaphtoryClient(url=raphtory_url(port), token=WRITE_JWT)
         client.new_graph("test", "EVENT")
         g = client.remote_graph("test")
         g.add_node(0, "test")
@@ -241,8 +249,9 @@ def test_raphtory_client():
 def test_raphtory_client_write_denied_for_read_jwt():
     """RaphtoryClient initialized with a read JWT is denied write operations."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
-        client = RaphtoryClient(url=RAPHTORY, token=READ_JWT)
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
+        client = RaphtoryClient(url=raphtory_url(port), token=READ_JWT)
         with pytest.raises(Exception, match="requires write access"):
             client.new_graph("test", "EVENT")
 
@@ -253,10 +262,11 @@ def test_raphtory_client_write_denied_for_read_jwt():
 def test_rsa_signed_jwt_rs256_accepted():
     """Server configured with an RSA public key accepts RS256-signed JWTs."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=RSA_PUB_KEY).start():
+    with GraphServer(work_dir, auth_public_key=RSA_PUB_KEY).start() as server:
+        port = server.port()
         token = jwt.encode({"access": "ro"}, RSA_PRIVATE_KEY, algorithm="RS256")
         response = requests.post(
-            RAPHTORY,
+            raphtory_url(port),
             headers={"Authorization": f"Bearer {token}"},
             data=json.dumps({"query": QUERY_ROOT}),
         )
@@ -266,10 +276,11 @@ def test_rsa_signed_jwt_rs256_accepted():
 def test_rsa_signed_jwt_rs512_accepted():
     """RS512 JWT is also accepted for the same RSA key (different hash, same key material)."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=RSA_PUB_KEY).start():
+    with GraphServer(work_dir, auth_public_key=RSA_PUB_KEY).start() as server:
+        port = server.port()
         token = jwt.encode({"access": "ro"}, RSA_PRIVATE_KEY, algorithm="RS512")
         response = requests.post(
-            RAPHTORY,
+            raphtory_url(port),
             headers={"Authorization": f"Bearer {token}"},
             data=json.dumps({"query": QUERY_ROOT}),
         )
@@ -279,10 +290,11 @@ def test_rsa_signed_jwt_rs512_accepted():
 def test_eddsa_jwt_rejected_against_rsa_key():
     """EdDSA JWT is rejected when the server is configured with an RSA public key."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=RSA_PUB_KEY).start():
+    with GraphServer(work_dir, auth_public_key=RSA_PUB_KEY).start() as server:
+        port = server.port()
         token = jwt.encode({"access": "ro"}, PRIVATE_KEY, algorithm="EdDSA")
         response = requests.post(
-            RAPHTORY,
+            raphtory_url(port),
             headers={"Authorization": f"Bearer {token}"},
             data=json.dumps({"query": QUERY_ROOT}),
         )
@@ -292,20 +304,22 @@ def test_eddsa_jwt_rejected_against_rsa_key():
 def test_raphtory_client_read_jwt_can_receive_graph():
     """RaphtoryClient initialized with a read JWT can download graphs."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
-        client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
+        client = RaphtoryClient(url=raphtory_url(port), token=WRITE_JWT)
         client.new_graph("test", "EVENT")
         client.remote_graph("test").add_node(0, "mynode")
 
-        client2 = RaphtoryClient(url=RAPHTORY, token=READ_JWT)
+        client2 = RaphtoryClient(url=raphtory_url(port), token=READ_JWT)
         g = client2.receive_graph("test")
         assert g.node("mynode") is not None
 
 
 def test_upload_graph():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, auth_public_key=PUB_KEY).start():
-        client = RaphtoryClient(url=RAPHTORY, token=WRITE_JWT)
+    with GraphServer(work_dir, auth_public_key=PUB_KEY).start() as server:
+        port = server.port()
+        client = RaphtoryClient(url=raphtory_url(port), token=WRITE_JWT)
         g = Graph()
         g.add_node(0, "uploaded-node")
         tmp_dir = tempfile.mkdtemp()

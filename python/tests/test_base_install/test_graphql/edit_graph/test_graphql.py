@@ -45,8 +45,8 @@ def test_wrong_url():
     with pytest.raises(Exception) as excinfo:
         client = RaphtoryClient("http://broken_url.com")
     assert (
-        str(excinfo.value)
-        == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
+            str(excinfo.value)
+            == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
     )
 
 
@@ -66,8 +66,9 @@ def test_server_start_on_default_port():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        port = server.port()
+        client = RaphtoryClient(f"http://localhost:{port}")
         client.send_graph(path="g", graph=g)
 
         query = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -119,8 +120,8 @@ def test_namespaces():
 
     path = "g"
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         # Default namespace, graph is saved in the work dir
         client.send_graph(path=path, graph=g, overwrite=True)
@@ -155,40 +156,40 @@ def test_namespaces():
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
-            in str(excinfo.value)
+                "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
+                in str(excinfo.value)
         )
 
         path = "./shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path './shivam/g': References to the current dir are not allowed within the path"
-            in str(excinfo.value)
+                "Invalid path './shivam/g': References to the current dir are not allowed within the path"
+                in str(excinfo.value)
         )
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
-            in str(excinfo.value)
+                "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
+                in str(excinfo.value)
         )
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
-            in str(excinfo.value)
+                "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
+                in str(excinfo.value)
         )
 
         path = "shivam/investigation//2024-12-12/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
-            in str(excinfo.value)
+                "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
+                in str(excinfo.value)
         )
 
         path = r"shivam/investigation\2024-12-12"
@@ -206,8 +207,8 @@ def test_namespaces():
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-            "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
-            in str(excinfo.value)
+                "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
+                in str(excinfo.value)
         )
 
 
@@ -474,8 +475,8 @@ def test_create_node():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -505,8 +506,8 @@ def test_create_node_using_client():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -533,8 +534,8 @@ def test_create_node_using_client_with_properties():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = (
@@ -596,8 +597,8 @@ def test_create_node_using_client_with_properties_node_type():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name, nodeType, properties { keys }}}}}"""
@@ -664,8 +665,8 @@ def test_create_node_using_client_with_node_type():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name, nodeType}}}}"""
@@ -702,8 +703,8 @@ def test_edge_id():
     g.add_edge(3, "po", "ben")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {edges {list {id}}}}"""
@@ -724,8 +725,8 @@ def test_graph_persistence_across_restarts():
     tmp_work_dir = tempfile.mkdtemp()
 
     # First server session: create graph with 3 nodes and 2 edges
-    with GraphServer(tmp_work_dir).start(port=1738):
-        client = RaphtoryClient("http://localhost:1738")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.new_graph(path="persistent_graph", graph_type="EVENT")
         remote_graph = client.remote_graph(path="persistent_graph")
         # Create 3 nodes
@@ -761,8 +762,8 @@ def test_graph_persistence_across_restarts():
         }
 
     # Server is now shutdown, start it again
-    with GraphServer(tmp_work_dir).start(port=1738):
-        client = RaphtoryClient("http://localhost:1738")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         # Verify persistence: check that nodes and edges are still there
         query_nodes = """{graph(path: "persistent_graph") {nodes {sorted (sortBys: [{id: true}]){ list {name} }}}}"""
@@ -841,8 +842,8 @@ def test_float_is_stable_on_roundtrip():
     ]
     prop_key = "p"
 
-    with GraphServer(tmp_work_dir).start(port=1738):
-        client = RaphtoryClient("http://localhost:1738")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.new_graph(path="g", graph_type="EVENT")
         remote_graph = client.remote_graph(path="g")
 
@@ -866,7 +867,6 @@ def test_float_is_stable_on_roundtrip():
             resp = client.query(query)
             retrieved_float = resp["graph"]["node"]["at"]["properties"]["get"]["value"]
             assert retrieved_float == num
-
 
 # def test_disk_graph_name():
 #     import pandas as pd

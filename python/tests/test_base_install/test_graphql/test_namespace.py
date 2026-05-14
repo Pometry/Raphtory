@@ -29,8 +29,8 @@ def sort_dict(d):
 def test_namespaces_and_metagraph():
     work_dir = tempfile.mkdtemp()
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         make_folder_structure(client)
 
         # tests list and page on namespaces and metagraphs
@@ -188,8 +188,8 @@ def test_namespaces_and_metagraph():
 def test_counting():
     work_dir = tempfile.mkdtemp()
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         make_folder_structure(client)
 
         query = """
@@ -227,8 +227,8 @@ def test_counting():
 def test_escaping_parent():
     work_dir = tempfile.mkdtemp()
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         make_folder_structure(client)
 
         query = """{
@@ -265,8 +265,8 @@ def test_escaping_parent():
 def test_wrong_paths():
     work_dir = tempfile.mkdtemp()
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         make_folder_structure(client)
 
         query = """{
@@ -347,8 +347,8 @@ def test_wrong_paths():
 def test_namespaces():
     work_dir = tempfile.mkdtemp()
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         make_folder_structure(client)
 
         query = """
