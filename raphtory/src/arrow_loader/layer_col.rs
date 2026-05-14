@@ -131,7 +131,7 @@ impl<'a> LayerCol<'a> {
         }
     }
 
-    /// We differentiate between node layers and edge layers using `is_node_layer` because the default layer differs.
+    /// We differentiate between node and edge layers using `is_node_layer` because the default layer name/id differs.
     pub fn resolve_layer<'b>(
         self,
         layer_id_col: Option<&'b [u64]>,
@@ -150,13 +150,13 @@ impl<'a> LayerCol<'a> {
             }
             (col, None) => {
                 let mut res = vec![0usize; col.len()];
-                let mut last_name: Option<&str> = None;
-                let mut last_layer: Option<usize> = None;
+                let mut last_name = None;
+                let mut last_layer = None;
                 for (row, name) in col.iter().enumerate() {
                     match name {
+                        // resolve_layer(None) returns "_default" which is good for edges and wrong for nodes
                         None if is_node_layer => res[row] = 0,
                         // `name` below can be None if we're resolving edge layer
-                        // resolve_layer(None) returns "_default" which is good for edges and wrong for nodes
                         name => {
                             if last_name == name && last_layer.is_some() {
                                 if let Some(layer) = last_layer {

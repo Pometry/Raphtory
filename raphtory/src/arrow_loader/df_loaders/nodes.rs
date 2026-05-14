@@ -326,9 +326,7 @@ pub fn load_node_props_from_df<
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_gid_index)?;
-        // Per-row layer, null entries (and absent column) map to STATIC_GRAPH_LAYER_ID.
-        // resolve_layer(None) would map to "_default", which is wrong for nodes.
-        // In the public API, node_props/c_props/node metadata all go to STATIC_GRAPH_LAYER.
+        // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
         let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
             let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
             Some(layer_col.resolve_layer(None, graph, true)?)
