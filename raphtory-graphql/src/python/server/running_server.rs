@@ -101,6 +101,11 @@ impl PyRunningGraphServer {
         })
     }
 
+    /// Get the port the server is listening on
+    pub fn port(&self) -> PyResult<u16> {
+        self.apply_if_alive(|handler| Ok(handler.port))
+    }
+
     /// Stop the server and wait for it to finish.
     ///
     /// Returns:
