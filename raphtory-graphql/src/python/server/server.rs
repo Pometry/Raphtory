@@ -352,7 +352,14 @@ impl PyGraphServer {
             .recv_timeout(Duration::from_millis(timeout_ms))
             .map_err(|err| {
                 let _ = sender.try_send(BridgeCommand::StopServer); // best effort cleanup
-                PyRuntimeError::new_err("Failed to start server")
+                match err {
+                    RecvTimeoutError::Timeout => PyRuntimeError::new_err(format!(
+                        "Failed to start server in {timeout_ms} milliseconds"
+                    )),
+                    RecvTimeoutError::Disconnected => {
+                        PyRuntimeError::new_err("Failed to start server")
+                    }
+                }
             })?;
         let server = PyRunningGraphServer::new(join_handle, sender, port)?;
         Ok(server)

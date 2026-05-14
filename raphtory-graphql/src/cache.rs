@@ -114,33 +114,37 @@ impl GraphCache {
     }
 
     /// Insert a new item into the cache, replacing an existing item if it exists
-    pub async fn insert_with<E>(
+    /// The old item is dropped before the closure to create the new graph is invoked
+    pub async fn insert_with<E, F>(
         &self,
         key: &str,
-        with: impl Future<Output = Result<GraphWithVectors, E>>,
+        with: impl FnOnce() -> F,
     ) -> Result<(), InsertionError>
     where
+        F: Future<Output = Result<GraphWithVectors, E>>,
         InsertionError: From<E>,
     {
-        let new_graph = with.await?;
         let cache_guard = self
             .cache
             .entry_async(key, |key, value| EntryAction::<()>::ReplaceWithGuard)
             .await;
-        match cache_guard {
+        let guard = match cache_guard {
             EntryResult::Replaced(guard, old_graph) => {
                 drop(old_graph);
-                guard.insert(new_graph)
+                guard
             }
-            EntryResult::Vacant(guard) => guard.insert(new_graph),
+            EntryResult::Vacant(guard) => guard,
             _ => {
                 unreachable!()
             }
-        }
-        .map_err(|_| InsertionError::Insertion {
-            graph: key.to_string(),
-            error: MutationErrorInner::CacheReplacementError,
-        })?;
+        };
+        let new_graph = with().await?;
+        guard
+            .insert(new_graph)
+            .map_err(|_| InsertionError::Insertion {
+                graph: key.to_string(),
+                error: MutationErrorInner::CacheReplacementError,
+            })?;
         Ok(())
     }
 

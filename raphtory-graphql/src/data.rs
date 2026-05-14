@@ -237,15 +237,15 @@ impl Data {
         let key = writeable_folder.local_path().to_owned();
         let config = self.graph_conf.clone();
         self.cache
-            .insert_with(
-                &key,
+            .insert_with(&key, || {
                 blocking_compute(move || {
-                    writeable_folder.write_graph_data(graph.clone(), config)?;
+                    let is_dirty = writeable_folder.write_graph_data(graph.clone(), config)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(graph, None, folder.as_existing()?);
+                    graph.set_dirty(is_dirty);
                     Ok::<_, InsertionError>(graph)
-                }),
-            )
+                })
+            })
             .await?;
         Ok(())
     }
