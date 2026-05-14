@@ -187,5 +187,11 @@ proto = [
 
 test-utils = [
     "dep:proptest",
-    "dep:proptest-derive"
+    "dep:proptest-derive",
+    "storage/test-utils",
+    "panic-on-drop"
+]
+
+panic-on-drop = [
+    "storage/panic-on-drop"
 ]

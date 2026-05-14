@@ -34,6 +34,7 @@ clam-core = { workspace = true, features = ["python"] }
 extension-module = ["pyo3/extension-module"]
 search = ["raphtory/search", "raphtory-graphql/search"]
 proto = ["raphtory/proto"]
+test = ["raphtory/panic-on-drop", "extension-module"]
 
 
 [build-dependencies]

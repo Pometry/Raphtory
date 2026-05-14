@@ -42,8 +42,21 @@ pub mod session;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
-// graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
+#[cfg(any(test, feature = "panic-on-drop"))]
+macro_rules! drop_error {
+    ($($arg:tt)*) => {{
+        panic!($($arg)*)
+    }};
+}
 
+#[cfg(not(any(test, feature = "panic-on-drop")))]
+macro_rules! drop_error {
+    ($($arg:tt)*) => {{
+        eprintln!($($arg)*)
+    }};
+}
+
+// graph // (node/edges) // segment // layer_ids (0, 1, 2, ...) // actual graphy bits
 #[derive(Debug)]
 pub struct GraphStore<
     NS: NodeSegmentOps<Extension = EXT>,
@@ -372,7 +385,7 @@ impl<
                 let checkpoint_lsn = match wal.log_shutdown_checkpoint() {
                     Ok(lsn) => lsn,
                     Err(err) => {
-                        eprintln!("Failed to log shutdown checkpoint in drop: {err}");
+                        drop_error!("Failed to log shutdown checkpoint in drop: {err}");
                         return;
                     }
                 };
@@ -381,7 +394,7 @@ impl<
                 let flush_lsn = wal.position();
 
                 if let Err(err) = wal.flush(flush_lsn) {
-                    eprintln!("Failed to flush checkpoint record in drop: {err}");
+                    drop_error!("Failed to flush checkpoint record in drop: {err}");
                     return;
                 }
 
@@ -390,12 +403,12 @@ impl<
                 control_file.set_db_state(DBState::Shutdown);
 
                 if let Err(err) = control_file.save() {
-                    eprintln!("Failed to save control file in drop: {err}");
+                    drop_error!("Failed to save control file in drop: {err}");
                     return;
                 }
             }
             Err(err) => {
-                eprintln!("Failed to flush storage in drop: {err}")
+                drop_error!("Failed to flush storage in drop: {err}");
             }
         }
     }
@@ -457,5 +470,11 @@ mod test {
         ];
 
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_drop_error() {
+        drop_error!("failed");
     }
 }
