@@ -26,9 +26,7 @@ pub(crate) struct TestSetup {
     pub(crate) schema: Schema,
 }
 
-pub(crate) async fn setup_with_graphs(
-    graphs: &[(&str, MaterializedGraph)],
-) -> TestSetup {
+pub(crate) async fn setup_with_graphs(graphs: &[(&str, MaterializedGraph)]) -> TestSetup {
     let tmp = tempdir().unwrap();
     let data = Data::new(tmp.path(), &AppConfig::default(), Config::default());
     for (path, graph) in graphs {
@@ -54,18 +52,12 @@ pub(crate) async fn setup_with_policy(
     TestSetup { tmp, data, schema }
 }
 
-pub(crate) async fn run_mutation(
-    schema: &Schema,
-    query: &str,
-) -> async_graphql::Response {
+pub(crate) async fn run_mutation(schema: &Schema, query: &str) -> async_graphql::Response {
     let req = Request::new(query).data(Access::Rw);
     schema.execute(req).await
 }
 
-pub(crate) async fn run_mutation_as_user(
-    schema: &Schema,
-    query: &str,
-) -> async_graphql::Response {
+pub(crate) async fn run_mutation_as_user(schema: &Schema, query: &str) -> async_graphql::Response {
     // No `Access::Rw` injected, so the policy decides allow/deny.
     // A role (`Option<String>`) is injected because `write_denied` in
     // `model/mod.rs` returns the specific policy error message only when a

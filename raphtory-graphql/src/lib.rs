@@ -50,17 +50,16 @@ mod graphql_test {
     use crate::config::app_config::AppConfigBuilder;
     use crate::{
         auth::Access,
-        auth_policy::auth_policy_tests::FakePolicy,
+        auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
         test_support::{
-            assert_is_namespace_dir, run_mutation, run_mutation_as_user,
-            setup_with_graphs, setup_with_policy,
+            assert_is_namespace_dir, run_mutation, run_mutation_as_user, setup_with_graphs,
+            setup_with_policy,
         },
         url_encode::{url_decode_graph_at, url_encode_graph},
     };
-    use crate::auth_policy::{GraphPermission, NamespacePermission};
     use async_graphql::{dynamic::Schema, UploadValue};
     use dynamic_graphql::{Request, Variables};
     use itertools::Itertools;
@@ -1996,9 +1995,7 @@ mod graphql_test {
             assert_is_namespace_dir(&p);
         }
 
-        let req = Request::new(
-            r#"{ namespace(path: "a/b") { children { list { path } } } }"#,
-        );
+        let req = Request::new(r#"{ namespace(path: "a/b") { children { list { path } } } }"#);
         let res = setup.schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
         assert_eq!(
@@ -2018,11 +2015,7 @@ mod graphql_test {
         let g: MaterializedGraph = g.into();
         let setup = setup_with_graphs(&[("g", g)]).await;
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { createNamespace(path: "g") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "g") }"#).await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
 
         assert!(setup.data.get_graph_for_test("g").await.is_ok());
@@ -2032,18 +2025,10 @@ mod graphql_test {
     async fn test_create_namespace_rejects_existing_namespace() {
         let setup = setup_with_graphs(&[]).await;
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { createNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
         assert_eq!(res.errors, vec![]);
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { createNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         assert!(
             res.errors[0].message.contains("Namespace"),
@@ -2056,13 +2041,7 @@ mod graphql_test {
     async fn test_create_namespace_rejects_invalid_paths() {
         let setup = setup_with_graphs(&[]).await;
 
-        let cases = [
-            "",
-            ".hidden/x",
-            "x/.hidden",
-            "../escape",
-            "a//b",
-        ];
+        let cases = ["", ".hidden/x", "x/.hidden", "../escape", "a//b"];
 
         let snapshot_before = std::fs::read_dir(setup.tmp.path())
             .unwrap()
@@ -2095,10 +2074,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn test_create_namespace_denied_without_parent_write() {
-        let policy = Arc::new(
-            FakePolicy::default()
-                .with_namespace("", NamespacePermission::Read),
-        );
+        let policy = Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
         let setup = setup_with_policy(&[], policy).await;
 
         let res = run_mutation_as_user(
@@ -2108,7 +2084,9 @@ mod graphql_test {
         .await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         assert!(
-            res.errors[0].message.contains("WRITE required on namespace"),
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
             "unexpected error message: {}",
             res.errors[0].message,
         );
@@ -2120,19 +2098,11 @@ mod graphql_test {
     async fn test_delete_namespace_empty() {
         let setup = setup_with_graphs(&[]).await;
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { createNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
         assert_eq!(res.errors, vec![]);
         assert!(setup.tmp.path().join("ns").is_dir());
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
         assert_eq!(res.errors, vec![]);
         assert_eq!(
             res.data.into_json().unwrap(),
@@ -2160,11 +2130,7 @@ mod graphql_test {
         assert_eq!(res.errors, vec![]);
         assert!(setup.tmp.path().join("ns/empty").is_dir());
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
         assert_eq!(res.errors, vec![]);
         assert_eq!(
             res.data.into_json().unwrap(),
@@ -2172,9 +2138,7 @@ mod graphql_test {
         );
         assert!(!setup.tmp.path().join("ns").exists());
 
-        let req = Request::new(
-            r#"{ namespace(path: "") { children { list { path } } } }"#,
-        );
+        let req = Request::new(r#"{ namespace(path: "") { children { list { path } } } }"#);
         let res = setup.schema.execute(req).await;
         assert_eq!(res.errors, vec![]);
         assert_eq!(
@@ -2187,11 +2151,7 @@ mod graphql_test {
     async fn test_delete_namespace_rejects_empty_path() {
         let setup = setup_with_graphs(&[]).await;
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "") }"#).await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
     }
 
@@ -2221,18 +2181,13 @@ mod graphql_test {
                 .with_namespace("", NamespacePermission::Write)
                 .with_namespace("ns", NamespacePermission::Write)
                 .with_graph("ns/g1", GraphPermission::Write)
-                .with_graph(
-                    "ns/g2",
-                    GraphPermission::Read { filter: None },
-                ),
+                .with_graph("ns/g2", GraphPermission::Read { filter: None }),
         );
         let setup = setup_with_policy(&[("ns/g1", g1), ("ns/g2", g2)], policy).await;
 
-        let res = run_mutation_as_user(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         // Substring is from `require_graph_write` in raphtory-graphql/src/model/mod.rs.
         assert!(
@@ -2258,11 +2213,7 @@ mod graphql_test {
         setup.data.get_graph_for_test("ns/g").await.unwrap();
         assert!(setup.data.get_cached_graph("ns/g").await.is_some());
 
-        let res = run_mutation(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
         assert_eq!(res.errors, vec![]);
         assert_eq!(
             res.data.into_json().unwrap(),

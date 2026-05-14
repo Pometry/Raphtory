@@ -353,10 +353,7 @@ impl Data {
     }
 
     pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
-        let target = crate::paths::validate_path_for_namespace_create(
-            self.work_dir.clone(),
-            path,
-        )?;
+        let target = crate::paths::validate_path_for_namespace_create(self.work_dir.clone(), path)?;
         let mut cleanup_root = target.as_path();
         while let Some(parent) = cleanup_root.parent() {
             if parent.is_dir() {

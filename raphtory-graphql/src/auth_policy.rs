@@ -139,9 +139,7 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
 
 #[cfg(test)]
 pub(crate) mod auth_policy_tests {
-    use super::{
-        AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission,
-    };
+    use super::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission};
     use std::collections::HashMap;
 
     /// Test-only authorization policy: every path must be configured explicitly via
