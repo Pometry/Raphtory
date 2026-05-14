@@ -1,0 +1,25 @@
+{
+  "base": {
+    "max_node_page_len": 600000,
+    "max_edge_page_len": 6000000
+  },
+  "persistence": {
+    "bg_flush": true,
+    "fsync_on_flush": true,
+    "wal_enabled": true,
+    "group_flush_delay_micros": 10,
+    "min_flush_bytes": 16777216,
+    "node_types": [
+      "Person",
+      "Server"
+    ]
+  },
+  "merge": {
+    "max_memory_bytes": 1073741824,
+    "node_component_count_threshold": 4,
+    "edge_component_count_threshold": 4,
+    "size_ratio_threshold": 10.0,
+    "max_component_size_mb": 500,
+    "prefer_small_merges": true
+  }
+}
