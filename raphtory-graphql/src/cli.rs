@@ -24,14 +24,14 @@ use raphtory::db::api::storage::storage::Config;
 use std::path::PathBuf;
 use tokio::io::Result as IoResult;
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(name = "raphtory", about = "Raphtory CLI", version = raphtory::version())]
 struct Args {
     #[command(subcommand)]
     command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     #[command(about = "Run the GraphQL server")]
     Server(ServerArgs),
@@ -39,7 +39,7 @@ enum Commands {
     Schema,
 }
 
-#[derive(clap::Args)]
+#[derive(clap::Args, Debug)]
 struct ServerArgs {
     #[arg(
         long,
@@ -49,8 +49,8 @@ struct ServerArgs {
     )]
     work_dir: PathBuf,
 
-    #[arg(long, env = "RAPHTORY_PORT", default_value_t = DEFAULT_PORT, help = "Port for Raphtory to run on")]
-    port: u16,
+    #[arg(long, env = "RAPHTORY_PORT", help = "Port for Raphtory to run on")]
+    port: Option<u16>,
 
     #[arg(long, env = "RAPHTORY_CACHE_CAPACITY", default_value_t = DEFAULT_CAPACITY, help = "Cache capacity")]
     cache_capacity: u64,
@@ -234,7 +234,14 @@ where
             .await?;
             let server =
                 apply_server_extension(server, server_args.permissions_store_path.as_deref());
-            server.run_with_port(server_args.port).await?;
+            match server_args.port {
+                None => {
+                    server.run().await?;
+                }
+                Some(port) => {
+                    server.run_with_port(port).await?;
+                }
+            }
         }
     }
     Ok(())
