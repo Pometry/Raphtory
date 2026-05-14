@@ -332,16 +332,16 @@ impl Data {
             ));
         }
         let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
+        let root = namespace.current_dir().to_path_buf();
+        let dirty_file = mark_dirty(&root).map_err(|err| {
+            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
         for item in namespace.get_all_children() {
             if let NamespacedItem::MetaGraph(g) = item {
                 self.invalidate(g.local_path()).await;
                 self.cache.remove(g.local_path()).await;
             }
         }
-        let root = namespace.current_dir().to_path_buf();
-        let dirty_file = mark_dirty(&root).map_err(|err| {
-            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
-        })?;
         blocking_io(move || {
             fs::remove_dir_all(&root)?;
             fs::remove_file(dirty_file)?;
@@ -357,8 +357,19 @@ impl Data {
             self.work_dir.clone(),
             path,
         )?;
+        let mut cleanup_root = target.as_path();
+        while let Some(parent) = cleanup_root.parent() {
+            if parent.is_dir() {
+                break;
+            }
+            cleanup_root = parent;
+        }
+        let dirty_file = mark_dirty(cleanup_root).map_err(|err| {
+            InsertionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
         blocking_io(move || {
             fs::create_dir_all(&target)?;
+            fs::remove_file(dirty_file)?;
             Ok::<_, MutationErrorInner>(())
         })
         .await
