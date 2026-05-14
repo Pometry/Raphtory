@@ -522,7 +522,7 @@ fn validate_v4_disk_graphs() {
     let event_graph_path = event_graph_disk_storage_dir();
     assert!(
         event_graph_path.exists(),
-        "missing fixture at {} — run `build_v4_saved_disk_graphs` first",
+        "missing fixture at {} - run `build_v4_saved_disk_graphs` first",
         event_graph_path.display(),
     );
     let loaded_event_graph =
@@ -535,7 +535,7 @@ fn validate_v4_disk_graphs() {
     let persistent_graph_path = persistent_graph_disk_storage_dir();
     assert!(
         persistent_graph_path.exists(),
-        "missing fixture at {} — run `build_v4_saved_disk_graphs` first",
+        "missing fixture at {} - run `build_v4_saved_disk_graphs` first",
         persistent_graph_path.display(),
     );
     let loaded_persistent_graph =
