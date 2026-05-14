@@ -8,7 +8,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    paths::ExistingGraphFolder,
+    paths::{ExistingGraphFolder, PathValidationError::IOError},
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
     GQLError,
@@ -19,7 +19,7 @@ use opentelemetry::trace::TracerProvider;
 use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
 use poem::{
     get,
-    listener::TcpListener,
+    listener::{Acceptor, Listener, TcpListener},
     middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
     web::CompressionLevel,
     EndpointExt, Route, Server,
@@ -32,6 +32,7 @@ use serde_json::json;
 use std::{
     fs::create_dir_all,
     future::Future,
+    io::ErrorKind,
     ops::Deref,
     path::{Path, PathBuf},
     pin::Pin,
@@ -50,7 +51,7 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
@@ -232,12 +233,26 @@ impl GraphServer {
     }
 
     /// Start the server on the default port and return a handle to it.
+    /// If the default port is in use,
     pub async fn start(&self) -> IoResult<RunningGraphServer> {
-        self.start_with_port(DEFAULT_PORT).await
+        match self.start_with_port(DEFAULT_PORT).await {
+            Ok(server) => Ok(server),
+            Err(err) => {
+                if matches!(err.kind(), ErrorKind::AddrInUse) {
+                    warn!("Default port {DEFAULT_PORT} already in use, retrying with port=0");
+                    self.start_with_port(0).await
+                } else {
+                    Err(err)
+                }
+            }
+        }
     }
 
     /// Start the server on the given port and return a handle to it.
     pub async fn start_with_port(&self, port: u16) -> IoResult<RunningGraphServer> {
+        let acceptor = TcpListener::bind(format!("0.0.0.0:{port}"))
+            .into_acceptor()
+            .await?;
         // set up opentelemetry first of all
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
@@ -270,7 +285,22 @@ impl GraphServer {
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
-        info!("UI listening on 0.0.0.0:{port}, live at: http://localhost:{port}");
+        let actual_port = acceptor
+            .local_addr()
+            .into_iter()
+            .next()
+            .unwrap()
+            .as_socket_addr()
+            .unwrap()
+            .port();
+        let server_task = Server::new_with_acceptor(acceptor).run_with_graceful_shutdown(
+            app,
+            server_termination(signal_receiver, tp),
+            None,
+        );
+        let server_result = AbortOnDrop(tokio::spawn(server_task));
+
+        info!("UI listening on 0.0.0.0:{actual_port}, live at: http://localhost:{actual_port}");
         debug!(
             "Server configurations: {}",
             json!({
@@ -279,13 +309,10 @@ impl GraphServer {
             })
         );
 
-        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-            .run_with_graceful_shutdown(app, server_termination(signal_receiver, tp), None);
-        let server_result = AbortOnDrop(tokio::spawn(server_task));
-
         Ok(RunningGraphServer {
             signal_sender,
             server_result,
+            port: actual_port,
         })
     }
 
@@ -382,6 +409,7 @@ impl<T> Future for AbortOnDrop<T> {
 pub struct RunningGraphServer {
     signal_sender: Sender<()>,
     server_result: AbortOnDrop<IoResult<()>>,
+    port: u16,
 }
 
 impl RunningGraphServer {
@@ -393,6 +421,10 @@ impl RunningGraphServer {
     /// Wait until server completion.
     pub async fn wait(self) -> IoResult<()> {
         self.server_result.await.expect("Server panicked")
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
     }
 
     // TODO: make this optional with some python feature flag

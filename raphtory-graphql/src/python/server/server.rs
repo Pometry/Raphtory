@@ -3,12 +3,15 @@ use crate::{
         app_config::AppConfigBuilder, auth_config::PUBLIC_KEY_DECODING_ERR_MSG,
         otlp_config::TracingLevel,
     },
-    python::server::{running_server::PyRunningGraphServer, wait_server, BridgeCommand},
+    python::server::{
+        running_server::PyRunningGraphServer, wait_server, BridgeCommand, ServerStarted,
+    },
     server::apply_server_extension,
     GraphServer,
 };
+use crossbeam_channel::RecvTimeoutError;
 use pyo3::{
-    exceptions::{PyAttributeError, PyException, PyValueError},
+    exceptions::{PyAttributeError, PyException, PyRuntimeError, PyValueError},
     prelude::*,
 };
 use raphtory::{
@@ -19,7 +22,7 @@ use raphtory::{
     },
     vectors::template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
 };
-use std::{path::PathBuf, thread};
+use std::{path::PathBuf, thread, time::Duration};
 
 /// A class for defining and running a Raphtory GraphQL server
 ///
@@ -299,7 +302,8 @@ impl PyGraphServer {
     /// Start the server and return a handle to it.
     ///
     /// Arguments:
-    ///     port (int): the port to use. Defaults to 1736.
+    ///     port (int, optional): the port to use. If not specified, tries 1736 by default and if that is not available starts on an arbitrary port.
+    ///                           If specified and the port is in use, the server will fail to start.
     ///     timeout_ms (int): wait for server to be online. Defaults to 5000.
     ///
     /// The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
@@ -307,17 +311,28 @@ impl PyGraphServer {
     /// Returns:
     ///     RunningGraphServer: The running server
     #[pyo3(
-        signature = (port = 1736, timeout_ms = 5000)
+        signature = (port = None, timeout_ms = 5000)
     )]
-    pub fn start(&self, py: Python, port: u16, timeout_ms: u64) -> PyResult<PyRunningGraphServer> {
+    pub fn start(&self, port: Option<u16>, timeout_ms: u64) -> PyResult<PyRunningGraphServer> {
         let (sender, receiver) = crossbeam_channel::bounded::<BridgeCommand>(1);
+        let (start_sender, start_receiver) = crossbeam_channel::bounded::<ServerStarted>(1);
         let cloned_sender = sender.clone();
         let server = self.0.clone();
 
         let join_handle = thread::spawn(move || {
             block_on(async move {
-                let handler = server.start_with_port(port);
-                let running_server = handler.await?;
+                let running_server = match port {
+                    None => server.start().await?,
+                    Some(port) => server.start_with_port(port).await?,
+                };
+                if let Err(_) = start_sender.send(ServerStarted {
+                    port: running_server.port(),
+                }) {
+                    // This happens if the other end of the channel doesn't exist
+                    running_server.stop().await;
+                    return Ok(());
+                };
+
                 let tokio_sender = running_server._get_sender().clone();
                 tokio::task::spawn_blocking(move || {
                     match receiver.recv().expect("Failed to wait for cancellation") {
@@ -333,35 +348,30 @@ impl PyGraphServer {
             })
         });
 
-        let mut server = PyRunningGraphServer::new(join_handle, sender, port)?;
-        if let Some(_server_handler) = &server.server_handler {
-            let url = format!("http://localhost:{port}");
-            let result = server.wait_for_server_online(&url, timeout_ms);
-            match result {
-                Ok(_) => return Ok(server),
-                Err(e) => {
-                    PyRunningGraphServer::stop_server(&mut server, py)?;
-                    Err(e)
-                }
-            }
-        } else {
-            Err(PyException::new_err("Failed to start server"))
-        }
+        let ServerStarted { port } = start_receiver
+            .recv_timeout(Duration::from_millis(timeout_ms))
+            .map_err(|err| {
+                let _ = sender.try_send(BridgeCommand::StopServer); // best effort cleanup
+                PyRuntimeError::new_err("Failed to start server")
+            })?;
+        let server = PyRunningGraphServer::new(join_handle, sender, port)?;
+        Ok(server)
     }
 
     /// Run the server until completion.
     ///
     /// Arguments:
-    ///     port (int): The port to use. Defaults to 1736.
+    ///     port (int, optional): The port to use. If not specified, tries 1736 by default and if that is not available starts on an arbitrary port.
+    ///                           If specified and the port is in use, the server will fail to start.
     ///     timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
     ///
     /// Returns:
     ///     None:
     #[pyo3(
-        signature = (port = 1736, timeout_ms = 180000)
+        signature = (port = None, timeout_ms = 180000)
     )]
-    pub fn run(&self, py: Python, port: u16, timeout_ms: u64) -> PyResult<()> {
-        let mut server = self.start(py, port, timeout_ms)?.server_handler;
+    pub fn run(&self, py: Python, port: Option<u16>, timeout_ms: u64) -> PyResult<()> {
+        let mut server = self.start(port, timeout_ms)?.server_handler;
         py.detach(|| wait_server(&mut server))
     }
 }
