@@ -304,7 +304,20 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
     fn flush(&self) -> Result<(), Self::Error> {
         self.core_graph()
             .flush()
-            .map_err(|err| MutationError::from(err).into())
+            .map_err(|err| MutationError::from(err).into())?;
+
+        #[cfg(feature = "io")]
+        {
+            use crate::serialise::metadata::write_disk_graph_metadata;
+
+            if let Some(disk_path) = self.disk_storage_path() {
+                let disk_path = disk_path.to_path_buf();
+                write_disk_graph_metadata(&disk_path, self.clone())
+                    .map_err(|err| MutationError::from(err).into())?;
+            }
+        }
+
+        Ok(())
     }
 }
 
