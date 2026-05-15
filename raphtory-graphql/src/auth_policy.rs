@@ -100,13 +100,7 @@ impl Ord for GraphPermission {
 /// Variants are ordered lowest to highest so that `PartialOrd`/`Ord` reflect the hierarchy.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NamespacePermission {
-    /// No access — namespace is invisible.
-    Denied,
-    /// Namespace is visible in parent `children()` listings but cannot be browsed.
-    Discover,
-    /// Namespace is browseable; graphs inside are visible as MetaGraph in `graphs()`.
-    Introspect,
-    /// All descendant graphs are fully readable.
+    /// Namespace is listable; graphs and child namespaces are visible.
     Read,
     /// All descendants are writable; `newGraph` is allowed.
     Write,
@@ -126,13 +120,18 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     ) -> Result<GraphPermission, AuthPolicyError>;
 
     /// Resolves the effective namespace permission for a principal.
-    /// Admin principals always yield `Write`.
-    /// Empty store yields `Read` (fail open, consistent with graph_permissions).
-    /// Missing role yields `Denied`.
+    /// Returns `None` if the principal has no access to this namespace (it is invisible).
+    /// Admin principals always yield `Some(Write)`.
+    /// Empty store yields `Some(Read)` (fail open, consistent with graph_permissions).
+    /// Missing role or no explicit grant yields `None`.
     /// The implementation is responsible for extracting principal identity from `ctx`.
     fn namespace_permissions(
         &self,
         ctx: &async_graphql::Context<'_>,
         path: &str,
-    ) -> NamespacePermission;
+    ) -> Option<NamespacePermission>;
+
+    /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
+    /// Default no-op — only meaningful when a policy and a role claim are present.
+    fn on_graph_created(&self, _role: &str, _path: &str) {}
 }

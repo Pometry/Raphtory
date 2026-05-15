@@ -1,12 +1,14 @@
 use crate::{
     auth::ContextValidation,
-    auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission},
+    auth_policy::{AuthorizationPolicy, GraphPermission},
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::{
         blocking_io,
         graph::{
             filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            namespace::Namespace,
+            namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
         },
     },
@@ -227,6 +229,24 @@ impl Data {
         } else {
             ValidWriteableGraphFolder::try_new(self.work_dir.clone(), path)
         }
+    }
+
+    /// Enumerates all descendants of a namespace as `(path, is_graph)` pairs.
+    /// `is_graph = true` means the path is a graph; `false` means a sub-namespace.
+    /// Returns an error if `ns_path` does not exist or is not a namespace.
+    pub fn enumerate_namespace_descendants(
+        &self,
+        ns_path: &str,
+    ) -> Result<Vec<(String, bool)>, PathValidationError> {
+        let ns = Namespace::try_new(self.work_dir.clone(), ns_path.to_string())?;
+        let entries = ns
+            .get_all_children()
+            .map(|item| match item {
+                NamespacedItem::Namespace(n) => (n.local_path().to_string(), false),
+                NamespacedItem::MetaGraph(g) => (g.local_path().to_string(), true),
+            })
+            .collect();
+        Ok(entries)
     }
 
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
@@ -456,7 +476,7 @@ fn require_at_least_read(
                     "Access denied by auth policy"
                 );
                 let ns = parent_namespace(path);
-                if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
+                if policy.namespace_permissions(ctx, ns).is_some() {
                     Err(msg.into())
                 } else {
                     Err(PermissionError::GraphNotFound.into())

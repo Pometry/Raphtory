@@ -114,6 +114,20 @@ pub enum GqlGraphError {
     FailedToCreateDir(String),
 }
 
+/// Auto-grants Write on `path` for the creator's role after a graph is created.
+/// No-op when there is no active auth policy or the JWT carries no role claim.
+fn auto_grant_on_create(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) {
+    if let Some(policy) = policy {
+        if let Some(role) = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref()) {
+            policy.on_graph_created(role, path);
+        }
+    }
+}
+
 fn require_namespace_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -124,7 +138,7 @@ fn require_namespace_write(
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            if p.namespace_permissions(ctx, ns_path) < NamespacePermission::Write {
+            if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
                     namespace: ns_path.to_string(),
                     graph: new_path.to_string(),
@@ -391,6 +405,7 @@ impl Mut {
         };
 
         data.insert_graph(folder, graph).await?;
+        auto_grant_on_create(ctx, &data.auth_policy, &path);
 
         Ok(true)
     }
@@ -439,6 +454,7 @@ impl Mut {
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, src.graph).await?;
+        auto_grant_on_create(ctx, &data.auth_policy, new_path);
 
         Ok(true)
     }
@@ -460,6 +476,7 @@ impl Mut {
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
+        auto_grant_on_create(ctx, &data.auth_policy, &path);
 
         Ok(path)
     }
@@ -490,6 +507,7 @@ impl Mut {
         })
         .await?;
         data.insert_graph(folder, g).await?;
+        auto_grant_on_create(ctx, &data.auth_policy, path);
         Ok(path.to_owned())
     }
 
@@ -524,6 +542,7 @@ impl Mut {
         .await?;
 
         data.insert_graph(folder, new_subgraph).await?;
+        auto_grant_on_create(ctx, &data.auth_policy, &new_path);
         Ok(new_path)
     }
 
