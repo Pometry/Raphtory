@@ -134,7 +134,7 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps>
     }
 }
 
-impl<'a, MP: DerefMut<Target = MemNodeSegment> , ES: NodeSegmentOps> Drop
+impl<'a, MP: DerefMut<Target = MemNodeSegment>, ES: NodeSegmentOps> Drop
     for BulkNodeWriter<'a, MP, ES>
 {
     fn drop(&mut self) {

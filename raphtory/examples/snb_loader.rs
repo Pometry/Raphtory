@@ -480,7 +480,11 @@ fn main() {
         .map(|s| serde_json::from_str::<Filter>(&s))
         .transpose()
         .unwrap();
-    let graph = Graph::new_at_path(&graph_path).unwrap();
+    let graph = if !graph_path.exists() {
+        Graph::new_at_path(&graph_path).unwrap()
+    } else {
+        Graph::load(&graph_path).unwrap()
+    };
     load_snb_graph(&parquet_dir, filter, &graph).unwrap()
 }
 

@@ -4,7 +4,11 @@ use crate::{
     LocalPOS,
     api::edges::EdgeSegmentOps,
     error::StorageError,
-    pages::{edge_page::{bulk_writer::BulkEdgeWriter, writer::EdgeWriter}, layer_counter::GraphStats, resolve_pos},
+    pages::{
+        edge_page::{bulk_writer::BulkEdgeWriter, writer::EdgeWriter},
+        layer_counter::GraphStats,
+        resolve_pos,
+    },
     persist::strategy::PersistenceStrategy,
     segments::edge::segment::MemEdgeSegment,
 };

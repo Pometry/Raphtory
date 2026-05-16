@@ -1,37 +1,37 @@
 use crate::{
-    LocalPOS,
     api::nodes::{LockedNSSegment, NodeSegmentOps},
     error::StorageError,
     loop_lock_write,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::{
-        HasRow, SegmentContainer,
         node::entry::{MemNodeEntry, MemNodeRef},
+        HasRow, SegmentContainer,
     },
     wal::LSN,
+    LocalPOS,
 };
 use either::Either;
-use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
+use parking_lot::{lock_api::ArcRwLockReadGuard, RwLock};
 use raphtory_api::core::{
-    Direction,
     entities::{
-        EID, LayerId, VID,
         properties::{
             meta::Meta,
             prop::{AsPropRef, Prop},
         },
+        LayerId, EID, VID,
     },
+    Direction,
 };
 use raphtory_core::{
-    entities::{ELID, nodes::structure::adj::Adj},
+    entities::{nodes::structure::adj::Adj, ELID},
     storage::timeindex::{AsTime, EventTime},
 };
 use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{
-        Arc,
         atomic::{AtomicU32, AtomicUsize, Ordering},
+        Arc,
     },
 };
 
@@ -101,6 +101,10 @@ impl MemNodeSegment {
 
     pub fn est_size(&self) -> usize {
         self.est_size
+    }
+
+    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.global_mem_tracker
     }
 
     pub(crate) fn increment_global_est_size(&self, increment: usize) {
@@ -624,13 +628,13 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 #[cfg(test)]
 mod test {
     use crate::{
-        LocalPOS, NodeSegmentView,
         api::nodes::NodeSegmentOps,
         pages::{layer_counter::GraphStats, node_page::writer::NodeWriter},
         persist::{
             config::BaseConfig,
             strategy::{NoOpStrategy, PersistenceStrategy},
         },
+        LocalPOS, NodeSegmentView,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},

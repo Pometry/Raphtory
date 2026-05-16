@@ -1,30 +1,30 @@
 use crate::{
-    LocalPOS,
     api::edges::{EdgeSegmentOps, LockedESegment},
     error::StorageError,
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     properties::PropMutEntry,
     segments::{
-        HasRow, SegmentContainer,
         edge::entry::{MemEdgeEntry, MemEdgeRef},
+        HasRow, SegmentContainer,
     },
     utils::Iter4,
     wal::LSN,
+    LocalPOS,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
 use raphtory_api::core::{
     entities::{
-        LayerId, VID,
         properties::{
             meta::{Meta, STATIC_GRAPH_LAYER_ID},
             prop::AsPropRef,
         },
+        LayerId, VID,
     },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::{LayerIds, edges::edge_ref::EdgeRef},
+    entities::{edges::edge_ref::EdgeRef, LayerIds},
     storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
@@ -32,8 +32,8 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{
-        Arc,
         atomic::{self, AtomicU32, AtomicUsize, Ordering},
+        Arc,
     },
 };
 
@@ -92,6 +92,10 @@ impl MemEdgeSegment {
     pub fn increment_global_memory(&self, increment: usize) {
         self.global_memory_tracker
             .fetch_add(increment, Ordering::Relaxed);
+    }
+
+    pub fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.global_memory_tracker
     }
 
     pub fn edge_meta(&self) -> &Arc<Meta> {
@@ -641,9 +645,9 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 mod test {
     use super::*;
     use crate::{
-        Config,
         pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats},
         persist::strategy::NoOpStrategy,
+        Config,
     };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},

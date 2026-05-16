@@ -18,8 +18,8 @@ use raphtory_api::core::entities::{
 use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GIDResolver,
-    GraphPropEntry,
+    error::StorageError, pages::SegmentCounts, persist::strategy::PersistenceStrategy,
+    state::StateIndex, Extension, GIDResolver, GraphPropEntry,
 };
 use thiserror::Error;
 
@@ -305,6 +305,10 @@ impl GraphStorage {
             GraphStorage::Mem(storage) => storage.graph.extension(),
             GraphStorage::Unlocked(storage) => storage.extension(),
         }
+    }
+
+    pub fn total_allocated_memory(&self) -> usize {
+        self.extension().estimated_size()
     }
 
     pub fn node_segment_counts(&self) -> SegmentCounts<VID> {

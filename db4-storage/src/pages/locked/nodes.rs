@@ -2,7 +2,11 @@ use crate::{
     LocalPOS,
     api::nodes::NodeSegmentOps,
     error::StorageError,
-    pages::{layer_counter::GraphStats, node_page::{bulk_writer::BulkNodeWriter, writer::NodeWriter}, resolve_pos},
+    pages::{
+        layer_counter::GraphStats,
+        node_page::{bulk_writer::BulkNodeWriter, writer::NodeWriter},
+        resolve_pos,
+    },
     persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
