@@ -362,7 +362,6 @@ impl ValidWriteableGraphFolder {
                 self.global_path.write_metadata(&graph)?;
                 (true, graph)
             } else {
-                dbg!(self.graph_folder().graph_path()?);
                 let new_graph = graph.materialize_at_with_config(self.graph_folder(), config)?;
                 (true, new_graph)
             }
