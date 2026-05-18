@@ -1,5 +1,5 @@
 use crate::{
-    auth::{ContextValidation, Access},
+    auth::{Access, ContextValidation},
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     graph::GraphWithVectors,
