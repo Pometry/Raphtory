@@ -412,8 +412,11 @@ impl Mut {
         let src_ns = parent_namespace(path);
         require_namespace_write(ctx, &data.auth_policy, src_ns, path, "move")?;
         // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
-        Self::copy_graph(ctx, path, new_path, overwrite).await?;
-        data.delete_graph(path).await?;
+        if path != new_path {
+            // moving with the same path should be a no-op, not delete the graph
+            Self::copy_graph(ctx, path, new_path, overwrite).await?;
+            data.delete_graph(path).await?;
+        }
         Ok(true)
     }
 
