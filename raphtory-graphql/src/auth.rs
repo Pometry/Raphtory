@@ -207,12 +207,14 @@ where
     }
 }
 
-/// Operations that must run with exclusive access to the graph store, blocking
-/// all other concurrent requests. `deleteNamespace` is included because it
-/// removes a whole subtree and would race with concurrent inserts/deletes
-/// inside that subtree.
 fn is_exclusive_write(query: &str) -> bool {
-    query.contains("updateGraph") || query.contains("deleteNamespace")
+    is_operation(query, "updateGraph") || is_operation(query, "deleteNamespace")
+}
+
+fn is_operation(query: &str, op: &str) -> bool {
+    query
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .any(|token| token == op)
 }
 
 fn is_query_heavy(query: &str) -> bool {

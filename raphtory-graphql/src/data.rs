@@ -325,10 +325,10 @@ impl Data {
         Ok(())
     }
 
-    pub async fn delete_namespace(&self, path: &str) -> Result<(), DeletionError> {
+    pub async fn delete_namespace(&self, path: &str, descendants: &Vec<NamespacedItem>) -> Result<(), DeletionError> {
         if path.is_empty() {
             return Err(DeletionError::PathValidation(
-                PathValidationError::NamespaceDoesNotExist(path.to_string()),
+                PathValidationError::EmptyPath,
             ));
         }
         let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
@@ -336,7 +336,7 @@ impl Data {
         let dirty_file = mark_dirty(&root).map_err(|err| {
             DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
         })?;
-        for item in namespace.get_all_children() {
+        for item in descendants {
             if let NamespacedItem::MetaGraph(g) = item {
                 self.invalidate(g.local_path()).await;
                 self.cache.remove(g.local_path()).await;
@@ -365,7 +365,10 @@ impl Data {
             InsertionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
         })?;
         blocking_io(move || {
-            fs::create_dir_all(&target)?;
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::create_dir(&target)?;
             fs::remove_file(dirty_file)?;
             Ok::<_, MutationErrorInner>(())
         })

@@ -282,11 +282,11 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir.clone());
         let list = blocking_compute(move || {
-            std::iter::once(root.clone())
-                .chain(root.get_all_children().filter_map(|child| match child {
+            root.self_and_all_children()
+                .filter_map(|child| match child {
                     NamespacedItem::Namespace(item) => Some(item),
                     NamespacedItem::MetaGraph(_) => None,
-                }))
+                })
                 .sorted()
                 .collect()
         })
@@ -549,7 +549,7 @@ impl Mut {
             }
         }
 
-        data.delete_namespace(path).await?;
+        data.delete_namespace(path, &descendants).await?;
         Ok(true)
     }
 
