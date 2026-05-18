@@ -325,7 +325,11 @@ impl Data {
         Ok(())
     }
 
-    pub async fn delete_namespace(&self, path: &str, descendants: &Vec<NamespacedItem>) -> Result<(), DeletionError> {
+    pub async fn delete_namespace(
+        &self,
+        path: &str,
+        descendants: &Vec<NamespacedItem>,
+    ) -> Result<(), DeletionError> {
         if path.is_empty() {
             return Err(DeletionError::PathValidation(
                 PathValidationError::EmptyPath,

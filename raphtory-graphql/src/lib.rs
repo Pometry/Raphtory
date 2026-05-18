@@ -2217,11 +2217,9 @@ mod graphql_test {
         );
         let setup = setup_with_policy(&[("ns/g", g)], policy).await;
 
-        let res = run_mutation_as_user(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         assert!(
             res.errors[0]
@@ -2249,11 +2247,9 @@ mod graphql_test {
         );
         let setup = setup_with_policy(&[("ns/g", g)], policy).await;
 
-        let res = run_mutation_as_user(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         assert!(
             res.errors[0]
@@ -2282,11 +2278,9 @@ mod graphql_test {
         );
         let setup = setup_with_policy(&[("ns/sub/g", g)], policy).await;
 
-        let res = run_mutation_as_user(
-            &setup.schema,
-            r#"mutation { deleteNamespace(path: "ns") }"#,
-        )
-        .await;
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
         assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
         assert!(
             res.errors[0]

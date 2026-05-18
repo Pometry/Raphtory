@@ -142,8 +142,7 @@ impl Namespace {
 
     /// Recursively list self and all children.
     pub fn self_and_all_children(&self) -> impl Iterator<Item = NamespacedItem> {
-        std::iter::once(NamespacedItem::Namespace(self.clone()))
-            .chain(self.get_all_children())
+        std::iter::once(NamespacedItem::Namespace(self.clone())).chain(self.get_all_children())
     }
 
     pub fn current_dir(&self) -> &std::path::Path {
