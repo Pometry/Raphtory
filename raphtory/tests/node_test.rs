@@ -1,434 +1,437 @@
-use raphtory::{
-    db::{
-        api::view::Filter,
-        graph::views::filter::model::{NodeViewFilterOps, ViewWrapOps},
-    },
-    prelude::*,
-    test_storage,
-    test_utils::test_graph,
-};
-use raphtory_api::core::storage::arc_str::ArcStr;
-use raphtory_core::storage::timeindex::AsTime;
-use std::collections::HashMap;
+#[cfg(all(test, feature = "test-utils"))]
+mod test {
+    use raphtory::{
+        db::{
+            api::view::Filter,
+            graph::views::filter::model::{NodeViewFilterOps, ViewWrapOps},
+        },
+        prelude::*,
+        test_storage,
+        test_utils::test_graph,
+    };
+    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_core::storage::timeindex::AsTime;
+    use std::collections::HashMap;
 
-#[test]
-fn test_earliest_time() {
-    let graph = Graph::new();
-    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
-    graph.add_node(2, 1, NO_PROPS, None, None).unwrap();
+    #[test]
+    fn test_earliest_time() {
+        let graph = Graph::new();
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(2, 1, NO_PROPS, None, None).unwrap();
 
-    // FIXME: Node add without properties not showing up (Issue #46)
-    test_graph(&graph, |graph| {
-        let view = graph.before(2);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
+            let view = graph.before(2);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
 
-        let view = graph.before(3);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+            let view = graph.before(3);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 0);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
 
-        let view = graph.after(0);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
+            let view = graph.after(0);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 2);
 
-        let view = graph.after(2);
-        assert_eq!(view.node(1), None);
-        assert_eq!(view.node(1), None);
+            let view = graph.after(2);
+            assert_eq!(view.node(1), None);
+            assert_eq!(view.node(1), None);
 
-        let view = graph.at(1);
-        assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
-        assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
-    });
-}
+            let view = graph.at(1);
+            assert_eq!(view.node(1).expect("v").earliest_time().unwrap(), 1);
+            assert_eq!(view.node(1).expect("v").latest_time().unwrap(), 1);
+        });
+    }
 
-#[test]
-fn test_properties() {
-    let graph = Graph::new();
-    let props = [("test", "test")];
-    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    graph.add_node(2, 1, props, None, None).unwrap();
+    #[test]
+    fn test_properties() {
+        let graph = Graph::new();
+        let props = [("test", "test")];
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(2, 1, props, None, None).unwrap();
 
-    // FIXME: Node add without properties not showing up (Issue #46)
-    test_graph(&graph, |graph| {
-        let v1 = graph.node(1).unwrap();
-        let v1_w = graph.window(0, 1).node(1).unwrap();
+        // FIXME: Node add without properties not showing up (Issue #46)
+        test_graph(&graph, |graph| {
+            let v1 = graph.node(1).unwrap();
+            let v1_w = graph.window(0, 1).node(1).unwrap();
+            assert_eq!(
+                v1.properties().as_map(),
+                [(ArcStr::from("test"), Prop::str("test"))]
+                    .into_iter()
+                    .collect::<HashMap<_, _>>()
+            );
+            assert_eq!(v1_w.properties().as_map(), HashMap::default())
+        });
+    }
+
+    #[test]
+    fn test_property_additions() {
+        let graph = Graph::new();
+        let props = [("test", "test")];
+        let v1 = graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        v1.add_updates(2, props, None).unwrap();
+        let v1_w = v1.window(0, 1);
         assert_eq!(
             v1.properties().as_map(),
-            [(ArcStr::from("test"), Prop::str("test"))]
+            props
                 .into_iter()
+                .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
                 .collect::<HashMap<_, _>>()
         );
         assert_eq!(v1_w.properties().as_map(), HashMap::default())
-    });
-}
+    }
 
-#[test]
-fn test_property_additions() {
-    let graph = Graph::new();
-    let props = [("test", "test")];
-    let v1 = graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    v1.add_updates(2, props, None).unwrap();
-    let v1_w = v1.window(0, 1);
-    assert_eq!(
-        v1.properties().as_map(),
-        props
-            .into_iter()
-            .map(|(k, v)| (ArcStr::from(k), v.into_prop()))
-            .collect::<HashMap<_, _>>()
-    );
-    assert_eq!(v1_w.properties().as_map(), HashMap::default())
-}
+    #[test]
+    fn test_metadata_additions() {
+        let g = Graph::new();
+        let v1 = g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        v1.add_metadata([("test", "test")]).unwrap();
+        assert_eq!(v1.metadata().get("test"), Some("test".into()))
+    }
 
-#[test]
-fn test_metadata_additions() {
-    let g = Graph::new();
-    let v1 = g.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    v1.add_metadata([("test", "test")]).unwrap();
-    assert_eq!(v1.metadata().get("test"), Some("test".into()))
-}
+    #[test]
+    fn test_metadata_updates() {
+        let g = Graph::new();
+        let v1 = g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        v1.add_metadata([("test", "test")]).unwrap();
+        v1.update_metadata([("test", "test2")]).unwrap();
+        assert_eq!(v1.metadata().get("test"), Some("test2".into()))
+    }
 
-#[test]
-fn test_metadata_updates() {
-    let g = Graph::new();
-    let v1 = g.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    v1.add_metadata([("test", "test")]).unwrap();
-    v1.update_metadata([("test", "test2")]).unwrap();
-    assert_eq!(v1.metadata().get("test"), Some("test2".into()))
-}
+    #[test]
+    #[ignore] // likely we don't want to handle it globally like this anymore, maybe we should introduce an explicit categorical property type?
+    fn test_string_deduplication() {
+        let g = Graph::new();
+        let v1 = g
+            .add_node(0, 1, [("test1", "test"), ("test2", "test")], None, None)
+            .unwrap();
+        let s1 = v1.properties().get("test1").unwrap_str();
+        let s2 = v1.properties().get("test2").unwrap_str();
 
-#[test]
-#[ignore] // likely we don't want to handle it globally like this anymore, maybe we should introduce an explicit categorical property type?
-fn test_string_deduplication() {
-    let g = Graph::new();
-    let v1 = g
-        .add_node(0, 1, [("test1", "test"), ("test2", "test")], None, None)
-        .unwrap();
-    let s1 = v1.properties().get("test1").unwrap_str();
-    let s2 = v1.properties().get("test2").unwrap_str();
+        assert_eq!(s1.as_ptr(), s2.as_ptr())
+    }
 
-    assert_eq!(s1.as_ptr(), s2.as_ptr())
-}
+    #[test]
+    fn test_edge_history_and_timestamps() {
+        let graph = Graph::new();
 
-#[test]
-fn test_edge_history_and_timestamps() {
-    let graph = Graph::new();
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
 
-    // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+        // Add edges at different times
+        graph.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(20, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(30, 2, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(5, 1, 3, NO_PROPS, None).unwrap(); // Earlier edge to same pair
 
-    // Add edges at different times
-    graph.add_edge(10, 1, 2, NO_PROPS, None).unwrap();
-    graph.add_edge(20, 1, 3, NO_PROPS, None).unwrap();
-    graph.add_edge(30, 2, 1, NO_PROPS, None).unwrap();
-    graph.add_edge(5, 1, 3, NO_PROPS, None).unwrap(); // Earlier edge to same pair
+        test_storage!(&graph, |graph| {
+            let node1 = graph.node(1).unwrap();
 
-    test_storage!(&graph, |graph| {
+            // Test edge_history (chronological order)
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![5, 10, 20, 30]);
+
+            // Test edge_history_rev (reverse chronological order)
+            let history_rev: Vec<_> = node1.edge_history_rev().map(|(t, _)| t.t()).collect();
+            assert_eq!(history_rev, vec![30, 20, 10, 5]);
+
+            // Test earliest_edge_time
+            assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
+
+            // Test latest_edge_time
+            assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
+        });
+    }
+
+    #[test]
+    fn test_edge_timestamps_with_windows() {
+        let graph = Graph::new();
+
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+
+        // Add edges at different times
+        graph.add_edge(5, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(15, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(25, 2, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(35, 1, 3, NO_PROPS, None).unwrap();
+
+        test_graph(&graph, |graph| {
+            // Test window 0-20
+            let windowed = graph.window(0, 20);
+            let node1 = windowed.node(1).unwrap();
+
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![5, 15]);
+
+            assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
+            assert_eq!(node1.latest_edge_time().unwrap().t(), 15);
+
+            // Test window 10-30
+            let windowed = graph.window(10, 30);
+            let node1 = windowed.node(1).unwrap();
+
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![15, 25]);
+
+            assert_eq!(node1.earliest_edge_time().unwrap().t(), 15);
+            assert_eq!(node1.latest_edge_time().unwrap().t(), 25);
+
+            // Test window after all edges
+            let windowed = graph.after(40);
+            assert_eq!(windowed.node(1), None); // Node has no edges in this window
+        });
+    }
+
+    #[test]
+    fn test_edge_timestamps_with_layers() {
+        let graph = Graph::new();
+
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+
+        // Add edges on different layers
+        graph.add_edge(10, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(20, 1, 3, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(30, 2, 1, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(5, 1, 3, NO_PROPS, Some("layer2")).unwrap();
+
+        // Test all layers
         let node1 = graph.node(1).unwrap();
-
-        // Test edge_history (chronological order)
         let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
         assert_eq!(history, vec![5, 10, 20, 30]);
-
-        // Test edge_history_rev (reverse chronological order)
-        let history_rev: Vec<_> = node1.edge_history_rev().map(|(t, _)| t.t()).collect();
-        assert_eq!(history_rev, vec![30, 20, 10, 5]);
-
-        // Test earliest_edge_time
         assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
-
-        // Test latest_edge_time
         assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
-    });
-}
 
-#[test]
-fn test_edge_timestamps_with_windows() {
-    let graph = Graph::new();
+        // Test layer1 only
+        let layer1_graph = graph.layers(vec!["layer1"]).unwrap();
+        let node1_layer1 = layer1_graph.node(1).unwrap();
+        let history: Vec<_> = node1_layer1.edge_history().map(|(t, _)| t.t()).collect();
+        assert_eq!(history, vec![10, 30]);
+        assert_eq!(node1_layer1.earliest_edge_time().unwrap().t(), 10);
+        assert_eq!(node1_layer1.latest_edge_time().unwrap().t(), 30);
 
-    // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+        // Test layer2 only
+        let layer2_graph = graph.layers(vec!["layer2"]).unwrap();
+        let node1_layer2 = layer2_graph.node(1).unwrap();
+        let history: Vec<_> = node1_layer2.edge_history().map(|(t, _)| t.t()).collect();
+        assert_eq!(history, vec![5, 20]);
+        assert_eq!(node1_layer2.earliest_edge_time().unwrap().t(), 5);
+        assert_eq!(node1_layer2.latest_edge_time().unwrap().t(), 20);
+    }
 
-    // Add edges at different times
-    graph.add_edge(5, 1, 2, NO_PROPS, None).unwrap();
-    graph.add_edge(15, 1, 3, NO_PROPS, None).unwrap();
-    graph.add_edge(25, 2, 1, NO_PROPS, None).unwrap();
-    graph.add_edge(35, 1, 3, NO_PROPS, None).unwrap();
+    #[test]
+    fn test_edge_timestamps_overlapping_windows_and_layers() {
+        let graph = Graph::new();
 
-    test_graph(&graph, |graph| {
-        // Test window 0-20
-        let windowed = graph.window(0, 20);
-        let node1 = windowed.node(1).unwrap();
+        // Add nodes
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 4, NO_PROPS, None, None).unwrap();
 
-        let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![5, 15]);
+        // Add edges with overlapping time ranges across multiple layers
+        graph.add_edge(5, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(10, 1, 3, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(15, 1, 4, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(20, 2, 1, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(25, 3, 1, NO_PROPS, Some("layer2")).unwrap();
+        graph.add_edge(30, 1, 2, NO_PROPS, Some("layer1")).unwrap();
+        graph.add_edge(35, 1, 4, NO_PROPS, Some("layer2")).unwrap();
 
-        assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
-        assert_eq!(node1.latest_edge_time().unwrap().t(), 15);
+        test_graph(&graph, |graph| {
+            // Test overlapping window (8-22) with layer1
+            let windowed_layer1 = graph.window(8, 22).layers(vec!["layer1"]).unwrap();
+            let node1 = windowed_layer1.node(1).unwrap();
 
-        // Test window 10-30
-        let windowed = graph.window(10, 30);
-        let node1 = windowed.node(1).unwrap();
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![10, 20]);
+            assert_eq!(node1.earliest_edge_time().unwrap().t(), 10);
+            assert_eq!(node1.latest_edge_time().unwrap().t(), 20);
 
-        let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![15, 25]);
+            // Test overlapping window (12-28) with layer2
+            let windowed_layer2 = graph.window(12, 28).layers(vec!["layer2"]).unwrap();
+            let node1 = windowed_layer2.node(1).unwrap();
 
-        assert_eq!(node1.earliest_edge_time().unwrap().t(), 15);
-        assert_eq!(node1.latest_edge_time().unwrap().t(), 25);
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![15, 25]);
+            assert_eq!(node1.earliest_edge_time().unwrap().t(), 15);
+            assert_eq!(node1.latest_edge_time().unwrap().t(), 25);
 
-        // Test window after all edges
-        let windowed = graph.after(40);
-        assert_eq!(windowed.node(1), None); // Node has no edges in this window
-    });
-}
+            // Test overlapping window (18-32) with both layers
+            let windowed_both = graph
+                .window(18, 32)
+                .layers(vec!["layer1", "layer2"])
+                .unwrap();
+            let node1 = windowed_both.node(1).unwrap();
 
-#[test]
-fn test_edge_timestamps_with_layers() {
-    let graph = Graph::new();
+            let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
+            assert_eq!(history, vec![20, 25, 30]);
+            assert_eq!(node1.earliest_edge_time().unwrap().t(), 20);
+            assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
 
-    // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+            // Test edge case: window with no edges for the node
+            let empty_window = graph.window(50, 60);
+            assert_eq!(empty_window.node(1), None);
+        });
+    }
 
-    // Add edges on different layers
-    graph.add_edge(10, 1, 2, NO_PROPS, Some("layer1")).unwrap();
-    graph.add_edge(20, 1, 3, NO_PROPS, Some("layer2")).unwrap();
-    graph.add_edge(30, 2, 1, NO_PROPS, Some("layer1")).unwrap();
-    graph.add_edge(5, 1, 3, NO_PROPS, Some("layer2")).unwrap();
+    #[test]
+    fn test_edge_timestamps_no_edges() {
+        let graph = Graph::new();
 
-    // Test all layers
-    let node1 = graph.node(1).unwrap();
-    let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
-    assert_eq!(history, vec![5, 10, 20, 30]);
-    assert_eq!(node1.earliest_edge_time().unwrap().t(), 5);
-    assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
+        // Add a node but no edges
+        graph.add_node(10, 1, NO_PROPS, None, None).unwrap();
 
-    // Test layer1 only
-    let layer1_graph = graph.layers(vec!["layer1"]).unwrap();
-    let node1_layer1 = layer1_graph.node(1).unwrap();
-    let history: Vec<_> = node1_layer1.edge_history().map(|(t, _)| t.t()).collect();
-    assert_eq!(history, vec![10, 30]);
-    assert_eq!(node1_layer1.earliest_edge_time().unwrap().t(), 10);
-    assert_eq!(node1_layer1.latest_edge_time().unwrap().t(), 30);
+        test_graph(&graph, |graph| {
+            let node1 = graph.node(1).unwrap();
 
-    // Test layer2 only
-    let layer2_graph = graph.layers(vec!["layer2"]).unwrap();
-    let node1_layer2 = layer2_graph.node(1).unwrap();
-    let history: Vec<_> = node1_layer2.edge_history().map(|(t, _)| t.t()).collect();
-    assert_eq!(history, vec![5, 20]);
-    assert_eq!(node1_layer2.earliest_edge_time().unwrap().t(), 5);
-    assert_eq!(node1_layer2.latest_edge_time().unwrap().t(), 20);
-}
+            // Node exists but has no edges
+            assert_eq!(node1.edge_history().count(), 0);
+            assert_eq!(node1.edge_history_rev().count(), 0);
+            assert_eq!(node1.earliest_edge_time(), None);
+            assert_eq!(node1.latest_edge_time(), None);
+        });
+    }
 
-#[test]
-fn test_edge_timestamps_overlapping_windows_and_layers() {
-    let graph = Graph::new();
-
-    // Add nodes
-    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
-    graph.add_node(0, 4, NO_PROPS, None, None).unwrap();
-
-    // Add edges with overlapping time ranges across multiple layers
-    graph.add_edge(5, 1, 2, NO_PROPS, Some("layer1")).unwrap();
-    graph.add_edge(10, 1, 3, NO_PROPS, Some("layer1")).unwrap();
-    graph.add_edge(15, 1, 4, NO_PROPS, Some("layer2")).unwrap();
-    graph.add_edge(20, 2, 1, NO_PROPS, Some("layer1")).unwrap();
-    graph.add_edge(25, 3, 1, NO_PROPS, Some("layer2")).unwrap();
-    graph.add_edge(30, 1, 2, NO_PROPS, Some("layer1")).unwrap();
-    graph.add_edge(35, 1, 4, NO_PROPS, Some("layer2")).unwrap();
-
-    test_graph(&graph, |graph| {
-        // Test overlapping window (8-22) with layer1
-        let windowed_layer1 = graph.window(8, 22).layers(vec!["layer1"]).unwrap();
-        let node1 = windowed_layer1.node(1).unwrap();
-
-        let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![10, 20]);
-        assert_eq!(node1.earliest_edge_time().unwrap().t(), 10);
-        assert_eq!(node1.latest_edge_time().unwrap().t(), 20);
-
-        // Test overlapping window (12-28) with layer2
-        let windowed_layer2 = graph.window(12, 28).layers(vec!["layer2"]).unwrap();
-        let node1 = windowed_layer2.node(1).unwrap();
-
-        let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![15, 25]);
-        assert_eq!(node1.earliest_edge_time().unwrap().t(), 15);
-        assert_eq!(node1.latest_edge_time().unwrap().t(), 25);
-
-        // Test overlapping window (18-32) with both layers
-        let windowed_both = graph
-            .window(18, 32)
-            .layers(vec!["layer1", "layer2"])
+    #[test]
+    fn test_node_layers() {
+        let graph = Graph::new();
+        graph
+            .add_node(0, 1, [("a", "test")], None, Some("fire_nation"))
             .unwrap();
-        let node1 = windowed_both.node(1).unwrap();
+        graph
+            .add_node(0, 2, NO_PROPS, None, Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_node(0, 3, [("b", 3)], None, Some("air_nomads"))
+            .unwrap();
 
-        let history: Vec<_> = node1.edge_history().map(|(t, _)| t.t()).collect();
-        assert_eq!(history, vec![20, 25, 30]);
-        assert_eq!(node1.earliest_edge_time().unwrap().t(), 20);
-        assert_eq!(node1.latest_edge_time().unwrap().t(), 30);
+        let filter_expr = NodeFilter.layer("fire_nation").is_active();
+        let ids = graph
+            .filter(filter_expr)
+            .unwrap()
+            .nodes()
+            .iter()
+            .map(|n| n.name())
+            .collect::<Vec<_>>();
 
-        // Test edge case: window with no edges for the node
-        let empty_window = graph.window(50, 60);
-        assert_eq!(empty_window.node(1), None);
-    });
-}
+        assert_eq!(ids, vec!["1", "2"]);
+    }
 
-#[test]
-fn test_edge_timestamps_no_edges() {
-    let graph = Graph::new();
+    /// Nodes added without a layer (`layer=None`) go into STATIC_GRAPH_LAYER_ID and must be
+    /// visible as active in every layer-restricted view.
+    #[test]
+    fn test_unlayered_node_visible_in_all_layer_views() {
+        let graph = Graph::new();
+        // Node 1 added without a layer — should appear in any layer view
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        // Node 2 added with "fire_nation" — should only appear in that view
+        graph
+            .add_node(0, 2, NO_PROPS, None, Some("fire_nation"))
+            .unwrap();
 
-    // Add a node but no edges
-    graph.add_node(10, 1, NO_PROPS, None, None).unwrap();
+        let fire_view = graph
+            .filter(NodeFilter.layer("fire_nation").is_active())
+            .unwrap();
+        let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
+        ids.sort();
+        // Both node 1 (unlayered/static) and node 2 (fire_nation) should be visible
+        assert_eq!(
+            ids,
+            vec!["1", "2"],
+            "unlayered node must appear in fire_nation view"
+        );
+    }
 
-    test_graph(&graph, |graph| {
-        let node1 = graph.node(1).unwrap();
+    /// A node added with layer A must NOT appear in a filter restricted to layer B.
+    #[test]
+    fn test_layered_node_not_visible_in_other_layer_view() {
+        let graph = Graph::new();
+        graph
+            .add_node(0, 1, NO_PROPS, None, Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_node(0, 2, NO_PROPS, None, Some("air_nomads"))
+            .unwrap();
 
-        // Node exists but has no edges
-        assert_eq!(node1.edge_history().count(), 0);
-        assert_eq!(node1.edge_history_rev().count(), 0);
-        assert_eq!(node1.earliest_edge_time(), None);
-        assert_eq!(node1.latest_edge_time(), None);
-    });
-}
+        let fire_view = graph
+            .filter(NodeFilter.layer("fire_nation").is_active())
+            .unwrap();
+        let ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
+        assert_eq!(
+            ids,
+            vec!["1"],
+            "air_nomads node must not appear in fire_nation view"
+        );
+    }
 
-#[test]
-fn test_node_layers() {
-    let graph = Graph::new();
-    graph
-        .add_node(0, 1, [("a", "test")], None, Some("fire_nation"))
-        .unwrap();
-    graph
-        .add_node(0, 2, NO_PROPS, None, Some("fire_nation"))
-        .unwrap();
-    graph
-        .add_node(0, 3, [("b", 3)], None, Some("air_nomads"))
-        .unwrap();
+    /// Nodes added without a layer should appear in a windowed + layer-filtered view
+    /// as long as they have activity within the window.
+    #[test]
+    fn test_unlayered_node_visible_in_windowed_layer_view() {
+        let graph = Graph::new();
+        graph.add_node(5, 1, NO_PROPS, None, None).unwrap(); // unlayered, t=5
+        graph
+            .add_node(5, 2, NO_PROPS, None, Some("fire_nation"))
+            .unwrap(); // layered, t=5
+        graph
+            .add_node(5, 3, NO_PROPS, None, Some("air_nomads"))
+            .unwrap();
 
-    let filter_expr = NodeFilter.layer("fire_nation").is_active();
-    let ids = graph
-        .filter(filter_expr)
-        .unwrap()
-        .nodes()
-        .iter()
-        .map(|n| n.name())
-        .collect::<Vec<_>>();
+        // Window [0, 10) covers t=5; filter to fire_nation
+        let view = graph.window(0, 10);
+        let fire_view = view
+            .filter(NodeFilter.layer("fire_nation").is_active())
+            .unwrap();
+        let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
+        ids.sort();
+        assert_eq!(
+            ids,
+            vec!["1", "2"],
+            "unlayered node at t=5 must appear in windowed fire_nation view"
+        );
 
-    assert_eq!(ids, vec!["1", "2"]);
-}
+        // Window [10, 20) does NOT cover t=5, so no nodes should be active
+        let view_out = graph.window(10, 20);
+        let fire_view_out = view_out
+            .filter(NodeFilter.layer("fire_nation").is_active())
+            .unwrap();
+        assert_eq!(
+            fire_view_out.count_nodes(),
+            0,
+            "no nodes should be active outside the window"
+        );
+    }
 
-/// Nodes added without a layer (`layer=None`) go into STATIC_GRAPH_LAYER_ID and must be
-/// visible as active in every layer-restricted view.
-#[test]
-fn test_unlayered_node_visible_in_all_layer_views() {
-    let graph = Graph::new();
-    // Node 1 added without a layer — should appear in any layer view
-    graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-    // Node 2 added with "fire_nation" — should only appear in that view
-    graph
-        .add_node(0, 2, NO_PROPS, None, Some("fire_nation"))
-        .unwrap();
+    /// Node history (timestamps) should be scoped to the requested layer, not bleed
+    /// across layers.
+    #[test]
+    fn test_node_history_scoped_to_layer() {
+        let graph = Graph::new();
+        // Node 1 exists in fire_nation at t=1 and air_nomads at t=2
+        graph
+            .add_node(1, 1, NO_PROPS, None, Some("fire_nation"))
+            .unwrap();
+        graph
+            .add_node(2, 1, NO_PROPS, None, Some("air_nomads"))
+            .unwrap();
 
-    let fire_view = graph
-        .filter(NodeFilter.layer("fire_nation").is_active())
-        .unwrap();
-    let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
-    ids.sort();
-    // Both node 1 (unlayered/static) and node 2 (fire_nation) should be visible
-    assert_eq!(
-        ids,
-        vec!["1", "2"],
-        "unlayered node must appear in fire_nation view"
-    );
-}
-
-/// A node added with layer A must NOT appear in a filter restricted to layer B.
-#[test]
-fn test_layered_node_not_visible_in_other_layer_view() {
-    let graph = Graph::new();
-    graph
-        .add_node(0, 1, NO_PROPS, None, Some("fire_nation"))
-        .unwrap();
-    graph
-        .add_node(0, 2, NO_PROPS, None, Some("air_nomads"))
-        .unwrap();
-
-    let fire_view = graph
-        .filter(NodeFilter.layer("fire_nation").is_active())
-        .unwrap();
-    let ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
-    assert_eq!(
-        ids,
-        vec!["1"],
-        "air_nomads node must not appear in fire_nation view"
-    );
-}
-
-/// Nodes added without a layer should appear in a windowed + layer-filtered view
-/// as long as they have activity within the window.
-#[test]
-fn test_unlayered_node_visible_in_windowed_layer_view() {
-    let graph = Graph::new();
-    graph.add_node(5, 1, NO_PROPS, None, None).unwrap(); // unlayered, t=5
-    graph
-        .add_node(5, 2, NO_PROPS, None, Some("fire_nation"))
-        .unwrap(); // layered, t=5
-    graph
-        .add_node(5, 3, NO_PROPS, None, Some("air_nomads"))
-        .unwrap();
-
-    // Window [0, 10) covers t=5; filter to fire_nation
-    let view = graph.window(0, 10);
-    let fire_view = view
-        .filter(NodeFilter.layer("fire_nation").is_active())
-        .unwrap();
-    let mut ids: Vec<_> = fire_view.nodes().iter().map(|n| n.name()).collect();
-    ids.sort();
-    assert_eq!(
-        ids,
-        vec!["1", "2"],
-        "unlayered node at t=5 must appear in windowed fire_nation view"
-    );
-
-    // Window [10, 20) does NOT cover t=5, so no nodes should be active
-    let view_out = graph.window(10, 20);
-    let fire_view_out = view_out
-        .filter(NodeFilter.layer("fire_nation").is_active())
-        .unwrap();
-    assert_eq!(
-        fire_view_out.count_nodes(),
-        0,
-        "no nodes should be active outside the window"
-    );
-}
-
-/// Node history (timestamps) should be scoped to the requested layer, not bleed
-/// across layers.
-#[test]
-fn test_node_history_scoped_to_layer() {
-    let graph = Graph::new();
-    // Node 1 exists in fire_nation at t=1 and air_nomads at t=2
-    graph
-        .add_node(1, 1, NO_PROPS, None, Some("fire_nation"))
-        .unwrap();
-    graph
-        .add_node(2, 1, NO_PROPS, None, Some("air_nomads"))
-        .unwrap();
-
-    let fire_layer = graph.layers("fire_nation").unwrap();
-    let node = fire_layer.node(1).unwrap();
-    let history: Vec<i64> = node.history().t().collect();
-    // Only the fire_nation timestamp should be visible
-    assert_eq!(
-        history,
-        vec![1],
-        "history must not include timestamps from other layers"
-    );
+        let fire_layer = graph.layers("fire_nation").unwrap();
+        let node = fire_layer.node(1).unwrap();
+        let history: Vec<i64> = node.history().t().collect();
+        // Only the fire_nation timestamp should be visible
+        assert_eq!(
+            history,
+            vec![1],
+            "history must not include timestamps from other layers"
+        );
+    }
 }

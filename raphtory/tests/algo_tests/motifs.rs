@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod global_motifs_test {
     use raphtory::{
         algorithms::motifs::global_temporal_three_node_motifs::temporal_three_node_motif_multi,
@@ -66,7 +66,7 @@ mod global_motifs_test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod local_motifs_test {
     use raphtory::{
         algorithms::motifs::local_temporal_three_node_motifs::temporal_three_node_motif,
@@ -376,7 +376,7 @@ mod local_motifs_test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod triangle_count_tests {
     use raphtory::{
         algorithms::motifs::local_triangle_count::local_triangle_count,
@@ -409,7 +409,7 @@ mod triangle_count_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod rich_club_test {
     use crate::algo_tests::assert_eq_f64;
     use raphtory::{
@@ -475,7 +475,7 @@ mod rich_club_test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod triangle_count_tests_alt {
     use raphtory::{
         algorithms::motifs::triangle_count::triangle_count,
@@ -575,7 +575,7 @@ mod triangle_count_tests_alt {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod triplet_test {
     use pretty_assertions::assert_eq;
     use raphtory::{

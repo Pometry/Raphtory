@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod cc_test {
     use pretty_assertions::assert_eq;
     use raphtory::{
@@ -48,7 +48,7 @@ mod cc_test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod clustering_coefficient_tests {
     use raphtory::{
         algorithms::metrics::clustering_coefficient::{
@@ -121,7 +121,7 @@ mod clustering_coefficient_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod sum_weight_test {
     use pretty_assertions::assert_eq;
     use raphtory::{
@@ -203,7 +203,7 @@ mod sum_weight_test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod degree_test {
     use raphtory::{
         algorithms::metrics::degree::{
@@ -264,7 +264,7 @@ mod degree_test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod directed_graph_density_tests {
     use raphtory::{
         algorithms::metrics::directed_graph_density::directed_graph_density,
@@ -319,7 +319,7 @@ mod directed_graph_density_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod reciprocity_test {
     use pretty_assertions::assert_eq;
     use raphtory::{

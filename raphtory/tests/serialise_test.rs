@@ -1,5 +1,4 @@
-#[cfg(test)]
-#[cfg(feature = "proto")]
+#[cfg(all(test, feature = "test-utils", feature = "proto"))]
 mod serialise_test {
 
     use arrow::{array::types::Int32Type, datatypes::UInt8Type};

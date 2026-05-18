@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod dijkstra_tests {
     use itertools::Itertools;
     use raphtory::{
@@ -425,7 +425,7 @@ mod dijkstra_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod sssp_tests {
     use itertools::Itertools;
     use raphtory::{
@@ -499,7 +499,7 @@ mod sssp_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod generic_taint_tests {
 
     use raphtory::{

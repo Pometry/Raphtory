@@ -705,7 +705,6 @@ impl From<LayerId> for LayerIds {
 mod tests {
     use crate::core::entities::{LayerId, EID, MAX_EID};
     use proptest::{prop_assert, prop_assert_eq, proptest};
-    use std::char::MAX;
 
     #[test]
     fn test_elid_layer() {

@@ -1,4 +1,4 @@
-#[cfg(feature = "io")]
+#[cfg(all(test, feature = "test-utils", feature = "io"))]
 mod io_tests {
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
@@ -776,8 +776,7 @@ mod io_tests {
     }
 }
 
-#[cfg(test)]
-#[cfg(feature = "io")]
+#[cfg(all(test, feature = "test-utils", feature = "io"))]
 mod parquet_tests {
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, Utc};

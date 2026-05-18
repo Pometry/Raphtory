@@ -2651,8 +2651,9 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "dynamic-graphql"
-version = "0.10.1"
-source = "git+https://github.com/miratepuffin/dynamic-graphql?branch=add-arg-descriptions#69a07c5fe3c16b4baf76f676c96cde5865cae1de"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9d58055cecef1736f42bee8819059054e18239cda3d5de56b0c8836c2a2322b"
 dependencies = [
  "async-graphql",
  "dynamic-graphql-derive",
@@ -2661,8 +2662,9 @@ dependencies = [
 
 [[package]]
 name = "dynamic-graphql-derive"
-version = "0.10.1"
-source = "git+https://github.com/miratepuffin/dynamic-graphql?branch=add-arg-descriptions#69a07c5fe3c16b4baf76f676c96cde5865cae1de"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff1e2aa3d6affef7ce88263e83c0110b11f57409cf25aa81689bcc5f023a602e"
 dependencies = [
  "Inflector",
  "darling 0.20.11",
@@ -6397,7 +6399,6 @@ dependencies = [
  "quad-rand",
  "rand 0.9.4",
  "rand_distr 0.5.1",
- "raphtory",
  "raphtory-api",
  "raphtory-core",
  "raphtory-itertools",

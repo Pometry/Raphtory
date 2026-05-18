@@ -1,5 +1,4 @@
-#[cfg(test)]
-#[cfg(feature = "proto")]
+#[cfg(all(test, feature = "test-utils", feature = "proto"))]
 mod proto_test {
     use chrono::{DateTime, NaiveDateTime};
     use itertools::Itertools;

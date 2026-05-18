@@ -1,4 +1,4 @@
-#[cfg(test)]
+#[cfg(all(test, feature = "test-utils"))]
 mod fast_rp_test {
 
     use raphtory::{
