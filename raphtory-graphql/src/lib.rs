@@ -2204,6 +2204,104 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn test_delete_namespace_denied_without_parent_write() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+
+        let policy = Arc::new(
+            FakePolicy::default()
+                .with_namespace("", NamespacePermission::Read)
+                .with_namespace("ns", NamespacePermission::Write)
+                .with_graph("ns/g", GraphPermission::Write),
+        );
+        let setup = setup_with_policy(&[("ns/g", g)], policy).await;
+
+        let res = run_mutation_as_user(
+            &setup.schema,
+            r#"mutation { deleteNamespace(path: "ns") }"#,
+        )
+        .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(setup.tmp.path().join("ns").is_dir());
+        assert!(setup.data.get_graph_for_test("ns/g").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_own_write() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+
+        let policy = Arc::new(
+            FakePolicy::default()
+                .with_namespace("", NamespacePermission::Write)
+                .with_namespace("ns", NamespacePermission::Read)
+                .with_graph("ns/g", GraphPermission::Write),
+        );
+        let setup = setup_with_policy(&[("ns/g", g)], policy).await;
+
+        let res = run_mutation_as_user(
+            &setup.schema,
+            r#"mutation { deleteNamespace(path: "ns") }"#,
+        )
+        .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(setup.tmp.path().join("ns").is_dir());
+        assert!(setup.data.get_graph_for_test("ns/g").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_descendant_namespace_write() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+
+        let policy = Arc::new(
+            FakePolicy::default()
+                .with_namespace("", NamespacePermission::Write)
+                .with_namespace("ns", NamespacePermission::Write)
+                .with_namespace("ns/sub", NamespacePermission::Read)
+                .with_graph("ns/sub/g", GraphPermission::Write),
+        );
+        let setup = setup_with_policy(&[("ns/sub/g", g)], policy).await;
+
+        let res = run_mutation_as_user(
+            &setup.schema,
+            r#"mutation { deleteNamespace(path: "ns") }"#,
+        )
+        .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(setup.tmp.path().join("ns").is_dir());
+        assert!(setup.tmp.path().join("ns/sub").is_dir());
+        assert!(setup.data.get_graph_for_test("ns/sub/g").await.is_ok());
+    }
+
+    #[tokio::test]
     async fn test_delete_namespace_invalidates_cache() {
         let g = Graph::new();
         g.add_node(0, 1, NO_PROPS, None, None).unwrap();
