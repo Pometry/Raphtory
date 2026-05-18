@@ -239,9 +239,9 @@ impl Data {
         self.cache
             .insert_with(&key, || {
                 blocking_compute(move || {
-                    let is_dirty = writeable_folder.write_graph_data(graph.clone(), config)?;
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
                     let folder = writeable_folder.finish()?;
-                    let graph = GraphWithVectors::new(graph, None, folder.as_existing()?);
+                    let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
                     Ok::<_, InsertionError>(graph)
                 })
@@ -293,7 +293,6 @@ impl Data {
         self.delete_graph_inner(graph_folder)
             .await
             .map_err(|err| DeletionError::from_inner(path, err))?;
-        self.cache.remove(path).await;
         Ok(())
     }
 
