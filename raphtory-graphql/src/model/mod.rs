@@ -115,17 +115,21 @@ pub enum GqlGraphError {
 }
 
 /// Auto-grants Write on `path` for the creator's role after a graph is created.
+/// Returns an error if the grant fails so the caller can roll back the graph.
 /// No-op when there is no active auth policy or the JWT carries no role claim.
 fn auto_grant_on_create(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
-) {
+) -> async_graphql::Result<()> {
     if let Some(policy) = policy {
         if let Some(role) = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref()) {
-            policy.on_graph_created(role, path);
+            policy
+                .on_graph_created(role, path)
+                .map_err(async_graphql::Error::new)?;
         }
     }
+    Ok(())
 }
 
 fn require_namespace_write(
@@ -405,7 +409,10 @@ impl Mut {
         };
 
         data.insert_graph(folder, graph).await?;
-        auto_grant_on_create(ctx, &data.auth_policy, &path);
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
@@ -454,7 +461,10 @@ impl Mut {
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, src.graph).await?;
-        auto_grant_on_create(ctx, &data.auth_policy, new_path);
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
+            let _ = data.delete_graph(new_path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
@@ -476,7 +486,10 @@ impl Mut {
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
-        auto_grant_on_create(ctx, &data.auth_policy, &path);
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(path)
     }
@@ -507,7 +520,10 @@ impl Mut {
         })
         .await?;
         data.insert_graph(folder, g).await?;
-        auto_grant_on_create(ctx, &data.auth_policy, path);
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, path) {
+            let _ = data.delete_graph(path).await;
+            return Err(e);
+        }
         Ok(path.to_owned())
     }
 
@@ -542,7 +558,10 @@ impl Mut {
         .await?;
 
         data.insert_graph(folder, new_subgraph).await?;
-        auto_grant_on_create(ctx, &data.auth_policy, &new_path);
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
+            let _ = data.delete_graph(&new_path).await;
+            return Err(e);
+        }
         Ok(new_path)
     }
 

@@ -132,6 +132,10 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     ) -> Option<NamespacePermission>;
 
     /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
+    /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
+    /// back the graph creation so the store and filesystem stay consistent.
     /// Default no-op — only meaningful when a policy and a role claim are present.
-    fn on_graph_created(&self, _role: &str, _path: &str) {}
+    fn on_graph_created(&self, _role: &str, _path: &str) -> Result<(), String> {
+        Ok(())
+    }
 }
