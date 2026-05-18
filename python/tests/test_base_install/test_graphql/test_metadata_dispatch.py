@@ -104,10 +104,10 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
     # test still passing (metadata round-trips for either format), and
     # the parquet dispatch path would silently stop being exercised.
     assert (
-            _read_is_diskgraph(disk_graph_dir) is True
+        _read_is_diskgraph(disk_graph_dir) is True
     ), "disk_graph was not saved as a disk graph"
     assert (
-            _read_is_diskgraph(parquet_graph_dir) is False
+        _read_is_diskgraph(parquet_graph_dir) is False
     ), "parquet_graph was not saved as parquet"
 
     with GraphServer(work_dir).start() as server:
@@ -139,7 +139,7 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
 
         meta_cached = _list_metadata_by_path(client)
         assert (
-                meta_cached == meta
+            meta_cached == meta
         ), "cached-path metadata should match the on-disk-path metadata"
 
 
@@ -162,7 +162,7 @@ def test_metadata_update_in_single_segment_returns_latest():
         client = server.get_client()
         meta = _list_metadata_by_path(client)
         assert (
-                meta["g"]["version"] == "v2"
+            meta["g"]["version"] == "v2"
         ), f"expected latest in-segment value 'v2', got {meta['g'].get('version')!r}"
 
 
@@ -189,7 +189,7 @@ def test_metadata_update_across_flushes_returns_newest_segment():
         client = server.get_client()
         meta = _list_metadata_by_path(client)
         assert (
-                meta["g"]["version"] == "v2"
+            meta["g"]["version"] == "v2"
         ), f"expected newest-segment value 'v2', got {meta['g'].get('version')!r}"
 
 
@@ -213,7 +213,7 @@ def test_metadata_many_updates_across_flushes_returns_last():
         client = server.get_client()
         meta = _list_metadata_by_path(client)
         assert (
-                meta["g"]["version"] == "v499"
+            meta["g"]["version"] == "v499"
         ), f"expected last-write value 'v499', got {meta['g'].get('version')!r}"
 
 
@@ -281,5 +281,5 @@ def test_metadata_mixed_keys_across_flushes():
         meta = _list_metadata_by_path(client)
         assert meta["g"]["untouched"] == "stable"
         assert (
-                meta["g"]["bumped"] == "new"
+            meta["g"]["bumped"] == "new"
         ), f"expected updated value 'new', got {meta['g'].get('bumped')!r}"

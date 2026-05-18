@@ -80,7 +80,9 @@ def assert_successful_response(response: requests.Response):
 # TODO: implement this so we can use the with sintax
 def add_test_graph(port):
     requests.post(
-        raphtory_url(port), headers=WRITE_HEADERS, data=json.dumps({"query": NEW_TEST_GRAPH})
+        raphtory_url(port),
+        headers=WRITE_HEADERS,
+        data=json.dumps({"query": NEW_TEST_GRAPH}),
     )
 
 
@@ -130,7 +132,7 @@ def test_default_read_access(query):
 def test_disabled_read_access(query):
     work_dir = tempfile.mkdtemp()
     with GraphServer(
-            work_dir, auth_public_key=PUB_KEY, require_auth_for_reads=False
+        work_dir, auth_public_key=PUB_KEY, require_auth_for_reads=False
     ).start() as server:
         port = server.port()
         add_test_graph(port)
@@ -194,8 +196,8 @@ def test_update_graph(query):
         response = requests.post(raphtory_url(port), headers=READ_HEADERS, data=data)
         assert response.json()["data"] is None
         assert (
-                response.json()["errors"][0]["message"]
-                == "The requested endpoint requires write access"
+            response.json()["errors"][0]["message"]
+            == "The requested endpoint requires write access"
         )
 
         response = requests.post(raphtory_url(port), headers=WRITE_HEADERS, data=data)
@@ -225,8 +227,8 @@ def test_mutations(query):
         response = requests.post(raphtory_url(port), headers=READ_HEADERS, data=data)
         assert response.json()["data"] is None
         assert (
-                response.json()["errors"][0]["message"]
-                == "The requested endpoint requires write access"
+            response.json()["errors"][0]["message"]
+            == "The requested endpoint requires write access"
         )
 
         response = requests.post(raphtory_url(port), headers=WRITE_HEADERS, data=data)

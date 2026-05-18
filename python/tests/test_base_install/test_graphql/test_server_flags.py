@@ -261,8 +261,8 @@ def test_disable_lists_all_resolvers():
             with pytest.raises(Exception) as excinfo:
                 client.query(query)
             assert (
-                    "Bulk list endpoints are disabled on this server. Use `page` instead."
-                    in str(excinfo.value)
+                "Bulk list endpoints are disabled on this server. Use `page` instead."
+                in str(excinfo.value)
             ), f"{name} did not reject with the expected error: {excinfo.value}"
 
 
@@ -310,7 +310,9 @@ def test_disable_batching():
     with GraphServer(work_dir, disable_batching=True).start() as server:
         server.get_client().query("{ version }")
 
-        status, body = batch_query(server.port(), [{"query": "{ version }"}, {"query": "{ version }"}])
+        status, body = batch_query(
+            server.port(), [{"query": "{ version }"}, {"query": "{ version }"}]
+        )
         assert status == 400
         assert "Query batching is disabled on this server" in str(body)
 
@@ -356,8 +358,8 @@ def test_max_directives_per_field():
         with pytest.raises(Exception) as excinfo:
             client.query("{ version @skip(if: false) @include(if: true) }")
         assert (
-                "number of directives on the field `version` cannot be greater than `1`"
-                in str(excinfo.value)
+            "number of directives on the field `version` cannot be greater than `1`"
+            in str(excinfo.value)
         )
 
 
@@ -368,9 +370,9 @@ def test_max_directives_per_field():
 def test_concurrency_flags_smoke():
     work_dir = tempfile.mkdtemp()
     with GraphServer(
-            work_dir,
-            heavy_query_limit=4,
-            exclusive_writes=True,
+        work_dir,
+        heavy_query_limit=4,
+        exclusive_writes=True,
     ).start() as server:
         client = server.get_client()
         make_graph(client)

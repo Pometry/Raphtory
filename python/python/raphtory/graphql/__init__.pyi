@@ -112,24 +112,28 @@ class GraphServer(object):
     ) -> GraphServer:
         """Create and return a new object.  See help(type) for accurate signature."""
 
-    def run(self, port: int = 1736, timeout_ms: int = 180000) -> None:
+    def run(self, port: Optional[int] = None, timeout_ms: int = 180000) -> None:
         """
         Run the server until completion.
 
         Arguments:
-            port (int): The port to use. Defaults to 1736.
+            port (int, optional): The port to use. If not specified, tries 1736 by default and if that is not available starts on an arbitrary port.
+                                  If specified and the port is in use, the server will fail to start.
             timeout_ms (int): Timeout for waiting for the server to start. Defaults to 180000.
 
         Returns:
             None:
         """
 
-    def start(self, port: int = 1736, timeout_ms: int = 5000) -> RunningGraphServer:
+    def start(
+        self, port: Optional[int] = None, timeout_ms: int = 5000
+    ) -> RunningGraphServer:
         """
         Start the server and return a handle to it.
 
         Arguments:
-            port (int): the port to use. Defaults to 1736.
+            port (int, optional): the port to use. If not specified, tries 1736 by default and if that is not available starts on an arbitrary port.
+                                  If specified and the port is in use, the server will fail to start.
             timeout_ms (int): wait for server to be online. Defaults to 5000.
 
         The server is stopped if not online within timeout_ms but manages to come online as soon as timeout_ms finishes!
@@ -196,6 +200,9 @@ class RunningGraphServer(object):
         Returns:
             RaphtoryClient: the client.
         """
+
+    def port(self):
+        """Get the port the server is listening on"""
 
     def stop(self) -> None:
         """

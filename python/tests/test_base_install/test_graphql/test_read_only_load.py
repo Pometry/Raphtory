@@ -146,7 +146,7 @@ def test_read_only_load_blocks_all_mutation_paths():
                 mutate()
             msg = str(exc.value).lower()
             assert (
-                    "locked" in msg or "immutable" in msg
+                "locked" in msg or "immutable" in msg
             ), f"{name} did not raise a locked/immutable error: {exc.value}"
 
 

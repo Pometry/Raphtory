@@ -37,7 +37,9 @@ def test_failed_server_start_in_time():
         start = time.perf_counter()
         with GraphServer(tmp_work_dir).start(timeout_ms=1) as server:
             assert server.get_client().is_server_online()
-            assert (time.perf_counter() - start) < 1  # generous timeout check (1s versus 1ms)
+            assert (
+                time.perf_counter() - start
+            ) < 1  # generous timeout check (1s versus 1ms)
     except Exception as excinfo:
         assert str(excinfo) == "Failed to start server in 1 milliseconds"
 
@@ -46,8 +48,8 @@ def test_wrong_url():
     with pytest.raises(Exception) as excinfo:
         client = RaphtoryClient("http://broken_url.com")
     assert (
-            str(excinfo.value)
-            == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
+        str(excinfo.value)
+        == "Could not connect to the given server - no response --error sending request for url (http://broken_url.com/)"
     )
 
 
@@ -157,40 +159,40 @@ def test_namespaces():
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-                "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
-                in str(excinfo.value)
+            "Invalid path '../shivam/g': References to the parent dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "./shivam/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-                "Invalid path './shivam/g': References to the current dir are not allowed within the path"
-                in str(excinfo.value)
+            "Invalid path './shivam/g': References to the current dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "shivam/../../../../investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-                "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
-                in str(excinfo.value)
+            "Invalid path 'shivam/../../../../investigation/g': References to the parent dir are not allowed within the path"
+            in str(excinfo.value)
         )
 
         path = "//shivam/investigation/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-                "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
-                in str(excinfo.value)
+            "Invalid path '//shivam/investigation/g': Double forward slashes are not allowed in path"
+            in str(excinfo.value)
         )
 
         path = "shivam/investigation//2024-12-12/g"
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-                "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
-                in str(excinfo.value)
+            "Invalid path 'shivam/investigation//2024-12-12/g': Double forward slashes are not allowed in path"
+            in str(excinfo.value)
         )
 
         path = r"shivam/investigation\2024-12-12"
@@ -208,8 +210,8 @@ def test_namespaces():
         with pytest.raises(Exception) as excinfo:
             client.send_graph(path=path, graph=g, overwrite=True)
         assert (
-                "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
-                in str(excinfo.value)
+            "Invalid path 'shivam/graphs/not_a_symlink_i_promise/escaped': A component of the given path was a symlink"
+            in str(excinfo.value)
         )
 
 
@@ -868,6 +870,7 @@ def test_float_is_stable_on_roundtrip():
             resp = client.query(query)
             retrieved_float = resp["graph"]["node"]["at"]["properties"]["get"]["value"]
             assert retrieved_float == num
+
 
 # def test_disk_graph_name():
 #     import pandas as pd

@@ -24,6 +24,6 @@ def test_latest_and_active():
         with pytest.raises(Exception) as excinfo:
             client.query(query)
         assert (
-                "An operation tried to make use of the graph index but indexing has been turned off for the server"
-                in str(excinfo.value)
+            "An operation tried to make use of the graph index but indexing has been turned off for the server"
+            in str(excinfo.value)
         )
