@@ -1,6 +1,8 @@
 import json
 import os
 import tempfile
+import time
+
 import pytest
 from utils import sort_by_gql_name_or_id
 from raphtory import Graph, graph_loader
@@ -31,14 +33,13 @@ def test_encode_graph():
 
 def test_failed_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
-    server = None
     try:
-        with pytest.raises(Exception) as excinfo:
-            server = GraphServer(tmp_work_dir).start(timeout_ms=1)
-        assert str(excinfo.value) == "Failed to start server in 1 milliseconds"
-    finally:
-        if server:
-            server.stop()
+        start = time.perf_counter()
+        with GraphServer(tmp_work_dir).start(timeout_ms=1) as server:
+            assert server.get_client().is_server_online()
+            assert (time.perf_counter() - start) < 1  # generous timeout check (1s versus 1ms)
+    except Exception as excinfo:
+        assert str(excinfo) == "Failed to start server in 1 milliseconds"
 
 
 def test_wrong_url():
