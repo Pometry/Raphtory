@@ -1305,6 +1305,63 @@ mod graphql_test {
         save_graphs_to_work_dir(&data, &graphs).await.unwrap();
         let schema = App::create_schema().data(data).finish().unwrap();
 
+        let all = r#"{
+            graph(path: "graph1") {
+                nodes {
+                    list {
+                        name
+                    }
+                }
+                edges {
+                    list {
+                        id
+                    }
+                }
+            }
+        }"#;
+
+        let res = schema.execute(Request::new(all)).await;
+        let data = res.data.into_json().unwrap();
+
+        let all_nodes: Vec<_> = data
+            .get("graph")
+            .unwrap()
+            .get("nodes")
+            .unwrap()
+            .get("list")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.get("name").unwrap().as_str())
+            .collect();
+
+        let all_edges: Vec<(_, _)> = data
+            .get("graph")
+            .unwrap()
+            .get("edges")
+            .unwrap()
+            .get("list")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.get("id").unwrap().as_array())
+            .filter_map(|ids| ids.iter().filter_map(|v| v.as_u64()).collect_tuple())
+            .collect();
+
+        // make sure we have the correct edges
+        assert_eq!(
+            all_edges.iter().cloned().sorted().collect_vec(),
+            [(1, 2), (2, 4), (3, 2), (3, 6), (4, 5), (4, 6), (5, 6),]
+        );
+
+        // make sure we have the correct nodes
+        assert_eq!(
+            all_nodes.iter().copied().sorted().collect_vec(),
+            ["1", "2", "3", "4", "5", "6"]
+        );
+
         let req = r#"
         {
             graph(path: "graph1") {
