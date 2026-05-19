@@ -10,6 +10,7 @@ mod test_composite_filters {
         db::graph::views::filter::model::{
             edge_filter::EdgeFilter, filter::Filter, node_filter::NodeFilter,
             property_filter::ops::PropertyFilterOps, PropertyFilterFactory,
+            degree_filter::DegreeFilterFactory
         },
         prelude::IntoProp,
     };
@@ -126,22 +127,20 @@ mod test_property_semantics {
         use crate::IdentityGraphTransformer;
         use raphtory::{
             db::{
-                api::view::{filter_ops::Filter, StaticGraphViewOps},
+                api::view::{StaticGraphViewOps, filter_ops::Filter},
                 graph::{
                     assertions::{
-                        assert_filter_nodes_results, assert_search_nodes_results, TestVariants,
+                        TestVariants, assert_filter_nodes_results, assert_search_nodes_results
                     },
-                    views::filter::model::{
-                        node_filter::NodeFilter,
-                        property_filter::ops::{ListAggOps, PropertyFilterOps},
-                        PropertyFilterFactory, TemporalPropertyFilterFactory,
-                    },
+                    views::filter::{CreateFilter, degree_filter::{DegreeFilter, DegreeFilterBuilder}, model::{
+                        PropertyFilterFactory, TemporalPropertyFilterFactory, degree_filter::DegreeFilterFactory, node_filter::NodeFilter, property_filter::ops::{ListAggOps, PropertyFilterOps}
+                    }},
                 },
             },
             errors::GraphError,
             prelude::*,
         };
-        use raphtory_api::core::entities::properties::prop::Prop;
+        use raphtory_api::core::{Direction, entities::properties::prop::Prop};
         use raphtory_storage::mutation::{
             addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
         };

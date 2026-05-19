@@ -2,44 +2,29 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{
-                    filter::{
+                NodeStateValue, TypedNodeState, ops::{
+                    NodeOp, TypeId, filter::{
                         AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
                         OrOp,
-                    },
-                    NodeOp, TypeId,
-                },
-                NodeStateValue, TypedNodeState,
+                    }
+                }
             },
-            view::{internal::GraphView, BoxableGraphView},
+            view::{BoxableGraphView, internal::GraphView},
         },
         graph::views::filter::{
-            model::{
-                edge_filter::CompositeEdgeFilter,
-                filter::Filter,
-                is_active_node_filter::IsActiveNode,
-                latest_filter::Latest,
-                layered_filter::Layered,
-                node_filter::{
+            CreateFilter, model::{
+degree_filter::{DegreeFilterBuilder, DegreeFilterFactory},
+                AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap, edge_filter::CompositeEdgeFilter, filter::Filter, is_active_node_filter::IsActiveNode, latest_filter::Latest, layered_filter::Layered, node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
-                },
-                node_state_filter::NodeStateBoolColOp,
-                property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
-                snapshot_filter::{SnapshotAt, SnapshotLatest},
-                windowed_filter::Windowed,
-                AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps,
-                NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
-            },
-            node_filtered_graph::NodeFilteredGraph,
-            CreateFilter,
+                }, node_state_filter::NodeStateBoolColOp, property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder}, snapshot_filter::{SnapshotAt, SnapshotLatest}, windowed_filter::Windowed
+            }, node_filtered_graph::NodeFilteredGraph
         },
     },
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{Direction, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
@@ -123,6 +108,18 @@ impl NodeViewFilterOps for NodeFilter {
 
     fn is_active(&self) -> Self::Output<IsActiveNode> {
         IsActiveNode
+    }
+}
+
+impl DegreeFilterFactory for NodeFilter {
+    type Entity = NodeFilter;
+
+    fn entity(&self) -> Self::Entity {
+       NodeFilter
+    }
+
+    fn degree(&self, direction: Direction) -> DegreeFilterBuilder<Self::Entity> {
+        DegreeFilterBuilder::new(direction, self.entity()) 
     }
 }
 
@@ -500,3 +497,5 @@ impl TryAsCompositeFilter for CompositeNodeFilter {
         Err(GraphError::NotSupported)
     }
 }
+
+
