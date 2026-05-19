@@ -6555,6 +6555,7 @@ dependencies = [
  "raphtory",
  "raphtory-api",
  "raphtory-storage",
+ "raphtory-test-utils",
  "rayon",
  "reqwest",
  "rust-embed",
@@ -6629,6 +6630,31 @@ dependencies = [
  "serde",
  "tempfile",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "raphtory-test-utils"
+version = "0.18.0"
+dependencies = [
+ "ahash",
+ "arrow",
+ "bigdecimal",
+ "chrono",
+ "db4-storage",
+ "itertools 0.13.0",
+ "parquet",
+ "proptest",
+ "proptest-derive",
+ "rand 0.9.4",
+ "raphtory",
+ "raphtory-api",
+ "raphtory-storage",
+ "rayon",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tracing",
+ "zip",
 ]
 
 [[package]]

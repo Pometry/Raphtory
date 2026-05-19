@@ -5,9 +5,7 @@ use raphtory::{
 use std::ops::Range;
 
 #[cfg(feature = "search")]
-pub use crate::db::api::view::SearchableGraphOps;
-#[cfg(feature = "search")]
-use raphtory::prelude::IndexMutationOps;
+use raphtory::prelude::{IndexMutationOps, SearchableGraphOps};
 use raphtory::{
     db::{
         api::view::filter_ops::{EdgeSelect, NodeSelect},
@@ -378,7 +376,7 @@ pub fn assert_search_edges_results(
 #[track_caller]
 fn assert_results(
     init_graph: impl FnOnce(Graph) -> Graph,
-    pre_transform: impl Fn(&Graph) -> (),
+    pre_transform: impl Fn(&Graph),
     transform: impl GraphTransformer,
     expected: &[&str],
     variants: Vec<TestGraphVariants>,

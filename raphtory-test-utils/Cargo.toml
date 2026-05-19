@@ -34,3 +34,6 @@ arrow.workspace = true
 parquet.workspace = true
 tracing.workspace = true
 zip.workspace = true
+
+[features]
+search = ["raphtory/search"]
