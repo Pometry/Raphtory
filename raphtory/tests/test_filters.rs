@@ -1659,24 +1659,26 @@ mod test_node_filter {
         db::{
             api::{
                 state::{GenericNodeState, TypedNodeState},
-                view::{filter_ops::NodeSelect, Filter},
+                view::{Filter, filter_ops::NodeSelect},
             },
             graph::{
                 assertions::{
-                    assert_filter_nodes_results, assert_search_nodes_results,
-                    assert_select_nodes_results, TestVariants,
+                    TestVariants, assert_filter_nodes_results, assert_search_nodes_results, assert_select_nodes_results
                 },
                 views::filter::model::{
-                    node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
-                    PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps,
+                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, degree_filter::DegreeFilterFactory, node_filter::ops::{NodeFilterOps, NodeIdFilterOps}
                 },
             },
         },
-        prelude::{AdditionOps, Graph, GraphViewOps, NodeFilter, NodeViewOps, TimeOps, NO_PROPS},
+        prelude::{AdditionOps, Graph, GraphViewOps, NO_PROPS, NodeFilter, NodeViewOps, TimeOps},
     };
     use raphtory_api::core::entities::VID;
     use std::collections::HashMap;
+
+    #[test]
+    fn test_node_degrees() {
+        let filter = NodeFilter.degree(Direction::BOTH);
+    }
 
     #[test]
     fn test_node_list_is_preserved() {

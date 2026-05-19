@@ -45,7 +45,7 @@ impl DegreeFilter {
                 node_view.out_degree()
             }, 
             Direction::BOTH => {
-                node_view.in_degree()
+                node_view.in_degree() + node_view.out_degree()
             }
         };
         let node_degree_prop =  Prop::U64(node_degree as u64);
