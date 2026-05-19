@@ -71,7 +71,7 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
-raphtory = { workspace = true, features = ["test-utils"] }
+raphtory = { workspace = true, features = ["test-utils", "panic-on-drop"] }
 arrow-array = { workspace = true }
 
 [features]

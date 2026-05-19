@@ -865,7 +865,7 @@ mod tests {
             template::DocumentTemplate,
         },
     };
-    use tempfile::tempdir;
+    use tempfile::{tempdir, TempDir};
 
     fn fake_embedding(_: &str) -> Vec<f32> {
         vec![1.0]
@@ -876,9 +876,16 @@ mod tests {
         graph.into()
     }
 
-    async fn create_mutable_graph(
-        port: u16,
-    ) -> (GqlMutableGraph, Data, tempfile::TempDir, EmbeddingServer) {
+    /// Struct returned by `create_mutable_graph` to make sure the directory is dropped last.
+    /// Otherwise, the drop of the graph might fail as the directory no longer exists.
+    pub struct GraphTestContext {
+        mutable_graph: GqlMutableGraph,
+        embedding_server: EmbeddingServer,
+        data: Data,
+        tmp_dir: TempDir,
+    }
+
+    async fn create_mutable_graph(port: u16) -> GraphTestContext {
         let graph = create_test_graph();
         let tmp_dir = tempdir().unwrap();
 
@@ -913,12 +920,21 @@ mod tests {
         let graph_with_vectors = data.get_graph_for_test(graph_name).await.unwrap();
         let mutable_graph = GqlMutableGraph::from(graph_with_vectors);
 
-        (mutable_graph, data, tmp_dir, embedding_server)
+        GraphTestContext {
+            mutable_graph,
+            data,
+            tmp_dir,
+            embedding_server,
+        }
     }
 
     #[tokio::test]
     async fn test_add_nodes_empty_list() {
-        let (mutable_graph, data, tmp_dir, embedding_server) = create_mutable_graph(1745).await;
+        let GraphTestContext {
+            mutable_graph,
+            embedding_server,
+            ..
+        } = create_mutable_graph(0).await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;
@@ -926,17 +942,13 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap());
         embedding_server.stop().await;
-
-        // control the drop order
-        drop(mutable_graph);
-        drop(data);
-        drop(tmp_dir);
     }
 
     #[tokio::test]
     #[ignore = "TODO: #2384"]
     async fn test_add_nodes_simple() {
-        let (mutable_graph, _data, _tmp_dir, es) = create_mutable_graph(1746).await;
+        let context = create_mutable_graph(1746).await;
+        let mutable_graph = &context.mutable_graph;
 
         let nodes = vec![
             NodeAddition {
@@ -978,13 +990,14 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
-        es.stop().await;
+        context.embedding_server.stop().await;
     }
 
     #[tokio::test]
     #[ignore = "TODO: #2384"]
     async fn test_add_nodes_with_properties() {
-        let (mutable_graph, _data, _tmp_dir, es) = create_mutable_graph(1747).await;
+        let context = create_mutable_graph(1747).await;
+        let mutable_graph = &context.mutable_graph;
 
         let nodes = vec![
             NodeAddition {
@@ -1054,13 +1067,14 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 3);
-        es.stop().await;
+        context.embedding_server.stop().await;
     }
 
     #[tokio::test]
     #[ignore = "TODO: #2384"]
     async fn test_add_edges_simple() {
-        let (mutable_graph, _data, _tmp_dir, es) = create_mutable_graph(1748).await;
+        let context = create_mutable_graph(1748).await;
+        let mutable_graph = &context.mutable_graph;
 
         // First add some nodes.
         let nodes = vec![
@@ -1135,6 +1149,6 @@ mod tests {
 
         assert!(result.is_ok());
         assert!(result.unwrap().get_documents().await.unwrap().len() == 2);
-        es.stop().await;
+        context.embedding_server.stop().await;
     }
 }
