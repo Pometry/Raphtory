@@ -114,12 +114,8 @@ impl NodeViewFilterOps for NodeFilter {
 impl DegreeFilterFactory for NodeFilter {
     type Entity = NodeFilter;
 
-    fn entity(&self) -> Self::Entity {
-       NodeFilter
-    }
-
     fn degree(&self, direction: Direction) -> DegreeFilterBuilder<Self::Entity> {
-        DegreeFilterBuilder::new(direction, self.entity()) 
+        DegreeFilterBuilder::new(direction, NodeFilter) 
     }
 }
 

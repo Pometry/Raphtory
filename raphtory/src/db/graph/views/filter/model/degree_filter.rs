@@ -1,3 +1,4 @@
+use raphtory_api::core::entities::properties::prop::PropType;
 use raphtory_api::core::{Direction, entities::properties::prop::Prop};
 use raphtory_core::entities::{VID};
 use crate::db::api::state::ops::GraphView;
@@ -115,7 +116,7 @@ where
     type Marker = M;
 
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property(self.0.clone())
+        PropertyRef::Property("degree".to_string())
     }
 
     fn ops(&self) -> &[Op] {
@@ -129,9 +130,9 @@ where
     fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
         let degree_val = match filter.prop_value {
             PropertyFilterValue::Single(prop_val) => {
-                prop_val.as_u64_lossless().unwrap()
+                prop_val.try_cast(PropType::U64).unwrap().as_u64_lossless().unwrap()
             },
-            _ => panic!("val should be u64")
+            _ => panic!("val should be single")
         };
         DegreeFilter {
              degree_val,
@@ -148,6 +149,5 @@ where
 pub trait DegreeFilterFactory {
     type Entity: Clone + Send + Sync + Into<EntityMarker> + 'static;
 
-    fn entity(&self) -> Self::Entity;  
     fn degree(&self, direction: Direction) -> DegreeFilterBuilder<Self::Entity>; 
 }
