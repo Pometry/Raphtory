@@ -918,7 +918,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_add_nodes_empty_list() {
-        let (mutable_graph, _data, _tmp_dir, embedding_server) = create_mutable_graph(1745).await;
+        let (mutable_graph, data, tmp_dir, embedding_server) = create_mutable_graph(1745).await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;
@@ -926,6 +926,11 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap());
         embedding_server.stop().await;
+
+        // control the drop order
+        drop(mutable_graph);
+        drop(data);
+        drop(tmp_dir);
     }
 
     #[tokio::test]
