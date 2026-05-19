@@ -934,7 +934,7 @@ mod tests {
             mutable_graph,
             embedding_server,
             ..
-        } = create_mutable_graph(0).await;
+        } = create_mutable_graph(1745).await;
 
         let nodes = vec![];
         let result = mutable_graph.add_nodes(nodes).await;
