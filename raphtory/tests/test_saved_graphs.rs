@@ -281,7 +281,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
 
 #[test]
 #[ignore = "we don't always want to rebuild the graph"]
-fn rebuild_apache_master_with_contiguous_vids() {
+fn rebuild_graphql_master_with_contiguous_vids() {
     let parquet_dir = master_parquet_files_dir();
     if !parquet_dir.exists() {
         panic!(
@@ -532,7 +532,7 @@ fn validate_v4_disk_graphs() {
 
     // event graph
     let event_graph_path = tmp.path().join("event_graph");
-    copy_fixture_tree(&event_graph_disk_storage_dir(), &event_graph_path)
+    copy_graph_directory(&event_graph_disk_storage_dir(), &event_graph_path)
         .expect("copy event graph fixture into temp dir failed");
     let loaded_event_graph =
         Graph::load_read_only(&event_graph_path).expect("event graph couldn't be loaded");
@@ -542,7 +542,7 @@ fn validate_v4_disk_graphs() {
 
     // persistent graph
     let persistent_graph_path = tmp.path().join("persistent_graph");
-    copy_fixture_tree(&persistent_graph_disk_storage_dir(), &persistent_graph_path)
+    copy_graph_directory(&persistent_graph_disk_storage_dir(), &persistent_graph_path)
         .expect("copy persistent graph fixture into temp dir failed");
     let loaded_persistent_graph = PersistentGraph::load_read_only(&persistent_graph_path)
         .expect("persistent graph couldn't be loaded");
@@ -551,15 +551,15 @@ fn validate_v4_disk_graphs() {
     assert_graph_equal_timestamps(&loaded_persistent_graph, &populated_persistent_graph);
 }
 
-// Skip `.gitkeep` sentinels so the loader sees empty dirs, not stray files.
-fn copy_fixture_tree(src: &Path, dst: &Path) -> io::Result<()> {
+// Skip .gitkeep files so the loader sees empty dirs, not stray files
+fn copy_graph_directory(src: &Path, dst: &Path) -> io::Result<()> {
     fs::create_dir_all(dst)?;
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let from = entry.path();
         let to = dst.join(entry.file_name());
         if entry.file_type()?.is_dir() {
-            copy_fixture_tree(&from, &to)?;
+            copy_graph_directory(&from, &to)?;
         } else if entry.file_name() != ".gitkeep" {
             fs::copy(&from, &to)?;
         }
