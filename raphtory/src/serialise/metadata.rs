@@ -31,12 +31,11 @@ impl GraphMetadata {
     }
 }
 
-/// Refresh the `.meta` file for a disk-backed graph by writing the current
-/// node/edge counts and graph type.
-/// `disk_graph_path` is the inner graph directory: `<root>/<data_dir>/<graph_dir>`.
-pub fn write_disk_graph_metadata(
+/// Update the node/edge counts in an existing `.meta` file
+pub fn refresh_disk_graph_metadata(
     disk_graph_path: &Path,
-    graph: impl GraphView,
+    node_count: usize,
+    edge_count: usize,
 ) -> Result<(), StorageError> {
     let Some(data_folder) = disk_graph_path.parent() else {
         return Ok(());
@@ -44,15 +43,22 @@ pub fn write_disk_graph_metadata(
     if !data_folder.is_dir() {
         return Ok(());
     }
-    let Some(graph_path_name) = disk_graph_path.file_name().and_then(|s| s.to_str()) else {
-        return Ok(());
+
+    let meta_path = data_folder.join(GRAPH_META_PATH);
+    let json = match fs::read_to_string(&meta_path) {
+        Ok(json) => json,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(err) => return Err(err.into()),
     };
 
-    let metadata = GraphMetadata::from_graph(graph);
-    let meta = Metadata {
-        path: graph_path_name.to_string(),
-        meta: metadata,
-    };
+    let mut meta: Metadata = serde_json::from_str(&json)?;
+    if meta.meta.node_count == node_count && meta.meta.edge_count == edge_count {
+        return Ok(());
+    }
+    meta.meta.node_count = node_count;
+    meta.meta.edge_count = edge_count;
+
+    // write to disk
     let tmp_path = data_folder.join(".tmp");
     {
         let tmp_file = File::create(&tmp_path)?;
@@ -102,7 +108,7 @@ mod tests {
         graph.add_node(0, "b", NO_PROPS, None, None).unwrap();
         graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
 
-        // Metadata file is stale until flush.
+        // Explicitly flush the graph to update the .meta file
         graph.flush().unwrap();
 
         let meta = folder.read_metadata().unwrap();
@@ -110,6 +116,32 @@ mod tests {
         assert_eq!(meta.edge_count, graph.count_edges());
         assert_eq!(meta.node_count, 2);
         assert_eq!(meta.edge_count, 1);
+        assert!(meta.is_diskgraph);
+    }
+
+    #[test]
+    fn drop_updates_disk_graph_metadata_counts() {
+        use storage::{persist::strategy::PersistenceStrategy, Extension};
+        if !<Extension as PersistenceStrategy>::disk_storage_enabled() {
+            return;
+        }
+
+        let tmp = tempfile::TempDir::new().unwrap();
+        let folder = GraphFolder::from(tmp.path().join("g"));
+
+        {
+            let graph = Graph::new_at_path(&folder).unwrap();
+            graph.add_node(0, "a", NO_PROPS, None, None).unwrap();
+            graph.add_node(0, "b", NO_PROPS, None, None).unwrap();
+            graph.add_node(0, "c", NO_PROPS, None, None).unwrap();
+            graph.add_edge(1, "a", "b", NO_PROPS, None).unwrap();
+            graph.add_edge(1, "b", "c", NO_PROPS, None).unwrap();
+            // No explicit flush - rely on Drop to refresh `.meta`.
+        }
+
+        let meta = folder.read_metadata().unwrap();
+        assert_eq!(meta.node_count, 3);
+        assert_eq!(meta.edge_count, 2);
         assert!(meta.is_diskgraph);
     }
 }
