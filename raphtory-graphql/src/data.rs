@@ -1,6 +1,6 @@
 use crate::{
     auth::ContextValidation,
-    auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission},
+    auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission, PermissionLevel},
     cache::GraphCache,
     config::app_config::AppConfig,
     graph::GraphWithVectors,
@@ -388,6 +388,10 @@ pub(crate) enum PermissionError {
     /// Caller has read-only access but the operation requires write.
     #[error("Access denied: WRITE permission required for graph '{graph}'")]
     GraphWriteRequired { graph: String },
+
+    /// Caller has filtered read-only access but the opration requires unfiltered read
+    #[error("Access denied: unfiltered READ permissions required for graph '{graph}'")]
+    GraphUnfilteredReadRequired { graph: String },
     /// Caller lacks write permission on the destination namespace.
     #[error(
         "Access denied: WRITE required on namespace '{namespace}' to {operation} graph '{graph}'"
@@ -630,7 +634,12 @@ impl Data {
         ctx: &Context<'_>,
         path: &str,
     ) -> async_graphql::Result<GraphWithVectors> {
-        require_at_least_read(ctx, &self.auth_policy, path)?;
+        let res = require_at_least_read(ctx, &self.auth_policy, path)?;
+        if res.level() < PermissionLevel::Read {
+            Err(PermissionError::GraphUnfilteredReadRequired {
+                graph: path.to_string(),
+            })?;
+        }
         let graph = self.get_graph(path).await?;
         Ok(graph)
     }
