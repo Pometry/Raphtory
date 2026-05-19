@@ -118,7 +118,6 @@ streaming-stats = { workspace = true }
 indoc = { workspace = true }
 proptest.workspace = true
 proptest-derive.workspace = true
-# raphtory = { workspace = true, features = ["test-utils"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator = "0.6.1"
@@ -127,7 +126,7 @@ tikv-jemallocator = "0.6.1"
 prost-build = { workspace = true, optional = true }
 
 [features]
-default = ["test-utils"] # we can't depend on ourselves but we want to share test-utils
+default = [] # we can't depend on ourselves but we want to share test-utils
 
 # enables progress bars
 progress = ["dep:kdam"]
@@ -185,9 +184,4 @@ proto = [
     "dep:prost-build",
     "dep:memmap2",
     "io",
-]
-
-test-utils = [
-    "dep:proptest",
-    "dep:proptest-derive"
 ]

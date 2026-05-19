@@ -3,7 +3,6 @@ use crate::db::api::{
     view::BoxedLIter,
 };
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::IntoDynBoxed};
-use raphtory_storage::core_ops::CoreGraphOps;
 
 use super::GraphStorage;
 
