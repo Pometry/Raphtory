@@ -525,7 +525,6 @@ mod test_index {
     }
 
     mod test_index_spec {
-        use raphtory::prelude::SearchableGraphOps;
         use raphtory::{
             db::{
                 api::view::{IndexSpec, IndexSpecBuilder},
@@ -536,7 +535,7 @@ mod test_index {
                 },
             },
             errors::GraphError,
-            prelude::{AdditionOps, Graph, IndexMutationOps, StableDecode},
+            prelude::{AdditionOps, Graph, IndexMutationOps, SearchableGraphOps, StableDecode},
             serialise::{GraphFolder, StableEncode},
         };
         use raphtory_test_utils::assertions::{search_edges, search_nodes};
