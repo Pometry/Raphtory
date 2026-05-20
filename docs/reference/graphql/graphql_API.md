@@ -452,6 +452,55 @@ If true, replace any graph already at `path`.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="mutroot.createnamespace">createNamespace</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Create an empty namespace at `path`.
+
+Creates any missing parent namespaces along the way. Requires WRITE
+permission on the parent namespace. Rejects paths that already host a
+graph or an existing namespace, and paths that fail validation.
+
+Returns:: the path of the created namespace
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Destination path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.deletenamespace">deleteNamespace</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Delete a namespace and all of its descendants (graphs and sub-namespaces).
+
+Requires WRITE permission on the parent namespace, on the namespace
+itself, and on every descendant graph and sub-namespace. Cached graphs
+at any deleted path are invalidated. Rejects empty and non-existent
+paths.
+
+Returns:: true on success
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to delete relative to the root namespace.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="mutroot.createsubgraph">createSubgraph</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
