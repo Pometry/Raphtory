@@ -15,6 +15,7 @@ mod test_composite_filters {
         prelude::IntoProp,
     };
     use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
+    use proptest::prelude::*;
 
     #[test]
     fn test_fuzzy_search() {
@@ -1674,11 +1675,21 @@ mod test_node_filter {
     };
     use raphtory_api::core::{Direction, entities::{properties::prop::Prop, VID}};
     use std::collections::HashMap;
+    use proptest::{prop_assert_eq, proptest};
 
     // 6 nodes, 20 directed edges with varied degrees:
     // "1": in=5 out=5 both=10 | "2": in=4 out=4 both=8 | "3": in=4 out=3 both=7
     // "4": in=3 out=3 both=6  | "5": in=3 out=3 both=6 | "6": in=1 out=2 both=3
     fn init_degree_graph(graph: Graph) -> Graph {
+        // Add nodes
+        graph.add_node(0, "1", NO_PROPS, None).unwrap();
+        graph.add_node(0, "2", NO_PROPS, None).unwrap();
+        graph.add_node(0, "3", NO_PROPS, None).unwrap();
+        graph.add_node(0, "4", NO_PROPS, None).unwrap();
+        graph.add_node(0, "5", NO_PROPS, None).unwrap();
+        graph.add_node(0, "6", NO_PROPS, None).unwrap();
+        
+        // Add edges
         let edges = [
             (1, "1", "2"), (1, "1", "3"), (1, "1", "4"), (1, "1", "5"), (1, "1", "6"),
             (2, "2", "1"), (2, "2", "3"), (2, "2", "4"), (2, "2", "5"),
@@ -1693,274 +1704,298 @@ mod test_node_filter {
         graph
     }
 
-    #[test]
-    fn test_node_degrees_ge() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).ge(7u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() + node.out_degree() >= 7).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
+    // Property-based tests for degree filtering
+    proptest! {
+        #[test]
+        fn prop_degree_filter_both_direction_comparison(threshold in 0u64..15) {
+            let graph = init_degree_graph(Graph::new());
+            
+            // Test less than
+            let filter_lt = NodeFilter.degree(Direction::BOTH).lt(threshold);
+            let mut filtered_lt: Vec<VID> = graph.filter(filter_lt).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_lt.sort();
+            let mut manual_lt: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| (n.in_degree() + n.out_degree()) < threshold as usize)
+                .map(|n| n.node).collect();
+            manual_lt.sort();
+            prop_assert_eq!(filtered_lt, manual_lt, "BOTH < {} failed", threshold);
+            
+            // Test less than or equal
+            let filter_le = NodeFilter.degree(Direction::BOTH).le(threshold);
+            let mut filtered_le: Vec<VID> = graph.filter(filter_le).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_le.sort();
+            let mut manual_le: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| (n.in_degree() + n.out_degree()) <= threshold as usize)
+                .map(|n| n.node).collect();
+            manual_le.sort();
+            prop_assert_eq!(filtered_le, manual_le, "BOTH <= {} failed", threshold);
+            
+            // Test equal
+            let filter_eq = NodeFilter.degree(Direction::BOTH).eq(threshold);
+            let mut filtered_eq: Vec<VID> = graph.filter(filter_eq).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_eq.sort();
+            let mut manual_eq: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| (n.in_degree() + n.out_degree()) == threshold as usize)
+                .map(|n| n.node).collect();
+            manual_eq.sort();
+            prop_assert_eq!(filtered_eq, manual_eq, "BOTH == {} failed", threshold);
+            
+            // Test not equal
+            let filter_ne = NodeFilter.degree(Direction::BOTH).ne(threshold);
+            let mut filtered_ne: Vec<VID> = graph.filter(filter_ne).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_ne.sort();
+            let mut manual_ne: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| (n.in_degree() + n.out_degree()) != threshold as usize)
+                .map(|n| n.node).collect();
+            manual_ne.sort();
+            prop_assert_eq!(filtered_ne, manual_ne, "BOTH != {} failed", threshold);
+            
+            // Test greater than or equal
+            let filter_ge = NodeFilter.degree(Direction::BOTH).ge(threshold);
+            let mut filtered_ge: Vec<VID> = graph.filter(filter_ge).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_ge.sort();
+            let mut manual_ge: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| (n.in_degree() + n.out_degree()) >= threshold as usize)
+                .map(|n| n.node).collect();
+            manual_ge.sort();
+            prop_assert_eq!(filtered_ge, manual_ge, "BOTH >= {} failed", threshold);
+            
+            // Test greater than
+            let filter_gt = NodeFilter.degree(Direction::BOTH).gt(threshold);
+            let mut filtered_gt: Vec<VID> = graph.filter(filter_gt).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_gt.sort();
+            let mut manual_gt: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| (n.in_degree() + n.out_degree()) > threshold as usize)
+                .map(|n| n.node).collect();
+            manual_gt.sort();
+            prop_assert_eq!(filtered_gt, manual_gt, "BOTH > {} failed", threshold);
+        }
 
-    #[test]
-    fn test_node_degrees_eq() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).eq(6u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() + node.out_degree() == 6).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
+        #[test]
+        fn prop_degree_filter_in_direction_comparison(threshold in 0u64..6) {
+            let graph = init_degree_graph(Graph::new());
+            
+            // Test less than
+            let filter_lt = NodeFilter.degree(Direction::IN).lt(threshold);
+            let mut filtered_lt: Vec<VID> = graph.filter(filter_lt).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_lt.sort();
+            let mut manual_lt: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.in_degree() < threshold as usize)
+                .map(|n| n.node).collect();
+            manual_lt.sort();
+            prop_assert_eq!(filtered_lt, manual_lt, "IN < {} failed", threshold);
+            
+            // Test less than or equal
+            let filter_le = NodeFilter.degree(Direction::IN).le(threshold);
+            let mut filtered_le: Vec<VID> = graph.filter(filter_le).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_le.sort();
+            let mut manual_le: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.in_degree() <= threshold as usize)
+                .map(|n| n.node).collect();
+            manual_le.sort();
+            prop_assert_eq!(filtered_le, manual_le, "IN <= {} failed", threshold);
+            
+            // Test equal
+            let filter_eq = NodeFilter.degree(Direction::IN).eq(threshold);
+            let mut filtered_eq: Vec<VID> = graph.filter(filter_eq).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_eq.sort();
+            let mut manual_eq: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.in_degree() == threshold as usize)
+                .map(|n| n.node).collect();
+            manual_eq.sort();
+            prop_assert_eq!(filtered_eq, manual_eq, "IN == {} failed", threshold);
+            
+            // Test not equal
+            let filter_ne = NodeFilter.degree(Direction::IN).ne(threshold);
+            let mut filtered_ne: Vec<VID> = graph.filter(filter_ne).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_ne.sort();
+            let mut manual_ne: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.in_degree() != threshold as usize)
+                .map(|n| n.node).collect();
+            manual_ne.sort();
+            prop_assert_eq!(filtered_ne, manual_ne, "IN != {} failed", threshold);
+            
+            // Test greater than or equal
+            let filter_ge = NodeFilter.degree(Direction::IN).ge(threshold);
+            let mut filtered_ge: Vec<VID> = graph.filter(filter_ge).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_ge.sort();
+            let mut manual_ge: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.in_degree() >= threshold as usize)
+                .map(|n| n.node).collect();
+            manual_ge.sort();
+            prop_assert_eq!(filtered_ge, manual_ge, "IN >= {} failed", threshold);
+            
+            // Test greater than
+            let filter_gt = NodeFilter.degree(Direction::IN).gt(threshold);
+            let mut filtered_gt: Vec<VID> = graph.filter(filter_gt).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_gt.sort();
+            let mut manual_gt: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.in_degree() > threshold as usize)
+                .map(|n| n.node).collect();
+            manual_gt.sort();
+            prop_assert_eq!(filtered_gt, manual_gt, "IN > {} failed", threshold);
+        }
 
-    #[test]
-    fn test_node_degrees_le() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).le(6u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() + node.out_degree() <= 6).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
+        #[test]
+        fn prop_degree_filter_out_direction_comparison(threshold in 0u64..6) {
+            let graph = init_degree_graph(Graph::new());
+            
+            // Test less than
+            let filter_lt = NodeFilter.degree(Direction::OUT).lt(threshold);
+            let mut filtered_lt: Vec<VID> = graph.filter(filter_lt).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_lt.sort();
+            let mut manual_lt: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.out_degree() < threshold as usize)
+                .map(|n| n.node).collect();
+            manual_lt.sort();
+            prop_assert_eq!(filtered_lt, manual_lt, "OUT < {} failed", threshold);
+            
+            // Test less than or equal
+            let filter_le = NodeFilter.degree(Direction::OUT).le(threshold);
+            let mut filtered_le: Vec<VID> = graph.filter(filter_le).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_le.sort();
+            let mut manual_le: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.out_degree() <= threshold as usize)
+                .map(|n| n.node).collect();
+            manual_le.sort();
+            prop_assert_eq!(filtered_le, manual_le, "OUT <= {} failed", threshold);
+            
+            // Test equal
+            let filter_eq = NodeFilter.degree(Direction::OUT).eq(threshold);
+            let mut filtered_eq: Vec<VID> = graph.filter(filter_eq).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_eq.sort();
+            let mut manual_eq: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.out_degree() == threshold as usize)
+                .map(|n| n.node).collect();
+            manual_eq.sort();
+            prop_assert_eq!(filtered_eq, manual_eq, "OUT == {} failed", threshold);
+            
+            // Test not equal
+            let filter_ne = NodeFilter.degree(Direction::OUT).ne(threshold);
+            let mut filtered_ne: Vec<VID> = graph.filter(filter_ne).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_ne.sort();
+            let mut manual_ne: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.out_degree() != threshold as usize)
+                .map(|n| n.node).collect();
+            manual_ne.sort();
+            prop_assert_eq!(filtered_ne, manual_ne, "OUT != {} failed", threshold);
+            
+            // Test greater than or equal
+            let filter_ge = NodeFilter.degree(Direction::OUT).ge(threshold);
+            let mut filtered_ge: Vec<VID> = graph.filter(filter_ge).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_ge.sort();
+            let mut manual_ge: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.out_degree() >= threshold as usize)
+                .map(|n| n.node).collect();
+            manual_ge.sort();
+            prop_assert_eq!(filtered_ge, manual_ge, "OUT >= {} failed", threshold);
+            
+            // Test greater than
+            let filter_gt = NodeFilter.degree(Direction::OUT).gt(threshold);
+            let mut filtered_gt: Vec<VID> = graph.filter(filter_gt).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_gt.sort();
+            let mut manual_gt: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| n.out_degree() > threshold as usize)
+                .map(|n| n.node).collect();
+            manual_gt.sort();
+            prop_assert_eq!(filtered_gt, manual_gt, "OUT > {} failed", threshold);
+        }
 
-    #[test]
-    fn test_node_degrees_gt() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).gt(7u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() + node.out_degree() > 7).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
+        #[test]
+        fn prop_degree_filter_is_in(val1 in 0u64..15, val2 in 0u64..15) {
+            let graph = init_degree_graph(Graph::new());
+            
+            // Test BOTH direction with is_in
+            let filter_both_in = NodeFilter.degree(Direction::BOTH).is_in(vec![Prop::U64(val1), Prop::U64(val2)]);
+            let mut filtered_both_in: Vec<VID> = graph.filter(filter_both_in).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_both_in.sort();
+            let set = [val1, val2];
+            let mut manual_both_in: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| set.contains(&((n.in_degree() + n.out_degree()) as u64)))
+                .map(|n| n.node).collect();
+            manual_both_in.sort();
+            prop_assert_eq!(filtered_both_in, manual_both_in, "BOTH is_in({}, {}) failed", val1, val2);
+            
+            // Test IN direction with is_in
+            let filter_in_in = NodeFilter.degree(Direction::IN).is_in(vec![Prop::U64(val1), Prop::U64(val2)]);
+            let mut filtered_in_in: Vec<VID> = graph.filter(filter_in_in).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_in_in.sort();
+            let mut manual_in_in: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| set.contains(&(n.in_degree() as u64)))
+                .map(|n| n.node).collect();
+            manual_in_in.sort();
+            prop_assert_eq!(filtered_in_in, manual_in_in, "IN is_in({}, {}) failed", val1, val2);
+            
+            // Test OUT direction with is_in
+            let filter_out_in = NodeFilter.degree(Direction::OUT).is_in(vec![Prop::U64(val1), Prop::U64(val2)]);
+            let mut filtered_out_in: Vec<VID> = graph.filter(filter_out_in).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_out_in.sort();
+            let mut manual_out_in: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| set.contains(&(n.out_degree() as u64)))
+                .map(|n| n.node).collect();
+            manual_out_in.sort();
+            prop_assert_eq!(filtered_out_in, manual_out_in, "OUT is_in({}, {}) failed", val1, val2);
+        }
 
-    #[test]
-    fn test_node_degrees_lt() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).lt(7u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() + node.out_degree() < 7).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_degrees_ne() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).ne(6u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() + node.out_degree() != 6).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_ge() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).ge(4u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() >= 4).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_eq() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).eq(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() == 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_le() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).le(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() <= 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_gt() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).gt(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() > 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_lt() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).lt(4u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() < 4).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_ne() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).ne(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.in_degree() != 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_ge() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).ge(4u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.out_degree() >= 4).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_eq() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).eq(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.out_degree() == 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_le() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).le(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.out_degree() <= 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_gt() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).gt(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.out_degree() > 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_lt() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).lt(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.out_degree() < 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_ne() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).ne(3u64);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| node.out_degree() != 3).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_degrees_is_in() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).is_in(vec![Prop::U64(6), Prop::U64(7)]);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let set = [6u64, 7u64];
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| set.contains(&((node.in_degree() + node.out_degree()) as u64))).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_degrees_is_not_in() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::BOTH).is_not_in(vec![Prop::U64(6), Prop::U64(8)]);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let set = [6u64, 8u64];
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| !set.contains(&((node.in_degree() + node.out_degree()) as u64))).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_is_in() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).is_in(vec![Prop::U64(3), Prop::U64(5)]);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let set = [3u64, 5u64];
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| set.contains(&(node.in_degree() as u64))).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_in_degrees_is_not_in() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::IN).is_not_in(vec![Prop::U64(4), Prop::U64(5)]);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let set = [4u64, 5u64];
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| !set.contains(&(node.in_degree() as u64))).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_is_in() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).is_in(vec![Prop::U64(2), Prop::U64(3)]);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let set = [2u64, 3u64];
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| set.contains(&(node.out_degree() as u64))).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
-    }
-
-    #[test]
-    fn test_node_out_degrees_is_not_in() {
-        let graph = init_degree_graph(Graph::new());
-        let filter = NodeFilter.degree(Direction::OUT).is_not_in(vec![Prop::U64(4), Prop::U64(5)]);
-        let mut node_ids_filtered_by_filter: Vec<VID> = graph.filter(filter).unwrap().nodes().into_iter().map(|node| node.node).collect();
-        node_ids_filtered_by_filter.sort();
-        let set = [4u64, 5u64];
-        let mut node_ids_filtered: Vec<VID> = graph.nodes().into_iter().filter(|node| !set.contains(&(node.out_degree() as u64))).map(|node| node.node).collect();
-        node_ids_filtered.sort();
-        assert_eq!(node_ids_filtered, node_ids_filtered_by_filter);
+        #[test]
+        fn prop_degree_filter_is_not_in(val1 in 0u64..15, val2 in 0u64..15) {
+            let graph = init_degree_graph(Graph::new());
+            
+            // Test BOTH direction with is_not_in
+            let filter_both_nin = NodeFilter.degree(Direction::BOTH).is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]);
+            let mut filtered_both_nin: Vec<VID> = graph.filter(filter_both_nin).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_both_nin.sort();
+            let set = [val1, val2];
+            let mut manual_both_nin: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| !set.contains(&((n.in_degree() + n.out_degree()) as u64)))
+                .map(|n| n.node).collect();
+            manual_both_nin.sort();
+            prop_assert_eq!(filtered_both_nin, manual_both_nin, "BOTH is_not_in({}, {}) failed", val1, val2);
+            
+            // Test IN direction with is_not_in
+            let filter_in_nin = NodeFilter.degree(Direction::IN).is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]);
+            let mut filtered_in_nin: Vec<VID> = graph.filter(filter_in_nin).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_in_nin.sort();
+            let mut manual_in_nin: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| !set.contains(&(n.in_degree() as u64)))
+                .map(|n| n.node).collect();
+            manual_in_nin.sort();
+            prop_assert_eq!(filtered_in_nin, manual_in_nin, "IN is_not_in({}, {}) failed", val1, val2);
+            
+            // Test OUT direction with is_not_in
+            let filter_out_nin = NodeFilter.degree(Direction::OUT).is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]);
+            let mut filtered_out_nin: Vec<VID> = graph.filter(filter_out_nin).unwrap().nodes()
+                .into_iter().map(|n| n.node).collect();
+            filtered_out_nin.sort();
+            let mut manual_out_nin: Vec<VID> = graph.nodes().into_iter()
+                .filter(|n| !set.contains(&(n.out_degree() as u64)))
+                .map(|n| n.node).collect();
+            manual_out_nin.sort();
+            prop_assert_eq!(filtered_out_nin, manual_out_nin, "OUT is_not_in({}, {}) failed", val1, val2);
+        }
     }
 
     #[test]

@@ -50,7 +50,6 @@ impl DegreeFilter {
             }
         };
         let node_degree_prop =  Prop::U64(node_degree as u64);
-        println!("{}, {:?}", node_degree, self.value);
         self.operator.apply_to_property(&self.value, Some(&node_degree_prop))
     }
 }
