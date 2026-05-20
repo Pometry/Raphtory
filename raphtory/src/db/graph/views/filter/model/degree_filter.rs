@@ -32,7 +32,7 @@ impl<M> DegreeFilterBuilder<M> {
 pub struct DegreeFilter {
     pub direction: Direction,
     pub operator: FilterOperator,
-    pub degree_val: u64
+    pub value: PropertyFilterValue
 }
 
 impl DegreeFilter {
@@ -50,8 +50,8 @@ impl DegreeFilter {
             }
         };
         let node_degree_prop =  Prop::U64(node_degree as u64);
-        let degree_val_prop = PropertyFilterValue::Single(Prop::U64(self.degree_val));
-        self.operator.apply_to_property(&degree_val_prop, Some(&node_degree_prop))
+        println!("{}, {:?}", node_degree, self.value);
+        self.operator.apply_to_property(&self.value, Some(&node_degree_prop))
     }
 }
 
@@ -128,14 +128,8 @@ where
     }
 
     fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        let degree_val = match filter.prop_value {
-            PropertyFilterValue::Single(prop_val) => {
-                prop_val.try_cast(PropType::U64).unwrap().as_u64_lossless().unwrap()
-            },
-            _ => panic!("val should be single")
-        };
         DegreeFilter {
-             degree_val,
+             value: filter.prop_value,
              direction: self.direction,
              operator: filter.operator 
         }
