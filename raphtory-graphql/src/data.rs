@@ -237,16 +237,12 @@ impl Data {
     pub fn enumerate_namespace_descendants(
         &self,
         ns_path: &str,
-    ) -> Result<Vec<(String, bool)>, PathValidationError> {
+    ) -> Result<impl Iterator<Item = (String, bool)>, PathValidationError> {
         let ns = Namespace::try_new(self.work_dir.clone(), ns_path.to_string())?;
-        let entries = ns
-            .get_all_children()
-            .map(|item| match item {
-                NamespacedItem::Namespace(n) => (n.local_path().to_string(), false),
-                NamespacedItem::MetaGraph(g) => (g.local_path().to_string(), true),
-            })
-            .collect();
-        Ok(entries)
+        Ok(ns.get_all_children().map(|item| match item {
+            NamespacedItem::Namespace(n) => (n.local_path().to_string(), false),
+            NamespacedItem::MetaGraph(g) => (g.local_path().to_string(), true),
+        }))
     }
 
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
