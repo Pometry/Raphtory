@@ -29,7 +29,6 @@ use serde::{
     ser::SerializeSeq,
     Deserialize, Deserializer, Serialize, Serializer,
 };
-use serde_json::Value;
 use std::{
     borrow::Cow,
     collections::{hash_map, HashMap},
@@ -38,31 +37,6 @@ use std::{
     ops::{Deref, RangeInclusive},
     sync::Arc,
 };
-
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-pub enum NameSortKey<'a> {
-    Node(&'a str),
-    Edge(&'a str, &'a str),
-}
-
-fn name_sort_key(value: &Value) -> Option<NameSortKey<'_>> {
-    match value {
-        Value::Object(inner) => inner
-            .get("name")
-            .and_then(|name| Some(NameSortKey::Node(name.as_str()?)))
-            .or_else(|| {
-                inner.get("id").and_then(|id| match id {
-                    Value::String(node) => Some(NameSortKey::Node(node)),
-                    Value::Array(edge) => {
-                        let (src, dst) = edge.iter().map(|e| e.as_str().unwrap()).next_tuple()?;
-                        Some(NameSortKey::Edge(src, dst))
-                    }
-                    _ => None,
-                })
-            }),
-        _ => None,
-    }
-}
 
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)

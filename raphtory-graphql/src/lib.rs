@@ -1936,6 +1936,12 @@ mod graphql_test {
         );
     }
 
+    #[derive(PartialEq, Eq, PartialOrd, Ord)]
+    pub enum NameSortKey<'a> {
+        Node(&'a str),
+        Edge(&'a str, &'a str),
+    }
+
     #[tokio::test]
     async fn test_create_namespace_at_root() {
         let setup = setup_with_graphs(&[]).await;
@@ -2330,6 +2336,26 @@ mod graphql_test {
                     .collect(),
             ),
             value => value,
+        }
+    }
+
+    fn name_sort_key(value: &Value) -> Option<NameSortKey<'_>> {
+        match value {
+            Value::Object(inner) => inner
+                .get("name")
+                .and_then(|name| Some(NameSortKey::Node(name.as_str()?)))
+                .or_else(|| {
+                    inner.get("id").and_then(|id| match id {
+                        Value::String(node) => Some(NameSortKey::Node(node)),
+                        Value::Array(edge) => {
+                            let (src, dst) =
+                                edge.iter().map(|e| e.as_str().unwrap()).next_tuple()?;
+                            Some(NameSortKey::Edge(src, dst))
+                        }
+                        _ => None,
+                    })
+                }),
+            _ => None,
         }
     }
 }
