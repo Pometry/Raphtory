@@ -247,7 +247,6 @@ mod lancedb_tests {
         },
         Embedding,
     };
-    use rand::Rng;
     use std::sync::Arc;
 
     #[tokio::test]

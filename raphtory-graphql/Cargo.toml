@@ -41,15 +41,12 @@ tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
-ordered-float = { workspace = true }
-dashmap.workspace = true
 chrono = { workspace = true }
 config = { workspace = true }
 url = { workspace = true }
 base64-compat = { workspace = true }
 reqwest = { workspace = true }
 rustc-hash = { workspace = true }
-moka = { workspace = true }
 rayon = { workspace = true }
 ahash = { workspace = true }
 strum = { workspace = true }

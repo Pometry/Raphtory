@@ -386,6 +386,8 @@ impl<
                     Ok(lsn) => lsn,
                     Err(err) => {
                         drop_error!("Failed to log shutdown checkpoint in drop: {err}");
+                        // this is unreachable with panic-on-drop
+                        #[allow(unreachable_code)]
                         return;
                     }
                 };
@@ -395,6 +397,8 @@ impl<
 
                 if let Err(err) = wal.flush(flush_lsn) {
                     drop_error!("Failed to flush checkpoint record in drop: {err}");
+                    // this is unreachable with panic-on-drop
+                    #[allow(unreachable_code)]
                     return;
                 }
 
@@ -404,6 +408,8 @@ impl<
 
                 if let Err(err) = control_file.save() {
                     drop_error!("Failed to save control file in drop: {err}");
+                    // this is unreachable with panic-on-drop
+                    #[allow(unreachable_code)]
                     return;
                 }
             }

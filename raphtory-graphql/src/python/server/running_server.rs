@@ -1,17 +1,11 @@
-use crate::{
-    client::is_online,
-    python::{
-        client::raphtory_client::PyRaphtoryClient,
-        server::{wait_server, BridgeCommand},
-        RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
-    },
+use crate::python::{
+    client::raphtory_client::PyRaphtoryClient,
+    server::{wait_server, BridgeCommand},
+    RUNNING_SERVER_CONSUMED_MSG,
 };
 use crossbeam_channel::Sender as CrossbeamSender;
 use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyAny, PyResult, Python};
-use std::{
-    thread::{sleep, JoinHandle},
-    time::Duration,
-};
+use std::thread::JoinHandle;
 use tokio::{self, io::Result as IoResult};
 use tracing::error;
 

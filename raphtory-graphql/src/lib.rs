@@ -33,11 +33,8 @@ pub enum GQLError {
     GraphError(#[from] GraphError),
     #[error(transparent)]
     Validation(#[from] PathValidationError),
-    #[error("Insertion failed for Graph {graph}: {error}")]
-    Insertion {
-        graph: String,
-        error: InsertionError,
-    },
+    #[error(transparent)]
+    Insertion(#[from] InsertionError),
     #[error(transparent)]
     Arc(#[from] Arc<Self>),
 }

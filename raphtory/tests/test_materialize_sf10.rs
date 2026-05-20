@@ -4,7 +4,7 @@ use raphtory::{
     arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::view::{materialize_impl, MaterializedGraph},
-        graph::graph::{assert_graph_equal_timestamps, graph_equal},
+        graph::graph::assert_graph_equal_timestamps,
     },
     prelude::{AdditionOps, DeletionOps, Graph, GraphViewOps, LayerOps, PropertyAdditionOps},
 };

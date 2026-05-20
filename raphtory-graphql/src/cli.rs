@@ -16,7 +16,7 @@ use crate::{
         schema_config::DEFAULT_DISABLE_INTROSPECTION,
     },
     model::App,
-    server::{apply_server_extension, DEFAULT_PORT},
+    server::apply_server_extension,
     GraphServer,
 };
 use clap::{Parser, Subcommand};

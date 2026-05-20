@@ -9,7 +9,6 @@ use quick_cache::{
     DefaultHashBuilder, Lifecycle, UnitWeighter,
 };
 use raphtory::prelude::AdditionOps;
-use raphtory_storage::core_ops::CoreGraphOps;
 use std::future::Future;
 use tracing::{debug, error};
 
@@ -33,9 +32,6 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
     type RequestState = ();
 
     #[inline]
-    fn begin_request(&self) -> Self::RequestState {}
-
-    #[inline]
     fn is_pinned(&self, _key: &String, val: &GraphWithVectors) -> bool {
         if val.ref_count() > 1 {
             return true;
@@ -54,6 +50,9 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
 
         val.is_flushing()
     }
+
+    #[inline]
+    fn begin_request(&self) -> Self::RequestState {}
 
     #[inline]
     fn on_evict(&self, _state: &mut Self::RequestState, _key: String, graph: GraphWithVectors) {

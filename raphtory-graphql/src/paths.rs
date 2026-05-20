@@ -1,6 +1,4 @@
-use crate::{
-    data::DIRTY_PATH, graph::GraphWithVectors, model::blocking_io, rayon::blocking_compute,
-};
+use crate::{data::DIRTY_PATH, model::blocking_io, rayon::blocking_compute};
 use futures_util::io;
 use raphtory::{
     db::api::{
@@ -396,7 +394,7 @@ impl ValidWriteableGraphFolder {
         config: Config,
     ) -> Result<(), PathValidationError> {
         self.with_internal_errors(|| {
-            let is_dirty = if Extension::disk_storage_enabled() {
+            if Extension::disk_storage_enabled() {
                 MaterializedGraph::decode_from_zip_at(
                     ZipArchive::new(bytes)?,
                     self.graph_folder(),
@@ -406,7 +404,7 @@ impl ValidWriteableGraphFolder {
             } else {
                 self.global_path.data_path()?.unzip_to_folder(bytes)?;
             };
-            Ok::<_, GraphError>(is_dirty)
+            Ok::<_, GraphError>(())
         })
     }
 

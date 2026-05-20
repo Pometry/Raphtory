@@ -8,7 +8,7 @@ use crate::{
         App,
     },
     observability::open_telemetry::OpenTelemetry,
-    paths::{ExistingGraphFolder, PathValidationError::IOError},
+    paths::ExistingGraphFolder,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
     GQLError,

@@ -11,7 +11,7 @@ use crate::{
 };
 use crossbeam_channel::RecvTimeoutError;
 use pyo3::{
-    exceptions::{PyAttributeError, PyException, PyRuntimeError, PyValueError},
+    exceptions::{PyAttributeError, PyRuntimeError, PyValueError},
     prelude::*,
 };
 use raphtory::{

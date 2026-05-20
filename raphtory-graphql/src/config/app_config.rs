@@ -248,9 +248,6 @@ pub fn load_config(
     if let Ok(cache_capacity) = settings.get::<u64>("cache.capacity") {
         app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
     }
-    if let Ok(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds") {
-        app_config_builder = app_config_builder;
-    }
 
     if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
         app_config_builder = app_config_builder

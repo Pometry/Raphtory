@@ -8,11 +8,7 @@ use crate::{
     persist::strategy::PersistenceStrategy,
 };
 use raphtory_api::core::entities::properties::meta::Meta;
-use std::{
-    marker::PhantomData,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{marker::PhantomData, path::Path, sync::Arc};
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]
