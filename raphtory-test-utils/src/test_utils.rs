@@ -64,25 +64,6 @@ fn name_sort_key(value: &Value) -> Option<NameSortKey<'_>> {
     }
 }
 
-pub fn json_sort_by_name(value: Value) -> Value {
-    match value {
-        Value::Array(inner) => Value::Array(
-            inner
-                .into_iter()
-                .sorted_by(|l, r| name_sort_key(l).cmp(&name_sort_key(r)))
-                .map(|inner_value| json_sort_by_name(inner_value))
-                .collect(),
-        ),
-        Value::Object(inner) => Value::Object(
-            inner
-                .into_iter()
-                .map(|(key, value)| (key, json_sort_by_name(value)))
-                .collect(),
-        ),
-        value => value,
-    }
-}
-
 pub fn test_graph(graph: &Graph, test: impl FnOnce(&Graph)) {
     test(graph)
 }

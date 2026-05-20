@@ -73,7 +73,6 @@ mod graphql_test {
         },
         prelude::*,
         serialise::GraphFolder,
-        test_utils::json_sort_by_name,
     };
     use raphtory_api::core::{entities::GID, storage::arc_str::ArcStr};
     use serde_json::{json, Value};
@@ -2313,5 +2312,24 @@ mod graphql_test {
         );
 
         assert!(setup.data.get_cached_graph("ns/g").await.is_none());
+    }
+
+    pub fn json_sort_by_name(value: Value) -> Value {
+        match value {
+            Value::Array(inner) => Value::Array(
+                inner
+                    .into_iter()
+                    .sorted_by(|l, r| name_sort_key(l).cmp(&name_sort_key(r)))
+                    .map(|inner_value| json_sort_by_name(inner_value))
+                    .collect(),
+            ),
+            Value::Object(inner) => Value::Object(
+                inner
+                    .into_iter()
+                    .map(|(key, value)| (key, json_sort_by_name(value)))
+                    .collect(),
+            ),
+            value => value,
+        }
     }
 }
