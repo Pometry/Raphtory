@@ -183,10 +183,10 @@ where
             let req = batch_req.data(access).data(role);
 
             let contains_update = match &req {
-                BatchRequest::Single(request) => request.query.contains("updateGraph"),
+                BatchRequest::Single(request) => is_exclusive_write(&request.query),
                 BatchRequest::Batch(requests) => requests
                     .iter()
-                    .any(|request| request.query.contains("updateGraph")),
+                    .any(|request| is_exclusive_write(&request.query)),
             };
             if contains_update {
                 if let Some(lock) = &self.lock {
@@ -205,6 +205,16 @@ where
             }
         }
     }
+}
+
+fn is_exclusive_write(query: &str) -> bool {
+    is_operation(query, "updateGraph") || is_operation(query, "deleteNamespace")
+}
+
+fn is_operation(query: &str, op: &str) -> bool {
+    query
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .any(|token| token == op)
 }
 
 fn is_query_heavy(query: &str) -> bool {
