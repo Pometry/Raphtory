@@ -116,23 +116,16 @@ pub enum GqlGraphError {
 
 /// Auto-grants Write on `path` for the creator's role after a graph is created.
 /// Returns an error if the grant fails so the caller can roll back the graph.
-/// No-op for admin users (they have blanket write access via JWT and need no store entry),
-/// when there is no active auth policy, or when the JWT carries no role claim.
+/// No-op when there is no active auth policy; identity checks are delegated to the policy.
 fn auto_grant_on_create(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
 ) -> async_graphql::Result<()> {
-    let is_admin = ctx.data::<Access>().is_ok_and(|a| a == &Access::Rw);
-    if is_admin {
-        return Ok(());
-    }
     if let Some(policy) = policy {
-        if let Some(role) = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref()) {
-            policy
-                .on_graph_created(role, path)
-                .map_err(async_graphql::Error::new)?;
-        }
+        policy
+            .on_graph_created(ctx, path)
+            .map_err(async_graphql::Error::new)?;
     }
     Ok(())
 }

@@ -135,7 +135,11 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
     /// back the graph creation so the store and filesystem stay consistent.
     /// Default no-op — only meaningful when a policy and a role claim are present.
-    fn on_graph_created(&self, _role: &str, _path: &str) -> Result<(), String> {
+    fn on_graph_created(
+        &self,
+        _ctx: &async_graphql::Context<'_>,
+        _path: &str,
+    ) -> Result<(), String> {
         Ok(())
     }
 }
