@@ -168,14 +168,18 @@ impl Deref for Data {
 }
 
 /// flushes the graph to avoid errors due to writing to deleted directory
-fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
+async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
     if let Some(old_graph) = old_graph {
-        if let Err(e) = old_graph.flush() {
-            error!(
-                "Failed to flush old graph {} before replacing: {e}",
-                old_graph.folder().local_path()
-            )
-        }
+        let inner = old_graph.into_inner().await;
+        blocking_compute(move || {
+            if let Err(e) = inner.graph.flush() {
+                error!(
+                    "Failed to flush old graph {} before replacing: {e}",
+                    inner.folder.local_path()
+                )
+            }
+        })
+        .await;
     }
 }
 
@@ -252,15 +256,16 @@ impl Data {
         let key = writeable_folder.local_path().to_owned();
         let config = self.graph_conf.clone();
         self.cache
-            .insert_or_replace_with(&key, |old_graph| {
+            .insert_or_replace_with(&key, |old_graph| async {
+                invalidate_graph(old_graph).await;
                 blocking_compute(move || {
-                    invalidate_graph(old_graph);
                     let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
                     graph.set_dirty(is_dirty);
                     Ok::<_, InsertionError>(graph)
                 })
+                .await
             })
             .await?;
         Ok(())
@@ -274,12 +279,13 @@ impl Data {
     ) -> Result<(), InsertionError> {
         let conf = self.graph_conf.clone();
         self.cache
-            .invalidate_with(&folder.local_path().to_string(), |old_graph| {
+            .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
+                invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    invalidate_graph(old_graph);
                     folder.write_graph_bytes(bytes, conf)?;
                     folder.finish()
                 })
+                .await
             })
             .await?;
         Ok(())
@@ -292,13 +298,14 @@ impl Data {
         let key = graph_folder.local_path().to_string();
         let dirty_file = mark_dirty(graph_folder.root())?;
         self.cache
-            .invalidate_with(&key, |old_graph| {
+            .invalidate_with(&key, |old_graph| async {
+                invalidate_graph(old_graph).await;
                 blocking_io(move || {
-                    invalidate_graph(old_graph);
                     fs::remove_dir_all(graph_folder.root())?;
                     fs::remove_file(dirty_file)?;
                     Ok::<_, MutationErrorInner>(())
                 })
+                .await
             })
             .await?;
         Ok(())
@@ -329,8 +336,11 @@ impl Data {
         })?;
         for item in descendants {
             if let NamespacedItem::MetaGraph(g) = item {
-                self.invalidate(g.local_path()).await;
-                self.cache.remove(g.local_path()).await;
+                self.cache
+                    .invalidate_with(g.local_path(), |old_graph| async {
+                        invalidate_graph(old_graph).await;
+                    })
+                    .await;
             }
         }
         blocking_io(move || {

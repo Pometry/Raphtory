@@ -2,6 +2,8 @@ use crate::{
     paths::{ExistingGraphFolder, ValidGraphPaths},
     rayon::blocking_compute,
 };
+#[cfg(feature = "search")]
+use raphtory::prelude::IndexMutationOps;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
@@ -24,25 +26,26 @@ use raphtory::{
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    future::poll_fn,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    task::Poll,
 };
-
-#[cfg(feature = "search")]
-use raphtory::prelude::IndexMutationOps;
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
     inner: Arc<GraphWithVectorsInner>,
 }
 
-struct GraphWithVectorsInner {
-    graph: MaterializedGraph,
-    vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    folder: ExistingGraphFolder,
-    is_dirty: AtomicBool,
-    is_flushing: AtomicBool,
+pub struct GraphWithVectorsInner {
+    pub graph: MaterializedGraph,
+    pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
+    pub folder: ExistingGraphFolder,
+    pub is_dirty: AtomicBool,
+    pub is_flushing: AtomicBool,
 }
 
 impl GraphWithVectors {
@@ -61,6 +64,27 @@ impl GraphWithVectors {
         Self { inner }
     }
 
+    /// Calls `Arc::into_inner` on the underlying Arc until we hold the only reference and returns it
+    pub async fn into_inner(self) -> GraphWithVectorsInner {
+        let mut inner = Some(self.inner);
+        let future = poll_fn(move |_ctx| {
+            match inner.take() {
+                None => {
+                    unreachable!("poll called after ready returned")
+                }
+                Some(inner_arc) => {
+                    match Arc::try_unwrap(inner_arc) {
+                        Ok(inner) => Poll::Ready(inner),
+                        Err(inner_arc) => {
+                            inner = Some(inner_arc); // put back
+                            Poll::Pending
+                        }
+                    }
+                }
+            }
+        });
+        future.await
+    }
     pub fn graph(&self) -> &MaterializedGraph {
         &self.inner.graph
     }

@@ -18,7 +18,7 @@ use walkdir::WalkDir;
 /// the last is a namespace. Use to browse what's stored on the server without
 /// loading any graph data.
 #[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
-pub(crate) struct Namespace {
+pub struct Namespace {
     current_dir: PathBuf,  // always validated
     relative_path: String, // relative to the root working directory
 }
