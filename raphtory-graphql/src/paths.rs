@@ -84,6 +84,33 @@ impl ValidPath {
     }
 }
 
+/// Validate a path for use as a *new* namespace directory.
+///
+/// Returns the absolute path that should be created. Does not create the
+/// target directory. Errors when the path is empty, contains invalid
+/// components, or already exists as either a graph folder or a namespace
+/// directory.
+pub fn validate_path_for_namespace_create(
+    base_path: PathBuf,
+    relative_path: &str,
+) -> Result<PathBuf, PathValidationError> {
+    if relative_path.is_empty() {
+        return Err(PathValidationError::EmptyPath);
+    }
+    let valid = ValidPath::try_new(base_path, relative_path)?;
+    if valid.is_graph() {
+        return Err(PathValidationError::GraphExistsError(
+            relative_path.to_string(),
+        ));
+    }
+    if valid.is_namespace() {
+        return Err(PathValidationError::NamespaceExistsError(
+            relative_path.to_string(),
+        ));
+    }
+    Ok(valid.into_path())
+}
+
 #[derive(Clone, Debug, PartialOrd, PartialEq, Ord, Eq)]
 pub struct ExistingGraphFolder(pub(crate) ValidGraphFolder);
 
@@ -459,6 +486,10 @@ impl From<io::Error> for InternalPathValidationError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum PathValidationError {
+    #[error("Path is empty")]
+    EmptyPath,
+    #[error("Namespace '{0}' already exists")]
+    NamespaceExistsError(String),
     #[error("Graph '{0}' already exists")]
     GraphExistsError(String),
     #[error("Graph '{0}' does not exist")]
