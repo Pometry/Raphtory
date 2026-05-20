@@ -20,6 +20,9 @@ mod routes;
 pub mod server;
 pub mod url_encode;
 
+#[cfg(test)]
+pub(crate) mod test_support;
+
 pub mod cli;
 pub mod config;
 #[cfg(feature = "python")]
@@ -47,9 +50,14 @@ mod graphql_test {
     use crate::config::app_config::AppConfigBuilder;
     use crate::{
         auth::Access,
+        auth_policy::{auth_policy_tests::FakePolicy, GraphPermission, NamespacePermission},
         config::app_config::AppConfig,
         data::{data_tests::save_graphs_to_work_dir, Data},
         model::App,
+        test_support::{
+            assert_is_namespace_dir, run_mutation, run_mutation_as_user, setup_with_graphs,
+            setup_with_policy,
+        },
         url_encode::{url_decode_graph_at, url_encode_graph},
     };
     use async_graphql::{dynamic::Schema, UploadValue};
@@ -72,6 +80,7 @@ mod graphql_test {
     use std::{
         collections::{HashMap, HashSet},
         fs,
+        sync::Arc,
     };
     use tempfile::tempdir;
 
@@ -1926,5 +1935,383 @@ mod graphql_test {
             retrieved, expected,
             "node types returned by GraphQL should match those set on ingest"
         );
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_at_root() {
+        let setup = setup_with_graphs(&[]).await;
+
+        let res = run_mutation(
+            &setup.schema,
+            r#"mutation { createNamespace(path: "foo") }"#,
+        )
+        .await;
+
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "createNamespace": "foo" }),
+        );
+
+        let foo = setup.tmp.path().join("foo");
+        assert_is_namespace_dir(&foo);
+
+        let req = Request::new(
+            r#"{ namespace(path: "") { items { list { __typename ... on Namespace { path } ... on MetaGraph { path } } } } }"#,
+        );
+        let res = setup.schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "namespace": {
+                    "items": {
+                        "list": [
+                            { "__typename": "Namespace", "path": "foo" }
+                        ]
+                    }
+                }
+            }),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_nested() {
+        let setup = setup_with_graphs(&[]).await;
+
+        let res = run_mutation(
+            &setup.schema,
+            r#"mutation { createNamespace(path: "a/b/c") }"#,
+        )
+        .await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "createNamespace": "a/b/c" }),
+        );
+
+        for rel in ["a", "a/b", "a/b/c"] {
+            let p = setup.tmp.path().join(rel);
+            assert_is_namespace_dir(&p);
+        }
+
+        let req = Request::new(r#"{ namespace(path: "a/b") { children { list { path } } } }"#);
+        let res = setup.schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({
+                "namespace": {
+                    "children": { "list": [ { "path": "a/b/c" } ] }
+                }
+            }),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_rejects_existing_graph() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+        let setup = setup_with_graphs(&[("g", g)]).await;
+
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "g") }"#).await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+
+        assert!(setup.data.get_graph_for_test("g").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_rejects_existing_namespace() {
+        let setup = setup_with_graphs(&[]).await;
+
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+        assert_eq!(res.errors, vec![]);
+
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0].message.contains("Namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_rejects_invalid_paths() {
+        let setup = setup_with_graphs(&[]).await;
+
+        let cases = ["", ".hidden/x", "x/.hidden", "../escape", "a//b"];
+
+        let snapshot_before = std::fs::read_dir(setup.tmp.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect::<HashSet<_>>();
+
+        for path in cases {
+            let query = format!(
+                r#"mutation {{ createNamespace(path: "{}") }}"#,
+                path.replace('"', r#"\""#),
+            );
+            let res = run_mutation(&setup.schema, &query).await;
+            assert!(
+                !res.errors.is_empty(),
+                "expected error for path {:?}, got {:?}",
+                path,
+                res,
+            );
+        }
+
+        let snapshot_after = std::fs::read_dir(setup.tmp.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect::<HashSet<_>>();
+        assert_eq!(
+            snapshot_before, snapshot_after,
+            "work_dir contents changed after rejected creates",
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_namespace_denied_without_parent_write() {
+        let policy = Arc::new(FakePolicy::default().with_namespace("", NamespacePermission::Read));
+        let setup = setup_with_policy(&[], policy).await;
+
+        let res = run_mutation_as_user(
+            &setup.schema,
+            r#"mutation { createNamespace(path: "foo") }"#,
+        )
+        .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(!setup.tmp.path().join("foo").exists());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_empty() {
+        let setup = setup_with_graphs(&[]).await;
+
+        let res = run_mutation(&setup.schema, r#"mutation { createNamespace(path: "ns") }"#).await;
+        assert_eq!(res.errors, vec![]);
+        assert!(setup.tmp.path().join("ns").is_dir());
+
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "deleteNamespace": true }),
+        );
+        assert!(!setup.tmp.path().join("ns").exists());
+        assert_is_namespace_dir(setup.tmp.path());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_with_children() {
+        let g1 = Graph::new();
+        g1.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g1: MaterializedGraph = g1.into();
+        let g2 = Graph::new();
+        g2.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        let g2: MaterializedGraph = g2.into();
+        let setup = setup_with_graphs(&[("ns/g1", g1), ("ns/sub/g2", g2)]).await;
+
+        let res = run_mutation(
+            &setup.schema,
+            r#"mutation { createNamespace(path: "ns/empty") }"#,
+        )
+        .await;
+        assert_eq!(res.errors, vec![]);
+        assert!(setup.tmp.path().join("ns/empty").is_dir());
+
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "deleteNamespace": true }),
+        );
+        assert!(!setup.tmp.path().join("ns").exists());
+
+        let req = Request::new(r#"{ namespace(path: "") { children { list { path } } } }"#);
+        let res = setup.schema.execute(req).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "namespace": { "children": { "list": [] } } }),
+        );
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_rejects_empty_path() {
+        let setup = setup_with_graphs(&[]).await;
+
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "") }"#).await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_rejects_nonexistent() {
+        let setup = setup_with_graphs(&[]).await;
+
+        let res = run_mutation(
+            &setup.schema,
+            r#"mutation { deleteNamespace(path: "noexist") }"#,
+        )
+        .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_when_descendant_unwritable() {
+        let g1 = Graph::new();
+        g1.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g1: MaterializedGraph = g1.into();
+        let g2 = Graph::new();
+        g2.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        let g2: MaterializedGraph = g2.into();
+
+        let policy = Arc::new(
+            FakePolicy::default()
+                .with_namespace("", NamespacePermission::Write)
+                .with_namespace("ns", NamespacePermission::Write)
+                .with_graph("ns/g1", GraphPermission::Write)
+                .with_graph("ns/g2", GraphPermission::Read { filter: None }),
+        );
+        let setup = setup_with_policy(&[("ns/g1", g1), ("ns/g2", g2)], policy).await;
+
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        // Substring is from `require_graph_write` in raphtory-graphql/src/model/mod.rs.
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE permission required for graph"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(setup.tmp.path().join("ns").is_dir());
+        assert!(setup.data.get_graph_for_test("ns/g1").await.is_ok());
+        assert!(setup.data.get_graph_for_test("ns/g2").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_parent_write() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+
+        let policy = Arc::new(
+            FakePolicy::default()
+                .with_namespace("", NamespacePermission::Read)
+                .with_namespace("ns", NamespacePermission::Write)
+                .with_graph("ns/g", GraphPermission::Write),
+        );
+        let setup = setup_with_policy(&[("ns/g", g)], policy).await;
+
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(setup.tmp.path().join("ns").is_dir());
+        assert!(setup.data.get_graph_for_test("ns/g").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_own_write() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+
+        let policy = Arc::new(
+            FakePolicy::default()
+                .with_namespace("", NamespacePermission::Write)
+                .with_namespace("ns", NamespacePermission::Read)
+                .with_graph("ns/g", GraphPermission::Write),
+        );
+        let setup = setup_with_policy(&[("ns/g", g)], policy).await;
+
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(setup.tmp.path().join("ns").is_dir());
+        assert!(setup.data.get_graph_for_test("ns/g").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_denied_without_descendant_namespace_write() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+
+        let policy = Arc::new(
+            FakePolicy::default()
+                .with_namespace("", NamespacePermission::Write)
+                .with_namespace("ns", NamespacePermission::Write)
+                .with_namespace("ns/sub", NamespacePermission::Read)
+                .with_graph("ns/sub/g", GraphPermission::Write),
+        );
+        let setup = setup_with_policy(&[("ns/sub/g", g)], policy).await;
+
+        let res =
+            run_mutation_as_user(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#)
+                .await;
+        assert!(!res.errors.is_empty(), "expected error, got {:?}", res);
+        assert!(
+            res.errors[0]
+                .message
+                .contains("WRITE required on namespace"),
+            "unexpected error message: {}",
+            res.errors[0].message,
+        );
+
+        assert!(setup.tmp.path().join("ns").is_dir());
+        assert!(setup.tmp.path().join("ns/sub").is_dir());
+        assert!(setup.data.get_graph_for_test("ns/sub/g").await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_delete_namespace_invalidates_cache() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        let g: MaterializedGraph = g.into();
+        let setup = setup_with_graphs(&[("ns/g", g)]).await;
+
+        setup.data.get_graph_for_test("ns/g").await.unwrap();
+        assert!(setup.data.get_cached_graph("ns/g").await.is_some());
+
+        let res = run_mutation(&setup.schema, r#"mutation { deleteNamespace(path: "ns") }"#).await;
+        assert_eq!(res.errors, vec![]);
+        assert_eq!(
+            res.data.into_json().unwrap(),
+            json!({ "deleteNamespace": true }),
+        );
+
+        assert!(setup.data.get_cached_graph("ns/g").await.is_none());
     }
 }
