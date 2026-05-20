@@ -145,7 +145,8 @@ pub struct ELID {
 }
 
 /// Edge id with deletion flag
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize, Pod, Zeroable)]
+#[repr(transparent)]
 pub struct EDID(pub usize);
 
 impl Debug for EDID {
