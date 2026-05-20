@@ -150,11 +150,10 @@ pub(crate) mod auth_policy_tests {
     use std::collections::HashMap;
 
     /// Test-only authorization policy: every path must be configured explicitly via
-    /// [`Self::with_namespace`] / [`Self::with_graph`]. Unknown namespaces default
-    /// to `NamespacePermission::Denied` and unknown graphs return `Err`. This is
-    /// stricter than the production policy's fail-open contract — that's
-    /// intentional, so a missing `with_*` call in a test surfaces as an obvious
-    /// failure rather than as a silent allow.
+    /// [`Self::with_namespace`] / [`Self::with_graph`]. Unknown namespaces return
+    /// `None` and unknown graphs return `Err`. This is stricter than the production
+    /// policy's fail-open contract — that's intentional, so a missing `with_*` call
+    /// in a test surfaces as an obvious failure rather than as a silent allow.
     #[derive(Default)]
     pub(crate) struct FakePolicy {
         namespaces: HashMap<String, NamespacePermission>,
@@ -190,11 +189,8 @@ pub(crate) mod auth_policy_tests {
             &self,
             _ctx: &async_graphql::Context<'_>,
             path: &str,
-        ) -> NamespacePermission {
-            self.namespaces
-                .get(path)
-                .cloned()
-                .unwrap_or(NamespacePermission::Denied)
+        ) -> Option<NamespacePermission> {
+            self.namespaces.get(path).cloned()
         }
     }
 }
