@@ -29,6 +29,7 @@ use raphtory::{
         graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
     },
     errors::GraphError,
+    prelude::AdditionOps,
     serialise::GraphPaths,
     vectors::{
         cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
@@ -164,6 +165,18 @@ impl Deref for Data {
     }
 }
 
+/// flushes the graph to avoid errors due to writing to deleted directory
+fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
+    if let Some(old_graph) = old_graph {
+        if let Err(e) = old_graph.flush() {
+            error!(
+                "Failed to flush old graph {} before replacing: {e}",
+                old_graph.folder().local_path()
+            )
+        }
+    }
+}
+
 impl Data {
     pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
         let cache_configs = &configs.cache;
@@ -237,8 +250,9 @@ impl Data {
         let key = writeable_folder.local_path().to_owned();
         let config = self.graph_conf.clone();
         self.cache
-            .insert_with(&key, || {
+            .insert_or_replace_with(&key, |old_graph| {
                 blocking_compute(move || {
+                    invalidate_graph(old_graph);
                     let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
                     let folder = writeable_folder.finish()?;
                     let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
@@ -258,13 +272,13 @@ impl Data {
     ) -> Result<(), InsertionError> {
         let conf = self.graph_conf.clone();
         self.cache
-            .invalidate_with(
-                &folder.local_path().to_string(),
+            .invalidate_with(&folder.local_path().to_string(), |old_graph| {
                 blocking_io(move || {
+                    invalidate_graph(old_graph);
                     folder.write_graph_bytes(bytes, conf)?;
                     folder.finish()
-                }),
-            )
+                })
+            })
             .await?;
         Ok(())
     }
@@ -276,14 +290,14 @@ impl Data {
         let key = graph_folder.local_path().to_string();
         let dirty_file = mark_dirty(graph_folder.root())?;
         self.cache
-            .invalidate_with(
-                &key,
+            .invalidate_with(&key, |old_graph| {
                 blocking_io(move || {
+                    invalidate_graph(old_graph);
                     fs::remove_dir_all(graph_folder.root())?;
                     fs::remove_file(dirty_file)?;
                     Ok::<_, MutationErrorInner>(())
-                }),
-            )
+                })
+            })
             .await?;
         Ok(())
     }
@@ -327,17 +341,23 @@ impl Data {
         template: &DocumentTemplate,
         model: CachedEmbeddingModel,
     ) -> Result<(), GQLError> {
-        let graph = match self.get_cached_graph(folder.local_path()).await {
-            None => self
-                .read_graph_from_disk_inner(folder.clone())
-                .await?
-                .graph()
-                .clone(),
-            Some(graph) => graph.graph().clone(),
-        };
-        self.vectorise_with_template(graph, folder, template, model)
-            .await;
-        self.cache.remove(folder.local_path()).await;
+        let cloned_folder = folder.clone();
+        self.cache
+            .insert_or_replace_with(folder.local_path(), move |old_graph| async {
+                let graph = match old_graph {
+                    None => self
+                        .read_graph_from_disk_inner(cloned_folder.clone())
+                        .await?
+                        .graph()
+                        .clone(),
+                    Some(old_graph) => old_graph.graph().clone(),
+                };
+                let vectors = self
+                    .vectorise_with_template(graph.clone(), folder, template, model)
+                    .await;
+                Ok::<_, GQLError>(GraphWithVectors::new(graph, vectors, cloned_folder))
+            })
+            .await?;
         Ok(())
     }
 

@@ -56,7 +56,7 @@ impl Lifecycle<String, GraphWithVectors> for ArcPinned {
     }
 
     #[inline]
-    fn on_evict(&self, state: &mut Self::RequestState, key: String, graph: GraphWithVectors) {
+    fn on_evict(&self, _state: &mut Self::RequestState, _key: String, graph: GraphWithVectors) {
         debug_assert_eq!(
             graph.ref_count(),
             1,
@@ -113,32 +113,51 @@ impl GraphCache {
         self.cache.get_or_insert_async(key, with).await
     }
 
+    /// clear all items from the cache, flushing them if needed
+    pub fn flush_and_clear(&self) {
+        for (_, graph) in self.cache.drain() {
+            flush_graph(graph);
+        }
+    }
+
+    /// remove a graph from the cache, locking the cache entry until the graph is dropped
+    pub async fn remove(&self, key: &str) {
+        let res = self
+            .cache
+            .entry_async(key, |_, _| EntryAction::<()>::ReplaceWithGuard)
+            .await;
+
+        match res {
+            EntryResult::Replaced(_guard, graph) => {
+                blocking_compute(move || flush_graph(graph)).await;
+            }
+            _ => {}
+        }
+    }
+
     /// Insert a new item into the cache, replacing an existing item if it exists
-    /// The old item is dropped before the closure to create the new graph is invoked
-    pub async fn insert_with<E, F>(
+    /// The closure to create the new graph is invoked while holding a guard for the cache key
+    pub async fn insert_or_replace_with<E, F>(
         &self,
         key: &str,
-        with: impl FnOnce() -> F,
-    ) -> Result<(), InsertionError>
+        with: impl FnOnce(Option<GraphWithVectors>) -> F,
+    ) -> Result<(), E>
     where
         F: Future<Output = Result<GraphWithVectors, E>>,
-        InsertionError: From<E>,
+        E: From<InsertionError>,
     {
         let cache_guard = self
             .cache
-            .entry_async(key, |key, value| EntryAction::<()>::ReplaceWithGuard)
+            .entry_async(key, |_, _| EntryAction::<()>::ReplaceWithGuard)
             .await;
-        let guard = match cache_guard {
-            EntryResult::Replaced(guard, old_graph) => {
-                drop(old_graph);
-                guard
-            }
-            EntryResult::Vacant(guard) => guard,
+        let (guard, old_graph) = match cache_guard {
+            EntryResult::Replaced(guard, old_graph) => (guard, Some(old_graph)),
+            EntryResult::Vacant(guard) => (guard, None),
             _ => {
                 unreachable!()
             }
         };
-        let new_graph = with().await?;
+        let new_graph = with(old_graph).await?;
         guard
             .insert(new_graph)
             .map_err(|_| InsertionError::Insertion {
@@ -148,56 +167,24 @@ impl GraphCache {
         Ok(())
     }
 
-    /// clear all items from the cache, flushing them if needed
-    pub fn flush_and_clear(&self) {
-        for (_, graph) in self.cache.drain() {
-            flush_graph(graph);
-        }
-    }
-
-    /// remove a graph from the cache without triggering the eviction drop logic
-    /// Note that the cache entry is available again immediately!
-    pub async fn remove(&self, key: &str) -> Option<GraphWithVectors> {
-        let res = self
-            .cache
-            .entry_async(key, |key, graph| EntryAction::<()>::Remove)
-            .await;
-        match res {
-            EntryResult::Removed(_, graph) => Some(graph),
-            _ => None,
-        }
-    }
-
-    /// remove a graph from the cache, locking the cache entry until the graph is dropped
-    /// this is different from remove which returns the graph and unlocks the entry immediately
-    pub async fn delete(&self, key: &str) {
-        let res = self
-            .cache
-            .entry_async(key, |key, graph| EntryAction::<()>::ReplaceWithGuard)
-            .await;
-
-        match res {
-            EntryResult::Replaced(_guard, graph) => {
-                blocking_compute(move || drop(graph)).await;
-            }
-            _ => {}
-        }
-    }
-
-    /// remove a graph from the cache, locking the cache entry until the graph is dropped and the future has completed.
-    /// if the graph exists, it is dropped first before the future runs
-    pub async fn invalidate_with<E>(&self, key: &str, with: impl Future<Output = E>) -> E {
+    /// remove a graph from the cache, locking the cache entry until the future has completed.
+    /// if the graph exists, it is passed as input to the closure.
+    pub async fn invalidate_with<E, F>(
+        &self,
+        key: &str,
+        with: impl FnOnce(Option<GraphWithVectors>) -> F,
+    ) -> E
+    where
+        F: Future<Output = E>,
+    {
         let guard = self
             .cache
-            .entry_async(key, |key, graph| EntryAction::<()>::ReplaceWithGuard)
+            .entry_async(key, |_, _| EntryAction::<()>::ReplaceWithGuard)
             .await;
 
         match guard {
-            EntryResult::Replaced(_guard, graph) => {
-                blocking_compute(move || drop(graph)).await;
-                with.await
-            }
-            _ => with.await,
+            EntryResult::Replaced(_guard, graph) => with(Some(graph)).await,
+            _ => with(None).await,
         }
     }
 }
