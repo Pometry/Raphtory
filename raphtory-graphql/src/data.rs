@@ -343,6 +343,62 @@ impl Data {
         Ok(())
     }
 
+    pub async fn delete_namespace(
+        &self,
+        path: &str,
+        descendants: &Vec<NamespacedItem>,
+    ) -> Result<(), DeletionError> {
+        if path.is_empty() {
+            return Err(DeletionError::PathValidation(
+                PathValidationError::EmptyPath,
+            ));
+        }
+        let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
+        let root = namespace.current_dir().to_path_buf();
+        let dirty_file = mark_dirty(&root).map_err(|err| {
+            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        for item in descendants {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.invalidate(g.local_path()).await;
+                self.cache.remove(g.local_path()).await;
+            }
+        }
+        blocking_io(move || {
+            fs::remove_dir_all(&root)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| DeletionError::from_inner(path, err))?;
+        Ok(())
+    }
+
+    pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
+        let target = crate::paths::validate_path_for_namespace_create(self.work_dir.clone(), path)?;
+        let mut cleanup_root = target.as_path();
+        while let Some(parent) = cleanup_root.parent() {
+            if parent.is_dir() {
+                break;
+            }
+            cleanup_root = parent;
+        }
+        let dirty_file = mark_dirty(cleanup_root).map_err(|err| {
+            InsertionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        blocking_io(move || {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::create_dir(&target)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| InsertionError::from_inner(path, err))?;
+        Ok(())
+    }
+
     async fn vectorise_with_template(
         &self,
         graph: MaterializedGraph,

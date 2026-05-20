@@ -139,9 +139,22 @@ impl Namespace {
 
     /// Recursively list all children
     pub fn get_all_children(&self) -> impl Iterator<Item = NamespacedItem> {
-        let it = WalkDir::new(&self.current_dir).into_iter();
+        let it = WalkDir::new(&self.current_dir).min_depth(1).into_iter();
         let root = self.clone();
         NamespaceIter { it, root }
+    }
+
+    /// Recursively list self and all children.
+    pub fn self_and_all_children(&self) -> impl Iterator<Item = NamespacedItem> {
+        std::iter::once(NamespacedItem::Namespace(self.clone())).chain(self.get_all_children())
+    }
+
+    pub fn current_dir(&self) -> &std::path::Path {
+        &self.current_dir
+    }
+
+    pub fn relative_path(&self) -> &str {
+        &self.relative_path
     }
 }
 

@@ -2724,6 +2724,37 @@ type MutRoot {
 		overwrite: Boolean!
 	): String!
 	"""
+	Create an empty namespace at `path`.
+	
+	Creates any missing parent namespaces along the way. Requires WRITE
+	permission on the parent namespace. Rejects paths that already host a
+	graph or an existing namespace, and paths that fail validation.
+	
+	Returns:: the path of the created namespace
+	"""
+	createNamespace(
+		"""
+		Destination path relative to the root namespace.
+		"""
+		path: String!
+	): String!
+	"""
+	Delete a namespace and all of its descendants (graphs and sub-namespaces).
+	
+	Requires WRITE permission on the parent namespace, on the namespace
+	itself, and on every descendant graph and sub-namespace. Cached graphs
+	at any deleted path are invalidated. Rejects empty and non-existent
+	paths.
+	
+	Returns:: true on success
+	"""
+	deleteNamespace(
+		"""
+		Path to delete relative to the root namespace.
+		"""
+		path: String!
+	): Boolean!
+	"""
 	Returns a subgraph given a set of nodes from an existing graph in the server.
 	
 	Returns::
