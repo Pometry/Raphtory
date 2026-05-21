@@ -363,7 +363,7 @@ pub fn assert_valid_graph(fixture: &GraphFixture, graph: &Graph) {
 #[macro_export]
 macro_rules! test_storage {
     ($graph:expr, $test:expr) => {
-        $crate::test_utils::test_graph($graph, $test);
+        $crate::utils::test_graph($graph, $test);
     };
 }
 
@@ -1367,7 +1367,7 @@ pub fn generate_mutations(
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::{
+    use crate::utils::{
         EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture, PropUpdatesFixture,
     };
     use raphtory_api::core::entities::properties::prop::Prop;

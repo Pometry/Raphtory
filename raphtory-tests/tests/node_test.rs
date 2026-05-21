@@ -7,7 +7,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_api::core::storage::arc_str::ArcStr;
-use raphtory_tests::{test_storage, test_utils::test_graph};
+use raphtory_tests::{test_storage, utils::test_graph};
 use std::collections::HashMap;
 
 #[test]

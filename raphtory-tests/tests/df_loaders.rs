@@ -1,4 +1,3 @@
-#[cfg(test)]
 mod io_tests {
     use arrow::array::builder::{
         ArrayBuilder, Int64Builder, LargeStringBuilder, StringViewBuilder, UInt64Builder,
@@ -23,7 +22,7 @@ mod io_tests {
         core_ops::CoreGraphOps,
         mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps},
     };
-    use raphtory_tests::test_utils::{
+    use raphtory_tests::utils::{
         build_edge_list, build_edge_list_str, build_edge_list_with_secondary_index,
     };
 
@@ -778,7 +777,6 @@ mod io_tests {
     }
 }
 
-#[cfg(test)]
 mod parquet_tests {
     use bigdecimal::BigDecimal;
     use chrono::{DateTime, Utc};
@@ -790,7 +788,7 @@ mod parquet_tests {
         },
         prelude::*,
     };
-    use raphtory_tests::test_utils::{
+    use raphtory_tests::utils::{
         assert_valid_graph, build_edge_list_dyn, build_graph, build_graph_strat, build_nodes_dyn,
         build_props_dyn, EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture,
         NodeUpdatesFixture, PropUpdatesFixture,

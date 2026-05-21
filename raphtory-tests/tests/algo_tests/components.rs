@@ -522,7 +522,6 @@ mod in_component_test {
     }
 }
 
-#[cfg(test)]
 mod components_test {
     use itertools::Itertools;
     use raphtory::{
@@ -797,7 +796,6 @@ mod components_test {
     }
 }
 
-#[cfg(test)]
 mod strongly_connected_components_tests {
     use itertools::Itertools;
     use raphtory::{

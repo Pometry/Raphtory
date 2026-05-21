@@ -1,20 +1,12 @@
 use std::collections::HashMap;
 
-#[cfg(test)]
 mod centrality;
-#[cfg(test)]
 mod community_detection;
-#[cfg(test)]
 mod components;
-#[cfg(test)]
 mod cores;
-#[cfg(test)]
 mod embeddings;
-#[cfg(test)]
 mod metrics;
-#[cfg(test)]
 mod motifs;
-#[cfg(test)]
 mod pathing;
 
 fn assert_eq_f64(a: f64, b: f64, precision: f64) {

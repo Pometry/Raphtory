@@ -7,7 +7,7 @@ use raphtory::{
 use raphtory_api::core::entities::GID;
 use raphtory_tests::{
     test_storage,
-    test_utils::{build_graph, build_graph_layer, build_graph_strat, GraphFixture},
+    utils::{build_graph, build_graph_layer, build_graph_strat, GraphFixture},
 };
 use serde_json::json;
 

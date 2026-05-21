@@ -15,7 +15,7 @@ use raphtory_api::core::{
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
 use raphtory_tests::{
     test_storage,
-    test_utils::{build_graph, build_graph_strat},
+    utils::{build_graph, build_graph_strat},
 };
 use rayon::ThreadPoolBuilder;
 use std::ops::Range;

@@ -1,5 +1,5 @@
 use raphtory::prelude::*;
-use raphtory_tests::{test_storage, test_utils::test_graph};
+use raphtory_tests::{test_storage, utils::test_graph};
 
 #[test]
 fn test_exploded_edge_properties() {

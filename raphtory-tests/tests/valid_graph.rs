@@ -10,7 +10,7 @@ use raphtory::{
 };
 use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-use raphtory_tests::test_utils::{build_graph, build_graph_strat};
+use raphtory_tests::utils::{build_graph, build_graph_strat};
 use std::ops::Range;
 
 #[test]

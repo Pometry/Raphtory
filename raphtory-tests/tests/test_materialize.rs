@@ -10,7 +10,7 @@ use raphtory_api::core::storage::arc_str::OptionAsStr;
 use raphtory_storage::core_ops::CoreGraphOps;
 use raphtory_tests::{
     test_storage,
-    test_utils::{build_edge_list, build_graph_from_edge_list},
+    utils::{build_edge_list, build_graph_from_edge_list},
 };
 use std::ops::Range;
 

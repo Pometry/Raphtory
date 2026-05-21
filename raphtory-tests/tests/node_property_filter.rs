@@ -16,7 +16,7 @@ use raphtory::{
 };
 use raphtory_tests::{
     assertions::assert_ok_or_missing_nodes,
-    test_utils::{
+    utils::{
         add_node_props, build_edge_list, build_graph_from_edge_list, build_node_props,
         node_filtered_graph,
     },

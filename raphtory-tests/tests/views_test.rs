@@ -11,7 +11,7 @@ use raphtory_api::core::{
     storage::timeindex::AsTime,
     utils::{logging::global_info_logger, time::IntoTime},
 };
-use raphtory_tests::{test_storage, test_utils::test_graph};
+use raphtory_tests::{test_storage, utils::test_graph};
 use rayon::prelude::*;
 use std::ops::Range;
 use tracing::{error, info};

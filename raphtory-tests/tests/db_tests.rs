@@ -41,7 +41,7 @@ use raphtory_api::core::{
 use raphtory_storage::{core_ops::CoreGraphOps, mutation::addition_ops::InternalAdditionOps};
 use raphtory_tests::{
     test_storage,
-    test_utils::{
+    utils::{
         build_graph, build_graph_strat, EdgeFixture, EdgeUpdatesFixture, GraphFixture, NodeFixture,
         PropUpdatesFixture,
     },

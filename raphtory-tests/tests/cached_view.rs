@@ -121,7 +121,6 @@ fn masked_always_equals() {
     })
 }
 
-#[cfg(test)]
 mod test_filters_cached_view {
     use raphtory::{
         db::{

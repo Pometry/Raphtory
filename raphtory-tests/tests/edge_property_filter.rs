@@ -20,7 +20,7 @@ use raphtory_api::core::{entities::properties::prop::PropType, storage::timeinde
 use raphtory_storage::mutation::addition_ops::{InternalAdditionOps, SessionAdditionOps};
 use raphtory_tests::{
     assertions::{assert_ok_or_missing_edges, EdgeRow},
-    test_utils::{build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window},
+    utils::{build_edge_deletions, build_edge_list, build_graph_from_edge_list, build_window},
 };
 
 #[test]

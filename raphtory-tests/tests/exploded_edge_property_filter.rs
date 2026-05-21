@@ -31,7 +31,7 @@ use raphtory_storage::{
 };
 use raphtory_tests::{
     assertions::assert_ok_or_missing_edges,
-    test_utils::{
+    utils::{
         build_edge_deletions, build_edge_list, build_edge_list_with_deletions,
         build_graph_from_edge_list, build_window, Update,
     },

@@ -1,6 +1,5 @@
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 
-#[cfg(test)]
 mod test_composite_filters {
     use raphtory::{
         db::graph::views::filter::model::{
@@ -116,9 +115,7 @@ impl GraphTransformer for IdentityGraphTransformer {
     }
 }
 
-#[cfg(test)]
 mod test_property_semantics {
-    #[cfg(test)]
     mod test_node_property_filter_semantics {
         use crate::IdentityGraphTransformer;
         use raphtory::{
@@ -463,7 +460,6 @@ mod test_property_semantics {
         }
     }
 
-    #[cfg(test)]
     mod test_edge_property_filter_semantics {
         use crate::IdentityGraphTransformer;
         use raphtory::{
@@ -2522,7 +2518,6 @@ mod test_node_filter {
     }
 }
 
-#[cfg(test)]
 mod test_node_property_filter {
     use crate::{init_nodes_graph, IdentityGraphTransformer};
     use raphtory::db::graph::views::filter::model::{
@@ -4591,7 +4586,6 @@ mod test_node_property_filter {
     }
 }
 
-#[cfg(test)]
 mod test_node_composite_filter {
     use raphtory_api::core::Direction;
 
@@ -5033,7 +5027,6 @@ mod test_node_composite_filter {
     }
 }
 
-#[cfg(test)]
 mod test_node_property_filter_agg {
     use crate::IdentityGraphTransformer;
     use raphtory::{
@@ -8560,7 +8553,6 @@ mod test_node_property_filter_agg {
     }
 }
 
-#[cfg(test)]
 mod test_edge_filter {
     use crate::{
         init_edges_graph, init_edges_graph_with_num_ids, init_edges_graph_with_str_ids,
@@ -10043,7 +10035,6 @@ mod test_edge_filter {
     }
 }
 
-#[cfg(test)]
 mod test_edge_property_filter {
     use crate::{init_edges_graph, init_edges_graph2, IdentityGraphTransformer};
     use raphtory::db::graph::views::filter::model::{
@@ -11888,7 +11879,6 @@ mod test_edge_property_filter {
     }
 }
 
-#[cfg(test)]
 mod test_edge_composite_filter {
     use raphtory::db::graph::views::filter::model::{
         edge_filter::EdgeFilter, node_filter::ops::NodeFilterOps,
