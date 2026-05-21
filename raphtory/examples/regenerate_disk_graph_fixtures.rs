@@ -1,10 +1,7 @@
 //! Regenerate the v4 disk-graph fixtures used by `validate_v4_disk_graphs` in
-//! `tests/test_saved_graphs.rs`.
+//! `tests/test_saved_graphs.rs`. Use the following make command:
 //!
-//! Run from the pometry-storage workspace (so `storage = db4-disk-storage` and
-//! disk storage is actually enabled):
-//!
-//!     make -C Raphtory regen-disk-graph-fixtures
+//!     make regen-disk-graphs
 //!
 
 use raphtory::prelude::*;
