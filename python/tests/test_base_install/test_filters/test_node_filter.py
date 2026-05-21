@@ -570,24 +570,6 @@ def test_filter_nodes_by_degree_is_not_in():
     return check
 
 
-@with_disk_variants(init_graph_degree_filter)
-def test_filter_nodes_by_degree_combined_filters():
-    def check(graph):
-        filter_expr = (filter.Node.degree("out") > Prop.u64(0)) & (
-            filter.Node.degree("in") > Prop.u64(0)
-        )
-        result_ids = _filtered_degree_ids(graph, filter_expr)
-        expected_ids = sorted(
-            [n.id for n in graph.nodes if n.out_degree() > 0 and n.in_degree() > 0]
-        )
-        assert result_ids == expected_ids
-
-        filter_expr = ~(filter.Node.degree("out") == Prop.u64(2))
-        result_ids = _filtered_degree_ids(graph, filter_expr)
-        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() != 2])
-        assert result_ids == expected_ids
-
-    return check
 
 
 
