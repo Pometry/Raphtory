@@ -123,9 +123,7 @@ fn auto_grant_on_create(
     path: &str,
 ) -> async_graphql::Result<()> {
     if let Some(policy) = policy {
-        policy
-            .on_graph_created(ctx, path)
-            .map_err(async_graphql::Error::new)?;
+        policy.on_graph_created(ctx, path)?;
     }
     Ok(())
 }
