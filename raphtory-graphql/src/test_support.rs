@@ -21,9 +21,9 @@ use std::{path::Path, sync::Arc};
 use tempfile::{tempdir, TempDir};
 
 pub(crate) struct TestSetup {
-    pub(crate) tmp: TempDir,
     pub(crate) data: Data,
     pub(crate) schema: Schema,
+    pub(crate) tmp: TempDir,
 }
 
 pub(crate) async fn setup_with_graphs(graphs: &[(&str, MaterializedGraph)]) -> TestSetup {
