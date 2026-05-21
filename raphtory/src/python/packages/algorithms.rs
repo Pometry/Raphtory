@@ -798,7 +798,7 @@ pub fn label_propagation(
                 let cid = prop_map
                     .get("community_id")
                     .and_then(|v| v.as_ref())
-                    .map(|p| p.0.unwrap_u64() as usize)?;
+                    .map(|p| p.0.clone().unwrap_u64() as usize)?;
                 Some((node.node.0, cid))
             })
             .collect()
