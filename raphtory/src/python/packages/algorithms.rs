@@ -64,14 +64,15 @@ use crate::{
         graph::nodes::Nodes,
     },
     errors::GraphError,
-    prelude::Graph,
+    prelude::{Graph, NodeStateOps, PropUnwrap},
     python::{
         filter::filter_expr::PyFilterExpr,
-        graph::{node::PyNode, views::graph_view::PyGraphView},
+        graph::{node::PyNode, node_state::PyOutputNodeState, views::graph_view::PyGraphView},
         utils::PyNodeRef,
     },
 };
 use pyo3::{prelude::*, types::PyList};
+use std::collections::HashMap;
 use rand::{prelude::StdRng, SeedableRng};
 use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
@@ -776,18 +777,33 @@ pub fn betweenness_centrality(
 ///     graph (GraphView): A reference to the graph
 ///     iter_count (int): Number of iterations. Defaults to 20.
 ///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
+///     init_state (OutputNodeState, optional): Node state from a previous run used as the initial community assignment
 ///
 /// Returns:
 ///     OutputNodeState: NodeState mapping nodes to community id
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, iter_count=20, seed=None)]]
+#[pyo3[signature = (graph, iter_count=20, seed=None, init_state=None)]]
 pub fn label_propagation(
     graph: &PyGraphView,
     iter_count: usize,
     seed: Option<[u8; 32]>,
+    init_state: Option<&PyOutputNodeState>,
 ) -> OutputTypedNodeState<'static, DynamicGraph> {
-    label_propagation_rs(&graph.graph, iter_count, seed, None).to_output_nodestate()
+    let init_map: Option<HashMap<usize, usize>> = init_state.map(|state| {
+        state
+            .inner
+            .iter()
+            .filter_map(|(node, prop_map)| {
+                let cid = prop_map
+                    .get("community_id")
+                    .and_then(|v| v.as_ref())
+                    .map(|p| p.0.unwrap_u64() as usize)?;
+                Some((node.node.0, cid))
+            })
+            .collect()
+    });
+    label_propagation_rs(&graph.graph, iter_count, seed, None, init_map).to_output_nodestate()
     // match  {
     //Ok(result) => Ok(result),
     //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
