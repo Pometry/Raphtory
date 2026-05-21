@@ -68,6 +68,16 @@ run-graphql:
 rust-test:
 	cargo test -q
 
+# Regenerate the v4 disk-graph fixtures consumed by `validate_v4_disk_graphs`
+# in raphtory/tests/test_saved_graphs.rs. Cargo has to be invoked from the
+# parent pometry-storage workspace so `storage` resolves to `db4-disk-storage` (disk storage enabled).
+# The `find ... .gitkeep` step is required because the format produces empty
+# directories that the loader expects to find. git can't track empty dirs, so
+# we drop .gitkeep files in them after the regen. The `validate_v4_disk_graphs` test accounts for these.
+regen-disk-graph-fixtures:
+	cd .. && cargo run --release --example regenerate_disk_graph_fixtures --features io -p raphtory
+	find raphtory/resources/test/disk_graphs -type d -empty -exec touch {}/.gitkeep \;
+
 rust-check:
 	cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
 
