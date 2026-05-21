@@ -32,6 +32,7 @@ pub struct LabelPropState {
 /// - `iter_count` - Number of iterations
 /// - `seed` - (Optional) Array of 32 bytes of u8 which is set as the rng seed
 /// - `threads` - (Optional) Number of threads to use
+/// - `init_state` - (Optional) HashMap of node index to community ID for warm-starting the algorithm
 ///
 /// # Returns
 ///
@@ -42,6 +43,7 @@ pub fn label_propagation<G>(
     iter_count: usize,
     _seed: Option<[u8; 32]>,
     threads: Option<usize>,
+    init_state: Option<HashMap<usize, usize>>,
 ) -> TypedNodeState<'static, LabelPropState, G>
 where
     G: StaticGraphViewOps,
@@ -53,7 +55,10 @@ where
     let step1 = ATask::new(move |s| {
         let id = s.node.index();
         let state: &mut LabelPropState = s.get_mut();
-        state.community_id = id;
+        state.community_id = init_state
+            .as_ref()
+            .and_then(|map| map.get(&id).copied())
+            .unwrap_or(id);
         Step::Continue
     });
 
