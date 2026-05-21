@@ -100,13 +100,7 @@ impl Ord for GraphPermission {
 /// Variants are ordered lowest to highest so that `PartialOrd`/`Ord` reflect the hierarchy.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum NamespacePermission {
-    /// No access — namespace is invisible.
-    Denied,
-    /// Namespace is visible in parent `children()` listings but cannot be browsed.
-    Discover,
-    /// Namespace is browseable; graphs inside are visible as MetaGraph in `graphs()`.
-    Introspect,
-    /// All descendant graphs are fully readable.
+    /// Namespace is listable; graphs and child namespaces are visible.
     Read,
     /// All descendants are writable; `newGraph` is allowed.
     Write,
@@ -126,15 +120,25 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
     ) -> Result<GraphPermission, AuthPolicyError>;
 
     /// Resolves the effective namespace permission for a principal.
-    /// Admin principals always yield `Write`.
-    /// Empty store yields `Read` (fail open, consistent with graph_permissions).
-    /// Missing role yields `Denied`.
+    /// Returns `None` if the principal has no access to this namespace (it is invisible).
     /// The implementation is responsible for extracting principal identity from `ctx`.
     fn namespace_permissions(
         &self,
         ctx: &async_graphql::Context<'_>,
         path: &str,
-    ) -> NamespacePermission;
+    ) -> Option<NamespacePermission>;
+
+    /// Called after a graph is successfully created to auto-grant `Write` for the creator's role.
+    /// Returns an error if the grant cannot be persisted; the caller is responsible for rolling
+    /// back the graph creation so the store and filesystem stay consistent.
+    /// Default no-op — only meaningful when a policy and a role claim are present.
+    fn on_graph_created(
+        &self,
+        _ctx: &async_graphql::Context<'_>,
+        _path: &str,
+    ) -> Result<(), String> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -143,11 +147,10 @@ pub(crate) mod auth_policy_tests {
     use std::collections::HashMap;
 
     /// Test-only authorization policy: every path must be configured explicitly via
-    /// [`Self::with_namespace`] / [`Self::with_graph`]. Unknown namespaces default
-    /// to `NamespacePermission::Denied` and unknown graphs return `Err`. This is
-    /// stricter than the production policy's fail-open contract — that's
-    /// intentional, so a missing `with_*` call in a test surfaces as an obvious
-    /// failure rather than as a silent allow.
+    /// [`Self::with_namespace`] / [`Self::with_graph`]. Unknown namespaces return
+    /// `None` and unknown graphs return `Err`. This is stricter than the production
+    /// policy's fail-open contract — that's intentional, so a missing `with_*` call
+    /// in a test surfaces as an obvious failure rather than as a silent allow.
     #[derive(Default)]
     pub(crate) struct FakePolicy {
         namespaces: HashMap<String, NamespacePermission>,
@@ -183,11 +186,8 @@ pub(crate) mod auth_policy_tests {
             &self,
             _ctx: &async_graphql::Context<'_>,
             path: &str,
-        ) -> NamespacePermission {
-            self.namespaces
-                .get(path)
-                .cloned()
-                .unwrap_or(NamespacePermission::Denied)
+        ) -> Option<NamespacePermission> {
+            self.namespaces.get(path).cloned()
         }
     }
 }
