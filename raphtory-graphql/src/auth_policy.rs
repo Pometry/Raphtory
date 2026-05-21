@@ -121,9 +121,6 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
 
     /// Resolves the effective namespace permission for a principal.
     /// Returns `None` if the principal has no access to this namespace (it is invisible).
-    /// Admin principals always yield `Some(Write)`.
-    /// Empty store yields `Some(Read)` (fail open, consistent with graph_permissions).
-    /// Missing role or no explicit grant yields `None`.
     /// The implementation is responsible for extracting principal identity from `ctx`.
     fn namespace_permissions(
         &self,
