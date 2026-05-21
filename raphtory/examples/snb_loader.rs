@@ -5,8 +5,6 @@ use raphtory::{arrow_loader::df_loaders::edges::ColumnNames, errors::GraphError,
 use serde::Deserialize;
 #[cfg(feature = "io")]
 use std::path::{Path, PathBuf};
-#[cfg(feature = "io")]
-use storage::persist::node;
 
 /// Construct the path to a named Parquet file inside `parquet_dir`.
 #[cfg(feature = "io")]
