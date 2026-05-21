@@ -546,44 +546,19 @@ def init_edges_graph2(graph):
 
 
 def init_graph_degree_filter(graph):
-    """
-    Non-temporal graph specifically for testing degree filtering functionality.
-    All nodes and edges are added at time=0 to create a static graph.
+    graph.add_node(0, 1)
+    graph.add_node(0, 2)
+    graph.add_node(0, 3)
+    graph.add_node(0, 4)
+    graph.add_node(0, 5)
     
-    Structure:
-        Nodes: 1, 2, 3, 4, 5
-        
-        Edges:
-            1 → 2
-            1 → 3    
-            2 → 3
-            3 → 4
-            3 → 5
-            4 → 1
-            5 → 1
-            
-        Final Degrees:
-            Node 1: out_degree=2, in_degree=2, degree(BOTH)=3
-            Node 2: out_degree=1, in_degree=1, degree(BOTH)=2
-            Node 3: out_degree=2, in_degree=2, degree(BOTH)=3
-            Node 4: out_degree=1, in_degree=1, degree(BOTH)=2
-            Node 5: out_degree=0, in_degree=1, degree(BOTH)=1
-    """
-    # Explicitly add all nodes first (at time 0 for non-temporal graph)
-    graph.add_node(0, 1, {"type": "source"}, "test_type")
-    graph.add_node(0, 2, {"type": "connector"}, "test_type")
-    graph.add_node(0, 3, {"type": "hub"}, "test_type")
-    graph.add_node(0, 4, {"type": "connector"}, "test_type")
-    graph.add_node(0, 5, {"type": "sink"}, "test_type")
-    
-    # Now add edges (at time 0 for non-temporal graph)
-    graph.add_edge(0, 1, 2, {"weight": 1.0}, "connection")
-    graph.add_edge(0, 1, 3, {"weight": 1.5}, "connection")
-    graph.add_edge(0, 2, 3, {"weight": 2.0}, "connection")
-    graph.add_edge(0, 3, 4, {"weight": 2.5}, "connection")
-    graph.add_edge(0, 3, 5, {"weight": 3.0}, "connection")
-    graph.add_edge(0, 4, 1, {"weight": 3.5}, "connection")
-    graph.add_edge(0, 5, 1, {"weight": 4.0}, "connection")
+    graph.add_edge(0, 1, 2)
+    graph.add_edge(0, 1, 3)
+    graph.add_edge(0, 2, 3)
+    graph.add_edge(0, 3, 4)
+    graph.add_edge(0, 3, 5)
+    graph.add_edge(0, 4, 1)
+    graph.add_edge(0, 5, 1)
     
     return graph
 
