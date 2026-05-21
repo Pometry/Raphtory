@@ -6555,7 +6555,7 @@ dependencies = [
  "raphtory",
  "raphtory-api",
  "raphtory-storage",
- "raphtory-test-utils",
+ "raphtory-tests",
  "rayon",
  "reqwest",
  "rust-embed",
@@ -6633,7 +6633,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "raphtory-test-utils"
+name = "raphtory-tests"
 version = "0.18.0"
 dependencies = [
  "ahash",
