@@ -234,11 +234,17 @@ impl Meta {
     }
 }
 
+/// Manages the mapping of property names to their IDs and types.
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct PropMapper {
+    /// Maps property names to their IDs.
     id_mapper: DictMapper,
-    row_size: AtomicUsize,
+
+    /// Property types indexed by property ID.
     dtypes: Arc<RwLock<Vec<PropType>>>,
+
+    /// Estimated size in bytes of a single row of properties maintained by this mapper.
+    row_size: AtomicUsize,
 }
 
 impl Deref for PropMapper {
@@ -385,49 +391,37 @@ impl PropMapper {
     }
 }
 
-pub struct LockedPropMapper<'a> {
-    dict_mapper: LockedDictMapper<'a>,
-    d_types: RwLockReadGuard<'a, Vec<PropType>>,
-}
-
+/// Write-locked view of a [`PropMapper`].
 pub struct WriteLockedPropMapper<'a> {
+    /// Maps property names to their IDs.
     dict_mapper: WriteLockedDictMapper<'a>,
+
+    /// Property types indexed by property ID.
     d_types: RwLockWriteGuard<'a, Vec<PropType>>,
+
+    /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: &'a AtomicUsize,
 }
 
 impl<'a> WriteLockedPropMapper<'a> {
-    pub fn get_dtype(&'a self, prop_id: usize) -> Option<&'a PropType> {
-        self.d_types.get(prop_id)
-    }
+    pub fn new_id_and_dtype(&mut self, key: impl Into<ArcStr>, dtype: PropType) -> usize {
+        let id = self.dict_mapper.get_or_create_id(&key.into());
+        let dtypes = self.d_types.deref_mut();
 
-    /// Fast check for property type without unifying the types
-    /// Returns:
-    /// - `Some(Either::Left(id))` if the property type can be unified
-    /// - `Some(Either::Right(id))` if the property type is already set and no unification is needed
-    /// - `None` if the property type is not set
-    /// - `Err(PropError::PropertyTypeError)` if the property type cannot be unified
-    pub fn fast_proptype_check(
-        &mut self,
-        prop: &str,
-        dtype: PropType,
-    ) -> Result<Option<Either<usize, usize>>, PropError> {
-        fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
+        if dtypes.len() <= id.inner() {
+            dtypes.resize(id.inner() + 1, PropType::Empty);
+        }
+
+        self.row_size
+            .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
+
+        dtypes[id.inner()] = dtype;
+        id.inner()
     }
 
     pub fn set_id_and_dtype(&mut self, key: impl Into<ArcStr>, id: usize, dtype: PropType) {
         self.dict_mapper.set_id(key, id);
         self.set_dtype(id, dtype);
-    }
-
-    pub fn set_or_unify_id_and_dtype(
-        &mut self,
-        key: impl Into<ArcStr>,
-        id: usize,
-        dtype: PropType,
-    ) -> Result<(), PropError> {
-        self.dict_mapper.set_id(key, id);
-        self.set_or_unify_dtype(id, dtype)
     }
 
     pub fn set_dtype(&mut self, id: usize, dtype: PropType) {
@@ -441,6 +435,16 @@ impl<'a> WriteLockedPropMapper<'a> {
             .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
 
         dtypes[id] = dtype;
+    }
+
+    pub fn set_or_unify_id_and_dtype(
+        &mut self,
+        key: impl Into<ArcStr>,
+        id: usize,
+        dtype: PropType,
+    ) -> Result<(), PropError> {
+        self.dict_mapper.set_id(key, id);
+        self.set_or_unify_dtype(id, dtype)
     }
 
     pub fn set_or_unify_dtype(&mut self, id: usize, dtype: PropType) -> Result<(), PropError> {
@@ -465,20 +469,28 @@ impl<'a> WriteLockedPropMapper<'a> {
         Ok(())
     }
 
-    pub fn new_id_and_dtype(&mut self, key: impl Into<ArcStr>, dtype: PropType) -> usize {
-        let id = self.dict_mapper.get_or_create_id(&key.into());
-        let dtypes = self.d_types.deref_mut();
-
-        if dtypes.len() <= id.inner() {
-            dtypes.resize(id.inner() + 1, PropType::Empty);
-        }
-
-        self.row_size
-            .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
-
-        dtypes[id.inner()] = dtype;
-        id.inner()
+    pub fn get_dtype(&'a self, prop_id: usize) -> Option<&'a PropType> {
+        self.d_types.get(prop_id)
     }
+
+    /// Fast check for property type without unifying the types
+    /// Returns:
+    /// - `Some(Either::Left(id))` if the property type can be unified
+    /// - `Some(Either::Right(id))` if the property type is already set and no unification is needed
+    /// - `None` if the property type is not set
+    /// - `Err(PropError::PropertyTypeError)` if the property type cannot be unified
+    pub fn fast_proptype_check(
+        &mut self,
+        prop: &str,
+        dtype: PropType,
+    ) -> Result<Option<Either<usize, usize>>, PropError> {
+        fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
+    }
+}
+
+pub struct LockedPropMapper<'a> {
+    dict_mapper: LockedDictMapper<'a>,
+    d_types: RwLockReadGuard<'a, Vec<PropType>>,
 }
 
 impl<'a> LockedPropMapper<'a> {
