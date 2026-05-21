@@ -9,11 +9,7 @@ use crate::{
         },
         graph::{
             create_node_type_filter,
-            views::filter::model::{
-                filter::{Filter, FilterValue},
-                node_filter::NodeFilter,
-                FilterOperator,
-            },
+            views::filter::model::{degree_filter::DegreeFilter, filter::Filter, node_filter::NodeFilter}, 
         },
     },
     prelude::{GraphViewOps, PropertyFilter},
@@ -223,6 +219,30 @@ impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
         let node = storage.core_node(node);
         self.filter
             .matches_node(&self.graph, self.prop_id, node.as_ref())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct NodeDegreeFilterOp<G> {
+    graph: G,
+    filter: DegreeFilter
+}
+
+impl<G> NodeDegreeFilterOp<G> {
+    pub(crate) fn new(graph: G, filter: DegreeFilter) -> Self {
+        Self {
+            graph,
+            filter
+        }
+    }
+}
+
+impl<G: GraphView> NodeOp for NodeDegreeFilterOp<G> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.filter
+            .matches(&self.graph, node)
     }
 }
 

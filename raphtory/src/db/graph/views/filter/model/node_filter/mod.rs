@@ -118,6 +118,15 @@ impl InternalPropertyFilterFactory for NodeFilter {
     }
 }
 
+impl DegreeFilterFactory for NodeFilter {
+    type Entity = NodeFilter;
+
+    fn degree(&self, direction: Direction) -> DegreeFilterBuilder<Self::Entity> {
+        DegreeFilterBuilder::new(direction, NodeFilter) 
+    }
+}
+
+
 impl NodeViewFilterOps for NodeFilter {
     type Output<T: CombinedFilter> = T;
 
