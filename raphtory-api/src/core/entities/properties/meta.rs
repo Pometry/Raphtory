@@ -300,8 +300,10 @@ impl PropMapper {
         let wrapped_id = self.id_mapper.get_or_create_id(prop);
         let id = wrapped_id.inner();
         let dtype_read = self.dtypes.read_recursive();
+
         if let Some(old_type) = dtype_read.get(id) {
             let mut unified = false;
+
             if unify_types(&dtype, old_type, &mut unified).is_ok() {
                 if !unified {
                     // means the types were equal, no change needed
@@ -315,8 +317,13 @@ impl PropMapper {
                 });
             }
         }
-        drop(dtype_read); // drop the read lock and wait for write lock as type did not exist yet
+
+        // Drop the read lock and grab the write lock in order to add the new
+        // prop type or unify the existing prop type.
+        drop(dtype_read);
+
         let mut dtype_write = self.dtypes.write();
+
         match dtype_write.get(id).cloned() {
             Some(old_type) => {
                 if let Ok(tpe) = unify_types(&dtype, &old_type, &mut false) {
@@ -331,10 +338,12 @@ impl PropMapper {
                 }
             }
             None => {
-                // vector not resized yet, resize it and set the dtype and return id
+                // vector not resized yet; resize it, set the new dtype and return the id.
                 dtype_write.resize(id + 1, PropType::Empty);
+
                 self.row_size
                     .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
+
                 dtype_write[id] = dtype;
                 Ok(wrapped_id)
             }
@@ -371,6 +380,7 @@ impl PropMapper {
         WriteLockedPropMapper {
             dict_mapper: self.id_mapper.write(),
             d_types: self.dtypes.write(),
+            row_size: &self.row_size,
         }
     }
 }
@@ -383,6 +393,7 @@ pub struct LockedPropMapper<'a> {
 pub struct WriteLockedPropMapper<'a> {
     dict_mapper: WriteLockedDictMapper<'a>,
     d_types: RwLockWriteGuard<'a, Vec<PropType>>,
+    row_size: &'a AtomicUsize,
 }
 
 impl<'a> WriteLockedPropMapper<'a> {
@@ -421,17 +432,27 @@ impl<'a> WriteLockedPropMapper<'a> {
 
     pub fn set_dtype(&mut self, id: usize, dtype: PropType) {
         let dtypes = self.d_types.deref_mut();
+
         if dtypes.len() <= id {
             dtypes.resize(id + 1, PropType::Empty);
         }
+
+        self.row_size
+            .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
+
         dtypes[id] = dtype;
     }
 
     pub fn set_or_unify_dtype(&mut self, id: usize, dtype: PropType) -> Result<(), PropError> {
         let dtypes = self.d_types.deref_mut();
+
         match dtypes.get_mut(id) {
             None => {
                 dtypes.resize(id + 1, PropType::Empty);
+
+                self.row_size
+                    .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
+
                 dtypes[id] = dtype;
             }
             Some(old_dtype) => {
@@ -440,15 +461,21 @@ impl<'a> WriteLockedPropMapper<'a> {
                 *old_dtype = unified_type;
             }
         }
+
         Ok(())
     }
 
     pub fn new_id_and_dtype(&mut self, key: impl Into<ArcStr>, dtype: PropType) -> usize {
         let id = self.dict_mapper.get_or_create_id(&key.into());
         let dtypes = self.d_types.deref_mut();
+
         if dtypes.len() <= id.inner() {
             dtypes.resize(id.inner() + 1, PropType::Empty);
         }
+
+        self.row_size
+            .fetch_add(dtype.est_size(), atomic::Ordering::Relaxed);
+
         dtypes[id.inner()] = dtype;
         id.inner()
     }
