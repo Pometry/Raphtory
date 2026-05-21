@@ -134,54 +134,105 @@ impl EID {
 
 impl From<ELID> for EID {
     fn from(elid: ELID) -> Self {
-        elid.edge
+        elid.eid()
     }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
 pub struct ELID {
-    pub edge: EID,
-    layer_and_deletion: usize,
+    edge_and_deletion: EDID,
+    layer: LayerId,
+}
+
+/// Edge id with deletion flag
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default, Serialize, Deserialize)]
+pub struct EDID(pub usize);
+
+impl Debug for EDID {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EDID")
+            .field("edge", &self.eid())
+            .field("deletion", &self.is_deletion())
+            .finish()
+    }
+}
+
+impl EDID {
+    pub fn new(edge: EID) -> Self {
+        EDID(edge.0)
+    }
+
+    pub fn new_deletion(edge: EID) -> Self {
+        EDID(edge.0 | DELETION_FLAG)
+    }
+
+    pub fn eid(&self) -> EID {
+        EID(self.0 & !DELETION_FLAG)
+    }
+
+    pub fn is_deletion(&self) -> bool {
+        self.0 & DELETION_FLAG != 0
+    }
+
+    pub fn into_deletion(mut self) -> Self {
+        self.0 = self.0 | DELETION_FLAG;
+        self
+    }
 }
 
 impl Debug for ELID {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ELID")
-            .field("edge", &self.edge)
+            .field("edge", &self.edge_and_deletion)
             .field("layer", &self.layer())
             .field("deletion", &self.is_deletion())
             .finish()
     }
 }
 
-const LAYER_FLAG: usize = 1usize.reverse_bits();
-pub const MAX_LAYER: usize = usize::MAX & !LAYER_FLAG;
+const DELETION_FLAG: usize = 1usize.reverse_bits();
+pub const MAX_EID: usize = usize::MAX & !DELETION_FLAG;
 
 impl ELID {
     pub fn new(edge: EID, layer: LayerId) -> Self {
         ELID {
-            edge,
-            layer_and_deletion: layer.0,
+            edge_and_deletion: EDID::new(edge),
+            layer,
+        }
+    }
+
+    pub fn new_flagged(edge_and_deletion: EDID, layer: LayerId) -> Self {
+        ELID {
+            edge_and_deletion,
+            layer,
         }
     }
 
     pub fn new_deletion(edge: EID, layer: LayerId) -> Self {
         ELID {
-            edge,
-            layer_and_deletion: layer.0 | LAYER_FLAG,
+            edge_and_deletion: EDID::new_deletion(edge),
+            layer,
         }
     }
 
     pub fn layer(&self) -> LayerId {
-        LayerId(self.layer_and_deletion & !LAYER_FLAG)
+        self.layer
+    }
+
+    pub fn eid(&self) -> EID {
+        self.edge_and_deletion.eid()
+    }
+
+    pub fn eid_and_flag(&self) -> EDID {
+        self.edge_and_deletion
     }
 
     pub fn is_deletion(&self) -> bool {
-        self.layer_and_deletion & LAYER_FLAG != 0
+        self.edge_and_deletion.is_deletion()
     }
 
     pub fn into_deletion(mut self) -> Self {
-        self.layer_and_deletion = self.layer_and_deletion | LAYER_FLAG;
+        self.edge_and_deletion = self.edge_and_deletion.into_deletion();
         self
     }
 }
@@ -652,31 +703,32 @@ impl From<LayerId> for LayerIds {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::entities::{LayerId, EID, MAX_LAYER};
+    use crate::core::entities::{LayerId, EID, MAX_EID};
     use proptest::{prop_assert, prop_assert_eq, proptest};
+    use std::char::MAX;
 
     #[test]
     fn test_elid_layer() {
-        proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
+        proptest!(|(eid in 0..=MAX_EID, layer in 0..=usize::MAX)| {
             let elid = EID(eid).with_layer(LayerId(layer));
             prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(!elid.is_deletion());
 
             let elid_deleted = elid.into_deletion();
             prop_assert_eq!(elid_deleted.layer(), LayerId(layer));
-            prop_assert_eq!(elid_deleted.edge, EID(eid));
+            prop_assert_eq!(elid_deleted.eid(), EID(eid));
             prop_assert!(elid_deleted.is_deletion())
         })
     }
 
     #[test]
     fn test_elid_deletion() {
-        proptest!(|(eid in 0..=usize::MAX, layer in 0..=MAX_LAYER)| {
+        proptest!(|(eid in 0..=MAX_EID, layer in 0..=usize::MAX)| {
             let elid = EID(eid).with_layer_deletion(LayerId(layer));
             prop_assert_eq!(elid.layer(), LayerId(layer));
             prop_assert!(elid.is_deletion());
             prop_assert_eq!(elid, elid.into_deletion());
-            prop_assert_eq!(elid.edge.0, eid);
+            prop_assert_eq!(elid.eid().0, eid);
         })
     }
 }

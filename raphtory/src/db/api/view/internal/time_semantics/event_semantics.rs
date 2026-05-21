@@ -9,7 +9,6 @@ use crate::db::api::{
     },
 };
 use either::Either;
-use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
@@ -23,7 +22,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 use storage::{api::edges::EdgeRefOps, EdgeEntryRef};
 
 #[derive(Debug, Copy, Clone)]
@@ -211,8 +210,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows()
+        node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -221,8 +221,9 @@ impl NodeTimeSemanticsOps for EventSemantics {
         node: NodeStorageRef<'graph>,
         _view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows_range(Some(w))
+        node.temp_prop_rows_range(Some(w), prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
@@ -391,7 +392,7 @@ impl EdgeTimeSemanticsOps for EventSemantics {
         view.layer_ids().contains(&eid.layer())
             && view.internal_filter_exploded_edge(eid, t, view.layer_ids())
             && (view.exploded_filter_independent() || {
-                let edge = view.core_edge(Either::Left(eid.edge));
+                let edge = view.core_edge(Either::Left(eid.eid()));
                 (view.exploded_edge_filter_includes_edge_layer_filter()
                     || view.internal_filter_edge_layer(edge.as_ref(), eid.layer()))
                     && (view.exploded_edge_filter_includes_edge_filter()

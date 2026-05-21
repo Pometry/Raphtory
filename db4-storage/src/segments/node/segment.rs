@@ -264,7 +264,7 @@ impl MemNodeSegment {
         let add_out = layer.reserve_local_row(src_pos);
         let new_entry = add_out.is_new();
         let add_out = add_out.inner();
-        let is_new_edge = add_out.adj.add_edge_out(dst, e_id.edge);
+        let is_new_edge = add_out.adj.add_edge_out(dst, e_id.eid());
         let row = add_out.row;
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
@@ -293,7 +293,7 @@ impl MemNodeSegment {
         let add_in = layer.reserve_local_row(dst_pos);
         let new_entry = add_in.is_new();
         let add_in = add_in.inner();
-        let is_new_edge = add_in.adj.add_edge_into(src, e_id.edge);
+        let is_new_edge = add_in.adj.add_edge_into(src, e_id.eid());
         let row = add_in.row;
 
         if let Some(t) = t {
@@ -600,6 +600,15 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         self.head()
             .get_layer(layer_id)
             .map_or(0, |layer| layer.len())
+    }
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        _pos: LocalPOS,
+        _layer_id: LayerId,
+        _props: &[(usize, PR)],
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 }
 

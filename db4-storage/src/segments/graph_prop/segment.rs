@@ -159,4 +159,8 @@ impl MemGraphPropSegment {
         let layer = &self.layers[Self::DEFAULT_LAYER.0];
         layer.c_prop(Self::DEFAULT_ROW, prop_id)
     }
+
+    pub fn num_updates(&self) -> usize {
+        self.layers().iter().map(|layer| layer.t_len()).sum()
+    }
 }

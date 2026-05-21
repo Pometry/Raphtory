@@ -9,12 +9,6 @@ hide:
 
 
 ## Query (QueryRoot)
-Top-level READ-only query root. Entry points for loading a graph
-(`graph`, `graphMetadata`), browsing stored graphs (`namespaces`,
-`namespace`, `root`), downloading a stored graph as a base64 blob
-(`receiveGraph`), inspecting vectorised variants (`vectorisedGraph`),
-and a few utility endpoints (`version`, `hello`, `plugins`).
-
 <table>
 <thead>
 <tr>
@@ -30,8 +24,7 @@ and a few utility endpoints (`version`, `hello`, `plugins`).
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Liveness check — returns a static "hello world" string. Useful for
-smoke-testing that the GraphQL server is reachable.
+Hello world demo
 
 </td>
 </tr>
@@ -40,13 +33,7 @@ smoke-testing that the GraphQL server is reachable.
 <td valign="top"><a href="#graph">Graph</a></td>
 <td>
 
-Load a graph by path. Returns null if the graph doesn't exist or is
-inaccessible. When a READ-scoped filter is attached to the caller's
-permissions, that filter is applied before the graph is returned.
-`graphType` lets you re-interpret the stored graph at query time —
-e.g. read an event-stored graph through persistent semantics. Defaults
-to the type the graph was created with.
-Requires READ on the graph.
+Returns a graph
 
 </td>
 </tr>
@@ -73,10 +60,8 @@ Optional override for graph semantics — `EVENT` treats every update as a point
 <td valign="top"><a href="#metagraph">MetaGraph</a></td>
 <td>
 
-Returns lightweight metadata for a graph (node/edge counts,
-timestamps) without deserialising the full graph. Returns null if the
-graph doesn't exist or is inaccessible.
-Requires READ on the graph, or INTROSPECT on its parent namespace.
+Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+Requires at least INTROSPECT permission.
 
 </td>
 </tr>
@@ -94,9 +79,9 @@ Graph path relative to the root namespace.
 <td valign="top"><a href="#mutablegraph">MutableGraph</a>!</td>
 <td>
 
-Open a graph for writing — returns a `MutableGraph` handle that can
-add nodes/edges/properties/metadata.
-Requires WRITE on the graph.
+Update graph query, has side effects to update graph state
+
+Returns:: GqlMutableGraph
 
 </td>
 </tr>
@@ -114,9 +99,9 @@ Graph path relative to the root namespace.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Compute and persist embeddings for the nodes and edges of a stored
-graph so it can be queried via `vectorisedGraph`.
-Requires WRITE access.
+Update graph query, has side effects to update graph state
+
+Returns:: GqlMutableGraph
 
 </td>
 </tr>
@@ -161,10 +146,9 @@ Optional edge-document template; defaults to the built-in template.
 <td valign="top"><a href="#vectorisedgraph">VectorisedGraph</a></td>
 <td>
 
-Open a previously-vectorised graph for similarity queries. Returns null
-if the graph has no embeddings (call `vectoriseGraph` first) or is
-inaccessible.
-Requires READ on the graph.
+Create vectorised graph in the format used for queries
+
+Returns:: GqlVectorisedGraph
 
 </td>
 </tr>
@@ -182,9 +166,9 @@ Graph path relative to the root namespace.
 <td valign="top"><a href="#collectionofnamespace">CollectionOfNamespace</a>!</td>
 <td>
 
-Recursively list every namespace under the root. Each namespace is
-filtered against the caller's permissions: only namespaces with at
-least DISCOVER are returned.
+Returns all namespaces using recursive search
+
+Returns::  List of namespaces on root
 
 </td>
 </tr>
@@ -193,29 +177,25 @@ least DISCOVER are returned.
 <td valign="top"><a href="#namespace">Namespace</a>!</td>
 <td>
 
-Return a specific namespace by path. Errors if no namespace exists at
-that path.
-Requires INTROSPECT on the namespace to browse its contents.
+Returns a specific namespace at a given path
+
+Returns:: Namespace or error if no namespace found
 
 </td>
 </tr>
 <tr>
 <td colspan="2" align="right" valign="top">path</td>
 <td valign="top"><a href="#string">String</a>!</td>
-<td>
-
-Namespace path relative to the root namespace (e.g. `"team/project"`).
-
-</td>
+<td></td>
 </tr>
 <tr>
 <td colspan="2" valign="top"><strong id="queryroot.root">root</strong></td>
 <td valign="top"><a href="#namespace">Namespace</a>!</td>
 <td>
 
-Returns the root namespace. Use it as the entry point for browsing
-namespaces and graphs — child listings filter against the caller's
-permissions.
+Returns root namespace
+
+Returns::  Root namespace
 
 </td>
 </tr>
@@ -224,9 +204,7 @@ permissions.
 <td valign="top"><a href="#queryplugin">QueryPlugin</a>!</td>
 <td>
 
-Entry point for READ-only plugins registered with the server (e.g. graph
-algorithms exposed as queries). Available plugins are defined at server
-startup via the plugin registry.
+Returns a plugin.
 
 </td>
 </tr>
@@ -235,10 +213,9 @@ startup via the plugin registry.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Encode a stored graph as a base64 string for client-side download. If
-a READ-scoped filter is attached to the caller's permissions, only the
-materialised filtered view is encoded.
-Requires READ on the graph.
+Encodes graph and returns as string.
+
+Returns:: Base64 url safe encoded string
 
 </td>
 </tr>
@@ -288,8 +265,7 @@ Returns a collection of mutation plugins.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Permanently delete a stored graph from the server.
-Requires WRITE on the graph and on its parent namespace.
+Delete graph from a path on the server.
 
 </td>
 </tr>
@@ -307,9 +283,7 @@ Graph path relative to the root namespace.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Create a new empty graph at the given path. Errors if a graph already
-exists there.
-Requires WRITE on the parent namespace.
+Creates a new graph.
 
 </td>
 </tr>
@@ -332,10 +306,7 @@ Destination path relative to the root namespace.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Move a stored graph to a new path on the server (rename / relocate).
-Atomic: copies first, then deletes the source.
-Requires WRITE on the source graph and on both the source and
-destination namespaces.
+Move graph from a path on the server to a new_path on the server.
 
 </td>
 </tr>
@@ -371,9 +342,7 @@ If true, allow replacing an existing graph at `newPath`; defaults to false.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-Duplicate a stored graph to a new path on the server. Source is
-preserved.
-Requires READ on the source graph and WRITE on the destination namespace.
+Copy graph from a path on the server to a new_path on the server.
 
 </td>
 </tr>
@@ -409,9 +378,10 @@ If true, allow replacing an existing graph at `newPath`; defaults to false.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Stream-upload a graph file using GraphQL multipart upload. The client
-sends the file directly; the server stores it under `path`.
-Requires WRITE on the destination namespace.
+Upload a graph file from a path on the client using GQL multipart uploading.
+
+Returns::
+name of the new graph
 
 </td>
 </tr>
@@ -447,9 +417,10 @@ If true, replace any graph already at `path`.
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Send a serialised graph as a base64-encoded string in the request
-body. Use for smaller graphs where multipart upload is overkill.
-Requires WRITE on the destination namespace.
+Send graph bincode as base64 encoded string.
+
+Returns::
+path of the new graph
 
 </td>
 </tr>
@@ -481,13 +452,63 @@ If true, replace any graph already at `path`.
 </td>
 </tr>
 <tr>
+<td colspan="2" valign="top"><strong id="mutroot.createnamespace">createNamespace</strong></td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Create an empty namespace at `path`.
+
+Creates any missing parent namespaces along the way. Requires WRITE
+permission on the parent namespace. Rejects paths that already host a
+graph or an existing namespace, and paths that fail validation.
+
+Returns:: the path of the created namespace
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Destination path relative to the root namespace.
+
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top"><strong id="mutroot.deletenamespace">deleteNamespace</strong></td>
+<td valign="top"><a href="#boolean">Boolean</a>!</td>
+<td>
+
+Delete a namespace and all of its descendants (graphs and sub-namespaces).
+
+Requires WRITE permission on the parent namespace, on the namespace
+itself, and on every descendant graph and sub-namespace. Cached graphs
+at any deleted path are invalidated. Rejects empty and non-existent
+paths.
+
+Returns:: true on success
+
+</td>
+</tr>
+<tr>
+<td colspan="2" align="right" valign="top">path</td>
+<td valign="top"><a href="#string">String</a>!</td>
+<td>
+
+Path to delete relative to the root namespace.
+
+</td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="mutroot.createsubgraph">createSubgraph</strong></td>
 <td valign="top"><a href="#string">String</a>!</td>
 <td>
 
-Persist a subgraph of an existing stored graph as a new graph. The
-subgraph contains only the listed nodes and edges between them.
-Requires READ on the parent graph and WRITE on the destination namespace.
+Returns a subgraph given a set of nodes from an existing graph in the server.
+
+Returns::
+name of the new graph
 
 </td>
 </tr>
@@ -532,9 +553,7 @@ If true, replace any graph already at `newPath`.
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
 <td>
 
-(Experimental) Build a Tantivy search index for a stored graph so it
-can be queried via `searchNodes` / `searchEdges`.
-Requires WRITE on the graph.
+(Experimental) Creates search index.
 
 </td>
 </tr>
@@ -559,11 +578,7 @@ Optional spec selecting which node/edge property fields to index. Omit to index 
 <tr>
 <td colspan="2" align="right" valign="top">inRam</td>
 <td valign="top"><a href="#boolean">Boolean</a>!</td>
-<td>
-
-If true, build the index in memory (faster but lost on restart). If false, persist to disk.
-
-</td>
+<td></td>
 </tr>
 </tbody>
 </table>

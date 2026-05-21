@@ -19,7 +19,7 @@ use raphtory::{
     errors::GraphError,
     prelude::*,
 };
-use raphtory_api::core::{storage::arc_str::OptionAsStr, utils::time::IntoTime};
+use raphtory_api::core::storage::arc_str::OptionAsStr;
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
@@ -904,7 +904,7 @@ mod tests {
         .await
         .unwrap();
 
-        let graph_with_vectors = data.get_graph(graph_name).await.unwrap();
+        let graph_with_vectors = data.get_graph_for_test(graph_name).await.unwrap();
         let mutable_graph = GqlMutableGraph::from(graph_with_vectors);
 
         (mutable_graph, data, tmp_dir, embedding_server)

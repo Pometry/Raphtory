@@ -12,7 +12,8 @@ use crate::{
         api::{
             mutation::time_from_input_session,
             properties::internal::{
-                InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
+                InternalMetadataOps, InternalTemporalPropertiesOps,
+                InternalTemporalPropertyViewOps, NodePropertySchemaOps,
             },
             state::ops::ArrowNodeOp,
             view::{
@@ -219,27 +220,21 @@ impl<'a, G: CoreGraphOps> Hash for NodeView<'a, G> {
     }
 }
 
-impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps> InternalTemporalPropertiesOps
-    for NodeView<'graph, G>
+impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps + NodePropertySchemaOps>
+    InternalTemporalPropertiesOps for NodeView<'graph, G>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().temporal_prop_mapper().get_id(name)
+        self.graph.node_visible_temporal_prop_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
         self.graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .get_name(id)
-            .clone()
+            .node_visible_temporal_prop_name(id)
+            .unwrap_or_default()
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .ids()
-            .into_dyn_boxed()
+        self.graph.node_visible_temporal_prop_ids()
     }
 }
 
@@ -296,37 +291,32 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
     where
         'graph: 'a,
     {
+        let prop_ids: Arc<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_updates(node.as_ref(), graph)
+                .node_updates(node.as_ref(), graph, prop_ids.clone())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
     }
 }
 
-impl<'graph, G: CoreGraphOps> InternalMetadataOps for NodeView<'graph, G> {
+impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps for NodeView<'graph, G> {
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().metadata_mapper().get_id(name)
+        self.graph.node_visible_metadata_id(name)
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
         self.graph
-            .node_meta()
-            .metadata_mapper()
-            .get_name(id)
-            .clone()
+            .node_visible_metadata_name(id)
+            .unwrap_or_default()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .node_meta()
-            .metadata_mapper()
-            .ids()
-            .into_dyn_boxed()
+        self.graph.node_visible_metadata_ids()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {

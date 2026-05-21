@@ -20,7 +20,6 @@ use crate::{
     },
     paths::{ExistingGraphFolder, PathValidationError, ValidGraphPaths},
     rayon::blocking_compute,
-    GQLError,
 };
 use async_graphql::Context;
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
@@ -33,12 +32,9 @@ use raphtory::{
         utils::time::TryIntoInterval,
     },
     db::{
-        api::{
-            properties::dyn_props::DynProperties,
-            view::{
-                filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
-                StaticGraphViewOps, TimeOps,
-            },
+        api::view::{
+            filter_ops::NodeSelect, DynamicGraph, EdgeSelect, Filter, IntoDynamic, NodeViewOps,
+            StaticGraphViewOps, TimeOps,
         },
         graph::{
             node::NodeView,
@@ -598,7 +594,7 @@ impl GqlGraph {
 
     /// Returns the properties of the graph.
     async fn properties(&self) -> Result<GqlProperties> {
-        Ok(Into::<DynProperties>::into(self.graph.properties()).into())
+        Ok(self.graph.properties().into())
     }
 
     /// Returns the metadata of the graph.
@@ -695,7 +691,10 @@ impl GqlGraph {
         #[graphql(desc = "Destination graph path relative to the root namespace.")] path: String,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
-        let other_g = data.get_graph(path.as_ref()).await?.graph;
+        let other_g = data
+            .get_graph_with_write_permission(ctx, path.as_ref())
+            .await?
+            .graph;
         let g = self.graph.clone();
         blocking_compute(move || {
             other_g.import_nodes(g.nodes(), true)?;

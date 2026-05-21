@@ -20,38 +20,48 @@ impl std::fmt::Display for AuthPolicyError {
 // async_graphql's blanket `impl<T: Display + Send + Sync + 'static> From<T> for Error` covers
 // AuthPolicyError automatically via its Display impl.
 
+/// Ordered permission levels for comparison; variants derive `Ord` directly.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PermissionLevel {
+    /// May query graph metadata only (counts, schema), not data.
+    Introspect,
+    /// May read data but through a restricted filter.
+    ReadRedacted,
+    /// May read all graph data without restrictions.
+    Read,
+    /// May read and mutate the graph.
+    Write,
+}
+
 /// The effective permission level a principal has on a specific graph.
-/// Variants are ordered by the hierarchy: `Write` > `Read{filter:None}` > `Read{filter:Some}` > `Introspect`.
-/// A filtered `Read` is less powerful than an unfiltered `Read` because it sees a restricted view.
 #[derive(Clone)]
 pub enum GraphPermission {
     /// May query graph metadata (counts, schema) but not read data.
     Introspect,
-    /// May read graph data; optionally restricted by a data filter.
+    /// May read graph data; optionally restricted by a row filter and/or property redaction.
     Read { filter: Option<GraphAccessFilter> },
     /// May read and mutate the graph (implies `Read` and `Introspect`, never filtered).
     Write,
 }
 
 impl GraphPermission {
-    /// Numeric level used for ordering: `Introspect`=0, `Read{Some}`=1, `Read{None}`=2, `Write`=3.
-    fn level(&self) -> u8 {
+    pub fn level(&self) -> PermissionLevel {
         match self {
-            GraphPermission::Introspect => 0,
-            GraphPermission::Read { filter: Some(_) } => 1,
-            GraphPermission::Read { filter: None } => 2,
-            GraphPermission::Write => 3,
+            GraphPermission::Introspect => PermissionLevel::Introspect,
+            GraphPermission::Read { filter: Some(_) } => PermissionLevel::ReadRedacted,
+            GraphPermission::Read { filter: None } => PermissionLevel::Read,
+            GraphPermission::Write => PermissionLevel::Write,
         }
     }
 
     /// Returns `true` if the permission level is `Read` or higher.
     pub fn is_at_least_read(&self) -> bool {
-        self.level() >= 1
+        self.level() >= PermissionLevel::ReadRedacted
     }
 
     /// Returns `true` only for `Write` permission.
     pub fn is_write(&self) -> bool {
-        self.level() >= 3
+        self.level() >= PermissionLevel::Write
     }
 
     /// Returns `Some(self)` if at least `Read` (filtered or not), `None` otherwise.
@@ -125,4 +135,59 @@ pub trait AuthorizationPolicy: Send + Sync + 'static {
         ctx: &async_graphql::Context<'_>,
         path: &str,
     ) -> NamespacePermission;
+}
+
+#[cfg(test)]
+pub(crate) mod auth_policy_tests {
+    use super::{AuthPolicyError, AuthorizationPolicy, GraphPermission, NamespacePermission};
+    use std::collections::HashMap;
+
+    /// Test-only authorization policy: every path must be configured explicitly via
+    /// [`Self::with_namespace`] / [`Self::with_graph`]. Unknown namespaces default
+    /// to `NamespacePermission::Denied` and unknown graphs return `Err`. This is
+    /// stricter than the production policy's fail-open contract — that's
+    /// intentional, so a missing `with_*` call in a test surfaces as an obvious
+    /// failure rather than as a silent allow.
+    #[derive(Default)]
+    pub(crate) struct FakePolicy {
+        namespaces: HashMap<String, NamespacePermission>,
+        graphs: HashMap<String, GraphPermission>,
+    }
+
+    #[allow(dead_code)]
+    impl FakePolicy {
+        pub(crate) fn with_namespace(mut self, path: &str, perm: NamespacePermission) -> Self {
+            self.namespaces.insert(path.to_string(), perm);
+            self
+        }
+        pub(crate) fn with_graph(mut self, path: &str, perm: GraphPermission) -> Self {
+            self.graphs.insert(path.to_string(), perm);
+            self
+        }
+    }
+
+    impl AuthorizationPolicy for FakePolicy {
+        fn graph_permissions(
+            &self,
+            _ctx: &async_graphql::Context<'_>,
+            path: &str,
+        ) -> Result<GraphPermission, AuthPolicyError> {
+            match self.graphs.get(path) {
+                Some(p) => Ok(p.clone()),
+                None => Err(AuthPolicyError::new(format!(
+                    "no permission for graph {path}"
+                ))),
+            }
+        }
+        fn namespace_permissions(
+            &self,
+            _ctx: &async_graphql::Context<'_>,
+            path: &str,
+        ) -> NamespacePermission {
+            self.namespaces
+                .get(path)
+                .cloned()
+                .unwrap_or(NamespacePermission::Denied)
+        }
+    }
 }

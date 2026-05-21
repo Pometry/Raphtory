@@ -332,7 +332,16 @@ impl PropMapper {
 
         match dtype_write.get(id).cloned() {
             Some(old_type) => {
-                if let Ok(tpe) = unify_types(&dtype, &old_type, &mut false) {
+                let mut unified = false;
+
+                if let Ok(tpe) = unify_types(&dtype, &old_type, &mut unified) {
+                    if unified {
+                        // The row size needs to account for the difference in sizes
+                        // between the newly unified type and the old type.
+                        let delta = tpe.est_size() - old_type.est_size();
+                        self.row_size.fetch_add(delta, atomic::Ordering::Relaxed);
+                    }
+
                     dtype_write[id] = tpe;
                     Ok(wrapped_id)
                 } else {
@@ -635,5 +644,37 @@ mod tests {
         assert_eq!(result2.unwrap().inner(), 1);
         assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
         assert_eq!(prop_mapper.get_dtype(1), Some(PropType::U16));
+    }
+
+    #[test]
+    fn test_unify_types_increases_row_size() {
+        let map_1 = PropType::map([("name", PropType::Str)]);
+        let map_2 = PropType::map([("location", PropType::Str)]);
+
+        let mut unified = false;
+        let expected_type = unify_types(&map_1, &map_2, &mut unified).unwrap();
+        let expected_delta = expected_type.est_size() - map_1.est_size();
+
+        assert!(unified);
+        assert!(expected_delta > 0, "should grow est_size on unify");
+
+        let prop_mapper = PropMapper::default();
+        prop_mapper
+            .get_or_create_and_validate("attrs", map_1.clone())
+            .unwrap();
+
+        let before = prop_mapper.row_size();
+
+        assert_eq!(before, map_1.est_size());
+
+        prop_mapper
+            .get_or_create_and_validate("attrs", map_2.clone())
+            .unwrap();
+
+        let after = prop_mapper.row_size();
+
+        assert_eq!(after, before + expected_delta);
+        assert_eq!(after, expected_type.est_size());
+        assert_eq!(prop_mapper.get_dtype(0), Some(expected_type));
     }
 }

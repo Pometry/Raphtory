@@ -24,7 +24,7 @@ use raphtory_storage::graph::{
     edges::edge_storage_ops::EdgeStorageOps,
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{iter, ops::Range};
+use std::{iter, ops::Range, sync::Arc};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};
 
 fn alive_before<
@@ -118,7 +118,7 @@ fn node_has_valid_edges<'graph, G: GraphView>(
         .history_rev()
         .any(|(_, e)| {
             // scan backwards in time over filtered history and keep track of deletions
-            let eid = e.edge;
+            let eid = e.eid();
             let layer = e.layer();
             if e.is_deletion() {
                 deleted.insert((eid, layer));
@@ -359,16 +359,18 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         self,
         node: NodeStorageRef<'graph>,
         _view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        node.temp_prop_rows()
+        node.temp_prop_rows(prop_ids)
             .map(|(t, l, row)| (t, LayerId(l), row))
     }
 
     fn node_updates_window<'graph, G: GraphViewOps<'graph>>(
         self,
         node: NodeStorageRef<'graph>,
-        view: G,
+        _view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
         let start = w.start;
         let first_row = if node
@@ -379,9 +381,9 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .is_some()
         {
             Some(
-                view.node_meta()
-                    .temporal_prop_mapper()
-                    .ids()
+                prop_ids
+                    .iter()
+                    .copied()
                     .map(|prop_id| (prop_id, node.tprop(prop_id)))
                     .filter_map(|(i, tprop)| {
                         if tprop.active(start..EventTime::start(start.t().saturating_add(1))) {
@@ -399,7 +401,7 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
             .into_iter()
             .map(move |row| (start, STATIC_GRAPH_LAYER_ID, row))
             .chain(
-                node.temp_prop_rows_range(Some(w))
+                node.temp_prop_rows_range(Some(w), prop_ids)
                     .map(|(t, l, row)| (t, LayerId(l), row)),
             )
     }
@@ -572,7 +574,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 && !view.internal_edge_filtered()
                 && !view.internal_edge_layer_filtered())
                 || {
-                    let edge = view.core_edge(Either::Left(eid.edge));
+                    let edge = view.core_edge(Either::Left(eid.eid()));
                     view.internal_filter_edge_layer(edge.as_ref(), layer)
                         && view.internal_filter_edge(edge.as_ref(), view.layer_ids())
                         && view.filter_edge_from_nodes(edge.as_ref())
@@ -580,7 +582,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
         {
             if view.internal_filter_exploded_edge(eid, t, view.layer_ids())
                 && (!view.internal_nodes_filtered() || {
-                    let edge = view.core_edge(Either::Left(eid.edge));
+                    let edge = view.core_edge(Either::Left(eid.eid()));
                     view.internal_filter_node(view.core_node(edge.src()).as_ref(), view.layer_ids())
                         && view.internal_filter_node(
                             view.core_node(edge.dst()).as_ref(),
@@ -650,7 +652,7 @@ impl EdgeTimeSemanticsOps for PersistentSemantics {
                 return true;
             }
 
-            let edge = view.core_edge(Either::Left(elid.edge));
+            let edge = view.core_edge(Either::Left(elid.eid()));
             let e = edge.as_ref();
             let layer = elid.layer();
             !e.filtered_deletions(layer, &view)

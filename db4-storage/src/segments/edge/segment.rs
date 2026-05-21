@@ -347,6 +347,13 @@ impl MemEdgeSegment {
     pub fn t_len(&self, layer_id: usize) -> usize {
         self.layers.get(layer_id).map_or(0, |layer| layer.t_len())
     }
+
+    pub fn num_updates(&self) -> usize {
+        self.layers
+            .iter()
+            .map(|layer| layer.properties.num_updates())
+            .sum()
+    }
 }
 
 impl Drop for MemEdgeSegment {
@@ -521,6 +528,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         &self.num_edges
     }
 
+    fn num_updates(&self) -> usize {
+        self.head().num_updates()
+    }
+
     fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemEdgeSegment> {
         self.segment.read_recursive()
     }
@@ -613,6 +624,15 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
     }
 
     fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        _edge_pos: LocalPOS,
+        _layer_id: LayerId,
+        _props: &[(usize, PR)],
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 }

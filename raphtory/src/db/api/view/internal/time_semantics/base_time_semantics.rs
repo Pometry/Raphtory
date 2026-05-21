@@ -11,7 +11,7 @@ use raphtory_api::core::{
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::nodes::node_ref::NodeStorageRef;
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 use storage::EdgeEntryRef;
 
 #[derive(Copy, Clone, Debug)]
@@ -193,8 +193,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         self,
         node: NodeStorageRef<'graph>,
         view: G,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates(node, view))
+        for_all_iter!(self, semantics => semantics.node_updates(node, view, prop_ids))
     }
 
     #[inline]
@@ -203,8 +204,9 @@ impl NodeTimeSemanticsOps for BaseTimeSemantics {
         node: NodeStorageRef<'graph>,
         view: G,
         w: Range<EventTime>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w))
+        for_all_iter!(self, semantics => semantics.node_updates_window(node, view, w, prop_ids))
     }
 
     #[inline]

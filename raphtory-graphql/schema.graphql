@@ -2632,8 +2632,7 @@ type MutRoot {
 	"""
 	plugins: MutationPlugin!
 	"""
-	Permanently delete a stored graph from the server.
-	Requires WRITE on the graph and on its parent namespace.
+	Delete graph from a path on the server.
 	"""
 	deleteGraph(
 		"""
@@ -2642,9 +2641,7 @@ type MutRoot {
 		path: String!
 	): Boolean!
 	"""
-	Create a new empty graph at the given path. Errors if a graph already
-	exists there.
-	Requires WRITE on the parent namespace.
+	Creates a new graph.
 	"""
 	newGraph(
 		"""
@@ -2653,10 +2650,7 @@ type MutRoot {
 		path: String!,		graphType: GraphType!
 	): Boolean!
 	"""
-	Move a stored graph to a new path on the server (rename / relocate).
-	Atomic: copies first, then deletes the source.
-	Requires WRITE on the source graph and on both the source and
-	destination namespaces.
+	Move graph from a path on the server to a new_path on the server.
 	"""
 	moveGraph(
 		"""
@@ -2673,9 +2667,7 @@ type MutRoot {
 		overwrite: Boolean
 	): Boolean!
 	"""
-	Duplicate a stored graph to a new path on the server. Source is
-	preserved.
-	Requires READ on the source graph and WRITE on the destination namespace.
+	Copy graph from a path on the server to a new_path on the server.
 	"""
 	copyGraph(
 		"""
@@ -2692,9 +2684,10 @@ type MutRoot {
 		overwrite: Boolean
 	): Boolean!
 	"""
-	Stream-upload a graph file using GraphQL multipart upload. The client
-	sends the file directly; the server stores it under `path`.
-	Requires WRITE on the destination namespace.
+	Upload a graph file from a path on the client using GQL multipart uploading.
+	
+	Returns::
+	name of the new graph
 	"""
 	uploadGraph(
 		"""
@@ -2711,9 +2704,10 @@ type MutRoot {
 		overwrite: Boolean!
 	): String!
 	"""
-	Send a serialised graph as a base64-encoded string in the request
-	body. Use for smaller graphs where multipart upload is overkill.
-	Requires WRITE on the destination namespace.
+	Send graph bincode as base64 encoded string.
+	
+	Returns::
+	path of the new graph
 	"""
 	sendGraph(
 		"""
@@ -2730,9 +2724,41 @@ type MutRoot {
 		overwrite: Boolean!
 	): String!
 	"""
-	Persist a subgraph of an existing stored graph as a new graph. The
-	subgraph contains only the listed nodes and edges between them.
-	Requires READ on the parent graph and WRITE on the destination namespace.
+	Create an empty namespace at `path`.
+	
+	Creates any missing parent namespaces along the way. Requires WRITE
+	permission on the parent namespace. Rejects paths that already host a
+	graph or an existing namespace, and paths that fail validation.
+	
+	Returns:: the path of the created namespace
+	"""
+	createNamespace(
+		"""
+		Destination path relative to the root namespace.
+		"""
+		path: String!
+	): String!
+	"""
+	Delete a namespace and all of its descendants (graphs and sub-namespaces).
+	
+	Requires WRITE permission on the parent namespace, on the namespace
+	itself, and on every descendant graph and sub-namespace. Cached graphs
+	at any deleted path are invalidated. Rejects empty and non-existent
+	paths.
+	
+	Returns:: true on success
+	"""
+	deleteNamespace(
+		"""
+		Path to delete relative to the root namespace.
+		"""
+		path: String!
+	): Boolean!
+	"""
+	Returns a subgraph given a set of nodes from an existing graph in the server.
+	
+	Returns::
+	name of the new graph
 	"""
 	createSubgraph(
 		"""
@@ -2753,9 +2779,7 @@ type MutRoot {
 		overwrite: Boolean!
 	): String!
 	"""
-	(Experimental) Build a Tantivy search index for a stored graph so it
-	can be queried via `searchNodes` / `searchEdges`.
-	Requires WRITE on the graph.
+	(Experimental) Creates search index.
 	"""
 	createIndex(
 		"""
@@ -2765,11 +2789,7 @@ type MutRoot {
 		"""
 		Optional spec selecting which node/edge property fields to index. Omit to index a default set.
 		"""
-		indexSpec: IndexSpecInput,
-		"""
-		If true, build the index in memory (faster but lost on restart). If false, persist to disk.
-		"""
-		inRam: Boolean!
+		indexSpec: IndexSpecInput,		inRam: Boolean!
 	): Boolean!
 }
 
@@ -4979,27 +4999,13 @@ type QueryPlugin {
 	NoOps: String!
 }
 
-"""
-Top-level READ-only query root. Entry points for loading a graph
-(`graph`, `graphMetadata`), browsing stored graphs (`namespaces`,
-`namespace`, `root`), downloading a stored graph as a base64 blob
-(`receiveGraph`), inspecting vectorised variants (`vectorisedGraph`),
-and a few utility endpoints (`version`, `hello`, `plugins`).
-"""
 type QueryRoot {
 	"""
-	Liveness check — returns a static "hello world" string. Useful for
-	smoke-testing that the GraphQL server is reachable.
+	Hello world demo
 	"""
 	hello: String!
 	"""
-	Load a graph by path. Returns null if the graph doesn't exist or is
-	inaccessible. When a READ-scoped filter is attached to the caller's
-	permissions, that filter is applied before the graph is returned.
-	`graphType` lets you re-interpret the stored graph at query time —
-	e.g. read an event-stored graph through persistent semantics. Defaults
-	to the type the graph was created with.
-	Requires READ on the graph.
+	Returns a graph
 	"""
 	graph(
 		"""
@@ -5012,10 +5018,8 @@ type QueryRoot {
 		graphType: GraphType
 	): Graph
 	"""
-	Returns lightweight metadata for a graph (node/edge counts,
-	timestamps) without deserialising the full graph. Returns null if the
-	graph doesn't exist or is inaccessible.
-	Requires READ on the graph, or INTROSPECT on its parent namespace.
+	Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+	Requires at least INTROSPECT permission.
 	"""
 	graphMetadata(
 		"""
@@ -5024,9 +5028,9 @@ type QueryRoot {
 		path: String!
 	): MetaGraph
 	"""
-	Open a graph for writing — returns a `MutableGraph` handle that can
-	add nodes/edges/properties/metadata.
-	Requires WRITE on the graph.
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
 	"""
 	updateGraph(
 		"""
@@ -5035,9 +5039,9 @@ type QueryRoot {
 		path: String!
 	): MutableGraph!
 	"""
-	Compute and persist embeddings for the nodes and edges of a stored
-	graph so it can be queried via `vectorisedGraph`.
-	Requires WRITE access.
+	Update graph query, has side effects to update graph state
+	
+	Returns:: GqlMutableGraph
 	"""
 	vectoriseGraph(
 		"""
@@ -5058,10 +5062,9 @@ type QueryRoot {
 		edges: Template
 	): Boolean!
 	"""
-	Open a previously-vectorised graph for similarity queries. Returns null
-	if the graph has no embeddings (call `vectoriseGraph` first) or is
-	inaccessible.
-	Requires READ on the graph.
+	Create vectorised graph in the format used for queries
+	
+	Returns:: GqlVectorisedGraph
 	"""
 	vectorisedGraph(
 		"""
@@ -5070,39 +5073,31 @@ type QueryRoot {
 		path: String!
 	): VectorisedGraph
 	"""
-	Recursively list every namespace under the root. Each namespace is
-	filtered against the caller's permissions: only namespaces with at
-	least DISCOVER are returned.
+	Returns all namespaces using recursive search
+	
+	Returns::  List of namespaces on root
 	"""
 	namespaces: CollectionOfNamespace!
 	"""
-	Return a specific namespace by path. Errors if no namespace exists at
-	that path.
-	Requires INTROSPECT on the namespace to browse its contents.
+	Returns a specific namespace at a given path
+	
+	Returns:: Namespace or error if no namespace found
 	"""
-	namespace(
-		"""
-		Namespace path relative to the root namespace (e.g. `"team/project"`).
-		"""
-		path: String!
-	): Namespace!
+	namespace(path: String!): Namespace!
 	"""
-	Returns the root namespace. Use it as the entry point for browsing
-	namespaces and graphs — child listings filter against the caller's
-	permissions.
+	Returns root namespace
+	
+	Returns::  Root namespace
 	"""
 	root: Namespace!
 	"""
-	Entry point for READ-only plugins registered with the server (e.g. graph
-	algorithms exposed as queries). Available plugins are defined at server
-	startup via the plugin registry.
+	Returns a plugin.
 	"""
 	plugins: QueryPlugin!
 	"""
-	Encode a stored graph as a base64 string for client-side download. If
-	a READ-scoped filter is attached to the caller's permissions, only the
-	materialised filtered view is encoded.
-	Requires READ on the graph.
+	Encodes graph and returns as string.
+	
+	Returns:: Base64 url safe encoded string
 	"""
 	receiveGraph(
 		"""

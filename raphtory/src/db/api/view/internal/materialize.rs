@@ -57,6 +57,8 @@ impl InheritLayerOps for MaterializedGraph {}
 impl InheritListOps for MaterializedGraph {}
 
 impl InheritPropertiesOps for MaterializedGraph {}
+impl InheritNodePropertySchemaOps for MaterializedGraph {}
+impl InheritEdgePropertySchemaOps for MaterializedGraph {}
 
 impl InheritNodeFilterOps for MaterializedGraph {}
 impl InheritAllEdgeFilterOps for MaterializedGraph {}

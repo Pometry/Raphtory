@@ -243,8 +243,7 @@ def test_pytemporalprops():
     ]
     for src, dst, val, time in edges_str:
         g.add_edge(time, src, dst, {"value_dec": val})
-    v = g.node("1")
-    res = list(v.out_edges)[0].properties.temporal.get("value_dec")
+    res = g.edge("1", "2").properties.temporal.get("value_dec")
 
     assert res.sum() == 120
     assert res.min() == (1, 10)

@@ -50,7 +50,7 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
