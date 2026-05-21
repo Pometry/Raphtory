@@ -1,5 +1,5 @@
 from raphtory import filter
-from filters_setup import init_graph, init_graph2, create_test_graph
+from filters_setup import init_graph, init_graph2, init_graph_degree_filter, create_test_graph
 from utils import with_disk_variants
 import pytest
 
@@ -454,3 +454,306 @@ def test_filter_nodes_by_column():
     result_ids = sorted(graph.nodes[filter_expr].id)
     expected_ids = sorted([2, 4])
     assert result_ids == expected_ids
+
+
+# ============================================================================
+# Degree Filter Tests
+# ============================================================================
+# Graph structure for init_graph_degree_filter:
+# Nodes: 1, 2, 3, 4, 5
+# Edges (all at time=1):
+#   1 → 2, 1 → 3
+#   2 → 3
+#   3 → 4, 3 → 5
+#   4 → 1
+#   5 → 1
+#
+# Degrees:
+#   Node 1: out_degree=2, in_degree=2, degree(BOTH)=3
+#   Node 2: out_degree=1, in_degree=1, degree(BOTH)=2
+#   Node 3: out_degree=2, in_degree=2, degree(BOTH)=3
+#   Node 4: out_degree=1, in_degree=1, degree(BOTH)=2
+#   Node 5: out_degree=0, in_degree=1, degree(BOTH)=1
+# ============================================================================
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_out_degree_eq():
+    def check(graph):
+        # Nodes with out_degree == 2
+        filter_expr = filter.Node.degree("out") == 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() == 2])
+        assert result_ids == expected_ids
+
+        # Nodes with out_degree == 1
+        filter_expr = filter.Node.degree("out") == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() == 1])
+        assert result_ids == expected_ids
+
+        # Nodes with out_degree == 0
+        filter_expr = filter.Node.degree("out") == 0
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() == 0])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_in_degree_eq():
+    def check(graph):
+        # Nodes with in_degree == 2
+        filter_expr = filter.Node.degree("in") == 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.in_degree() == 2])
+        assert result_ids == expected_ids
+
+        # Nodes with in_degree == 1
+        filter_expr = filter.Node.degree("in") == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.in_degree() == 1])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_both_eq():
+    def check(graph):
+        # Nodes with degree(BOTH) == 1
+        filter_expr = filter.Node.degree("both") == 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() == 1])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) == 2
+        filter_expr = filter.Node.degree("both") == 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() == 2])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) == 3
+        filter_expr = filter.Node.degree("both") == 3
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() == 3])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_ne():
+    def check(graph):
+        # Nodes with out_degree != 0
+        filter_expr = filter.Node.degree("out") != 0
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() != 0])
+        assert result_ids == expected_ids
+
+        # Nodes with in_degree != 2
+        filter_expr = filter.Node.degree("in") != 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.in_degree() != 2])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_gt():
+    def check(graph):
+        # Nodes with out_degree > 0
+        filter_expr = filter.Node.degree("out") > 0
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() > 0])
+        assert result_ids == expected_ids
+
+        # Nodes with out_degree > 1
+        filter_expr = filter.Node.degree("out") > 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() > 1])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) > 2
+        filter_expr = filter.Node.degree("both") > 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() > 2])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_ge():
+    def check(graph):
+        # Nodes with out_degree >= 2
+        filter_expr = filter.Node.degree("out") >= 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() >= 2])
+        assert result_ids == expected_ids
+
+        # Nodes with in_degree >= 1
+        filter_expr = filter.Node.degree("in") >= 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.in_degree() >= 1])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) >= 2
+        filter_expr = filter.Node.degree("both") >= 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() >= 2])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_lt():
+    def check(graph):
+        # Nodes with out_degree < 2
+        filter_expr = filter.Node.degree("out") < 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() < 2])
+        assert result_ids == expected_ids
+
+        # Nodes with in_degree < 2
+        filter_expr = filter.Node.degree("in") < 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.in_degree() < 2])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) < 2
+        filter_expr = filter.Node.degree("both") < 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() < 2])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_le():
+    def check(graph):
+        # Nodes with out_degree <= 1
+        filter_expr = filter.Node.degree("out") <= 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() <= 1])
+        assert result_ids == expected_ids
+
+        # Nodes with in_degree <= 1
+        filter_expr = filter.Node.degree("in") <= 1
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.in_degree() <= 1])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) <= 2
+        filter_expr = filter.Node.degree("both") <= 2
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() <= 2])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_is_in():
+    def check(graph):
+        # Nodes with out_degree in [0, 1]
+        filter_expr = filter.Node.degree("out").is_in([0, 1])
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() in [0, 1]])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) in [1, 3]
+        filter_expr = filter.Node.degree("both").is_in([1, 3])
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() in [1, 3]])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_is_not_in():
+    def check(graph):
+        # Nodes with out_degree not in [0]
+        filter_expr = filter.Node.degree("out").is_not_in([0])
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() not in [0]])
+        assert result_ids == expected_ids
+
+        # Nodes with degree(BOTH) not in [1, 2]
+        filter_expr = filter.Node.degree("both").is_not_in([1, 2])
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.degree() not in [1, 2]])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_combined_filters():
+    def check(graph):
+        # Nodes with out_degree > 0 AND in_degree > 0
+        filter_expr = (filter.Node.degree("out") > 0) & (
+            filter.Node.degree("in") > 0
+        )
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() > 0 and n.in_degree() > 0])
+        assert result_ids == expected_ids
+
+        # Nodes with out_degree == 0 OR in_degree == 2
+        filter_expr = (filter.Node.degree("out") == 0) | (
+            filter.Node.degree("in") == 2
+        )
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() == 0 or n.in_degree() == 2])
+        assert result_ids == expected_ids
+
+        # Nodes with out_degree >= 1 AND node_type == "test_type"
+        filter_expr = (filter.Node.degree("out") >= 1) & (
+            filter.Node.node_type() == "test_type"
+        )
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() >= 1 and n.node_type == "test_type"])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_negation():
+    def check(graph):
+        # NOT (out_degree == 2) -> nodes with out_degree != 2
+        filter_expr = ~(filter.Node.degree("out") == 2)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if not (n.out_degree() == 2)])
+        assert result_ids == expected_ids
+
+        # NOT (degree(BOTH) < 2) -> nodes with degree >= 2
+        filter_expr = ~(filter.Node.degree("both") < 2)
+        result_ids = sorted(graph.filter(filter_expr).nodes.id)
+        expected_ids = sorted([n.id for n in graph.nodes if not (n.degree() < 2)])
+        assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_using_nodes_accessor():
+    def check(graph):
+        # Test using graph.nodes[filter_expr] syntax
+        filter_expr = filter.Node.degree("out") >= 2
+        result_ids = sorted(graph.nodes[filter_expr].id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.out_degree() >= 2])
+        assert result_ids == expected_ids
+
+        # Test with in_degree
+        filter_expr = filter.Node.degree("in") == 1
+        result_ids = sorted(graph.nodes[filter_expr].id)
+        expected_ids = sorted([n.id for n in graph.nodes if n.in_degree() == 1])
+        assert result_ids == expected_ids
+
+    return check
