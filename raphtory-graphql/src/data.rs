@@ -231,18 +231,10 @@ impl Data {
         }
     }
 
-    /// Enumerates all descendants of a namespace as `(path, is_graph)` pairs.
-    /// `is_graph = true` means the path is a graph; `false` means a sub-namespace.
-    /// Returns an error if `ns_path` does not exist or is not a namespace.
-    pub fn enumerate_namespace_descendants(
-        &self,
-        ns_path: &str,
-    ) -> Result<impl Iterator<Item = (String, bool)>, PathValidationError> {
-        let ns = Namespace::try_new(self.work_dir.clone(), ns_path.to_string())?;
-        Ok(ns.get_all_children().map(|item| match item {
-            NamespacedItem::Namespace(n) => (n.local_path().to_string(), false),
-            NamespacedItem::MetaGraph(g) => (g.local_path().to_string(), true),
-        }))
+    /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
+    /// so callers can enumerate descendants via `get_all_children()`.
+    pub fn get_namespace(&self, ns_path: &str) -> Result<Namespace, PathValidationError> {
+        Namespace::try_new(self.work_dir.clone(), ns_path.to_string())
     }
 
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
