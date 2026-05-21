@@ -74,3 +74,4 @@ arrow-array = { workspace = true }
 [features]
 python = ["dep:pyo3", "raphtory/python"]
 search = ["raphtory/search"]
+panic-on-drop = ["raphtory/panic-on-drop"]
