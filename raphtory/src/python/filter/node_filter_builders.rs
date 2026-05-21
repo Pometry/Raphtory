@@ -11,7 +11,6 @@ use crate::{
     },
     python::{
         filter::{
-            degree_filter_builder::degree_builder,
             filter_expr::PyFilterExpr,
             property_filter_builders::{
                 PyNodeViewPropsFilterBuilder, PyPropertyExprBuilder, PyPropertyFilterBuilder,
@@ -403,21 +402,6 @@ impl PyNodeFilter {
     #[staticmethod]
     fn node_type() -> PyNodeTypeFilterBuilder {
         PyNodeTypeFilterBuilder(Arc::new(NodeFilter::node_type()))
-    }
-
-    /// Selects node degree for filtering in a given direction.
-    ///
-    /// Arguments:
-    ///     direction (Direction): Degree direction (`IN`, `OUT`, or `BOTH`).
-    ///
-    /// Returns:
-    ///     filter.FilterOps
-    #[staticmethod]
-    fn degree<'py>(
-        py: Python<'py>,
-        direction: raphtory_api::core::Direction,
-    ) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
-        degree_builder(py, direction)
     }
 
     /// Filters a node property by name.
