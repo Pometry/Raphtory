@@ -12,9 +12,7 @@ use raphtory::{
     prelude::*,
 };
 use raphtory_storage::mutation::addition_ops::InternalAdditionOps;
-use raphtory_tests::utils::{
-    build_graph, build_graph_strat, make_node_types, GraphFixture,
-};
+use raphtory_tests::utils::{build_graph, build_graph_strat, make_node_types, GraphFixture};
 use serde_json::json;
 use std::ops::Range;
 
