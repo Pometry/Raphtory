@@ -30,8 +30,11 @@ use std::{
 };
 use storage::{
     api::graph_props::{GraphPropEntryOps, GraphPropRefOps},
-    Config, Extension,
+    Config,
 };
+
+#[cfg(feature = "io")]
+use storage::Extension;
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///
