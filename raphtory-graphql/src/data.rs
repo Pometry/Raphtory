@@ -1,6 +1,6 @@
 use crate::{
     auth::ContextValidation,
-    auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission, PermissionLevel},
+    auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
     cache::GraphCache,
     config::app_config::AppConfig,
     graph::GraphWithVectors,
@@ -224,6 +224,12 @@ impl Data {
         } else {
             ValidWriteableGraphFolder::try_new(self.work_dir.clone(), path)
         }
+    }
+
+    /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
+    /// so callers can enumerate descendants via `get_all_children()`.
+    pub fn get_namespace(&self, ns_path: &str) -> Result<Namespace, PathValidationError> {
+        Namespace::try_new(self.work_dir.clone(), ns_path.to_string())
     }
 
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
@@ -469,10 +475,10 @@ pub(crate) enum PermissionError {
     GraphNotFound,
     /// Caller has introspect-only access; cannot read graph data.
     #[error(
-        "Access denied: role '{role}' has introspect-only access to graph '{graph}' — \
+        "Access denied: introspect-only access to graph '{graph}' — \
          use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs"
     )]
-    IntrospectOnly { role: String, graph: String },
+    IntrospectOnly { graph: String },
     /// Caller has read-only access but the operation requires write.
     #[error("Access denied: WRITE permission required for graph '{graph}'")]
     GraphWriteRequired { graph: String },
@@ -516,16 +522,11 @@ fn require_at_least_read(
     path: &str,
 ) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
-        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
         return match policy.graph_permissions(ctx, path) {
             Err(msg) => {
-                warn!(
-                    role = role.unwrap_or("<no role>"),
-                    graph = path,
-                    "Access denied by auth policy"
-                );
+                warn!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
-                if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
+                if policy.namespace_permissions(ctx, ns).is_some() {
                     Err(msg.into())
                 } else {
                     Err(PermissionError::GraphNotFound.into())
@@ -536,12 +537,10 @@ fn require_at_least_read(
                     Ok(p)
                 } else {
                     warn!(
-                        role = role.unwrap_or("<no role>"),
                         graph = path,
                         "Introspect-only access — graph() denied; use graphMetadata() instead"
                     );
                     Err(PermissionError::IntrospectOnly {
-                        role: role.unwrap_or("<no role>").to_string(),
                         graph: path.to_string(),
                     }
                     .into())
