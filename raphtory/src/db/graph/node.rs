@@ -302,6 +302,25 @@ impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
         })
         .into_dyn_boxed()
     }
+
+    pub fn rows_gs<'a>(
+        &'a self,
+        gs: &'graph GraphStorage,
+    ) -> BoxedLIter<'a, (EventTime, LayerId, Vec<(usize, Prop)>)>
+    where
+        'graph: 'a,
+    {
+        let prop_ids: Arc<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
+        let semantics = self.graph.node_time_semantics();
+        let node = gs.core_node(self.node);
+        let graph = &self.graph;
+        GenLockedIter::from(node, move |node| {
+            semantics
+                .node_updates(node.as_ref(), graph, prop_ids.clone())
+                .into_dyn_boxed()
+        })
+        .into_dyn_boxed()
+    }
 }
 
 impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps for NodeView<'graph, G> {
