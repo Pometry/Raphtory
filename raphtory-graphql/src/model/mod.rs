@@ -1,5 +1,5 @@
 use crate::{
-    auth::ContextValidation,
+    auth::{Access, ContextValidation},
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     graph::GraphWithVectors,
@@ -114,6 +114,20 @@ pub enum GqlGraphError {
     FailedToCreateDir(String),
 }
 
+/// Auto-grants Write on `path` for the creator's role after a graph is created.
+/// Returns an error if the grant fails so the caller can roll back the graph.
+/// No-op when there is no active auth policy; identity checks are delegated to the policy.
+fn auto_grant_on_create(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) -> async_graphql::Result<()> {
+    if let Some(policy) = policy {
+        policy.on_graph_created(ctx, path)?;
+    }
+    Ok(())
+}
+
 fn require_namespace_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -124,7 +138,7 @@ fn require_namespace_write(
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            if p.namespace_permissions(ctx, ns_path) < NamespacePermission::Write {
+            if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
                     namespace: ns_path.to_string(),
                     graph: new_path.to_string(),
@@ -391,6 +405,10 @@ impl Mut {
         };
 
         data.insert_graph(folder, graph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
@@ -439,6 +457,10 @@ impl Mut {
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, src.graph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
+            let _ = data.delete_graph(new_path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
@@ -460,6 +482,10 @@ impl Mut {
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(path)
     }
@@ -490,6 +516,10 @@ impl Mut {
         })
         .await?;
         data.insert_graph(folder, g).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, path) {
+            let _ = data.delete_graph(path).await;
+            return Err(e);
+        }
         Ok(path.to_owned())
     }
 
@@ -584,6 +614,10 @@ impl Mut {
         .await?;
 
         data.insert_graph(folder, new_subgraph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
+            let _ = data.delete_graph(&new_path).await;
+            return Err(e);
+        }
         Ok(new_path)
     }
 

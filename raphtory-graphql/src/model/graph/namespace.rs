@@ -1,5 +1,5 @@
 use crate::{
-    auth_policy::{AuthorizationPolicy, NamespacePermission},
+    auth_policy::AuthorizationPolicy,
     data::{get_relative_path, Data},
     model::graph::{
         collection::GqlCollection, meta_graph::MetaGraph, namespaced_item::NamespacedItem,
@@ -18,7 +18,7 @@ use walkdir::WalkDir;
 /// the last is a namespace. Use to browse what's stored on the server without
 /// loading any graph data.
 #[derive(ResolvedObject, Clone, Ord, Eq, PartialEq, PartialOrd)]
-pub(crate) struct Namespace {
+pub struct Namespace {
     current_dir: PathBuf,  // always validated
     relative_path: String, // relative to the root working directory
 }
@@ -73,6 +73,10 @@ impl Namespace {
             current_dir: root,
             relative_path: "".to_owned(),
         }
+    }
+
+    pub(crate) fn local_path(&self) -> &str {
+        &self.relative_path
     }
 
     pub fn try_new(root: PathBuf, relative_path: String) -> Result<Self, PathValidationError> {
@@ -170,7 +174,7 @@ fn is_namespace_visible(
     n: &Namespace,
 ) -> bool {
     policy.as_ref().map_or(true, |p| {
-        p.namespace_permissions(ctx, &n.relative_path) >= NamespacePermission::Discover
+        p.namespace_permissions(ctx, &n.relative_path).is_some()
     })
 }
 
