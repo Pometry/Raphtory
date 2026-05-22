@@ -561,15 +561,3 @@ def test_filter_nodes_by_degree_is_not_in():
             assert result_ids == expected_ids
 
     return check
-
-@with_disk_variants(init_graph_degree_filter)
-def test_filter_nodes_by_degree_is_not_in():
-    def check(graph):
-        blocked = [1, 2]
-        for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction).all().is_not_in(blocked)
-            result_ids = _filtered_degree_ids(graph, filter_expr)
-            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree not in [1, 2])
-            assert result_ids == expected_ids
-
-    return check
