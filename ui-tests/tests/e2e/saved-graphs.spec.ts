@@ -1,154 +1,156 @@
-import { expect, test } from '@playwright/test';
+import { expect, Page, test } from '@playwright/test';
+import {
+    clickSavedGraphsFolder,
+    clickSavedGraphsGraph,
+    waitForLayoutToFinish,
+} from './utils';
+
+const PAGE_SIZE = 8;
 
 test('Saved graphs table is visible', async ({ page }) => {
-    await page.goto('/saved-graphs');
-
+    await navigateToSavedGraphsFolder(page, 'vanilla');
+    await clickSavedGraphsGraph(page, 'event');
+    await page.getByRole('button', { name: 'event GRAPH' }).click();
     await expect(
-        page.getByText(
-            'To see object details, please select an object in the graph canvas.',
-        ),
+        page.getByRole('heading', { name: 'vanilla/event', exact: true }),
     ).toBeVisible();
-
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    await page.getByRole('table').locator('tbody tr').first().click();
-    await expect(page.getByText('Properties')).toBeVisible();
-    await expect(page.getByText('Preview')).toBeVisible();
+    await expect(page.getByText('PREVIEW')).toBeVisible();
+    await expect(page.getByText('PROPERTIES')).toBeVisible();
 });
 
-test('Change rows per page to 5 in table and check pagination', async ({
-    page,
-}) => {
-    await page.goto('/saved-graphs');
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    await page.getByRole('combobox').click();
-    await page.getByRole('option', { exact: true, name: '5' }).click();
-    const rows = page.locator('table tbody tr');
-    await expect(rows).toHaveCount(5);
-    await page.getByLabel('next page').click();
-    await expect(rows).toHaveCount(2);
-    await page.getByLabel('previous page').click();
-    await expect(rows).toHaveCount(5);
-    await page.getByRole('button', { name: '2' }).click();
-    await expect(rows).toHaveCount(2);
-    await page.getByRole('button', { name: '1' }).click();
-    await expect(rows).toHaveCount(5);
+test(`Card view has N cards per page`, async ({ page }) => {
+    await navigateToSavedGraphsFolder(page, 'vanilla');
+    await expect(page.getByText(`1-${PAGE_SIZE} of`)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'GRAPH' })).toHaveCount(
+        PAGE_SIZE,
+    );
 });
 
 test('Row sorting on saved graphs table by columns', async ({ page }) => {
-    await page.goto('/saved-graphs');
-    const table = page.getByRole('table');
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    //test Name
-    const nameHeader = table.getByRole('columnheader', { name: 'Name' });
-    await nameHeader.click();
-    const firstRow = table.locator('tbody tr').first();
-    const firstRowName = await firstRow.locator('td').nth(1).textContent();
-    await expect(firstRowName).toBe('second_filler');
-    await nameHeader.click();
-    const firstRowAfterSort = table.locator('tbody tr').first();
-    const firstRowNameAfterSort = await firstRowAfterSort
-        .locator('td')
-        .nth(1)
-        .textContent();
-    await expect(firstRowNameAfterSort).toBe('event');
-    await nameHeader.click();
-    const firstRowAfterSortAgain = table.locator('tbody tr').first();
-    const firstRowNameAfterSortAgain = await firstRowAfterSortAgain
-        .locator('td')
-        .nth(1)
-        .textContent();
-    await expect(firstRowNameAfterSortAgain).toBe('event');
+    await navigateToSavedGraphsFolder(page, 'vanilla', 'table');
+    const table = await page.getByRole('table');
 
-    //test Node Count
-    const nodeCountHeader = table.getByRole('columnheader', {
-        name: 'Node Count',
-    });
-    await nodeCountHeader.click();
-    const firstRowNodeCount = await firstRow.locator('td').nth(2).textContent();
-    await expect(firstRowNodeCount).toBe('501');
-    await nodeCountHeader.click();
-    const firstRowNodeCountAfterSort = await firstRowAfterSort
+    // Name
+    await page.getByRole('button', { name: 'Sort by Name ascending' }).click();
+    const firstRowAscending = table.locator('tbody tr').first();
+    const firstRowAscendingName = await firstRowAscending
+        .locator('td')
+        .nth(1)
+        .textContent();
+    await expect(firstRowAscendingName).toBe('event');
+    await page
+        .getByRole('button', { name: 'Sorted by Name ascending' })
+        .click();
+    const firstRowDescending = table.locator('tbody tr').first();
+    const firstRowDescendingName = await firstRowDescending
+        .locator('td')
+        .nth(1)
+        .textContent();
+    await expect(firstRowDescendingName).toBe('variant_test');
+    await page
+        .getByRole('button', { name: 'Sorted by Name descending' })
+        .click();
+    const firstRowBackToNormal = table.locator('tbody tr').first();
+    const firstRowBackToNormalName = await firstRowBackToNormal
+        .locator('td')
+        .nth(1)
+        .textContent();
+    await expect(firstRowBackToNormalName).toBe('event');
+
+    // Node Count
+    await page
+        .getByRole('button', { name: 'Sort by Node Count descending' })
+        .click();
+    const firstRowNodeCountDescending = table.locator('tbody tr').first();
+    const firstRowNodeCountDescendingName = await firstRowNodeCountDescending
         .locator('td')
         .nth(2)
         .textContent();
-    await expect(firstRowNodeCountAfterSort).toBe('5');
+    await expect(firstRowNodeCountDescendingName).toBe('501');
+    await page
+        .getByRole('button', { name: 'Sorted by Node Count descending' })
+        .click();
+    const firstRowNodeCountAscending = table.locator('tbody tr').first();
+    const firstRowNodeCountAscendingName = await firstRowNodeCountAscending
+        .locator('td')
+        .nth(2)
+        .textContent();
+    await expect(firstRowNodeCountAscendingName).toBe('2');
 
-    //test Edge Count
-    const edgeCountHeader = table.getByRole('columnheader', {
-        name: 'Edge Count',
-    });
-    await edgeCountHeader.click();
-    const firstRowEdgeCount = await firstRow.locator('td').nth(3).textContent();
-    await expect(firstRowEdgeCount).toBe('500');
-    await edgeCountHeader.click();
-    const firstRowEdgeCountAfterSort = await firstRowAfterSort
+    // Edge Count
+    await page
+        .getByRole('button', { name: 'Sort by Edge Count descending' })
+        .click();
+    const firstRowEdgeCountAscending = table.locator('tbody tr').first();
+    const firstRowEdgeCountAscendingName = await firstRowEdgeCountAscending
         .locator('td')
         .nth(3)
         .textContent();
-    await expect(firstRowEdgeCountAfterSort).toBe('4');
+    await expect(firstRowEdgeCountAscendingName).toBe('500');
+    await page
+        .getByRole('button', { name: 'Sorted by Edge Count descending' })
+        .click();
+    const firstRowEdgeCountDescending = table.locator('tbody tr').first();
+    const firstRowEdgeCountDescendingName = await firstRowEdgeCountDescending
+        .locator('td')
+        .nth(3)
+        .textContent();
+    await expect(firstRowEdgeCountDescendingName).toBe('0');
 });
 
-test('Open graph by double clicking row', async ({ page }) => {
-    await page.goto('/saved-graphs');
-    const table = page.getByRole('table');
-    await expect(table).toBeVisible();
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    await page.waitForLoadState('networkidle');
-    const firstRow = table.locator('tbody tr').first();
-    await firstRow.dblclick();
+test('Open graph by double clicking', async ({ page }) => {
+    await navigateToSavedGraphsFolder(page, 'vanilla', 'table');
+    await page
+        .getByRole('cell', { name: 'temporal_props', exact: true })
+        .dblclick();
     await expect(page).toHaveURL(
-        /\/graph\?graphSource=vanilla%2Fevent&initialNodes=%5B%5D/,
+        /\/graph\/vanilla\/temporal_props\?initialNodes=%5B%5D/,
     );
 });
 
 test('Open graph by clicking open button on rhs panel', async ({ page }) => {
-    await page.goto('/saved-graphs');
-    const table = page.getByRole('table');
-    await expect(table).toBeVisible();
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    await table.locator('tbody tr').first().click();
-    await page.getByText('vanilla/event').isVisible();
+    await navigateToSavedGraphsFolder(page, 'vanilla', 'table');
+    await page
+        .getByRole('cell', { name: 'temporal_props', exact: true })
+        .click();
+    await page
+        .getByRole('heading', { name: 'vanilla/temporal_props' })
+        .isVisible();
     await page.getByText('Namespace').isVisible();
     await page
-        .getByLabel('Button group with a nested')
+        .getByLabel('Button group with a nested menu')
         .getByRole('button', { name: 'Open' })
         .click();
 
     await page.waitForSelector('text=Overview');
     await page.getByText('Overview').isVisible();
     await expect(page).toHaveURL(
-        /\/graph\?graphSource=vanilla%2Fevent&initialNodes=%5B%5D/,
+        /\/graph\/vanilla\/temporal_props\?initialNodes=%5B%5D/,
     );
 });
 
-test('Open and close accordions on right hand side panel and open graph from minimap preview', async ({
+test('Check properties visible on right hand side and open graph from minimap preview', async ({
     page,
 }) => {
-    await page.goto('/saved-graphs');
-    const table = page.getByRole('table');
-    await expect(table).toBeVisible();
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    const firstRow = table.locator('tbody tr').first();
-    await firstRow.click();
-    await page.getByRole('button', { name: 'Properties' }).click();
-    await expect(page.getByText('Namespace')).not.toBeVisible();
-    await page.getByRole('button', { name: 'Properties' }).click();
+    await navigateToSavedGraphsFolder(page, 'vanilla');
+    await clickSavedGraphsGraph(page, 'event');
     await expect(page.getByText('Namespace')).toBeVisible();
     await page.getByRole('button', { name: 'Open' }).nth(1).click();
+    await waitForLayoutToFinish(page);
     await expect(page).toHaveURL(
-        /\/graph\?graphSource=vanilla%2Fevent&initialNodes=%5B%5D/,
+        /\/graph\/vanilla\/event\?initialNodes=%5B%5D/,
     );
 });
 
 test('Search saved graphs table, clear search and hide search', async ({
     page,
 }) => {
-    await page.goto('/saved-graphs');
-    const table = page.getByRole('table');
-    await expect(table).toBeVisible();
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
+    await navigateToSavedGraphsFolder(page, 'vanilla', 'table');
+    const table = await page.getByRole('table');
     await page.getByRole('button', { name: 'Show/Hide search' }).click();
-    const searchInput = page.getByPlaceholder('Search saved graphs');
+    const searchInput = page.getByRole('textbox', {
+        name: 'Search explorations',
+    });
     await searchInput.fill('event');
     const rows = table.locator('tbody tr');
     await expect(rows).toHaveCount(1);
@@ -160,11 +162,8 @@ test('Search saved graphs table, clear search and hide search', async ({
 });
 
 test('Filter by Columns', async ({ page }) => {
-    await page.goto('/saved-graphs');
-    const table = page.getByRole('table');
-    await expect(table).toBeVisible();
-    await page.getByRole('row', { name: /^vanilla$/ }).click();
-    await page.waitForLoadState('networkidle');
+    await navigateToSavedGraphsFolder(page, 'vanilla', 'table');
+    const table = await page.getByRole('table');
     await page.getByRole('button', { name: 'Show/Hide filters' }).click();
     const filterNameInput = page.getByPlaceholder('Filter by Name');
     await filterNameInput.fill('event');
@@ -172,12 +171,53 @@ test('Filter by Columns', async ({ page }) => {
     await expect(rows).toHaveCount(1);
     const firstRowName = await rows.first().locator('td').nth(1).textContent();
     await expect(firstRowName).toBe('event');
-    await page.getByRole('button', { name: 'Clear filter' }).nth(1).click();
+    await page
+        .locator('button[aria-label="Clear filter"]:not(:disabled)')
+        .click();
     const filterNodeCountInput = page.getByPlaceholder('Filter by Node Count');
     await filterNodeCountInput.fill('501');
     await expect(rows).toHaveCount(1);
-    await page.getByRole('button', { name: 'Clear filter' }).nth(2).click();
+    await page
+        .locator('button[aria-label="Clear filter"]:not(:disabled)')
+        .click();
     const filterEdgeCountInput = page.getByPlaceholder('Filter by Edge Count');
     await filterEdgeCountInput.fill('4');
     await expect(rows).toHaveCount(2);
 });
+
+test('Switching between previews', async ({ page }) => {
+    await navigateToSavedGraphsFolder(page, 'vanilla');
+    await page.getByRole('button', { name: 'Expand details' }).click();
+    await page.waitForTimeout(500);
+    await clickSavedGraphsGraph(page, 'event');
+    await waitForLayoutToFinish(page);
+    expect(
+        await page.getByRole('button', { name: 'Open' }).nth(1).screenshot(),
+    ).toMatchSnapshot('event-preview-first-click.png');
+    await clickSavedGraphsGraph(page, 'persistent');
+    await waitForLayoutToFinish(page);
+    expect(
+        await page.getByRole('button', { name: 'Open' }).nth(1).screenshot(),
+    ).toMatchSnapshot('persistent-preview-first-click.png');
+    await clickSavedGraphsGraph(page, 'event');
+    await waitForLayoutToFinish(page);
+    // We expect no difference between the first time we preview and the second time
+    expect(
+        await page.getByRole('button', { name: 'Open' }).nth(1).screenshot(),
+    ).toMatchSnapshot('event-preview-first-click.png');
+});
+
+async function navigateToSavedGraphsFolder(
+    page: Page,
+    folder: string,
+    view?: 'card' | 'table',
+) {
+    await page.goto('/saved-graphs');
+    await clickSavedGraphsFolder(page, folder);
+    await page.waitForLoadState('networkidle');
+    if (view === 'table') {
+        await page
+            .getByRole('button', { name: 'Table view', exact: true })
+            .click();
+    }
+}

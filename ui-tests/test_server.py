@@ -1,129 +1,11 @@
+import json
 import os
 import random
 from datetime import datetime, timedelta
 
 from raphtory import graphql, PersistentGraph, Graph
 
-
 ## This is the test data for the UI tests so bare in mind they might fail if this file is changed
-
-
-def setup_graph(graph):
-    graph.add_node(1640995200000, "None")
-    graph.add_node(1648598400000, "Pedro", {"age": 28}, "Person")
-    graph.add_node(1656288000000, "Ben", {"age": 30}, "Person")
-    graph.add_node(1663977600000, "Hamza", {"age": 30}, "Person")
-
-    graph.add_edge(1671667200000, "Ben", "Hamza", {"where": "London"}, "meets")
-    graph.add_edge(1679356800000, "Ben", "Pedro", {"where": "Madrid"}, "meets")
-
-    graph.add_node(1687046400000, "Pometry", {}, "Company")
-    graph.add_edge(1687132800000, "Ben", "Pometry", {}, "founds")
-    graph.add_edge(1687132800000, "Hamza", "Pometry", {}, "founds")
-
-    graph.add_edge(1689734400000, "Hamza", "Pedro", {"where": "London"}, "meets")
-    graph.add_edge(1697424000000, "Hamza", "Pedro", {"where": "Madrid"}, "meets")
-
-    graph.add_edge(1705017600000, "Hamza", "Pedro", {"amount": 20}, "transfers")
-    graph.add_edge(1707609600000, "Pedro", "Hamza", {"amount": 40}, "transfers")
-    graph.add_edge(1710115200000, "Ben", "Hamza", {"amount": 40}, "transfers")
-
-    return graph
-
-
-def filler_graph(graph):
-    graph.add_node(0, "None")
-    graph.add_node(10, "Ben", {"age": 30}, "Person")
-    graph.add_node(20, "Hamza", {"age": 30}, "Person")
-
-    graph.add_edge(40, "Ben", "Hamza", {"where": "London"}, "meets")
-    graph.add_edge(50, "Ben", "Pedro", {"where": "Madrid"}, "meets")
-
-    graph.add_node(60, "Pometry", {}, "Company")
-    graph.add_edge(60, "Ben", "Pometry", {}, "founds")
-    graph.add_edge(60, "Hamza", "Pometry", {}, "founds")
-
-    return graph
-
-
-def second_filler_graph(graph):
-    graph.add_node(0, "None")
-    graph.add_node(10, "John", {"age": 40}, "Person")
-    graph.add_node(20, "Fred", {"age": 30}, "Person")
-    graph.add_node(25, "Judy", {"age": 30}, "Person")
-    graph.add_node(30, "Jasper", {"age": 20}, "Person")
-
-    graph.add_edge(
-        40,
-        "John",
-        "Fred",
-        {"where": "Amsterdam", "when": "2013-09-12", "reason": "coursemates"},
-        "meets",
-    )
-    graph.add_edge(
-        50,
-        "Fred",
-        "Judy",
-        {"where": "London", "when": "2020-04-23", "how_long": "2 days"},
-        "meets",
-    )
-
-    graph.add_node(
-        60, "Rabbit Inc", {"industry": "Agriculture", "founded": 2019}, "Company"
-    )
-
-    graph.add_edge(
-        61, "John", "Rabbit Inc", {"role": "Farmer", "start": "2019-01-01"}, "founds"
-    )
-    graph.add_edge(
-        62,
-        "Fred",
-        "Rabbit Inc",
-        {"role": "Tractor Driver", "start": "2019-01-01"},
-        "founds",
-    )
-
-    graph.add_edge(
-        70,
-        "Fred",
-        "Judy",
-        {"where": "Chipping Norton", "when": "2023-09-15", "topic": "hiring"},
-        "meets",
-    )
-    graph.add_edge(
-        80,
-        "John",
-        "Jasper",
-        {"where": "Hertfordshire", "when": "2024-03-10", "topic": "hiring"},
-        "meets",
-    )
-
-    graph.add_edge(
-        90,
-        "Judy",
-        "Jasper",
-        {
-            "where": "Chipping Norton",
-            "when": "2024-11-02",
-            "duration": "3 days",
-            "reason": "build a farm",
-        },
-        "collaborates",
-    )
-
-    graph.add_edge(
-        100, "Judy", "Rabbit Inc", {"role": "Advisor", "since": "2020-05-01"}, "advises"
-    )
-
-    graph.add_edge(
-        110,
-        "Fred",
-        "None",
-        {"reason": "reflects", "when": "2025-01-01"},
-        "thinks_about",
-    )
-
-    return graph
 
 
 def random_created_at():
@@ -152,35 +34,93 @@ def setup_large_graph(graph):
     return graph
 
 
+SPECS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "graph-specs")
+
+
+def apply_spec(graph, spec):
+    """Apply a JSON-loaded graph spec to an existing Graph or PersistentGraph.
+
+    Mirrors the positional-argument calling conventions Raphtory's Python
+    API expects — `add_node(time, name)`, `add_node(time, name, props)`,
+    `add_node(time, name, props, type)`, and the equivalents for add_edge —
+    so the third-arg `{}` vs no-third-arg distinction is preserved exactly.
+    """
+    for node in spec["nodes"]:
+        time = node["time"]
+        name = node["name"]
+        if "nodeType" in node:
+            graph.add_node(time, name, node.get("properties", {}), node["nodeType"])
+        elif "properties" in node:
+            graph.add_node(time, name, node["properties"])
+        else:
+            graph.add_node(time, name)
+    for edge in spec["edges"]:
+        time = edge["time"]
+        src = edge["src"]
+        dst = edge["dst"]
+        layer = edge.get("layer")
+        props = edge.get("properties", {})
+        if layer is not None:
+            graph.add_edge(time, src, dst, props, layer)
+        elif "properties" in edge:
+            graph.add_edge(time, src, dst, props)
+        else:
+            graph.add_edge(time, src, dst)
+    for deletion in spec.get("deletions", []):
+        graph.delete_edge(
+            deletion["time"],
+            deletion["src"],
+            deletion["dst"],
+            deletion.get("layer"),
+        )
+    if "metadata" in spec:
+        graph.add_metadata(spec["metadata"])
+    return graph
+
+
+def load_spec(name):
+    with open(os.path.join(SPECS_DIR, f"{name}.json")) as f:
+        return json.load(f)
+
+
+def build_from_spec(name):
+    spec = load_spec(name)
+    cls = PersistentGraph if spec["graphType"] == "PERSISTENT" else Graph
+    return apply_spec(cls(), spec)
+
+
 def __main__():
-    os.system("rm -rf /tmp/vanilla-graphs/vanilla")
-    os.system("rm -rf /tmp/vanilla-graphs/new_folder")
-    os.system("mkdir -p /tmp/vanilla-graphs/vanilla")
-    os.system("mkdir -p /tmp/vanilla-graphs/new_folder")
-    graph = setup_graph(Graph())
-    graph.save_to_file("/tmp/vanilla-graphs/vanilla/event")
+    port = int(os.environ.get("RAPHTORY_PORT", "1736"))
+    work_dir = os.environ.get("RAPHTORY_WORK_DIR", "/tmp/vanilla-graphs")
 
-    graph = setup_graph(PersistentGraph())
-    graph.delete_edge(90, "Ben", "Pedro", "meets")
-    graph.save_to_file("/tmp/vanilla-graphs/vanilla/persistent")
+    os.system(f"rm -rf {work_dir}/vanilla")
+    os.system(f"rm -rf {work_dir}/new_folder")
+    os.system(f"mkdir -p {work_dir}/vanilla")
+    os.system(f"mkdir -p {work_dir}/new_folder")
 
-    graph = setup_large_graph(Graph())
-    graph.save_to_file("/tmp/vanilla-graphs/vanilla/large")
+    build_from_spec("event").save_to_file(f"{work_dir}/vanilla/event")
+    build_from_spec("persistent").save_to_file(f"{work_dir}/vanilla/persistent")
 
-    graph = filler_graph(Graph())
-    graph.save_to_file("/tmp/vanilla-graphs/vanilla/filler")
-    graph = filler_graph(PersistentGraph())
-    graph.save_to_file("/tmp/vanilla-graphs/vanilla/persistent_filler")
-    graph.save_to_file("/tmp/vanilla-graphs/new_folder/persistent_filler")
+    setup_large_graph(Graph()).save_to_file(f"{work_dir}/vanilla/large")
 
-    graph = second_filler_graph(Graph())
-    graph.save_to_file("/tmp/vanilla-graphs/vanilla/second_filler")
-    graph = second_filler_graph(PersistentGraph())
-    graph.save_to_file("/tmp/vanilla-graphs/new_folder/persistent_second_filler")
-    graph.save_to_file("/tmp/vanilla-graphs/vanilla/persistent_second_filler")
+    build_from_spec("filler").save_to_file(f"{work_dir}/vanilla/filler")
+    g = build_from_spec("persistent_filler")
+    g.save_to_file(f"{work_dir}/vanilla/persistent_filler")
+    g.save_to_file(f"{work_dir}/new_folder/persistent_filler")
 
-    server = graphql.GraphServer(work_dir="/tmp/vanilla-graphs")
-    server.run(port=1736)
+    build_from_spec("second_filler").save_to_file(f"{work_dir}/vanilla/second_filler")
+    g = build_from_spec("persistent_second_filler")
+    g.save_to_file(f"{work_dir}/new_folder/persistent_second_filler")
+    g.save_to_file(f"{work_dir}/vanilla/persistent_second_filler")
+
+    build_from_spec("variant_test").save_to_file(f"{work_dir}/vanilla/variant_test")
+
+    build_from_spec("temporal_props").save_to_file(
+        f"{work_dir}/vanilla/temporal_props"
+    )
+
+    server = graphql.GraphServer(work_dir=work_dir)
+    server.run(port=port)
 
 
 if __name__ == "__main__":
