@@ -1,5 +1,6 @@
 [package]
 name = "raphtory-benchmark"
+publish = false
 version.workspace = true
 edition = "2021"
 
