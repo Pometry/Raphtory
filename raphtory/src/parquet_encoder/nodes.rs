@@ -23,7 +23,7 @@ use either::Either;
 use itertools::Itertools;
 use raphtory_api::{core::entities::properties::meta::STATIC_GRAPH_LAYER_ID, iter::IntoDynBoxed};
 use raphtory_core::entities::VID;
-use raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::nodes_ref::NodesStorageEntry};
+use raphtory_storage::graph::nodes::nodes_ref::NodesStorageEntry;
 use rayon::prelude::*;
 
 pub(crate) fn get_nodes_par_iter<'a, G: GraphView>(
@@ -105,9 +105,6 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
             ]
         },
         |nodes, g, decoder, sink| {
-            let nodes = nodes.collect::<Vec<_>>();
-            let nodes = nodes.into_iter();
-
             let cols = g.node_meta().temporal_prop_mapper().all_keys();
             let cols = &cols;
             let layer_meta = g.node_meta().layer_meta();

@@ -1,3 +1,4 @@
+#![cfg(feature = "io")]
 //! Regenerate the v4 disk-graph fixtures used by `validate_v4_disk_graphs` in
 //! `tests/test_saved_graphs.rs`. Use the following make command from the pometry-storage root:
 //!

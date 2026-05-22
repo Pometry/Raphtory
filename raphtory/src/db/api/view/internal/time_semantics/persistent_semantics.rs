@@ -23,12 +23,9 @@ use raphtory_api::core::{
     },
     storage::timeindex::{AsTime, EventTime, MergedTimeIndex, TimeIndexOps},
 };
-use raphtory_storage::{
-    core_ops::CoreGraphOps,
-    graph::{
-        edges::edge_storage_ops::EdgeStorageOps,
-        nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
-    },
+use raphtory_storage::graph::{
+    edges::edge_storage_ops::EdgeStorageOps,
+    nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{iter, ops::Range, sync::Arc};
 use storage::{EdgeAdditions, EdgeDeletions, EdgeEntryRef};

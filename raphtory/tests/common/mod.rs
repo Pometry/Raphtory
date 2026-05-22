@@ -1,4 +1,4 @@
-//! Shared fixtures for `test_saved_graphs.rs` and the `regenerate_disk_graph_fixtures` example
+//! Shared fixtures for `test_saved_graphs.rs` and the `regenerate_disk_graphs` example
 //! used to regenerate disk-backed graphs when the format changes.
 
 use raphtory::prelude::*;
