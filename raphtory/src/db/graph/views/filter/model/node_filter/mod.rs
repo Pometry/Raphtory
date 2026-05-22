@@ -105,10 +105,8 @@ impl InternalPropertyFilterFactory for NodeFilter {
 }
 
 impl DegreeFilterFactory for NodeFilter {
-    type Entity = NodeFilter;
-
-    fn degree(&self, direction: Direction) -> DegreeFilterBuilder<Self::Entity> {
-        DegreeFilterBuilder::new(direction, NodeFilter) 
+    fn degree(&self, direction: Direction) -> DegreeFilterBuilder {
+        DegreeFilterBuilder::new(direction) 
     }
 }
 

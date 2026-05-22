@@ -561,3 +561,21 @@ def test_filter_nodes_by_degree_is_not_in():
             assert result_ids == expected_ids
 
     return check
+
+
+@with_disk_variants(init_graph)
+def test_filter_nodes_for_node_name_all_is_invalid():
+    def check(graph):
+        with pytest.raises(AttributeError, match=r"has no attribute 'all'"):
+            filter.Node.name().all()
+
+    return check
+
+
+@with_disk_variants(init_graph)
+def test_filter_nodes_for_node_name_len_is_invalid():
+    def check(graph):
+        with pytest.raises(AttributeError, match=r"has no attribute 'len'"):
+            filter.Node.name().len()
+
+    return check

@@ -7,6 +7,7 @@ use raphtory_core::entities::{VID};
 use crate::db::api::state::ops::GraphView;
 use crate::db::api::state::ops::filter::NodeDegreeFilterOp;
 use crate::db::graph::views::filter::CreateFilter;
+use crate::db::graph::views::filter::model::NodeFilter;
 use crate::db::graph::views::filter::model::property_filter::{Op, PropertyFilterInput, PropertyRef};
 use crate::db::graph::views::filter::model::property_filter::builders::{PropertyExprBuilder, PropertyExprBuilderInput};
 use crate::db::graph::views::filter::model::{CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TryAsCompositeFilter};
@@ -17,16 +18,14 @@ use crate::errors::GraphError;
 
 
 #[derive(Clone)]
-pub struct DegreeFilterBuilder<M> {
+pub struct DegreeFilterBuilder {
     direction: Direction,
-    entity: M
 }
 
-impl<M> DegreeFilterBuilder<M> {
-    pub fn new(direction: Direction, entity: M) -> Self {
+impl DegreeFilterBuilder {
+    pub fn new(direction: Direction) -> Self {
         Self {
             direction,
-            entity
         }
     }
 }
@@ -107,15 +106,13 @@ impl TryAsCompositeFilter for DegreeFilter {
     }
 }  
 
-impl<M> InternalPropertyFilterBuilder for DegreeFilterBuilder<M>
+impl InternalPropertyFilterBuilder for DegreeFilterBuilder
 where
-    M: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    DegreeFilter: CombinedFilter,
-    PropertyExprBuilder<M>: InternalPropertyFilterBuilder,
+    DegreeFilter: CombinedFilter
 {
     type Filter = DegreeFilter;
-    type ExprBuilder = PropertyExprBuilder<M>;
-    type Marker = M;
+    type ExprBuilder = DegreeFilterBuilder;
+    type Marker = NodeFilter;
 
     fn property_ref(&self) -> PropertyRef {
         PropertyRef::Property("degree".to_string())
@@ -126,7 +123,7 @@ where
     }
 
     fn entity(&self) -> Self::Marker {
-        self.entity.clone()
+        NodeFilter
     }
 
     fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
@@ -143,12 +140,10 @@ where
     }
 
     fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        builder.with_entity(self.entity())
+        panic!("DegreeFilter does not support expression builders");
     }
 }
 
 pub trait DegreeFilterFactory {
-    type Entity: Clone + Send + Sync + Into<EntityMarker> + 'static;
-
-    fn degree(&self, direction: Direction) -> DegreeFilterBuilder<Self::Entity>; 
+    fn degree(&self, direction: Direction) -> DegreeFilterBuilder; 
 }
