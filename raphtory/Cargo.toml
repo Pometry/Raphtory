@@ -189,7 +189,3 @@ test-utils = [
     "dep:proptest",
     "dep:proptest-derive"
 ]
-
-[[example]]
-name = "regenerate_disk_graphs"
-required-features = ["io"]

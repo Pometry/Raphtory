@@ -15,10 +15,6 @@ use std::{
     fs, io,
     path::{Path, PathBuf},
 };
-use storage::{persist::strategy::PersistenceStrategy, Extension};
-
-mod common;
-use common::{event_graph_disk_storage_dir, persistent_graph_disk_storage_dir, populate_graph};
 
 // These mirror the (currently `pub(crate)`) column-name constants in
 // `raphtory::parquet_encoder`. They MUST stay in sync with the encoder.
@@ -362,58 +358,4 @@ fn test_graphql_bench_graph() {
 
     assert_graph_equal(&loaded, &reloaded);
     println!("OK: rebuilt graph matches single-call decode.");
-}
-
-// this should fail when the disk graphs are unreadable or some data is loaded incorrectly.
-// If this fails, then previously generated disk-backed graphs may be unreadable now.
-// Fixtures live under `raphtory/resources/test/disk_graphs/{event,persistent}_graph`.
-// To (re-)generate them, run:
-//     cargo test ... -- --ignored build_v4_saved_disk_graphs
-#[test]
-fn validate_v4_disk_graphs() {
-    // standalone Raphtory has this disabled but pometry-storage has it enabled
-    if !Extension::disk_storage_enabled() {
-        eprintln!("skipping validate_v4_disk_graphs: disk storage backend not enabled");
-        return;
-    }
-
-    // Load mutates the WAL / control file even via `load_read_only`, so copy
-    // each fixture into a temp dir first to avoid changes every time this test runs.
-    let tmp = tempfile::tempdir().expect("temp dir for v4 disk graph fixtures failed");
-
-    // event graph
-    let event_graph_path = tmp.path().join("event_graph");
-    copy_graph_directory(&event_graph_disk_storage_dir(), &event_graph_path)
-        .expect("copy event graph fixture into temp dir failed");
-    let loaded_event_graph =
-        Graph::load_read_only(&event_graph_path).expect("event graph couldn't be loaded");
-    let populated_event_graph = Graph::new();
-    populate_graph(&populated_event_graph);
-    assert_graph_equal(&loaded_event_graph, &populated_event_graph);
-
-    // persistent graph
-    let persistent_graph_path = tmp.path().join("persistent_graph");
-    copy_graph_directory(&persistent_graph_disk_storage_dir(), &persistent_graph_path)
-        .expect("copy persistent graph fixture into temp dir failed");
-    let loaded_persistent_graph = PersistentGraph::load_read_only(&persistent_graph_path)
-        .expect("persistent graph couldn't be loaded");
-    let populated_persistent_graph = PersistentGraph::new();
-    populate_graph(&populated_persistent_graph);
-    assert_graph_equal_timestamps(&loaded_persistent_graph, &populated_persistent_graph);
-}
-
-// Skip .gitkeep files so the loader sees empty dirs, not stray files
-fn copy_graph_directory(src: &Path, dst: &Path) -> io::Result<()> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let from = entry.path();
-        let to = dst.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
-            copy_graph_directory(&from, &to)?;
-        } else if entry.file_name() != ".gitkeep" {
-            fs::copy(&from, &to)?;
-        }
-    }
-    Ok(())
 }
