@@ -11,10 +11,6 @@ use raphtory::{
         SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::{AdditionOps, DeletionOps, Graph, GraphViewOps, LayerOps, PropertyAdditionOps},
-    serialise::parquet::{
-        EDGES_C_PATH, EDGES_D_PATH, EDGES_T_PATH, GRAPH_C_PATH, GRAPH_T_PATH, NODES_C_PATH,
-        NODES_T_PATH,
-    },
 };
 #[cfg(feature = "io")]
 use raphtory::{
@@ -24,6 +20,10 @@ use raphtory::{
         load_nodes_from_parquet,
     },
     prelude::{ParquetDecoder, ParquetEncoder},
+    serialise::parquet::{
+        EDGES_C_PATH, EDGES_D_PATH, EDGES_T_PATH, GRAPH_C_PATH, GRAPH_T_PATH, NODES_C_PATH,
+        NODES_T_PATH,
+    },
 };
 use raphtory_storage::core_ops::CoreGraphOps;
 use std::{
