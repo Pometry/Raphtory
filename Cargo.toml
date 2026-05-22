@@ -16,9 +16,7 @@ members = [
     "raphtory-tests",
     "raphtory-itertools",
     "clam-core",
-    "clam-core/snb",
-    "raphtory-itertools"
-, "raphtory-tests"]
+    "clam-core/snb"]
 default-members = ["raphtory"]
 exclude = ["optd"]
 resolver = "2"
