@@ -1,4 +1,5 @@
 .env
+types/
 
 # Logs
 logs
@@ -36,3 +37,7 @@ pyrightconfig.json
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Coverage
+/.nyc_output/
+/coverage/
