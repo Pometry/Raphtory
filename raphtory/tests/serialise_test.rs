@@ -1,11 +1,9 @@
 #[cfg(test)]
-#[cfg(feature = "proto")]
+#[cfg(feature = "io")]
 mod serialise_test {
-
     use arrow::{array::types::Int32Type, datatypes::UInt8Type};
     use chrono::{DateTime, NaiveDateTime};
     use itertools::Itertools;
-    #[cfg(feature = "proto")]
     use proptest::proptest;
     use raphtory::{
         db::{
