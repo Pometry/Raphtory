@@ -6,7 +6,15 @@ use raphtory::{
         api::view::{materialize_impl, MaterializedGraph},
         graph::graph::{assert_graph_equal_timestamps, graph_equal},
     },
+    parquet_encoder::{
+        DST_GID_COL, DST_VID_COL, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+    },
     prelude::{AdditionOps, DeletionOps, Graph, GraphViewOps, LayerOps, PropertyAdditionOps},
+    serialise::parquet::{
+        EDGES_C_PATH, EDGES_D_PATH, EDGES_T_PATH, GRAPH_C_PATH, GRAPH_T_PATH, NODES_C_PATH,
+        NODES_T_PATH,
+    },
 };
 #[cfg(feature = "io")]
 use raphtory::{
@@ -297,28 +305,6 @@ fn get_parquet_decode_time(
     parquet_decode_elapsed
 }
 
-// FIXME: Is there a way to safely import these from parquet/mod.rs?
-const RAP_NODE_ID_COL: &str = "rap_node_id";
-const RAP_NODE_VID_COL: &str = "rap_node_vid";
-const RAP_NODE_TYPE_COL: &str = "rap_node_type";
-const RAP_NODE_TYPE_ID_COL: &str = "rap_node_type_id";
-const RAP_TIME_COL: &str = "rap_time";
-const RAP_SECONDARY_INDEX_COL: &str = "rap_secondary_index";
-const RAP_SRC_ID_COL: &str = "rap_src_id";
-const RAP_DST_ID_COL: &str = "rap_dst_id";
-const RAP_SRC_VID_COL: &str = "rap_src_vid";
-const RAP_DST_VID_COL: &str = "rap_dst_vid";
-const RAP_EDGE_ID_COL: &str = "rap_edge_id";
-const RAP_LAYER_COL: &str = "rap_layer";
-const RAP_LAYER_ID_COL: &str = "rap_layer_id";
-const GRAPH_C_PARQUET_DIR: &str = "graph_c";
-const GRAPH_T_PARQUET_DIR: &str = "graph_t";
-const NODES_C_PARQUET_DIR: &str = "nodes_c";
-const NODES_T_PARQUET_DIR: &str = "nodes_t";
-const EDGES_T_PARQUET_DIR: &str = "edges_t";
-const EDGES_D_PARQUET_DIR: &str = "edges_d";
-const EDGES_C_PARQUET_DIR: &str = "edges_c";
-
 #[cfg(feature = "io")]
 fn parquet_prop_columns(path: &Path, exclude: &[&str]) -> Vec<String> {
     get_parquet_file_paths(path)
@@ -403,9 +389,9 @@ fn get_parquet_df_loader_time(
     println!("Starting SF10 parquet loader replay at {}", Local::now());
     let parquet_load_start = Instant::now();
 
-    let c_graph_path = parquet_path.join(GRAPH_C_PARQUET_DIR);
+    let c_graph_path = parquet_path.join(GRAPH_C_PATH);
     if c_graph_path.exists() {
-        let graph_c_metadata = parquet_prop_columns(&c_graph_path, &[RAP_TIME_COL]);
+        let graph_c_metadata = parquet_prop_columns(&c_graph_path, &[TIME_COL]);
         let graph_c_metadata = graph_c_metadata
             .iter()
             .map(String::as_str)
@@ -414,7 +400,7 @@ fn get_parquet_df_loader_time(
         load_graph_props_from_parquet(
             &replay_graph,
             &c_graph_path,
-            RAP_TIME_COL,
+            TIME_COL,
             None,
             &[],
             &graph_c_metadata,
@@ -429,17 +415,16 @@ fn get_parquet_df_loader_time(
         );
     }
 
-    let t_graph_path = parquet_path.join(GRAPH_T_PARQUET_DIR);
+    let t_graph_path = parquet_path.join(GRAPH_T_PATH);
     if t_graph_path.exists() {
-        let graph_t_props =
-            parquet_prop_columns(&t_graph_path, &[RAP_TIME_COL, RAP_SECONDARY_INDEX_COL]);
+        let graph_t_props = parquet_prop_columns(&t_graph_path, &[TIME_COL, SECONDARY_INDEX_COL]);
         let graph_t_props = graph_t_props.iter().map(String::as_str).collect::<Vec<_>>();
         let graph_t_start = Instant::now();
         load_graph_props_from_parquet(
             &replay_graph,
             &t_graph_path,
-            RAP_TIME_COL,
-            Some(RAP_SECONDARY_INDEX_COL),
+            TIME_COL,
+            Some(SECONDARY_INDEX_COL),
             &graph_t_props,
             &[],
             None,
@@ -453,17 +438,11 @@ fn get_parquet_df_loader_time(
         );
     }
 
-    let c_node_path = parquet_path.join(NODES_C_PARQUET_DIR);
+    let c_node_path = parquet_path.join(NODES_C_PATH);
     if c_node_path.exists() {
         let node_c_metadata = parquet_prop_columns(
             &c_node_path,
-            &[
-                RAP_NODE_ID_COL,
-                RAP_NODE_VID_COL,
-                RAP_NODE_TYPE_COL,
-                RAP_NODE_TYPE_ID_COL,
-                RAP_LAYER_COL,
-            ],
+            &[NODE_GID_COL, NODE_VID_COL, TYPE_COL, TYPE_ID_COL, LAYER_COL],
         );
         let node_c_metadata = node_c_metadata
             .iter()
@@ -473,11 +452,11 @@ fn get_parquet_df_loader_time(
         load_node_metadata_from_parquet(
             &replay_graph,
             &c_node_path,
-            RAP_NODE_ID_COL,
+            NODE_GID_COL,
             None,
-            Some(RAP_NODE_TYPE_COL),
-            Some(RAP_NODE_VID_COL),
-            Some(RAP_NODE_TYPE_ID_COL),
+            Some(TYPE_COL),
+            Some(NODE_VID_COL),
+            Some(TYPE_ID_COL),
             &node_c_metadata,
             None,
             None,
@@ -493,16 +472,16 @@ fn get_parquet_df_loader_time(
         );
     }
 
-    let t_node_path = parquet_path.join(NODES_T_PARQUET_DIR);
+    let t_node_path = parquet_path.join(NODES_T_PATH);
     if t_node_path.exists() {
         let node_t_props = parquet_prop_columns(
             &t_node_path,
             &[
-                RAP_NODE_ID_COL,
-                RAP_NODE_VID_COL,
-                RAP_NODE_TYPE_COL,
-                RAP_TIME_COL,
-                RAP_SECONDARY_INDEX_COL,
+                NODE_GID_COL,
+                NODE_VID_COL,
+                TYPE_COL,
+                TIME_COL,
+                SECONDARY_INDEX_COL,
             ],
         );
         let node_t_props = node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
@@ -510,9 +489,9 @@ fn get_parquet_df_loader_time(
         load_nodes_from_parquet(
             &replay_graph,
             &t_node_path,
-            RAP_TIME_COL,
-            Some(RAP_SECONDARY_INDEX_COL),
-            RAP_NODE_VID_COL,
+            TIME_COL,
+            Some(SECONDARY_INDEX_COL),
+            NODE_VID_COL,
             None,
             None,
             &node_t_props,
@@ -533,20 +512,20 @@ fn get_parquet_df_loader_time(
         );
     }
 
-    let t_edge_path = parquet_path.join(EDGES_T_PARQUET_DIR);
+    let t_edge_path = parquet_path.join(EDGES_T_PATH);
     if t_edge_path.exists() {
         let edge_t_props = parquet_prop_columns(
             &t_edge_path,
             &[
-                RAP_TIME_COL,
-                RAP_SECONDARY_INDEX_COL,
-                RAP_SRC_VID_COL,
-                RAP_SRC_ID_COL,
-                RAP_DST_VID_COL,
-                RAP_DST_ID_COL,
-                RAP_LAYER_COL,
-                RAP_LAYER_ID_COL,
-                RAP_EDGE_ID_COL,
+                TIME_COL,
+                SECONDARY_INDEX_COL,
+                SRC_VID_COL,
+                SRC_GID_COL,
+                DST_VID_COL,
+                DST_GID_COL,
+                LAYER_COL,
+                LAYER_ID_COL,
+                EDGE_COL_ID,
             ],
         );
         let edge_t_props = edge_t_props.iter().map(String::as_str).collect::<Vec<_>>();
@@ -555,14 +534,14 @@ fn get_parquet_df_loader_time(
             &replay_graph,
             &t_edge_path,
             ColumnNames::new(
-                RAP_TIME_COL,
-                Some(RAP_SECONDARY_INDEX_COL),
-                RAP_SRC_VID_COL,
-                RAP_DST_VID_COL,
-                Some(RAP_LAYER_COL),
+                TIME_COL,
+                Some(SECONDARY_INDEX_COL),
+                SRC_VID_COL,
+                DST_VID_COL,
+                Some(LAYER_COL),
             )
-            .with_layer_id_col(RAP_LAYER_ID_COL)
-            .with_edge_id_col(RAP_EDGE_ID_COL),
+            .with_layer_id_col(LAYER_ID_COL)
+            .with_edge_id_col(EDGE_COL_ID),
             false,
             &edge_t_props,
             &[],
@@ -579,21 +558,21 @@ fn get_parquet_df_loader_time(
         );
     }
 
-    let d_edge_path = parquet_path.join(EDGES_D_PARQUET_DIR);
+    let d_edge_path = parquet_path.join(EDGES_D_PATH);
     if d_edge_path.exists() {
         let edges_d_start = Instant::now();
         load_edge_deletions_from_parquet(
             &replay_graph,
             &d_edge_path,
             ColumnNames::new(
-                RAP_TIME_COL,
-                Some(RAP_SECONDARY_INDEX_COL),
-                RAP_SRC_VID_COL,
-                RAP_DST_VID_COL,
-                Some(RAP_LAYER_COL),
+                TIME_COL,
+                Some(SECONDARY_INDEX_COL),
+                SRC_VID_COL,
+                DST_VID_COL,
+                Some(LAYER_COL),
             )
-            .with_layer_id_col(RAP_LAYER_ID_COL)
-            .with_edge_id_col(RAP_EDGE_ID_COL),
+            .with_layer_id_col(LAYER_ID_COL)
+            .with_edge_id_col(EDGE_COL_ID),
             None,
             false,
             None,
@@ -607,17 +586,17 @@ fn get_parquet_df_loader_time(
         );
     }
 
-    let c_edge_path = parquet_path.join(EDGES_C_PARQUET_DIR);
+    let c_edge_path = parquet_path.join(EDGES_C_PATH);
     if c_edge_path.exists() {
         let edge_c_metadata = parquet_prop_columns(
             &c_edge_path,
             &[
-                RAP_SRC_VID_COL,
-                RAP_SRC_ID_COL,
-                RAP_DST_VID_COL,
-                RAP_DST_ID_COL,
-                RAP_LAYER_COL,
-                RAP_EDGE_ID_COL,
+                SRC_VID_COL,
+                SRC_GID_COL,
+                DST_VID_COL,
+                DST_GID_COL,
+                LAYER_COL,
+                EDGE_COL_ID,
             ],
         );
         let edge_c_metadata = edge_c_metadata
@@ -628,12 +607,12 @@ fn get_parquet_df_loader_time(
         load_edge_metadata_from_parquet(
             &replay_graph,
             &c_edge_path,
-            RAP_SRC_VID_COL,
-            RAP_DST_VID_COL,
+            SRC_VID_COL,
+            DST_VID_COL,
             &edge_c_metadata,
             None,
             None,
-            Some(RAP_LAYER_COL),
+            Some(LAYER_COL),
             None,
             None,
             false,
@@ -663,7 +642,7 @@ fn get_parquet_df_loader_time(
 #[cfg(feature = "io")]
 #[test]
 #[ignore = "requires locally persisted SNB SF10 graphs and parquet export"]
-fn test_current() {
+fn test_all() {
     let graph_path = default_sf10_graph_path();
     let parquet_path = default_sf10_parquet_path();
     let parquet_loader_graph_path = default_materialized_graphs_path().join("parquet_loader_sf10");

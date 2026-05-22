@@ -8,36 +8,22 @@ use raphtory::{
         get_parquet_file_paths, load_edge_metadata_from_parquet, load_edges_from_parquet,
         load_graph_props_from_parquet, load_node_metadata_from_parquet, load_nodes_from_parquet,
     },
+    parquet_encoder::{
+        DST_GID_COL, DST_VID_COL, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+    },
     prelude::*,
-    serialise::{StableDecode, StableEncode},
+    serialise::{
+        parquet::{
+            EDGES_C_PATH, EDGES_T_PATH, GRAPH_C_PATH, GRAPH_T_PATH, NODES_C_PATH, NODES_T_PATH,
+        },
+        StableDecode, StableEncode,
+    },
 };
 use std::{
     fs, io,
     path::{Path, PathBuf},
 };
-
-// These mirror the (currently `pub(crate)`) column-name constants in
-// `raphtory::parquet_encoder`. They MUST stay in sync with the encoder.
-const NODE_GID_COL: &str = "rap_node_gid";
-const NODE_VID_COL: &str = "rap_node_vid";
-const TYPE_COL: &str = "rap_node_type";
-const TYPE_ID_COL: &str = "rap_node_type_id";
-const TIME_COL: &str = "rap_time";
-const SECONDARY_INDEX_COL: &str = "rap_secondary_index";
-const SRC_VID_COL: &str = "rap_src_vid";
-const SRC_GID_COL: &str = "rap_src_gid";
-const DST_VID_COL: &str = "rap_dst_vid";
-const DST_GID_COL: &str = "rap_dst_gid";
-const LAYER_COL: &str = "rap_layer";
-const LAYER_ID_COL: &str = "rap_layer_id";
-const EDGE_ID_COL: &str = "rap_edge_id";
-
-const GRAPH_C_DIR: &str = "graph_c";
-const GRAPH_T_DIR: &str = "graph_t";
-const NODES_C_DIR: &str = "nodes_c";
-const NODES_T_DIR: &str = "nodes_t";
-const EDGES_C_DIR: &str = "edges_c";
-const EDGES_T_DIR: &str = "edges_t";
 
 fn bench_data_dir() -> PathBuf {
     // raphtory/Cargo.toml -> raphtory dir -> Raphtory root -> graphql-bench/data/apache
@@ -89,7 +75,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
     let graph = Graph::new();
 
     // ---- graph_c ----
-    let c_graph_path = parquet_dir.join(GRAPH_C_DIR);
+    let c_graph_path = parquet_dir.join(GRAPH_C_PATH);
     if c_graph_path.exists() {
         let metadata_cols = parquet_prop_columns(&c_graph_path, &[TIME_COL]);
         let metadata_cols: Vec<&str> = metadata_cols.iter().map(String::as_str).collect();
@@ -107,7 +93,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
     }
 
     // ---- graph_t ----
-    let t_graph_path = parquet_dir.join(GRAPH_T_DIR);
+    let t_graph_path = parquet_dir.join(GRAPH_T_PATH);
     if t_graph_path.exists() {
         let prop_cols = parquet_prop_columns(&t_graph_path, &[TIME_COL, SECONDARY_INDEX_COL]);
         let prop_cols: Vec<&str> = prop_cols.iter().map(String::as_str).collect();
@@ -130,7 +116,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
     // Resolve by GID (not by the parquet's original VID column) so the new
     // graph gets dense, contiguous VIDs. Passing `node_id_col`/`node_type_id_col`
     // = None forces GID-based resolution inside the loader.
-    let c_node_path = parquet_dir.join(NODES_C_DIR);
+    let c_node_path = parquet_dir.join(NODES_C_PATH);
     if c_node_path.exists() {
         let metadata_cols = parquet_prop_columns(
             &c_node_path,
@@ -156,7 +142,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
     }
 
     // ---- nodes_t ----
-    let t_node_path = parquet_dir.join(NODES_T_DIR);
+    let t_node_path = parquet_dir.join(NODES_T_PATH);
     if t_node_path.exists() {
         // exclude rap_layer{,_id} as well as the obvious meta columns, they're currently null/0 values.
         let prop_cols = parquet_prop_columns(
@@ -195,7 +181,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
 
     // ---- edges_t ----
     // Reference src/dst by GID so the loader looks the nodes up by name.
-    let t_edge_path = parquet_dir.join(EDGES_T_DIR);
+    let t_edge_path = parquet_dir.join(EDGES_T_PATH);
     if t_edge_path.exists() {
         let prop_cols = parquet_prop_columns(
             &t_edge_path,
@@ -208,7 +194,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
                 DST_GID_COL,
                 LAYER_COL,
                 LAYER_ID_COL,
-                EDGE_ID_COL,
+                EDGE_COL_ID,
             ],
         );
         let prop_cols: Vec<&str> = prop_cols.iter().map(String::as_str).collect();
@@ -237,7 +223,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
     // skipped: master is an event graph and has no deletions.
 
     // ---- edges_c ----
-    let c_edge_path = parquet_dir.join(EDGES_C_DIR);
+    let c_edge_path = parquet_dir.join(EDGES_C_PATH);
     if c_edge_path.exists() {
         let metadata_cols = parquet_prop_columns(
             &c_edge_path,
@@ -247,7 +233,7 @@ fn load_graphql_master_from_parquet_loaders(parquet_dir: &Path) -> Graph {
                 DST_VID_COL,
                 DST_GID_COL,
                 LAYER_COL,
-                EDGE_ID_COL,
+                EDGE_COL_ID,
             ],
         );
         let metadata_cols: Vec<&str> = metadata_cols.iter().map(String::as_str).collect();
