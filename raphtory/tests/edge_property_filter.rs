@@ -131,7 +131,7 @@ fn test_filter() {
 }
 
 #[test]
-fn test_filter_gt() {
+fn test_filter_gt_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), v in any::<i64>()
     )| {
@@ -150,7 +150,7 @@ fn test_filter_gt() {
 }
 
 #[test]
-fn test_filter_ge() {
+fn test_filter_ge_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), v in any::<i64>()
     )| {
@@ -169,7 +169,7 @@ fn test_filter_ge() {
 }
 
 #[test]
-fn test_filter_lt() {
+fn test_filter_lt_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), v in any::<i64>()
     )| {
@@ -188,7 +188,7 @@ fn test_filter_lt() {
 }
 
 #[test]
-fn test_filter_le() {
+fn test_filter_le_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), v in any::<i64>()
     )| {
@@ -207,7 +207,7 @@ fn test_filter_le() {
 }
 
 #[test]
-fn test_filter_eq() {
+fn test_filter_eq_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), v in any::<i64>()
     )| {
@@ -226,7 +226,7 @@ fn test_filter_eq() {
 }
 
 #[test]
-fn test_filter_ne() {
+fn test_filter_ne_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), v in any::<i64>()
     )| {
@@ -245,7 +245,7 @@ fn test_filter_ne() {
 }
 
 #[test]
-fn test_graph_materialise_window() {
+fn test_graph_materialise_window_proptest() {
     proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
         let g = build_graph_from_edge_list(&edges);
         for (src, dst, t) in edge_deletions {
@@ -292,7 +292,7 @@ fn check_persistent_graph_mat_window(
 }
 
 #[test]
-fn test_persistent_graph_materialise_window() {
+fn test_persistent_graph_materialise_window_proptest() {
     proptest!(|(edges in build_edge_list(100, 100), edge_deletions in build_edge_deletions(100, 100), v in any::<i64>(), (start, end) in build_window())| {
         check_persistent_graph_mat_window(&edges, edge_deletions, v, (start, end));
     })

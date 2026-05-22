@@ -82,7 +82,7 @@ fn test_mask_the_window_50pc() {
 }
 
 #[test]
-fn masked_always_equals() {
+fn masked_always_equals_proptest() {
     fn check(edge_list: &[(u8, u8, i16, u8)]) {
         let graph = Graph::new();
         for (src, dst, ts, layer) in edge_list {

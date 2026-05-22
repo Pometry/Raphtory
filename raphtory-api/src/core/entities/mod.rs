@@ -708,7 +708,7 @@ mod tests {
     use std::char::MAX;
 
     #[test]
-    fn test_elid_layer() {
+    fn test_elid_layer_proptest() {
         proptest!(|(eid in 0..=MAX_EID, layer in 0..=usize::MAX)| {
             let elid = EID(eid).with_layer(LayerId(layer));
             prop_assert_eq!(elid.layer(), LayerId(layer));
@@ -722,7 +722,7 @@ mod tests {
     }
 
     #[test]
-    fn test_elid_deletion() {
+    fn test_elid_deletion_proptest() {
         proptest!(|(eid in 0..=MAX_EID, layer in 0..=usize::MAX)| {
             let elid = EID(eid).with_layer_deletion(LayerId(layer));
             prop_assert_eq!(elid.layer(), LayerId(layer));

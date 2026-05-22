@@ -62,7 +62,7 @@ fn test_graph_properties() {
 }
 
 #[test]
-fn materialize_prop_test() {
+fn materialize_proptest() {
     proptest!(|(edges in build_edge_list(100, 100), w in any::<Range<i64>>())| {
         let g = build_graph_from_edge_list(&edges);
         test_storage!(&g, |g| {

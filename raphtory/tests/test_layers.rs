@@ -10,7 +10,7 @@ use raphtory_api::core::entities::GID;
 use serde_json::json;
 
 #[test]
-fn prop_test_layering() {
+fn proptest_layering() {
     proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, false), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
         let g_layer_expected = Graph::from(build_graph_layer(&graph_f, &layer));
         let g = Graph::from(build_graph(&graph_f));
@@ -64,7 +64,7 @@ fn test_failure3() {
 }
 
 #[test]
-fn prop_test_layering_persistent_graph() {
+fn proptest_layering_persistent_graph() {
     proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), layer in proptest::sample::subsequence(&["_default", "a", "b"], 0..3))| {
         let g_layer_expected = PersistentGraph::from(build_graph_layer(&graph_f, &layer));
         let g = PersistentGraph::from(build_graph(&graph_f));
