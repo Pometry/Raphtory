@@ -1,8 +1,7 @@
 use crate::db::api::{
     properties::internal::{
-        EdgePropertySchemaOps, InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps,
-        InheritTemporalPropertyViewOps, InternalMetadataOps, InternalTemporalPropertiesOps,
-        NodePropertySchemaOps,
+        EdgePropertySchemaOps, InheritTemporalPropertyViewOps, InternalMetadataOps,
+        InternalTemporalPropertiesOps, NodePropertySchemaOps,
     },
     view::{
         internal::{

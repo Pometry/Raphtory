@@ -80,7 +80,7 @@ impl NodeFilter {
         V: NodeStateValue + 'graph,
         T: Clone + Send + Sync + 'graph,
     {
-        Ok(state.bool_col_filter(col)?)
+        state.bool_col_filter(col)
     }
 }
 
