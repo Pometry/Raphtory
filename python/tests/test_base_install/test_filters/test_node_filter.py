@@ -1,4 +1,5 @@
-from raphtory import filter
+from raphtory import filter, Prop
+from filters_setup import init_graph, init_graph2, init_graph_degree_filter, create_test_graph
 from filters_setup import init_graph, init_graph2, create_test_graph
 from utils import with_variants
 import pytest
@@ -447,3 +448,116 @@ def test_filter_nodes_by_column():
 
     result_ids = sorted(graph.nodes[filter_expr].id)
     assert result_ids == expected_ids
+
+def _node_degree(node, direction):
+    if direction == "in":
+        return node.in_degree()
+    if direction == "out":
+        return node.out_degree()
+    return node.degree()
+
+
+def _filtered_degree_ids(graph, filter_expr):
+    return sorted(graph.filter(filter_expr).nodes.id)
+
+
+def _expected_degree_ids(graph, direction, predicate):
+    return sorted([n.id for n in graph.nodes if predicate(_node_degree(n, direction))])
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_eq():
+    def check(graph):
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction) == Prop.u64(2)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree == 2)
+            assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_ne():
+    def check(graph):
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction) != Prop.u64(2)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree != 2)
+            assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_gt():
+    def check(graph):
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction) > Prop.u64(2)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree > 2)
+            assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_lt():
+    def check(graph):
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction) < Prop.u64(2)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree < 2)
+            assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_ge():
+    def check(graph):
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction) >= Prop.u64(2)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree >= 2)
+            assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_le():
+    def check(graph):
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction) <= Prop.u64(2)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree <= 2)
+            assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_is_in():
+    def check(graph):
+        allowed = [Prop.u64(1), Prop.u64(2)]
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction).is_in(allowed)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree in [1, 2])
+            assert result_ids == expected_ids
+
+    return check
+
+
+@with_disk_variants(init_graph_degree_filter)
+def test_filter_nodes_by_degree_is_not_in():
+    def check(graph):
+        blocked = [Prop.u64(1), Prop.u64(2)]
+        for direction in ["in", "out", "both"]:
+            filter_expr = filter.Node.degree(direction).is_not_in(blocked)
+            result_ids = _filtered_degree_ids(graph, filter_expr)
+            expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree not in [1, 2])
+            assert result_ids == expected_ids
+
+    return check

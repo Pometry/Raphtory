@@ -830,3 +830,20 @@ def create_test_graph3(g):
         "fire_nation",
     )
     return g
+
+def init_graph_degree_filter(graph):
+    graph.add_node(0, 1)
+    graph.add_node(0, 2)
+    graph.add_node(0, 3)
+    graph.add_node(0, 4)
+    graph.add_node(0, 5)
+
+    graph.add_edge(0, 1, 2)
+    graph.add_edge(0, 1, 3)
+    graph.add_edge(0, 2, 3)
+    graph.add_edge(0, 3, 4)
+    graph.add_edge(0, 3, 5)
+    graph.add_edge(0, 4, 1)
+    graph.add_edge(0, 5, 1)
+
+    return graph
