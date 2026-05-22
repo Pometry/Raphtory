@@ -87,7 +87,6 @@ tantivy = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
-bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
@@ -150,7 +149,6 @@ vectors = [
     "dep:futures-util",
     "dep:async-trait",
     "dep:async-openai",
-    "dep:bincode",
     "dep:minijinja",
     "dep:minijinja-contrib",
     "raphtory-api/template",
