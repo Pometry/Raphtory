@@ -1,12 +1,14 @@
 use crate::{
     auth::ContextValidation,
-    auth_policy::{AuthorizationPolicy, GraphPermission, NamespacePermission},
+    auth_policy::{AuthorizationPolicy, GraphPermission},
     config::app_config::AppConfig,
     graph::GraphWithVectors,
     model::{
         blocking_io,
         graph::{
             filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            namespace::Namespace,
+            namespaced_item::NamespacedItem,
             vectorised_graph::GqlVectorisedGraph,
         },
     },
@@ -229,6 +231,12 @@ impl Data {
         }
     }
 
+    /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
+    /// so callers can enumerate descendants via `get_all_children()`.
+    pub fn get_namespace(&self, ns_path: &str) -> Result<Namespace, PathValidationError> {
+        Namespace::try_new(self.work_dir.clone(), ns_path.to_string())
+    }
+
     /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
     /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
     /// `get_graph_with_write_permission` instead.
@@ -323,6 +331,62 @@ impl Data {
         Ok(())
     }
 
+    pub async fn delete_namespace(
+        &self,
+        path: &str,
+        descendants: &Vec<NamespacedItem>,
+    ) -> Result<(), DeletionError> {
+        if path.is_empty() {
+            return Err(DeletionError::PathValidation(
+                PathValidationError::EmptyPath,
+            ));
+        }
+        let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
+        let root = namespace.current_dir().to_path_buf();
+        let dirty_file = mark_dirty(&root).map_err(|err| {
+            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        for item in descendants {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.invalidate(g.local_path()).await;
+                self.cache.remove(g.local_path()).await;
+            }
+        }
+        blocking_io(move || {
+            fs::remove_dir_all(&root)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| DeletionError::from_inner(path, err))?;
+        Ok(())
+    }
+
+    pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
+        let target = crate::paths::validate_path_for_namespace_create(self.work_dir.clone(), path)?;
+        let mut cleanup_root = target.as_path();
+        while let Some(parent) = cleanup_root.parent() {
+            if parent.is_dir() {
+                break;
+            }
+            cleanup_root = parent;
+        }
+        let dirty_file = mark_dirty(cleanup_root).map_err(|err| {
+            InsertionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        blocking_io(move || {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::create_dir(&target)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| InsertionError::from_inner(path, err))?;
+        Ok(())
+    }
+
     async fn vectorise_with_template(
         &self,
         graph: MaterializedGraph,
@@ -404,10 +468,10 @@ pub(crate) enum PermissionError {
     GraphNotFound,
     /// Caller has introspect-only access; cannot read graph data.
     #[error(
-        "Access denied: role '{role}' has introspect-only access to graph '{graph}' — \
+        "Access denied: introspect-only access to graph '{graph}' — \
          use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs"
     )]
-    IntrospectOnly { role: String, graph: String },
+    IntrospectOnly { graph: String },
     /// Caller has read-only access but the operation requires write.
     #[error("Access denied: WRITE permission required for graph '{graph}'")]
     GraphWriteRequired { graph: String },
@@ -447,16 +511,11 @@ fn require_at_least_read(
     path: &str,
 ) -> async_graphql::Result<GraphPermission> {
     if let Some(policy) = policy {
-        let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
         return match policy.graph_permissions(ctx, path) {
             Err(msg) => {
-                warn!(
-                    role = role.unwrap_or("<no role>"),
-                    graph = path,
-                    "Access denied by auth policy"
-                );
+                warn!(graph = path, "Access denied by auth policy");
                 let ns = parent_namespace(path);
-                if policy.namespace_permissions(ctx, ns) >= NamespacePermission::Introspect {
+                if policy.namespace_permissions(ctx, ns).is_some() {
                     Err(msg.into())
                 } else {
                     Err(PermissionError::GraphNotFound.into())
@@ -467,12 +526,10 @@ fn require_at_least_read(
                     Ok(p)
                 } else {
                     warn!(
-                        role = role.unwrap_or("<no role>"),
                         graph = path,
                         "Introspect-only access — graph() denied; use graphMetadata() instead"
                     );
                     Err(PermissionError::IntrospectOnly {
-                        role: role.unwrap_or("<no role>").to_string(),
                         graph: path.to_string(),
                     }
                     .into())

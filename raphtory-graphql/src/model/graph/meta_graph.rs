@@ -19,7 +19,7 @@ use tokio::sync::OnceCell;
 /// Useful for listing what's available on the server before committing to a
 /// full load.
 #[derive(ResolvedObject, Clone)]
-pub(crate) struct MetaGraph {
+pub struct MetaGraph {
     folder: ExistingGraphFolder,
     meta: Arc<OnceCell<GraphMetadata>>,
 }
@@ -52,7 +52,7 @@ impl MetaGraph {
         }
     }
 
-    pub(crate) fn local_path(&self) -> &str {
+    pub fn local_path(&self) -> &str {
         self.folder.local_path()
     }
 

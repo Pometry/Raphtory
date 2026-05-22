@@ -1,5 +1,5 @@
 use crate::{
-    auth::ContextValidation,
+    auth::{Access, ContextValidation},
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     graph::GraphWithVectors,
@@ -114,6 +114,20 @@ pub enum GqlGraphError {
     FailedToCreateDir(String),
 }
 
+/// Auto-grants Write on `path` for the creator's role after a graph is created.
+/// Returns an error if the grant fails so the caller can roll back the graph.
+/// No-op when there is no active auth policy; identity checks are delegated to the policy.
+fn auto_grant_on_create(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) -> async_graphql::Result<()> {
+    if let Some(policy) = policy {
+        policy.on_graph_created(ctx, path)?;
+    }
+    Ok(())
+}
+
 fn require_namespace_write(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
@@ -124,7 +138,7 @@ fn require_namespace_write(
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {
-            if p.namespace_permissions(ctx, ns_path) < NamespacePermission::Write {
+            if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
                 return Err(PermissionError::NamespaceWriteRequired {
                     namespace: ns_path.to_string(),
                     graph: new_path.to_string(),
@@ -282,7 +296,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir.clone());
         let list = blocking_compute(move || {
-            root.get_all_children()
+            root.self_and_all_children()
                 .filter_map(|child| match child {
                     NamespacedItem::Namespace(item) => Some(item),
                     NamespacedItem::MetaGraph(_) => None,
@@ -391,6 +405,10 @@ impl Mut {
         };
 
         data.insert_graph(folder, graph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
@@ -439,6 +457,10 @@ impl Mut {
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
         data.insert_graph(folder, src.graph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
+            let _ = data.delete_graph(new_path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
@@ -460,6 +482,10 @@ impl Mut {
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(path)
     }
@@ -490,7 +516,71 @@ impl Mut {
         })
         .await?;
         data.insert_graph(folder, g).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, path) {
+            let _ = data.delete_graph(path).await;
+            return Err(e);
+        }
         Ok(path.to_owned())
+    }
+
+    /// Create an empty namespace at `path`.
+    ///
+    /// Creates any missing parent namespaces along the way. Requires WRITE
+    /// permission on the parent namespace. Rejects paths that already host a
+    /// graph or an existing namespace, and paths that fail validation.
+    ///
+    /// Returns:: the path of the created namespace
+    async fn create_namespace<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, ns, path, "create")?;
+        data.create_namespace(path).await?;
+        Ok(path.to_string())
+    }
+
+    /// Delete a namespace and all of its descendants (graphs and sub-namespaces).
+    ///
+    /// Requires WRITE permission on the parent namespace, on the namespace
+    /// itself, and on every descendant graph and sub-namespace. Cached graphs
+    /// at any deleted path are invalidated. Rejects empty and non-existent
+    /// paths.
+    ///
+    /// Returns:: true on success
+    async fn delete_namespace<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Path to delete relative to the root namespace.")] path: &str,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let parent_ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, parent_ns, path, "delete")?;
+        require_namespace_write(ctx, &data.auth_policy, path, path, "delete")?;
+
+        let namespace = Namespace::try_new(data.work_dir.clone(), path.to_string())?;
+        let ns_clone = namespace.clone();
+        let descendants: Vec<NamespacedItem> =
+            blocking_compute(move || ns_clone.get_all_children().collect()).await;
+        for item in &descendants {
+            match item {
+                NamespacedItem::Namespace(n) => {
+                    require_namespace_write(
+                        ctx,
+                        &data.auth_policy,
+                        n.relative_path(),
+                        path,
+                        "delete",
+                    )?;
+                }
+                NamespacedItem::MetaGraph(g) => {
+                    require_graph_write(ctx, &data.auth_policy, g.local_path())?;
+                }
+            }
+        }
+
+        data.delete_namespace(path, &descendants).await?;
+        Ok(true)
     }
 
     /// Returns a subgraph given a set of nodes from an existing graph in the server.
@@ -524,6 +614,10 @@ impl Mut {
         .await?;
 
         data.insert_graph(folder, new_subgraph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
+            let _ = data.delete_graph(&new_path).await;
+            return Err(e);
+        }
         Ok(new_path)
     }
 
