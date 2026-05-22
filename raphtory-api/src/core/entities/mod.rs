@@ -388,16 +388,6 @@ pub enum GidRef<'a> {
     Str(&'a str),
 }
 
-impl ToOwned for GidRef<'_> {
-    type Owned = GID;
-    fn to_owned(&self) -> Self::Owned {
-        match self {
-            GidRef::U64(u) => GID::U64(*u),
-            GidRef::Str(s) => GID::Str(s.to_string()),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Serialize, Deserialize)]
 pub enum GidCow<'a> {
     U64(u64),
