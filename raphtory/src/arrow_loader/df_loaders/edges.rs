@@ -24,13 +24,12 @@ use bytemuck::checked::cast_slice_mut;
 use db4_graph::WriteLockedGraph;
 use either::Either;
 use itertools::{izip, Itertools};
-use raphtory_api::core::entities::GidType;
 use raphtory_api::{
     atomic_extra::{atomic_usize_from_mut_slice, atomic_vid_from_mut_slice},
     core::{
         entities::{
             properties::{meta::STATIC_GRAPH_LAYER_ID, prop::AsPropRef},
-            LayerId, EID,
+            GidType, LayerId, EID,
         },
         storage::{dict_mapper::MaybeNew, timeindex::EventTime},
     },
@@ -500,7 +499,7 @@ enum NodeResolveCache {
 impl NodeResolveCache {
     fn new(chunk_rows: usize, gid_type: GidType) -> Self {
         let num_cores = std::thread::available_parallelism().unwrap().get();
-        let rows_per_shard = chunk_rows.max(num_cores) / num_cores;
+        let rows_per_shard = chunk_rows.max(100_000);
         match gid_type {
             GidType::U64 => {
                 let mut caches = Vec::with_capacity(num_cores);
@@ -530,6 +529,29 @@ impl NodeResolveCache {
             NodeResolveCache::Str { len, .. } | NodeResolveCache::U64 { len, .. } => *len,
         }
     }
+
+    fn print_stats(&self) {
+        match self {
+            NodeResolveCache::U64 { caches, .. } => {
+                let (h, m) = (caches.iter().map(|c| (c.hits(), c.misses())))
+                    .reduce(|(h1, m1), (h2, m2)| (h1 + h2, m1 + m2))
+                    .unwrap_or((0, 0));
+                println!(
+                    "hits: {h}, misses: {m}, ratio: {}",
+                    h as f64 / (((h + m) as f64) + f64::EPSILON)
+                )
+            }
+            NodeResolveCache::Str { caches, .. } => {
+                let (h, m) = (caches.iter().map(|c| (c.hits(), c.misses())))
+                    .reduce(|(h1, m1), (h2, m2)| (h1 + h2, m1 + m2))
+                    .unwrap_or((0, 0));
+                println!(
+                    "hits: {h}, misses: {m}, ratio: {}",
+                    h as f64 / (((h + m) as f64) + f64::EPSILON)
+                )
+            }
+        }
+    }
 }
 
 impl NodeResolveCache {
@@ -537,7 +559,6 @@ impl NodeResolveCache {
         &'b mut self,
         g: &'b G,
     ) -> impl ParallelIterator<Item = LockedCacheShard<'b, G>> {
-        let len = self.len();
         match self {
             NodeResolveCache::U64 { len, caches } => {
                 let iter = caches
@@ -592,7 +613,10 @@ impl<'b, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> LockedCacheS
             ) => match cache.get_ref_or_guard(&gid) {
                 Ok(vid) => Ok(*vid),
                 Err(guard) => {
-                    let vid = unsafe { g.bulk_load_resolve_node(GidRef::U64(gid)).map_err(into_graph_err)? };
+                    let vid = unsafe {
+                        g.bulk_load_resolve_node(GidRef::U64(gid))
+                            .map_err(into_graph_err)?
+                    };
                     guard.insert(vid);
                     Ok(vid)
                 }
@@ -607,7 +631,10 @@ impl<'b, G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> LockedCacheS
             ) => match cache.get_ref_or_guard(gid) {
                 Ok(vid) => Ok(*vid),
                 Err(guard) => {
-                    let vid = unsafe { g.bulk_load_resolve_node(GidRef::Str(gid)).map_err(into_graph_err)? };
+                    let vid = unsafe {
+                        g.bulk_load_resolve_node(GidRef::Str(gid))
+                            .map_err(into_graph_err)?
+                    };
                     guard.insert(vid);
                     Ok(vid)
                 }
@@ -650,27 +677,29 @@ fn resolve_node_vids_with_quick_cache<
     let atomic_src_col = atomic_vid_from_mut_slice(src_col_resolved);
     let atomic_dst_col = atomic_vid_from_mut_slice(dst_col_resolved);
 
-    locked_node_cache.par_iter_mut(graph).try_for_each(|mut shard| {
-        let iter = izip!(
-            src_col.iter(),
-            dst_col.iter(),
-            atomic_src_col.iter(),
-            atomic_dst_col.iter()
-        );
+    locked_node_cache
+        .par_iter_mut(graph)
+        .try_for_each(|mut shard| {
+            let iter = izip!(
+                src_col.iter(),
+                dst_col.iter(),
+                atomic_src_col.iter(),
+                atomic_dst_col.iter()
+            );
 
-        for (src, dst, src_vid, dst_vid) in iter {
-            if shard.is_in_shard(src) {
-                let vid = shard.resolve(src)?;
-                src_vid.store(vid.0, Ordering::Relaxed);
-            }
+            for (src, dst, src_vid, dst_vid) in iter {
+                if shard.is_in_shard(src) {
+                    let vid = shard.resolve(src)?;
+                    src_vid.store(vid.0, Ordering::Relaxed);
+                }
 
-            if shard.is_in_shard(dst) {
-                let vid = shard.resolve(dst)?;
-                dst_vid.store(vid.0, Ordering::Relaxed);
+                if shard.is_in_shard(dst) {
+                    let vid = shard.resolve(dst)?;
+                    dst_vid.store(vid.0, Ordering::Relaxed);
+                }
             }
-        }
-        Ok::<_, GraphError>(())
-    })?;
+            Ok::<_, GraphError>(())
+        })?;
 
     let node_ids = src_col
         .iter()
