@@ -2,14 +2,13 @@ use crate::{
     db::{
         api::{
             state::{
-                ops::{Const, IntoDynNodeOp, NodeOp, TypeId},
-                Index,
+                Index, ops::{Const, IntoDynNodeOp, NodeOp, TypeId}
             },
             view::internal::{GraphView, NodeList},
         },
         graph::{
             create_node_type_filter,
-            views::filter::model::{degree_filter::DegreeFilter, filter::Filter, node_filter::NodeFilter}, 
+            views::filter::model::{FilterOperator, degree_filter::DegreeFilter, filter::{Filter, FilterValue}, node_filter::NodeFilter}, 
         },
     },
     prelude::{GraphViewOps, PropertyFilter},

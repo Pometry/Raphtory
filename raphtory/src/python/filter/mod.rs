@@ -20,6 +20,7 @@ use pyo3::{
 };
 use raphtory_api::core::entities::Layer;
 
+pub mod degree_filter_builder;
 pub mod edge_filter_builders;
 pub mod exploded_edge_filter_builder;
 pub mod filter_expr;

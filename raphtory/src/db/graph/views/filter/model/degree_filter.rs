@@ -1,3 +1,6 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+
 use raphtory_api::core::entities::properties::prop::PropType;
 use raphtory_api::core::{Direction, entities::properties::prop::Prop};
 use raphtory_core::entities::{VID};
@@ -127,8 +130,13 @@ where
     }
 
     fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        let value = match filter.prop_value {
+           PropertyFilterValue::Single(ref prop_val) => PropertyFilterValue::Single(prop_val.clone().try_cast(PropType::U64).unwrap_or(prop_val.clone())),
+           PropertyFilterValue::Set(ref prop_vals) => PropertyFilterValue::Set(Arc::new(prop_vals.iter().map(|val| val.clone().try_cast(PropType::U64).unwrap_or(val.clone())).collect::<HashSet<Prop>>())),
+           PropertyFilterValue::None => PropertyFilterValue::None
+        };  
         DegreeFilter {
-             value: filter.prop_value,
+             value,
              direction: self.direction,
              operator: filter.operator 
         }

@@ -1661,6 +1661,7 @@ mod test_node_filter {
                 },
                 views::filter::model::{
                     node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+                    property_filter::ops::PropertyFilterOps,
                     ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
                     ViewWrapOps, degree_filter::DegreeFilterFactory
                 },
@@ -1675,17 +1676,20 @@ mod test_node_filter {
         assert_filter_nodes_results, assert_search_nodes_results, assert_select_nodes_results,
         TestVariants,
     };
+    use raphtory_api::core::Direction;
+    use raphtory_core::entities::VID;
+    use raphtory::prelude::Prop;
     use proptest::{prop_assert_eq, proptest};
 
 
      fn init_degree_graph(graph: Graph) -> Graph {
         // Add nodes
-        graph.add_node(0, "1", NO_PROPS, None).unwrap();
-        graph.add_node(0, "2", NO_PROPS, None).unwrap();
-        graph.add_node(0, "3", NO_PROPS, None).unwrap();
-        graph.add_node(0, "4", NO_PROPS, None).unwrap();
-        graph.add_node(0, "5", NO_PROPS, None).unwrap();
-        graph.add_node(0, "6", NO_PROPS, None).unwrap();
+        graph.add_node(0, "1", NO_PROPS, None, None).unwrap();
+        graph.add_node(0, "2", NO_PROPS, None, None).unwrap();
+        graph.add_node(0, "3", NO_PROPS, None, None).unwrap();
+        graph.add_node(0, "4", NO_PROPS, None, None).unwrap();
+        graph.add_node(0, "5", NO_PROPS, None, None).unwrap();
+        graph.add_node(0, "6", NO_PROPS, None, None).unwrap();
 
         // Add edges
         let edges = [

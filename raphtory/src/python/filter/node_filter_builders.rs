@@ -21,7 +21,8 @@ use crate::{
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime, Direction};
+use crate::python::filter::degree_filter_builder::degree_builder;
 use std::sync::Arc;
 
 /// Filters nodes by their ID value.
@@ -397,6 +398,21 @@ impl PyNodeFilter {
     #[staticmethod]
     fn node_type() -> PyNodeTypeFilterBuilder {
         PyNodeTypeFilterBuilder(Arc::new(NodeFilter::node_type()))
+    }
+
+    /// Selects node degree for filtering in a given direction.
+    ///
+    /// Arguments:
+    ///     direction (Direction): Degree direction (`IN`, `OUT`, or `BOTH`).
+    ///
+    /// Returns:
+    ///     filter.FilterOps
+    #[staticmethod]
+    fn degree<'py>(
+        py: Python<'py>,
+        direction: raphtory_api::core::Direction,
+    ) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
+        degree_builder(py, direction)
     }
 
     /// Filters a node property by name.
