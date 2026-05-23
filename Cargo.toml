@@ -78,6 +78,7 @@ tikv-jemallocator = "0.6.1"
 reqwest = { version = "0.13.3", default-features = false, features = [
     "multipart",
     "json",
+    "rustls",
 ] }
 boxcar = "0.2.14"
 iter-enum = { version = "1.2.1", features = ["rayon"] }
