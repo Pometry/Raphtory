@@ -13,7 +13,7 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{AsPropRef, Prop, PropType},
         },
-        GidRef, LayerId, EID, VID,
+        GidRef, LayerId, LayerIds, EID, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
@@ -69,8 +69,6 @@ pub struct Storage {
 #[cfg(feature = "io")]
 impl Drop for Storage {
     fn drop(&mut self) {
-        use crate::serialise::metadata::refresh_disk_graph_metadata;
-        use raphtory_api::core::entities::LayerIds;
         if let Some(disk_path) = self.graph.disk_storage_path() {
             let disk_path = disk_path.to_path_buf();
             let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
@@ -78,7 +76,7 @@ impl Drop for Storage {
             // Drop must not panic - ignore any error refreshing the metadata
             // file. The graph data itself is already persisted by the storage
             // layer so a stale `.meta` only affects node and edge counts (for now).
-            let _ = refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
+            let _ = storage::refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
         }
     }
 }

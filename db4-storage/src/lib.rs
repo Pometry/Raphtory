@@ -230,3 +230,12 @@ pub fn read_constant_graph_properties(
 > {
     Ok(Vec::new())
 }
+
+/// No-op shim for when we have db4-storage instead of db4-disk-storage
+pub fn refresh_disk_graph_metadata(
+    _disk_graph_path: &Path,
+    _node_count: usize,
+    _edge_count: usize,
+) -> Result<(), error::StorageError> {
+    Ok(())
+}
