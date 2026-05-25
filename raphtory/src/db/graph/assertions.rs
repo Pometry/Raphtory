@@ -2,7 +2,7 @@ use crate::{
     db::api::view::{filter_ops::Filter, StaticGraphViewOps},
     prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
-use std::ops::Range;
+use std::{ops::Range, thread, time::Duration};
 
 #[cfg(feature = "search")]
 pub use crate::db::api::view::SearchableGraphOps;
@@ -395,6 +395,8 @@ fn assert_results(
     }
 
     let graph = init_graph(Graph::new());
+
+    thread::sleep(Duration::from_secs(3));
 
     let expected = sorted(expected.iter());
 
