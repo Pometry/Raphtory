@@ -167,21 +167,20 @@ impl EntityIndex {
             let indexes = self.temporal_property_indexes.read_recursive();
             if let Some(prop_index) = &indexes[prop_id] {
                 let mut writer = prop_index.index.writer(50_000_000)?;
-                (0..graph.count_nodes())
-                    .into_par_iter()
-                    .try_for_each(|v_id| {
-                        let node = graph.core_node(VID(v_id));
-                        for (t, prop_value) in node.tprop(prop_id).iter() {
-                            let prop_doc = prop_index.create_node_temporal_property_document(
-                                t.into(),
-                                v_id as u64,
-                                &prop_value,
-                            )?;
-                            writer.add_document(prop_doc)?;
-                        }
+                graph.nodes().par_iter().try_for_each(|node| {
+                    let v_id = node.vid();
+                    let node = graph.core_node(v_id);
+                    for (t, prop_value) in node.tprop(prop_id).iter() {
+                        let prop_doc = prop_index.create_node_temporal_property_document(
+                            t,
+                            v_id.0 as u64,
+                            &prop_value,
+                        )?;
+                        writer.add_document(prop_doc)?;
+                    }
 
-                        Ok::<(), GraphError>(())
-                    })?;
+                    Ok::<(), GraphError>(())
+                })?;
 
                 writer.commit()?;
             }

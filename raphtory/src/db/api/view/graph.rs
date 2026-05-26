@@ -936,6 +936,20 @@ impl IndexSpec {
         }
     }
 
+    pub fn node_metadata(&self) -> &HashSet<usize> {
+        &self.node_metadata
+    }
+
+    pub fn node_properties(&self) -> &HashSet<usize> {
+        &self.node_properties
+    }
+    pub fn edge_metadata(&self) -> &HashSet<usize> {
+        &self.edge_metadata
+    }
+    pub fn edge_properties(&self) -> &HashSet<usize> {
+        &self.edge_properties
+    }
+
     pub fn union(existing: &IndexSpec, other: &IndexSpec) -> IndexSpec {
         fn union_props(a: &HashSet<usize>, b: &HashSet<usize>) -> HashSet<usize> {
             a.union(b).copied().collect()

@@ -102,6 +102,10 @@ impl Storage {
         }
     }
 
+    #[cfg(feature = "search")]
+    pub fn index(&self) -> &RwLock<GraphIndex> {
+        &self.index
+    }
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let config = Config::default();
         let ext = Extension::new(config, Some(path.as_ref()))?;
@@ -326,7 +330,7 @@ impl Storage {
         &self.index
     }
 
-    pub(crate) fn is_indexed(&self) -> bool {
+    pub fn is_indexed(&self) -> bool {
         self.index.read_recursive().is_indexed()
     }
 

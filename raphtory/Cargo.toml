@@ -116,7 +116,8 @@ tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
-raphtory = { workspace = true, features = ["test-utils"] } # enable test-utils for integration tests
+proptest.workspace = true
+proptest-derive.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator = "0.6.1"
@@ -125,7 +126,7 @@ tikv-jemallocator = "0.6.1"
 prost-build = { workspace = true, optional = true }
 
 [features]
-default = []
+default = [] # we can't depend on ourselves but we want to share test-utils
 
 # enables progress bars
 progress = ["dep:kdam"]
@@ -183,13 +184,6 @@ proto = [
     "dep:prost-build",
     "dep:memmap2",
     "io",
-]
-
-test-utils = [
-    "dep:proptest",
-    "dep:proptest-derive",
-    "storage/test-utils",
-    "panic-on-drop"
 ]
 
 panic-on-drop = [
