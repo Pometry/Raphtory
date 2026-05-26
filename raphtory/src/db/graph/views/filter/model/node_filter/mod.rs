@@ -13,7 +13,7 @@ use crate::{
         },
         graph::views::filter::{
             CreateFilter, model::{
-                AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap, degree_filter::DegreeFilterBuilder, edge_filter::CompositeEdgeFilter, filter::Filter, is_active_node_filter::IsActiveNode, latest_filter::Latest, layered_filter::Layered, node_filter::{
+                AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap, degree_filter::{DegreeFilter, DegreeFilterBuilder}, edge_filter::CompositeEdgeFilter, filter::Filter, is_active_node_filter::IsActiveNode, latest_filter::Latest, layered_filter::Layered, node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
                 }, node_state_filter::NodeStateBoolColOp, property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder}, snapshot_filter::{SnapshotAt, SnapshotLatest}, windowed_filter::Windowed
@@ -105,8 +105,16 @@ impl InternalPropertyFilterFactory for NodeFilter {
 }
 
 impl DegreeFilterFactory for NodeFilter {
-    fn degree(&self, direction: Direction) -> DegreeFilterBuilder {
-        DegreeFilterBuilder::new(direction) 
+    fn degree(&self) -> DegreeFilterBuilder {
+        DegreeFilterBuilder::new(Direction::BOTH) 
+    }
+
+    fn in_degree(&self) -> DegreeFilterBuilder {
+        DegreeFilterBuilder::new(Direction::IN) 
+    }
+
+    fn out_degree(&self) -> DegreeFilterBuilder {
+        DegreeFilterBuilder::new(Direction::OUT) 
     }
 }
 
@@ -340,6 +348,7 @@ impl TryAsCompositeFilter for NodeTypeFilter {
 pub enum CompositeNodeFilter {
     Node(Filter),
     Property(PropertyFilter<NodeFilter>),
+    Degree(DegreeFilter),
     Windowed(Box<Windowed<CompositeNodeFilter>>),
     Latest(Box<Latest<CompositeNodeFilter>>),
     SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
@@ -356,6 +365,7 @@ impl Display for CompositeNodeFilter {
         match self {
             CompositeNodeFilter::Property(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Windowed(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::Degree(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Layered(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
@@ -394,6 +404,7 @@ impl CreateFilter for CompositeNodeFilter {
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         match self {
+            CompositeNodeFilter::Degree(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
             CompositeNodeFilter::Node(i) => match i.field_name.as_str() {
                 "node_id" => Ok(Arc::new(NodeIdFilter(i).create_node_filter(graph)?)),
                 "node_name" => Ok(Arc::new(NodeNameFilter(i).create_node_filter(graph)?)),
@@ -452,6 +463,7 @@ impl CreateFilter for CompositeNodeFilter {
                 }
             },
             CompositeNodeFilter::Property(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::Degree(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::Windowed(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::Layered(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),

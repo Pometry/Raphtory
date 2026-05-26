@@ -517,6 +517,128 @@ mod graphql_test {
     }
 
     #[tokio::test]
+    async fn query_nodefilter_degree_both_non_temporal() {
+        let graph = PersistentGraph::new();
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 4, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 5, NO_PROPS, None, None).unwrap();
+
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 3, 4, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 3, 5, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 4, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 5, 1, NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = graph.into();
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let query = r#"
+        {
+          graph(path: "graph") {
+            filterNodes(
+              expr: { degree: { direction: BOTH, where: { eq: { u64: 4 } } } }
+            ) {
+              nodes {
+                count
+              }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(query);
+        let res = schema.execute(req).await;
+        assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "filterNodes": {
+                        "nodes": {
+                            "count": 2
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn query_nodefilter_degree_in_and_out_non_temporal() {
+        let graph = PersistentGraph::new();
+        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 4, NO_PROPS, None, None).unwrap();
+        graph.add_node(0, 5, NO_PROPS, None, None).unwrap();
+
+        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 1, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 3, 4, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 3, 5, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 4, 1, NO_PROPS, None).unwrap();
+        graph.add_edge(0, 5, 1, NO_PROPS, None).unwrap();
+
+        let graph: MaterializedGraph = graph.into();
+        let graphs = HashMap::from([("graph".to_string(), graph)]);
+        let tmp_dir = tempdir().unwrap();
+        let data = Data::new(tmp_dir.path(), &AppConfig::default(), Config::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
+
+        let schema = App::create_schema().data(data).finish().unwrap();
+        let query = r#"
+        {
+          graph(path: "graph") {
+            inDegree: filterNodes(
+              expr: { degree: { direction: IN, where: { eq: { u64: 1 } } } }
+            ) {
+              nodes { count }
+            }
+            outDegree: filterNodes(
+              expr: { degree: { direction: OUT, where: { eq: { u64: 1 } } } }
+            ) {
+              nodes { count }
+            }
+          }
+        }
+        "#;
+
+        let req = Request::new(query);
+        let res = schema.execute(req).await;
+        assert!(res.errors.is_empty(), "errors: {:?}", res.errors);
+        let data = res.data.into_json().unwrap();
+
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "inDegree": {
+                        "nodes": {
+                            "count": 3
+                        }
+                    },
+                    "outDegree": {
+                        "nodes": {
+                            "count": 3
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    #[tokio::test]
     async fn test_unique_temporal_properties() {
         let g = Graph::new();
         g.add_metadata([("name", "graph")]).unwrap();

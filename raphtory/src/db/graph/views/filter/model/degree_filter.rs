@@ -7,14 +7,15 @@ use raphtory_core::entities::{VID};
 use crate::db::api::state::ops::GraphView;
 use crate::db::api::state::ops::filter::NodeDegreeFilterOp;
 use crate::db::graph::views::filter::CreateFilter;
-use crate::db::graph::views::filter::model::NodeFilter;
-use crate::db::graph::views::filter::model::property_filter::{Op, PropertyFilterInput, PropertyRef};
+use crate::db::graph::views::filter::model::{CompositeNodeFilter, NodeFilter};
+use crate::db::graph::views::filter::model::property_filter::{Op, PropertyFilterInput, PropertyRef, PropertyFilter};
 use crate::db::graph::views::filter::model::property_filter::builders::{PropertyExprBuilder, PropertyExprBuilderInput};
 use crate::db::graph::views::filter::model::{CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TryAsCompositeFilter};
 use crate::db::graph::views::filter::model;
 use crate::db::graph::views::filter::node_filtered_graph::NodeFilteredGraph;
 use crate::db::{api::view::{GraphViewOps, NodeViewOps}, graph::views::filter::model::{FilterOperator, property_filter::PropertyFilterValue}};
 use crate::errors::GraphError;
+use std::{fmt, fmt::Display};
 
 
 #[derive(Clone)]
@@ -30,7 +31,7 @@ impl DegreeFilterBuilder {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DegreeFilter {
     pub direction: Direction,
     pub operator: FilterOperator,
@@ -102,9 +103,17 @@ impl TryAsCompositeFilter for DegreeFilter {
        Err(GraphError::NotSupported) 
     } 
     fn try_as_composite_node_filter(&self) -> Result<model::CompositeNodeFilter, GraphError> {
-        Err(GraphError::NotSupported)
+        Ok(CompositeNodeFilter::Degree(self.clone()))
     }
 }  
+
+fn property_ref(direction: &Direction) -> PropertyRef {
+    match direction {
+        Direction::IN => PropertyRef::Property("in_degree".to_string()),
+        Direction::OUT => PropertyRef::Property("out_degree".to_string()),
+        Direction::BOTH => PropertyRef::Property("degree".to_string()),
+    }
+}
 
 impl InternalPropertyFilterBuilder for DegreeFilterBuilder
 where
@@ -115,7 +124,7 @@ where
     type Marker = NodeFilter;
 
     fn property_ref(&self) -> PropertyRef {
-        PropertyRef::Property("degree".to_string())
+        property_ref(&self.direction)
     }
 
     fn ops(&self) -> &[Op] {
@@ -145,5 +154,20 @@ where
 }
 
 pub trait DegreeFilterFactory {
-    fn degree(&self, direction: Direction) -> DegreeFilterBuilder; 
+    fn in_degree(&self) -> DegreeFilterBuilder; 
+    fn out_degree(&self) -> DegreeFilterBuilder;
+    fn degree(&self) -> DegreeFilterBuilder;
 }
+
+impl Display for DegreeFilter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let property_filter = PropertyFilter {
+            prop_ref: property_ref(&self.direction),
+            prop_value: self.value.clone(),
+            operator: self.operator.clone(),
+            ops: vec![],
+            entity: NodeFilter,
+        };
+        property_filter.fmt(f)
+    }
+} 
