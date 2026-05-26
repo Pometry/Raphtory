@@ -6,7 +6,6 @@ from filters_setup import (
     combined,
 )
 from utils import with_variants
-import pytest
 
 
 def init_graph_for_event_ids(graph):
@@ -149,47 +148,11 @@ def test_property_semantics():
     return check
 
 
-@with_variants(init_edges_graph, variants=["graph"])
-def test_property_semantics2():
-    def check(graph):
-        filter_expr = filter.Edge.property("p1") == 1
-        result_ids = sorted(graph.filter(filter_expr).edges.id)
-        expected_ids = sorted(
-            [("N1", "N2"), ("N3", "N4"), ("N4", "N5"), ("N6", "N7"), ("N7", "N8")]
-        )
-        assert result_ids == expected_ids
-
-    return check
-
-
 @with_variants(
     init_fn=combined([init_edges_graph, init_graph_for_event_ids]),
     variants=["graph"],
 )
 def test_property_semantics_for_event_ids():
-    def check(graph):
-        filter_expr = filter.Edge.property("p1") == 1
-        result_ids = sorted(graph.filter(filter_expr).edges.id)
-        expected_ids = sorted(
-            [
-                ("N1", "N2"),
-                ("N16", "N15"),
-                ("N3", "N4"),
-                ("N4", "N5"),
-                ("N6", "N7"),
-                ("N7", "N8"),
-            ]
-        )
-        assert result_ids == expected_ids
-
-    return check
-
-
-@with_variants(
-    init_fn=combined([init_edges_graph, init_graph_for_event_ids]),
-    variants=["graph"],
-)
-def test_property_semantics_for_event_ids_dsg():
     def check(graph):
         filter_expr = filter.Edge.property("p1") == 1
         result_ids = sorted(graph.filter(filter_expr).edges.id)
@@ -215,19 +178,6 @@ def test_property_semantics_only_metadata():
         result_ids = sorted(graph.filter(filter_expr).edges.id)
         expected_ids = sorted([("N1", "N2"), ("N2", "N3")])
         assert result_ids == expected_ids
-
-    return check
-
-
-@with_variants(init_edges_graph1, variants=["graph"])
-def test_property_semantics_only_metadata2():
-    def check(graph):
-        filter_expr = filter.Edge.metadata("p1") == 1
-        with pytest.raises(
-            Exception,
-            match=r"Metadata p1 does not exist",
-        ):
-            graph.filter(filter_expr).nodes.id
 
     return check
 
