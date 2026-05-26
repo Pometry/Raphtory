@@ -332,7 +332,16 @@ impl PropMapper {
 
         match dtype_write.get(id).cloned() {
             Some(old_type) => {
-                if let Ok(tpe) = unify_types(&dtype, &old_type, &mut false) {
+                let mut unified = false;
+
+                if let Ok(tpe) = unify_types(&dtype, &old_type, &mut unified) {
+                    if unified {
+                        // The row size needs to account for the difference in sizes
+                        // between the newly unified type and the old type.
+                        let delta = tpe.est_size() - old_type.est_size();
+                        self.row_size.fetch_add(delta, atomic::Ordering::Relaxed);
+                    }
+
                     dtype_write[id] = tpe;
                     Ok(wrapped_id)
                 } else {
@@ -462,6 +471,14 @@ impl<'a> WriteLockedPropMapper<'a> {
             Some(old_dtype) => {
                 let mut unified = false;
                 let unified_type = unify_types(&old_dtype, &dtype, &mut unified)?;
+
+                if unified {
+                    // The row size needs to account for the difference in sizes
+                    // between the newly unified type and the old type.
+                    let delta = unified_type.est_size() - old_dtype.est_size();
+                    self.row_size.fetch_add(delta, atomic::Ordering::Relaxed);
+                }
+
                 *old_dtype = unified_type;
             }
         }
