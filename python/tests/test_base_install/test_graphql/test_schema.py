@@ -58,8 +58,8 @@ def test_node_edge_properties_schema():
     graph_file_path = os.path.join(work_dir, "graph")
     g.save_to_file(graph_file_path)
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """{
           graph(path: "graph") {

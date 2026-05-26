@@ -116,7 +116,7 @@ impl MetaGraph {
         let data: &Data = ctx.data_unchecked();
         if let Some(graph) = data.get_cached_graph(self.folder.local_path()).await {
             return Ok(graph
-                .graph
+                .graph()
                 .metadata()
                 .iter()
                 .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))

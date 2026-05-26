@@ -9,8 +9,8 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 
 def test_move_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """mutation {
           moveGraph(
@@ -34,8 +34,8 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists():
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "g6"))
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """mutation {
           moveGraph(
@@ -59,8 +59,8 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_same_namespa
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "ben", "g6"))
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """mutation {
           moveGraph(
@@ -85,8 +85,8 @@ def test_move_graph_fails_if_graph_with_same_name_already_exists_at_diff_namespa
     g.save_to_file(os.path.join(work_dir, "ben", "g5"))
     g.save_to_file(os.path.join(work_dir, "shivam", "g6"))
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """mutation {
           moveGraph(
@@ -109,8 +109,8 @@ def test_move_graph_succeeds():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         # Assert if rename graph succeeds and old graph is deleted
         query = """mutation {
@@ -148,8 +148,8 @@ def test_move_graph_using_client_api_succeeds():
     os.makedirs(os.path.join(work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         # Assert if rename graph succeeds and old graph is deleted
         client.move_graph("shivam/g3", "ben/g4")
@@ -182,8 +182,8 @@ def test_move_graph_succeeds_at_same_namespace_as_graph():
 
     g.save_to_file(os.path.join(work_dir, "shivam", "g3"))
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         # Assert if rename graph succeeds and old graph is deleted
         query = """mutation {
@@ -223,8 +223,8 @@ def test_move_graph_succeeds_at_diff_namespace_as_graph():
 
     g.save_to_file(os.path.join(work_dir, "ben", "g3"))
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         # Assert if rename graph succeeds and old graph is deleted
         query = """mutation {

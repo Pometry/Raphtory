@@ -89,8 +89,8 @@ def test_in_out_components():
     g.add_edge(6, 7, 3)
 
     g.save_to_file(work_dir + "/graph")
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         query_res = client.query(query)
         prepare_for_comparison(query_res["graph"])
         prepare_for_comparison(result["graph"])

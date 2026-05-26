@@ -6,7 +6,7 @@ use raphtory::{
         view::{internal::InternalStorageOps, MaterializedGraph},
     },
     errors::{GraphError, InvalidPathReason},
-    prelude::GraphViewOps,
+    prelude::{AdditionOps, GraphViewOps},
     serialise::{
         metadata::GraphMetadata, GraphFolder, GraphPaths, RelativePath, StableDecode,
         WriteableGraphFolder, ROOT_META_PATH,
@@ -372,31 +372,35 @@ impl ValidWriteableGraphFolder {
         Self::new(path, relative_path)
     }
 
+    /// write graph data to folder (returns a flag to indicate if the graph should be considered dirty)
     fn write_graph_data_inner(
         &self,
         graph: MaterializedGraph,
         config: Config,
-    ) -> Result<(), InternalPathValidationError> {
-        if Extension::disk_storage_enabled() {
+    ) -> Result<(bool, MaterializedGraph), InternalPathValidationError> {
+        let is_dirty = if Extension::disk_storage_enabled() {
             let graph_path = self.graph_folder().graph_path()?;
             if graph
                 .disk_storage_path()
                 .is_some_and(|path| path == &graph_path)
             {
                 self.global_path.write_metadata(&graph)?;
+                (true, graph)
             } else {
-                graph.materialize_at_with_config(self.graph_folder(), config)?;
+                let new_graph = graph.materialize_at_with_config(self.graph_folder(), config)?;
+                (true, new_graph)
             }
         } else {
-            self.global_path.data_path()?.replace_graph(graph)?;
-        }
-        Ok(())
+            self.global_path.data_path()?.replace_graph(graph.clone())?;
+            (false, graph)
+        };
+        Ok(is_dirty)
     }
     pub fn write_graph_data(
         &self,
         graph: MaterializedGraph,
         config: Config,
-    ) -> Result<(), PathValidationError> {
+    ) -> Result<(bool, MaterializedGraph), PathValidationError> {
         self.write_graph_data_inner(graph, config)
             .with_path(self.local_path())
     }
@@ -422,11 +426,12 @@ impl ValidWriteableGraphFolder {
                     ZipArchive::new(bytes)?,
                     self.graph_folder(),
                     config,
-                )?;
+                )?
+                .flush()?;
             } else {
                 self.global_path.data_path()?.unzip_to_folder(bytes)?;
-            }
-            Ok::<(), GraphError>(())
+            };
+            Ok::<_, GraphError>(())
         })
     }
 

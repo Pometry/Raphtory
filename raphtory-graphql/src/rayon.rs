@@ -2,17 +2,26 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::LazyLock;
 use tokio::sync::oneshot;
 
-static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .thread_name(|t| format!("RAP-write-{t}"))
         .build()
         .unwrap()
 });
 
-static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
         .thread_name(|t| format!("RAP-compute-{t}"))
+        .build()
+        .unwrap()
+});
+
+pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .num_threads(1)
+        .thread_name(|t| format!("RAP-evict-{t}"))
         .build()
         .unwrap()
 });

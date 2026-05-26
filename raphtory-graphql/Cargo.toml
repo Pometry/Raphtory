@@ -41,19 +41,18 @@ tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
-ordered-float = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 url = { workspace = true }
 base64-compat = { workspace = true }
 reqwest = { workspace = true }
 rustc-hash = { workspace = true }
-moka = { workspace = true }
 rayon = { workspace = true }
 ahash = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 bigdecimal = { workspace = true, features = ["serde"] }
+quick_cache = { workspace = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -73,3 +72,4 @@ arrow-array = { workspace = true }
 [features]
 python = ["dep:pyo3", "raphtory/python"]
 search = ["raphtory/search"]
+panic-on-drop = ["raphtory/panic-on-drop"]

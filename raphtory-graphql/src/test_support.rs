@@ -21,35 +21,36 @@ use std::{path::Path, sync::Arc};
 use tempfile::{tempdir, TempDir};
 
 pub(crate) struct TestSetup {
-    pub(crate) tmp: TempDir,
     pub(crate) data: Data,
     pub(crate) schema: Schema,
 }
 
-pub(crate) async fn setup_with_graphs(graphs: &[(&str, MaterializedGraph)]) -> TestSetup {
-    let tmp = tempdir().unwrap();
-    let data = Data::new(tmp.path(), &AppConfig::default(), Config::default());
+pub(crate) async fn setup_with_graphs(
+    graphs: &[(&str, MaterializedGraph)],
+    work_dir: &Path,
+) -> TestSetup {
+    let data = Data::new(work_dir, &AppConfig::default(), Config::default());
     for (path, graph) in graphs {
         let folder = data.validate_path_for_insert(path, false).unwrap();
         data.insert_graph(folder, graph.clone()).await.unwrap();
     }
     let schema = App::create_schema().data(data.clone()).finish().unwrap();
-    TestSetup { tmp, data, schema }
+    TestSetup { data, schema }
 }
 
 pub(crate) async fn setup_with_policy(
     graphs: &[(&str, MaterializedGraph)],
+    work_dir: &Path,
     policy: Arc<dyn AuthorizationPolicy>,
 ) -> TestSetup {
-    let tmp = tempdir().unwrap();
-    let mut data = Data::new(tmp.path(), &AppConfig::default(), Config::default());
+    let mut data = Data::new(work_dir, &AppConfig::default(), Config::default());
     for (path, graph) in graphs {
         let folder = data.validate_path_for_insert(path, false).unwrap();
         data.insert_graph(folder, graph.clone()).await.unwrap();
     }
     data.set_auth_policy(policy);
     let schema = App::create_schema().data(data.clone()).finish().unwrap();
-    TestSetup { tmp, data, schema }
+    TestSetup { data, schema }
 }
 
 pub(crate) async fn run_mutation(schema: &Schema, query: &str) -> async_graphql::Response {

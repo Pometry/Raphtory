@@ -17,7 +17,6 @@ pub mod client;
 pub mod pymodule;
 pub mod server;
 
-const WAIT_CHECK_INTERVAL_MILLIS: u64 = 200;
 const RUNNING_SERVER_CONSUMED_MSG: &str =
     "Running server object has already been used, please create another one from scratch";
 

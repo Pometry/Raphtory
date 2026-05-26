@@ -170,3 +170,7 @@ python = [
     "raphtory-core/python",
     "kdam/notebook",
 ]
+
+panic-on-drop = [
+    "storage/panic-on-drop"
+]
