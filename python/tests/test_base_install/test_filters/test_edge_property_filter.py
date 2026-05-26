@@ -1524,7 +1524,7 @@ def test_edge_property_temporal_len():
     return check
 
 
-@with_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_temporal_layer_eq():
     def check(graph):
         expr = (
@@ -1536,7 +1536,7 @@ def test_filter_edges_temporal_layer_eq():
     return check
 
 
-@with_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_temporal_layer_eq_is_empty():
     def check(graph):
         expr = (
@@ -1572,7 +1572,7 @@ def test_filter_edges_at_persistent():
     return check
 
 
-@with_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_before():
     def check(graph):
         expr = (
@@ -1645,7 +1645,7 @@ def test_filter_edges_latest_persistent():
     return check
 
 
-@with_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_snapshot_at():
     def check(graph):
         expr = (
@@ -1668,7 +1668,7 @@ def test_filter_edges_snapshot_at():
     return check
 
 
-@with_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_snapshot_latest():
     def check(graph):
         expr = (
@@ -1787,7 +1787,7 @@ def test_filter_edges_graph_filter_latest():
     return check
 
 
-@with_variants(init_graph3, variants=(["graph", "persistent_graph"]))
+@with_variants(init_graph3)
 def test_filter_edges_graph_filter_snapshot_at():
     def check(graph):
         expr = filter.Graph.snapshot_at(7)
@@ -1802,7 +1802,7 @@ def test_filter_edges_graph_filter_snapshot_at():
     return check
 
 
-@with_variants(init_graph3, variants=(["graph", "persistent_graph"]))
+@with_variants(init_graph3)
 def test_filter_edges_graph_filter_snapshot_latest():
     def check(graph):
         expr = filter.Graph.snapshot_latest()

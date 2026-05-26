@@ -522,7 +522,7 @@ def test_filter_edges_with_num_ids_error():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_filter_edges_is_active():
     def check(graph):
         filter_expr = filter.Edge.is_active()
@@ -535,7 +535,7 @@ def test_filter_edges_is_active():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_filter_edges_windowed_is_active():
     def check(graph):
         filter_expr = filter.Edge.window(1, 4).is_active()
@@ -582,7 +582,7 @@ def test_filter_edges_is_valid():
     return check
 
 
-@with_variants(init_graph4, variants=["graph", "persistent_graph"])
+@with_variants(init_graph4)
 def test_filter_edges_is_deleted():
     def check(graph):
         filter_expr = filter.Edge.is_deleted()
@@ -593,7 +593,7 @@ def test_filter_edges_is_deleted():
     return check
 
 
-@with_variants(init_graph4, variants=["graph", "persistent_graph"])
+@with_variants(init_graph4)
 def test_filter_edges_is_self_loop_persistent():
     def check(graph):
         filter_expr = filter.Edge.is_self_loop()
@@ -604,7 +604,7 @@ def test_filter_edges_is_self_loop_persistent():
     return check
 
 
-@with_variants(init_graph4, variants=["graph", "persistent_graph"])
+@with_variants(init_graph4)
 def test_filter_edges_is_self_loop_wp():
     def check(graph):
         filter_expr = filter.Edge.is_self_loop()

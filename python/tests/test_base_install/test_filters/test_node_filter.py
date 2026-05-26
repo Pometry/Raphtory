@@ -302,7 +302,7 @@ def test_filter_nodes_with_num_ids_error():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_filter_nodes_is_active():
     def check(graph):
         filter_expr = filter.Node.is_active()
@@ -313,7 +313,7 @@ def test_filter_nodes_is_active():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_select_nodes_is_active():
     def check(graph):
         filter_expr = filter.Node.is_active()
@@ -324,7 +324,7 @@ def test_select_nodes_is_active():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_filter_nodes_windowed_is_active():
     def check(graph):
         filter_expr = filter.Node.window(1, 2).is_active()
@@ -335,7 +335,7 @@ def test_filter_nodes_windowed_is_active():
     return check
 
 
-@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph)
 def test_filter_nodes_windowed_is_active_not():
     def check(graph):
         filter_expr = filter.Node.window(1, 2).is_active()
@@ -346,7 +346,7 @@ def test_filter_nodes_windowed_is_active_not():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_filter_nodes_latest_is_active():
     def check(graph):
         filter_expr = filter.Node.latest().is_active()
@@ -357,7 +357,7 @@ def test_filter_nodes_latest_is_active():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_select_nodes_latest_is_active():
     def check(graph):
         filter_expr = filter.Node.latest().is_active()
@@ -392,7 +392,7 @@ def test_filter_nodes_snapshot_latest_is_active_persistent():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_filter_nodes_at_is_active():
     def check(graph):
         filter_expr = filter.Node.at(2).is_active()
@@ -403,7 +403,7 @@ def test_filter_nodes_at_is_active():
     return check
 
 
-@with_variants(init_graph, variants=["graph", "persistent_graph"])
+@with_variants(init_graph)
 def test_select_nodes_at_is_active():
     def check(graph):
         filter_expr = filter.Node.at(2).is_active()

@@ -66,7 +66,7 @@ def test_not_node_composite_filter():
     return check
 
 
-@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph)
 def test_out_neighbours_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.name() == "d"
@@ -85,7 +85,7 @@ def test_out_neighbours_composite_filter():
     return check
 
 
-@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph)
 def test_in_neighbours_composite_filter():
     def check(graph):
         filter_expr1 = filter.Node.name() == "a"
@@ -109,7 +109,7 @@ def test_in_neighbours_composite_filter():
     return check
 
 
-@with_variants(create_test_graph, variants=["graph", "persistent_graph"])
+@with_variants(create_test_graph)
 def test_neighbours_composite_filter():
     def check(graph):
         filter_expr = filter.Node.property("prop4") == False
