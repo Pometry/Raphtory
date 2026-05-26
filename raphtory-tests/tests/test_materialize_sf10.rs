@@ -6,19 +6,19 @@ use raphtory::{
         api::view::{materialize_impl, MaterializedGraph},
         graph::graph::{assert_graph_equal_timestamps, graph_equal},
     },
-    parquet_encoder::{
-        DST_GID_COL, DST_VID_COL, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
-        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
-    },
-    prelude::{AdditionOps, DeletionOps, Graph, GraphViewOps, LayerOps, PropertyAdditionOps},
-};
-use raphtory::{
     io::parquet_loaders::{
         get_parquet_file_paths, load_edge_deletions_from_parquet, load_edge_metadata_from_parquet,
         load_edges_from_parquet, load_graph_props_from_parquet, load_node_metadata_from_parquet,
         load_nodes_from_parquet,
     },
-    prelude::{ParquetDecoder, ParquetEncoder},
+    parquet_encoder::{
+        DST_GID_COL, DST_VID_COL, EDGE_COL_ID, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        SECONDARY_INDEX_COL, SRC_GID_COL, SRC_VID_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+    },
+    prelude::{
+        AdditionOps, DeletionOps, Graph, GraphViewOps, LayerOps, ParquetDecoder, ParquetEncoder,
+        PropertyAdditionOps,
+    },
     serialise::parquet::{
         EDGES_C_PATH, EDGES_D_PATH, EDGES_T_PATH, GRAPH_C_PATH, GRAPH_T_PATH, NODES_C_PATH,
         NODES_T_PATH,
