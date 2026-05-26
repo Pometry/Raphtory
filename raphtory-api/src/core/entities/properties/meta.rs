@@ -617,7 +617,8 @@ mod prop_mapper_tests {
             name,
             expected,
             actual,
-        }) = result {
+        }) = result
+        {
             assert_eq!(name, "existing_prop");
             assert_eq!(expected, PropType::U8);
             assert_eq!(actual, PropType::U16);
@@ -747,10 +748,9 @@ mod write_locked_prop_mapper_tests {
         assert!(result.is_err());
 
         if let Err(PropError {
-            expected,
-            actual,
-            ..
-        }) = result {
+            expected, actual, ..
+        }) = result
+        {
             assert_eq!(expected, PropType::U8);
             assert_eq!(actual, PropType::U16);
         } else {
