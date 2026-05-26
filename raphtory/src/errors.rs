@@ -105,18 +105,6 @@ pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
     err.into()
 }
 
-#[cfg(feature = "proto")]
-#[derive(thiserror::Error, Debug)]
-pub enum WriteError {
-    #[cfg(feature = "proto")]
-    #[error("Unrecoverable disk error: {0}, resetting file size failed: {1}")]
-    FatalWriteError(io::Error, io::Error),
-
-    #[cfg(feature = "proto")]
-    #[error("Failed to write delta to cache: {0}")]
-    WriteError(#[from] io::Error),
-}
-
 pub type GraphResult<T> = Result<T, GraphError>;
 
 pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
@@ -335,34 +323,9 @@ pub enum GraphError {
     #[error("Illegal set error {0}")]
     IllegalSet(String),
 
-    #[cfg(feature = "proto")]
-    #[error("Protobuf encode error{0}")]
-    DecodeError(#[from] prost::DecodeError),
-
-    #[cfg(feature = "proto")]
-    #[error(
-        "Cannot recover from write failure {write_err}, new updates are invalid: {decode_err}"
-    )]
-    FatalDecodeError {
-        write_err: WriteError,
-        decode_err: prost::DecodeError,
-    },
-
-    #[cfg(feature = "proto")]
-    #[error("Cache write error: {0}")]
-    CacheWriteError(#[from] WriteError),
-
-    #[cfg(feature = "proto")]
-    #[error("Protobuf decode error{0}")]
-    EncodeError(#[from] prost::EncodeError),
-
     #[cfg(feature = "io")]
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
-
-    #[cfg(feature = "proto")]
-    #[error("Cache is not initialised")]
-    CacheNotInnitialised,
 
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,

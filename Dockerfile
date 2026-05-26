@@ -13,7 +13,6 @@ RUN cargo chef prepare  --recipe-path recipe.json
 
 FROM chef AS builder
 ARG RAPHTORY_PROFILE
-RUN apt-get update && apt-get install -y protobuf-compiler
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --profile=${RAPHTORY_PROFILE} --recipe-path recipe.json
 COPY . .

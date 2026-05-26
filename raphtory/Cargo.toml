@@ -75,10 +75,6 @@ reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
-# proto optional dependencies
-memmap2 = { workspace = true, optional = true }
-prost = { workspace = true, optional = true }
-prost-types = { workspace = true, optional = true }
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -122,8 +118,6 @@ proptest-derive.workspace = true
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator = "0.6.1"
 
-[build-dependencies]
-prost-build = { workspace = true, optional = true }
 
 [features]
 default = [] # we can't depend on ourselves but we want to share test-utils
@@ -144,7 +138,7 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "dep:tempfile", "proto", "io"]
+search = ["dep:tantivy", "dep:tempfile", "io"]
 # vectors
 vectors = [
     "dep:futures-util",
@@ -175,15 +169,6 @@ python = [
     "raphtory-api/python",
     "raphtory-core/python",
     "kdam/notebook",
-]
-
-
-proto = [
-    "dep:prost",
-    "dep:prost-types",
-    "dep:prost-build",
-    "dep:memmap2",
-    "io",
 ]
 
 panic-on-drop = [

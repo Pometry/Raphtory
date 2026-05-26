@@ -160,9 +160,6 @@ bytemuck = { version = "1.25.0", features = ["derive"] }
 ouroboros = "0.18.5"
 url = "2.5"
 base64-compat = { package = "base64-compat", version = "1.0.0" }
-prost = "0.13.5"
-prost-types = "0.13.5"
-prost-build = "0.13.5"
 lazy_static = "1.5.0"
 pest = "2.8.6"
 pest_derive = "2.8.6"
