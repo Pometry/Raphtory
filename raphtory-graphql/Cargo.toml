@@ -63,13 +63,11 @@ zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }
 
-
-
 [dev-dependencies]
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
-raphtory = { workspace = true, features = ["test-utils"] }
+raphtory-tests = { workspace = true }
 arrow-array = { workspace = true }
 
 [features]
