@@ -75,10 +75,6 @@ reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
-# proto optional dependencies
-memmap2 = { workspace = true, optional = true }
-prost = { workspace = true, optional = true }
-prost-types = { workspace = true, optional = true }
 
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
@@ -87,7 +83,6 @@ tantivy = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 async-trait = { workspace = true, optional = true }
 async-openai = { workspace = true, optional = true }
-bincode = { workspace = true, optional = true }
 minijinja = { workspace = true, optional = true }
 minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
@@ -116,16 +111,15 @@ tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
-raphtory = { workspace = true, features = ["test-utils"] } # enable test-utils for integration tests
+proptest.workspace = true
+proptest-derive.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator = "0.6.1"
 
-[build-dependencies]
-prost-build = { workspace = true, optional = true }
 
 [features]
-default = []
+default = [] # we can't depend on ourselves but we want to share test-utils
 
 # enables progress bars
 progress = ["dep:kdam"]
@@ -143,13 +137,12 @@ io = [
 ]
 
 # search
-search = ["dep:tantivy", "dep:tempfile", "proto", "io"]
+search = ["dep:tantivy", "dep:tempfile", "io"]
 # vectors
 vectors = [
     "dep:futures-util",
     "dep:async-trait",
     "dep:async-openai",
-    "dep:bincode",
     "dep:minijinja",
     "dep:minijinja-contrib",
     "raphtory-api/template",
@@ -176,16 +169,6 @@ python = [
     "kdam/notebook",
 ]
 
-
-proto = [
-    "dep:prost",
-    "dep:prost-types",
-    "dep:prost-build",
-    "dep:memmap2",
-    "io",
-]
-
-test-utils = [
-    "dep:proptest",
-    "dep:proptest-derive"
+panic-on-drop = [
+    "storage/panic-on-drop"
 ]

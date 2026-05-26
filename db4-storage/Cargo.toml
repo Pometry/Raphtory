@@ -46,5 +46,6 @@ rayon.workspace = true
 test-log.workspace = true
 
 [features]
-test-utils = ["dep:proptest", "dep:chrono"]
-default = ["test-utils"]
+test-utils = ["dep:proptest", "dep:chrono", "panic-on-drop"]
+panic-on-drop = []
+

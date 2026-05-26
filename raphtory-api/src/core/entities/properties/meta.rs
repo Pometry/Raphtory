@@ -471,6 +471,14 @@ impl<'a> WriteLockedPropMapper<'a> {
             Some(old_dtype) => {
                 let mut unified = false;
                 let unified_type = unify_types(&old_dtype, &dtype, &mut unified)?;
+
+                if unified {
+                    // The row size needs to account for the difference in sizes
+                    // between the newly unified type and the old type.
+                    let delta = unified_type.est_size() - old_dtype.est_size();
+                    self.row_size.fetch_add(delta, atomic::Ordering::Relaxed);
+                }
+
                 *old_dtype = unified_type;
             }
         }
@@ -565,38 +573,46 @@ fn fast_proptype_check(
 }
 
 #[cfg(test)]
-mod tests {
+mod prop_mapper_tests {
     use super::*;
 
     #[test]
-    fn test_get_or_create_and_validate_new_property() {
+    fn get_or_create_and_validate_new_property() {
         let prop_mapper = PropMapper::default();
         let result = prop_mapper.get_or_create_and_validate("new_prop", PropType::U8);
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap().inner(), 0);
         assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
     }
 
     #[test]
-    fn test_get_or_create_and_validate_existing_property_same_type() {
+    fn get_or_create_and_validate_existing_property_same_type() {
         let prop_mapper = PropMapper::default();
+
         prop_mapper
             .get_or_create_and_validate("existing_prop", PropType::U8)
             .unwrap();
+
         let result = prop_mapper.get_or_create_and_validate("existing_prop", PropType::U8);
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap().inner(), 0);
         assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
     }
 
     #[test]
-    fn test_get_or_create_and_validate_existing_property_different_type() {
+    fn get_or_create_and_validate_existing_property_different_type() {
         let prop_mapper = PropMapper::default();
+
         prop_mapper
             .get_or_create_and_validate("existing_prop", PropType::U8)
             .unwrap();
+
         let result = prop_mapper.get_or_create_and_validate("existing_prop", PropType::U16);
+
         assert!(result.is_err());
+
         if let Err(PropError {
             name,
             expected,
@@ -612,32 +628,39 @@ mod tests {
     }
 
     #[test]
-    fn test_get_or_create_and_validate_unify_types() {
+    fn get_or_create_and_validate_unify_types() {
         let prop_mapper = PropMapper::default();
+
         prop_mapper
             .get_or_create_and_validate("prop", PropType::Empty)
             .unwrap();
+
         let result = prop_mapper.get_or_create_and_validate("prop", PropType::U8);
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap().inner(), 0);
         assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
     }
 
     #[test]
-    fn test_get_or_create_and_validate_resize_vector() {
+    fn get_or_create_and_validate_resize_vector() {
         let prop_mapper = PropMapper::default();
+
         prop_mapper.set_id_and_dtype("existing_prop", 5, PropType::U8);
+
         let result = prop_mapper.get_or_create_and_validate("new_prop", PropType::U16);
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap().inner(), 6);
         assert_eq!(prop_mapper.get_dtype(6), Some(PropType::U16));
     }
 
     #[test]
-    fn test_get_or_create_and_validate_two_independent_properties() {
+    fn get_or_create_and_validate_two_independent_properties() {
         let prop_mapper = PropMapper::default();
         let result1 = prop_mapper.get_or_create_and_validate("prop1", PropType::U8);
         let result2 = prop_mapper.get_or_create_and_validate("prop2", PropType::U16);
+
         assert!(result1.is_ok());
         assert!(result2.is_ok());
         assert_eq!(result1.unwrap().inner(), 0);
@@ -647,7 +670,7 @@ mod tests {
     }
 
     #[test]
-    fn test_unify_types_increases_row_size() {
+    fn unify_types_increases_row_size() {
         let map_1 = PropType::map([("name", PropType::Str)]);
         let map_2 = PropType::map([("location", PropType::Str)]);
 
@@ -673,6 +696,142 @@ mod tests {
 
         let after = prop_mapper.row_size();
 
+        assert_eq!(after, before + expected_delta);
+        assert_eq!(after, expected_type.est_size());
+        assert_eq!(prop_mapper.get_dtype(0), Some(expected_type));
+    }
+}
+
+#[cfg(test)]
+mod write_locked_prop_mapper_tests {
+    use super::*;
+
+    #[test]
+    fn new_id_and_dtype() {
+        let prop_mapper = PropMapper::default();
+
+        let id = {
+            let mut locked = prop_mapper.write_locked();
+            locked.new_id_and_dtype("new_prop", PropType::U8)
+        };
+
+        assert_eq!(id, 0);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+    }
+
+    #[test]
+    fn set_or_unify_existing_property_same_type() {
+        let prop_mapper = PropMapper::default();
+
+        let id = {
+            let mut locked = prop_mapper.write_locked();
+            let id = locked.new_id_and_dtype("existing_prop", PropType::U8);
+            locked.set_or_unify_dtype(id, PropType::U8).unwrap();
+            id
+        };
+
+        assert_eq!(id, 0);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+    }
+
+    #[test]
+    fn set_or_unify_existing_property_different_type() {
+        let prop_mapper = PropMapper::default();
+
+        let result = {
+            let mut locked = prop_mapper.write_locked();
+            let id = locked.new_id_and_dtype("existing_prop", PropType::U8);
+
+            locked.set_or_unify_dtype(id, PropType::U16)
+        };
+
+        assert!(result.is_err());
+
+        if let Err(PropError {
+            expected, actual, ..
+        }) = result
+        {
+            assert_eq!(expected, PropType::U8);
+            assert_eq!(actual, PropType::U16);
+        } else {
+            panic!("Expected PropError");
+        }
+    }
+
+    #[test]
+    fn set_or_unify_types() {
+        let prop_mapper = PropMapper::default();
+
+        let id = {
+            let mut locked = prop_mapper.write_locked();
+            let id = locked.new_id_and_dtype("prop", PropType::Empty);
+            locked.set_or_unify_dtype(id, PropType::U8).unwrap();
+            id
+        };
+
+        assert_eq!(id, 0);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+    }
+
+    #[test]
+    fn new_id_and_dtype_resize_vector() {
+        let prop_mapper = PropMapper::default();
+
+        let id = {
+            let mut locked = prop_mapper.write_locked();
+            locked.set_id_and_dtype("existing_prop", 5, PropType::U8);
+            locked.new_id_and_dtype("new_prop", PropType::U16)
+        };
+
+        assert_eq!(id, 6);
+        assert_eq!(prop_mapper.get_dtype(6), Some(PropType::U16));
+    }
+
+    #[test]
+    fn new_id_and_dtype_two_independent_properties() {
+        let prop_mapper = PropMapper::default();
+
+        let (id1, id2) = {
+            let mut locked = prop_mapper.write_locked();
+            let id1 = locked.new_id_and_dtype("prop1", PropType::U8);
+            let id2 = locked.new_id_and_dtype("prop2", PropType::U16);
+
+            (id1, id2)
+        };
+
+        assert_eq!(id1, 0);
+        assert_eq!(id2, 1);
+        assert_eq!(prop_mapper.get_dtype(0), Some(PropType::U8));
+        assert_eq!(prop_mapper.get_dtype(1), Some(PropType::U16));
+    }
+
+    #[test]
+    fn unify_types_increases_row_size() {
+        let map_1 = PropType::map([("name", PropType::Str)]);
+        let map_2 = PropType::map([("location", PropType::Str)]);
+
+        let mut unified = false;
+        let expected_type = unify_types(&map_1, &map_2, &mut unified).unwrap();
+        let expected_delta = expected_type.est_size() - map_1.est_size();
+
+        assert!(unified);
+        assert!(expected_delta > 0, "should grow est_size on unify");
+
+        let prop_mapper = PropMapper::default();
+        let id = {
+            let mut locked = prop_mapper.write_locked();
+            locked.new_id_and_dtype("attrs", map_1.clone())
+        };
+
+        let before = prop_mapper.row_size();
+        assert_eq!(before, map_1.est_size());
+
+        {
+            let mut locked = prop_mapper.write_locked();
+            locked.set_or_unify_dtype(id, map_2.clone()).unwrap();
+        }
+
+        let after = prop_mapper.row_size();
         assert_eq!(after, before + expected_delta);
         assert_eq!(after, expected_type.est_size());
         assert_eq!(prop_mapper.get_dtype(0), Some(expected_type));

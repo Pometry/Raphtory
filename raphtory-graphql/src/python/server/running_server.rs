@@ -1,17 +1,11 @@
-use crate::{
-    client::is_online,
-    python::{
-        client::raphtory_client::PyRaphtoryClient,
-        server::{wait_server, BridgeCommand},
-        RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
-    },
+use crate::python::{
+    client::raphtory_client::PyRaphtoryClient,
+    server::{wait_server, BridgeCommand},
+    RUNNING_SERVER_CONSUMED_MSG,
 };
 use crossbeam_channel::Sender as CrossbeamSender;
 use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyAny, PyResult, Python};
-use std::{
-    thread::{sleep, JoinHandle},
-    time::Duration,
-};
+use std::thread::JoinHandle;
 use tokio::{self, io::Result as IoResult};
 use tracing::error;
 
@@ -51,26 +45,6 @@ impl PyRunningGraphServer {
         }
     }
 
-    pub(crate) fn wait_for_server_online(&self, url: &String, timeout_ms: u64) -> PyResult<()> {
-        let num_intervals = timeout_ms / WAIT_CHECK_INTERVAL_MILLIS;
-        for _ in 0..num_intervals {
-            let join_handle = &self.server_handler.as_ref().unwrap().join_handle;
-            if join_handle.is_finished() {
-                // this error will never be presented to the user, the result coming from the server task will instead
-                return Err(PyException::new_err("Server task finished too early"));
-            }
-            if is_online(url) {
-                return Ok(());
-            } else {
-                sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
-            }
-        }
-        Err(PyException::new_err(format!(
-            "Failed to start server in {} milliseconds",
-            timeout_ms
-        )))
-    }
-
     pub(crate) fn stop_server(&mut self, py: Python) -> PyResult<()> {
         Self::apply_if_alive(self, |handler| {
             match handler.sender.send(BridgeCommand::StopServer) {
@@ -99,6 +73,11 @@ impl PyRunningGraphServer {
             let url = format!("http://localhost:{port}");
             Ok(PyRaphtoryClient::new(url, None)?)
         })
+    }
+
+    /// Get the port the server is listening on
+    pub fn port(&self) -> PyResult<u16> {
+        self.apply_if_alive(|handler| Ok(handler.port))
     }
 
     /// Stop the server and wait for it to finish.

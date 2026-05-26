@@ -16,8 +16,8 @@ def test_graph_file_time_stats():
     graph_file_path = os.path.join(work_dir, "shivam", "g3")
     g.save_to_file(graph_file_path)
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """{graph(path: "shivam/g3") { created lastOpened lastUpdated }}"""
         result = client.query(query)

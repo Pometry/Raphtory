@@ -232,6 +232,6 @@ def test_latest_and_active():
     g.add_node(2, 2, {"int_prop": 125})
 
     g.save_to_file(work_dir + "/graph")
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         assert sort_by_gql_name_or_id(client.query(query)) == result

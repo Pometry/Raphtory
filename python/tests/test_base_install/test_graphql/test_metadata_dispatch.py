@@ -33,8 +33,6 @@ pytestmark = pytest.mark.skipif(
     reason="disk-backed graph tests require the storage feature",
 )
 
-SERVER_URL = "http://localhost:1736"
-
 
 def _persist_disk_graph(graph_dir):
     """Build a disk-backed graph at `graph_dir`, populate it, flush it,
@@ -112,8 +110,8 @@ def test_metadata_returned_for_both_disk_and_parquet_graphs():
         _read_is_diskgraph(parquet_graph_dir) is False
     ), "parquet_graph was not saved as parquet"
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         # ---- Path 2 (disk on-disk read) and Path 3 (parquet on-disk read).
         # Neither graph has been loaded into the server's cache yet, so
@@ -160,8 +158,8 @@ def test_metadata_update_in_single_segment_returns_latest():
     g.flush()
     del g
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         meta = _list_metadata_by_path(client)
         assert (
             meta["g"]["version"] == "v2"
@@ -187,8 +185,8 @@ def test_metadata_update_across_flushes_returns_newest_segment():
     g.flush()
     del g
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         meta = _list_metadata_by_path(client)
         assert (
             meta["g"]["version"] == "v2"
@@ -211,8 +209,8 @@ def test_metadata_many_updates_across_flushes_returns_last():
         g.flush()
     del g
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         meta = _list_metadata_by_path(client)
         assert (
             meta["g"]["version"] == "v499"
@@ -278,8 +276,8 @@ def test_metadata_mixed_keys_across_flushes():
     g.flush()
     del g
 
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         meta = _list_metadata_by_path(client)
         assert meta["g"]["untouched"] == "stable"
         assert (

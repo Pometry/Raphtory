@@ -8,10 +8,7 @@ use crate::{
     persist::strategy::PersistenceStrategy,
 };
 use raphtory_api::core::entities::properties::meta::Meta;
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{marker::PhantomData, path::Path, sync::Arc};
 
 /// Backing store for graph temporal properties and graph metadata.
 #[derive(Debug)]
@@ -23,10 +20,7 @@ pub struct GraphPropStorageInner<GS, EXT> {
 
     /// Stores graph prop metadata (prop name -> prop id mappings).
     meta: Arc<Meta>,
-
-    path: Option<PathBuf>,
-
-    ext: EXT,
+    _ext: PhantomData<EXT>,
 }
 
 impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
@@ -37,9 +31,8 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
 
         Self {
             page,
-            path: path.map(|p| p.to_path_buf()),
             meta,
-            ext,
+            _ext: PhantomData,
         }
     }
 
@@ -52,9 +45,8 @@ impl<GS: GraphPropSegmentOps<Extension = EXT>, EXT: PersistenceStrategy>
                 path.as_ref(),
                 ext.clone(),
             )?),
-            path: Some(path.as_ref().to_path_buf()),
             meta: graph_props_meta,
-            ext,
+            _ext: PhantomData,
         })
     }
 

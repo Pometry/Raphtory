@@ -1,5 +1,6 @@
 [package]
 name = "raphtory-benchmark"
+publish = false
 version.workspace = true
 edition = "2021"
 
@@ -56,14 +57,12 @@ name = "materialise"
 harness = false
 
 [[bench]]
-name = "proto_encode"
+name = "encode"
 harness = false
-required-features = ["proto"]
 
 [[bench]]
-name = "proto_decode"
+name = "decode"
 harness = false
-required-features = ["proto"]
 
 [[bench]]
 name = "search_bench"
@@ -86,5 +85,4 @@ harness = false
 
 [features]
 search = ["raphtory/search"]
-proto = ["raphtory/proto"]
 vectors = ["raphtory/vectors"]

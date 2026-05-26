@@ -66,7 +66,7 @@ pub(crate) struct GqlGraph {
 
 impl From<GraphWithVectors> for GqlGraph {
     fn from(value: GraphWithVectors) -> Self {
-        GqlGraph::new(value.folder, value.graph)
+        GqlGraph::new(value.folder().clone(), value.graph().clone())
     }
 }
 
@@ -694,7 +694,8 @@ impl GqlGraph {
         let other_g = data
             .get_graph_with_write_permission(ctx, path.as_ref())
             .await?
-            .graph;
+            .graph()
+            .clone();
         let g = self.graph.clone();
         blocking_compute(move || {
             other_g.import_nodes(g.nodes(), true)?;

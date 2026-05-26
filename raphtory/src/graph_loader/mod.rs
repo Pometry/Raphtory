@@ -103,7 +103,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use tempfile::{NamedTempFile, PersistError};
+use tempfile::NamedTempFile;
 use zip::read::ZipArchive;
 
 pub mod company_house;

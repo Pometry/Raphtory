@@ -277,30 +277,4 @@ mod search_tests {
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
     }
-
-    #[test]
-    #[cfg(feature = "proto")]
-    #[ignore = "this test is for experiments with the jira graph"]
-    fn load_jira_graph() -> Result<(), GraphError> {
-        global_info_logger();
-
-        let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
-        assert!(graph.count_nodes() > 0);
-
-        let now = SystemTime::now();
-
-        let elapsed = now.elapsed()?.as_secs();
-        info!("indexing took: {:?}", elapsed);
-        graph.create_index_in_ram()?;
-
-        let filter = NodeFilter::name().eq("DEV-1690");
-        let issues = graph.search_nodes(filter, 5, 0)?;
-
-        assert!(!issues.is_empty());
-
-        let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        info!("names: {:?}", names);
-
-        Ok(())
-    }
 }

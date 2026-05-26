@@ -36,8 +36,8 @@ def make_props():
 
 def test_set_node_type():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         node = rg.add_node(1, "ben")
@@ -51,8 +51,8 @@ def test_set_node_type():
 
 def test_add_updates():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
@@ -67,8 +67,8 @@ def test_add_updates():
 
 def test_add_metadata():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()
@@ -84,8 +84,8 @@ def test_add_metadata():
 
 def test_update_metadata():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg = client.remote_graph("path/to/event_graph")
         props = make_props()

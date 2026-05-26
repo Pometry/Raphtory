@@ -1,5 +1,6 @@
 #[cfg(feature = "io")]
 use raphtory::io::parquet_loaders::load_edges_from_parquet;
+#[cfg(feature = "io")]
 use raphtory::{arrow_loader::df_loaders::edges::ColumnNames, errors::GraphError, prelude::*};
 use std::path::{Path, PathBuf};
 
