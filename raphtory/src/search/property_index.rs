@@ -147,7 +147,7 @@ impl PropertyIndex {
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = get_reader(&self.index)?.searcher();
-        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100))?;
+        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(100).order_by_score())?;
         println!("Total property doc count: {}", top_docs.len());
         for (_score, doc_address) in top_docs {
             let doc: TantivyDocument = searcher.doc(doc_address)?;
