@@ -457,6 +457,14 @@ def _node_degree(node, direction):
     return node.degree()
 
 
+def _degree_filter_expr(direction):
+    if direction == "in":
+        return filter.Node.in_degree()
+    if direction == "out":
+        return filter.Node.out_degree()
+    return filter.Node.degree()
+
+
 def _filtered_degree_ids(graph, filter_expr):
     return sorted(graph.filter(filter_expr).nodes.id)
 
@@ -469,7 +477,7 @@ def _expected_degree_ids(graph, direction, predicate):
 def test_filter_nodes_by_degree_eq():
     def check(graph):
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction) == 2
+            filter_expr = _degree_filter_expr(direction) == 2
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree == 2)
             assert result_ids == expected_ids
@@ -481,7 +489,7 @@ def test_filter_nodes_by_degree_eq():
 def test_filter_nodes_by_degree_ne():
     def check(graph):
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction) != 2
+            filter_expr = _degree_filter_expr(direction) != 2
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree != 2)
             assert result_ids == expected_ids
@@ -493,7 +501,7 @@ def test_filter_nodes_by_degree_ne():
 def test_filter_nodes_by_degree_gt():
     def check(graph):
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction) > 2
+            filter_expr = _degree_filter_expr(direction) > 2
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree > 2)
             assert result_ids == expected_ids
@@ -505,7 +513,7 @@ def test_filter_nodes_by_degree_gt():
 def test_filter_nodes_by_degree_lt():
     def check(graph):
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction) < 2
+            filter_expr = _degree_filter_expr(direction) < 2
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree < 2)
             assert result_ids == expected_ids
@@ -517,7 +525,7 @@ def test_filter_nodes_by_degree_lt():
 def test_filter_nodes_by_degree_ge():
     def check(graph):
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction) >= 2
+            filter_expr = _degree_filter_expr(direction) >= 2
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree >= 2)
             assert result_ids == expected_ids
@@ -529,7 +537,7 @@ def test_filter_nodes_by_degree_ge():
 def test_filter_nodes_by_degree_le():
     def check(graph):
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction) <= 2
+            filter_expr = _degree_filter_expr(direction) <= 2
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree <= 2)
             assert result_ids == expected_ids
@@ -542,7 +550,7 @@ def test_filter_nodes_by_degree_is_in():
     def check(graph):
         allowed = [1, 2]
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction).is_in(allowed)
+            filter_expr = _degree_filter_expr(direction).is_in(allowed)
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree in [1, 2])
             assert result_ids == expected_ids
@@ -555,7 +563,7 @@ def test_filter_nodes_by_degree_is_not_in():
     def check(graph):
         blocked = [1, 2]
         for direction in ["in", "out", "both"]:
-            filter_expr = filter.Node.degree(direction).is_not_in(blocked)
+            filter_expr = _degree_filter_expr(direction).is_not_in(blocked)
             result_ids = _filtered_degree_ids(graph, filter_expr)
             expected_ids = _expected_degree_ids(graph, direction, lambda degree: degree not in [1, 2])
             assert result_ids == expected_ids
