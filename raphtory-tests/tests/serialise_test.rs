@@ -1,10 +1,7 @@
-#[cfg(all(test, feature = "test-utils", feature = "proto"))]
+#[cfg(test)]
 mod serialise_test {
-
     use arrow::{array::types::Int32Type, datatypes::UInt8Type};
     use chrono::{DateTime, NaiveDateTime};
-    use itertools::Itertools;
-    #[cfg(feature = "proto")]
     use proptest::proptest;
     use raphtory::{
         db::{
@@ -13,16 +10,9 @@ mod serialise_test {
         },
         prelude::*,
         serialise::{metadata::assert_metadata_correct, GraphFolder},
-        test_utils::{build_edge_list, build_graph_from_edge_list},
     };
-    use raphtory_api::core::{
-        entities::properties::{meta::PropMapper, prop::PropType},
-        storage::arc_str::ArcStr,
-    };
-    use raphtory_core::{entities::GidRef, storage::timeindex::EventTime};
-    use raphtory_storage::core_ops::CoreGraphOps;
-    use std::{collections::HashMap, path::PathBuf, sync::Arc};
-    use storage::Config;
+    use raphtory_api::core::storage::arc_str::ArcStr;
+    use raphtory_tests::utils::{build_edge_list, build_graph_from_edge_list};
     use tempfile::TempDir;
 
     #[test]

@@ -56,7 +56,6 @@ python = [
     "dep:pyo3", "dep:pyo3-arrow", "dep:display-error-chain", "dep:numpy"
 ]
 
-proto = []
 vectors = []
 template = ["dep:minijinja"]
 search = []

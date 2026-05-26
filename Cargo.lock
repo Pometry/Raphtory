@@ -2206,7 +2206,7 @@ dependencies = [
  "itertools 0.14.0",
  "parking_lot",
  "paste",
- "petgraph 0.8.3",
+ "petgraph",
  "tokio",
 ]
 
@@ -3950,7 +3950,7 @@ dependencies = [
  "permutation",
  "pin-project",
  "prost 0.14.3",
- "prost-types 0.14.3",
+ "prost-types",
  "rand 0.9.4",
  "roaring 0.11.3",
  "semver",
@@ -4064,7 +4064,7 @@ dependencies = [
  "log",
  "pin-project",
  "prost 0.14.3",
- "prost-build 0.14.3",
+ "prost-build",
  "snafu 0.9.0",
  "tokio",
  "tracing",
@@ -4118,8 +4118,8 @@ dependencies = [
  "lz4",
  "num-traits",
  "prost 0.14.3",
- "prost-build 0.14.3",
- "prost-types 0.14.3",
+ "prost-build",
+ "prost-types",
  "rand 0.9.4",
  "snafu 0.9.0",
  "strum 0.26.3",
@@ -4156,8 +4156,8 @@ dependencies = [
  "num-traits",
  "object_store",
  "prost 0.14.3",
- "prost-build 0.14.3",
- "prost-types 0.14.3",
+ "prost-build",
+ "prost-types",
  "snafu 0.9.0",
  "tokio",
  "tracing",
@@ -4210,8 +4210,8 @@ dependencies = [
  "num-traits",
  "object_store",
  "prost 0.14.3",
- "prost-build 0.14.3",
- "prost-types 0.14.3",
+ "prost-build",
+ "prost-types",
  "rand 0.9.4",
  "rand_distr 0.5.1",
  "rangemap",
@@ -4366,8 +4366,8 @@ dependencies = [
  "log",
  "object_store",
  "prost 0.14.3",
- "prost-build 0.14.3",
- "prost-types 0.14.3",
+ "prost-build",
+ "prost-types",
  "rand 0.9.4",
  "rangemap",
  "roaring 0.11.3",
@@ -5570,16 +5570,6 @@ dependencies = [
 
 [[package]]
 name = "petgraph"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3672b37090dbd86368a4145bc067582552b29c27377cad4e0a306c97f9bd7772"
-dependencies = [
- "fixedbitset",
- "indexmap 2.14.0",
-]
-
-[[package]]
-name = "petgraph"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
@@ -5934,26 +5924,6 @@ dependencies = [
 
 [[package]]
 name = "prost-build"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
-dependencies = [
- "heck 0.5.0",
- "itertools 0.14.0",
- "log",
- "multimap",
- "once_cell",
- "petgraph 0.7.1",
- "prettyplease",
- "prost 0.13.5",
- "prost-types 0.13.5",
- "regex",
- "syn 2.0.117",
- "tempfile",
-]
-
-[[package]]
-name = "prost-build"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
@@ -5962,10 +5932,10 @@ dependencies = [
  "itertools 0.14.0",
  "log",
  "multimap",
- "petgraph 0.8.3",
+ "petgraph",
  "prettyplease",
  "prost 0.14.3",
- "prost-types 0.14.3",
+ "prost-types",
  "regex",
  "syn 2.0.117",
  "tempfile",
@@ -5995,15 +5965,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.117",
-]
-
-[[package]]
-name = "prost-types"
-version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16"
-dependencies = [
- "prost 0.13.5",
 ]
 
 [[package]]
@@ -6373,7 +6334,6 @@ dependencies = [
  "itertools 0.13.0",
  "kdam",
  "lancedb",
- "memmap2",
  "minijinja",
  "minijinja-contrib",
  "moka",
@@ -6390,9 +6350,6 @@ dependencies = [
  "pretty_assertions",
  "proptest",
  "proptest-derive",
- "prost 0.13.5",
- "prost-build 0.13.5",
- "prost-types 0.13.5",
  "pyo3",
  "pyo3-arrow",
  "pythonize",
