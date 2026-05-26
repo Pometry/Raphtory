@@ -5091,6 +5091,7 @@ mod test_node_property_filter_agg {
         Prop::List(v.into())
     }
 
+    /// Writes a set of node temporal properties and node metadata to the given graph.
     pub fn init_nodes_graph<
         G: StaticGraphViewOps
             + AdditionOps
@@ -5100,6 +5101,7 @@ mod test_node_property_filter_agg {
     >(
         graph: G,
     ) -> G {
+        // Each tuple represents (timestamp, node_name, properties).
         let nodes: [(i64, &str, Vec<(&str, Prop)>); 12] = [
             (
                 1,
@@ -5300,6 +5302,7 @@ mod test_node_property_filter_agg {
             graph.add_node(t, id, props, None, None).unwrap();
         }
 
+        // Each tuple represents (node_name, properties).
         let metadata: [(&str, Vec<(&str, Prop)>); 8] = [
             (
                 "n1",
