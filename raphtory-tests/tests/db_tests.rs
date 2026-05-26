@@ -50,10 +50,8 @@ use std::{
     ops::{Deref, Range},
     sync::Arc,
 };
+use tempfile::TempDir;
 use tracing::{error, info};
-
-#[cfg(feature = "io")]
-use {raphtory::serialise::StableDecode, tempfile::TempDir};
 
 #[test]
 fn edge_metadata() -> Result<(), GraphError> {
@@ -758,7 +756,6 @@ fn props_with_layers() {
 }
 
 #[test]
-#[cfg(feature = "io")]
 fn graph_save_to_load_from_file() {
     let vs = vec![
         (1, 1, 2),
@@ -775,7 +772,7 @@ fn graph_save_to_load_from_file() {
         g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
     }
 
-    let tmp_raphtory_path: TempDir = TempDir::new().unwrap();
+    let tmp_raphtory_path = TempDir::new().unwrap();
 
     let graph_path = format!("{}/graph.bin", tmp_raphtory_path.path().display());
     g.encode(&graph_path).unwrap();

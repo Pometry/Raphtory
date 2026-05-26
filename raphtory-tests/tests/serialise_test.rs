@@ -2,7 +2,6 @@
 mod serialise_test {
     use arrow::{array::types::Int32Type, datatypes::UInt8Type};
     use chrono::{DateTime, NaiveDateTime};
-    use itertools::Itertools;
     use proptest::proptest;
     use raphtory::{
         db::{
@@ -12,14 +11,8 @@ mod serialise_test {
         prelude::*,
         serialise::{metadata::assert_metadata_correct, GraphFolder},
     };
-    use raphtory_api::core::{
-        entities::properties::{meta::PropMapper, prop::PropType},
-        storage::arc_str::ArcStr,
-    };
-    use raphtory_storage::core_ops::CoreGraphOps;
+    use raphtory_api::core::storage::arc_str::ArcStr;
     use raphtory_tests::utils::{build_edge_list, build_graph_from_edge_list};
-    use std::{collections::HashMap, path::PathBuf, sync::Arc};
-    use storage::Config;
     use tempfile::TempDir;
 
     #[test]
