@@ -33,7 +33,7 @@ pub const DATA_PATH: &str = "data";
 pub const DEFAULT_DATA_PATH: &str = "data0";
 
 /// Metadata file that stores path to the graph folder and graph metadata.
-pub const GRAPH_META_PATH: &str = ".meta";
+pub use storage::GRAPH_META_PATH;
 
 /// Directory that stores graph data.
 pub const GRAPH_PATH: &str = "graph";
