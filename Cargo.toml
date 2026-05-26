@@ -70,7 +70,6 @@ raphtory-storage = { version = "0.18.0", path = "raphtory-storage", default-feat
 raphtory-itertools = { version = "0.18.0", path = "raphtory-itertools" }
 clam-core = { version = "0.18.0", path = "clam-core" }
 optd-core = { version = "0.18.0", path = "optd/optd/core" }
-
 async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"
@@ -182,7 +181,6 @@ arrow-data = { version = "57.3.0" }
 arrow-select = { version = "57.3.0" }
 serde_arrow = { version = "0.13.7", features = ["arrow-57"] }
 moka = { version = "0.12.15", features = ["future"] }
-quick_cache = "0.6.21"
 indexmap = { version = "2.13.0", features = ["rayon"] }
 fake = { version = "3.1.0", features = ["chrono"] }
 strsim = { version = "0.11.1" }
