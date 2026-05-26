@@ -384,20 +384,7 @@ fn assert_results(
     variants: Vec<TestGraphVariants>,
     apply: impl ApplyFilter,
 ) {
-    fn sorted<I, S>(iter: I) -> Vec<String>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let mut v: Vec<String> = iter.into_iter().map(|s| s.as_ref().to_string()).collect();
-        v.sort();
-        v
-    }
-
     let graph = init_graph(Graph::new());
-
-    thread::sleep(Duration::from_secs(3));
-
     let expected = sorted(expected.iter());
 
     for v in variants {
@@ -417,6 +404,16 @@ fn assert_results(
             }
         }
     }
+}
+
+fn sorted<I, S>(iter: I) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut v: Vec<String> = iter.into_iter().map(|s| s.as_ref().to_string()).collect();
+    v.sort();
+    v
 }
 
 pub fn filter_nodes(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {
