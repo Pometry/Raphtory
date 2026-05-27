@@ -1,4 +1,4 @@
-use crate::{data::DIRTY_PATH, model::blocking_io, rayon::blocking_compute};
+use crate::{model::blocking_io, rayon::blocking_compute};
 use futures_util::io;
 use raphtory::{
     db::api::{
@@ -12,7 +12,7 @@ use raphtory::{
         WriteableGraphFolder,
     },
 };
-use raphtory_api::core::storage::graph_folder::ROOT_META_PATH;
+use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
 use std::{
     cmp::Ordering,
     fs,

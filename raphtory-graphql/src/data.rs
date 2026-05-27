@@ -48,8 +48,6 @@ use std::{
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
-pub const DIRTY_PATH: &'static str = ".dirty";
-
 #[derive(thiserror::Error, Debug)]
 pub enum MutationErrorInner {
     #[error(transparent)]
