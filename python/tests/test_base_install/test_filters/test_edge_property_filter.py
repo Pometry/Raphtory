@@ -1548,7 +1548,7 @@ def test_filter_edges_temporal_layer_eq_is_empty():
     return check
 
 
-@with_variants(init_graph)
+@with_variants(init_graph, variants=["graph"])
 def test_filter_edges_at():
     def check(graph):
         expr = filter.Edge.at(1).property("p10").temporal().last() == "Paper_airplane"
@@ -1563,7 +1563,7 @@ def test_filter_edges_at():
     return check
 
 
-@with_variants(init_graph)
+@with_variants(init_graph, variants=["persistent_graph"])
 def test_filter_edges_at_persistent():
     def check(graph):
         expr = filter.Edge.at(3).property("p10").temporal().last() == "Paper_airplane"
@@ -1586,7 +1586,7 @@ def test_filter_edges_before():
     return check
 
 
-@with_variants(init_graph)
+@with_variants(init_graph, variants=["graph"])
 def test_filter_edges_after():
     def check(graph):
         expr = (
@@ -1600,7 +1600,7 @@ def test_filter_edges_after():
     return check
 
 
-@with_variants(init_graph)
+@with_variants(init_graph, variants=["persistent_graph"])
 def test_filter_edges_after_persistent():
     def check(graph):
         expr = (
@@ -1614,7 +1614,7 @@ def test_filter_edges_after_persistent():
     return check
 
 
-@with_variants(init_graph)
+@with_variants(init_graph, variants=["graph"])
 def test_filter_edges_latest():
     def check(graph):
         expr = filter.Edge.latest().property("p2").temporal().sum() >= 0
@@ -1631,7 +1631,7 @@ def test_filter_edges_latest():
     return check
 
 
-@with_variants(init_graph)
+@with_variants(init_graph, variants=["persistent_graph"])
 def test_filter_edges_latest_persistent():
     def check(graph):
         expr = (
@@ -1686,7 +1686,7 @@ def test_filter_edges_snapshot_latest():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_layer_latest():
     def check(graph):
         expr = (
@@ -1699,7 +1699,7 @@ def test_filter_edges_layer_latest():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_latest_layer():
     def check(graph):
         expr = (
@@ -1712,7 +1712,7 @@ def test_filter_edges_latest_layer():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_window():
     def check(graph):
         expr = filter.Graph.window(1, 3)
@@ -1721,7 +1721,7 @@ def test_filter_edges_graph_filter_window():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_layer():
     def check(graph):
         expr = filter.Graph.layer("fire_nation")
@@ -1730,7 +1730,7 @@ def test_filter_edges_graph_filter_layer():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_window_layer():
     def check(graph):
         expr = filter.Graph.window(1, 3).layer("fire_nation")
@@ -1739,7 +1739,7 @@ def test_filter_edges_graph_filter_window_layer():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_at():
     def check(graph):
         expr = filter.Graph.at(2)
@@ -1748,7 +1748,7 @@ def test_filter_edges_graph_filter_at():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["persistent_graph"])
 def test_filter_edges_graph_filter_before():
     def check(graph):
         expr = filter.Graph.before(4)
@@ -1763,7 +1763,7 @@ def test_filter_edges_graph_filter_before():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["persistent_graph"])
 def test_filter_edges_graph_filter_after():
     def check(graph):
         expr = filter.Graph.after(7)
@@ -1778,7 +1778,7 @@ def test_filter_edges_graph_filter_after():
     return check
 
 
-@with_variants(init_graph3)
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_latest():
     def check(graph):
         expr = filter.Graph.latest()
