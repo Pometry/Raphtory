@@ -1726,7 +1726,6 @@ def test_layer():
     g.add_edge(0, 1, 6, layer="layer1")
     g.add_edge(0, 1, 4, layer="layer2")
 
-    # FIXME: no multi layer support
     assert g.default_layer().count_edges() == 1
     assert g.layers(["layer1"]).count_edges() == 3
     assert g.layers(["layer2"]).count_edges() == 1
@@ -1777,7 +1776,6 @@ def test_rolling_as_iterable():
     g.add_node(1, 1)
     g.add_node(4, 4)
 
-    # FIXME: need special handling for nodes additions from Graph
     rolling = g.rolling(1)
 
     # a normal operation is reusing the object returned by rolling twice, to get both results and an index.
@@ -2108,7 +2106,6 @@ def test_materialize_graph():
     g.add_metadata(sprop)
     assert g.metadata == sprop
 
-    # FIXME: need special handling for nodes additions from Graph, support for metadata on edges
     def check_g_inner(mg):
         assert mg.node(1).properties.get("type") == "wallet"
         assert mg.node(4).metadata == {"abc": "xyz"}
@@ -2146,8 +2143,8 @@ def test_materialize_graph():
 def test_deletions():
     g = create_graph_with_deletions()
 
-    # FIXME: add support for edge deletions
     deleted_edge = g.edge(edges[0][1], edges[0][2])
+
     for e in edges:
         assert g.at(e[0]).has_edge(e[1], e[2])
         assert g.after(e[0]).has_edge(e[1], e[2])
@@ -2197,7 +2194,6 @@ def test_edge_layer():
     g.add_edge(1, 1, 2, layer="layer 1").add_metadata({"test_prop": "test_val"})
     g.add_edge(1, 2, 3, layer="layer 2").add_metadata({"test_prop": "test_val 2"})
 
-    # FIXME: add support for edge metadata
     assert g.edges.metadata.get("test_prop") == [
         {"layer 1": "test_val"},
         {"layer 2": "test_val 2"},
@@ -2208,9 +2204,8 @@ def test_edge_layer():
 def test_layers_earliest_time():
     g = Graph()
     e = g.add_edge(1, 1, 2, layer="test")
-
-    # FIXME: add support for multiple layers
     e = g.edge(1, 2)
+
     assert e.earliest_time == 1
 
 
@@ -2222,7 +2217,6 @@ def test_edge_explode_layers():
     g.add_edge(1, 2, 1, {"layer": 1}, layer="1")
     g.add_edge(1, 2, 1, {"layer": 2}, layer="2")
 
-    # FIXME: add edge multi layer support
     layered_edges = g.edge(1, 2).explode_layers()
     e_layers = [ee.layer_names for ee in layered_edges]
     e_layer_prop = [[str(ee.properties["layer"])] for ee in layered_edges]
@@ -2404,7 +2398,6 @@ def test_one_hop_filter_reset():
 
     v = g.node(1)
 
-    # filtering resets on neighbours
     out_out = v.at(0).layer("1").out_neighbours.layer("2").out_neighbours.id
     assert out_out == [3]
 
@@ -2754,7 +2747,6 @@ def test_unique_temporal_properties():
     g.add_node(2, 3, {"name": "avatar2"})
     g.add_node(3, 3, {"name": "avatar2"})
 
-    # FIXME: temporal properties
     assert g.edge(1, 2).properties.temporal.get("status").ordered_dedupe(True) == [
         (2, "open"),
         (3, "review"),
