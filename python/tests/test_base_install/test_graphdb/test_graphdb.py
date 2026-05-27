@@ -1850,21 +1850,23 @@ def test_time():
         "The time function is only available once an edge has been exploded via .explode(). "
         "You may want to retrieve the history for this edge via .history(), or the earliest/latest time via earliest_time or latest_time"
     )
-    # with pytest.raises(Exception) as e:
-    #     g.edges.time()
-    # assert str(e.value) == error_msg
 
+    with pytest.raises(Exception) as e:
+        g.edges.time()
+
+    assert str(e.value) == error_msg
     assert list(g.edges.explode().time) == [0, 0, 1]
 
-    # with pytest.raises(Exception) as e:
-    #     g.edge(0, 2).time()
-    # assert str(e.value) == error_msg
+    with pytest.raises(Exception) as e:
+        g.edge(0, 2).time()
 
+    assert str(e.value) == error_msg
     assert list(g.edge(0, 2).explode().time) == [0, 1]
 
-    # with pytest.raises(Exception) as e:
-    #     g.nodes.neighbours.edges.time()
-    # assert str(e.value) == error_msg
+    with pytest.raises(Exception) as e:
+        g.nodes.neighbours.edges.time()
+
+    assert str(e.value) == error_msg
 
     assert [
         list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
@@ -1873,7 +1875,6 @@ def test_time():
         [0, 0, 1],
         [0, 0, 1],
     ]
-
 
 
 def test_window_size():
