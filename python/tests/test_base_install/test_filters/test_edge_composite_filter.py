@@ -60,7 +60,9 @@ def test_edge_composite_filter():
         filter_expr1 = filter.Edge.src().name() == "1"
         filter_expr2 = filter.Edge.property("p1") == "shivam_kapoor"
         filter_expr3 = filter.Edge.property("p3") == 5
-        result_ids = sorted(graph.filter((filter_expr1 & filter_expr2) | filter_expr3).edges.id)
+        result_ids = sorted(
+            graph.filter((filter_expr1 & filter_expr2) | filter_expr3).edges.id
+        )
         expected_ids = [("1", "2")]
         assert result_ids == expected_ids
 

@@ -99,7 +99,6 @@ def test_id_iterable():
     assert out_neighbours == {1: {1, 2, 3}, 2: {1}, 3: {2}}
 
 
-
 def test_degree_iterable():
     g = create_graph()
 
@@ -116,13 +115,11 @@ def test_degree_iterable():
     assert degrees == [2, 2, 3]
 
 
-
 def test_nodes_time_iterable():
     g = create_graph()
 
     assert g.nodes.earliest_time.min().t == -1
     assert g.nodes.latest_time.max().t == 7
-
 
 
 def test_graph_has_edge():
@@ -133,19 +130,16 @@ def test_graph_has_edge():
     assert not g.window(10, 11).has_edge(1, 3)
 
 
-
 def test_graph_has_node():
     g = create_graph()
 
     assert g.has_node(3)
 
 
-
 def test_windowed_graph_has_node():
     g = create_graph()
 
     assert g.window(-1, 1).has_node(1)
-
 
 
 def test_windowed_graph_get_node():
@@ -158,7 +152,6 @@ def test_windowed_graph_get_node():
     assert view.node(1).degree() == 3
 
 
-
 def test_edge_sorting():
     g = create_graph()
 
@@ -166,7 +159,6 @@ def test_edge_sorting():
     assert sorted(g.edges.explode(), key=lambda e: (*e.id, e.time)) == sorted(
         g.edges.explode()
     )
-
 
 
 def test_windowed_graph_degree():
@@ -190,7 +182,6 @@ def test_windowed_graph_degree():
     assert out_degrees == [0, 1, 3]
 
 
-
 def test_windowed_graph_get_edge():
     g = create_graph()
 
@@ -210,7 +201,6 @@ def test_windowed_graph_get_edge():
 
     view = g.window(3, 7)
     assert view.edge(1, 3) is None
-
 
 
 def test_windowed_graph_edges():
@@ -233,7 +223,6 @@ def test_windowed_graph_edges():
     assert out_edges == {1: [(1, 1), (1, 2), (1, 3)], 2: [], 3: [(3, 2)]}
 
 
-
 def test_windowed_graph_node_ids():
     g = create_graph()
 
@@ -246,14 +235,12 @@ def test_windowed_graph_node_ids():
     assert vs == [1, 2, 3]
 
 
-
 def test_windowed_graph_nodes():
     g = create_graph()
 
     view = g.window(-1, 0)
     nodes = list(view.nodes.id)
     assert nodes == [1, 2]
-
 
 
 def test_windowed_graph_neighbours():
@@ -264,9 +251,7 @@ def test_windowed_graph_neighbours():
 
     view = g.window(min_size, max_size)
 
-    neighbours = dict(
-        zip(view.nodes.id, (sorted(v) for v in view.nodes.neighbours.id))
-    )
+    neighbours = dict(zip(view.nodes.id, (sorted(v) for v in view.nodes.neighbours.id)))
     assert neighbours == {1: [1, 2, 3], 2: [1, 3], 3: [1, 2]}
 
     in_neighbours = dict(
@@ -278,7 +263,6 @@ def test_windowed_graph_neighbours():
         zip(view.nodes.id, (sorted(v) for v in view.nodes.out_neighbours.id))
     )
     assert out_neighbours == {1: [1, 2, 3], 2: [1], 3: [2]}
-
 
 
 def test_name():
@@ -298,7 +282,6 @@ def test_getitem():
         g.node(1).properties.temporal.get("cost")
         == g.node(1).properties.temporal["cost"]
     )
-
 
 
 def test_entity_history_date_time():
@@ -587,9 +570,7 @@ def test_node_properties():
         if value is None:
             assert g.at(time).node(1).properties.temporal.get(key) is None
             assert g.at(time).nodes.properties.temporal.get(key) is None
-            assert (
-                g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
-            )
+            assert g.at(time).nodes.out_neighbours.properties.temporal.get(key) is None
         else:
             assert g.at(time).node(1).properties.temporal.get(key).items() == value
             assert g.at(time).nodes.properties.temporal.get(key).items() == [value]
@@ -870,7 +851,6 @@ def test_node_properties():
     assert "static prop" in g.at(1).nodes.out_neighbours.metadata
 
 
-
 def test_decimal_property():
     g = Graph()
     decimal_properties = {
@@ -936,7 +916,6 @@ def test_decimal_property():
     assert g.node(2).properties.temporal.get("d_medium").sum() == Decimal(
         "208894535503109120238.000000000"
     )
-
 
 
 def test_edge_properties():
@@ -1126,7 +1105,6 @@ def test_exploded_edge_time():
     check_arr(his, exploded_his)
 
 
-
 def test_algorithms():
     g = Graph()
     lotr_graph = graph_loader.lotr_graph()
@@ -1161,20 +1139,16 @@ def test_algorithms():
     assert lotr_local_triangle_count == 253
 
 
-
 def test_graph_time_api():
     g = create_graph()
 
     earliest_time = g.earliest_time.t
     latest_time = g.latest_time.t
     assert len(list(g.rolling(1))) == latest_time - earliest_time + 1
-    assert len(list(g.expanding(2))) == math.ceil(
-        (latest_time + 1 - earliest_time) / 2
-    )
+    assert len(list(g.expanding(2))) == math.ceil((latest_time + 1 - earliest_time) / 2)
 
     w = g.window(2, 6)
     assert len(list(w.rolling(window=10, step=3))) == 2
-
 
 
 def test_save_missing_dir():
@@ -1227,7 +1201,6 @@ def test_save_load_graph():
         del g
 
 
-
 def test_graph_at():
     g = create_graph()
 
@@ -1245,7 +1218,6 @@ def test_graph_at():
     view = g.after(6)
     assert view.node(2).degree() == 1
     assert view.node(3).degree() == 1
-
 
 
 def test_add_node_string_multiple_types_fail():
@@ -1338,7 +1310,6 @@ def test_all_neighbours_window():
     assert list(v.window(0, 2).neighbours.id) == [1, 3]
 
 
-
 def test_all_degrees_window():
     g = Graph()
     g.add_edge(1, 1, 2, {})
@@ -1360,7 +1331,6 @@ def test_all_degrees_window():
     assert v.window(0, 4).degree() == 3
     assert v.after(1).degree() == 2
     assert v.before(end=3).degree() == 2
-
 
 
 def test_all_edge_window():
@@ -1400,7 +1370,6 @@ def test_all_edge_window():
         (3, 2),
         (4, 2),
     ]
-
 
 
 def test_static_prop_change():
@@ -1449,7 +1418,6 @@ def test_triplet_count():
     assert algorithms.triplet_count(g) == 3
 
 
-
 def test_global_clustering_coeffficient():
     g = Graph()
 
@@ -1462,7 +1430,6 @@ def test_global_clustering_coeffficient():
 
     assert algorithms.global_clustering_coefficient(g) == 0.5454545454545454
     assert algorithms.global_clustering_coefficient(g.at(0)) == 0.5454545454545454
-
 
 
 def test_edge_time_apis():
@@ -1503,7 +1470,6 @@ def test_edge_time_apis():
     assert ls == ["2", "4"]
 
 
-
 def test_edge_earliest_latest_time():
     g = Graph()
     g.add_edge(0, 1, 2, {})
@@ -1526,7 +1492,6 @@ def test_edge_earliest_latest_time():
     assert list(g.node(1).after(1).edges.latest_time) == [2, 2]
 
 
-
 def test_node_earliest_time():
     g = Graph()
     g.add_node(0, 1, {})
@@ -1546,7 +1511,6 @@ def test_node_earliest_time():
     assert view.node(1).latest_time == 2
 
 
-
 def test_node_history():
     g = Graph()
 
@@ -1560,7 +1524,6 @@ def test_node_history():
     view = g.window(1, 8)
     check_arr(view.node(1).history.t.collect(), [1, 2, 3, 4])
 
-
     g = Graph()
 
     g.add_node(4, "Lord Farquaad", {})
@@ -1571,7 +1534,6 @@ def test_node_history():
     check_arr(g.node("Lord Farquaad").history.t.collect(), [4, 6, 7, 8])
     view = g.window(1, 8)
     check_arr(view.node("Lord Farquaad").history.t.collect(), [4, 6, 7])
-
 
 
 def test_edge_history():
@@ -1697,7 +1659,6 @@ def test_lotr_edge_history():
     )
 
 
-
 # def test_generic_taint_loader():
 #     g = graph_loader.stable_coin_graph("/tmp/stablecoin",true, 1)
 #
@@ -1752,7 +1713,6 @@ def test_layer():
         g.edge(1, 2).layers(["test_layer"])
 
 
-
 def test_layer_node():
     g = Graph()
 
@@ -1785,7 +1745,6 @@ def test_rolling_as_iterable():
 
     assert n_nodes == [1, 0, 0, 1]
     assert time_index == [1, 2, 3, 4]
-
 
 
 def test_layer_name():
@@ -1866,9 +1825,7 @@ def test_time():
 
     assert str(e.value) == error_msg
 
-    assert [
-        list(iterator) for iterator in g.nodes.neighbours.edges.explode().time
-    ] == [
+    assert [list(iterator) for iterator in g.nodes.neighbours.edges.explode().time] == [
         [0, 0, 1],
         [0, 0, 1],
         [0, 0, 1],
@@ -1882,7 +1839,6 @@ def test_window_size():
 
     assert g.window_size is None
     assert g.window(1, 5).window_size == 4
-
 
 
 def test_time_index():
@@ -1907,7 +1863,6 @@ def test_time_index():
     assert list(time_index) == [25, 75]
 
 
-
 def test_datetime_props():
     g = Graph()
 
@@ -1918,7 +1873,6 @@ def test_datetime_props():
     dt2 = datetime(2020, 1, 1, 23, 59, 59, 999999)
     g.add_node(0, 1, {"time": dt2})
     assert g.node(1).properties.get("time") == dt2
-
 
 
 def test_date_time():
@@ -1942,7 +1896,6 @@ def test_date_time():
 
     assert g.node(1).earliest_time == datetime(2014, 2, 2, 0, 0, tzinfo=utc)
     assert g.node(1).latest_time == datetime(2014, 2, 5, 0, 0, tzinfo=utc)
-
 
 
 def test_float_ts():
@@ -1992,7 +1945,6 @@ def test_date_time_window():
     assert exploded_edges == [datetime(2014, 2, 2, tzinfo=utc)]
 
 
-
 def test_datetime_add_node():
     g = Graph()
     g.add_node(datetime(2014, 2, 2), 1)
@@ -2017,7 +1969,6 @@ def test_datetime_add_node():
     assert view.node(2).latest_time == datetime(2014, 2, 3, 0, 0, tzinfo=utc)
 
 
-
 def test_equivalent_nodes_edges_and_sets():
     g = Graph()
     g.add_node(1, 1)
@@ -2033,7 +1984,6 @@ def test_equivalent_nodes_edges_and_sets():
     assert set(g.node(1).out_edges) == set(g.node(2).in_edges)
 
     assert g.edge(1, 1) == g.edge(1, 1)
-
 
 
 def test_subgraph():
@@ -2069,13 +2019,11 @@ def test_subgraph():
     assert x == ["prop 1", "prop 2", "prop 3"]
 
 
-
 def test_exclude_nodes():
     g = create_graph()
 
     exclude_nodes = g.exclude_nodes([1])
     assert sorted(exclude_nodes.nodes.id.collect()) == [2, 3]
-
 
 
 def test_nbr():
@@ -2084,7 +2032,6 @@ def test_nbr():
     r = [e.nbr.name for e in g.edges]
     r.sort()
     assert r == ["1", "1", "2", "2", "3"]
-
 
 
 def test_materialize_graph():
@@ -2139,7 +2086,6 @@ def test_materialize_graph():
     assert mg.metadata == sprop
 
 
-
 def test_deletions():
     g = create_graph_with_deletions()
 
@@ -2188,7 +2134,6 @@ def test_deletions():
     assert not list(g.after(0).edge(1, 1).before(1).expanding(1))
 
 
-
 def test_edge_layer():
     g = Graph()
     g.add_edge(1, 1, 2, layer="layer 1").add_metadata({"test_prop": "test_val"})
@@ -2200,14 +2145,12 @@ def test_edge_layer():
     ]
 
 
-
 def test_layers_earliest_time():
     g = Graph()
     e = g.add_edge(1, 1, 2, layer="test")
     e = g.edge(1, 2)
 
     assert e.earliest_time == 1
-
 
 
 def test_edge_explode_layers():
@@ -2242,7 +2185,6 @@ def test_edge_explode_layers():
     assert e_layers == e_layer_prop
 
 
-
 def test_starend_edges():
     g = Graph()
     g.add_edge(1, 1, 2)
@@ -2271,16 +2213,13 @@ def test_starend_edges():
         item for sublist in g.nodes.edges.latest_time.collect() for item in sublist
     ]
     assert old_earliest_time_nested_way == [
-        item
-        for sublist in g.nodes.edges.earliest_time.collect()
-        for item in sublist
+        item for sublist in g.nodes.edges.earliest_time.collect() for item in sublist
     ]
     gw = g.window(1, 3)
     assert gw.edges.start == gw.start
     assert gw.edges.end == gw.end
     assert gw.nodes.edges.start == gw.start
     assert gw.nodes.edges.end == gw.end
-
 
 
 def test_date_time_edges():
@@ -2308,7 +2247,6 @@ def test_date_time_edges():
     assert gw.nodes.edges.end == gw.end
 
 
-
 def test_layer_edges():
     g = Graph()
     g.add_edge(1, 1, 2, layer="layer 1")
@@ -2327,7 +2265,6 @@ def test_layer_edges():
     assert old_layers_way == list(g.edges.layers(layer_names))
 
 
-
 def test_window_edges():
     g = Graph()
     g.add_edge(1, 1, 2)
@@ -2341,7 +2278,6 @@ def test_window_edges():
     assert old_window_way == list(g.edges.window(2, 3))
 
 
-
 def test_weird_windows():
     g = Graph()
     g.add_edge(1, 1, 2)
@@ -2351,7 +2287,6 @@ def test_weird_windows():
         match="'ddd' is not a valid datetime. Valid formats are RFC3339, RFC2822, %Y-%m-%d, %Y-%m-%dT%H:%M:%S%.3f, %Y-%m-%dT%H:%M:%S%, %Y-%m-%d %H:%M:%S%.3f and %Y-%m-%d %H:%M:%S%",
     ):
         g.window("ddd", "aaa")
-
 
 
 def test_at_edges():
@@ -2365,7 +2300,6 @@ def test_at_edges():
     for e in g.edges:
         old_at_way.append(e.at(2))
     assert old_at_way == list(g.edges.at(2))
-
 
 
 def test_snapshot():
@@ -2402,10 +2336,7 @@ def test_one_hop_filter_reset():
     assert out_out == [3]
 
     out_out = (
-        v.at(0)
-        .layer("1")
-        .out_neighbours.layer("2")
-        .out_edges.properties.get("layer")
+        v.at(0).layer("1").out_neighbours.layer("2").out_edges.properties.get("layer")
     )
     assert out_out == [2]
 
@@ -2424,11 +2355,8 @@ def test_one_hop_filter_reset():
     assert degrees == [1]
 
     # graph level filter is preserved
-    out_out_2 = (
-        g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
-    )
+    out_out_2 = g.at(0).node(1).layer("1").out_neighbours.layer("2").out_neighbours.id
     assert len(out_out_2) == 0
-
 
 
 def test_type_filter():
@@ -2630,9 +2558,7 @@ def test_time_exploded_edges():
         for edge in edges:
             time_nested.append(edge.time)
     assert [
-        item
-        for sublist in g.nodes.edges.explode().time.collect()
-        for item in sublist
+        item for sublist in g.nodes.edges.explode().time.collect() for item in sublist
     ] == time_nested
 
     date_time_nested = []
@@ -2644,7 +2570,6 @@ def test_time_exploded_edges():
         for sublist in g.nodes.edges.explode().time.dt.collect()
         for item in sublist
     ] == date_time_nested
-
 
 
 def test_leading_zeroes_ids():
@@ -2674,7 +2599,6 @@ def test_node_types():
     assert a.node_type == None
     assert b.node_type == "BTYPE"
     assert set(g.nodes.node_type) == {None, "BTYPE"}
-
 
 
 def test_node_types_change():
@@ -2728,7 +2652,6 @@ def test_NaN_NaT_as_properties():
     assert g.node(101).properties.temporal.get("floats") == []
 
 
-
 def test_unique_temporal_properties():
     g = Graph()
     g.add_properties(1, {"name": "tarzan"})
@@ -2775,7 +2698,6 @@ def test_unique_temporal_properties():
         (1, "avatar1"),
         (2, "avatar2"),
     ]
-
 
     g.add_node(4, 3, {"i64": 1})
     g.add_node(5, 3, {"i64": 1})
@@ -2855,7 +2777,6 @@ def test_unique_temporal_properties():
         expected_list, key=lambda d: (d["name"], tuple(d["value list"]))
     )
     check_arr(sorted_actual_list, sorted_expected_list)
-
 
 
 def test_create_node_graph():
