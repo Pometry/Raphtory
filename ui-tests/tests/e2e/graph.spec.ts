@@ -6,21 +6,24 @@ import {
     clickOnNode,
     clickOnNodes,
     ctrlClickOnNode,
+    deleteNodes,
     doubleClickOnNode,
     dragSlider,
+    expectStylingHex,
+    expectStylingHexInput,
     fillColorPickerHexInput,
     fillInStyling,
     fitView,
     getGraphState,
     getNodePositions,
-    getNodeScreenshotClip,
     navigateToGraphPageBySearch,
-    navigateToSavedGraphBySavedGraphsTable,
     openTimeline,
     rightClickOnNode,
     selectLayout,
-    waitForLayoutToFinish,
-} from './utils';
+    styleAndSave,
+} from './graph.utils';
+import { navigateInSavedGraphs } from './saved-graphs.utils';
+import { waitForLayoutToFinish } from './utils';
 
 test('Graph page title includes the graph name', async ({ page }) => {
     await page.goto('/graph/vanilla/event?initialNodes=%5B%5D');
@@ -34,7 +37,10 @@ test('Document title updates when navigating between graphs', async ({
     await expect(page).toHaveTitle('event | Pometry UI');
 
     // Navigate to a different graph
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await expect(page).toHaveTitle('persistent | Pometry UI');
 });
 
@@ -105,7 +111,10 @@ test('Highlight founds then transfers', async ({ page }) => {
 
 test('Test layouts', async ({ page }) => {
     test.setTimeout(60000);
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'event');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'event',
+    });
 
     // The extra timeout here helps to make the next line more consistent
     await waitForLayoutToFinish(page, 3000, 3000);
@@ -134,7 +143,10 @@ test('Test layouts', async ({ page }) => {
 });
 
 test('Zoom in, zoom out, fit view button', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'event');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'event',
+    });
 
     await page.getByRole('button', { name: 'Zoom in' }).click();
     await waitForLayoutToFinish(page);
@@ -159,140 +171,111 @@ test('Click on Pometry node in graph', async ({ page }) => {
     await expect(page.getByText('STATISTICS')).toBeVisible();
 });
 
-test('Click on Pedro node in graph', async ({ page }) => {
-    await navigateToGraphPageBySearch(page, {
-        type: 'node',
-        nodeName: 'Pedro',
-        nodeType: 'Person',
+for (const nodeName of ['Pedro', 'Hamza', 'Ben']) {
+    test(`Click on ${nodeName} node in graph`, async ({ page }) => {
+        await navigateToGraphPageBySearch(page, {
+            type: 'node',
+            nodeName,
+            nodeType: 'Person',
+        });
+        await clickOnNode(page, nodeName);
+        await changeTab(page, 'Selected');
+        await expect(
+            page.getByRole('heading', { name: nodeName }),
+        ).toBeVisible();
+        await expect(page.getByText('Age', { exact: true })).toBeVisible();
     });
-    await clickOnNode(page, 'Pedro');
-    await changeTab(page, 'Selected');
-    await expect(page.getByRole('heading', { name: 'Pedro' })).toBeVisible();
-    await expect(page.getByText('Age', { exact: true })).toBeVisible();
-});
+}
 
-test('Click on Hamza node in graph', async ({ page }) => {
-    await navigateToGraphPageBySearch(page, {
-        type: 'node',
-        nodeName: 'Hamza',
-        nodeType: 'Person',
-    });
-    await clickOnNode(page, 'Hamza');
-    await changeTab(page, 'Selected');
-    await expect(page.getByRole('heading', { name: 'Hamza' })).toBeVisible();
-    await expect(page.getByText('Age', { exact: true })).toBeVisible();
-});
-
-test('Click on Ben node in graph', async ({ page }) => {
-    await navigateToGraphPageBySearch(page, {
-        type: 'node',
-        nodeName: 'Ben',
-        nodeType: 'Person',
-    });
-    await clickOnNode(page, 'Ben');
-    await changeTab(page, 'Selected');
-    await expect(page.getByRole('heading', { name: 'Ben' })).toBeVisible();
-    await expect(page.getByText('Age', { exact: true })).toBeVisible();
-});
-
-test('Double click expand node and delete by floating actions button', async ({
+test('Expand via all entry points and restore via all hide paths', async ({
     page,
 }) => {
-    await navigateToGraphPageBySearch(page, {
-        type: 'node',
-        nodeName: 'Pedro',
-        nodeType: 'Person',
-    });
-    await clickOnNode(page, 'Pedro');
-    await changeTab(page, 'Selected');
-    await expect(page.getByRole('heading', { name: 'Pedro' })).toBeVisible();
-    await page
-        .getByRole('button', {
-            name: 'Delete selected (⌫)',
-        })
-        .click();
-    // Don't include the delete snapshot in tooltip (the ⌫ symbol can create
-    // font problems on the pipeline)
-    await page.mouse.move(0, 0);
-    await waitForLayoutToFinish(page);
-    await expect(page.getByRole('heading', { name: 'Pedro' })).toBeHidden();
-    await changeTab(page, 'Overview');
-    await page.getByRole('button', { name: 'Undo (⌘Z)', exact: true }).click();
-
-    await waitForLayoutToFinish(page);
-    await doubleClickOnNode(page, 'Pedro');
-    await waitForLayoutToFinish(page);
-    expect(new Set((await getGraphState(page)).nodes.map((n) => n.id))).toEqual(
-        new Set(['Pedro', 'Ben', 'Hamza']),
-    );
-    // After expansion, Pedro's neighbours are all on graph — badge should be gone
-    const expandedState = await getGraphState(page);
-    expect(
-        expandedState.nodes.find((n) => n.id === 'Pedro')?.badgeText,
-    ).toBeUndefined();
-});
-
-test('Expand node by floating actions button', async ({ page }) => {
+    // Three expand/restore iterations stack up many waitForLayoutToFinish
+    // calls (each with a 2s fixed sleep), so the default 30s isn't enough.
+    test.setTimeout(60000);
     await navigateToGraphPageBySearch(page, {
         type: 'node',
         nodeName: 'Pedro',
         nodeType: 'Person',
     });
 
-    // Before expansion, Pedro has hidden neighbours — badge should show count
-    const beforeState = await getGraphState(page);
-    const pedroBefore = beforeState.nodes.find((n) => n.id === 'Pedro');
-    expect(pedroBefore?.badgeText).toBeDefined();
+    const expectExpanded = async () => {
+        await waitForLayoutToFinish(page);
+        const state = await getGraphState(page);
+        expect(new Set(state.nodes.map((n) => n.id))).toEqual(new Set(['Pedro', 'Ben', 'Hamza']));
+        expect(
+            state.nodes.find((n) => n.id === 'Pedro')?.badgeText,
+        ).toBeUndefined();
+    };
 
-    await clickOnNode(page, 'Pedro');
-    await page
-        .getByRole('button', {
-            name: 'Explore',
-            exact: true,
-        })
-        .click();
-    await page
-        .getByRole('menuitem', {
-            name: 'Show all nodes directly connected to selection',
-            exact: true,
-        })
-        .click();
-    await waitForLayoutToFinish(page);
-    expect(new Set((await getGraphState(page)).nodes.map((n) => n.id))).toEqual(
-        new Set(['Pedro', 'Ben', 'Hamza']),
-    );
-    const afterState = await getGraphState(page);
-    expect(
-        afterState.nodes.find((n) => n.id === 'Pedro')?.badgeText,
-    ).toBeUndefined();
-});
+    const expectCollapsed = async () => {
+        await waitForLayoutToFinish(page);
+        const state = await getGraphState(page);
+        expect(state.nodes.map((n) => n.id)).toEqual(['Pedro']);
+        const badge = state.nodes.find((n) => n.id === 'Pedro')?.badgeText;
+        expect(badge).toBeDefined();
+        expect(Number(badge)).not.toBeNaN();
+    };
 
-test('Degree badge appears before expansion and disappears after', async ({
-    page,
-}) => {
-    await navigateToGraphPageBySearch(page, {
-        type: 'node',
-        nodeName: 'Pedro',
-        nodeType: 'Person',
-    });
-    await fitView(page);
+    const expandByDoubleClick = () => doubleClickOnNode(page, 'Pedro');
 
-    // Before expansion: Pedro has hidden neighbours, badge should be visible
-    const clipBefore = await getNodeScreenshotClip(page, 'Pedro');
-    expect(await page.screenshot({ clip: clipBefore })).toMatchSnapshot(
-        'pedro-badge-before-expansion.png',
-    );
+    const expandByContextMenu = async () => {
+        await rightClickOnNode(page, 'Pedro');
+        await page
+            .getByRole('menuitem', { name: 'Expand', exact: true })
+            .click();
+    };
 
-    // Expand Pedro
-    await doubleClickOnNode(page, 'Pedro');
-    await waitForLayoutToFinish(page);
-    await fitView(page);
+    const expandByFloatingExplore = async () => {
+        await clickOnNode(page, 'Pedro');
+        await page
+            .getByRole('button', { name: 'Explore', exact: true })
+            .click();
+        await page
+            .getByRole('menuitem', {
+                name: 'Show all nodes directly connected to selection',
+                exact: true,
+            })
+            .click();
+    };
 
-    // After expansion: all neighbours visible, badge should be gone
-    const clipAfter = await getNodeScreenshotClip(page, 'Pedro');
-    expect(await page.screenshot({ clip: clipAfter })).toMatchSnapshot(
-        'pedro-badge-after-expansion.png',
-    );
+    const restoreByUndo = () =>
+        page.getByRole('button', { name: 'Undo (⌘Z)', exact: true }).click();
+
+    // fitView so the post-expand layout positions for Ben/Hamza land inside
+    // the canvas viewport — otherwise clickOnNodes misses. Multi-select both
+    // neighbours and delete in one shot to avoid stacking another round of
+    // fitView + waitForLayoutToFinish sleeps. expectCollapsed handles the
+    // trailing layout wait.
+    const restoreByBackspace = async () => {
+        await fitView(page);
+        await clickOnNodes(page, ['Hamza', 'Ben']);
+        await page.keyboard.press('Backspace');
+    };
+
+    const restoreByFloatingDelete = async () => {
+        await fitView(page);
+        await deleteNodes(page, ['Hamza', 'Ben']);
+    };
+
+    const paths: {
+        expand: () => Promise<unknown>;
+        restore: () => Promise<unknown>;
+    }[] = [
+        { expand: expandByDoubleClick, restore: restoreByUndo },
+        { expand: expandByContextMenu, restore: restoreByBackspace },
+        { expand: expandByFloatingExplore, restore: restoreByFloatingDelete },
+    ];
+
+    // Initial state: Pedro alone, degree badge shows hidden-neighbour count
+    await expectCollapsed();
+
+    for (const { expand, restore } of paths) {
+        await expand();
+        await expectExpanded();
+        await restore();
+        await expectCollapsed();
+    }
 });
 
 test('Expand shared neighbours by floating actions button', async ({
@@ -405,7 +388,10 @@ test('Click and deselect by floating actions', async ({ page }) => {
 });
 
 test('Select all from menu and via shortcut', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await page.waitForTimeout(500);
     await page.locator('canvas').nth(1).click();
     await page.waitForTimeout(100);
@@ -460,11 +446,10 @@ test('Click backspace to delete nodes', async ({ page }) => {
 test('RHS Selected properties has max height for table cells', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'new_folder',
-        'persistent_second_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'new_folder',
+        graphName: 'persistent_second_filler',
+    });
     await changeTab(page, 'Selected');
     await clickOnNode(page, 'Rabbit Inc');
     // Expect that table cells have a max height that hides the majority of the
@@ -482,13 +467,12 @@ test.describe('Change colour and size of individual node', () => {
     }) => {
         await isolatedGraphs.navigateToGraph(page, 'persistent_filler');
         await fitView(page);
-        await clickOnNode(page, 'Pedro');
-        await changeTab(page, 'Styling');
-        await fillInStyling(page, { colourValue: 'BD10E0', size: 30 });
-        await page.getByRole('button', { name: 'Save node styles' }).click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            { kind: 'node', name: 'Pedro' },
+            { colourValue: 'BD10E0', size: 30 },
+            'Save node styles',
+        );
         const state = await getGraphState(page);
         expect(state.nodes.find((n) => n.id === 'Pedro')?.colour).toEqual(
             '#bd10e0',
@@ -506,23 +490,17 @@ test.describe('Change colour only of individual node persists', () => {
     }) => {
         await isolatedGraphs.navigateToGraph(page, 'persistent_filler');
         await fitView(page);
-        await clickOnNode(page, 'Pedro');
-        await changeTab(page, 'Styling');
-        await fillInStyling(page, { colourValue: 'BD10E0' });
-        await page.getByRole('button', { name: 'Save node styles' }).click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            { kind: 'node', name: 'Pedro' },
+            { colourValue: 'BD10E0' },
+            'Save node styles',
+        );
         const stateImmediate = await getGraphState(page);
         expect(
             stateImmediate.nodes.find((n) => n.id === 'Pedro')?.colour,
         ).toEqual('#bd10e0');
-        const hexInputAfterSave = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterSave.toLowerCase()).toBe('bd10e0');
+        await expectStylingHexInput(page, 'BD10E0');
 
         await page.reload();
         await waitForLayoutToFinish(page);
@@ -530,14 +508,7 @@ test.describe('Change colour only of individual node persists', () => {
         expect(
             stateAfterReload.nodes.find((n) => n.id === 'Pedro')?.colour,
         ).toEqual('#bd10e0');
-        await clickOnNode(page, 'Pedro');
-        await changeTab(page, 'Styling');
-        const hexInputAfterReload = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterReload.toLowerCase()).toBe('bd10e0');
+        await expectStylingHex(page, { kind: 'node', name: 'Pedro' }, 'BD10E0');
     });
 });
 
@@ -551,27 +522,18 @@ test.describe('Change colour only of node by type persists', () => {
         await isolatedGraphs.navigateToGraph(page, 'persistent');
         await fitView(page);
 
-        await changeTab(page, 'Styling');
-        await page.getByText('Select Node Type').click();
-        await page.getByRole('option', { name: 'Person' }).click();
-        await fillInStyling(page, { colourValue: 'D0021B' });
-        await page
-            .getByRole('button', { name: 'Save node type styles' })
-            .click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            { kind: 'node-type', type: 'Person' },
+            { colourValue: 'D0021B' },
+            'Save node type styles',
+        );
         await page.waitForTimeout(2000);
         const stateImmediate = await getGraphState(page);
         expect(
             stateImmediate.nodes.find((n) => n.id === 'Pedro')?.colour,
         ).toEqual('#d0021b');
-        const hexInputAfterSave = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterSave.toLowerCase()).toBe('d0021b');
+        await expectStylingHexInput(page, 'D0021B');
 
         await page.reload();
         await waitForLayoutToFinish(page);
@@ -579,15 +541,11 @@ test.describe('Change colour only of node by type persists', () => {
         expect(
             stateAfterReload.nodes.find((n) => n.id === 'Pedro')?.colour,
         ).toEqual('#d0021b');
-        await changeTab(page, 'Styling');
-        await page.getByText('Select Node Type').click();
-        await page.getByRole('option', { name: 'Person' }).click();
-        const hexInputAfterReload = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterReload.toLowerCase()).toBe('d0021b');
+        await expectStylingHex(
+            page,
+            { kind: 'node-type', type: 'Person' },
+            'D0021B',
+        );
     });
 });
 
@@ -603,37 +561,32 @@ test.describe('Change colour only of edge persists in picker after save', () => 
         await isolatedGraphs.navigateToGraph(page, 'persistent_second_filler');
         await fitView(page);
 
-        await clickOnEdge(page, 'Judy', 'Rabbit Inc');
-        await changeTab(page, 'Styling');
-        await page.waitForTimeout(100);
-        await page.getByText('Select Edge Layer').click();
-        await page.getByRole('option', { name: 'advises' }).click();
-        await fillInStyling(page, { colourValue: 'F5A623' });
-        await page.getByRole('button', { name: 'Save edge styles' }).click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            {
+                kind: 'edge',
+                src: 'Judy',
+                dst: 'Rabbit Inc',
+                layer: 'advises',
+            },
+            { colourValue: 'F5A623' },
+            'Save edge styles',
+        );
         await page.waitForTimeout(2000);
-        const hexInputAfterSave = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterSave.toLowerCase()).toBe('f5a623');
+        await expectStylingHexInput(page, 'F5A623');
 
         await page.reload();
         await waitForLayoutToFinish(page);
-        await clickOnEdge(page, 'Judy', 'Rabbit Inc');
-        await changeTab(page, 'Styling');
-        await page.waitForTimeout(100);
-        await page.getByText('Select Edge Layer').click();
-        await page.getByRole('option', { name: 'advises' }).click();
-        const hexInputAfterReload = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterReload.toLowerCase()).toBe('f5a623');
+        await expectStylingHex(
+            page,
+            {
+                kind: 'edge',
+                src: 'Judy',
+                dst: 'Rabbit Inc',
+                layer: 'advises',
+            },
+            'F5A623',
+        );
     });
 });
 
@@ -649,16 +602,17 @@ test.describe('Change colour of edge by layer dropdown', () => {
         await isolatedGraphs.navigateToGraph(page, 'persistent_second_filler');
         await fitView(page);
 
-        await clickOnEdge(page, 'Judy', 'Rabbit Inc');
-        await changeTab(page, 'Styling');
-        await page.waitForTimeout(100);
-        await page.getByText('Select Edge Layer').click();
-        await page.getByRole('option', { name: 'advises' }).click();
-        await fillInStyling(page, { colourValue: 'F5A623' });
-        await page.getByRole('button', { name: 'Save edge styles' }).click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            {
+                kind: 'edge',
+                src: 'Judy',
+                dst: 'Rabbit Inc',
+                layer: 'advises',
+            },
+            { colourValue: 'F5A623' },
+            'Save edge styles',
+        );
         await openTimeline(page);
         await page.waitForTimeout(5000);
         await expect(
@@ -679,16 +633,12 @@ test.describe('Change colour and size of node by type', () => {
         await isolatedGraphs.navigateToGraph(page, 'persistent');
         await fitView(page);
 
-        await changeTab(page, 'Styling');
-        await page.getByText('Select Node Type').click();
-        await page.getByRole('option', { name: 'Person' }).click();
-        await fillInStyling(page, { colourValue: 'D0021B', size: 30 });
-        await page
-            .getByRole('button', { name: 'Save node type styles' })
-            .click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            { kind: 'node-type', type: 'Person' },
+            { colourValue: 'D0021B', size: 30 },
+            'Save node type styles',
+        );
         await page.waitForTimeout(2000);
         const state = await getGraphState(page);
         await expect(
@@ -711,11 +661,10 @@ test.describe('Change colour and size of node by type', () => {
 });
 
 test('Preview colour and size by type changes', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'second_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'second_filler',
+    });
     await fitView(page);
     await changeTab(page, 'Styling');
     await page.getByText('Select Node Type').click();
@@ -728,11 +677,10 @@ test('Preview colour and size by type changes', async ({ page }) => {
 });
 
 test('Preview colour and size changes', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'persistent_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent_filler',
+    });
     await fitView(page);
     await clickOnNode(page, 'Ben');
     await changeTab(page, 'Styling');
@@ -744,11 +692,10 @@ test('Preview colour and size changes', async ({ page }) => {
 });
 
 test('Preview edge colour changes', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'persistent_second_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent_second_filler',
+    });
     await fitView(page);
 
     await clickOnEdge(page, 'Judy', 'Rabbit Inc');
@@ -765,11 +712,10 @@ test('Preview edge colour changes', async ({ page }) => {
 });
 
 test('Layout Customizer Default Advanced Options', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'persistent_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent_filler',
+    });
     await changeTab(page, 'Layout');
 
     expect(await page.locator('canvas').nth(1).screenshot()).toMatchSnapshot(
@@ -845,11 +791,10 @@ test('Layout Customizer Default Advanced Options', async ({ page }) => {
 });
 
 test('Layout Customizer Default Pre-layout', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'persistent_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent_filler',
+    });
     await changeTab(page, 'Layout');
 
     await page.getByRole('checkbox', { name: 'Clockwise' }).check();
@@ -891,11 +836,10 @@ test('Layout Customizer Default Pre-layout', async ({ page }) => {
 });
 
 test('Layout Customizer can change to concentric layout', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'persistent_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent_filler',
+    });
     await changeTab(page, 'Layout');
 
     await page.getByText('Default Layout').click();
@@ -942,11 +886,10 @@ test('Layout Customizer can change to concentric layout', async ({ page }) => {
 });
 
 test('Layout Customizer can use dagre for pre-layout', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'persistent_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent_filler',
+    });
     await changeTab(page, 'Layout');
 
     // TODO: make this into a reusable function for picking an option from a MUI dropdown like this (note this does not use timeouts)
@@ -996,11 +939,10 @@ test('Layout Customizer can use dagre for pre-layout', async ({ page }) => {
 });
 
 test('Brush select on main canvas works from first click', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'persistent_filler',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent_filler',
+    });
 
     // Box from None to Ben in the current persistent_filler layout. Padding so
     // both node centres are inside the brush region; coordinates derived from
@@ -1024,7 +966,10 @@ test('Brush select on main canvas works from first click', async ({ page }) => {
 });
 
 test('Shift+click an already-selected node deselects it', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await fitView(page);
 
     await clickOnNode(page, 'Pedro');
@@ -1072,11 +1017,12 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
         await fitView(page);
 
         // Save individual node styling for Pedro
-        await clickOnNode(page, 'Pedro');
-        await changeTab(page, 'Styling');
-        await fillInStyling(page, { colourValue: 'BD10E0', size: 30 });
-        await page.getByRole('button', { name: 'Save node styles' }).click();
-        await page.waitForSelector('text=Styling updated');
+        await styleAndSave(
+            page,
+            { kind: 'node', name: 'Pedro' },
+            { colourValue: 'BD10E0', size: 30 },
+            'Save node styles',
+        );
         await page.waitForTimeout(2000);
         await expect(page.getByText('#bd10e0', { exact: true })).toBeVisible();
         await expect(page.getByText('30', { exact: true })).toBeVisible();
@@ -1086,56 +1032,31 @@ test.describe('Comprehensive styling, selection, highlighting, layout and saving
             .getByRole('menuitem', { name: 'Clear current selection' })
             .click();
         await page.waitForTimeout(2000);
-        await page.getByText('Select Node Type').click();
-        await page.getByRole('option', { name: 'Person' }).click();
-        await fillInStyling(page, { colourValue: 'D0021B', size: 25 });
-        await page
-            .getByRole('button', { name: 'Save node type styles' })
-            .click();
-        await page.waitForSelector('text=Styling updated');
+        await styleAndSave(
+            page,
+            { kind: 'node-type', type: 'Person' },
+            { colourValue: 'D0021B', size: 25 },
+            'Save node type styles',
+        );
         await expect(page.getByText('#d0021b', { exact: true })).toBeVisible();
         await expect(page.getByText('25', { exact: true })).toBeVisible();
-        // Save meets edge layer styling. Use Ben→Pedro rather than
-        // Pedro↔Hamza here: there are 4 parallel Pedro↔Hamza edges
-        // (Hamza→Pedro: meets, meets, transfers; Pedro→Hamza: transfers)
-        // and webkit's midpoint hit-test lands on the transfers-only edge,
-        // so the "meets" option never appears in the layer dropdown.
-        // Ben→Pedro is a single edge with only the meets layer, which is
-        // unambiguous across browsers. The resulting screenshot is
-        // unchanged because the layer style applies globally to every
-        // meets edge.
-        await clickOnEdge(page, 'Ben', 'Pedro');
-        await changeTab(page, 'Styling');
-        await page.waitForTimeout(100);
-        await page.getByText('Select Edge Layer').click();
-        await page.getByRole('option', { name: 'meets' }).click();
-        await fillInStyling(page, { colourValue: 'F5A623' });
-        await page.getByRole('button', { name: 'Save edge styles' }).click();
+        // Save meets edge layer styling
+        await styleAndSave(
+            page,
+            { kind: 'edge', src: 'Ben', dst: 'Pedro', layer: 'meets' },
+            { colourValue: 'F5A623' },
+            'Save edge styles',
+        );
         await expect(
             page
                 .locator('div')
                 .filter({ hasText: /^Hex$/ })
                 .getByRole('textbox'),
         ).toHaveValue('F5A623');
-        await page.waitForSelector('text=Styling updated');
         // Delete Ben
-        await clickOnNode(page, 'Ben');
-        await page
-            .getByRole('button', {
-                name: 'Delete selected (⌫)',
-            })
-            .click();
-        await waitForLayoutToFinish(page);
-        // Un-focuses the delete tooltip so it doesn't block the click on the None node
-        await page.mouse.move(0, 0);
+        await deleteNodes(page, ['Ben']);
         // Delete None
-        await clickOnNode(page, 'None');
-        await page
-            .getByRole('button', {
-                name: 'Delete selected (⌫)',
-            })
-            .click();
-        await waitForLayoutToFinish(page);
+        await deleteNodes(page, ['None']);
         // Undo (restores None)
         await page
             .getByRole('button', { name: 'Undo (⌘Z)', exact: true })
@@ -1250,7 +1171,10 @@ test('Save new graph with save as dialog', async ({ page, isolatedGraphs }) => {
 });
 
 test('Right-clicking a node shows the context menu', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Pedro');
     await expect(
         page.getByRole('menuitem', { name: 'Expand', exact: true }),
@@ -1282,7 +1206,10 @@ test('Right-clicking a node shows the context menu', async ({ page }) => {
 test('Right-clicking a selected node preserves multi-selection', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await clickOnNodes(page, ['Pedro', 'Hamza']);
 
     const selectedBefore = (await getGraphState(page)).selected;
@@ -1308,7 +1235,10 @@ test('Ctrl+clicking a selected node opens the context menu and preserves multi-s
         'ctrl+click → contextmenu is a macOS-only behavior; covered by webkit project',
     );
 
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await clickOnNodes(page, ['Pedro', 'Hamza']);
 
     const selectedBefore = (await getGraphState(page)).selected;
@@ -1326,7 +1256,10 @@ test('Ctrl+clicking a selected node opens the context menu and preserves multi-s
 });
 
 test('Context menu deselect all clears node selection', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Hamza');
     await page.getByRole('menuitem', { name: 'Deselect all' }).click();
 
@@ -1335,7 +1268,10 @@ test('Context menu deselect all clears node selection', async ({ page }) => {
 });
 
 test('Context menu invert selection', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Invert selection' }).click();
 
@@ -1347,7 +1283,10 @@ test('Context menu invert selection', async ({ page }) => {
 test('Context menu select all similar selects all nodes of the same type', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Select all similar' }).click();
 
@@ -1360,7 +1299,10 @@ test('Context menu select all similar selects all nodes of the same type', async
 test('Context menu delete removes the node from the graph', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Delete' }).click();
     await waitForLayoutToFinish(page);
@@ -1372,7 +1314,10 @@ test('Context menu delete removes the node from the graph', async ({
 test('Context menu select related selects connected nodes', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Select related' }).click();
 
@@ -1385,7 +1330,10 @@ test('Context menu select related selects connected nodes', async ({
 test('Context menu open trace log opens the drawer on the trace log tab', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Open Trace Log' }).click();
 
@@ -1395,7 +1343,10 @@ test('Context menu open trace log opens the drawer on the trace log tab', async 
 test('After context menu opens trace log, switching to Connections tab works', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Open Trace Log' }).click();
 
@@ -1436,24 +1387,11 @@ test('Clicking a trace log row goes to corresponding edge', async ({
     );
 });
 
-test('Context menu expand adds connected nodes', async ({ page }) => {
-    await navigateToGraphPageBySearch(page, {
-        type: 'node',
-        nodeName: 'Pedro',
-        nodeType: 'Person',
-    });
-    await rightClickOnNode(page, 'Pedro');
-    await page.getByRole('menuitem', { name: 'Expand', exact: true }).click();
-    await waitForLayoutToFinish(page);
-
-    const state = await getGraphState(page);
-    expect(new Set(state.nodes.map((n) => n.id))).toEqual(
-        new Set(['Pedro', 'Ben', 'Hamza']),
-    );
-});
-
 test('Context menu find shortest path between two nodes', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await clickOnNodes(page, ['Pedro', 'Pometry']);
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Find Shortest Path' }).click();
@@ -1468,7 +1406,10 @@ test('Context menu find shortest path between two nodes', async ({ page }) => {
 test('Context menu shared neighbours finds common connections', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await clickOnNodes(page, ['Pedro', 'Pometry']);
     await rightClickOnNode(page, 'Pedro');
     await page.getByRole('menuitem', { name: 'Shared Neighbours' }).click();
@@ -1482,7 +1423,10 @@ test('Context menu shared neighbours finds common connections', async ({
 test('Shift+click multi-select and plain click single-select stay synced with G6 state', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
 
     // Single click Pedro — only Pedro selected
     await clickOnNode(page, 'Pedro');
@@ -1559,7 +1503,10 @@ test('Adding a node from connections table does not change selection state', asy
 test('Dragging one of multiple selected nodes moves all selected nodes', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await fitView(page);
 
     // Select Pedro and Hamza
@@ -1617,7 +1564,10 @@ test('Dragging one of multiple selected nodes moves all selected nodes', async (
 test('Clicks at canvas edge positions reach the G6 canvas', async ({
     page,
 }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
 
     // Collapse the RHS panel to maximize canvas area
     await page.getByRole('button', { name: 'Collapse panel' }).click();
@@ -1712,10 +1662,7 @@ test('Save As preserves graph changes after reload', async ({
     await isolatedGraphs.navigateToGraph(page, 'event');
 
     // Delete a node to create an unsaved change
-    await clickOnNode(page, 'Ben');
-    await page.getByRole('button', { name: 'Delete selected (⌫)' }).click();
-    await page.mouse.move(0, 0);
-    await waitForLayoutToFinish(page);
+    await deleteNodes(page, ['Ben']);
 
     // Verify Ben is gone
     let state = await getGraphState(page);
@@ -1852,7 +1799,10 @@ test.describe('Saved positions', () => {
 
 test.describe('icon colours', () => {
     test('graph view node icons are white on the canvas', async ({ page }) => {
-        await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'filler');
+        await navigateInSavedGraphs(page, {
+            namespace: 'vanilla',
+            graphName: 'filler',
+        });
         await waitForLayoutToFinish(page);
         await fitView(page);
         await waitForLayoutToFinish(page);
@@ -1934,7 +1884,10 @@ test.describe('icon colours', () => {
     test('temporal view Y-axis icons have ?color=white in their href', async ({
         page,
     }) => {
-        await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'filler');
+        await navigateInSavedGraphs(page, {
+            namespace: 'vanilla',
+            graphName: 'filler',
+        });
         await waitForLayoutToFinish(page);
         await openTimeline(page);
         await page.waitForTimeout(1000);
@@ -1960,7 +1913,10 @@ test.describe('icon colours', () => {
     });
 
     test('graph view node icons screenshot', async ({ page }) => {
-        await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'filler');
+        await navigateInSavedGraphs(page, {
+            namespace: 'vanilla',
+            graphName: 'filler',
+        });
         await waitForLayoutToFinish(page);
         await fitView(page);
         await waitForLayoutToFinish(page);
@@ -1982,7 +1938,10 @@ test.describe('icon colours', () => {
     });
 
     test('temporal view Y-axis icons screenshot', async ({ page }) => {
-        await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'filler');
+        await navigateInSavedGraphs(page, {
+            namespace: 'vanilla',
+            graphName: 'filler',
+        });
         await waitForLayoutToFinish(page);
         await openTimeline(page);
         // Wait for network idle so SVG <image> elements have finished fetching

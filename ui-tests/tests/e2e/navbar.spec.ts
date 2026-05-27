@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
-import {
-    navigateToSavedGraphBySavedGraphsTable,
-    setNavbarExpanded,
-} from './utils';
+import { navigateInSavedGraphs } from './saved-graphs.utils';
+import { setNavbarExpanded } from './utils';
 
 test('Page has title', async ({ page }) => {
     await page.goto('/');
@@ -50,7 +48,10 @@ test('Playground link works', async ({ page }) => {
 });
 
 test('Explorer link returns to the last viewed graph', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'event');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'event',
+    });
     await expect(page).toHaveURL(/\/graph\/vanilla\/event/);
 
     await page.getByRole('link', { name: 'Search', exact: true }).click();

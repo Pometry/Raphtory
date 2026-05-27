@@ -2,7 +2,9 @@
     "name": "ui-tests",
     "version": "0.0.1",
     "exports": {
-        "./e2e-utils": "./tests/e2e/utils.ts"
+        "./e2e-utils": "./tests/e2e/utils.ts",
+        "./e2e-graph-utils": "./tests/e2e/graph.utils.ts",
+        "./e2e-saved-graphs-utils": "./tests/e2e/saved-graphs.utils.ts"
     },
     "description": "",
     "homepage": "https://github.com/Pometry/ui-tests",
