@@ -1533,7 +1533,6 @@ def test_node_earliest_time():
     g.add_node(1, 1, {})
     g.add_node(2, 1, {})
 
-    # FIXME: need special handling for nodes additions from Graph
     view = g.at(1)
     assert view.node(1).earliest_time == 1
     assert view.node(1).latest_time == 1
@@ -1557,7 +1556,6 @@ def test_node_history():
     g.add_node(4, 1, {})
     g.add_node(8, 1, {})
 
-    # FIXME: need special handling for nodes additions from Graph
     check_arr(g.node(1).history.t.collect(), [1, 2, 3, 4, 8])
     view = g.window(1, 8)
     check_arr(view.node(1).history.t.collect(), [1, 2, 3, 4])
@@ -1570,7 +1568,6 @@ def test_node_history():
     g.add_node(7, "Lord Farquaad", {})
     g.add_node(8, "Lord Farquaad", {})
 
-    # FIXME: need special handling for nodes additions from Graph
     check_arr(g.node("Lord Farquaad").history.t.collect(), [4, 6, 7, 8])
     view = g.window(1, 8)
     check_arr(view.node("Lord Farquaad").history.t.collect(), [4, 6, 7])
@@ -1915,7 +1912,6 @@ def test_time_index():
 def test_datetime_props():
     g = Graph()
 
-    # FIXME: DateTime properties
     dt1 = datetime(2020, 1, 1, 23, 59, 59, 999000)
     g.add_node(0, 0, {"time": dt1})
     assert g.node(0).properties.get("time") == dt1
@@ -2006,7 +2002,6 @@ def test_datetime_add_node():
     g.add_node(datetime(2014, 2, 5), 4)
     g.add_node(datetime(2014, 2, 6), 5)
 
-    # FIXME: need special handling for nodes additions from Graph
     view = g.window("2014-02-02", "2014-02-04")
     view2 = g.window("2014-02-02", "2014-02-05")
 
