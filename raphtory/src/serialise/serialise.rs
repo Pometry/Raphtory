@@ -9,9 +9,11 @@ use crate::{
         get_zip_graph_path,
         metadata::GraphMetadata,
         parquet::{ParquetDecoder, ParquetEncoder},
-        GraphFolder, GraphPaths, Metadata, RelativePath, DEFAULT_DATA_PATH, DEFAULT_GRAPH_PATH,
-        GRAPH_META_PATH, ROOT_META_PATH,
+        GraphFolder, GraphPaths, Metadata, RelativePath,
     },
+};
+use raphtory_api::core::storage::graph_folder::{
+    DEFAULT_DATA_PATH, DEFAULT_GRAPH_PATH, GRAPH_META_PATH, ROOT_META_PATH,
 };
 use std::{
     fs::File,
