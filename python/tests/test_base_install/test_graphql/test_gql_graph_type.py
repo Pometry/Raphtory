@@ -16,8 +16,6 @@ import tempfile
 from raphtory import Graph, PersistentGraph
 from raphtory.graphql import GraphServer
 
-from utils import PORT
-
 
 def _query(server, q: str) -> dict:
     response = server.get_client().query(q)
@@ -30,7 +28,7 @@ def test_event_graph_default_uses_event_semantics():
     work_dir = tempfile.mkdtemp()
     g = Graph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -54,7 +52,7 @@ def test_event_graph_read_as_persistent_carries_value_forward():
     work_dir = tempfile.mkdtemp()
     g = Graph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -78,7 +76,7 @@ def test_persistent_graph_default_carries_value_forward():
     work_dir = tempfile.mkdtemp()
     g = PersistentGraph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -102,7 +100,7 @@ def test_persistent_graph_read_as_event_drops_carried_values():
     work_dir = tempfile.mkdtemp()
     g = PersistentGraph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -125,7 +123,7 @@ def test_mutable_event_graph_default_uses_event_semantics():
     work_dir = tempfile.mkdtemp()
     g = Graph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -149,7 +147,7 @@ def test_mutable_event_graph_read_as_persistent_carries_value_forward():
     work_dir = tempfile.mkdtemp()
     g = Graph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -173,7 +171,7 @@ def test_mutable_persistent_graph_default_carries_value_forward():
     work_dir = tempfile.mkdtemp()
     g = PersistentGraph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -197,7 +195,7 @@ def test_mutable_persistent_graph_read_as_event_drops_carried_values():
     work_dir = tempfile.mkdtemp()
     g = PersistentGraph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -222,7 +220,7 @@ def test_mutable_graph_reads_pending_mutations_through_override():
     work_dir = tempfile.mkdtemp()
     g = Graph()
     g.add_edge(1, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
@@ -253,7 +251,7 @@ def test_persistent_deletes_visible_via_persistent_view():
     g = PersistentGraph()
     g.add_edge(1, "a", "b")
     g.delete_edge(5, "a", "b")
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         server.get_client().send_graph(path="g", graph=g)
 
         result = _query(
