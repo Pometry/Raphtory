@@ -1646,7 +1646,9 @@ fn init_edges_graph_with_str_ids_del<
 }
 
 mod test_node_filter {
-    use crate::{
+    use std::collections::HashMap;
+
+use crate::{
         init_nodes_graph, init_nodes_graph_with_num_ids, init_nodes_graph_with_str_ids,
         IdentityGraphTransformer,
     };
@@ -1659,11 +1661,14 @@ mod test_node_filter {
                     assert_filter_nodes_results, assert_search_nodes_results,
                     assert_select_nodes_results, TestVariants,
                 },
-                views::filter::model::{
-                    node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                    property_filter::ops::PropertyFilterOps,
-                    ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, TryAsCompositeFilter,
-                    ViewWrapOps, degree_filter::DegreeFilterFactory
+                views::filter::{
+                    model::{
+                        node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
+                        property_filter::ops::PropertyFilterOps,
+                        ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
+                        TryAsCompositeFilter, ViewWrapOps, degree_filter::DegreeFilterFactory,
+                    },
+                    CreateFilter,
                 },
             },
         },
@@ -1677,326 +1682,434 @@ mod test_node_filter {
         TestVariants,
     };
     use raphtory_api::core::Direction;
+    use raphtory_api::core::{Direction, entities::properties::prop::Prop};
     use raphtory_core::entities::VID;
-    use raphtory::prelude::Prop;
-    use proptest::{prop_assert_eq, proptest};
+    use raphtory::prelude::LayerOps;
+    use proptest::proptest;
 
+    fn sort_vids(mut vids: Vec<VID>) -> Vec<VID> {
+        vids.sort();
+        vids
+    }
 
-     fn init_degree_graph(graph: Graph) -> Graph {
-        // Add nodes
-        graph.add_node(0, "1", NO_PROPS, None, None).unwrap();
-        graph.add_node(0, "2", NO_PROPS, None, None).unwrap();
-        graph.add_node(0, "3", NO_PROPS, None, None).unwrap();
-        graph.add_node(0, "4", NO_PROPS, None, None).unwrap();
-        graph.add_node(0, "5", NO_PROPS, None, None).unwrap();
-        graph.add_node(0, "6", NO_PROPS, None, None).unwrap();
+    fn candidates_with_history_after_filtering<'a, G: GraphViewOps<'a>>(
+        graph: &G,
+        candidate_nodes: Vec<VID>,
+    ) -> Vec<VID> {
+        let subgraph = graph.subgraph(candidate_nodes);
+        sort_vids(
+            subgraph
+                .nodes()
+                .into_iter()
+                .filter(|n| !n.history().is_empty())
+                .map(|n| n.node)
+                .collect(),
+        )
+    }
 
-        // Add edges
-        let edges = [
-            (1, "1", "2"), (1, "1", "3"), (1, "1", "4"), (1, "1", "5"), (1, "1", "6"),
-            (2, "2", "1"), (2, "2", "3"), (2, "2", "4"), (2, "2", "5"),
-            (3, "3", "1"), (3, "3", "4"), (3, "3", "5"),
-            (4, "4", "1"), (4, "4", "2"),
-            (5, "5", "1"),
-            (6, "6", "1"), (6, "4", "3"), (6, "5", "2"), (6, "6", "2"), (6, "5", "3"),
-        ];
-        for (t, src, dst) in edges {
-            graph.add_edge(t, src, dst, NO_PROPS, None).unwrap();
+    fn manual_expected_and_layer_nodes<F>(
+        graph: &Graph,
+        metric: Direction,
+        manual_expr: F,
+    ) -> (Vec<VID>, HashMap<String, Vec<VID>>)
+    where
+        F: Fn(usize) -> bool + Copy,
+    {
+        let manual_candidates = graph
+            .nodes()
+            .into_iter()
+            .filter(|n| {
+                manual_expr(match metric {
+                    Direction::BOTH => n.degree(),
+                    Direction::IN => n.in_degree(),
+                    Direction::OUT => n.out_degree(),
+                })
+            })
+            .map(|n| n.node)
+            .collect::<Vec<_>>();
+
+        let manual = candidates_with_history_after_filtering(graph, manual_candidates);
+
+        let layers: Vec<_> = graph.unique_layers().collect();
+        let mut layer_nodes_filtered = HashMap::new();
+
+        for layer in layers {
+            let layer_view = graph.valid_layers(&layer);
+            let expected_layer_nodes = sort_vids(
+                layer_view
+                    .subgraph(manual.clone())
+                    .nodes()
+                    .into_iter()
+                    .map(|n| n.node)
+                    .collect::<Vec<_>>(),
+
+            );
+            layer_nodes_filtered.insert(layer.to_string(), expected_layer_nodes);
         }
+
+        (manual, layer_nodes_filtered)
+    }
+
+    fn assert_filter_against_manual_and_layers<CF, F>(
+        graph: &Graph,
+        filter: CF,
+        metric: Direction,
+        manual_expr: F,
+        context: &str,
+    ) where
+        CF: CreateFilter + Clone,
+        F: Fn(usize) -> bool + Copy,
+    {
+        let (expected_nodes, expected_layer_nodes) =
+            manual_expected_and_layer_nodes(graph, metric, manual_expr);
+
+        let filtered_event_graph = graph.filter(filter.clone()).unwrap();
+        let filtered_event_nodes = sort_vids(
+            filtered_event_graph
+                .nodes()
+                .into_iter()
+                .map(|n| n.node)
+                .collect(),
+        );
+        assert_eq!(
+            filtered_event_nodes, expected_nodes,
+            "{} failed for event graph",
+            context
+        );
+
+        for (layer, expected_layer) in &expected_layer_nodes {
+            let layer_view = filtered_event_graph.valid_layers(layer.as_str());
+            let layer_nodes = sort_vids(
+                layer_view
+                    .nodes()
+                    .into_iter()
+                    .map(|n| n.node)
+                    .collect(),
+            );
+            assert_eq!(
+                layer_nodes, *expected_layer,
+                "{} failed for event graph layer {}",
+                context, layer
+            );
+        }
+
+        let filtered_persistent_graph = graph.persistent_graph().filter(filter).unwrap();
+        let filtered_persistent_nodes = sort_vids(
+            filtered_persistent_graph
+                .nodes()
+                .into_iter()
+                .map(|n| n.node)
+                .collect(),
+        );
+        assert_eq!(
+            filtered_persistent_nodes, expected_nodes,
+            "{} failed for persistent graph",
+            context
+        );
+
+        for (layer, expected_layer) in &expected_layer_nodes {
+            let layer_view = filtered_persistent_graph.valid_layers(layer.as_str());
+            let layer_nodes = sort_vids(
+                layer_view
+                    .nodes()
+                    .into_iter()
+                    .map(|n| n.node)
+                    .collect(),
+            );
+            assert_eq!(
+                layer_nodes, *expected_layer,
+                "{} failed for persistent graph layer {}",
+                context, layer
+            );
+        }
+    }
+
+    fn degree_graph() -> Graph {
+        let graph = Graph::new();
+
+        let add_nodes = [
+            (0, "1", Some("layer_a")),
+            (0, "7", None),
+            (0, "8", None),
+            (3, "9", Some("layer_a")),
+            (4, "9", Some("layer_c")),
+            (5, "10", Some("layer_b")),
+            (6, "10", Some("layer_e")),
+            (7, "11", Some("layer_d")),
+            (8, "12", Some("layer_f")),
+            (9, "12", Some("layer_c")),
+        ];
+        for (t, id, layer) in add_nodes {
+            graph.add_node(t, id, NO_PROPS, None, layer).unwrap();
+        }
+
+        let edges = [
+            (1, "1", "2", "layer_a"),
+            (1, "1", "3", "layer_b"),
+            (1, "1", "4", "layer_a"),
+            (1, "1", "5", "layer_b"),
+            (1, "1", "6", "layer_a"),
+            (2, "2", "1", "layer_b"),
+            (2, "2", "3", "layer_a"),
+            (2, "2", "4", "layer_b"),
+            (2, "2", "5", "layer_a"),
+            (3, "3", "1", "layer_a"),
+            (3, "3", "4", "layer_b"),
+            (3, "3", "5", "layer_a"),
+            (4, "4", "1", "layer_b"),
+            (4, "4", "2", "layer_a"),
+            (5, "5", "1", "layer_b"),
+            (6, "6", "1", "layer_a"),
+            (6, "4", "3", "layer_b"),
+            (6, "5", "2", "layer_a"),
+            (6, "6", "2", "layer_b"),
+            (6, "5", "3", "layer_a"),
+            (7, "2", "6", "layer_c"),
+            (7, "3", "6", "layer_d"),
+            (7, "6", "4", "layer_e"),
+            (7, "1", "5", "layer_f"),
+            (8, "3", "2", "layer_c"),
+            (8, "4", "6", "layer_d"),
+            (8, "2", "5", "layer_e"),
+            (8, "6", "3", "layer_f"),
+            (9, "5", "4", "layer_c"),
+            (9, "4", "5", "layer_d"),
+            (9, "2", "4", "layer_e"),
+            (9, "3", "1", "layer_f"),
+        ];
+        for (t, src, dst, layer) in edges {
+            graph.add_edge(t, src, dst, NO_PROPS, Some(layer)).unwrap();
+        }
+
         graph
     }
+
 
     // Property-based tests for degree filtering
     proptest! {
         #[test]
         fn prop_degree_filter_both_direction_comparison(threshold in 0u64..15) {
-            let graph = init_degree_graph(Graph::new());
+            let graph = degree_graph();
 
-            // Test less than
-            let filter_lt = NodeFilter.degree().lt(threshold);
-            let mut filtered_lt: Vec<VID> = graph.filter(filter_lt).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_lt.sort();
-            let mut manual_lt: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| (n.in_degree() + n.out_degree()) < threshold as usize)
-                .map(|n| n.node).collect();
-            manual_lt.sort();
-            prop_assert_eq!(filtered_lt, manual_lt, "BOTH < {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.degree().lt(threshold),
+                Direction::BOTH,
+                |d| d < threshold as usize,
+                &format!("BOTH < {}", threshold),
+            );
 
-            // Test less than or equal
-            let filter_le = NodeFilter.degree().le(threshold);
-            let mut filtered_le: Vec<VID> = graph.filter(filter_le).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_le.sort();
-            let mut manual_le: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| (n.in_degree() + n.out_degree()) <= threshold as usize)
-                .map(|n| n.node).collect();
-            manual_le.sort();
-            prop_assert_eq!(filtered_le, manual_le, "BOTH <= {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.degree().le(threshold),
+                Direction::BOTH,
+                |d| d <= threshold as usize,
+                &format!("BOTH <= {}", threshold),
+            );
 
-            // Test equal
-            let filter_eq = NodeFilter.degree().eq(threshold);
-            let mut filtered_eq: Vec<VID> = graph.filter(filter_eq).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_eq.sort();
-            let mut manual_eq: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| (n.in_degree() + n.out_degree()) == threshold as usize)
-                .map(|n| n.node).collect();
-            manual_eq.sort();
-            prop_assert_eq!(filtered_eq, manual_eq, "BOTH == {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.degree().eq(threshold),
+                Direction::BOTH,
+                |d| d == threshold as usize,
+                &format!("BOTH == {}", threshold),
+            );
 
-            // Test not equal
-            let filter_ne = NodeFilter.degree().ne(threshold);
-            let mut filtered_ne: Vec<VID> = graph.filter(filter_ne).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_ne.sort();
-            let mut manual_ne: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| (n.in_degree() + n.out_degree()) != threshold as usize)
-                .map(|n| n.node).collect();
-            manual_ne.sort();
-            prop_assert_eq!(filtered_ne, manual_ne, "BOTH != {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.degree().ne(threshold),
+                Direction::BOTH,
+                |d| d != threshold as usize,
+                &format!("BOTH != {}", threshold),
+            );
 
-            // Test greater than or equal
-            let filter_ge = NodeFilter.degree().ge(threshold);
-            let mut filtered_ge: Vec<VID> = graph.filter(filter_ge).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_ge.sort();
-            let mut manual_ge: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| (n.in_degree() + n.out_degree()) >= threshold as usize)
-                .map(|n| n.node).collect();
-            manual_ge.sort();
-            prop_assert_eq!(filtered_ge, manual_ge, "BOTH >= {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.degree().ge(threshold),
+                Direction::BOTH,
+                |d| d >= threshold as usize,
+                &format!("BOTH >= {}", threshold),
+            );
 
-            // Test greater than
-            let filter_gt = NodeFilter.degree().gt(threshold);
-            let mut filtered_gt: Vec<VID> = graph.filter(filter_gt).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_gt.sort();
-            let mut manual_gt: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| (n.in_degree() + n.out_degree()) > threshold as usize)
-                .map(|n| n.node).collect();
-            manual_gt.sort();
-            prop_assert_eq!(filtered_gt, manual_gt, "BOTH > {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.degree().gt(threshold),
+                Direction::BOTH,
+                |d| d > threshold as usize,
+                &format!("BOTH > {}", threshold),
+            );
         }
 
         #[test]
-        fn prop_degree_filter_in_direction_comparison(threshold in 0u64..6) {
-            let graph = init_degree_graph(Graph::new());
+        fn prop_degree_filter_in_direction_comparison(threshold in 0u64..15) {
+            let graph = degree_graph();
 
-            // Test less than
-            let filter_lt = NodeFilter.in_degree().lt(threshold);
-            let mut filtered_lt: Vec<VID> = graph.filter(filter_lt).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_lt.sort();
-            let mut manual_lt: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.in_degree() < threshold as usize)
-                .map(|n| n.node).collect();
-            manual_lt.sort();
-            prop_assert_eq!(filtered_lt, manual_lt, "IN < {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.in_degree().lt(threshold),
+                Direction::IN,
+                |d| d < threshold as usize,
+                &format!("IN < {}", threshold),
+            );
 
-            // Test less than or equal
-            let filter_le = NodeFilter.in_degree().le(threshold);
-            let mut filtered_le: Vec<VID> = graph.filter(filter_le).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_le.sort();
-            let mut manual_le: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.in_degree() <= threshold as usize)
-                .map(|n| n.node).collect();
-            manual_le.sort();
-            prop_assert_eq!(filtered_le, manual_le, "IN <= {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.in_degree().le(threshold),
+                Direction::IN,
+                |d| d <= threshold as usize,
+                &format!("IN <= {}", threshold),
+            );
 
-            // Test equal
-            let filter_eq = NodeFilter.in_degree().eq(threshold);
-            let mut filtered_eq: Vec<VID> = graph.filter(filter_eq).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_eq.sort();
-            let mut manual_eq: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.in_degree() == threshold as usize)
-                .map(|n| n.node).collect();
-            manual_eq.sort();
-            prop_assert_eq!(filtered_eq, manual_eq, "IN == {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.in_degree().eq(threshold),
+                Direction::IN,
+                |d| d == threshold as usize,
+                &format!("IN == {}", threshold),
+            );
 
-            // Test not equal
-            let filter_ne = NodeFilter.in_degree().ne(threshold);
-            let mut filtered_ne: Vec<VID> = graph.filter(filter_ne).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_ne.sort();
-            let mut manual_ne: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.in_degree() != threshold as usize)
-                .map(|n| n.node).collect();
-            manual_ne.sort();
-            prop_assert_eq!(filtered_ne, manual_ne, "IN != {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.in_degree().ne(threshold),
+                Direction::IN,
+                |d| d != threshold as usize,
+                &format!("IN != {}", threshold),
+            );
 
-            // Test greater than or equal
-            let filter_ge = NodeFilter.in_degree().ge(threshold);
-            let mut filtered_ge: Vec<VID> = graph.filter(filter_ge).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_ge.sort();
-            let mut manual_ge: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.in_degree() >= threshold as usize)
-                .map(|n| n.node).collect();
-            manual_ge.sort();
-            prop_assert_eq!(filtered_ge, manual_ge, "IN >= {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.in_degree().ge(threshold),
+                Direction::IN,
+                |d| d >= threshold as usize,
+                &format!("IN >= {}", threshold),
+            );
 
-            // Test greater than
-            let filter_gt = NodeFilter.in_degree().gt(threshold);
-            let mut filtered_gt: Vec<VID> = graph.filter(filter_gt).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_gt.sort();
-            let mut manual_gt: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.in_degree() > threshold as usize)
-                .map(|n| n.node).collect();
-            manual_gt.sort();
-            prop_assert_eq!(filtered_gt, manual_gt, "IN > {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.in_degree().gt(threshold),
+                Direction::IN,
+                |d| d > threshold as usize,
+                &format!("IN > {}", threshold),
+            );
         }
 
         #[test]
-        fn prop_degree_filter_out_direction_comparison(threshold in 0u64..6) {
-            let graph = init_degree_graph(Graph::new());
+        fn prop_degree_filter_out_direction_comparison(threshold in 0u64..15) {
+            let graph = degree_graph();
 
-            // Test less than
-            let filter_lt = NodeFilter.out_degree().lt(threshold);
-            let mut filtered_lt: Vec<VID> = graph.filter(filter_lt).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_lt.sort();
-            let mut manual_lt: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.out_degree() < threshold as usize)
-                .map(|n| n.node).collect();
-            manual_lt.sort();
-            prop_assert_eq!(filtered_lt, manual_lt, "OUT < {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.out_degree().lt(threshold),
+                Direction::OUT,
+                |d| d < threshold as usize,
+                &format!("OUT < {}", threshold),
+            );
 
-            // Test less than or equal
-            let filter_le = NodeFilter.out_degree().le(threshold);
-            let mut filtered_le: Vec<VID> = graph.filter(filter_le).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_le.sort();
-            let mut manual_le: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.out_degree() <= threshold as usize)
-                .map(|n| n.node).collect();
-            manual_le.sort();
-            prop_assert_eq!(filtered_le, manual_le, "OUT <= {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.out_degree().le(threshold),
+                Direction::OUT,
+                |d| d <= threshold as usize,
+                &format!("OUT <= {}", threshold),
+            );
 
-            // Test equal
-            let filter_eq = NodeFilter.out_degree().eq(threshold);
-            let mut filtered_eq: Vec<VID> = graph.filter(filter_eq).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_eq.sort();
-            let mut manual_eq: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.out_degree() == threshold as usize)
-                .map(|n| n.node).collect();
-            manual_eq.sort();
-            prop_assert_eq!(filtered_eq, manual_eq, "OUT == {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.out_degree().eq(threshold),
+                Direction::OUT,
+                |d| d == threshold as usize,
+                &format!("OUT == {}", threshold),
+            );
 
-            // Test not equal
-            let filter_ne = NodeFilter.out_degree().ne(threshold);
-            let mut filtered_ne: Vec<VID> = graph.filter(filter_ne).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_ne.sort();
-            let mut manual_ne: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.out_degree() != threshold as usize)
-                .map(|n| n.node).collect();
-            manual_ne.sort();
-            prop_assert_eq!(filtered_ne, manual_ne, "OUT != {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.out_degree().ne(threshold),
+                Direction::OUT,
+                |d| d != threshold as usize,
+                &format!("OUT != {}", threshold),
+            );
 
-            // Test greater than or equal
-            let filter_ge = NodeFilter.out_degree().ge(threshold);
-            let mut filtered_ge: Vec<VID> = graph.filter(filter_ge).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_ge.sort();
-            let mut manual_ge: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.out_degree() >= threshold as usize)
-                .map(|n| n.node).collect();
-            manual_ge.sort();
-            prop_assert_eq!(filtered_ge, manual_ge, "OUT >= {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.out_degree().ge(threshold),
+                Direction::OUT,
+                |d| d >= threshold as usize,
+                &format!("OUT >= {}", threshold),
+            );
 
-            // Test greater than
-            let filter_gt = NodeFilter.out_degree().gt(threshold);
-            let mut filtered_gt: Vec<VID> = graph.filter(filter_gt).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_gt.sort();
-            let mut manual_gt: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| n.out_degree() > threshold as usize)
-                .map(|n| n.node).collect();
-            manual_gt.sort();
-            prop_assert_eq!(filtered_gt, manual_gt, "OUT > {} failed", threshold);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.out_degree().gt(threshold),
+                Direction::OUT,
+                |d| d > threshold as usize,
+                &format!("OUT > {}", threshold),
+            );
         }
 
         #[test]
         fn prop_degree_filter_is_in(val1 in 0u64..15, val2 in 0u64..15) {
-            let graph = init_degree_graph(Graph::new());
-
-            // Test BOTH direction with is_in
-            let filter_both_in = NodeFilter.degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]);
-            let mut filtered_both_in: Vec<VID> = graph.filter(filter_both_in).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_both_in.sort();
+            let graph = degree_graph();
             let set = [val1, val2];
-            let mut manual_both_in: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| set.contains(&((n.in_degree() + n.out_degree()) as u64)))
-                .map(|n| n.node).collect();
-            manual_both_in.sort();
-            prop_assert_eq!(filtered_both_in, manual_both_in, "BOTH is_in({}, {}) failed", val1, val2);
 
-            // Test IN direction with is_in
-            let filter_in_in = NodeFilter.in_degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]);
-            let mut filtered_in_in: Vec<VID> = graph.filter(filter_in_in).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_in_in.sort();
-            let mut manual_in_in: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| set.contains(&(n.in_degree() as u64)))
-                .map(|n| n.node).collect();
-            manual_in_in.sort();
-            prop_assert_eq!(filtered_in_in, manual_in_in, "IN is_in({}, {}) failed", val1, val2);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]),
+                Direction::BOTH,
+                |d| set.contains(&(d as u64)),
+                &format!("BOTH is_in({}, {})", val1, val2),
+            );
 
-            // Test OUT direction with is_in
-            let filter_out_in = NodeFilter.out_degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]);
-            let mut filtered_out_in: Vec<VID> = graph.filter(filter_out_in).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_out_in.sort();
-            let mut manual_out_in: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| set.contains(&(n.out_degree() as u64)))
-                .map(|n| n.node).collect();
-            manual_out_in.sort();
-            prop_assert_eq!(filtered_out_in, manual_out_in, "OUT is_in({}, {}) failed", val1, val2);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.in_degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]),
+                Direction::IN,
+                |d| set.contains(&(d as u64)),
+                &format!("IN is_in({}, {})", val1, val2),
+            );
+
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter.out_degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]),
+                Direction::OUT,
+                |d| set.contains(&(d as u64)),
+                &format!("OUT is_in({}, {})", val1, val2),
+            );
         }
 
         #[test]
         fn prop_degree_filter_is_not_in(val1 in 0u64..15, val2 in 0u64..15) {
-            let graph = init_degree_graph(Graph::new());
-
-            // Test BOTH direction with is_not_in
-            let filter_both_nin = NodeFilter.degree().is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]);
-            let mut filtered_both_nin: Vec<VID> = graph.filter(filter_both_nin).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_both_nin.sort();
+            let graph = degree_graph();
             let set = [val1, val2];
-            let mut manual_both_nin: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| !set.contains(&((n.in_degree() + n.out_degree()) as u64)))
-                .map(|n| n.node).collect();
-            manual_both_nin.sort();
-            prop_assert_eq!(filtered_both_nin, manual_both_nin, "BOTH is_not_in({}, {}) failed", val1, val2);
 
-            // Test IN direction with is_not_in
-            let filter_in_nin = NodeFilter.in_degree().is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]);
-            let mut filtered_in_nin: Vec<VID> = graph.filter(filter_in_nin).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_in_nin.sort();
-            let mut manual_in_nin: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| !set.contains(&(n.in_degree() as u64)))
-                .map(|n| n.node).collect();
-            manual_in_nin.sort();
-            prop_assert_eq!(filtered_in_nin, manual_in_nin, "IN is_not_in({}, {}) failed", val1, val2);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter
+                    .degree()
+                    .is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]),
+                Direction::BOTH,
+                |d| !set.contains(&(d as u64)),
+                &format!("BOTH is_not_in({}, {})", val1, val2),
+            );
 
-            // Test OUT direction with is_not_in
-            let filter_out_nin = NodeFilter.out_degree().is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]);
-            let mut filtered_out_nin: Vec<VID> = graph.filter(filter_out_nin).unwrap().nodes()
-                .into_iter().map(|n| n.node).collect();
-            filtered_out_nin.sort();
-            let mut manual_out_nin: Vec<VID> = graph.nodes().into_iter()
-                .filter(|n| !set.contains(&(n.out_degree() as u64)))
-                .map(|n| n.node).collect();
-            manual_out_nin.sort();
-            prop_assert_eq!(filtered_out_nin, manual_out_nin, "OUT is_not_in({}, {}) failed", val1, val2);
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter
+                    .in_degree()
+                    .is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]),
+                Direction::IN,
+                |d| !set.contains(&(d as u64)),
+                &format!("IN is_not_in({}, {})", val1, val2),
+            );
+
+            assert_filter_against_manual_and_layers(
+                &graph,
+                NodeFilter
+                    .out_degree()
+                    .is_not_in(vec![Prop::U64(val1), Prop::U64(val2)]),
+                Direction::OUT,
+                |d| !set.contains(&(d as u64)),
+                &format!("OUT is_not_in({}, {})", val1, val2),
+            );
         }
     } 
 
