@@ -5,16 +5,13 @@
 #![allow(dead_code)]
 
 use crate::{
-    auth::Access,
-    auth_policy::AuthorizationPolicy,
-    config::app_config::AppConfig,
-    data::{Data, DIRTY_PATH},
+    auth::Access, auth_policy::AuthorizationPolicy, config::app_config::AppConfig, data::Data,
     model::App,
 };
 use async_graphql::dynamic::Schema;
 use dynamic_graphql::Request;
 use raphtory::db::api::{storage::storage::Config, view::MaterializedGraph};
-use raphtory_api::core::storage::graph_folder::ROOT_META_PATH;
+use raphtory_api::core::storage::graph_folder::{DIRTY_PATH, ROOT_META_PATH};
 use std::{path::Path, sync::Arc};
 
 pub(crate) struct TestSetup {
