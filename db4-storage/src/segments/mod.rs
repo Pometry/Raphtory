@@ -2,6 +2,7 @@ use super::properties::{PropEntry, Properties};
 use crate::{LocalPOS, error::StorageError};
 use raphtory_api::core::{
     entities::properties::{
+        layer_schema::LayerPropSchema,
         meta::Meta,
         prop::{AsPropRef, Prop},
     },
@@ -248,6 +249,13 @@ impl<T: HasRow> SegmentContainer<T> {
 
     pub fn properties(&self) -> &Properties {
         &self.properties
+    }
+
+    /// Per-layer property-presence summary for this container (one container =
+    /// one layer of one segment). Cheap — just borrows the incrementally
+    /// maintained bitsets.
+    pub fn layer_schema(&self) -> &LayerPropSchema {
+        self.properties.layer_schema()
     }
 
     pub fn properties_mut(&mut self) -> &mut Properties {

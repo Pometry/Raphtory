@@ -6,6 +6,7 @@ use arrow_array::{
 use arrow_schema::DECIMAL128_MAX_PRECISION;
 use bigdecimal::ToPrimitive;
 use raphtory_api::core::entities::properties::{
+    layer_schema::LayerPropSchema,
     meta::PropMapper,
     prop::{
         AsPropRef, Prop, PropRef, PropType, SerdeArrowList, SerdeArrowMap,
@@ -38,6 +39,10 @@ pub struct Properties {
     has_properties: bool,
     has_deletions: bool,
     pub additions_count: usize,
+    /// Per-segment record of which (global) property ids have ever been written
+    /// to this `Properties`. Maintained incrementally on every write so that
+    /// the layer schema can be derived without scanning entities.
+    layer_schema: LayerPropSchema,
 }
 
 pub(crate) struct PropMutEntry<'a> {
@@ -92,6 +97,12 @@ impl Properties {
 
     pub fn num_t_columns(&self) -> usize {
         self.t_properties.num_columns()
+    }
+
+    /// Returns the per-segment property-presence summary maintained
+    /// incrementally as `append_t_props` / `append_const_props` are called.
+    pub fn layer_schema(&self) -> &LayerPropSchema {
+        &self.layer_schema
     }
 
     pub fn num_c_columns(&self) -> usize {
@@ -281,10 +292,18 @@ impl<'a> PropMutEntry<'a> {
         t: EventTime,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
-        let t_prop_row = if let Some(t_prop_row) = self
-            .properties
-            .t_properties
-            .push(props)
+        let Properties {
+            t_properties,
+            layer_schema,
+            ..
+        } = &mut *self.properties;
+
+        let tracked = props
+            .into_iter()
+            .inspect(|(prop_id, _)| layer_schema.insert_temporal(*prop_id));
+
+        let t_prop_row = if let Some(t_prop_row) = t_properties
+            .push(tracked)
             .expect("Internal error: properties should be validated at this point")
         {
             t_prop_row
@@ -353,6 +372,7 @@ impl<'a> PropMutEntry<'a> {
             let const_props = &mut self.properties.c_properties[prop_id];
             // property types should have been validated before!
             const_props.upsert(self.row, prop.as_prop_ref()).unwrap();
+            self.properties.layer_schema.insert_metadata(prop_id);
         }
     }
 }

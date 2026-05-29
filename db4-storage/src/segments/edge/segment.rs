@@ -133,6 +133,33 @@ impl MemEdgeSegment {
         self.layers.get(layer_id.0)
     }
 
+    /// Per-layer property-presence schema for this in-memory segment. Returns
+    /// an empty schema if the layer has no container in this segment.
+    pub fn layer_schema(
+        &self,
+        layer_id: LayerId,
+    ) -> raphtory_api::core::entities::properties::layer_schema::LayerPropSchema {
+        self.layers
+            .get(layer_id.0)
+            .map(|c| c.layer_schema().clone())
+            .unwrap_or_default()
+    }
+
+    /// Iterator over (layer_id, schema) for every layer present in this segment.
+    pub fn layer_schemas(
+        &self,
+    ) -> impl Iterator<
+        Item = (
+            LayerId,
+            &raphtory_api::core::entities::properties::layer_schema::LayerPropSchema,
+        ),
+    > {
+        self.layers
+            .iter()
+            .enumerate()
+            .map(|(i, c)| (LayerId(i), c.layer_schema()))
+    }
+
     pub fn est_size(&self) -> usize {
         self.est_size
     }
