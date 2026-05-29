@@ -53,7 +53,7 @@
 //!         lotr.time,
 //!         lotr.src_id.clone(),
 //!         [("type", Prop::str("Character"))],
-//!         None,
+//!         None, None
 //!     )
 //!     .expect("Failed to add node");
 //!
@@ -61,7 +61,7 @@
 //!         lotr.time,
 //!         lotr.dst_id.clone(),
 //!         [("type", Prop::str("Character"))],
-//!         None
+//!         None, None
 //!     )
 //!     .expect("Failed to add node");
 //!
@@ -103,6 +103,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
+use tempfile::NamedTempFile;
 use zip::read::ZipArchive;
 
 pub mod company_house;
@@ -131,9 +132,12 @@ pub fn fetch_file(
             .build()?;
         let response = client.get(url).send()?.error_for_status()?;
         let mut content = Cursor::new(response.bytes()?);
-        if !filepath.exists() {
-            let mut file = File::create(&filepath)?;
-            copy(&mut content, &mut file)?;
+        let mut file = NamedTempFile::new()?;
+        copy(&mut content, &mut file)?;
+        if let Err(e) = file.persist(&filepath) {
+            if !filepath.exists() {
+                Err(e.error)?;
+            }
         }
     }
     Ok(filepath)
@@ -227,9 +231,9 @@ mod graph_loader_test {
                     let src_id = src.id();
                     let dst_id = dst.id();
 
-                    g.add_node(t, src_id, [("name", Prop::str("Character"))], None)
+                    g.add_node(t, src_id, [("name", Prop::str("Character"))], None, None)
                         .unwrap();
-                    g.add_node(t, dst_id, [("name", Prop::str("Character"))], None)
+                    g.add_node(t, dst_id, [("name", Prop::str("Character"))], None, None)
                         .unwrap();
                     g.add_edge(
                         t,

@@ -1,3 +1,4 @@
+use clam_core::python::py_gql::base_gql_module;
 use pyo3::prelude::*;
 use raphtory::python::{
     filter::base_filter_module,
@@ -8,12 +9,17 @@ use raphtory::python::{
     },
 };
 use raphtory_graphql::python::pymodule::base_graphql_module;
-use clam_core::python::py_gql::base_gql_module;
+
+// Note: clam_core already declares a `#[global_allocator]` using
+// `tikv_jemallocator::Jemalloc` for the cdylib build, so we do NOT
+// redeclare one here (otherwise rustc errors with "conflicts with global
+// allocator in: clam_core").
 
 /// Raphtory graph analytics library
 #[pymodule]
 fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
-    let _ = add_raphtory_classes(m);
+    auth::init();
+    add_raphtory_classes(m)?;
 
     let graphql_module = base_graphql_module(py)?;
     let gql_module = base_gql_module(py)?;
@@ -33,5 +39,9 @@ fn _raphtory(py: Python<'_>, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_submodule(&node_state_module)?;
     m.add_submodule(&filter_module)?;
     m.add_submodule(&iterables)?;
+
+    let gql_module = base_gql_module(py)?;
+    m.add_submodule(&gql_module)?;
+
     Ok(())
 }

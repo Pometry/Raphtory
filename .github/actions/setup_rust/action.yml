@@ -15,3 +15,4 @@ runs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: ${{ steps.rust-version.outputs.version }}
+        components: cargo,clippy,rust-docs,rust-src,rust-std,rustc,rustfmt

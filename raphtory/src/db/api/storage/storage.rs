@@ -11,35 +11,30 @@ use raphtory_api::core::{
     entities::{
         properties::{
             meta::Meta,
-            prop::{Prop, PropType},
+            prop::{AsPropRef, Prop, PropType},
         },
-        GidRef, EID, VID,
+        GidRef, LayerId, LayerIds, EID, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
-use raphtory_core::entities::ELID;
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::graph::GraphStorage,
+    graph::{graph::GraphStorage, locked::LockedGraph},
     layer_ops::InheritLayerOps,
     mutation::{
         addition_ops::{EdgeWriteLock, InternalAdditionOps, SessionAdditionOps},
         addition_ops_ext::{AtomicAddEdge, AtomicAddNode, UnlockedSession},
-        deletion_ops::InternalDeletionOps,
-        durability_ops::DurabilityOps,
         property_addition_ops::InternalPropertyAdditionOps,
         EdgeWriterT, GraphPropWriterT, NodeWriterT,
     },
+    recovery_ops::RecoveryOps,
 };
 use std::{
     fmt::{Display, Formatter},
     path::Path,
     sync::Arc,
 };
-use storage::wal::{GraphWalOps, WalOps, LSN};
-
-// Re-export for raphtory dependencies to use when creating graphs.
-pub use storage::{persist::strategy::PersistenceStrategy, Config, Extension};
+use storage::wal::LSN;
 
 #[cfg(feature = "search")]
 use {
@@ -48,10 +43,9 @@ use {
         search::graph_index::{GraphIndex, MutableGraphIndex},
         serialise::{GraphFolder, GraphPaths},
     },
-    either::Either,
     parking_lot::RwLock,
-    raphtory_core::entities::nodes::node_ref::AsNodeRef,
-    raphtory_storage::{core_ops::CoreGraphOps, graph::nodes::node_storage_ops::NodeStorageOps},
+    raphtory_api::core::entities::properties::prop::IntoProp,
+    raphtory_storage::core_ops::CoreGraphOps,
     std::{
         io::{Seek, Write},
         ops::{Deref, DerefMut},
@@ -60,11 +54,31 @@ use {
     zip::ZipWriter,
 };
 
+// Re-export for raphtory dependencies to use when creating graphs.
+pub use storage::{
+    persist::strategy::PersistenceStrategy, read_constant_graph_properties, Config, Extension,
+};
+
 #[derive(Debug, Default)]
 pub struct Storage {
     graph: GraphStorage,
     #[cfg(feature = "search")]
     pub(crate) index: RwLock<GraphIndex>,
+}
+
+#[cfg(feature = "io")]
+impl Drop for Storage {
+    fn drop(&mut self) {
+        if let Some(disk_path) = self.graph.disk_storage_path() {
+            let disk_path = disk_path.to_path_buf();
+            let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
+            let edge_count = self.graph.unfiltered_num_edges(&LayerIds::All);
+            // Drop must not panic - ignore any error refreshing the metadata
+            // file. The graph data itself is already persisted by the storage
+            // layer so a stale `.meta` only affects node and edge counts (for now).
+            let _ = storage::refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
+        }
+    }
 }
 
 impl From<GraphStorage> for Storage {
@@ -103,6 +117,10 @@ impl Storage {
         }
     }
 
+    #[cfg(feature = "search")]
+    pub fn index(&self) -> &RwLock<GraphIndex> {
+        &self.index
+    }
     pub(crate) fn new_at_path(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let config = Config::default();
         let ext = Extension::new(config, Some(path.as_ref()))?;
@@ -141,13 +159,9 @@ impl Storage {
 
     fn load_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
         let temporal_graph = TemporalGraph::load(path, ext)?;
-        let wal = temporal_graph.wal()?;
 
-        // Replay any pending writes from the WAL.
-        if wal.has_entries()? {
-            let mut write_locked_graph = temporal_graph.write_lock()?;
-            wal.replay_to_graph(&mut write_locked_graph)?;
-        }
+        // Run crash recovery if needed.
+        temporal_graph.run_recovery()?;
 
         Ok(Self {
             graph: GraphStorage::Unlocked(Arc::new(temporal_graph)),
@@ -156,16 +170,55 @@ impl Storage {
         })
     }
 
+    fn load_read_only_with_extension(path: &Path, ext: Extension) -> Result<Self, GraphError> {
+        // Skip crash recovery: recovery mutates the graph and is unsafe
+        // when other handles are attached to the same directory.
+        let temporal_graph = TemporalGraph::load_read_only(path, ext)?;
+
+        // `LockedGraph` holds read locks on the underlying segments, so
+        // every mutation entry point that goes through
+        // `GraphStorage::mutable()?` errors with `ReadLockedImmutable`.
+        let locked = LockedGraph::new(Arc::new(temporal_graph));
+
+        Ok(Self {
+            graph: GraphStorage::Mem(locked),
+            #[cfg(feature = "search")]
+            index: RwLock::new(GraphIndex::Empty),
+        })
+    }
+
     pub fn load(path: impl AsRef<Path>) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load(path)?;
+
         Self::load_with_extension(path, ext)
     }
 
     pub fn load_with_config(path: impl AsRef<Path>, config: Config) -> Result<Self, GraphError> {
         let path = path.as_ref();
         let ext = Extension::load_with_config(path, config)?;
+
         Self::load_with_extension(path, ext)
+    }
+
+    /// Load the graph as a read-only snapshot — multiple processes can open
+    /// the same graph directory concurrently. Mutating operations on the
+    /// returned graph will return errors from the underlying storage.
+    pub fn load_read_only(path: impl AsRef<Path>) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load(path)?;
+
+        Self::load_read_only_with_extension(path, ext)
+    }
+
+    pub fn load_read_only_with_config(
+        path: impl AsRef<Path>,
+        config: Config,
+    ) -> Result<Self, GraphError> {
+        let path = path.as_ref();
+        let ext = Extension::load_with_config(path, config)?;
+
+        Self::load_read_only_with_extension(path, ext)
     }
 
     pub(crate) fn from_inner(graph: GraphStorage) -> Self {
@@ -173,6 +226,19 @@ impl Storage {
             graph,
             #[cfg(feature = "search")]
             index: RwLock::new(GraphIndex::Empty),
+        }
+    }
+
+    /// Produce a read-only handle backed by the same `TemporalGraph` as
+    /// this storage. Mutations on the returned `Storage` return
+    /// `Immutable::ReadLockedImmutable`. The handle holds read locks on
+    /// every segment, so writers on the original `Storage` will block
+    /// until the read-only handle is dropped — this is not a snapshot.
+    pub fn read_only(&self) -> Self {
+        Self {
+            graph: self.graph.lock(),
+            #[cfg(feature = "search")]
+            index: RwLock::new(self.index.read().clone()),
         }
     }
 
@@ -279,7 +345,7 @@ impl Storage {
         &self.index
     }
 
-    pub(crate) fn is_indexed(&self) -> bool {
+    pub fn is_indexed(&self) -> bool {
         self.index.read_recursive().is_indexed()
     }
 
@@ -336,25 +402,23 @@ impl InheritViewOps for Storage {}
 #[derive(Clone)]
 pub struct StorageWriteSession<'a> {
     session: UnlockedSession<'a>,
-    storage: &'a Storage,
 }
 
 pub struct AtomicAddEdgeSession<'a> {
     session: AtomicAddEdge<'a, Extension>,
-    storage: &'a Storage,
 }
 
 impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.session.internal_add_update(t, layer, props)
     }
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.session.internal_delete_edge(t, layer)
     }
 
@@ -452,9 +516,8 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.write_lock()?)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         let id = self.graph.resolve_layer(layer)?;
-
         Ok(id)
     }
 
@@ -492,10 +555,7 @@ impl InternalAdditionOps for Storage {
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         let session = self.graph.write_session()?;
-        Ok(StorageWriteSession {
-            session,
-            storage: self,
-        })
+        Ok(StorageWriteSession { session })
     }
 
     fn atomic_add_edge(
@@ -505,10 +565,7 @@ impl InternalAdditionOps for Storage {
         e_id: Option<EID>,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
         let session = self.graph.atomic_add_edge(src, dst, e_id)?;
-        Ok(AtomicAddEdgeSession {
-            session,
-            storage: self,
-        })
+        Ok(AtomicAddEdgeSession { session })
     }
 
     fn internal_add_node(
@@ -516,11 +573,12 @@ impl InternalAdditionOps for Storage {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
         let index_res = self.if_index_mut(|index| index.add_node_update(t, v, &props));
         // don't fail early on indexing, actually update the graph even if indexing failed
-        let writer = self.graph.internal_add_node(t, v, props)?;
+        let writer = self.graph.internal_add_node(t, v, props, layer_id)?;
 
         #[cfg(feature = "search")]
         index_res?;
@@ -563,6 +621,10 @@ impl InternalAdditionOps for Storage {
         Ok(self.graph.resolve_node_and_type(id, node_type)?)
     }
 
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        Ok(self.graph.bulk_load_resolve_node(id)?)
+    }
+
     fn atomic_add_node(&self, node: NodeRef) -> Result<AtomicAddNode<'_>, Self::Error> {
         self.graph.atomic_add_node(node).map_err(into_graph_err)
     }
@@ -571,17 +633,17 @@ impl InternalAdditionOps for Storage {
 impl InternalPropertyAdditionOps for Storage {
     type Error = GraphError;
 
-    fn internal_add_properties(
+    fn internal_add_properties<P: AsPropRef>(
         &self,
         t: EventTime,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<GraphPropWriterT<'_>, GraphError> {
         Ok(self.graph.internal_add_properties(t, props)?)
     }
 
-    fn internal_add_metadata(
+    fn internal_add_metadata<P: AsPropRef>(
         &self,
-        props: &[(usize, Prop)],
+        props: &[(usize, P)],
     ) -> Result<GraphPropWriterT<'_>, GraphError> {
         Ok(self.graph.internal_add_metadata(props)?)
     }
@@ -593,13 +655,16 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(self.graph.internal_update_metadata(props)?)
     }
 
-    fn internal_add_node_metadata(
+    fn internal_add_node_metadata<P: AsPropRef>(
         &self,
         vid: VID,
-        props: Vec<(usize, Prop)>,
+        props: Vec<(usize, P)>,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         #[cfg(feature = "search")]
-        let props_for_index = props.clone();
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
 
         let lock = self.graph.internal_add_node_metadata(vid, props)?;
 
@@ -625,16 +690,19 @@ impl InternalPropertyAdditionOps for Storage {
         Ok(lock)
     }
 
-    fn internal_add_edge_metadata(
+    fn internal_add_edge_metadata<P: AsPropRef>(
         &self,
         eid: EID,
-        layer: usize,
-        props: Vec<(usize, Prop)>,
+        layer: LayerId,
+        props: Vec<(usize, P)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
 
         #[cfg(feature = "search")]
-        let props_for_index = props.clone();
+        let props_for_index = props
+            .iter()
+            .map(|(id, prop)| (*id, prop.as_prop_ref().into_prop()))
+            .collect::<Vec<_>>();
 
         let lock = self.graph.internal_add_edge_metadata(eid, layer, props)?;
 
@@ -647,7 +715,7 @@ impl InternalPropertyAdditionOps for Storage {
     fn internal_update_edge_metadata(
         &self,
         eid: EID,
-        layer: usize,
+        layer: LayerId,
         props: Vec<(usize, Prop)>,
     ) -> Result<EdgeWriterT<'_>, Self::Error> {
         // FIXME: this whole thing is not great
@@ -663,29 +731,5 @@ impl InternalPropertyAdditionOps for Storage {
         self.if_index_mut(|index| index.update_edge_metadata(eid, layer, &props_for_index))?;
 
         Ok(lock)
-    }
-}
-
-impl InternalDeletionOps for Storage {
-    type Error = GraphError;
-    fn internal_delete_edge(
-        &self,
-        t: EventTime,
-        src: VID,
-        dst: VID,
-        layer: usize,
-    ) -> Result<MaybeNew<EID>, GraphError> {
-        Ok(self.graph.internal_delete_edge(t, src, dst, layer)?)
-    }
-
-    fn internal_delete_existing_edge(
-        &self,
-        t: EventTime,
-        eid: EID,
-        layer: usize,
-    ) -> Result<(), GraphError> {
-        self.graph.internal_delete_existing_edge(t, eid, layer)?;
-
-        Ok(())
     }
 }

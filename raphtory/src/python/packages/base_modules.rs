@@ -17,8 +17,11 @@ use crate::{
             },
             node::{PyMutableNode, PyNode, PyNodes, PyPathFromGraph, PyPathFromNode},
             properties::{
-                MetadataView, PropertiesView, PyMetadata, PyPropValueList, PyProperties,
-                PyTemporalProp, PyTemporalProperties,
+                MetadataView, PropertiesView, PyMetadata, PyPropHistItemsList,
+                PyPropHistItemsListList, PyPropHistValueList, PyPropHistValueListList,
+                PyPropValueList, PyPropValueListList, PyProperties, PyTemporalProp,
+                PyTemporalPropList, PyTemporalPropListList, PyTemporalProperties,
+                PyTemporalPropsList, PyTemporalPropsListList,
             },
             views::graph_view::PyGraphView,
         },
@@ -26,7 +29,10 @@ use crate::{
             algorithms::*,
             graph_gen::*,
             graph_loader::*,
-            vectors::{PyVectorSelection, PyVectorisedGraph},
+            vectors::{
+                embedding_server, PyEmbeddingServer, PyOpenAIEmbeddings, PyRunningEmbeddingServer,
+                PyVectorCache, PyVectorSelection, PyVectorisedGraph,
+            },
         },
         types::{
             result_iterable::{
@@ -46,7 +52,7 @@ use crate::{
                     NestedUtcDateTimeIterable, NestedVecUtcDateTimeIterable,
                     OptionArcStringIterable, OptionEventTimeIterable, OptionI64Iterable,
                     OptionUsizeIterable, OptionUtcDateTimeIterable, OptionVecUtcDateTimeIterable,
-                    StringIterable, U64Iterable, UsizeIterable,
+                    PropIterable, StringIterable, U64Iterable, UsizeIterable,
                 },
             },
         },
@@ -168,6 +174,16 @@ pub fn base_iterables_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         NestedResultUtcDateTimeIterable,
         MetadataListList,
         PyNestedPropsIterable,
+        PyPropValueListList,
+        PyTemporalPropsList,
+        PyTemporalPropsListList,
+        PyPropHistValueList,
+        PyPropHistValueListList,
+        PyTemporalPropList,
+        PyTemporalPropListList,
+        PyPropHistItemsList,
+        PyPropHistItemsListList,
+        PropIterable,
     );
     Ok(iterables_module)
 }
@@ -185,6 +201,7 @@ pub fn base_algorithm_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
         average_degree,
         directed_graph_density,
         degree_centrality,
+        alternating_mask,
         max_degree,
         min_degree,
         max_out_degree,
@@ -250,10 +267,18 @@ pub fn base_graph_gen_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyEr
 
 pub fn base_vectors_module(py: Python<'_>) -> Result<Bound<'_, PyModule>, PyErr> {
     let vectors_module = PyModule::new(py, "vectors")?;
-    vectors_module.add_class::<PyVectorisedGraph>()?;
-    vectors_module.add_class::<PyDocument>()?;
-    vectors_module.add_class::<PyEmbedding>()?;
-    vectors_module.add_class::<PyVectorSelection>()?;
+    add_classes!(
+        &vectors_module,
+        PyVectorisedGraph,
+        PyDocument,
+        PyEmbedding,
+        PyVectorSelection,
+        PyOpenAIEmbeddings,
+        PyVectorCache,
+        PyEmbeddingServer,
+        PyRunningEmbeddingServer,
+    );
+    add_functions!(&vectors_module, embedding_server);
     Ok(vectors_module)
 }
 

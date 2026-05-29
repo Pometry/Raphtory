@@ -24,7 +24,7 @@ use crate::{
                     exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 },
                 layer_graph::LayeredGraph,
-                node_subgraph::NodeSubgraph,
+                node_subgraph::{NodeSubgraph, UnfilteredSubgraph},
                 valid_graph::ValidGraph,
                 window_graph::WindowedGraph,
             },
@@ -106,6 +106,16 @@ impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for WindowedGra
 }
 
 impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for LayeredGraph<G> {
+    type Target = PyGraphView;
+    type Output = <Self::Target as IntoPyObject<'py>>::Output;
+    type Error = <Self::Target as IntoPyObject<'py>>::Error;
+
+    fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+        PyGraphView::from(self).into_pyobject(py)
+    }
+}
+
+impl<'py, G: StaticGraphViewOps + IntoDynamic> IntoPyObject<'py> for UnfilteredSubgraph<G> {
     type Target = PyGraphView;
     type Output = <Self::Target as IntoPyObject<'py>>::Output;
     type Error = <Self::Target as IntoPyObject<'py>>::Error;
@@ -429,7 +439,13 @@ impl PyGraphView {
         self.graph.materialize()
     }
 
-    /// Materializes the graph view into a graphql compatible folder.
+    /// Materializes the graph view into a folder on disk.
+    ///
+    /// Arguments:
+    ///     path (str | PathLike): destination folder for the materialised graph.
+    ///
+    /// Returns:
+    ///     GraphView: the materialised graph at `path`.
     fn materialize_at(&self, path: PathBuf) -> Result<MaterializedGraph, GraphError> {
         self.graph.materialize_at(&path)
     }

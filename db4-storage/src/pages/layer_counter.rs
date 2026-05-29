@@ -1,3 +1,4 @@
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::graph::timer::{MaxCounter, MinCounter, TimeCounterTrait};
 use std::sync::atomic::AtomicUsize;
 
@@ -69,21 +70,22 @@ impl GraphStats {
         self.latest.get()
     }
 
-    pub fn increment(&self, layer_id: usize) -> usize {
+    pub fn increment(&self, layer_id: LayerId) -> usize {
         let counter = self.get_or_create_layer(layer_id);
         counter.fetch_add(1, std::sync::atomic::Ordering::Release)
     }
 
-    pub fn get(&self, layer_id: usize) -> usize {
+    pub fn get(&self, layer_id: LayerId) -> usize {
         let counter = self.get_or_create_layer(layer_id);
         counter.load(std::sync::atomic::Ordering::Acquire)
     }
 
-    pub fn get_counter(&self, layer_id: usize) -> &AtomicUsize {
+    pub fn get_counter(&self, layer_id: LayerId) -> &AtomicUsize {
         self.get_or_create_layer(layer_id)
     }
 
-    fn get_or_create_layer(&self, layer_id: usize) -> &AtomicUsize {
+    fn get_or_create_layer(&self, layer_id: LayerId) -> &AtomicUsize {
+        let layer_id = layer_id.0;
         if let Some(counter) = self.layers.get(layer_id) {
             return counter;
         }

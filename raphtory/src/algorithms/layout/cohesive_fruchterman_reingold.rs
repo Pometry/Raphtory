@@ -1,9 +1,9 @@
 use crate::{
     algorithms::{
         components::weakly_connected_components,
-        layout::fruchterman_reingold::fruchterman_reingold_unbounded,
+        layout::fruchterman_reingold::{fruchterman_reingold_unbounded, CoordinateState},
     },
-    db::api::state::NodeState,
+    db::api::state::TypedNodeState,
     prelude::{NodeStateGroupBy, OrderedNodeStateOps, *},
 };
 
@@ -29,7 +29,7 @@ pub fn cohesive_fruchterman_reingold<'graph, G: GraphViewOps<'graph>>(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> NodeState<'graph, [f32; 2], G> {
+) -> TypedNodeState<'graph, CoordinateState, G> {
     let virtual_graph = g.materialize().unwrap();
 
     let connected_components = weakly_connected_components(&virtual_graph).groups();

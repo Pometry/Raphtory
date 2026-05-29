@@ -5,9 +5,11 @@ use crate::{
     api::edges::EdgeSegmentOps,
     error::StorageError,
     pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats, resolve_pos},
+    persist::strategy::PersistenceStrategy,
     segments::edge::segment::MemEdgeSegment,
 };
 use parking_lot::RwLockWriteGuard;
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::{EID, ELID};
 use rayon::prelude::*;
 
@@ -58,8 +60,12 @@ impl<'a, ES: EdgeSegmentOps> LockedEdgePage<'a, ES> {
         }
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         self.lock.get_or_create_layer(layer_id);
+    }
+
+    pub fn page(&self) -> &ES {
+        &self.page
     }
 }
 #[derive(Debug)]
@@ -75,7 +81,9 @@ impl<ES> Default for WriteLockedEdgePages<'_, ES> {
     }
 }
 
-impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
+impl<'a, EXT: PersistenceStrategy<ES = ES>, ES: EdgeSegmentOps<Extension = EXT>>
+    WriteLockedEdgePages<'a, ES>
+{
     pub fn new(writers: Vec<LockedEdgePage<'a, ES>>) -> Self {
         Self { writers }
     }
@@ -97,7 +105,7 @@ impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
         self.writers.into_par_iter()
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         for writer in &mut self.writers {
             writer.ensure_layer(layer_id);
         }
@@ -109,20 +117,18 @@ impl<'a, ES: EdgeSegmentOps> WriteLockedEdgePages<'a, ES> {
         } else {
             return false;
         };
-        let (page_id, pos) = resolve_pos(elid.edge, max_page_len);
-        self.writers
-            .get(page_id)
-            .and_then(|page| {
-                let locked_head = page.lock.deref();
-                page.page.get_edge(pos, elid.layer(), locked_head)
-            })
-            .is_some()
+        let (page_id, pos) = resolve_pos(elid.eid(), max_page_len);
+        self.writers.get(page_id).is_some_and(|page| {
+            let locked_head = page.lock.deref();
+            page.page.has_edge(pos, elid.layer(), locked_head)
+        })
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {
-        for LockedEdgePage { page, lock, .. } in &mut self.writers {
-            page.vacuum(lock.deref_mut())?;
-        }
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedEdgePage { page, lock, .. } = writer;
+            page.vacuum(lock.deref_mut())
+        })?;
         Ok(())
     }
 

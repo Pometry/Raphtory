@@ -1,9 +1,8 @@
 import tempfile
 from datetime import datetime, timezone
 from typing import List
-from dateutil import parser
 from numpy.testing import assert_equal as check_arr
-from utils import assert_set_eq, assert_has_metadata
+from utils import assert_set_eq, assert_has_metadata, truncate_dt_to_ms
 from raphtory.graphql import (
     GraphServer,
     RaphtoryClient,
@@ -15,8 +14,8 @@ from raphtory.graphql import (
 
 
 def make_props():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah",
         "prop_float": 2.0,
@@ -41,8 +40,8 @@ def make_props():
 
 
 def make_props2():
-    current_datetime = datetime.now(timezone.utc)
-    naive_datetime = datetime.now()
+    current_datetime = truncate_dt_to_ms(datetime.now(timezone.utc))
+    naive_datetime = truncate_dt_to_ms(datetime.now())
     return {
         "prop_string": "blah2",
         "prop_float": 3.0,
@@ -71,8 +70,8 @@ def create_updates(timestamps: List[int]):
 
 def test_add_nodes():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg: RemoteGraph = client.remote_graph("path/to/event_graph")
         node_updates = []
@@ -125,8 +124,8 @@ def test_add_nodes():
 
 def test_add_edges():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         rg: RemoteGraph = client.remote_graph("path/to/event_graph")
         edge_updates = []

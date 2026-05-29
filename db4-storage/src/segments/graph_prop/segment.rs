@@ -3,7 +3,13 @@ use crate::{
     segments::{HasRow, SegmentContainer},
     wal::LSN,
 };
-use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop};
+use raphtory_api::core::entities::{
+    LayerId,
+    properties::{
+        meta::Meta,
+        prop::{AsPropRef, Prop},
+    },
+};
 use raphtory_core::{
     entities::properties::tprop::TPropCell,
     storage::timeindex::{AsTime, EventTime},
@@ -41,7 +47,7 @@ impl MemGraphPropSegment {
     pub const DEFAULT_ROW: usize = 0;
 
     /// Graph segments are currently only written to a single layer.
-    pub const DEFAULT_LAYER: usize = 0;
+    pub const DEFAULT_LAYER: LayerId = LayerId(0);
 
     pub fn new_with_meta(meta: Arc<Meta>) -> Self {
         // Technically, these aren't used since there is always only one graph segment.
@@ -54,7 +60,8 @@ impl MemGraphPropSegment {
         }
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<UnitEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<UnitEntry> {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -99,10 +106,10 @@ impl MemGraphPropSegment {
         self.lsn = lsn;
     }
 
-    pub fn add_properties<T: AsTime>(
+    pub fn add_properties<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> usize {
         let layer = self.get_or_create_layer(Self::DEFAULT_LAYER);
         let est_size = layer.est_size();
@@ -116,15 +123,18 @@ impl MemGraphPropSegment {
         layer_est_size - est_size
     }
 
-    pub fn check_metadata(&self, props: &[(usize, Prop)]) -> Result<(), StorageError> {
-        if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER) {
+    pub fn check_metadata<P: AsPropRef>(&self, props: &[(usize, P)]) -> Result<(), StorageError> {
+        if let Some(layer) = self.layers.get(Self::DEFAULT_LAYER.0) {
             layer.check_metadata(Self::DEFAULT_ROW.into(), props)?;
         }
 
         Ok(())
     }
 
-    pub fn update_metadata(&mut self, props: impl IntoIterator<Item = (usize, Prop)>) -> usize {
+    pub fn update_metadata<P: AsPropRef>(
+        &mut self,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) -> usize {
         let segment_container = self.get_or_create_layer(Self::DEFAULT_LAYER);
         let est_size = segment_container.est_size();
 
@@ -141,14 +151,16 @@ impl MemGraphPropSegment {
     }
 
     pub fn get_temporal_prop(&self, prop_id: usize) -> Option<TPropCell<'_>> {
-        let layer = &self.layers[Self::DEFAULT_LAYER];
-
+        let layer = &self.layers[Self::DEFAULT_LAYER.0];
         layer.t_prop(Self::DEFAULT_ROW, prop_id)
     }
 
     pub fn get_metadata(&self, prop_id: usize) -> Option<Prop> {
-        let layer = &self.layers[Self::DEFAULT_LAYER];
-
+        let layer = &self.layers[Self::DEFAULT_LAYER.0];
         layer.c_prop(Self::DEFAULT_ROW, prop_id)
+    }
+
+    pub fn num_updates(&self) -> usize {
+        self.layers().iter().map(|layer| layer.t_len()).sum()
     }
 }

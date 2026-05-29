@@ -1,10 +1,12 @@
 pub mod app_config;
 pub mod auth_config;
 pub mod cache_config;
+pub mod concurrency_config;
 #[cfg(feature = "search")]
 pub mod index_config;
 pub mod log_config;
 pub mod otlp_config;
+pub mod schema_config;
 
 #[cfg(test)]
 mod tests {
@@ -40,7 +42,6 @@ mod tests {
             .with_tracing(true)
             .with_tracing_level(TracingLevel::ESSENTIAL)
             .with_cache_capacity(30)
-            .with_cache_tti_seconds(1000)
             .with_auth_public_key(Some(
                 "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=".to_owned(),
             ))
@@ -55,10 +56,7 @@ mod tests {
 
     #[test]
     fn test_load_config_with_custom_cache() {
-        let app_config = AppConfigBuilder::new()
-            .with_cache_capacity(50)
-            .with_cache_tti_seconds(1200)
-            .build();
+        let app_config = AppConfigBuilder::new().with_cache_capacity(50).build();
 
         let result = load_config(Some(app_config.clone()), None);
 

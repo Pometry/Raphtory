@@ -30,6 +30,9 @@ itertools = { workspace = true }
 once_cell = { workspace = true }
 ouroboros = { workspace = true }
 arrow-array = { workspace = true }
+arrow-buffer = { workspace = true }
+arrow-data = { workspace = true }
+arrow-schema = { workspace = true }
 regex = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 

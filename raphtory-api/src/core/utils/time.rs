@@ -148,6 +148,9 @@ impl TryIntoTimeNeedsEventId for &str {}
 
 /// Used to handle automatic injection of event id if not explicitly provided.
 /// In many cases, we will want different behaviour if an event id was provided or not.
+#[derive(
+    Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum InputTime {
     Simple(i64),
     Indexed(i64, usize),

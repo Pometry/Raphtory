@@ -72,7 +72,7 @@ impl<
             .writer
             .get_or_create_layer(layer)
             .max_page_len();
-        let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
+        let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
 
         self.edge_writer
             .add_edge(t, edge_pos, src, dst, props, layer);
@@ -124,7 +124,7 @@ impl<
             .writer
             .get_or_create_layer(layer)
             .max_page_len();
-        let (_, edge_pos) = resolve_pos(e_id.edge, edge_max_page_len);
+        let (_, edge_pos) = resolve_pos(e_id.eid(), edge_max_page_len);
 
         self.edge_writer.delete_edge(t, edge_pos, src, dst, layer);
 

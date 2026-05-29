@@ -5,9 +5,9 @@ use crate::{
 use raphtory_api::core::entities::properties::prop::Prop;
 use raphtory_storage::{
     core_ops::CoreGraphOps,
+    durability_ops::DurabilityOps,
     mutation::{
-        addition_ops::InternalAdditionOps, durability_ops::DurabilityOps,
-        property_addition_ops::InternalPropertyAdditionOps,
+        addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
     },
 };
 use storage::wal::{GraphWalOps, WalOps};

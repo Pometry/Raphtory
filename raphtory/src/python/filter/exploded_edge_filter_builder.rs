@@ -47,7 +47,7 @@ impl PyExplodedEdgeFilter {
     ///     name (str): Property key.
     ///
     /// Returns:
-    ///     filter.PropertyFilterOps
+    ///     filter.PropertyFilterOps:
     #[staticmethod]
     fn property<'py>(
         py: Python<'py>,
@@ -66,7 +66,7 @@ impl PyExplodedEdgeFilter {
     ///     name (str): Metadata key.
     ///
     /// Returns:
-    ///     filter.FilterOps
+    ///     filter.FilterOps:
     #[staticmethod]
     fn metadata<'py>(py: Python<'py>, name: String) -> PyResult<Bound<'py, PyPropertyExprBuilder>> {
         let b: MetadataFilterBuilder<ExplodedEdgeFilter> =
@@ -83,7 +83,7 @@ impl PyExplodedEdgeFilter {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn window(start: EventTime, end: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.window(start, end)))
@@ -95,7 +95,7 @@ impl PyExplodedEdgeFilter {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn at(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.at(time)))
@@ -107,7 +107,7 @@ impl PyExplodedEdgeFilter {
     ///     time (int): Lower time bound.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn after(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.after(time)))
@@ -119,7 +119,7 @@ impl PyExplodedEdgeFilter {
     ///     time (int): Upper time bound.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn before(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.before(time)))
@@ -128,7 +128,7 @@ impl PyExplodedEdgeFilter {
     /// Evaluates exploded edge predicates against the latest available state.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn latest() -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.latest()))
@@ -140,7 +140,7 @@ impl PyExplodedEdgeFilter {
     ///     time (int): Snapshot time.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn snapshot_at(time: EventTime) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_at(time)))
@@ -149,7 +149,7 @@ impl PyExplodedEdgeFilter {
     /// Evaluates exploded edge predicates against the most recent snapshot of the graph.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn snapshot_latest() -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.snapshot_latest()))
@@ -161,7 +161,7 @@ impl PyExplodedEdgeFilter {
     ///     layer (str): Layer name.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn layer(layer: String) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layer)))
@@ -173,7 +173,7 @@ impl PyExplodedEdgeFilter {
     ///     layers (list[str]): Layer names.
     ///
     /// Returns:
-    ///     filter.EdgeViewPropsFilterBuilder
+    ///     filter.EdgeViewPropsFilterBuilder:
     #[staticmethod]
     fn layers(layers: FromIterable<String>) -> PyEdgeViewPropsFilterBuilder {
         PyEdgeViewPropsFilterBuilder(Arc::new(ExplodedEdgeFilter.layer(layers)))
@@ -182,7 +182,7 @@ impl PyExplodedEdgeFilter {
     /// Matches exploded edges that have at least one event in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_active() -> PyFilterExpr {
         PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_active()))
@@ -191,7 +191,7 @@ impl PyExplodedEdgeFilter {
     /// Matches exploded edges that are structurally valid in the current view.
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_valid() -> PyFilterExpr {
         PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_valid()))
@@ -200,7 +200,7 @@ impl PyExplodedEdgeFilter {
     /// Matches exploded edges that have been deleted.
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_deleted() -> PyFilterExpr {
         PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_deleted()))
@@ -209,7 +209,7 @@ impl PyExplodedEdgeFilter {
     /// Matches exploded edges that are self-loops (source == destination).
     ///
     /// Returns:
-    ///     filter.FilterExpr
+    ///     filter.FilterExpr:
     #[staticmethod]
     fn is_self_loop() -> PyFilterExpr {
         PyFilterExpr(Arc::new(ExplodedEdgeFilter.is_self_loop()))

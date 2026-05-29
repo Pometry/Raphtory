@@ -1,6 +1,8 @@
 use crate::{
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
             EdgeList, Immutable, InheritMaterialize, InheritStorageOps, InheritTimeSemantics,
             InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
@@ -11,7 +13,7 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{LayerIds, ELID},
+        entities::{LayerId, LayerIds, ELID},
         storage::timeindex::EventTime,
     },
     inherit::Base,
@@ -44,6 +46,14 @@ impl<G, L, R> InheritCoreGraphOps for AndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritStorageOps for AndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for AndFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritPropertiesOps for AndFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodePropertySchemaOps
+    for AndFilteredGraph<G, L, R>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritEdgePropertySchemaOps
+    for AndFilteredGraph<G, L, R>
+{
+}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for AndFilteredGraph<G, L, R> {}
 
 impl<G, L: Send + Sync, R: Send + Sync> InternalLayerOps for AndFilteredGraph<G, L, R>
@@ -105,7 +115,7 @@ impl<G, L: InternalEdgeLayerFilterOps, R: InternalEdgeLayerFilterOps> InternalEd
             && self.right.internal_layer_filter_edge_list_trusted()
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.left.internal_filter_edge_layer(edge, layer)
             && self.right.internal_filter_edge_layer(edge, layer)
     }

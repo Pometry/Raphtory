@@ -1,32 +1,40 @@
 use crate::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
     error::StorageError,
-    persist::config::{BaseConfig, ConfigOps},
+    persist::{
+        config::{BaseConfig, ConfigOps},
+        control_file::{ControlFileOps, NoControlFile},
+    },
     segments::{
         edge::segment::{EdgeSegmentView, MemEdgeSegment},
         graph_prop::{GraphPropSegmentView, segment::MemGraphPropSegment},
         node::segment::{MemNodeSegment, NodeSegmentView},
     },
-    wal::{WalOps, no_wal::NoWal},
+    wal::{GraphWalOps, WalOps, no_wal::NoWal},
 };
-use std::{fmt::Debug, ops::DerefMut, path::Path};
+use std::{
+    fmt::Debug,
+    ops::DerefMut,
+    path::Path,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 
 pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     type NS: NodeSegmentOps;
     type ES: EdgeSegmentOps;
     type GS: GraphPropSegmentOps;
-    type Wal: WalOps;
+    type Wal: WalOps + GraphWalOps;
     type Config: ConfigOps;
+    type ControlFile: ControlFileOps;
 
     fn new(config: Self::Config, graph_dir: Option<&Path>) -> Result<Self, StorageError>;
 
     fn load(graph_dir: &Path) -> Result<Self, StorageError>;
 
-    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError> {
-        let mut extension = Self::load(graph_dir)?;
-        extension.config_mut().update(config);
-        Ok(extension)
-    }
+    fn load_with_config(graph_dir: &Path, config: Self::Config) -> Result<Self, StorageError>;
 
     fn config(&self) -> &Self::Config;
 
@@ -34,6 +42,9 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     fn wal(&self) -> &Self::Wal;
 
+    fn control_file(&self) -> &Self::ControlFile;
+
+    /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
         &self,
         node_segment: &Self::NS,
@@ -41,6 +52,7 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
     ) where
         Self: Sized;
 
+    /// Called after every write and checks memory limits to decide if a flush is needed
     fn persist_edge_segment<MP: DerefMut<Target = MemEdgeSegment>>(
         &self,
         edge_segment: &Self::ES,
@@ -57,26 +69,49 @@ pub trait PersistenceStrategy: Debug + Clone + Send + Sync + 'static {
 
     /// Indicates whether the strategy persists to disk or not.
     fn disk_storage_enabled() -> bool;
+
+    /// Estimated global memory used
+    fn memory_tracker(&self) -> &Arc<AtomicUsize>;
+
+    fn estimated_size(&self) -> usize {
+        self.memory_tracker().load(Ordering::Relaxed)
+    }
+
+    /// Called by bulk loaders to decide if a global flush should be triggered
+    fn should_flush(&self) -> bool;
+    fn should_pause(&self) -> bool;
 }
 
 #[derive(Debug, Clone)]
 pub struct NoOpStrategy {
     config: BaseConfig,
+    memory_tracker: Arc<AtomicUsize>,
     wal: NoWal,
+    control_file: NoControlFile,
 }
 
 impl PersistenceStrategy for NoOpStrategy {
-    type ES = EdgeSegmentView<Self>;
     type NS = NodeSegmentView<Self>;
+    type ES = EdgeSegmentView<Self>;
     type GS = GraphPropSegmentView<Self>;
     type Wal = NoWal;
     type Config = BaseConfig;
+    type ControlFile = NoControlFile;
 
     fn new(config: BaseConfig, _graph_dir: Option<&Path>) -> Result<Self, StorageError> {
-        Ok(Self { config, wal: NoWal })
+        Ok(Self {
+            config,
+            wal: NoWal,
+            control_file: NoControlFile,
+            memory_tracker: Arc::new(AtomicUsize::new(0)),
+        })
     }
 
     fn load(_graph_dir: &Path) -> Result<Self, StorageError> {
+        Err(StorageError::DiskStorageNotSupported)
+    }
+
+    fn load_with_config(_graph_dir: &Path, _config: Self::Config) -> Result<Self, StorageError> {
         Err(StorageError::DiskStorageNotSupported)
     }
 
@@ -90,6 +125,10 @@ impl PersistenceStrategy for NoOpStrategy {
 
     fn wal(&self) -> &Self::Wal {
         &self.wal
+    }
+
+    fn control_file(&self) -> &Self::ControlFile {
+        &self.control_file
     }
 
     fn persist_node_segment<MP: DerefMut<Target = MemNodeSegment>>(
@@ -117,6 +156,18 @@ impl PersistenceStrategy for NoOpStrategy {
     }
 
     fn disk_storage_enabled() -> bool {
+        false
+    }
+
+    fn memory_tracker(&self) -> &Arc<AtomicUsize> {
+        &self.memory_tracker
+    }
+
+    fn should_flush(&self) -> bool {
+        false
+    }
+
+    fn should_pause(&self) -> bool {
         false
     }
 }

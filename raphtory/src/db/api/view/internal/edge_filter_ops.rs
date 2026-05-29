@@ -1,6 +1,9 @@
 use crate::core::entities::LayerIds;
 use raphtory_api::{
-    core::{entities::ELID, storage::timeindex::EventTime},
+    core::{
+        entities::{LayerId, ELID},
+        storage::timeindex::EventTime,
+    },
     inherit::Base,
 };
 use storage::EdgeEntryRef;
@@ -13,7 +16,7 @@ pub trait InternalEdgeLayerFilterOps {
     fn internal_layer_filter_edge_list_trusted(&self) -> bool;
 
     /// Filter a layer for an edge
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool;
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool;
 
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
         false
@@ -117,7 +120,7 @@ impl<G: InheritEdgeLayerFilterOps<Base: InternalEdgeLayerFilterOps>> InternalEdg
     }
 
     #[inline]
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.base().internal_filter_edge_layer(edge, layer)
     }
 

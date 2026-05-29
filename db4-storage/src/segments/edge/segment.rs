@@ -12,13 +12,19 @@ use crate::{
     wal::LSN,
 };
 use parking_lot::lock_api::ArcRwLockReadGuard;
-use raphtory_api::core::entities::{
-    VID,
-    properties::{meta::Meta, prop::Prop},
+use raphtory_api::core::{
+    entities::{
+        LayerId, VID,
+        properties::{
+            meta::{Meta, STATIC_GRAPH_LAYER_ID},
+            prop::AsPropRef,
+        },
+    },
+    storage::dict_mapper::MaybeNew,
 };
 use raphtory_api_macros::box_on_debug_lifetime;
 use raphtory_core::{
-    entities::LayerIds,
+    entities::{LayerIds, edges::edge_ref::EdgeRef},
     storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
@@ -27,7 +33,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc,
-        atomic::{self, AtomicU32},
+        atomic::{self, AtomicU32, AtomicUsize, Ordering},
     },
 };
 
@@ -52,6 +58,7 @@ impl HasRow for EdgeEntry {
 pub struct MemEdgeSegment {
     layers: Vec<SegmentContainer<EdgeEntry>>,
     est_size: usize,
+    global_memory_tracker: Arc<AtomicUsize>,
     lsn: LSN,
 }
 
@@ -68,12 +75,23 @@ impl AsMut<[SegmentContainer<EdgeEntry>]> for MemEdgeSegment {
 }
 
 impl MemEdgeSegment {
-    pub fn new(segment_id: usize, max_page_len: u32, meta: Arc<Meta>) -> Self {
+    pub fn new(
+        segment_id: usize,
+        max_page_len: u32,
+        meta: Arc<Meta>,
+        global_memory_tracker: Arc<AtomicUsize>,
+    ) -> Self {
         Self {
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
             est_size: 0,
+            global_memory_tracker,
             lsn: 0,
         }
+    }
+
+    pub fn increment_global_memory(&self, increment: usize) {
+        self.global_memory_tracker
+            .fetch_add(increment, Ordering::Relaxed);
     }
 
     pub fn edge_meta(&self) -> &Arc<Meta> {
@@ -98,7 +116,8 @@ impl MemEdgeSegment {
         layers
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<EdgeEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<EdgeEntry> {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -110,8 +129,8 @@ impl MemEdgeSegment {
         &mut self.layers[layer_id]
     }
 
-    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<EdgeEntry>> {
-        self.layers.get(layer_id)
+    pub fn get_layer(&self, layer_id: LayerId) -> Option<&SegmentContainer<EdgeEntry>> {
+        self.layers.get(layer_id.0)
     }
 
     pub fn est_size(&self) -> usize {
@@ -132,10 +151,13 @@ impl MemEdgeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
+        let est_size = self.est_size();
+        self.est_size = 0;
 
         Self {
             layers,
-            est_size: 0,
+            est_size,
+            global_memory_tracker: self.global_memory_tracker.clone(),
             lsn: self.lsn,
         }
     }
@@ -144,80 +166,99 @@ impl MemEdgeSegment {
         self.layers[0].max_page_len()
     }
 
-    pub fn get_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> Option<(VID, VID)> {
+    pub fn get_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> Option<(VID, VID)> {
         self.layers
-            .get(layer_id)?
+            .get(layer_id.0)?
             .get(edge_pos)
             .map(|entry| (entry.src, entry.dst))
     }
 
-    pub fn insert_edge_internal<T: AsTime>(
+    /// insert an edge
+    ///
+    /// returns a boolean flag indicating if the edge is new
+    pub fn insert_edge_internal<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
-    ) {
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
+    ) -> bool {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
+        let est_size = self.layers[layer_id.0].est_size();
 
-        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
+        let (local_row, is_new) = self
+            .reserve_local_row(edge_pos, src, dst, layer_id)
+            .into_inner_with_status();
 
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
+        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
             .properties_mut()
             .get_mut_entry(local_row);
 
         let ts = EventTime::new(t.t(), t.i());
         prop_entry.append_t_props(ts, props);
 
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
+        is_new
     }
 
+    /// delete an edge
+    ///
+    /// returns a boolean flag indicating if the edge is new
     pub fn delete_edge_internal<T: AsTime>(
         &mut self,
         t: T,
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
-    ) {
+        layer_id: LayerId,
+    ) -> bool {
         let t = EventTime::new(t.t(), t.i());
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
+        let est_size = self.layers[layer_id.0].est_size();
 
-        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
-        let props = self.layers[layer_id].properties_mut();
+        let (local_row, is_new) = self
+            .reserve_local_row(edge_pos, src, dst, layer_id)
+            .into_inner_with_status();
+        let props = self.layers[layer_id.0].properties_mut();
         props.get_mut_entry(local_row).deletion_timestamp(t, None);
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
+        is_new
     }
 
+    /// add static edge
+    ///
+    /// returns flag indicating if edge is new
     pub fn insert_static_edge_internal(
         &mut self,
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        layer_id: usize,
-    ) {
+        layer_id: LayerId,
+    ) -> bool {
         let src = src.into();
         let dst = dst.into();
 
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
+        let est_size = self.layers[layer_id.0].est_size();
 
-        self.reserve_local_row(edge_pos, src, dst, layer_id);
-        let layer_est_size = self.layers[layer_id].est_size();
+        let is_new = self
+            .reserve_local_row(edge_pos, src, dst, layer_id)
+            .is_new();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         self.est_size += layer_est_size.saturating_sub(est_size);
+        is_new
     }
 
-    fn ensure_layer(&mut self, layer_id: usize) {
+    fn ensure_layer(&mut self, layer_id: LayerId) {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             // Get details from first layer to create consistent new layers.
             if let Some(first_layer) = self.layers.first() {
@@ -242,56 +283,56 @@ impl MemEdgeSegment {
         edge_pos: LocalPOS,
         src: impl Into<VID>,
         dst: impl Into<VID>,
-        layer_id: usize,
-    ) -> usize {
+        layer_id: LayerId,
+    ) -> MaybeNew<usize> {
         let src = src.into();
         let dst = dst.into();
 
-        let row = self.layers[layer_id].reserve_local_row(edge_pos).inner();
-        row.src = src;
-        row.dst = dst;
-        row.row
+        let mut row = self.layers[layer_id.0].reserve_local_row(edge_pos);
+        let inner = row.as_mut().inner();
+        inner.src = src;
+        inner.dst = dst;
+        row.map(|row| row.row)
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
-        props: &[(usize, Prop)],
+        layer_id: LayerId,
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
-        if let Some(layer) = self.layers.get(layer_id) {
+        if let Some(layer) = self.layers.get(layer_id.0) {
             layer.check_metadata(edge_pos, props)?;
         }
 
         Ok(())
     }
 
-    pub fn update_const_properties(
+    pub fn update_const_properties<P: AsPropRef>(
         &mut self,
         edge_pos: LocalPOS,
         src: VID,
         dst: VID,
-        layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) {
         // Ensure we have enough layers
         self.ensure_layer(layer_id);
-        let est_size = self.layers[layer_id].est_size();
-        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id);
-        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id]
+        let est_size = self.layers[layer_id.0].est_size();
+        let local_row = self.reserve_local_row(edge_pos, src, dst, layer_id).inner();
+        let mut prop_entry: PropMutEntry<'_> = self.layers[layer_id.0]
             .properties_mut()
             .get_mut_entry(local_row);
         prop_entry.append_const_props(props);
 
-        let layer_est_size = self.layers[layer_id].est_size() + 8;
+        let layer_est_size = self.layers[layer_id.0].est_size() + 8;
         self.est_size += layer_est_size.saturating_sub(est_size);
     }
 
-    pub fn contains_edge(&self, edge_pos: LocalPOS, layer_id: usize) -> bool {
+    pub fn has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool {
         self.layers
-            .get(layer_id)
-            .filter(|layer| layer.has_item(edge_pos))
-            .is_some()
+            .get(layer_id.0)
+            .is_some_and(|layer| layer.has_item(edge_pos))
     }
 
     pub fn latest(&self) -> Option<EventTime> {
@@ -302,8 +343,23 @@ impl MemEdgeSegment {
         Iterator::min(self.layers.iter().filter_map(|seg| seg.earliest()))
     }
 
-    pub fn t_len(&self) -> usize {
-        self.layers.iter().map(|seg| seg.t_len()).sum()
+    #[inline]
+    pub fn t_len(&self, layer_id: usize) -> usize {
+        self.layers.get(layer_id).map_or(0, |layer| layer.t_len())
+    }
+
+    pub fn num_updates(&self) -> usize {
+        self.layers
+            .iter()
+            .map(|layer| layer.properties.num_updates())
+            .sum()
+    }
+}
+
+impl Drop for MemEdgeSegment {
+    fn drop(&mut self) {
+        self.global_memory_tracker
+            .fetch_sub(self.est_size, Ordering::Relaxed);
     }
 }
 
@@ -313,7 +369,7 @@ pub struct EdgeSegmentView<EXT> {
     segment: Arc<parking_lot::RwLock<MemEdgeSegment>>,
     segment_id: usize,
     num_edges: AtomicU32,
-    _ext: EXT,
+    ext: EXT,
 }
 
 #[derive(Debug)]
@@ -325,38 +381,42 @@ pub struct ArcLockedSegmentView {
 impl ArcLockedSegmentView {
     fn edge_iter_layer<'a>(
         &'a self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl Iterator<Item = MemEdgeRef<'a>> + Send + Sync + 'a {
         self.inner
             .layers
-            .get(layer_id)
+            .get(layer_id.0)
             .into_iter()
             .flat_map(|layer| layer.filled_positions())
-            .map(move |pos| MemEdgeRef::new(pos, &self.inner))
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
     }
 
     fn edge_par_iter_layer<'a>(
         &'a self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl ParallelIterator<Item = MemEdgeRef<'a>> + 'a {
         self.inner
             .layers
-            .get(layer_id)
+            .get(layer_id.0)
             .into_par_iter()
             .flat_map(|layer| layer.filled_positions_par())
-            .map(move |pos| MemEdgeRef::new(pos, &self.inner))
+            .map(move |pos| MemEdgeRef::new(pos, &self.inner, None))
     }
 }
 
 impl LockedESegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemEdgeRef<'a>;
 
-    fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>
+    fn entry_ref<'a>(
+        &'a self,
+        edge_pos: impl Into<LocalPOS>,
+        edge_ref: Option<EdgeRef>,
+    ) -> Self::EntryRef<'a>
     where
         Self: 'a,
     {
         let edge_pos = edge_pos.into();
-        MemEdgeRef::new(edge_pos, &self.inner)
+        MemEdgeRef::new(edge_pos, &self.inner, edge_ref)
     }
 
     #[box_on_debug_lifetime]
@@ -366,10 +426,10 @@ impl LockedESegment for ArcLockedSegmentView {
     ) -> impl Iterator<Item = Self::EntryRef<'a>> + Send + Sync + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(std::iter::empty()),
-            LayerIds::All => Iter4::J(self.edge_iter_layer(0)),
+            LayerIds::All => Iter4::J(self.edge_iter_layer(STATIC_GRAPH_LAYER_ID)),
             LayerIds::One(layer_id) => Iter4::K(self.edge_iter_layer(*layer_id)),
             LayerIds::Multiple(multiple) => Iter4::L(
-                self.edge_iter_layer(0)
+                self.edge_iter_layer(STATIC_GRAPH_LAYER_ID)
                     .filter(|pos| pos.has_layers(multiple)),
             ),
         }
@@ -381,10 +441,10 @@ impl LockedESegment for ArcLockedSegmentView {
     ) -> impl ParallelIterator<Item = Self::EntryRef<'a>> + 'a {
         match layer_ids {
             LayerIds::None => Iter4::I(rayon::iter::empty()),
-            LayerIds::All => Iter4::J(self.edge_par_iter_layer(0)),
+            LayerIds::All => Iter4::J(self.edge_par_iter_layer(STATIC_GRAPH_LAYER_ID)),
             LayerIds::One(layer_id) => Iter4::K(self.edge_par_iter_layer(*layer_id)),
             LayerIds::Multiple(multiple) => Iter4::L(
-                self.edge_par_iter_layer(0)
+                self.edge_par_iter_layer(STATIC_GRAPH_LAYER_ID)
                     .filter(|pos| pos.has_layers(multiple)),
             ),
         }
@@ -402,6 +462,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     type ArcLockedSegment = ArcLockedSegmentView;
 
+    fn extension(&self) -> &Self::Extension {
+        &self.ext
+    }
+
     fn latest(&self) -> Option<EventTime> {
         self.head().latest()
     }
@@ -410,8 +474,18 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.head().earliest()
     }
 
-    fn t_len(&self) -> usize {
-        self.head().t_len()
+    fn t_len(&self, layer_id: usize) -> usize {
+        self.head().t_len(layer_id)
+    }
+
+    fn num_layers(&self) -> usize {
+        self.head().layers.len()
+    }
+
+    fn layer_count(&self, layer_id: LayerId) -> u32 {
+        self.head()
+            .get_layer(layer_id)
+            .map_or(0, |layer| layer.len())
     }
 
     fn load(
@@ -433,11 +507,16 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         let max_page_len = ext.config().max_edge_page_len();
 
         Self {
-            segment: parking_lot::RwLock::new(MemEdgeSegment::new(page_id, max_page_len, meta))
-                .into(),
+            segment: parking_lot::RwLock::new(MemEdgeSegment::new(
+                page_id,
+                max_page_len,
+                meta,
+                ext.memory_tracker().clone(),
+            ))
+            .into(),
             segment_id: page_id,
             num_edges: AtomicU32::new(0),
-            _ext: ext,
+            ext,
         }
     }
 
@@ -447,6 +526,10 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 
     fn edges_counter(&self) -> &AtomicU32 {
         &self.num_edges
+    }
+
+    fn num_updates(&self) -> usize {
+        self.head().num_updates()
     }
 
     fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemEdgeSegment> {
@@ -465,6 +548,12 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.segment.try_write()
     }
 
+    fn set_dirty(&self, _dirty: bool) {}
+
+    fn is_dirty(&self) -> bool {
+        true
+    }
+
     fn notify_write(
         &self,
         _head_lock: impl DerefMut<Target = MemEdgeSegment>,
@@ -476,39 +565,43 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         self.num_edges.fetch_add(1, atomic::Ordering::Relaxed)
     }
 
-    fn contains_edge(
+    fn has_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool {
-        locked_head.contains_edge(edge_pos, layer_id)
+        locked_head.has_edge(edge_pos, layer_id)
+    }
+
+    fn immut_has_edge(&self, _edge_pos: LocalPOS, _layer_id: LayerId) -> bool {
+        false
     }
 
     fn get_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)> {
         locked_head.get_edge(edge_pos, layer_id)
     }
 
-    fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a> {
-        MemEdgeEntry::new(edge_pos, self.head())
+    fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a> {
+        MemEdgeEntry::new(edge_pos, self.head(), edge_ref)
     }
 
     fn layer_entry<'a>(
         &'a self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>> {
         locked_head.and_then(|locked_head| {
-            let layer = locked_head.as_ref().get(layer_id)?;
+            let layer = locked_head.as_ref().get(layer_id.0)?;
             layer
                 .has_item(edge_pos)
-                .then(|| MemEdgeEntry::new(edge_pos, locked_head))
+                .then(|| MemEdgeEntry::new(edge_pos, locked_head, None))
         })
     }
 
@@ -526,23 +619,20 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
         Ok(())
     }
 
-    fn num_layers(&self) -> usize {
-        self.head().layers.len()
-    }
-
-    fn layer_count(&self, layer_id: usize) -> u32 {
-        self.head()
-            .get_layer(layer_id)
-            .map_or(0, |layer| layer.len())
-    }
-
-    fn set_dirty(&self, _dirty: bool) {}
-
     fn immut_lsn(&self) -> LSN {
-        panic!("immut_lsn not supported for EdgeSegmentView");
+        0
     }
 
     fn flush(&self) -> Result<(), StorageError> {
+        Ok(())
+    }
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        _edge_pos: LocalPOS,
+        _layer_id: LayerId,
+        _props: &[(usize, PR)],
+    ) -> Result<(), StorageError> {
         Ok(())
     }
 }
@@ -550,15 +640,20 @@ impl<P: PersistenceStrategy<ES = EdgeSegmentView<P>>> EdgeSegmentOps for EdgeSeg
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{
+        Config,
+        pages::{edge_page::writer::EdgeWriter, layer_counter::GraphStats},
+        persist::strategy::NoOpStrategy,
+    };
     use raphtory_api::core::entities::properties::{
         meta::{Meta, STATIC_GRAPH_LAYER_ID},
-        prop::PropType,
+        prop::{Prop, PropType},
     };
     use raphtory_core::storage::timeindex::EventTime;
 
     fn create_test_segment() -> MemEdgeSegment {
         let meta = Arc::new(Meta::default());
-        MemEdgeSegment::new(1, 100, meta)
+        MemEdgeSegment::new(1, 100, meta, Arc::new(AtomicUsize::new(0)))
     }
 
     #[test]
@@ -571,7 +666,7 @@ mod test {
             LocalPOS(0),
             VID(1),
             VID(2),
-            0,
+            LayerId(0),
             vec![(0, Prop::from("test1"))],
         );
 
@@ -580,7 +675,7 @@ mod test {
             LocalPOS(1),
             VID(3),
             VID(4),
-            0,
+            LayerId(0),
             vec![(0, Prop::from("test2"))],
         );
 
@@ -589,45 +684,55 @@ mod test {
             LocalPOS(2),
             VID(5),
             VID(6),
-            0,
+            LayerId(0),
             vec![(0, Prop::from("test3"))],
         );
 
         // Verify edges exist
-        assert!(segment.contains_edge(LocalPOS(0), 0));
-        assert!(segment.contains_edge(LocalPOS(1), 0));
-        assert!(segment.contains_edge(LocalPOS(2), 0));
+        assert!(segment.has_edge(LocalPOS(0), LayerId(0)));
+        assert!(segment.has_edge(LocalPOS(1), LayerId(0)));
+        assert!(segment.has_edge(LocalPOS(2), LayerId(0)));
 
         // Verify edge data
-        assert_eq!(segment.get_edge(LocalPOS(0), 0), Some((VID(1), VID(2))));
-        assert_eq!(segment.get_edge(LocalPOS(1), 0), Some((VID(3), VID(4))));
-        assert_eq!(segment.get_edge(LocalPOS(2), 0), Some((VID(5), VID(6))));
+        assert_eq!(
+            segment.get_edge(LocalPOS(0), LayerId(0)),
+            Some((VID(1), VID(2)))
+        );
+        assert_eq!(
+            segment.get_edge(LocalPOS(1), LayerId(0)),
+            Some((VID(3), VID(4)))
+        );
+        assert_eq!(
+            segment.get_edge(LocalPOS(2), LayerId(0)),
+            Some((VID(5), VID(6)))
+        );
 
         // Verify time length increased
-        assert_eq!(segment.t_len(), 3);
+        assert_eq!(segment.t_len(0), 3);
     }
 
     #[test]
     fn est_size_changes() {
         let meta = Arc::new(Meta::default());
-        let mut segment = MemEdgeSegment::new(1, 100, meta.clone());
-
-        assert_eq!(segment.est_size(), 0);
-
-        segment.insert_edge_internal(
+        let ext = NoOpStrategy::new(Config::default(), None).unwrap();
+        let stats = GraphStats::new();
+        let segment = EdgeSegmentView::new(1, meta.clone(), None, ext.clone());
+        let head = segment.head_mut();
+        let mut writer = EdgeWriter::new(&stats, &segment, head);
+        assert_eq!(writer.writer.est_size(), 0);
+        writer.add_edge(
             EventTime::new(1, 0),
             LocalPOS(0),
             VID(1),
             VID(2),
-            STATIC_GRAPH_LAYER_ID,
             vec![(0, Prop::from("test"))],
+            STATIC_GRAPH_LAYER_ID,
         );
 
-        let est_size1 = segment.est_size();
+        let est_size1 = writer.writer.est_size();
 
         assert!(est_size1 > 0);
-
-        segment.delete_edge_internal(
+        writer.delete_edge(
             EventTime::new(2, 3),
             LocalPOS(0),
             VID(5),
@@ -635,7 +740,7 @@ mod test {
             STATIC_GRAPH_LAYER_ID,
         );
 
-        let est_size2 = segment.est_size();
+        let est_size2 = writer.writer.est_size();
 
         assert!(
             est_size2 > est_size1,
@@ -643,26 +748,25 @@ mod test {
         );
 
         // same edge insertion again to check size increase
-        segment.insert_edge_internal(
+        writer.add_edge(
             EventTime::new(3, 0),
             LocalPOS(1),
             VID(4),
             VID(6),
-            STATIC_GRAPH_LAYER_ID,
             vec![(0, Prop::from("test2"))],
+            STATIC_GRAPH_LAYER_ID,
         );
 
-        let est_size3 = segment.est_size();
+        let est_size3 = writer.writer.est_size();
         assert!(
             est_size3 > est_size2,
             "Expected size to increase after re-insertion, but it did not."
         );
 
         // Insert a static edge
+        writer.add_static_edge(Some(LocalPOS(1)), 4, 6, false);
 
-        segment.insert_static_edge_internal(LocalPOS(1), 4, 6, STATIC_GRAPH_LAYER_ID);
-
-        let est_size4 = segment.est_size();
+        let est_size4 = writer.writer.est_size();
         assert_eq!(
             est_size4, est_size3,
             "Expected size to remain the same after static edge insertion, but it changed."
@@ -674,7 +778,7 @@ mod test {
             .unwrap()
             .inner();
 
-        segment.update_const_properties(
+        writer.update_c_props(
             LocalPOS(1),
             VID(4),
             VID(6),
@@ -682,7 +786,7 @@ mod test {
             [(prop_id, Prop::U8(2))],
         );
 
-        let est_size5 = segment.est_size();
+        let est_size5 = writer.writer.est_size();
         assert!(
             est_size5 > est_size4,
             "Expected size to increase after updating properties, but it did not."
@@ -696,5 +800,12 @@ mod test {
         //     est_size6 > est_size5,
         //     "Expected size to increase after updating properties for the other edge, but it did not."
         // );
+
+        drop(writer);
+        // global size should be the last size of the writer after drop
+        assert_eq!(ext.estimated_size(), est_size5);
+        drop(segment);
+        // global size should be 0 after the segment is dropped
+        assert_eq!(ext.estimated_size(), 0);
     }
 }

@@ -5,6 +5,7 @@ use arrow_array::{
 };
 use arrow_schema::{DataType, TimeUnit};
 use chrono::DateTime;
+use itertools::Itertools;
 use serde::{ser::SerializeMap, Serialize};
 
 use crate::core::entities::properties::prop::{Prop, PropArray, PropRef};
@@ -15,25 +16,6 @@ pub const EMPTY_MAP_FIELD_NAME: &str = "__empty__";
 pub struct ArrowRow<'a> {
     array: &'a StructArray,
     index: usize,
-}
-
-impl<'a> PartialEq for ArrowRow<'a> {
-    // this has the downside of returning false for rows with same fields but different order of columns
-    fn eq(&self, other: &Self) -> bool {
-        if self.array.num_columns() != other.array.num_columns() {
-            return false;
-        }
-
-        //FIXME: it could be that the fields don't match in order but the values are the same
-        for col in 0..self.array.num_columns() {
-            let self_prop = self.prop_ref(col);
-            let other_prop = other.prop_ref(col);
-            if self_prop != other_prop {
-                return false;
-            }
-        }
-        true
-    }
 }
 
 impl<'a> Serialize for ArrowRow<'a> {
@@ -223,7 +205,23 @@ impl<'a> ArrowRow<'a> {
     }
 
     pub fn is_valid(&self, col: usize) -> bool {
-        self.array.column(col).is_valid(self.index)
+        let col = self.array.column(col);
+        !col.data_type().is_null() && col.is_valid(self.index)
+    }
+
+    pub fn any_valid(&self) -> bool {
+        self.array
+            .columns()
+            .iter()
+            .any(|col| !col.data_type().is_null() && col.is_valid(self.index))
+    }
+
+    pub fn first_valid(&self) -> Option<usize> {
+        self.array
+            .columns()
+            .iter()
+            .find_position(|col| !col.data_type().is_null() && col.is_valid(self.index))
+            .map(|(pos, _)| pos)
     }
 }
 

@@ -1,8 +1,10 @@
 import json
 import os
 import tempfile
+import time
 
 import pytest
+from utils import sort_by_gql_name_or_id
 from raphtory import Graph, graph_loader
 from raphtory.graphql import (
     GraphServer,
@@ -31,14 +33,15 @@ def test_encode_graph():
 
 def test_failed_server_start_in_time():
     tmp_work_dir = tempfile.mkdtemp()
-    server = None
     try:
-        with pytest.raises(Exception) as excinfo:
-            server = GraphServer(tmp_work_dir).start(timeout_ms=1)
-        assert str(excinfo.value) == "Failed to start server in 1 milliseconds"
-    finally:
-        if server:
-            server.stop()
+        start = time.perf_counter()
+        with GraphServer(tmp_work_dir).start(timeout_ms=1) as server:
+            assert server.get_client().is_server_online()
+            assert (
+                time.perf_counter() - start
+            ) < 1  # generous timeout check (1s versus 1ms)
+    except Exception as excinfo:
+        assert str(excinfo) == "Failed to start server in 1 milliseconds"
 
 
 def test_wrong_url():
@@ -66,8 +69,9 @@ def test_server_start_on_default_port():
     g.add_edge(3, "ben", "haaroon")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        port = server.port()
+        client = RaphtoryClient(f"http://localhost:{port}")
         client.send_graph(path="g", graph=g)
 
         query = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -119,8 +123,8 @@ def test_namespaces():
 
     path = "g"
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         # Default namespace, graph is saved in the work dir
         client.send_graph(path=path, graph=g, overwrite=True)
@@ -474,8 +478,8 @@ def test_create_node():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -505,8 +509,8 @@ def test_create_node_using_client():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -533,8 +537,8 @@ def test_create_node_using_client_with_properties():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = (
@@ -596,8 +600,8 @@ def test_create_node_using_client_with_properties_node_type():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name, nodeType, properties { keys }}}}}"""
@@ -664,8 +668,8 @@ def test_create_node_using_client_with_node_type():
     g.add_edge(1, "ben", "shivam")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {nodes {list {name, nodeType}}}}"""
@@ -702,12 +706,12 @@ def test_edge_id():
     g.add_edge(3, "po", "ben")
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start(port=1737):
-        client = RaphtoryClient("http://localhost:1737")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=g)
 
         query_nodes = """{graph(path: "g") {edges {list {id}}}}"""
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "edges": {
                     "list": [
@@ -724,8 +728,8 @@ def test_graph_persistence_across_restarts():
     tmp_work_dir = tempfile.mkdtemp()
 
     # First server session: create graph with 3 nodes and 2 edges
-    with GraphServer(tmp_work_dir).start(port=1738):
-        client = RaphtoryClient("http://localhost:1738")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.new_graph(path="persistent_graph", graph_type="EVENT")
         remote_graph = client.remote_graph(path="persistent_graph")
         # Create 3 nodes
@@ -741,7 +745,7 @@ def test_graph_persistence_across_restarts():
         query_nodes = """{graph(path: "persistent_graph") {nodes {list {name}}}}"""
         query_edges = """{graph(path: "persistent_graph") {edges {list {id}}}}"""
 
-        assert client.query(query_nodes) == {
+        assert sort_by_gql_name_or_id(client.query(query_nodes)) == {
             "graph": {
                 "nodes": {
                     "list": [{"name": "node1"}, {"name": "node2"}, {"name": "node3"}]
@@ -749,7 +753,7 @@ def test_graph_persistence_across_restarts():
             }
         }
 
-        assert client.query(query_edges) == {
+        assert sort_by_gql_name_or_id(client.query(query_edges)) == {
             "graph": {
                 "edges": {
                     "list": [
@@ -761,8 +765,8 @@ def test_graph_persistence_across_restarts():
         }
 
     # Server is now shutdown, start it again
-    with GraphServer(tmp_work_dir).start(port=1738):
-        client = RaphtoryClient("http://localhost:1738")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         # Verify persistence: check that nodes and edges are still there
         query_nodes = """{graph(path: "persistent_graph") {nodes {sorted (sortBys: [{id: true}]){ list {name} }}}}"""
@@ -841,8 +845,8 @@ def test_float_is_stable_on_roundtrip():
     ]
     prop_key = "p"
 
-    with GraphServer(tmp_work_dir).start(port=1738):
-        client = RaphtoryClient("http://localhost:1738")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.new_graph(path="g", graph_type="EVENT")
         remote_graph = client.remote_graph(path="g")
 

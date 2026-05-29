@@ -26,8 +26,11 @@ jobs:
         include:
           - os: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         name: Checkout
+        with:
+          submodules: recursive
+          token: '${{ secrets.PULL_TOKEN }}'
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Protoc
@@ -38,7 +41,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-all-crates: true
-      - uses: webfactory/ssh-agent@v0.9.0
+      - uses: webfactory/ssh-agent@v0.10.0
         name: Load raphtory-disk_graph key
         with:
           ssh-private-key: ${{ secrets.RA_SSH_PRIVATE_KEY }}
@@ -46,8 +49,8 @@ jobs:
         run: |
           set -o pipefail
           cargo bench --bench base --bench algobench -p raphtory-benchmark -- --output-format=bencher | tee benchmark-result.txt
-      - name: Delete cargo.lock if it exists
-        run: rm -f Cargo.lock
+      - name: Restore Cargo.lock to avoid dirty working tree
+        run: git checkout -- Cargo.lock
       - name: Store benchmark results from master branch
         if: github.ref == 'refs/heads/master'
         uses: benchmark-action/github-action-benchmark@v1

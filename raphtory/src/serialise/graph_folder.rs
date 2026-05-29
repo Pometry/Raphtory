@@ -33,7 +33,7 @@ pub const DATA_PATH: &str = "data";
 pub const DEFAULT_DATA_PATH: &str = "data0";
 
 /// Metadata file that stores path to the graph folder and graph metadata.
-pub const GRAPH_META_PATH: &str = ".meta";
+pub use storage::GRAPH_META_PATH;
 
 /// Directory that stores graph data.
 pub const GRAPH_PATH: &str = "graph";
@@ -268,12 +268,19 @@ pub trait GraphPaths {
         } else {
             fs::create_dir_all(self.root())?
         }
-        let meta_path = self.relative_data_path()?;
-        fs::create_dir(self.root().join(&meta_path))?;
+
+        // Create the data folder and have the root metadata file point to it.
+        let data_path = self.relative_data_path()?;
+        fs::create_dir(self.root().join(&data_path))?;
         fs::write(
             self.root_meta_path(),
-            serde_json::to_string(&RelativePath { path: meta_path })?,
+            serde_json::to_string(&RelativePath { path: data_path })?,
         )?;
+
+        // Create the graph folder inside the data folder.
+        let graph_path = self.graph_path()?;
+        fs::create_dir(&graph_path)?;
+
         Ok(())
     }
 }
@@ -759,8 +766,8 @@ mod tests {
     #[test]
     fn test_zip_from_folder() {
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         // Create a regular folder and encode the graph
@@ -788,8 +795,8 @@ mod tests {
     #[test]
     fn test_zip_from_zip() {
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
-        graph.add_node(1, 1, NO_PROPS, None).unwrap();
+        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
+        graph.add_node(1, 1, NO_PROPS, None, None).unwrap();
         graph.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
 
         // Create an initial zip file
@@ -848,7 +855,7 @@ mod tests {
         graph
             .node(1)
             .unwrap()
-            .add_updates(5, [("test node prop", 5i32)])
+            .add_updates(5, [("test node prop", 5i32)], None)
             .unwrap();
 
         let temp_folder = tempfile::TempDir::new().unwrap();

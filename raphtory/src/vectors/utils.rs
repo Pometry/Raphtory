@@ -11,7 +11,7 @@ where
     T: 'static,
 {
     elements
-        .sorted_by(|(_, score1), (_, score2)| score2.partial_cmp(score1).unwrap()) // desc ordering, thus the invertion
+        .sorted_by(|(_, distance1), (_, distance2)| distance1.partial_cmp(distance2).unwrap()) // asc ordering
         .take(k)
 }
 

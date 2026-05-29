@@ -1,8 +1,5 @@
 use crate::{
-    client::{
-        is_online, raphtory_client::RaphtoryGraphQLClient, remote_graph::GraphQLRemoteGraph,
-        ClientError,
-    },
+    client::{is_online, raphtory_client::RaphtoryGraphQLClient, ClientError},
     python::{
         client::{remote_graph::PyRemoteGraph, PyRemoteIndexSpec},
         encode_graph, translate_from_python, translate_map_to_python,
@@ -12,8 +9,8 @@ use pyo3::{exceptions::PyException, prelude::*, types::PyDict};
 use raphtory::{db::api::view::MaterializedGraph, python::utils::execute_async_task};
 use serde_json::Value as JsonValue;
 use std::{collections::HashMap, future::Future, sync::Arc};
-use tokio::runtime::Runtime;
 use tracing::debug;
+use url::Url;
 
 /// A client for handling GraphQL operations in the context of Raphtory.
 ///
@@ -54,7 +51,9 @@ impl PyRaphtoryClient {
     #[new]
     #[pyo3(signature = (url, token=None))]
     pub(crate) fn new(url: String, token: Option<String>) -> PyResult<Self> {
-        let client = RaphtoryGraphQLClient::connect(url, token).map_err(PyErr::from)?;
+        let url = Url::parse(url.as_str()).map_err(|e| PyException::new_err(e.to_string()))?;
+        let client = execute_async_task(|| RaphtoryGraphQLClient::connect(url, token))
+            .map_err(PyErr::from)?;
         Ok(Self { client })
     }
 
@@ -63,7 +62,7 @@ impl PyRaphtoryClient {
     /// Returns:
     ///     bool: Returns true if server is online otherwise false.
     fn is_server_online(&self) -> bool {
-        is_online(&self.client.url)
+        is_online(self.client.url.as_ref())
     }
 
     /// Make a GraphQL query against the server.
@@ -204,16 +203,16 @@ impl PyRaphtoryClient {
     ///
     fn remote_graph(&self, path: String) -> PyRemoteGraph {
         PyRemoteGraph {
-            graph: Arc::new(GraphQLRemoteGraph::new(path, self.client.clone())),
+            graph: Arc::new(self.client.remote_graph(path)),
         }
     }
 
     /// Create Index for graph on the server at 'path'
     ///
     /// Arguments:
-    ///     path: the path of the graph to be created
-    ///     RemoteIndexSpec (RemoteIndexSpec): spec specifying the properties that need to be indexed
-    ///     in_ram (bool): create index in ram
+    ///     path (str): the path of the graph to be created
+    ///     index_spec (RemoteIndexSpec): spec specifying the properties that need to be indexed
+    ///     in_ram (bool): create index in ram. Defaults to True.
     ///
     /// Returns:
     ///     None:

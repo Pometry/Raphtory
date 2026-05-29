@@ -109,6 +109,7 @@ mod search_tests {
                     "pometry",
                     [("p1", "tango".into_prop())],
                     Some("fire_nation"),
+                    None,
                 )
                 .unwrap();
             graph
@@ -117,6 +118,7 @@ mod search_tests {
                     "shivam_kapoor",
                     [("p1", "charlie_bravo".into_prop())],
                     Some("fire_nation"),
+                    None,
                 )
                 .unwrap();
 
@@ -218,9 +220,9 @@ mod search_tests {
                 )
                 .unwrap();
 
-            graph.add_node(1, "shivam", NO_PROPS, None).unwrap();
-            graph.add_node(1, "raphtory", NO_PROPS, None).unwrap();
-            graph.add_node(1, "pometry", NO_PROPS, None).unwrap();
+            graph.add_node(1, "shivam", NO_PROPS, None, None).unwrap();
+            graph.add_node(1, "raphtory", NO_PROPS, None, None).unwrap();
+            graph.add_node(1, "pometry", NO_PROPS, None, None).unwrap();
 
             graph.create_index_in_ram().unwrap();
 
@@ -274,31 +276,5 @@ mod search_tests {
             let results = fuzzy_search_edges(filter);
             assert_eq!(results, vec![("raphtory".into(), "pometry".into())]);
         }
-    }
-
-    #[test]
-    #[cfg(feature = "proto")]
-    #[ignore = "this test is for experiments with the jira graph"]
-    fn load_jira_graph() -> Result<(), GraphError> {
-        global_info_logger();
-
-        let graph = Graph::decode("/tmp/graphs/jira").expect("failed to load graph");
-        assert!(graph.count_nodes() > 0);
-
-        let now = SystemTime::now();
-
-        let elapsed = now.elapsed()?.as_secs();
-        info!("indexing took: {:?}", elapsed);
-        graph.create_index_in_ram()?;
-
-        let filter = NodeFilter::name().eq("DEV-1690");
-        let issues = graph.search_nodes(filter, 5, 0)?;
-
-        assert!(!issues.is_empty());
-
-        let names = issues.into_iter().map(|v| v.name()).collect::<Vec<_>>();
-        info!("names: {:?}", names);
-
-        Ok(())
     }
 }

@@ -2,12 +2,26 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::sync::LazyLock;
 use tokio::sync::oneshot;
 
-static WRITE_POOL: LazyLock<ThreadPool> =
-    LazyLock::new(|| ThreadPoolBuilder::new().build().unwrap());
+pub static WRITE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .thread_name(|t| format!("RAP-write-{t}"))
+        .build()
+        .unwrap()
+});
 
-static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+pub static COMPUTE_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()
         .stack_size(16 * 1024 * 1024)
+        .thread_name(|t| format!("RAP-compute-{t}"))
+        .build()
+        .unwrap()
+});
+
+pub static EVICT_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    ThreadPoolBuilder::new()
+        .stack_size(16 * 1024 * 1024)
+        .num_threads(1)
+        .thread_name(|t| format!("RAP-evict-{t}"))
         .build()
         .unwrap()
 });
@@ -70,8 +84,9 @@ mod deadlock_tests {
 
     async fn test_pool_lock(port: u16, pool_lock: impl FnOnce(Arc<Mutex<()>>)) {
         let tempdir = TempDir::new().unwrap();
-        let server =
-            GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default()).unwrap();
+        let server = GraphServer::new(tempdir.path().to_path_buf(), None, None, Config::default())
+            .await
+            .unwrap();
         let _running = server.start_with_port(port).await.unwrap();
         tokio::time::sleep(Duration::from_secs(1)).await; // this is to wait for the server to be up
         let lock = Arc::new(Mutex::new(()));

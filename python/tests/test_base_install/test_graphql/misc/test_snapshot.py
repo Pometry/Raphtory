@@ -5,8 +5,8 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 def test_snapshot():
     work_dir = tempfile.mkdtemp()
     server = GraphServer(work_dir)
-    with server.start():
-        client = RaphtoryClient("http://localhost:1736")
+    with server.start() as server:
+        client = server.get_client()
 
         def query(graph: str, window: str):
             return client.query(f"""{{

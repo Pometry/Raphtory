@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
 use crate::{
     db::api::view::DynamicGraph,
     python::types::repr::{Repr, StructReprBuilder},
     vectors::{Document, DocumentEntity, Embedding},
 };
 use pyo3::{prelude::*, IntoPyObjectExt};
+use pyo3_arrow::PyArray;
 
 /// A document corresponding to a graph entity. Used to generate embeddings.
 #[pyclass(name = "Document", module = "raphtory.vectors", frozen)]
@@ -63,6 +66,14 @@ impl Repr for PyEmbedding {
 impl PyEmbedding {
     fn __repr__(&self) -> String {
         self.repr()
+    }
+
+    /// Returns the embedding as a `pyarrow.Array` of floats.
+    ///
+    /// Returns:
+    ///     pyarrow.Array:
+    fn to_arrow(&self) -> PyArray {
+        PyArray::from_array_ref(Arc::new(self.0.inner().clone()))
     }
 }
 

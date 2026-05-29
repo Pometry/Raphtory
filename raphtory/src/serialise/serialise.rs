@@ -63,7 +63,7 @@ impl<T: ParquetEncoder + StaticGraphViewOps + AdditionOps> StableEncode for T {
         let folder: GraphFolder = path.into();
 
         if folder.write_as_zip_format {
-            let file = File::create_new(&folder.root())?;
+            let file = File::create_new(folder.root())?;
             self.encode_to_zip(ZipWriter::new(file))?;
         } else {
             let write_folder = folder.init_write()?;

@@ -5,7 +5,7 @@ use raphtory_api::{
         Direction,
         entities::properties::{
             meta::{Meta, NODE_ID_IDX, NODE_TYPE_IDX},
-            prop::{Prop, PropUnwrap},
+            prop::{AsPropRef, Prop, PropUnwrap},
             tprop::TPropOps,
         },
     },
@@ -28,8 +28,6 @@ use std::{
     },
 };
 
-use rayon::prelude::*;
-
 use crate::{
     LocalPOS,
     error::StorageError,
@@ -39,6 +37,8 @@ use crate::{
     utils::{Iter2, Iter3, Iter4},
     wal::LSN,
 };
+use raphtory_api::core::entities::{LayerId, properties::meta::STATIC_GRAPH_LAYER_ID};
+use rayon::prelude::*;
 
 pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
     type Extension;
@@ -90,13 +90,13 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn set_dirty(&self, dirty: bool);
 
-    fn has_node(&self, pos: LocalPOS, layer_id: usize) -> bool;
+    fn has_node(&self, pos: LocalPOS, layer_id: LayerId) -> bool;
 
     fn get_out_edge(
         &self,
         pos: LocalPOS,
         dst: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
@@ -104,7 +104,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
         &self,
         pos: LocalPOS,
         src: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID>;
 
@@ -114,9 +114,7 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn flush(&self) -> Result<(), StorageError>;
 
-    fn est_size(&self) -> usize;
-
-    fn increment_est_size(&self, size: usize) -> usize;
+    fn is_dirty(&self) -> bool;
 
     fn vacuum(
         &self,
@@ -138,7 +136,14 @@ pub trait NodeSegmentOps: Send + Sync + Debug + 'static {
 
     fn num_layers(&self) -> usize;
 
-    fn layer_count(&self, layer_id: usize) -> u32;
+    fn layer_count(&self, layer_id: LayerId) -> u32;
+
+    fn check_metadata_immut<P: AsPropRef>(
+        &self,
+        pos: LocalPOS,
+        layer_id: LayerId,
+        props: &[(usize, P)],
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedNSSegment: Debug + Send + Sync {
@@ -194,18 +199,18 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     type EdgeAdditions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
-    fn out_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
+    fn out_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
-    fn inb_edges(self, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
+    fn inb_edges(self, layer_id: LayerId) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
     fn out_edges_sorted(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
     fn inb_edges_sorted(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> impl Iterator<Item = (VID, EID)> + Send + Sync + 'a;
 
     fn vid(&self) -> VID;
@@ -213,7 +218,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     #[box_on_debug_lifetime]
     fn edges_dir(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         dir: Direction,
     ) -> impl Iterator<Item = EdgeRef> + Send + Sync + 'a
     where
@@ -253,7 +258,7 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     {
         match layers_ids {
             LayerIds::One(layer_id) => Iter4::I(self.edges_dir(*layer_id, dir)),
-            LayerIds::All => Iter4::J(self.edges_dir(0, dir)),
+            LayerIds::All => Iter4::J(self.edges_dir(STATIC_GRAPH_LAYER_ID, dir)),
             LayerIds::Multiple(layers) => Iter4::K(
                 layers
                     .into_iter()
@@ -270,21 +275,22 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     fn temp_prop_rows(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> + 'a {
         (0..self.internal_num_layers()).flat_map(move |layer_id| {
             let w = w.clone();
+            let prop_ids = Arc::clone(&prop_ids);
             let additions = self.node_additions(layer_id);
             let additions = w
                 .clone()
                 .map(|w| Iter2::I1(additions.range(w).iter()))
                 .unwrap_or_else(|| Iter2::I2(additions.iter()));
 
-            let mut time_ordered_iter = self
-                .node_meta()
-                .temporal_prop_mapper()
-                .ids()
+            let mut time_ordered_iter = prop_ids
+                .iter()
+                .copied()
                 .map(move |prop_id| {
-                    self.temporal_prop_layer(layer_id, prop_id)
+                    self.temporal_prop_layer(LayerId(layer_id), prop_id)
                         .iter_inner(w.clone())
                         .map(move |(t, prop)| (t, (prop_id, prop)))
                 })
@@ -324,28 +330,28 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
         })
     }
 
-    fn out_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn out_nbrs(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
         self.out_edges(layer_id).map(|(v, _)| v)
     }
 
-    fn inb_nbrs(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn inb_nbrs(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
         self.inb_edges(layer_id).map(|(v, _)| v)
     }
 
-    fn out_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn out_nbrs_sorted(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
         self.out_edges_sorted(layer_id).map(|(v, _)| v)
     }
 
-    fn inb_nbrs_sorted(self, layer_id: usize) -> impl Iterator<Item = VID> + 'a
+    fn inb_nbrs_sorted(self, layer_id: LayerId) -> impl Iterator<Item = VID> + 'a
     where
         Self: Sized,
     {
@@ -356,11 +362,11 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
 
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> Self::Additions;
 
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
-    fn c_prop_str(self, layer_id: usize, prop_id: usize) -> Option<&'a str>;
+    fn c_prop_str(self, layer_id: LayerId, prop_id: usize) -> Option<&'a str>;
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> Self::TProps;
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
 
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
 
@@ -371,22 +377,22 @@ pub trait NodeRefOps<'a>: Copy + Clone + Send + Sync + 'a {
     }
 
     fn gid(&self) -> GidRef<'a> {
-        self.c_prop_str(0, NODE_ID_IDX)
+        self.c_prop_str(LayerId(0), NODE_ID_IDX)
             .map(GidRef::Str)
             .or_else(|| {
-                self.c_prop(0, NODE_ID_IDX)
+                self.c_prop(LayerId(0), NODE_ID_IDX)
                     .and_then(|prop| prop.into_u64().map(GidRef::U64))
             })
             .unwrap_or_else(|| panic!("GID should be present, for node {:?}", self.vid()))
     }
 
     fn node_type_id(&self) -> usize {
-        self.c_prop(0, NODE_TYPE_IDX)
+        self.c_prop(LayerId(0), NODE_TYPE_IDX)
             .and_then(|prop| prop.into_u64())
             .map_or(0, |id| id as usize)
     }
 
     fn internal_num_layers(&self) -> usize;
 
-    fn has_layer_inner(self, layer_id: usize) -> bool;
+    fn has_layer_inner(self, layer_id: LayerId) -> bool;
 }

@@ -19,13 +19,17 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
@@ -69,6 +73,7 @@ __all__ = [
     "node_state",
     "filter",
     "iterables",
+    "gql",
     "nullmodels",
     "plottingutils",
 ]
@@ -399,8 +404,16 @@ class GraphView(object):
            GraphView: Returns a graph clone
         """
 
-    def materialize_at(self, path):
-        """Materializes the graph view into a graphql compatible folder."""
+    def materialize_at(self, path: str | PathLike) -> GraphView:
+        """
+        Materializes the graph view into a folder on disk.
+
+        Arguments:
+            path (str | PathLike): destination folder for the materialised graph.
+
+        Returns:
+            GraphView: the materialised graph at `path`.
+        """
 
     @property
     def metadata(self) -> Metadata:
@@ -659,20 +672,18 @@ class GraphView(object):
 
     def vectorise(
         self,
-        embedding: Callable[[list], list],
+        model: VectorCache,
         nodes: bool | str = True,
         edges: bool | str = True,
-        cache: Optional[str] = None,
         verbose: bool = False,
     ) -> VectorisedGraph:
         """
         Create a VectorisedGraph from the current graph.
 
         Args:
-          embedding (Callable[[list], list]): Specify the embedding function used to vectorise documents into embeddings.
+          model (VectorCache): Cache wrapping the embedding model used to embed documents.
           nodes (bool | str): Enable for nodes to be embedded, disable for nodes to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
           edges (bool | str): Enable for edges to be embedded, disable for edges to not be embedded or specify a custom document property to use if a string is provided. Defaults to True.
-          cache (str, optional): Path used to store the cache of embeddings.
           verbose (bool): Enable to print logs reporting progress. Defaults to False.
 
         Returns:
@@ -763,6 +774,7 @@ class Graph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> MutableNode:
         """
         Adds a new node with the given id and properties to the graph.
@@ -773,6 +785,7 @@ class Graph(GraphView):
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
+           layer (str, optional): The optional string which will be used as a node layer.
 
         Returns:
             MutableNode: The added node.
@@ -809,6 +822,7 @@ class Graph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -819,7 +833,7 @@ class Graph(GraphView):
            properties (PropInput, optional): The properties of the node.
            node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
-
+           layer (str, optional): The optional string which will be used as a layer.
         Returns:
             MutableNode: The created node.
 
@@ -1072,7 +1086,9 @@ class Graph(GraphView):
         """
 
     @staticmethod
-    def load(path: str | PathLike, config: Optional[Config] = None) -> Graph:
+    def load(
+        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+    ) -> Graph:
         """
         Load a disk graph from path
 
@@ -1080,6 +1096,9 @@ class Graph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
+            read_only (bool): open as a read-only snapshot. Multiple processes can hold
+                              a read-only handle to the same graph directory concurrently;
+                              mutating the returned graph will fail. Defaults to ``False``.
 
         Returns:
             Graph: the graph
@@ -1234,6 +1253,8 @@ class Graph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1253,6 +1274,8 @@ class Graph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index. Defaults to None.
+            layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+            layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1278,6 +1301,25 @@ class Graph(GraphView):
 
         Returns:
             PersistentGraph: the graph with persistent semantics applied
+        """
+
+    def read_only(self) -> Graph:
+        """
+        Return a read-only handle to this graph.
+
+        Mutations on the returned graph (``add_node``, ``add_edge``,
+        ``add_metadata``, etc.) raise an error containing ``"locked"``.
+        The underlying data is shared with the original handle — this is
+        not a snapshot.
+
+        .. warning::
+            While this handle is live, the original graph cannot be
+            mutated either: writes from it will block on the read locks
+            held by this handle. Drop the read-only handle (``del ro``)
+            before mutating the original.
+
+        Returns:
+            Graph: a read-only handle to the same graph data.
         """
 
     def save_to_file(self, path: str) -> None:
@@ -1335,9 +1377,17 @@ class Graph(GraphView):
         """
 
 class PersistentGraph(GraphView):
-    """A temporal graph that allows edges and nodes to be deleted."""
+    """
+    A temporal graph that allows edges and nodes to be deleted.
 
-    def __new__(cls, path=None, config=None) -> PersistentGraph:
+    Arguments:
+        path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
+        config (Config, optional): Storage/config overrides. Defaults to None.
+    """
+
+    def __new__(
+        cls, path: Optional[str | PathLike] = None, config: Optional[Config] = None
+    ) -> PersistentGraph:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __reduce__(self): ...
@@ -1389,6 +1439,7 @@ class PersistentGraph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Any = None,
     ) -> None:
         """
         Adds a new node with the given id and properties to the graph.
@@ -1397,8 +1448,9 @@ class PersistentGraph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str | int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional) : The optional string which will be used as a node type.
+           node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
+           layer: (str, optional): The optional string which will be used as a layer.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -1432,6 +1484,7 @@ class PersistentGraph(GraphView):
         properties: Optional[PropInput] = None,
         node_type: Optional[str] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> MutableNode:
         """
         Creates a new node with the given id and properties to the graph. It fails if the node already exists.
@@ -1440,8 +1493,9 @@ class PersistentGraph(GraphView):
            timestamp (TimeInput): The timestamp of the node.
            id (str | int): The id of the node.
            properties (PropInput, optional): The properties of the node.
-           node_type (str, optional) : The optional string which will be used as a node type.
+           node_type (str, optional): The optional string which will be used as a node type.
            event_id (int, optional): The optional integer which will be used as an event id.
+           layer (str, optional): The optional string which will be used as a layer.
 
         Returns:
           MutableNode: the newly created node.
@@ -1678,7 +1732,9 @@ class PersistentGraph(GraphView):
         """
 
     @staticmethod
-    def load(path: str | PathLike, config: Optional[Config]) -> PersistentGraph:
+    def load(
+        path: str | PathLike, config: Optional[Config] = None, read_only: bool = False
+    ) -> PersistentGraph:
         """
         Load a disk graph from path
 
@@ -1686,6 +1742,9 @@ class PersistentGraph(GraphView):
             path (str | PathLike): the path of the graph folder
             config (Config, optional): specify a new config to override the values saved for the graph
                                        (note that the page sizes cannot be overridden and are ignored)
+            read_only (bool): open as a read-only snapshot. Multiple processes can hold
+                              a read-only handle to the same graph directory concurrently;
+                              mutating the returned graph will fail. Defaults to ``False``.
 
         Returns:
             PersistentGraph: the graph
@@ -1912,6 +1971,8 @@ class PersistentGraph(GraphView):
         ] = None,
         csv_options: Optional[dict[str, str | bool]] = None,
         event_id: Optional[str] = None,
+        layer: Optional[str] = None,
+        layer_col: Optional[str] = None,
     ) -> None:
         """
         Load nodes into the graph from any data source that supports the ArrowStreamExportable protocol (by providing an __arrow_c_stream__() method),
@@ -1931,6 +1992,8 @@ class PersistentGraph(GraphView):
             schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
             csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
             event_id (str, optional): The column name for the secondary index.
+            layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+            layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
 
         Returns:
             None: This function does not return a value if the operation is successful.
@@ -1956,6 +2019,25 @@ class PersistentGraph(GraphView):
 
         Returns:
             PersistentGraph: the graph with persistent semantics applied
+        """
+
+    def read_only(self) -> PersistentGraph:
+        """
+        Return a read-only handle to this graph.
+
+        Mutations on the returned graph (``add_node``, ``add_edge``,
+        ``add_metadata``, etc.) raise an error containing ``"locked"``.
+        The underlying data is shared with the original handle — this is
+        not a snapshot.
+
+        .. warning::
+            While this handle is live, the original graph cannot be
+            mutated either: writes from it will block on the read locks
+            held by this handle. Drop the read-only handle (``del ro``)
+            before mutating the original.
+
+        Returns:
+            PersistentGraph: a read-only handle to the same graph data.
         """
 
     def save_to_file(self, path: str) -> None:
@@ -4036,6 +4118,7 @@ class MutableNode(Node):
         t: TimeInput,
         properties: Optional[PropInput] = None,
         event_id: Optional[int] = None,
+        layer: Optional[str] = None,
     ) -> None:
         """
         Add updates to a node in the graph at a specified time.
@@ -4048,6 +4131,7 @@ class MutableNode(Node):
                                              is of type Prop representing the property value.
                                              If None, no properties are updated.
            event_id (int, optional): The optional integer which will be used as an event id.
+           layer (str, optional): The layer this update is recorded under. Defaults to None.
 
         Returns:
             None: This function does not return a value, if the operation is successful.
@@ -5755,8 +5839,22 @@ class PyPropValueList(object):
             PropValue: The average of each property values, or None if count is zero.
         """
 
-    def collect(self): ...
-    def count(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def count(self) -> int:
+        """
+        Number of properties (or rows of properties).
+
+        Returns:
+            int:
+        """
+
     def drop_none(self) -> list[PropValue]:
         """
         Drop none.
@@ -5838,33 +5936,149 @@ class PropType(object):
         """Return str(self)."""
 
     @staticmethod
-    def bool(): ...
+    def bool() -> PropType:
+        """
+        Boolean type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def datetime(): ...
+    def datetime() -> PropType:
+        """
+        Datetime type (timezone-aware).
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def f32(): ...
+    def decimal(scale: int) -> PropType:
+        """
+        Arbitrary-precision decimal type with a fixed scale (number of digits
+        after the decimal point).
+
+        Arguments:
+            scale (int): the number of digits after the decimal point.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def f64(): ...
+    def f32() -> PropType:
+        """
+        32-bit float type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def i32(): ...
+    def f64() -> PropType:
+        """
+        64-bit float type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def i64(): ...
+    def i32() -> PropType:
+        """
+        Signed 32-bit integer type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def list(p): ...
+    def i64() -> PropType:
+        """
+        Signed 64-bit integer type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def map(hash_map): ...
+    def list(p: PropType) -> PropType:
+        """
+        List type with a single element type.
+
+        Arguments:
+            p (PropType): element type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def naive_datetime(): ...
+    def map(hash_map: dict[str, PropType]) -> PropType:
+        """
+        Map type with string keys and typed values.
+
+        Arguments:
+            hash_map (dict[str, PropType]): mapping from key name to value type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def str(): ...
+    def naive_datetime() -> PropType:
+        """
+        Naive datetime type (timezone-unaware).
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def u16(): ...
+    def str() -> PropType:
+        """
+        String type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def u32(): ...
+    def u16() -> PropType:
+        """
+        Unsigned 16-bit integer type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def u64(): ...
+    def u32() -> PropType:
+        """
+        Unsigned 32-bit integer type.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def u8(): ...
+    def u64() -> PropType:
+        """
+        Unsigned 64-bit integer type.
+
+        Returns:
+            PropType:
+        """
+
+    @staticmethod
+    def u8() -> PropType:
+        """
+        Unsigned 8-bit integer type.
+
+        Returns:
+            PropType:
+        """
 
 class Metadata(object):
     """A view of metadata of an entity"""
@@ -5975,11 +6189,49 @@ class MetadataView(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def as_dict(self): ...
-    def get(self, key): ...
-    def items(self): ...
-    def keys(self): ...
-    def values(self): ...
+    def as_dict(self) -> dict[str, list]:
+        """
+        Materialise the metadata as a plain dict mapping each key to the
+        list of values seen across the underlying entities.
+
+        Returns:
+            dict[str, list]:
+        """
+
+    def get(self, key: str) -> Optional[PyPropValueList]:
+        """
+        Look up a metadata value by key.
+
+        Arguments:
+            key (str): metadata key.
+
+        Returns:
+            Optional[PyPropValueList]:
+        """
+
+    def items(self) -> list[tuple[str, PyPropValueList]]:
+        """
+        Pairs of `(key, value list)` for every metadata key.
+
+        Returns:
+            list[tuple[str, PyPropValueList]]:
+        """
+
+    def keys(self) -> list[str]:
+        """
+        Metadata keys present across the underlying entities.
+
+        Returns:
+            list[str]:
+        """
+
+    def values(self) -> list[PyPropValueList]:
+        """
+        Metadata values aligned with `keys()`.
+
+        Returns:
+            list[PyPropValueList]:
+        """
 
 class TemporalProperties(object):
     """A view of the temporal properties of an entity"""
@@ -6135,12 +6387,12 @@ class PropertiesView(object):
         """
 
     @property
-    def temporal(self):
+    def temporal(self) -> list[TemporalProperty]:
         """
         Get a view of the temporal properties only.
 
         Returns:
-            List[TemporalProp]:
+            list[TemporalProperty]:
         """
 
     def values(self) -> list[list[PropValue]]:
@@ -6289,18 +6541,18 @@ class TemporalProperty(object):
             Optional[PropValue]:
         """
 
-    def values(self):
+    def values(self) -> NDArray:
         """
         Get the property values for each update.
 
         Returns:
-            NumpyArray:
+            NDArray: a numpy array of values, one per update.
         """
 
 class EventTime(object):
     """
-    Raphtory’s EventTime.
-    Represents a unique timepoint in the graph’s history as (timestamp, event_id).
+    Raphtory's EventTime.
+    Represents a unique timepoint in the graph's history as (timestamp, event_id).
 
     - timestamp: Number of milliseconds since the Unix epoch.
     - event_id: ID used for ordering between equal timestamps.
@@ -6310,6 +6562,10 @@ class EventTime(object):
     EventTime can be converted into a timestamp or a Python datetime, and compared
     either by timestamp (against ints/floats/datetimes/strings), by tuple of (timestamp, event_id),
     or against another EventTime.
+
+    Arguments:
+        timestamp (int | float | datetime | str): A time input convertible to an EventTime.
+        event_id (int | float | datetime | str | None): Optionally, specify the event id. Defaults to None.
     """
 
     def __eq__(self, value):
@@ -6336,7 +6592,11 @@ class EventTime(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def __new__(cls, timestamp, event_id=None) -> EventTime:
+    def __new__(
+        cls,
+        timestamp: int | float | datetime | str,
+        event_id: int | float | datetime | str | None = None,
+    ) -> EventTime:
         """Create and return a new object.  See help(type) for accurate signature."""
 
     def __repr__(self):
@@ -6412,42 +6672,45 @@ class OptionalEventTime(object):
     def __ne__(self, value):
         """Return self!=value."""
 
+    def __repr__(self):
+        """Return repr(self)."""
+
     @property
-    def as_tuple(self):
+    def as_tuple(self) -> Optional[tuple[int, int]]:
         """
         Return this entry as a tuple of (timestamp, event_id), where the timestamp is in milliseconds if an EventTime is contained, or else None.
 
         Returns:
-            tuple[int,int] | None: (timestamp, event_id).
+            Optional[tuple[int, int]]: (timestamp, event_id).
         """
 
     @property
-    def dt(self):
+    def dt(self) -> Optional[datetime]:
         """
         Returns the UTC datetime representation of this EventTime's timestamp if an EventTime is contained, or else None.
 
         Returns:
-            datetime | None: The UTC datetime.
+            Optional[datetime]: The UTC datetime.
 
         Raises:
             TimeError: Returns TimeError on timestamp conversion errors (e.g. out-of-range timestamp).
         """
 
     @property
-    def event_id(self):
+    def event_id(self) -> Optional[int]:
         """
         Returns the event id used to order events within the same timestamp if an EventTime is contained, or else None.
 
         Returns:
-            int | None: The event id.
+            Optional[int]: The event id.
         """
 
-    def get_event_time(self):
+    def get_event_time(self) -> Optional[EventTime]:
         """
         Returns the contained EventTime if it exists, or else None.
 
         Returns:
-            EventTime | None:
+            Optional[EventTime]:
         """
 
     def is_none(self) -> bool:
@@ -6467,12 +6730,12 @@ class OptionalEventTime(object):
         """
 
     @property
-    def t(self):
+    def t(self) -> Optional[int]:
         """
         Returns the timestamp in milliseconds since the Unix epoch if an EventTime is contained, or else None.
 
         Returns:
-            int | None: Milliseconds since the Unix epoch.
+            Optional[int]: Milliseconds since the Unix epoch.
         """
 
 class History(object):
@@ -6962,34 +7225,221 @@ class WindowSet(object):
         """
 
 class Prop(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __hash__(self):
+        """Return hash(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
     def __repr__(self):
         """Return repr(self)."""
 
     @staticmethod
-    def bool(value): ...
-    def dtype(self): ...
+    def aware_datetime(value: datetime) -> Prop:
+        """
+        Construct a `Prop` holding a timezone-aware datetime (stored as UTC).
+        Naive datetimes are accepted and interpreted as UTC, matching the
+        convention used elsewhere in Raphtory's time inputs.
+
+        Arguments:
+            value (datetime): a datetime. Naive datetimes are treated as UTC.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def f32(value): ...
+    def bool(value: bool) -> Prop:
+        """
+        Construct a `Prop` holding a boolean.
+
+        Arguments:
+            value (bool): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def f64(value): ...
+    def decimal(value: Decimal | str | int | float) -> Prop:
+        """
+        Construct a `Prop` holding an arbitrary-precision decimal.
+
+        Arguments:
+            value (Decimal | str | int | float): the value to wrap. Strings must
+                parse as a decimal. Note that floats only have ~15-17 digits of
+                precision — pass a string or `decimal.Decimal` for higher precision.
+
+        Returns:
+            Prop:
+        """
+
+    def dtype(self) -> PropType:
+        """
+        Returns the `PropType` of the wrapped value.
+
+        Returns:
+            PropType:
+        """
+
     @staticmethod
-    def i32(value): ...
+    def f32(value: float) -> Prop:
+        """
+        Construct a `Prop` holding a 32-bit float.
+
+        Arguments:
+            value (float): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def i64(value): ...
+    def f64(value: float) -> Prop:
+        """
+        Construct a `Prop` holding a 64-bit float.
+
+        Arguments:
+            value (float): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def list(values): ...
+    def i32(value: int) -> Prop:
+        """
+        Construct a `Prop` holding a signed 32-bit integer.
+
+        Arguments:
+            value (int): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def map(dict): ...
+    def i64(value: int) -> Prop:
+        """
+        Construct a `Prop` holding a signed 64-bit integer.
+
+        Arguments:
+            value (int): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def str(value): ...
+    def list(values: list) -> Prop:
+        """
+        Construct a `Prop` holding a list of values.
+
+        Arguments:
+            values (list): the values to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def u16(value): ...
+    def map(dict: dict[str, Any]) -> Prop:
+        """
+        Construct a `Prop` holding a string-keyed map of values.
+
+        Arguments:
+            dict (dict[str, Any]): the map to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def u32(value): ...
+    def naive_datetime(value: datetime) -> Prop:
+        """
+        Construct a `Prop` holding a naive (timezone-unaware) datetime.
+
+        Arguments:
+            value (datetime): the value to wrap (any tz info is dropped).
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def u64(value): ...
+    def str(value: str) -> Prop:
+        """
+        Construct a `Prop` holding a string.
+
+        Arguments:
+            value (str): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
     @staticmethod
-    def u8(value): ...
+    def u16(value: int) -> Prop:
+        """
+        Construct a `Prop` holding an unsigned 16-bit integer.
+
+        Arguments:
+            value (int): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
+    @staticmethod
+    def u32(value: int) -> Prop:
+        """
+        Construct a `Prop` holding an unsigned 32-bit integer.
+
+        Arguments:
+            value (int): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
+    @staticmethod
+    def u64(value: int) -> Prop:
+        """
+        Construct a `Prop` holding an unsigned 64-bit integer.
+
+        Arguments:
+            value (int): the value to wrap.
+
+        Returns:
+            Prop:
+        """
+
+    @staticmethod
+    def u8(value: int) -> Prop:
+        """
+        Construct a `Prop` holding an unsigned 8-bit integer.
+
+        Arguments:
+            value (int): the value to wrap.
+
+        Returns:
+            Prop:
+        """
 
 def version() -> str:
     """

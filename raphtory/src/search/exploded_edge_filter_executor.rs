@@ -25,9 +25,10 @@ use crate::{
         query_builder::QueryBuilder,
     },
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
-    entities::EID,
+    entities::{LayerId, EID},
     storage::timeindex::{AsTime, EventTime},
 };
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
@@ -341,8 +342,12 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         let edges = exploded_edge_ids
             .into_iter()
             .filter_map(|(tie, eid, layer_id)| {
-                if filtered_graph.filter_exploded_edge(eid.with_layer(layer_id), tie) {
-                    let e_ref = graph.core_edge(eid).out_ref().at(tie).at_layer(layer_id);
+                if filtered_graph.filter_exploded_edge(eid.with_layer(LayerId(layer_id)), tie) {
+                    let e_ref = graph
+                        .core_edge(Either::Left(eid))
+                        .out_ref()
+                        .at(tie)
+                        .at_layer(LayerId(layer_id));
                     Some(EdgeView::new(graph.clone(), e_ref))
                 } else {
                     None
@@ -362,7 +367,7 @@ impl<'a> ExplodedEdgeFilterExecutor<'a> {
         let edges = edge_ids
             .into_iter()
             .filter_map(|id| {
-                let e_ref = graph.core_edge(EID(id as usize));
+                let e_ref = graph.core_edge(Either::Left(EID(id as usize)));
                 filtered_graph
                     .filter_edge(e_ref.as_ref())
                     .then(|| EdgeView::new(graph.clone(), e_ref.out_ref()))

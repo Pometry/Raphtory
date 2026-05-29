@@ -272,6 +272,14 @@ def test_load_from_pandas_with_types():
         }
     )
 
+    nodes_meta_df = pd.DataFrame(
+        {
+            "id": [3, 4, 666, 6],
+            "name": ["Carol", "Dave", "Bowser", "Frank"],
+            "coins": [100, 150, 9999, 200],
+        }
+    )
+
     def assertions1(g):
         assert g.nodes.node_type == [
             "Person",
@@ -300,6 +308,19 @@ def test_load_from_pandas_with_types():
         shared_metadata={"tag": "test_tag"},
     )
     assertions1(g)
+
+    assert g.node(666) is None
+    assert g.node(3) is not None
+    g.load_node_metadata(
+        nodes_meta_df,
+        "id",
+        metadata=["name", "coins"],
+    )
+
+    assert g.node(666) is None
+    assert g.node(3) is not None
+    assert g.node(3).metadata.get("name") == "Carol"
+    assert g.node(3).metadata.get("coins") == 100
 
     g = PersistentGraph()
     g.load_nodes(
@@ -907,7 +928,7 @@ def test_loading_list_as_properties():
         properties=["marbles"],
     )
 
-    assert g.edge(1, 2).properties["marbles"] == ["red"]
+    assert g.edge(1, 2).properties["marbles"].tolist() == ["red"]
 
     df = pd.DataFrame(
         {
@@ -925,7 +946,7 @@ def test_loading_list_as_properties():
         properties=["marbles"],
     )
 
-    assert g.node(2).properties["marbles"] == ["blue"]
+    assert g.node(2).properties["marbles"].tolist() == ["blue"]
 
 
 def test_unparsable_props():
@@ -1737,3 +1758,285 @@ def test_load_edges_csv_c_engine_time_utf8(tmp_path):
     assert {
         v.id: v.properties["time"] for v in g.nodes if "time" in v.properties
     } == expected_node_time_props
+
+
+def test_load_nodes_with_fixed_layer():
+    """load_nodes(layer=...) assigns all node updates to the named layer."""
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6],
+            "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+            "time": [1, 2, 3, 4, 5, 6],
+        }
+    )
+
+    def assertions(g):
+        assert g.unique_layers == ["node_layer"]
+        assert set(g.layers(["node_layer"]).nodes.id) == {1, 2, 3, 4, 5, 6}
+        assert dict(
+            zip(
+                g.layers(["node_layer"]).nodes.id,
+                g.layers(["node_layer"]).nodes.properties.get("name"),
+            )
+        ) == {1: "Alice", 2: "Bob", 3: "Carol", 4: "Dave", 5: "Eve", 6: "Frank"}
+
+    g = Graph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer="node_layer",
+    )
+    assertions(g)
+
+    g = PersistentGraph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer="node_layer",
+    )
+    assertions(g)
+
+
+def test_load_nodes_with_layer_col():
+    """load_nodes(layer_col=...) assigns each node update to its row's layer."""
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4, 5, 6],
+            "name": ["Alice", "Bob", "Carol", "Dave", "Eve", "Frank"],
+            "time": [1, 2, 3, 4, 5, 6],
+            "layer": ["layer A", "layer A", "layer B", "layer B", "layer C", "layer C"],
+        }
+    )
+
+    def assertions(g):
+        assert set(g.unique_layers) == {"layer A", "layer B", "layer C"}
+        assert set(g.layers(["layer A"]).nodes.id) == {1, 2}
+        assert set(g.layers(["layer B"]).nodes.id) == {3, 4}
+        assert set(g.layers(["layer C"]).nodes.id) == {5, 6}
+        assert set(g.layers(["layer A", "layer B"]).nodes.id) == {1, 2, 3, 4}
+
+    g = Graph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer_col="layer",
+    )
+    assertions(g)
+
+    g = PersistentGraph()
+    g.load_nodes(
+        data=nodes_df,
+        time="time",
+        id="id",
+        properties=["name"],
+        layer_col="layer",
+    )
+    assertions(g)
+
+
+def test_load_nodes_layer_and_edges_layer_combined():
+    """Nodes and edges can live in independent layers without cross-contamination."""
+    edges_df = pd.DataFrame(
+        {
+            "src": [1, 2, 3],
+            "dst": [2, 3, 4],
+            "time": [1, 2, 3],
+        }
+    )
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2, 3, 4],
+            "name": ["A", "B", "C", "D"],
+            "time": [1, 2, 3, 4],
+        }
+    )
+
+    def assertions(g):
+        assert set(g.unique_layers) == {"node_layer", "edge_layer"}
+        assert set(g.layers(["node_layer"]).nodes.id) == {1, 2, 3, 4}
+        assert list(g.layers(["node_layer"]).edges.id) == []
+        assert set(g.layers(["edge_layer"]).edges.id) == {(1, 2), (2, 3), (3, 4)}
+
+    g = Graph()
+    g.load_nodes(
+        data=nodes_df, time="time", id="id", properties=["name"], layer="node_layer"
+    )
+    g.load_edges(edges_df, time="time", src="src", dst="dst", layer="edge_layer")
+    assertions(g)
+
+    g = PersistentGraph()
+    g.load_nodes(
+        data=nodes_df, time="time", id="id", properties=["name"], layer="node_layer"
+    )
+    g.load_edges(edges_df, time="time", src="src", dst="dst", layer="edge_layer")
+    assertions(g)
+
+
+def test_load_nodes_invalid_layer_reference():
+    """Querying a layer that was never loaded raises an error."""
+    nodes_df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "time": [1, 2],
+        }
+    )
+    g = Graph()
+    g.load_nodes(data=nodes_df, time="time", id="id", layer="real_layer")
+
+    with pytest.raises(Exception, match="Invalid layer: nonexistent_layer"):
+        g.layers(["nonexistent_layer"])
+
+
+# --- Schema loading: Decimal & datetime PropTypes -----------------------------
+
+
+def test_load_nodes_with_decimal_schema_from_string_column():
+    """`schema={"col": PropType.decimal(N)}` casts a string column to Decimal."""
+    from decimal import Decimal
+
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "price": ["19.99", "0.50"],
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["price"],
+        schema={"price": PropType.decimal(2)},
+    )
+    assert g.node("s1").properties["price"] == Decimal("19.99")
+    assert g.node("s2").properties["price"] == Decimal("0.50")
+
+
+def test_load_nodes_with_decimal_schema_from_arrow_decimal_column():
+    """An Arrow Decimal128 column maps onto `PropType.decimal(scale)`."""
+    from decimal import Decimal
+
+    arr = pa.array(
+        [Decimal("1.23"), Decimal("4.56")],
+        type=pa.decimal128(precision=10, scale=2),
+    )
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "price": arr.to_pandas(),
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["price"],
+        schema={"price": PropType.decimal(2)},
+    )
+    assert g.node("s1").properties["price"] == Decimal("1.23")
+    assert g.node("s2").properties["price"] == Decimal("4.56")
+
+
+def test_load_edges_with_decimal_schema():
+    from decimal import Decimal
+
+    df = pd.DataFrame(
+        {
+            "src": ["a", "b"],
+            "dst": ["b", "c"],
+            "time": [1, 2],
+            "weight": ["3.14", "2.71"],
+        }
+    )
+    g = Graph()
+    g.load_edges(
+        df,
+        time="time",
+        src="src",
+        dst="dst",
+        properties=["weight"],
+        schema={"weight": PropType.decimal(2)},
+    )
+    assert g.edge("a", "b").properties["weight"] == Decimal("3.14")
+    assert g.edge("b", "c").properties["weight"] == Decimal("2.71")
+
+
+def test_load_nodes_with_naive_datetime_schema():
+    """`PropType.naive_datetime()` casts a string column to NDTime."""
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "ts": ["2024-06-01T12:00:00", "2024-06-02T13:30:00"],
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["ts"],
+        schema={"ts": PropType.naive_datetime()},
+    )
+    assert g.node("s1").properties["ts"] == datetime.datetime(2024, 6, 1, 12, 0, 0)
+    assert g.node("s2").properties["ts"] == datetime.datetime(2024, 6, 2, 13, 30, 0)
+
+
+def test_load_nodes_with_aware_datetime_schema():
+    """`PropType.datetime()` casts to DTime (timezone-aware UTC)."""
+    df = pd.DataFrame(
+        {
+            "id": ["s1", "s2"],
+            "time": [1, 2],
+            "ts": ["2024-06-01T12:00:00+00:00", "2024-06-02T13:30:00+00:00"],
+        }
+    )
+    g = Graph()
+    g.load_nodes(
+        data=df,
+        id="id",
+        time="time",
+        properties=["ts"],
+        schema={"ts": PropType.datetime()},
+    )
+    assert g.node("s1").properties["ts"] == datetime.datetime(
+        2024, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc
+    )
+    assert g.node("s2").properties["ts"] == datetime.datetime(
+        2024, 6, 2, 13, 30, 0, tzinfo=datetime.timezone.utc
+    )
+
+
+def test_load_edges_with_datetime_schema():
+    df = pd.DataFrame(
+        {
+            "src": ["a", "b"],
+            "dst": ["b", "c"],
+            "time": [1, 2],
+            "scheduled_at": [
+                "2024-06-01T09:00:00+00:00",
+                "2024-06-02T17:00:00+00:00",
+            ],
+        }
+    )
+    g = Graph()
+    g.load_edges(
+        df,
+        time="time",
+        src="src",
+        dst="dst",
+        properties=["scheduled_at"],
+        schema={"scheduled_at": PropType.datetime()},
+    )
+    assert g.edge("a", "b").properties["scheduled_at"] == datetime.datetime(
+        2024, 6, 1, 9, 0, 0, tzinfo=datetime.timezone.utc
+    )

@@ -434,3 +434,7 @@ pub fn get_runtime() -> &'static Runtime {
             .expect("Failed to create Tokio runtime")
     })
 }
+
+pub fn block_on<F: Future>(future: F) -> F::Output {
+    get_runtime().block_on(future)
+}

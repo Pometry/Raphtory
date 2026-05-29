@@ -1,7 +1,5 @@
 use crate::{
-    db::api::view::StaticGraphViewOps,
-    errors::GraphError,
-    io::arrow::{
+    arrow_loader::{
         dataframe::*,
         df_loaders::{
             edges::{load_edges_from_df_prefetch, ColumnNames},
@@ -9,12 +7,14 @@ use crate::{
             *,
         },
     },
+    db::api::view::StaticGraphViewOps,
+    errors::GraphError,
     prelude::{AdditionOps, DeletionOps, PropertyAdditionOps},
 };
 use arrow::{
     array::{Array, RecordBatch, StructArray},
     compute::cast,
-    datatypes::{DataType, Field, FieldRef, Fields, SchemaRef},
+    datatypes::{DataType, FieldRef, Fields},
     error::ArrowError,
 };
 use parquet::arrow::{arrow_reader::ParquetRecordBatchReaderBuilder, ProjectionMask};
@@ -54,6 +54,8 @@ pub fn load_nodes_from_parquet<
     properties: &[&str],
     metadata: &[&str],
     shared_metadata: Option<&HashMap<String, Prop>>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
     batch_size: Option<usize>,
     resolve_nodes: bool,
     schema: Option<Arc<HashMap<String, PropType>>>,
@@ -69,6 +71,10 @@ pub fn load_nodes_from_parquet<
 
     if let Some(ref secondary_index) = secondary_index {
         cols_to_check.push(secondary_index.as_ref());
+    }
+
+    if let Some(ref layer_col) = layer_col {
+        cols_to_check.push(layer_col.as_ref());
     }
 
     for path in get_parquet_file_paths(parquet_path)? {
@@ -91,6 +97,8 @@ pub fn load_nodes_from_parquet<
             node_type_col,
             graph,
             resolve_nodes,
+            layer,
+            layer_col,
         )?;
     }
 
@@ -234,6 +242,7 @@ pub fn load_node_metadata_from_parquet<
             metadata_properties,
             shared_metadata,
             graph,
+            false,
         )?;
     }
 
@@ -381,11 +390,11 @@ pub(crate) fn process_parquet_file_to_df(
         .collect();
 
     let chunks = match batch_size {
-        None => chunks.with_batch_size(100_000),
+        None => chunks.with_batch_size(500_000),
         Some(batch_size) => chunks.with_batch_size(batch_size),
     };
 
-    let chunks = chunks.build()?.into_iter().map(move |result| match result {
+    let chunks = chunks.build()?.map(move |result| match result {
         Ok(r) => {
             let casted_batch = if let Some(schema) = schema.as_deref() {
                 cast_columns(r, schema)?

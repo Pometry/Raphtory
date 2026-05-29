@@ -21,6 +21,7 @@ use crate::{
         query_builder::QueryBuilder,
     },
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{entities::EID, storage::timeindex::AsTime};
 use raphtory_storage::graph::edges::edge_storage_ops::EdgeStorageOps;
@@ -363,7 +364,7 @@ impl<'a> EdgeFilterExecutor<'a> {
                     .and_then(|value| value.as_u64())?
                     .try_into()
                     .ok()?;
-                let e_ref = graph.core_edge(EID(edge_id));
+                let e_ref = graph.core_edge(Either::Left(EID(edge_id)));
                 graph.edge(e_ref.src(), e_ref.dst())
             })
             .collect::<Vec<_>>();
@@ -383,7 +384,7 @@ impl<'a> EdgeFilterExecutor<'a> {
         let edges = edge_ids
             .into_iter()
             .filter_map(|id| {
-                let e_ref = graph.core_edge(EID(id as usize));
+                let e_ref = graph.core_edge(Either::Left(EID(id as usize)));
                 filtered_graph
                     .filter_edge(e_ref.as_ref())
                     .then(|| EdgeView::new(graph.clone(), e_ref.out_ref()))

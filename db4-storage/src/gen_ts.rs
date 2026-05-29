@@ -1,32 +1,40 @@
-use std::ops::Range;
-
-use itertools::Itertools;
+use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter3};
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::{
-    entities::{ELID, LayerIds},
+    entities::{ELID, LayerIds, layers::Multiple},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
+use raphtory_itertools::FastMergeExt;
+use std::ops::Range;
 
-use crate::{NodeEntryRef, segments::additions::MemAdditions, utils::Iter2};
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum LayerIter<'a> {
-    One(usize),
+    One(LayerId),
     LRef(&'a LayerIds),
+    Multiple(Multiple),
 }
 
 pub static ALL_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::All);
+pub static NONE_LAYERS: LayerIter<'static> = LayerIter::LRef(&LayerIds::None);
 
 impl<'a> LayerIter<'a> {
-    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = usize> + Send + Sync + 'a {
+    pub fn into_iter(self, num_layers: usize) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         match self {
-            LayerIter::One(id) => Iter2::I1(std::iter::once(id)),
-            LayerIter::LRef(layers) => Iter2::I2(layers.iter(num_layers)),
+            LayerIter::One(id) => Iter3::I(std::iter::once(id)),
+            LayerIter::LRef(layers) => Iter3::J(layers.iter(num_layers)),
+            LayerIter::Multiple(ids) => Iter3::K(ids.into_iter()),
         }
     }
 }
 
 impl From<usize> for LayerIter<'_> {
     fn from(id: usize) -> Self {
+        LayerIter::One(LayerId(id))
+    }
+}
+
+impl From<LayerId> for LayerIter<'_> {
+    fn from(id: LayerId) -> Self {
         LayerIter::One(id)
     }
 }
@@ -37,7 +45,7 @@ impl<'a> From<&'a LayerIds> for LayerIter<'a> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct GenericTimeOps<'a, Ref> {
     range: Option<(EventTime, EventTime)>,
     layer_id: LayerIter<'a>,
@@ -46,14 +54,6 @@ pub struct GenericTimeOps<'a, Ref> {
 
 impl<'a, Ref> GenericTimeOps<'a, Ref> {
     pub fn new_with_layer(node: Ref, layer_id: impl Into<LayerIter<'a>>) -> Self {
-        Self {
-            range: None,
-            layer_id: layer_id.into(),
-            item_ref: node,
-        }
-    }
-
-    pub fn new_additions_with_layer(node: Ref, layer_id: impl Into<LayerIter<'a>>) -> Self {
         Self {
             range: None,
             layer_id: layer_id.into(),
@@ -70,19 +70,19 @@ where
 
     fn t_props_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + Send + Sync + 'a;
 
     fn additions_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + Send + Sync + 'a;
 
     fn deletions_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + Send + Sync + 'a;
 
@@ -122,7 +122,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for AdditionCellsRef<'a,
 
     fn t_props_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.node.t_props_tc(layer_id, range) // Assuming t_props_tc is not used for additions
@@ -130,7 +130,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for AdditionCellsRef<'a,
 
     fn additions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -138,7 +138,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for AdditionCellsRef<'a,
 
     fn deletions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -169,7 +169,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for DeletionCellsRef<'a,
 
     fn t_props_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -177,7 +177,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for DeletionCellsRef<'a,
 
     fn additions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -185,7 +185,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for DeletionCellsRef<'a,
 
     fn deletions_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.node.deletions_tc(layer_id, range)
@@ -216,7 +216,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef
 
     fn t_props_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -224,7 +224,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef
 
     fn additions_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.node.additions_tc(layer_id, range)
@@ -232,7 +232,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for EdgeAdditionCellsRef
 
     fn deletions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -263,7 +263,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef
 
     fn t_props_tc(
         self,
-        layer_id: usize,
+        layer_id: LayerId,
         range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         self.node.t_props_tc(layer_id, range)
@@ -271,7 +271,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef
 
     fn additions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -279,7 +279,7 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> WithTimeCells<'a> for PropAdditionCellsRef
 
     fn deletions_tc(
         self,
-        _layer_id: usize,
+        _layer_id: LayerId,
         _range: Option<(EventTime, EventTime)>,
     ) -> impl Iterator<Item = Self::TimeCell> + 'a {
         std::iter::empty()
@@ -302,7 +302,7 @@ where
                     .additions_tc(layer_id, self.range)
                     .map(|t_cell| t_cell.edge_events())
             })
-            .kmerge_by(|a, b| a < b)
+            .fast_merge_by(|a, b| a < b)
     }
 
     pub fn edge_events_rev(self) -> impl Iterator<Item = (EventTime, ELID)> + Send + Sync + 'a {
@@ -313,11 +313,12 @@ where
                     .additions_tc(layer_id, self.range)
                     .map(|t_cell| t_cell.edge_events_rev())
             })
-            .kmerge_by(|a, b| a > b)
+            .fast_merge_by(|a, b| a > b)
     }
 }
 
 impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
+    #[inline]
     pub fn time_cells(self) -> impl Iterator<Item = Ref::TimeCell> + Send + Sync + 'a {
         let range = self.range;
         self.layer_id
@@ -333,12 +334,14 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> GenericTimeOps<'a, Ref> {
 
     fn into_iter(self) -> impl Iterator<Item = EventTime> + Send + Sync + 'a {
         let iters = self.time_cells();
-        iters.map(|cell| cell.iter()).kmerge()
+        iters.map(|cell| cell.iter()).fast_merge()
     }
 
     fn into_iter_rev(self) -> impl Iterator<Item = EventTime> + Send + Sync + 'a {
         let iters = self.time_cells();
-        iters.map(|cell| cell.iter_rev()).kmerge_by(|a, b| a > b)
+        iters
+            .map(|cell| cell.iter_rev())
+            .fast_merge_by(|a, b| a > b)
     }
 }
 
@@ -347,24 +350,31 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
 
     type RangeType = Self;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
-        self.time_cells().any(|t_cell| t_cell.active(w.clone()))
+        self.clone()
+            .time_cells()
+            .any(|t_cell| t_cell.active(w.clone()))
     }
 
     fn range(&self, w: Range<Self::IndexType>) -> Self::RangeType {
         GenericTimeOps {
             range: Some((w.start, w.end)),
             item_ref: self.item_ref,
-            layer_id: self.layer_id,
+            layer_id: self.layer_id.clone(),
         }
     }
 
     fn first(&self) -> Option<Self::IndexType> {
-        Iterator::min(self.time_cells().filter_map(|t_cell| t_cell.first()))
+        Iterator::min(
+            self.clone()
+                .time_cells()
+                .filter_map(|t_cell| t_cell.first()),
+        )
     }
 
     fn last(&self) -> Option<Self::IndexType> {
-        Iterator::max(self.time_cells().filter_map(|t_cell| t_cell.last()))
+        Iterator::max(self.clone().time_cells().filter_map(|t_cell| t_cell.last()))
     }
 
     fn iter(self) -> impl Iterator<Item = Self::IndexType> + Send + Sync + 'a {
@@ -376,6 +386,10 @@ impl<'a, Ref: WithTimeCells<'a> + 'a> TimeIndexOps<'a> for GenericTimeOps<'a, Re
     }
 
     fn len(&self) -> usize {
-        self.time_cells().map(|t_cell| t_cell.len()).sum()
+        self.clone().time_cells().map(|t_cell| t_cell.len()).sum()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.clone().time_cells().all(|t_cell| t_cell.is_empty())
     }
 }

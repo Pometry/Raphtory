@@ -3,19 +3,34 @@ pub mod history;
 pub mod node;
 pub mod properties;
 
-use crate::db::api::state::ops::filter::{AndOp, NotOp, OrOp};
+use crate::db::api::{
+    state::ops::filter::{AndOp, NotOp, OrOp},
+    view::internal::NodeList,
+};
 pub use history::*;
 pub use node::*;
 pub use properties::*;
 use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{ops::Deref, sync::Arc};
+use serde::{Deserialize, Serialize};
+use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
 
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
 
+    /// The domain of validity for this node op
+    fn domain(&self, _storage: &GraphStorage) -> NodeList {
+        NodeList::All
+    }
+
+    /// Returns `Some(value)` if the node op has a constant global value
     fn const_value(&self) -> Option<Self::Output> {
         None
+    }
+
+    /// Returns `Some(value)` if the node op has a constant value over the domain
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        self.const_value()
     }
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output;
@@ -28,12 +43,37 @@ pub trait NodeOp: Send + Sync {
     }
 }
 
+pub trait IntoArrowNodeOp: NodeOp + Sized {
+    fn into_arrow_node_op<A: InputNodeStateValue<Self::Output>>(self) -> ArrowMap<Self, A> {
+        ArrowMap {
+            op: self,
+            _phantom: PhantomData,
+        }
+    }
+}
+impl<T: NodeOp + Sized> IntoArrowNodeOp for T {}
+
+pub trait ArrowNodeOp: NodeOp {
+    type ArrowOutput: InputNodeStateValue<Self::Output>;
+
+    fn arrow_apply(&self, storage: &GraphStorage, node: VID) -> Self::ArrowOutput {
+        self.apply(storage, node).into()
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct NodeFilterResult {
+    pub filtered: bool,
+}
+
 pub type DynNodeFilter = Arc<dyn NodeOp<Output = bool>>;
 
 pub type DynNodeOp<O> = Arc<dyn NodeOp<Output = O>>;
 
 pub trait NodeFilterOp: NodeOp<Output = bool> + Clone {
     fn is_filtered(&self) -> bool;
+
+    fn is_domain_filtered(&self) -> bool;
 
     fn and<T>(self, other: T) -> AndOp<Self, T>;
 
@@ -46,6 +86,10 @@ impl<Op: NodeOp<Output = bool> + Clone> NodeFilterOp for Op {
     fn is_filtered(&self) -> bool {
         // If there is a const true value, it is not filtered
         self.const_value().is_none_or(|v| !v)
+    }
+
+    fn is_domain_filtered(&self) -> bool {
+        self.const_value_in_domain().is_none_or(|v| !v)
     }
 
     fn and<T>(self, other: T) -> AndOp<Self, T> {
@@ -74,8 +118,8 @@ pub trait IntoDynNodeOp: NodeOp + Sized + 'static {
 }
 
 impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output = V>> {
-    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = Self::Output>> {
-        self.clone()
+    fn into_dynamic(self) -> Arc<dyn NodeOp<Output = V>> {
+        self
     }
 }
 
@@ -83,6 +127,12 @@ impl<V: Clone + Send + Sync + 'static> IntoDynNodeOp for Arc<dyn NodeOp<Output =
 pub struct Map<Op: NodeOp, V> {
     op: Op,
     map: fn(Op::Output) -> V,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct ArrowMap<Op: NodeOp, A> {
+    pub op: Op,
+    _phantom: PhantomData<A>,
 }
 
 impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
@@ -95,10 +145,39 @@ impl<Op: NodeOp, V: Clone + Send + Sync> NodeOp for Map<Op, V> {
 
 impl<Op: NodeOp + 'static, V: Clone + Send + Sync + 'static> IntoDynNodeOp for Map<Op, V> {}
 
+impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> ArrowNodeOp for ArrowMap<Op, A> {
+    type ArrowOutput = A;
+}
+
+impl<Op: NodeOp, A: InputNodeStateValue<Op::Output>> NodeOp for ArrowMap<Op, A> {
+    type Output = Op::Output;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.op.apply(storage, node)
+    }
+}
+
+impl<Op: NodeOp + 'static, A: InputNodeStateValue<Op::Output> + 'static> IntoDynNodeOp
+    for ArrowMap<Op, A>
+{
+}
+
 impl<'a, V: Clone + Send + Sync> NodeOp for Arc<dyn NodeOp<Output = V> + 'a> {
     type Output = V;
     fn apply(&self, storage: &GraphStorage, node: VID) -> V {
         self.deref().apply(storage, node)
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        self.deref().const_value()
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        self.deref().const_value_in_domain()
+    }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.deref().domain(storage)
     }
 }
 

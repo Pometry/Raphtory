@@ -12,9 +12,10 @@ use crate::{
         api::{
             mutation::time_from_input_session,
             properties::internal::{
-                InternalMetadataOps, InternalTemporalPropertiesOps, InternalTemporalPropertyViewOps,
+                InternalMetadataOps, InternalTemporalPropertiesOps,
+                InternalTemporalPropertyViewOps, NodePropertySchemaOps,
             },
-            state::ops::NodeOp,
+            state::ops::ArrowNodeOp,
             view::{
                 internal::{
                     GraphTimeSemanticsOps, GraphView, InternalFilter, NodeTimeSemanticsOps, Static,
@@ -31,17 +32,17 @@ use crate::{
 use raphtory_api::core::{
     entities::{
         properties::{meta::STATIC_GRAPH_LAYER_ID, prop::PropType},
-        ELID,
+        LayerId, ELID,
     },
     storage::{arc_str::ArcStr, timeindex::EventTime},
     utils::time::TryIntoInputTime,
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
+    durability_ops::DurabilityOps,
     graph::graph::GraphStorage,
     mutation::{
         addition_ops::{InternalAdditionOps, NodeWriteLock},
-        durability_ops::DurabilityOps,
         MutationError,
     },
 };
@@ -162,7 +163,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_edge_history(node.as_ref(), &self.graph)
+                .node_edge_history(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
     }
@@ -172,7 +173,7 @@ impl<'graph, G: GraphViewOps<'graph>> NodeView<'graph, G> {
         let node = self.graph.core_node(self.node);
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_edge_history_rev(node.as_ref(), &self.graph)
+                .node_edge_history_rev(node.as_ref(), &self.graph, self.graph.layer_ids())
                 .into_dyn_boxed()
         })
     }
@@ -219,27 +220,21 @@ impl<'a, G: CoreGraphOps> Hash for NodeView<'a, G> {
     }
 }
 
-impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps> InternalTemporalPropertiesOps
-    for NodeView<'graph, G>
+impl<'graph, G: CoreGraphOps + GraphTimeSemanticsOps + NodePropertySchemaOps>
+    InternalTemporalPropertiesOps for NodeView<'graph, G>
 {
     fn get_temporal_prop_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().temporal_prop_mapper().get_id(name)
+        self.graph.node_visible_temporal_prop_id(name)
     }
 
     fn get_temporal_prop_name(&self, id: usize) -> ArcStr {
         self.graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .get_name(id)
-            .clone()
+            .node_visible_temporal_prop_name(id)
+            .unwrap_or_default()
     }
 
     fn temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .node_meta()
-            .temporal_prop_mapper()
-            .ids()
-            .into_dyn_boxed()
+        self.graph.node_visible_temporal_prop_ids()
     }
 }
 
@@ -255,11 +250,9 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
     fn temporal_value(&self, id: usize) -> Option<Prop> {
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
-        let res = semantics
-            .node_tprop_iter_rev(node.as_ref(), &self.graph, id)
-            .next()
-            .map(|(_, v)| v);
-        res
+        semantics
+            .node_tprop_last(node.as_ref(), &self.graph, id)
+            .map(|(_, v)| v)
     }
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)> {
@@ -294,41 +287,36 @@ impl<'graph, G: GraphViewOps<'graph>> InternalTemporalPropertyViewOps for NodeVi
 }
 
 impl<'graph, G: GraphView + 'graph> NodeView<'graph, G> {
-    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, Vec<(usize, Prop)>)>
+    pub fn rows<'a>(&'a self) -> BoxedLIter<'a, (EventTime, LayerId, Vec<(usize, Prop)>)>
     where
         'graph: 'a,
     {
+        let prop_ids: Arc<[usize]> = self.graph.node_visible_temporal_prop_ids().collect();
         let semantics = self.graph.node_time_semantics();
         let node = self.graph.core_node(self.node);
         let graph = &self.graph;
         GenLockedIter::from(node, move |node| {
             semantics
-                .node_updates(node.as_ref(), graph)
+                .node_updates(node.as_ref(), graph, prop_ids.clone())
                 .into_dyn_boxed()
         })
         .into_dyn_boxed()
     }
 }
 
-impl<'graph, G: CoreGraphOps> InternalMetadataOps for NodeView<'graph, G> {
+impl<'graph, G: CoreGraphOps + NodePropertySchemaOps> InternalMetadataOps for NodeView<'graph, G> {
     fn get_metadata_id(&self, name: &str) -> Option<usize> {
-        self.graph.node_meta().metadata_mapper().get_id(name)
+        self.graph.node_visible_metadata_id(name)
     }
 
     fn get_metadata_name(&self, id: usize) -> ArcStr {
         self.graph
-            .node_meta()
-            .metadata_mapper()
-            .get_name(id)
-            .clone()
+            .node_visible_metadata_name(id)
+            .unwrap_or_default()
     }
 
     fn metadata_ids(&self) -> BoxedLIter<'_, usize> {
-        self.graph
-            .node_meta()
-            .metadata_mapper()
-            .ids()
-            .into_dyn_boxed()
+        self.graph.node_visible_metadata_ids()
     }
 
     fn get_metadata(&self, id: usize) -> Option<Prop> {
@@ -343,7 +331,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
     type ValueType<T>
         = T::Output
     where
-        T: NodeOp + 'graph,
+        T: ArrowNodeOp + 'graph,
         T::Output: 'graph;
     type PropType = Self;
     type PathType = PathFromNode<'graph, G>;
@@ -353,7 +341,7 @@ impl<'graph, G: GraphViewOps<'graph>> BaseNodeViewOps<'graph> for NodeView<'grap
         &self.graph
     }
 
-    fn map<F: NodeOp + 'graph>(&self, op: F) -> Self::ValueType<F> {
+    fn map<F: ArrowNodeOp + 'graph>(&self, op: F) -> Self::ValueType<F> {
         let cg = self.graph.core_graph();
         op.apply(cg, self.node)
     }
@@ -532,6 +520,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
         &self,
         time: T,
         props: PII,
+        layer: Option<&str>,
     ) -> Result<(), GraphError> {
         let transaction_manager = self
             .graph
@@ -550,6 +539,14 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
                 props.into_iter().map(|(k, v)| (k, v.into())),
             )
             .map_err(into_graph_err)?;
+        let layer_id = match layer {
+            None => STATIC_GRAPH_LAYER_ID,
+            Some(_) => self
+                .graph
+                .resolve_layer(layer)
+                .map_err(into_graph_err)?
+                .inner(),
+        };
 
         let t = time_from_input_session(&session, time)?;
         let vid = self.node;
@@ -567,7 +564,7 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             })
             .collect::<Vec<_>>();
 
-        writer.internal_add_update(t, STATIC_GRAPH_LAYER_ID, props);
+        writer.internal_add_update(t, layer_id, props);
 
         let props_for_wal = props_with_status
             .iter()
@@ -578,7 +575,16 @@ impl<G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps> NodeView<'static
             .collect::<Vec<_>>();
 
         let lsn = wal
-            .log_add_node(transaction_id, t, None, vid, None, props_for_wal)
+            .log_add_node(
+                transaction_id,
+                t,
+                None,
+                vid,
+                None,
+                props_for_wal,
+                layer,
+                layer_id,
+            )
             .map_err(into_graph_err)?;
 
         writer.set_lsn(lsn);

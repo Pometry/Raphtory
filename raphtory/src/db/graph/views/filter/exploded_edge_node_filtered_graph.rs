@@ -1,6 +1,8 @@
 use crate::db::{
     api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         state::ops::NodeFilterOp,
         view::internal::{
             GraphView, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
@@ -11,6 +13,7 @@ use crate::db::{
     },
     graph::views::filter::model::edge_filter::Endpoint,
 };
+use either::Either;
 use raphtory_api::{
     core::{
         entities::{LayerIds, ELID},
@@ -58,6 +61,14 @@ impl<G: GraphView, F: NodeFilterOp> InheritListOps for ExplodedEdgeNodeFilteredG
 impl<G: GraphView, F: NodeFilterOp> InheritMaterialize for ExplodedEdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritNodeFilterOps for ExplodedEdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritPropertiesOps for ExplodedEdgeNodeFilteredGraph<G, F> {}
+impl<G: GraphView, F: NodeFilterOp> InheritNodePropertySchemaOps
+    for ExplodedEdgeNodeFilteredGraph<G, F>
+{
+}
+impl<G: GraphView, F: NodeFilterOp> InheritEdgePropertySchemaOps
+    for ExplodedEdgeNodeFilteredGraph<G, F>
+{
+}
 impl<G: GraphView, F: NodeFilterOp> InheritTimeSemantics for ExplodedEdgeNodeFilteredGraph<G, F> {}
 impl<G: GraphView, F: NodeFilterOp> InheritNodeHistoryFilter
     for ExplodedEdgeNodeFilteredGraph<G, F>
@@ -92,7 +103,7 @@ impl<G: GraphView, F: NodeFilterOp> InternalExplodedEdgeFilterOps
             return false;
         }
 
-        let edge = self.graph.core_edge(eid.edge);
+        let edge = self.graph.core_edge(Either::Left(eid.eid()));
 
         let vid = match self.endpoint {
             Endpoint::Src => edge.src(),

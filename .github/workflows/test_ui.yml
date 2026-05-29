@@ -18,23 +18,25 @@ jobs:
     strategy:
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        os: [ ubuntu-latest ]
-    runs-on: '${{ matrix.os }}'
+        os: [ubuntu-latest]
+    runs-on: "${{ matrix.os }}"
     steps:
       - uses: actions/checkout@v5
         name: Checkout
         with:
           ref: ${{ github.head_ref }}
+          submodules: recursive
+          token: "${{ secrets.PULL_TOKEN }}"
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
-      - name: Setup SSH for UI tests submodule
+      - name: Setup SSH for UI tests
         run: |
-          mkdir -p ~/.ssh                                                       
-          echo "${{ secrets.UI_TESTS_SSH_KEY }}" > ~/.ssh/id_ed25519            
-          chmod 600 ~/.ssh/id_ed25519                                           
+          mkdir -p ~/.ssh
+          echo "${{ secrets.UI_TESTS_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan github.com >> ~/.ssh/known_hosts
-      - name: Init and update UI tests submodule
-        run: make pull-ui-tests
+      - name: Update UI tests
+        run: make update-ui-tests
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -49,13 +51,13 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
-          cache: 'pip'
+          cache: "pip"
       - name: Create python venv for Maturin
         run: python -m venv .venv
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: "20"
       - name: Build raphtory-python
         uses: PyO3/maturin-action@v1
         with:
@@ -80,4 +82,3 @@ jobs:
           name: playwright-report-with-py-${{ matrix.python }}
           path: ui-tests/playwright-report
           retention-days: 7
-

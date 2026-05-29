@@ -1,3 +1,5 @@
+#[cfg(feature = "vectors")]
+use crate::vectors::embeddings::EmbeddingError;
 use crate::{
     core::storage::lazy_vec::IllegalSet,
     db::graph::views::filter::model::filter_operator::FilterOperator, prelude::GraphViewOps,
@@ -50,6 +52,8 @@ pub enum InvalidPathReason {
     SymlinkNotAllowed,
     #[error("Could not parse Path")]
     PathNotParsable,
+    #[error("A component of the given path was hidden")]
+    HiddenPathNotAllowed,
     #[error("The path to the graph contains a subpath to an existing graph")]
     ParentIsGraph,
     #[error("Graph name cannot start with _")]
@@ -101,18 +105,6 @@ pub fn into_load_err(err: impl Into<LoadError>) -> LoadError {
     err.into()
 }
 
-#[cfg(feature = "proto")]
-#[derive(thiserror::Error, Debug)]
-pub enum WriteError {
-    #[cfg(feature = "proto")]
-    #[error("Unrecoverable disk error: {0}, resetting file size failed: {1}")]
-    FatalWriteError(io::Error, io::Error),
-
-    #[cfg(feature = "proto")]
-    #[error("Failed to write delta to cache: {0}")]
-    WriteError(#[from] io::Error),
-}
-
 pub type GraphResult<T> = Result<T, GraphError>;
 
 pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
@@ -122,7 +114,7 @@ pub fn into_graph_err(err: impl Into<GraphError>) -> GraphError {
 #[derive(thiserror::Error, Debug)]
 pub enum GraphError {
     #[error(transparent)]
-    ExternalError(#[from] Arc<dyn std::error::Error + Send + Sync>),
+    ExternalError(Arc<dyn std::error::Error + Send + Sync>),
 
     #[error(transparent)]
     MutationError(#[from] MutationError),
@@ -247,16 +239,20 @@ pub enum GraphError {
     IOErrorMsg(String),
 
     #[cfg(feature = "vectors")]
-    #[error("Arroy error: {0}")]
-    ArroyError(#[from] arroy::Error),
-
-    #[cfg(feature = "vectors")]
     #[error("Heed error: {0}")]
     HeedError(#[from] heed::Error),
 
     #[cfg(feature = "vectors")]
+    #[error("Heed error: {0}")]
+    LanceDbError(#[from] lancedb::Error),
+
+    #[cfg(feature = "vectors")]
     #[error("The path {0} does not contain a vector DB")]
     VectorDbDoesntExist(String),
+
+    #[cfg(feature = "vectors")]
+    #[error("The schema of the vector DB is invalid")]
+    InvalidVectorDbSchema,
 
     #[cfg(feature = "io")]
     #[error("zip operation failed")]
@@ -297,8 +293,12 @@ pub enum GraphError {
     #[error("Embedding operation failed")]
     EmbeddingError {
         #[from]
-        source: Box<dyn std::error::Error + Send + Sync>,
+        source: EmbeddingError,
     },
+
+    #[cfg(feature = "vectors")]
+    #[error("Model has not been initialised with a sample, so dimension cannot be inferred. Please provide a sample embedding when initializing the model, or set the dimension explicitly in the model config.")]
+    UnresolvedModel,
 
     #[cfg(feature = "search")]
     #[error("Index operation failed")]
@@ -323,34 +323,9 @@ pub enum GraphError {
     #[error("Illegal set error {0}")]
     IllegalSet(String),
 
-    #[cfg(feature = "proto")]
-    #[error("Protobuf encode error{0}")]
-    DecodeError(#[from] prost::DecodeError),
-
-    #[cfg(feature = "proto")]
-    #[error(
-        "Cannot recover from write failure {write_err}, new updates are invalid: {decode_err}"
-    )]
-    FatalDecodeError {
-        write_err: WriteError,
-        decode_err: prost::DecodeError,
-    },
-
-    #[cfg(feature = "proto")]
-    #[error("Cache write error: {0}")]
-    CacheWriteError(#[from] WriteError),
-
-    #[cfg(feature = "proto")]
-    #[error("Protobuf decode error{0}")]
-    EncodeError(#[from] prost::EncodeError),
-
     #[cfg(feature = "io")]
     #[error("Cannot write graph into non empty folder {0}")]
     NonEmptyGraphFolder(PathBuf),
-
-    #[cfg(feature = "proto")]
-    #[error("Cache is not initialised")]
-    CacheNotInnitialised,
 
     #[error("Immutable graph is .. immutable!")]
     AttemptToMutateImmutableGraph,

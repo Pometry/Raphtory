@@ -1,8 +1,17 @@
+use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
+use arrow::array::ArrayRef;
 use bigdecimal::BigDecimal;
-use chrono::NaiveDateTime;
-use raphtory_api::core::{
-    entities::properties::prop::{Prop, PropArray, PropType, PropUnwrap},
-    storage::{arc_str::ArcStr, timeindex::EventTime},
+use chrono::{DateTime, NaiveDateTime, Utc};
+use raphtory_api::{
+    core::{
+        entities::properties::prop::{Prop, PropArray, PropArrayUnwrap, PropType, PropUnwrap},
+        storage::{
+            arc_str::ArcStr,
+            timeindex::{AsTime, EventTime},
+        },
+        utils::time::IntoTime,
+    },
+    iter::BoxedLIter,
 };
 use rustc_hash::FxHashMap;
 use std::{
@@ -10,16 +19,6 @@ use std::{
     fmt::{Debug, Formatter},
     iter::Zip,
     sync::Arc,
-};
-
-use crate::db::api::{properties::internal::InternalPropertiesOps, view::history::History};
-use arrow::array::ArrayRef;
-use raphtory_api::{
-    core::{
-        entities::properties::prop::PropArrayUnwrap, storage::timeindex::AsTime,
-        utils::time::IntoTime,
-    },
-    iter::BoxedLIter,
 };
 
 #[derive(Clone)]
@@ -113,6 +112,79 @@ impl<P: InternalPropertiesOps + Clone> TemporalPropertyView<P> {
     pub fn unique(&self) -> Vec<Prop> {
         let unique_props: HashSet<_> = self.values().collect();
         unique_props.into_iter().collect()
+    }
+
+    /// Compute the sum of all property values, or `None` if the dtype is not additive or the
+    /// property is empty.
+    pub fn sum(&self) -> Option<Prop> {
+        generalised_reduce(self.values(), |a, b| a.add(b), |p| p.dtype().has_add())
+    }
+
+    /// Find the minimum `(time, value)` pair, or `None` if the dtype is not comparable or the
+    /// property is empty.
+    pub fn min(&self) -> Option<(EventTime, Prop)> {
+        generalised_reduce(
+            self.iter(),
+            |a, b| {
+                if a.1.partial_cmp(&b.1)?.is_le() {
+                    Some(a)
+                } else {
+                    Some(b)
+                }
+            },
+            |(_, v)| v.dtype().has_cmp(),
+        )
+    }
+
+    /// Find the maximum `(time, value)` pair, or `None` if the dtype is not comparable or the
+    /// property is empty.
+    pub fn max(&self) -> Option<(EventTime, Prop)> {
+        generalised_reduce(
+            self.iter(),
+            |a, b| {
+                if a.1.partial_cmp(&b.1)?.is_ge() {
+                    Some(a)
+                } else {
+                    Some(b)
+                }
+            },
+            |(_, v)| v.dtype().has_cmp(),
+        )
+    }
+
+    /// Count the number of property updates.
+    pub fn count(&self) -> usize {
+        self.iter().count()
+    }
+
+    /// Compute the mean of all property values as an `F64` Prop, or `None` if any value cannot be
+    /// converted to `f64` or the property is empty.
+    pub fn mean(&self) -> Option<Prop> {
+        let mut iter = self.values();
+        let mut sum = iter.next()?.as_f64()?;
+        let mut count = 1usize;
+        for value in iter {
+            sum += value.as_f64()?;
+            count += 1;
+        }
+        Some(Prop::F64(sum / count as f64))
+    }
+
+    /// Alias for `mean`.
+    pub fn average(&self) -> Option<Prop> {
+        self.mean()
+    }
+
+    /// Compute the median `(time, value)` pair (lower median on even-length inputs), or `None` if
+    /// the dtype is not comparable or the property is empty.
+    pub fn median(&self) -> Option<(EventTime, Prop)> {
+        let mut sorted: Vec<(EventTime, Prop)> = self.iter().collect();
+        if !sorted.first()?.1.dtype().has_cmp() {
+            return None;
+        }
+        sorted.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+        let len = sorted.len();
+        Some(sorted.swap_remove((len - 1) / 2))
     }
 
     pub fn ordered_dedupe(&self, latest_time: bool) -> Vec<(EventTime, Prop)> {
@@ -210,6 +282,10 @@ impl<P: InternalPropertiesOps + Clone> TemporalProperties<P> {
         self.keys().zip(self.values())
     }
 
+    pub fn iter_ids(&self) -> impl Iterator<Item = (usize, TemporalPropertyView<P>)> + '_ {
+        self.props.temporal_prop_ids().zip(self.values())
+    }
+
     pub fn iter_filtered(&self) -> impl Iterator<Item = (ArcStr, TemporalPropertyView<P>)> + '_ {
         self.iter().filter(|(_, v)| !v.is_empty())
     }
@@ -303,10 +379,27 @@ impl<P: InternalPropertiesOps + Clone> PropUnwrap for TemporalPropertyView<P> {
     fn into_decimal(self) -> Option<BigDecimal> {
         self.latest().into_decimal()
     }
+
+    fn into_dtime(self) -> Option<DateTime<Utc>> {
+        self.latest().into_dtime()
+    }
 }
 
 impl<P: InternalPropertiesOps + Clone> PropArrayUnwrap for TemporalPropertyView<P> {
     fn into_array(self) -> Option<ArrayRef> {
         self.latest().into_array()
     }
+}
+
+fn generalised_reduce<V>(
+    data: impl IntoIterator<Item = V>,
+    op: impl Fn(V, V) -> Option<V>,
+    check: impl Fn(&V) -> bool,
+) -> Option<V> {
+    let mut iter = data.into_iter();
+    let first = iter.next()?;
+    if !check(&first) {
+        return None;
+    }
+    iter.try_fold(first, op)
 }

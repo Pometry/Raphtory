@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+#[cfg(feature = "vectors")]
 pub mod vectors;
 
 use criterion::{
@@ -8,7 +9,7 @@ use criterion::{
 use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::logging::global_info_logger};
-use std::collections::HashSet;
+use std::{collections::HashSet, iter};
 use tempfile::TempDir;
 use tracing::info;
 
@@ -77,7 +78,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), time_sample()),
-                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None),
+                |(g, t): &mut (Graph, i64)| g.add_node(*t, 0, NO_PROPS, None, None),
                 BatchSize::SmallInput,
             )
         },
@@ -89,7 +90,7 @@ pub fn run_ingestion_benchmarks<F>(
         |b: &mut Bencher| {
             b.iter_batched_ref(
                 || (make_graph(), index_sample()),
-                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None),
+                |(g, v): &mut (Graph, u64)| g.add_node(0, *v, NO_PROPS, None, None),
                 BatchSize::SmallInput,
             )
         },
@@ -513,12 +514,12 @@ pub fn run_graph_ops_benches(
 
     // subgraph
     let mut rng = rand::rngs::StdRng::seed_from_u64(73);
-    let nodes = graph
+    let nodes = (&&graph)
         .nodes()
         .into_iter()
-        .choose_multiple(&mut rng, graph.count_nodes() / 10)
+        .choose_multiple(&mut rng, 1.max(graph.count_nodes() / 10))
         .into_iter()
-        .map(|n| n.id())
+        .flat_map(|n| iter::once(n.id()).chain(n.out_neighbours().id().next())) // at least one edge per node
         .collect::<Vec<_>>();
     let subgraph = graph.subgraph(nodes);
     let group_name = format!("{graph_name}_subgraph_10pc");
@@ -602,8 +603,8 @@ pub fn run_graph_ops_benches(
     );
 }
 
-pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
-    bench(group, "proto_encode", None, |b: &mut Bencher| {
+pub fn run_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+    bench(group, "encode", None, |b: &mut Bencher| {
         b.iter_batched(
             || TempDir::new().unwrap(),
             |f| graph.encode(f.path()).unwrap(),
@@ -612,10 +613,10 @@ pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: G
     });
 }
 
-pub fn run_proto_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+pub fn run_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
     let f = TempDir::new().unwrap();
     graph.encode(f.path()).unwrap();
-    bench(group, "proto_decode", None, |b| {
+    bench(group, "decode", None, |b| {
         b.iter(|| Graph::decode(f.path()).unwrap())
     })
 }

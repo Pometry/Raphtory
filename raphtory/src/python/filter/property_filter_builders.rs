@@ -216,46 +216,73 @@ impl PyPropertyExprBuilder {
     }
 
     /// Selects the first element when the underlying property is list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     pub fn first(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.first())
     }
 
     /// Selects the last element when the underlying property is list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     pub fn last(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.last())
     }
 
     /// Requires that **any** element matches when the underlying property is list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     pub fn any(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.any())
     }
 
     /// Requires that **all** elements match when the underlying property is list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     pub fn all(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.all())
     }
 
     /// Returns the list length when the underlying property is list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     fn len(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.len())
     }
 
     /// Sums list elements when the underlying property is numeric and list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     fn sum(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.sum())
     }
 
     /// Averages list elements when the underlying property is numeric and list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     fn avg(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.avg())
     }
 
     /// Returns the minimum list element when the underlying property is list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     fn min(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.min())
     }
 
     /// Returns the maximum list element when the underlying property is list-like.
+    ///
+    /// Returns:
+    ///     filter.PropertyFilterOps:
     fn max(&self) -> PyPropertyExprBuilder {
         PyPropertyExprBuilder(self.0.max())
     }
@@ -402,7 +429,7 @@ impl PyViewFilterBuilder {
     ///     end (int): End time.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     fn window(&self, start: EventTime, end: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(self.0.clone().window(start, end))
     }
@@ -413,7 +440,7 @@ impl PyViewFilterBuilder {
     ///     time (int): Event time.
     ///
     /// Returns:
-    ///     filter.ViewFilterBuilder
+    ///     filter.ViewFilterBuilder:
     fn at(&self, time: EventTime) -> PyViewFilterBuilder {
         PyViewFilterBuilder(self.0.clone().at(time))
     }
@@ -494,7 +521,7 @@ impl PyNodeViewPropsFilterBuilder {
     ///     name (str): Property key.
     ///
     /// Returns:
-    ///     filter.PropertyFilterOps
+    ///     filter.PropertyFilterOps:
     fn property(&self, name: String) -> PyPropertyFilterBuilder {
         PyPropertyFilterBuilder(self.0.property(name))
     }

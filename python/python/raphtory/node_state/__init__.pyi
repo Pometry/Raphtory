@@ -15,13 +15,17 @@ import raphtory.filter as filter
 from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
@@ -75,6 +79,7 @@ __all__ = [
     "NodeStateSEIR",
     "NodeLayout",
     "NodeStateF64String",
+    "OutputNodeState",
 ]
 
 class NodeGroups(object):
@@ -152,6 +157,14 @@ class DegreeView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateUsize:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateUsize: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateUsize:
         """
@@ -1454,6 +1467,14 @@ class IdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateGID:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateGID: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateGID:
         """
         Compute the k smallest values
@@ -1808,6 +1829,14 @@ class EarliestTimeView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionEventTime:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionEventTime: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionEventTime:
         """
         Compute the k smallest values
@@ -2031,6 +2060,14 @@ class EarliestTimestampView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -2226,6 +2263,14 @@ class EarliestEventIdView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateOptionUsize:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionUsize: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionUsize:
         """
@@ -2466,16 +2511,18 @@ class EarliestDateTimeView(object):
             NodeStateOptionDateTime: the computed `NodeState`
         """
 
-    def get(self, node: NodeInput, default=...) -> Optional[datetime]:
+    def get(
+        self, node: NodeInput, default: Optional[datetime] = None
+    ) -> Optional[datetime]:
         """
         Get value for node
 
         Arguments:
             node (NodeInput): the node
-           default (Optional[datetime]): the default value. Defaults to None.
+            default (Optional[datetime]): the default value. Defaults to None.
 
         Returns:
-           Optional[datetime]: the value for the node or the default value
+            Optional[datetime]: the value for the node or the default value
         """
 
     def groups(self) -> NodeGroups:
@@ -2663,6 +2710,14 @@ class LatestTimeView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
@@ -2887,6 +2942,14 @@ class LatestTimestampView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -3083,6 +3146,14 @@ class LatestEventIdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionUsize:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionUsize: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionUsize:
         """
         Compute the k smallest values
@@ -3247,7 +3318,7 @@ class LatestEventIdView(object):
         """
 
 class LatestDateTimeView(object):
-    """A lazy view over EarliestDateTime values for each node."""
+    """A lazy view over LatestDateTime values for each node."""
 
     def __eq__(self, value):
         """Return self==value."""
@@ -3521,6 +3592,14 @@ class NameView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateString:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateString: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateString:
         """
@@ -4065,6 +4144,14 @@ class HistoryTimestampView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateHistoryTimestamp:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateHistoryTimestamp: the computed `OutputTypedNodeState`
+        """
+
     def collect(self) -> list[HistoryTimestamp]:
         """
         Compute all values and return the result as a list
@@ -4170,6 +4257,14 @@ class HistoryDateTimeView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateHistoryDateTime:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateHistoryDateTime: the computed `OutputTypedNodeState`
+        """
 
     def collect(self) -> list[HistoryDateTime]:
         """
@@ -4277,6 +4372,14 @@ class HistoryEventIdView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateHistoryEventId:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateHistoryEventId: the computed `OutputTypedNodeState`
+        """
+
     def collect(self) -> list[HistoryEventId]:
         """
         Compute all values and return the result as a list
@@ -4382,6 +4485,14 @@ class IntervalsView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateIntervals:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateIntervals: the computed `OutputTypedNodeState`
+        """
 
     def collect(self) -> list[Intervals]:
         """
@@ -4520,6 +4631,14 @@ class IntervalsFloatView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateOptionF64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionF64: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionF64:
         """
@@ -4709,6 +4828,14 @@ class IntervalsIntegerView(object):
     def __repr__(self):
         """Return repr(self)."""
 
+    def arrow_compute(self) -> NodeStateOptionI64:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionI64: the computed `OutputTypedNodeState`
+        """
+
     def bottom_k(self, k: int) -> NodeStateOptionI64:
         """
         Compute the k smallest values
@@ -4896,6 +5023,14 @@ class EdgeHistoryCountView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> EdgeHistoryCountView:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             EdgeHistoryCountView: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> EdgeHistoryCountView:
         """
@@ -5095,11 +5230,45 @@ class UsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def mean(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def mean(self) -> float:
+        """
+        Mean of all values in the iterable.
+
+        Returns:
+            float:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def sum(self) -> Any:
+        """
+        Sum of all values in the iterable.
+
+        Returns:
+            Any:
+        """
 
 class NodeTypeView(object):
     """A lazy view over node values"""
@@ -5133,6 +5302,14 @@ class NodeTypeView(object):
 
     def __repr__(self):
         """Return repr(self)."""
+
+    def arrow_compute(self) -> NodeStateOptionStr:
+        """
+        Compute all values and return the result as a OutputTypedNodeState
+
+        Returns:
+             NodeStateOptionStr: the computed `OutputTypedNodeState`
+        """
 
     def bottom_k(self, k: int) -> NodeStateOptionStr:
         """
@@ -7584,4 +7761,149 @@ class NodeStateF64String(object):
 
         Returns:
              Iterator[Tuple[float, str]]: Iterator over values
+        """
+
+class OutputNodeState(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def from_parquet(self, file_path: str, id_column: str = "id") -> OutputNodeState:
+        """
+        Get OutputNodeState from Parquet
+
+        Arguments:
+            file_path (str): filepath from which to read OutputNodeState
+            id_column (str): column to which node IDs will be written. Defaults to "id".
+
+        Returns:
+            OutputNodeState:
+        """
+
+    def get(self, node: NodeInput, default: Optional[dict] = None) -> Optional[dict]:
+        """
+        Get value for node
+
+        Arguments:
+            node (NodeInput): the node
+            default (dict, optional): the default value (dict of field name to value). Defaults to None.
+
+        Returns:
+            Optional[dict]: the value for the node or the default value
+        """
+
+    def groups(self, cols: list[str]) -> list[tuple[dict, Nodes]]:
+        """
+        Group by value
+
+        Arguments:
+            cols (list[str]): columns by which to group nodes
+
+        Returns:
+            list[tuple[dict, Nodes]]: The grouped nodes
+        """
+
+    def items(self) -> Iterator[Tuple[Node, Dict]]:
+        """
+        Iterate over items
+
+        Returns:
+            Iterator[Tuple[Node, Dict]]: Iterator over items
+        """
+
+    def merge(
+        self,
+        other: OutputNodeState,
+        index_merge_priority: str = "left",
+        default_column_merge_priority: str = "left",
+        column_merge_priority_map: Optional[dict] = None,
+    ) -> OutputNodeState:
+        """
+        Merge with another OutputNodeState (produces new OutputNodeState)
+
+        Arguments:
+            other (OutputNodeState): OutputNodeState to merge with
+            index_merge_priority (str): "left" or "right" to take left or right index, "union" to union index sets. Defaults to "left".
+            default_column_merge_priority (str): "left" or "right" to prioritize left or right columns by default, "exclude" to exclude columns by default. Defaults to "left".
+            column_merge_priority_map (dict, optional): map of column names (str) to merge priority ("left", "right", or "exclude"). Defaults to None.
+
+        Returns:
+            OutputNodeState:
+        """
+
+    def nodes(self) -> Nodes:
+        """
+        Iterate over nodes
+
+        Returns:
+            Nodes: The nodes
+        """
+
+    def sort_by(self, sort_params: Dict) -> OutputNodeState:
+        """
+        Get value for node
+
+        Arguments:
+            sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+
+        Returns:
+            OutputNodeState: Sorted NodeState
+        """
+
+    def to_parquet(self, file_path: str, id_column: str = "id") -> None:
+        """
+        Convert OutputNodeState to Parquet
+
+        Arguments:
+            file_path (str): filepath to which OutputNodeState is written
+            id_column (str): column containing IDs of nodes. Defaults to "id".
+
+        Returns:
+            None:
+        """
+
+    def top_k(self, sort_params: Dict, k: int) -> OutputNodeState:
+        """
+        Get value for node
+
+        Arguments:
+            sort_params (Dict): Map of sort keys to sort option ('asc' or 'desc'). None defaults to 'asc'
+            k (int): Number of top entries to return.
+
+        Returns:
+            OutputNodeState: Sorted NodeState
+        """
+
+    def values(self) -> Iterator[Dict]:
+        """
+        Iterate over values
+
+        Returns:
+            Iterator[Dict]: Iterator over values (dict of field name to value)
         """

@@ -15,8 +15,11 @@ use parking_lot::{RwLock, lock_api::ArcRwLockReadGuard};
 use raphtory_api::core::{
     Direction,
     entities::{
-        EID, VID,
-        properties::{meta::Meta, prop::Prop},
+        EID, LayerId, VID,
+        properties::{
+            meta::Meta,
+            prop::{AsPropRef, Prop},
+        },
     },
 };
 use raphtory_core::{
@@ -37,7 +40,16 @@ pub struct MemNodeSegment {
     segment_id: usize,
     max_page_len: u32,
     layers: Vec<SegmentContainer<AdjEntry>>,
+    global_mem_tracker: Arc<AtomicUsize>,
+    est_size: usize,
     lsn: LSN,
+}
+
+impl Drop for MemNodeSegment {
+    fn drop(&mut self) {
+        self.global_mem_tracker
+            .fetch_sub(self.est_size, Ordering::Relaxed);
+    }
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -87,6 +99,19 @@ impl MemNodeSegment {
         self.segment_id
     }
 
+    pub fn est_size(&self) -> usize {
+        self.est_size
+    }
+
+    pub(crate) fn increment_global_est_size(&self, increment: usize) {
+        self.global_mem_tracker
+            .fetch_add(increment, Ordering::Relaxed);
+    }
+
+    pub(crate) fn increment_est_size(&mut self, increment: usize) {
+        self.est_size += increment;
+    }
+
     pub fn swap_out_layers(&mut self) -> Vec<SegmentContainer<AdjEntry>> {
         self.layers
             .iter_mut()
@@ -102,7 +127,8 @@ impl MemNodeSegment {
             .collect::<Vec<_>>()
     }
 
-    pub fn get_or_create_layer(&mut self, layer_id: usize) -> &mut SegmentContainer<AdjEntry> {
+    pub fn get_or_create_layer(&mut self, layer_id: LayerId) -> &mut SegmentContainer<AdjEntry> {
+        let layer_id = layer_id.0;
         if layer_id >= self.layers.len() {
             let max_page_len = self.layers[0].max_page_len();
             let segment_id = self.layers[0].segment_id();
@@ -120,11 +146,11 @@ impl MemNodeSegment {
         self.layers[0].meta()
     }
 
-    pub fn get_layer(&self, layer_id: usize) -> Option<&SegmentContainer<AdjEntry>> {
-        self.layers.get(layer_id)
+    pub fn get_layer(&self, layer_id: LayerId) -> Option<&SegmentContainer<AdjEntry>> {
+        self.layers.get(layer_id.0)
     }
 
-    pub fn degree(&self, n: LocalPOS, layer_id: usize, dir: Direction) -> usize {
+    pub fn degree(&self, n: LocalPOS, layer_id: LayerId, dir: Direction) -> usize {
         self.get_adj(n, layer_id).map_or(0, |adj| adj.degree(dir))
     }
 
@@ -144,10 +170,13 @@ impl MemNodeSegment {
     /// The new segment will have the same number of layers as the original.
     pub fn take(&mut self) -> Self {
         let layers = self.layers.iter_mut().map(|layer| layer.take()).collect();
-
+        let est_size = self.est_size;
+        self.est_size = 0;
         Self {
             segment_id: self.segment_id,
             max_page_len: self.max_page_len,
+            est_size,
+            global_mem_tracker: self.global_mem_tracker.clone(),
             layers,
             lsn: self.lsn,
         }
@@ -158,46 +187,63 @@ impl MemNodeSegment {
     }
 
     #[inline(always)]
-    fn get_adj(&self, n: LocalPOS, layer_id: usize) -> Option<&Adj> {
+    fn get_adj(&self, n: LocalPOS, layer_id: LayerId) -> Option<&Adj> {
+        let layer_id = layer_id.0;
         self.layers
             .get(layer_id)?
             .get(n)
             .map(|AdjEntry { adj, .. }| adj)
     }
 
-    pub fn has_node(&self, n: LocalPOS, layer_id: usize) -> bool {
+    pub fn has_node(&self, n: LocalPOS, layer_id: LayerId) -> bool {
+        let layer_id = layer_id.0;
         self.layers
             .get(layer_id)
             .is_some_and(|layer| layer.has_item(n))
     }
 
-    pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_out_edge(&self, n: LocalPOS, dst: VID, layer_id: LayerId) -> Option<EID> {
         self.get_adj(n, layer_id)
             .and_then(|adj| adj.get_edge(dst, Direction::OUT))
     }
 
-    pub fn get_inb_edge(&self, n: LocalPOS, src: VID, layer_id: usize) -> Option<EID> {
+    pub fn get_inb_edge(&self, n: LocalPOS, src: VID, layer_id: LayerId) -> Option<EID> {
         self.get_adj(n, layer_id)
             .and_then(|adj| adj.get_edge(src, Direction::IN))
     }
 
-    pub fn out_edges(&self, n: LocalPOS, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + '_ {
+    pub fn out_edges(
+        &self,
+        n: LocalPOS,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.get_adj(n, layer_id)
             .into_iter()
             .flat_map(|adj| adj.out_iter())
     }
 
-    pub fn inb_edges(&self, n: LocalPOS, layer_id: usize) -> impl Iterator<Item = (VID, EID)> + '_ {
+    pub fn inb_edges(
+        &self,
+        n: LocalPOS,
+        layer_id: LayerId,
+    ) -> impl Iterator<Item = (VID, EID)> + '_ {
         self.get_adj(n, layer_id)
             .into_iter()
             .flat_map(|adj| adj.inb_iter())
     }
 
-    pub fn new(segment_id: usize, max_page_len: u32, meta: Arc<Meta>) -> Self {
+    pub fn new(
+        segment_id: usize,
+        max_page_len: u32,
+        meta: Arc<Meta>,
+        global_mem_tracker: Arc<AtomicUsize>,
+    ) -> Self {
         Self {
             segment_id,
             max_page_len,
             layers: vec![SegmentContainer::new(segment_id, max_page_len, meta)],
+            global_mem_tracker,
+            est_size: 0,
             lsn: 0,
         }
     }
@@ -218,12 +264,12 @@ impl MemNodeSegment {
         let add_out = layer.reserve_local_row(src_pos);
         let new_entry = add_out.is_new();
         let add_out = add_out.inner();
-        let is_new_edge = add_out.adj.add_edge_out(dst, e_id.edge);
+        let is_new_edge = add_out.adj.add_edge_out(dst, e_id.eid());
         let row = add_out.row;
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
         }
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size = (layer_est_size - est_size)
             + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
         (new_entry, added_size)
@@ -247,20 +293,20 @@ impl MemNodeSegment {
         let add_in = layer.reserve_local_row(dst_pos);
         let new_entry = add_in.is_new();
         let add_in = add_in.inner();
-        let is_new_edge = add_in.adj.add_edge_into(src, e_id.edge);
+        let is_new_edge = add_in.adj.add_edge_into(src, e_id.eid());
         let row = add_in.row;
 
         if let Some(t) = t {
             self.update_timestamp_inner(t, row, e_id);
         }
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         let added_size = (layer_est_size - est_size)
             + (is_new_edge as usize * std::mem::size_of::<(VID, VID)>());
         (new_entry, added_size)
     }
 
     fn update_timestamp_inner<T: AsTime>(&mut self, t: T, row: usize, e_id: ELID) {
-        let mut prop_mut_entry = self.layers[e_id.layer()]
+        let mut prop_mut_entry = self.layers[e_id.layer().0]
             .properties_mut()
             .get_mut_entry(row);
         let ts = EventTime::new(t.t(), t.i());
@@ -277,16 +323,16 @@ impl MemNodeSegment {
             (est_size, row)
         };
         self.update_timestamp_inner(t, row, e_id);
-        let layer_est_size = self.layers[layer_id].est_size();
+        let layer_est_size = self.layers[layer_id.0].est_size();
         layer_est_size - est_size
     }
 
-    pub fn add_props<T: AsTime>(
+    pub fn add_props<T: AsTime, P: AsPropRef>(
         &mut self,
         t: T,
         node_pos: LocalPOS,
-        layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let layer = self.get_or_create_layer(layer_id);
         let est_size = layer.est_size();
@@ -300,23 +346,23 @@ impl MemNodeSegment {
         (is_new, layer_est_size - est_size)
     }
 
-    pub fn check_metadata(
+    pub fn check_metadata<P: AsPropRef>(
         &self,
         node_pos: LocalPOS,
-        layer_id: usize,
-        props: &[(usize, Prop)],
+        layer_id: LayerId,
+        props: &[(usize, P)],
     ) -> Result<(), StorageError> {
-        if let Some(layer) = self.layers.get(layer_id) {
+        if let Some(layer) = self.layers.get(layer_id.0) {
             layer.check_metadata(node_pos, props)?;
         }
         Ok(())
     }
 
-    pub fn update_metadata(
+    pub fn update_metadata<P: AsPropRef>(
         &mut self,
         node_pos: LocalPOS,
-        layer_id: usize,
-        props: impl IntoIterator<Item = (usize, Prop)>,
+        layer_id: LayerId,
+        props: impl IntoIterator<Item = (usize, P)>,
     ) -> (bool, usize) {
         let segment_container = self.get_or_create_layer(layer_id);
         let est_size = segment_container.est_size();
@@ -335,10 +381,10 @@ impl MemNodeSegment {
     pub fn get_metadata(
         &self,
         node_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         prop_id: usize,
     ) -> Option<Prop> {
-        let segment_container = &self.layers[layer_id];
+        let segment_container = &self.layers[layer_id.0];
         segment_container.c_prop(node_pos, prop_id)
     }
 
@@ -367,7 +413,6 @@ impl MemNodeSegment {
 pub struct NodeSegmentView<EXT> {
     inner: Arc<RwLock<MemNodeSegment>>,
     segment_id: usize,
-    est_size: AtomicUsize,
     max_num_node: AtomicU32,
     _ext: EXT,
 }
@@ -390,13 +435,13 @@ impl ArcLockedSegmentView {
 impl LockedNSSegment for ArcLockedSegmentView {
     type EntryRef<'a> = MemNodeRef<'a>;
 
+    fn num_nodes(&self) -> u32 {
+        self.num_nodes
+    }
+
     fn entry_ref<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::EntryRef<'a> {
         let pos = pos.into();
         MemNodeRef::new(pos, &self.inner)
-    }
-
-    fn num_nodes(&self) -> u32 {
-        self.num_nodes
     }
 }
 
@@ -442,7 +487,12 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         ext: Self::Extension,
     ) -> Self {
         let max_page_len = ext.config().max_node_page_len();
-        let inner = RwLock::new(MemNodeSegment::new(segment_id, max_page_len, meta));
+        let inner = RwLock::new(MemNodeSegment::new(
+            segment_id,
+            max_page_len,
+            meta,
+            ext.memory_tracker().clone(),
+        ));
         let inner = Arc::new(inner);
 
         Self {
@@ -450,7 +500,6 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
             segment_id,
             _ext: ext,
             max_num_node: AtomicU32::new(0),
-            est_size: AtomicUsize::new(0),
         }
     }
 
@@ -458,14 +507,18 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         self.segment_id
     }
 
-    #[inline(always)]
-    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
-        self.inner.read_recursive()
+    fn is_dirty(&self) -> bool {
+        true
     }
 
     #[inline(always)]
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemNodeSegment> {
         self.inner.read_arc_recursive()
+    }
+
+    #[inline(always)]
+    fn head(&self) -> parking_lot::RwLockReadGuard<'_, MemNodeSegment> {
+        self.inner.read_recursive()
     }
 
     #[inline(always)]
@@ -487,7 +540,7 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
 
     fn set_dirty(&self, _dirty: bool) {}
 
-    fn has_node(&self, _pos: LocalPOS, _layer_id: usize) -> bool {
+    fn has_node(&self, _pos: LocalPOS, _layer_id: LayerId) -> bool {
         false
     }
 
@@ -495,20 +548,20 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         &self,
         pos: LocalPOS,
         dst: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        locked_head.get_out_edge(pos, dst.into(), layer_id)
+        MemNodeSegment::get_out_edge(&locked_head, pos, dst.into(), layer_id) // rust-analyzer
     }
 
     fn get_inb_edge(
         &self,
         pos: LocalPOS,
         src: impl Into<VID>,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemNodeSegment>,
     ) -> Option<EID> {
-        locked_head.get_inb_edge(pos, src.into(), layer_id)
+        MemNodeSegment::get_inb_edge(&locked_head, pos, src.into(), layer_id) // rust-analyzer
     }
 
     fn entry<'a>(&'a self, pos: impl Into<LocalPOS>) -> Self::Entry<'a> {
@@ -520,26 +573,8 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
         ArcLockedSegmentView::new(self.inner.read_arc(), self.num_nodes())
     }
 
-    fn num_layers(&self) -> usize {
-        self.head().layers.len()
-    }
-
-    fn layer_count(&self, layer_id: usize) -> u32 {
-        self.head()
-            .get_layer(layer_id)
-            .map_or(0, |layer| layer.len())
-    }
-
     fn flush(&self) -> Result<(), StorageError> {
         Ok(())
-    }
-
-    fn est_size(&self) -> usize {
-        self.est_size.load(Ordering::Relaxed)
-    }
-
-    fn increment_est_size(&self, size: usize) -> usize {
-        self.est_size.fetch_add(size, Ordering::Relaxed)
     }
 
     fn vacuum(
@@ -550,11 +585,30 @@ impl<P: PersistenceStrategy<NS = NodeSegmentView<P>>> NodeSegmentOps for NodeSeg
     }
 
     fn immut_lsn(&self) -> LSN {
-        panic!("immut_lsn not supported for NodeSegmentView");
+        0
     }
 
     fn nodes_counter(&self) -> &AtomicU32 {
         &self.max_num_node
+    }
+
+    fn num_layers(&self) -> usize {
+        self.head().layers.len()
+    }
+
+    fn layer_count(&self, layer_id: LayerId) -> u32 {
+        self.head()
+            .get_layer(layer_id)
+            .map_or(0, |layer| layer.len())
+    }
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        _pos: LocalPOS,
+        _layer_id: LayerId,
+        _props: &[(usize, PR)],
+    ) -> Result<(), StorageError> {
+        Ok(())
     }
 }
 
@@ -590,13 +644,13 @@ mod test {
             node_meta.clone(),
             edge_meta,
             Some(path.path().to_path_buf()),
-            ext,
+            ext.clone(),
         );
         let stats = GraphStats::default();
 
         let mut writer = NodeWriter::new(&segment, &stats, segment.head_mut());
 
-        let est_size1 = segment.est_size();
+        let est_size1 = writer.mut_segment.est_size();
         assert_eq!(est_size1, 0);
 
         writer.add_outbound_edge(
@@ -606,7 +660,7 @@ mod test {
             EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
         );
 
-        let est_size2 = segment.est_size();
+        let est_size2 = writer.mut_segment.est_size();
         assert!(
             est_size2 > est_size1,
             "Estimated size should be greater than 0 after adding an edge"
@@ -619,7 +673,7 @@ mod test {
             EID(8).with_layer(STATIC_GRAPH_LAYER_ID),
         );
 
-        let est_size3 = segment.est_size();
+        let est_size3 = writer.mut_segment.est_size();
         assert!(
             est_size3 > est_size2,
             "Estimated size should increase after adding an inbound edge"
@@ -633,7 +687,7 @@ mod test {
             VID(3),
             EID(7).with_layer(STATIC_GRAPH_LAYER_ID),
         );
-        let est_size4 = segment.est_size();
+        let est_size4 = writer.mut_segment.est_size();
         assert_eq!(
             est_size4, est_size3,
             "Estimated size should not change when adding the same edge again"
@@ -653,7 +707,7 @@ mod test {
             [(prop_id, Prop::U64(73))],
         );
 
-        let est_size5 = segment.est_size();
+        let est_size5 = writer.mut_segment.est_size();
         assert!(
             est_size5 > est_size4,
             "Estimated size should increase after adding constant properties"
@@ -661,7 +715,7 @@ mod test {
 
         writer.update_timestamp(17, LocalPOS(1), ELID::new(EID(0), STATIC_GRAPH_LAYER_ID));
 
-        let est_size6 = segment.est_size();
+        let est_size6 = writer.mut_segment.est_size();
         assert!(
             est_size6 > est_size5,
             "Estimated size should increase after updating timestamp"
@@ -681,7 +735,7 @@ mod test {
             [(prop_id, Prop::F64(4.13))],
         );
 
-        let est_size7 = segment.est_size();
+        let est_size7 = writer.mut_segment.est_size();
         assert!(
             est_size7 > est_size6,
             "Estimated size should increase after adding temporal properties"
@@ -693,10 +747,19 @@ mod test {
             STATIC_GRAPH_LAYER_ID,
             [(prop_id, Prop::F64(5.41))],
         );
-        let est_size8 = segment.est_size();
+        let est_size8 = writer.mut_segment.est_size();
         assert!(
             est_size8 > est_size7,
             "Estimated size should increase after adding another temporal property"
         );
+        drop(writer);
+
+        // after drop the global estimated size should be the same as the last estimated size of the writer
+        assert_eq!(ext.estimated_size(), est_size8);
+
+        drop(segment);
+
+        // after the segment is dropped, the global estimated size should be zero (no more usage)
+        assert_eq!(ext.estimated_size(), 0);
     }
 }

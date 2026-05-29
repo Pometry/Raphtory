@@ -867,26 +867,39 @@ def test_nodes_getitem_property_filter_expr():
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.nodes[filter_expr].neighbours.name.collect())
-        expected_ids = [["1", "2", "4"], ["2", "3"]]
+        result_ids = dict(
+            zip(
+                graph.nodes[filter_expr].id,
+                (sorted(v) for v in graph.nodes[filter_expr].neighbours.name),
+            )
+        )
+        expected_ids = {"1": ["2", "3"], "3": ["1", "2", "4"]}
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.filter(filter_expr).nodes.neighbours.name.collect())
-        expected_ids = [
-            ["1"],
-            ["3"],
-        ]  # graph filter applies to nodes neighbours as well
+        result_ids = dict(
+            zip(
+                graph.filter(filter_expr).nodes.id,
+                graph.filter(filter_expr).nodes.neighbours.name.collect(),
+            )
+        )
+        expected_ids = {
+            "3": ["1"],
+            "1": ["3"],
+        }  # graph filter applies to nodes neighbours as well
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.nodes[filter_expr].degree())
-        expected_ids = [2, 3]
+        result_ids = graph.nodes[filter_expr].degree()
+        expected_ids = {"1": 2, "3": 3}
         assert result_ids == expected_ids
 
         filter_expr = filter.Node.property("p100") > 30
-        result_ids = sorted(graph.filter(filter_expr).nodes.degree())
-        expected_ids = [1, 1]  # graph filter applies to nodes neighbours as well
+        result_ids = graph.filter(filter_expr).nodes.degree()
+        expected_ids = {
+            "1": 1,
+            "3": 1,
+        }  # graph filter applies to nodes neighbours as well
         assert result_ids == expected_ids
 
         # Test 2
@@ -910,47 +923,84 @@ def test_path_from_graph_nodes_getitem_property_filter_expr():
         filter_expr = filter.Node.property("p100") > 30
 
         # Test 1
-        result_ids = graph.nodes.id.collect()
-        expected_ids = ["1", "2", "3", "4", "David Gilmour", "John Mayer", "Jimmy Page"]
+        node_ids = graph.nodes.id.collect()
+        expected_ids = ["1", "2", "3", "4", "David Gilmour", "Jimmy Page", "John Mayer"]
+        assert sorted(node_ids) == expected_ids
+
+        result_ids = dict(zip(node_ids, (sorted(v) for v in graph.nodes.neighbours.id)))
+        expected_ids = {
+            "1": ["2", "3"],
+            "2": ["1", "3"],
+            "3": ["1", "2", "4"],
+            "4": ["3"],
+            "David Gilmour": ["John Mayer"],
+            "John Mayer": ["David Gilmour", "Jimmy Page"],
+            "Jimmy Page": ["John Mayer"],
+        }
         assert result_ids == expected_ids
 
-        result_ids = graph.nodes.neighbours.id.collect()
-        expected_ids = [
-            ["2", "3"],
-            ["1", "3"],
-            ["1", "2", "4"],
-            ["3"],
-            ["John Mayer"],
-            ["David Gilmour", "Jimmy Page"],
-            ["John Mayer"],
-        ]
+        result_ids = dict(
+            zip(node_ids, (sorted(v) for v in graph.nodes.neighbours[filter_expr].id))
+        )
+        expected_ids = {
+            "1": ["3"],
+            "2": ["1", "3"],
+            "3": ["1"],
+            "4": ["3"],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
-        result_ids = graph.nodes.neighbours[filter_expr].id.collect()
-        expected_ids = [["3"], ["1", "3"], ["1"], ["3"], [], [], []]
-        assert result_ids == expected_ids
-
-        result_ids = graph.nodes.neighbours[filter_expr].neighbours.id.collect()
-        expected_ids = [
-            ["1", "2", "4"],
-            ["2", "3", "1", "2", "4"],
-            ["2", "3"],
-            ["1", "2", "4"],
-            [],
-            [],
-            [],
-        ]
+        result_ids = dict(
+            zip(
+                node_ids,
+                (sorted(v) for v in graph.nodes.neighbours[filter_expr].neighbours.id),
+            )
+        )
+        expected_ids = {
+            "1": ["1", "2", "4"],
+            "2": ["1", "2", "2", "3", "4"],
+            "3": ["2", "3"],
+            "4": ["1", "2", "4"],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
         # Test 2
         filter_expr2 = filter.Node.property("p9") == 5
-        result_ids = graph.nodes.neighbours[filter_expr][filter_expr2].id.collect()
-        expected_ids = [[], ["1"], ["1"], [], [], [], []]
+        result_ids = dict(
+            zip(
+                node_ids, graph.nodes.neighbours[filter_expr][filter_expr2].id.collect()
+            )
+        )
+        expected_ids = {
+            "1": [],
+            "2": ["1"],
+            "3": ["1"],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = graph.nodes.neighbours[filter_expr3].id.collect()
-        expected_ids = [[], ["1"], ["1"], [], [], [], []]
+        result_ids = dict(
+            zip(node_ids, graph.nodes.neighbours[filter_expr3].id.collect())
+        )
+        expected_ids = {
+            "1": [],
+            "2": ["1"],
+            "3": ["1"],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
     return check
@@ -963,7 +1013,7 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
         assert graph.node("1") is not None
 
         # Test 1
-        result_ids = graph.node("1").neighbours.id.collect()
+        result_ids = sorted(graph.node("1").neighbours.id)
         expected_ids = ["2", "3"]
         assert result_ids == expected_ids
 
@@ -971,7 +1021,7 @@ def test_path_from_node_nodes_getitem_property_filter_expr():
         expected_ids = ["3"]
         assert result_ids == expected_ids
 
-        result_ids = graph.node("1").neighbours[filter_expr].neighbours.id.collect()
+        result_ids = sorted(graph.node("1").neighbours[filter_expr].neighbours.id)
         expected_ids = ["1", "2", "4"]
         assert result_ids == expected_ids
 

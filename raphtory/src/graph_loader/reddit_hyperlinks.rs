@@ -137,10 +137,10 @@ pub fn generate_reddit_graph(path: PathBuf) -> Graph {
                             Prop::F64(post_properties[20]),
                         ),
                     ];
-                    g.add_node(time, *src_id, NO_PROPS, None)
+                    g.add_node(time, *src_id, NO_PROPS, None, None)
                         .map_err(|err| error!("{:?}", err))
                         .ok();
-                    g.add_node(time, *dst_id, NO_PROPS, None)
+                    g.add_node(time, *dst_id, NO_PROPS, None, None)
                         .map_err(|err| error!("{:?}", err))
                         .ok();
                     g.add_edge(time, *src_id, *dst_id, edge_properties, None)

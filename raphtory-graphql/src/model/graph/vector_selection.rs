@@ -2,24 +2,29 @@ use super::{
     document::GqlDocument,
     edge::GqlEdge,
     node::GqlNode,
+    node_id::GqlNodeId,
     vectorised_graph::{IntoWindowTuple, VectorisedGraphWindow},
 };
-use crate::{embeddings::EmbedQuery, rayon::blocking_compute};
-use async_graphql::Context;
+use crate::rayon::blocking_compute;
 use dynamic_graphql::{InputObject, ResolvedObject, ResolvedObjectFields};
 use raphtory::{
-    db::api::view::MaterializedGraph, errors::GraphResult,
-    vectors::vector_selection::VectorSelection,
+    db::api::view::MaterializedGraph,
+    errors::GraphResult,
+    vectors::{vector_selection::VectorSelection, Embedding},
 };
 
 #[derive(InputObject)]
 pub(super) struct InputEdge {
-    /// Source node.
-    src: String,
-    /// Destination node.
-    dst: String,
+    /// Source node id (string or non-negative integer).
+    src: GqlNodeId,
+    /// Destination node id (string or non-negative integer).
+    dst: GqlNodeId,
 }
 
+/// A working set of documents / nodes / edges built up via similarity
+/// searches on a `VectorisedGraph`. Selections are mutable: you can grow
+/// them with more hops (`expand*`), dereference the contents (`nodes`,
+/// `edges`, `getDocuments`), or start fresh with `emptySelection`.
 #[derive(ResolvedObject)]
 #[graphql(name = "VectorSelection")]
 pub(crate) struct GqlVectorSelection(VectorSelection<MaterializedGraph>);
@@ -45,49 +50,56 @@ impl GqlVectorSelection {
     /// Returns a list of documents in the current selection.
     async fn get_documents(&self) -> GraphResult<Vec<GqlDocument>> {
         let cloned = self.0.clone();
-        blocking_compute(move || {
-            let docs = cloned.get_documents_with_scores()?.into_iter();
-            Ok(docs
-                .map(|(doc, score)| GqlDocument {
-                    content: doc.content,
-                    entity: doc.entity.into(),
-                    embedding: doc.embedding.to_vec(),
-                    score,
-                })
-                .collect())
-        })
-        .await
+        let docs = cloned.get_documents_with_distances().await?.into_iter();
+        Ok(docs
+            .map(|(doc, score)| GqlDocument {
+                content: doc.content,
+                entity: doc.entity.into(),
+                embedding: doc.embedding.to_vec(),
+                score,
+            })
+            .collect())
     }
 
-    /// Adds all the documents associated with the specified nodes to the current selection.
-    ///
-    /// Documents added by this call are assumed to have a score of 0.
-    async fn add_nodes(&self, nodes: Vec<String>) -> Self {
+    /// Add every document associated with the named nodes to the selection.
+    /// Documents added this way receive a score of 0 (no similarity ranking).
+
+    async fn add_nodes(
+        &self,
+        #[graphql(desc = "Node ids whose documents to include.")] nodes: Vec<GqlNodeId>,
+    ) -> Self {
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.add_nodes(nodes);
-            selection.into()
-        })
-        .await
+        selection.add_nodes(nodes);
+        selection.into()
     }
 
-    /// Adds all the documents associated with the specified edges to the current selection.
-    ///
-    /// Documents added by this call are assumed to have a score of 0.
-    async fn add_edges(&self, edges: Vec<InputEdge>) -> Self {
+    /// Add every document associated with the named edges to the selection.
+    /// Documents added this way receive a score of 0 (no similarity ranking).
+
+    async fn add_edges(
+        &self,
+        #[graphql(desc = "List of `{src, dst}` pairs identifying the edges.")] edges: Vec<
+            InputEdge,
+        >,
+    ) -> Self {
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            let edges = edges.into_iter().map(|edge| (edge.src, edge.dst)).collect();
-            selection.add_edges(edges);
-            selection.into()
-        })
-        .await
+        let edges = edges.into_iter().map(|edge| (edge.src, edge.dst)).collect();
+        selection.add_edges(edges);
+        selection.into()
     }
 
-    /// Add all the documents a specified number of hops away to the selection.
-    ///
-    /// Two documents A and B are considered to be 1 hop away of each other if they are on the same entity or if they are on the same node and edge pair.
-    async fn expand(&self, hops: usize, window: Option<VectorisedGraphWindow>) -> Self {
+    /// Grow the selection by including documents that are within `hops` of any
+    /// document already in the selection. Two documents are 1 hop apart if
+    /// they're on the same entity or on a connected node/edge pair.
+
+    async fn expand(
+        &self,
+        #[graphql(desc = "Number of expansion rounds (1 = direct neighbours).")] hops: usize,
+        #[graphql(
+            desc = "Optional `{start, end}` to restrict expansion to entities active in that interval."
+        )]
+        window: Option<VectorisedGraphWindow>,
+    ) -> Self {
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
         blocking_compute(move || {
@@ -97,63 +109,78 @@ impl GqlVectorSelection {
         .await
     }
 
-    /// Adds documents, from the set of one hop neighbours to the current selection, to the selection based on their similarity score with the specified query. This function loops so that the set of one hop neighbours expands on each loop and number of documents added is determined by the specified limit.
+    /// Iteratively expand the selection by similarity to a natural-language
+    /// query. Each pass takes the one-hop neighbour set of the current
+    /// selection and adds the highest-scoring entities (mixed nodes and
+    /// edges); the loop continues until `limit` entities have been added.
+
     async fn expand_entities_by_similarity(
         &self,
-        ctx: &Context<'_>,
-        query: String,
-        limit: usize,
+        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
+        #[graphql(desc = "Total number of entities to add across all passes.")] limit: usize,
+        #[graphql(
+            desc = "Optional `{start, end}` to restrict matches to entities active in that interval."
+        )]
         window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<Self> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.expand_entities_by_similarity(&vector, limit, window)?;
-            Ok(selection.into())
-        })
-        .await
+        selection
+            .expand_entities_by_similarity(&vector, limit, window, blocking_compute)
+            .await?;
+        Ok(selection.into())
     }
 
-    /// Add the adjacent nodes with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to nodes.
+    /// Like `expandEntitiesBySimilarity` but restricted to nodes — iteratively
+    /// add the highest-scoring adjacent nodes to the selection.
+
     async fn expand_nodes_by_similarity(
         &self,
-        ctx: &Context<'_>,
-        query: String,
-        limit: usize,
+        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
+        #[graphql(desc = "Total number of nodes to add across all passes.")] limit: usize,
+        #[graphql(
+            desc = "Optional `{start, end}` to restrict matches to nodes active in that interval."
+        )]
         window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<Self> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.expand_nodes_by_similarity(&vector, limit, window)?;
-            Ok(selection.into())
-        })
-        .await
+        selection
+            .expand_nodes_by_similarity(&vector, limit, window, blocking_compute)
+            .await?;
+        Ok(selection.into())
     }
 
-    /// Add the adjacent edges with higher score for query to the selection up to a specified limit. This function loops like expand_entities_by_similarity but is restricted to edges.
+    /// Like `expandEntitiesBySimilarity` but restricted to edges — iteratively
+    /// add the highest-scoring adjacent edges to the selection.
+
     async fn expand_edges_by_similarity(
         &self,
-        ctx: &Context<'_>,
-        query: String,
-        limit: usize,
+        #[graphql(desc = "Natural-language search string; embedded by the server.")] query: String,
+        #[graphql(desc = "Total number of edges to add across all passes.")] limit: usize,
+        #[graphql(
+            desc = "Optional `{start, end}` to restrict matches to edges active in that interval."
+        )]
         window: Option<VectorisedGraphWindow>,
     ) -> GraphResult<Self> {
-        let vector = ctx.embed_query(query).await?;
+        let vector = self.embed_text(query).await?;
         let window = window.into_window_tuple();
         let mut selection = self.cloned();
-        blocking_compute(move || {
-            selection.expand_edges_by_similarity(&vector, limit, window)?;
-            Ok(selection.into())
-        })
-        .await
+        selection
+            .expand_edges_by_similarity(&vector, limit, window, blocking_compute)
+            .await?;
+        Ok(selection.into())
     }
 }
 
 impl GqlVectorSelection {
     fn cloned(&self) -> VectorSelection<MaterializedGraph> {
         self.0.clone()
+    }
+
+    async fn embed_text(&self, text: String) -> GraphResult<Embedding> {
+        self.0.get_vectorised_graph().embed_text(text).await
     }
 }

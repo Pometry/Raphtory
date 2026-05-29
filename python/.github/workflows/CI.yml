@@ -11,7 +11,10 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+        token: '${{ secrets.PULL_TOKEN }}'
     - uses: messense/maturin-action@v1
       with:
         manylinux: auto
@@ -26,7 +29,10 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+        token: '${{ secrets.PULL_TOKEN }}'
     - uses: messense/maturin-action@v1
       with:
         command: build
@@ -40,7 +46,10 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+        token: '${{ secrets.PULL_TOKEN }}'
     - uses: messense/maturin-action@v1
       with:
         command: build

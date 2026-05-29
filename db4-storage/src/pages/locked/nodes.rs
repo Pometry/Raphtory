@@ -3,9 +3,11 @@ use crate::{
     api::nodes::NodeSegmentOps,
     error::StorageError,
     pages::{layer_counter::GraphStats, node_page::writer::NodeWriter, resolve_pos},
+    persist::strategy::PersistenceStrategy,
     segments::node::segment::MemNodeSegment,
 };
 use parking_lot::RwLockWriteGuard;
+use raphtory_api::core::entities::LayerId;
 use raphtory_core::entities::VID;
 use rayon::prelude::*;
 use std::ops::DerefMut;
@@ -45,6 +47,10 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
         NodeWriter::new(self.page, self.layer_counter, self.lock.deref_mut())
     }
 
+    pub fn head(&mut self) -> &mut MemNodeSegment {
+        self.lock.deref_mut()
+    }
+
     pub fn vacuum(&mut self) {
         let _ = self.page.vacuum(self.lock.deref_mut());
     }
@@ -65,7 +71,7 @@ impl<'a, NS: NodeSegmentOps> LockedNodePage<'a, NS> {
         }
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         self.lock.get_or_create_layer(layer_id);
         self.layer_counter.get(layer_id);
     }
@@ -83,7 +89,9 @@ impl<NS> Default for WriteLockedNodePages<'_, NS> {
     }
 }
 
-impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> {
+impl<'a, EXT: PersistenceStrategy<NS = NS>, NS: NodeSegmentOps<Extension = EXT>>
+    WriteLockedNodePages<'a, NS>
+{
     pub fn new(writers: Vec<LockedNodePage<'a, NS>>) -> Self {
         Self { writers }
     }
@@ -109,16 +117,17 @@ impl<'a, EXT, NS: NodeSegmentOps<Extension = EXT>> WriteLockedNodePages<'a, NS> 
         self.writers.into_par_iter()
     }
 
-    pub fn ensure_layer(&mut self, layer_id: usize) {
+    pub fn ensure_layer(&mut self, layer_id: LayerId) {
         for writer in &mut self.writers {
             writer.ensure_layer(layer_id);
         }
     }
 
     pub fn vacuum(&mut self) -> Result<(), StorageError> {
-        for LockedNodePage { page, lock, .. } in &mut self.writers {
-            page.vacuum(lock.deref_mut())?;
-        }
+        self.writers.par_iter_mut().try_for_each(|writer| {
+            let LockedNodePage { page, lock, .. } = writer;
+            page.vacuum(lock.deref_mut())
+        })?;
         Ok(())
     }
 }

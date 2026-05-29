@@ -231,15 +231,12 @@ impl PyRemoteGraph {
         node_type: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
-        let id_str = id.to_string();
         let node_type = node_type.map(|s| s.to_string());
 
-        let task =
-            move || async move { graph.add_node(timestamp, id, properties, node_type).await };
-        execute_async_task(task)?;
+        let node = execute_async_task(move || async move {
+            graph.add_node(timestamp, id, properties, node_type).await
+        })?;
 
-        let node =
-            GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
         Ok(PyRemoteNode::new(node))
     }
 
@@ -262,18 +259,14 @@ impl PyRemoteGraph {
         node_type: Option<&str>,
     ) -> Result<PyRemoteNode, ClientError> {
         let graph = Arc::clone(&self.graph);
-        let id_str = id.to_string();
         let node_type = node_type.map(|s| s.to_string());
 
-        let task = move || async move {
+        let node = execute_async_task(move || async move {
             graph
                 .create_node(timestamp, id, properties, node_type)
                 .await
-        };
-        execute_async_task(task)?;
+        })?;
 
-        let node =
-            GraphQLRemoteNode::new(self.graph.path.clone(), self.graph.client.clone(), id_str);
         Ok(PyRemoteNode::new(node))
     }
 
@@ -291,10 +284,7 @@ impl PyRemoteGraph {
         properties: HashMap<String, Prop>,
     ) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        let task = move || async move { graph.add_property(timestamp, properties).await };
-        execute_async_task(task)?;
-
-        Ok(())
+        execute_async_task(move || async move { graph.add_property(timestamp, properties).await })
     }
 
     /// Adds metadata to the remote graph.
@@ -306,10 +296,7 @@ impl PyRemoteGraph {
     ///     None:
     pub fn add_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        let task = move || async move { graph.add_metadata(properties).await };
-        execute_async_task(task)?;
-
-        Ok(())
+        execute_async_task(move || async move { graph.add_metadata(properties).await })
     }
 
     /// Updates metadata on the remote graph.
@@ -321,10 +308,7 @@ impl PyRemoteGraph {
     ///     None:
     pub fn update_metadata(&self, properties: HashMap<String, Prop>) -> Result<(), ClientError> {
         let graph = Arc::clone(&self.graph);
-        let task = move || async move { graph.update_metadata(properties).await };
-        execute_async_task(task)?;
-
-        Ok(())
+        execute_async_task(move || async move { graph.update_metadata(properties).await })
     }
 
     /// Adds a new edge with the given source and destination nodes and properties to the remote graph.
@@ -348,20 +332,12 @@ impl PyRemoteGraph {
         layer: Option<&str>,
     ) -> Result<PyRemoteEdge, ClientError> {
         let graph = Arc::clone(&self.graph);
-        let src_str = src.to_string();
-        let dst_str = dst.to_string();
         let layer = layer.map(|s| s.to_string());
 
-        let task =
-            move || async move { graph.add_edge(timestamp, src, dst, properties, layer).await };
-        execute_async_task(task)?;
+        let edge = execute_async_task(move || async move {
+            graph.add_edge(timestamp, src, dst, properties, layer).await
+        })?;
 
-        let edge = GraphQLRemoteEdge::new(
-            self.graph.path.clone(),
-            self.graph.client.clone(),
-            src_str,
-            dst_str,
-        );
         Ok(PyRemoteEdge::new(edge))
     }
 
@@ -384,19 +360,12 @@ impl PyRemoteGraph {
         layer: Option<&str>,
     ) -> Result<PyRemoteEdge, ClientError> {
         let graph = Arc::clone(&self.graph);
-        let src_str = src.to_string();
-        let dst_str = dst.to_string();
         let layer = layer.map(|s| s.to_string());
 
-        let task = move || async move { graph.delete_edge(timestamp, src, dst, layer).await };
-        execute_async_task(task)?;
+        let edge = execute_async_task(move || async move {
+            graph.delete_edge(timestamp, src, dst, layer).await
+        })?;
 
-        let edge = GraphQLRemoteEdge::new(
-            self.graph.path.clone(),
-            self.graph.client.clone(),
-            src_str,
-            dst_str,
-        );
         Ok(PyRemoteEdge::new(edge))
     }
 }

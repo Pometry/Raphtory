@@ -1,7 +1,9 @@
 use crate::{
     db::{
         api::{
-            properties::internal::InheritPropertiesOps,
+            properties::internal::{
+                InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+            },
             view::internal::{
                 EdgeTimeSemanticsOps, Immutable, InheritEdgeFilterOps, InheritEdgeHistoryFilter,
                 InheritExplodedEdgeFilterOps, InheritLayerOps, InheritListOps, InheritMaterialize,
@@ -13,7 +15,10 @@ use crate::{
     },
     prelude::GraphViewOps,
 };
-use raphtory_api::{core::entities::LayerIds, inherit::Base};
+use raphtory_api::{
+    core::entities::{LayerId, LayerIds},
+    inherit::Base,
+};
 use raphtory_storage::{core_ops::InheritCoreGraphOps, graph::edges::edge_ref::EdgeEntryRef};
 
 #[derive(Copy, Clone, Debug)]
@@ -46,6 +51,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritListOps for IsActiveGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for IsActiveGraph<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for IsActiveGraph<G> {}
 
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for IsActiveGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for IsActiveGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritNodeFilterOps for IsActiveGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for IsActiveGraph<G> {}
@@ -63,7 +72,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for IsActiveGra
         false
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         let time_semantics = self.graph.edge_time_semantics();
         time_semantics.edge_is_active(edge, LayeredGraph::new(&self.graph, LayerIds::One(layer)))
             && self.graph.internal_filter_edge_layer(edge, layer)

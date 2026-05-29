@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::VID,
-        storage::timeindex::{AsTime, EventTime},
-    },
+    core::{entities::VID, storage::timeindex::EventTime},
     db::{api::view::IndexSpec, graph::node::NodeView},
     errors::GraphError,
     prelude::*,
@@ -13,8 +10,7 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::storage::arc_str::OptionAsStr;
-use raphtory_storage::graph::graph::GraphStorage;
+use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
 use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
 use std::{
     fmt::{Debug, Formatter},
@@ -134,7 +130,7 @@ impl NodeIndex {
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = get_reader(&self.entity_index.index)?.searcher();
-        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
+        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000).order_by_score())?;
         println!("Total node doc count: {}", top_docs.len());
         for (_score, doc_address) in top_docs {
             let doc: TantivyDocument = searcher.doc(doc_address)?;
@@ -226,13 +222,11 @@ impl NodeIndex {
         // Index nodes fields
         let mut writer = self.entity_index.index.writer(100_000_000)?;
 
-        (0..graph.count_nodes())
-            .into_par_iter()
-            .try_for_each(|v_id| {
-                let node = NodeView::new_internal(graph, VID(v_id));
-                self.index_node(node, &writer)?;
-                Ok::<(), GraphError>(())
-            })?;
+        graph.nodes().par_iter().try_for_each(|node| {
+            let node = NodeView::new_internal(graph, node.vid());
+            self.index_node(node, &writer)?;
+            Ok::<(), GraphError>(())
+        })?;
 
         writer.commit()?;
         Ok(())

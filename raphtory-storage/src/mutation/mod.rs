@@ -2,8 +2,7 @@ use crate::{
     core_ops::CoreGraphOps,
     graph::graph::Immutable,
     mutation::{
-        addition_ops::InheritAdditionOps, deletion_ops::InheritDeletionOps,
-        property_addition_ops::InheritPropertyAdditionOps,
+        addition_ops::InheritAdditionOps, property_addition_ops::InheritPropertyAdditionOps,
     },
 };
 use parking_lot::RwLockWriteGuard;
@@ -11,13 +10,7 @@ use raphtory_api::{
     core::entities::properties::prop::{InvalidBigDecimal, PropError},
     inherit::Base,
 };
-use raphtory_core::entities::{
-    graph::tgraph::TooManyLayers,
-    properties::{
-        props::{MetadataError, TPropError},
-        tprop::IllegalPropType,
-    },
-};
+use raphtory_core::entities::properties::props::{MetadataError, TPropError};
 use std::sync::Arc;
 use storage::{
     error::StorageError,
@@ -33,8 +26,6 @@ use thiserror::Error;
 
 pub mod addition_ops;
 pub mod addition_ops_ext;
-pub mod deletion_ops;
-pub mod durability_ops;
 pub mod property_addition_ops;
 
 pub type NodeWriterT<'a> = NodeWriter<'a, RwLockWriteGuard<'a, MemNodeSegment>, NS<Extension>>;
@@ -45,8 +36,6 @@ pub type GraphPropWriterT<'a> = GraphPropWriter<'a, GS<Extension>>;
 pub enum MutationError {
     #[error(transparent)]
     Immutable(#[from] Immutable),
-    #[error(transparent)]
-    TooManyLayers(#[from] TooManyLayers),
     #[error("Node type already set")]
     NodeTypeError,
     #[error(transparent)]
@@ -57,8 +46,6 @@ pub enum MutationError {
     TPropError(#[from] TPropError),
     #[error(transparent)]
     InvalidBigDecimal(#[from] InvalidBigDecimal),
-    #[error(transparent)]
-    IllegalPropType(#[from] IllegalPropType),
     #[error(transparent)]
     MetadataError(#[from] MetadataError),
     #[error("Layer {layer} does not exist for edge ({src}, {dst})")]
@@ -75,6 +62,4 @@ pub trait InheritMutationOps: Base {}
 
 impl<G: InheritMutationOps> InheritAdditionOps for G {}
 impl<G: InheritMutationOps> InheritPropertyAdditionOps for G {}
-impl<G: InheritMutationOps> InheritDeletionOps for G {}
-
 impl<T: CoreGraphOps + ?Sized> InheritMutationOps for Arc<T> {}

@@ -34,6 +34,7 @@ pub trait GIDResolverOps {
     type Init<'a>: Initialiser
     where
         Self: 'a;
+
     fn new() -> Result<Self, StorageError>
     where
         Self: Sized;
@@ -41,6 +42,24 @@ pub trait GIDResolverOps {
     fn new_with_path(path: impl AsRef<Path>, dtype: Option<GidType>) -> Result<Self, StorageError>
     where
         Self: Sized;
+
+    /// Open a resolver in read-only mode against an existing path.
+    ///
+    /// Multiple read-only resolvers can attach to the same directory
+    /// concurrently and may coexist with a separate writer. Writes through
+    /// a read-only resolver return errors.
+    ///
+    /// The default implementation falls back to `new_with_path` for
+    /// backends that do not need a separate read-only path.
+    fn new_readonly_with_path(
+        path: impl AsRef<Path>,
+        dtype: Option<GidType>,
+    ) -> Result<Self, StorageError>
+    where
+        Self: Sized,
+    {
+        Self::new_with_path(path, dtype)
+    }
 
     fn len(&self) -> usize;
 
@@ -66,14 +85,12 @@ pub trait GIDResolverOps {
 
     fn get_u64(&self, gid: u64) -> Option<VID>;
 
-    fn bulk_set_str<S: AsRef<str>>(
-        &self,
-        gids: impl IntoIterator<Item = (S, VID)>,
-    ) -> Result<(), StorageError>;
+    fn get(&self, gid: GidRef) -> Option<VID> {
+        match gid {
+            GidRef::Str(s) => self.get_str(s),
+            GidRef::U64(u) => self.get_u64(u),
+        }
+    }
 
-    fn bulk_set_u64(&self, gids: impl IntoIterator<Item = (u64, VID)>) -> Result<(), StorageError>;
-
-    fn iter_str(&self) -> impl Iterator<Item = (String, VID)> + '_;
-
-    fn iter_u64(&self) -> impl Iterator<Item = (u64, VID)> + '_;
+    fn flush(&self) -> Result<(), StorageError>;
 }

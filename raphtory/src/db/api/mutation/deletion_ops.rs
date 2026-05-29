@@ -10,18 +10,14 @@ use crate::{
     errors::{into_graph_err, GraphError},
 };
 use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps},
-    deletion_ops::InternalDeletionOps,
+use raphtory_storage::{
     durability_ops::DurabilityOps,
+    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps},
 };
 use storage::wal::{GraphWalOps, WalOps};
 
 pub trait DeletionOps:
-    InternalDeletionOps<Error: Into<GraphError>>
-    + InternalAdditionOps<Error: Into<GraphError>>
-    + StaticGraphViewOps
-    + Sized
+    InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Sized
 {
     fn delete_edge<V: AsNodeRef, T: TryIntoInputTime>(
         &self,
@@ -98,11 +94,7 @@ pub trait DeletionOps:
     }
 }
 
-impl<
-        T: InternalDeletionOps<Error: Into<GraphError>>
-            + InternalAdditionOps<Error: Into<GraphError>>
-            + StaticGraphViewOps
-            + Sized,
-    > DeletionOps for T
+impl<T: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Sized> DeletionOps
+    for T
 {
 }

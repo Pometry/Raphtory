@@ -9,7 +9,7 @@ use raphtory_api::core::{
             meta::{Meta, STATIC_GRAPH_LAYER_ID},
             prop::Prop,
         },
-        EID, GID, VID,
+        LayerId, EID, GID, VID,
     },
     storage::timeindex::EventTime,
 };
@@ -40,7 +40,7 @@ where
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
@@ -60,11 +60,11 @@ where
         self.graph()
             .edge_meta()
             .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
         self.graph()
             .node_meta()
             .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
 
         // Grab src writer and add edge data.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);
@@ -228,7 +228,7 @@ where
         lsn: LSN,
         _transaction_id: TransactionID,
         eid: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError> {
         let (edge_segment_id, edge_pos) = self.graph().storage().edges().resolve_pos(eid);
@@ -282,7 +282,7 @@ where
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> Result<(), StorageError> {
         // Insert node ids into resolver.
         if let Some(src_name) = src_name.as_ref() {
@@ -301,11 +301,11 @@ where
         self.graph()
             .edge_meta()
             .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
         self.graph()
             .node_meta()
             .layer_meta()
-            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id);
+            .set_id(layer_name.as_deref().unwrap_or("_default"), layer_id.0);
 
         // Grab src writer and record deletion time.
         let (src_segment_id, src_pos) = self.graph().storage().nodes().resolve_pos(src_id);

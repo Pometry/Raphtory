@@ -278,6 +278,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             person.id.clone(),
             NO_PROPS,
             Some("person"),
+            None,
         )
         .expect("Failed to add node")
         .add_metadata([
@@ -295,6 +296,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
             forum.id.clone(),
             NO_PROPS,
             Some("forum"),
+            None,
         )
         .expect("Failed to add node")
         .add_metadata([("title", Prop::Str(ArcStr::from(forum.title)))])
@@ -312,6 +314,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
                 ("browser_used", Prop::Str(ArcStr::from(post.browser_used))),
             ],
             Some("post"),
+            None,
         )
         .expect("Failed to add node")
         .add_metadata([("creator_id", Prop::Str(ArcStr::from(post.creator_id)))])
@@ -332,6 +335,7 @@ pub fn load_graph_save(data_dir: &str, output_dir: &str) -> Result<Graph, Box<dy
                 ),
             ],
             Some("comment"),
+            None,
         )
         .expect("Failed to add node")
         .add_metadata([("creator_id", Prop::Str(ArcStr::from(comment.creator_id)))])
@@ -408,6 +412,7 @@ pub fn generate_graph(
                 person_id.clone(),
                 NO_PROPS,
                 Some("person"),
+                None,
             )
             .expect("Failed to add person node")
             .add_metadata([
@@ -443,6 +448,7 @@ pub fn generate_graph(
                 forum_id.clone(),
                 NO_PROPS,
                 Some("forum"),
+                None,
             )
             .expect("Failed to add forum node")
             .add_metadata([(
@@ -504,6 +510,7 @@ pub fn generate_graph(
                     ),
                 ],
                 Some("post"),
+                None,
             )
             .expect("Failed to add post node")
             .add_metadata([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])
@@ -556,6 +563,7 @@ pub fn generate_graph(
                     ),
                 ],
                 Some("comment"),
+                None,
             )
             .expect("Failed to add comment node")
             .add_metadata([("creator_id", Prop::Str(ArcStr::from(creator_id.clone())))])

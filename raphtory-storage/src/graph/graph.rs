@@ -11,11 +11,15 @@ use crate::{
     mutation::MutationError,
 };
 use db4_graph::TemporalGraph;
-use raphtory_api::core::entities::{properties::meta::Meta, LayerIds, LayerVariants, EID, VID};
-use raphtory_core::entities::nodes::node_ref::NodeRef;
+use itertools::Either;
+use raphtory_api::core::entities::{
+    properties::meta::Meta, LayerId, LayerIds, LayerVariants, EID, VID,
+};
+use raphtory_core::entities::{edges::edge_ref::EdgeRef, nodes::node_ref::NodeRef};
 use std::{fmt::Debug, iter, path::Path, sync::Arc};
 use storage::{
-    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GraphPropEntry,
+    error::StorageError, pages::SegmentCounts, state::StateIndex, Extension, GIDResolver,
+    GraphPropEntry,
 };
 use thiserror::Error;
 
@@ -54,8 +58,8 @@ impl std::fmt::Display for GraphStorage {
         write!(
             f,
             "Graph(num_nodes={}, num_edges={})",
-            self.unfiltered_num_nodes(),
-            self.unfiltered_num_edges(),
+            self.unfiltered_num_nodes(&LayerIds::All),
+            self.unfiltered_num_edges(&LayerIds::All),
         )
     }
 }
@@ -109,10 +113,24 @@ impl GraphStorage {
         }
     }
 
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        match self {
+            GraphStorage::Mem(graph) => graph.vacuum(),
+            GraphStorage::Unlocked(graph) => graph.vacuum(),
+        }
+    }
+
     pub fn disk_storage_path(&self) -> Option<&Path> {
         match self {
             GraphStorage::Mem(graph) => graph.graph.disk_storage_path(),
             GraphStorage::Unlocked(graph) => graph.disk_storage_path(),
+        }
+    }
+
+    pub fn logical_to_physical(&self) -> &GIDResolver {
+        match self {
+            GraphStorage::Mem(graph) => &graph.graph.logical_to_physical,
+            GraphStorage::Unlocked(graph) => &graph.logical_to_physical,
         }
     }
 
@@ -123,6 +141,20 @@ impl GraphStorage {
             GraphStorage::Unlocked(storage) => {
                 NodesStorageEntry::Unlocked(storage.storage().nodes().locked())
             }
+        }
+    }
+
+    pub fn num_node_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().nodes().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().nodes().num_segments(),
+        }
+    }
+
+    pub fn num_edge_segments(&self) -> usize {
+        match self {
+            GraphStorage::Mem(storage) => storage.graph.storage().edges().num_segments(),
+            GraphStorage::Unlocked(storage) => storage.storage().edges().num_segments(),
         }
     }
 
@@ -138,18 +170,18 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn unfiltered_num_nodes(&self) -> usize {
+    pub fn unfiltered_num_nodes(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.internal_num_nodes(),
-            GraphStorage::Unlocked(storage) => storage.internal_num_nodes(),
+            GraphStorage::Mem(storage) => storage.graph.internal_num_nodes(layer_ids),
+            GraphStorage::Unlocked(storage) => storage.internal_num_nodes(layer_ids),
         }
     }
 
     #[inline(always)]
-    pub fn unfiltered_num_edges(&self) -> usize {
+    pub fn unfiltered_num_edges(&self, layer_ids: &LayerIds) -> usize {
         match self {
-            GraphStorage::Mem(storage) => storage.graph.internal_num_edges(),
-            GraphStorage::Unlocked(storage) => storage.internal_num_edges(),
+            GraphStorage::Mem(storage) => storage.graph.internal_num_edges(layer_ids),
+            GraphStorage::Unlocked(storage) => storage.internal_num_edges(layer_ids),
         }
     }
 
@@ -216,7 +248,7 @@ impl GraphStorage {
     }
 
     #[inline(always)]
-    pub fn edge_entry(&self, eid: EID) -> EdgeStorageEntry<'_> {
+    pub fn edge_entry(&self, eid: Either<EID, EdgeRef>) -> EdgeStorageEntry<'_> {
         match self {
             GraphStorage::Mem(storage) => EdgeStorageEntry::Mem(storage.edges.edge_ref(eid)),
             GraphStorage::Unlocked(storage) => {
@@ -234,17 +266,17 @@ impl GraphStorage {
         }
     }
 
-    pub fn layer_ids_iter(&self, layer_ids: &LayerIds) -> impl Iterator<Item = usize> {
+    pub fn layer_ids_iter(&self, layer_ids: &LayerIds) -> impl Iterator<Item = LayerId> {
         match layer_ids {
             LayerIds::None => LayerVariants::None(iter::empty()),
-            LayerIds::All => LayerVariants::All(1..=self.unfiltered_num_layers()),
+            LayerIds::All => LayerVariants::All((1..=self.unfiltered_num_layers()).map(LayerId)),
             LayerIds::One(id) => LayerVariants::One(iter::once(*id)),
             LayerIds::Multiple(ids) => LayerVariants::Multiple(ids.clone().into_iter()),
         }
     }
 
-    pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = usize> {
-        1..=self.unfiltered_num_layers()
+    pub fn unfiltered_layer_ids(&self) -> impl Iterator<Item = LayerId> {
+        (1..=self.unfiltered_num_layers()).map(move |layer_id| LayerId(layer_id))
     }
 
     pub fn node_meta(&self) -> &Meta {

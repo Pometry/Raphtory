@@ -16,10 +16,12 @@ use raphtory_api::core::{
     },
     utils::time::{IntoTimeWithFormat, TryIntoInputTime},
 };
-use raphtory_storage::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
+use raphtory_storage::{
     durability_ops::DurabilityOps,
-    MutationError,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock},
+        MutationError,
+    },
 };
 use storage::wal::{GraphWalOps, WalOps};
 
@@ -43,8 +45,8 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     /// ```
     /// use raphtory::prelude::*;
     /// let g = Graph::new();
-    /// let v = g.add_node(0, "Alice", NO_PROPS, None);
-    /// let v = g.add_node(0, 5, NO_PROPS, None);
+    /// let v = g.add_node(0, "Alice", NO_PROPS, None, None);
+    /// let v = g.add_node(0, 5, NO_PROPS, None, None);
     /// ```
     fn add_node<
         V: AsNodeRef,
@@ -58,6 +60,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError>;
 
     /// Add a node to the graph, returning an error if the node already exists.
@@ -74,6 +77,7 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError>;
 
     fn add_node_with_custom_time_format<
@@ -89,9 +93,10 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Self>, GraphError> {
         let time: i64 = t.parse_time(fmt)?;
-        self.add_node(time, v, props, node_type)
+        self.add_node(time, v, props, node_type, layer)
     }
 
     // TODO: Node.name which gets ._id property else numba as string
@@ -110,8 +115,8 @@ pub trait AdditionOps: StaticGraphViewOps + InternalAdditionOps<Error: Into<Grap
     /// use raphtory::prelude::*;
     ///
     /// let graph = Graph::new();
-    /// graph.add_node(1, "Alice", NO_PROPS, None).unwrap();
-    /// graph.add_node(2, "Bob", NO_PROPS, None).unwrap();
+    /// graph.add_node(1, "Alice", NO_PROPS, None, None).unwrap();
+    /// graph.add_node(2, "Bob", NO_PROPS, None, None).unwrap();
     /// graph.add_edge(3, "Alice", "Bob", NO_PROPS, None).unwrap();
     /// ```
     fn add_edge<
@@ -165,9 +170,10 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
         let error_if_exists = false;
-        add_node_impl(self, t, v, props, node_type, error_if_exists)
+        add_node_impl(self, t, v, props, node_type, error_if_exists, layer)
     }
 
     fn create_node<
@@ -183,9 +189,10 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
         v: V,
         props: PII,
         node_type: Option<&str>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, G>, GraphError> {
         let error_if_exists = true;
-        add_node_impl(self, t, v, props, node_type, error_if_exists)
+        add_node_impl(self, t, v, props, node_type, error_if_exists, layer)
     }
 
     fn add_edge<
@@ -297,7 +304,22 @@ impl<G: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps> Addit
     fn flush(&self) -> Result<(), Self::Error> {
         self.core_graph()
             .flush()
-            .map_err(|err| MutationError::from(err).into())
+            .map_err(|err| MutationError::from(err).into())?;
+
+        #[cfg(feature = "io")]
+        {
+            if let Some(disk_path) = self.disk_storage_path() {
+                let disk_path = disk_path.to_path_buf();
+                storage::refresh_disk_graph_metadata(
+                    &disk_path,
+                    self.count_nodes(),
+                    self.count_edges(),
+                )
+                .map_err(|err| MutationError::from(err).into())?;
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -315,6 +337,7 @@ fn add_node_impl<
     props: PII,
     node_type: Option<&str>,
     error_if_exists: bool,
+    layer: Option<&str>,
 ) -> Result<NodeView<'static, G>, GraphError> {
     let transaction_manager = graph.core_graph().transaction_manager()?;
     let wal = graph.core_graph().wal()?;
@@ -385,7 +408,12 @@ fn add_node_impl<
         })
         .collect::<Vec<_>>();
 
-    writer.internal_add_update(ti, STATIC_GRAPH_LAYER_ID, props);
+    let layer_id = match layer {
+        None => STATIC_GRAPH_LAYER_ID,
+        Some(_) => graph.resolve_layer(layer).map_err(into_graph_err)?.inner(),
+    };
+
+    writer.internal_add_update(ti, layer_id, props);
 
     let props_for_wal = props_with_status
         .iter()
@@ -403,6 +431,8 @@ fn add_node_impl<
         node_id,
         node_type_and_id,
         props_for_wal,
+        layer,
+        layer_id,
     )?;
 
     // Update node segment with the lsn of the wal entry.

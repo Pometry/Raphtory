@@ -1,18 +1,28 @@
-use std::{
-    path::Path,
-    sync::{atomic::AtomicUsize, Arc},
-};
-
 use raphtory_api::core::{
-    entities::{self, properties::meta::Meta, GidType},
+    entities::{
+        self,
+        properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
+        GidType,
+    },
     input::input_node::InputNode,
+    storage::timeindex::TimeIndexOps,
 };
 use raphtory_core::{
     entities::{graph::tgraph::InvalidLayer, nodes::node_ref::NodeRef, GidRef, LayerIds, EID, VID},
     storage::timeindex::EventTime,
 };
+use rayon::prelude::*;
+use std::{
+    ops::Deref,
+    path::Path,
+    sync::{atomic::AtomicUsize, Arc},
+};
 use storage::{
-    api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    api::{
+        edges::EdgeSegmentOps,
+        graph_props::GraphPropSegmentOps,
+        nodes::{LockedNSSegment, NodeRefOps, NodeSegmentOps},
+    },
     dir::GraphDir,
     error::StorageError,
     pages::{
@@ -25,7 +35,7 @@ use storage::{
     persist::strategy::PersistenceStrategy,
     resolver::GIDResolverOps,
     transaction::TransactionManager,
-    Config, Extension, GIDResolver, Layer, ReadLockedLayer, ES, GS, NS,
+    Config, Extension, GIDResolver, Layer, LocalPOS, ReadLockedLayer, ES, GS, NS,
 };
 
 mod replay;
@@ -40,7 +50,7 @@ where
 {
     // mapping between logical and physical ids
     pub logical_to_physical: Arc<GIDResolver>,
-    pub event_counter: AtomicUsize,
+    pub round_robin_counter: AtomicUsize,
     storage: Arc<Layer<EXT>>,
     graph_dir: Option<GraphDir>,
     pub transaction_manager: Arc<TransactionManager>,
@@ -127,21 +137,39 @@ where
             logical_to_physical,
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
-            event_counter: AtomicUsize::new(0),
+            round_robin_counter: AtomicUsize::new(0),
         })
     }
 
     pub fn load(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        Self::load_inner(path, ext, false)
+    }
+
+    /// Load a graph as a read-only snapshot. Multiple read-only handles can
+    /// attach to the same graph directory concurrently and writes on the
+    /// returned instance are rejected.
+    ///
+    /// The caller is responsible for skipping crash recovery — see
+    /// `Storage::load_read_only`.
+    pub fn load_read_only(path: impl AsRef<Path>, ext: EXT) -> Result<Self, StorageError> {
+        Self::load_inner(path, ext, true)
+    }
+
+    fn load_inner(path: impl AsRef<Path>, ext: EXT, read_only: bool) -> Result<Self, StorageError> {
         let path = path.as_ref();
         let storage = Layer::load(path, ext)?;
         let id_type = storage.nodes().id_type();
 
         let gid_resolver_dir = path.join("gid_resolver");
-        let resolver = GIDResolver::new_with_path(&gid_resolver_dir, id_type)?;
+        let resolver = if read_only {
+            GIDResolver::new_readonly_with_path(&gid_resolver_dir, id_type)?
+        } else {
+            GIDResolver::new_with_path(&gid_resolver_dir, id_type)?
+        };
 
         Ok(Self {
             graph_dir: Some(path.into()),
-            event_counter: AtomicUsize::new(resolver.len()),
+            round_robin_counter: AtomicUsize::new(0),
             logical_to_physical: resolver.into(),
             storage: Arc::new(storage),
             transaction_manager: Arc::new(TransactionManager::new()),
@@ -149,7 +177,13 @@ where
     }
 
     pub fn flush(&self) -> Result<(), StorageError> {
-        self.storage.flush()
+        self.storage.flush()?;
+        self.logical_to_physical.flush()
+    }
+
+    pub fn vacuum(&self) -> Result<(), StorageError> {
+        self.storage.vacuum()?;
+        Ok(())
     }
 
     pub fn disk_storage_path(&self) -> Option<&Path> {
@@ -197,13 +231,80 @@ where
     }
 
     #[inline]
-    pub fn internal_num_nodes(&self) -> usize {
-        self.logical_to_physical.len()
+    pub fn internal_num_nodes(&self, layer_ids: &LayerIds) -> usize {
+        match layer_ids {
+            LayerIds::None => self
+                .storage
+                .nodes()
+                .segments_par_iter()
+                .map(|segment| {
+                    let locked = segment.locked();
+                    locked
+                        .iter_entries()
+                        .filter(|entry| !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty())
+                        .count()
+                })
+                .sum(),
+            LayerIds::All => self.storage.nodes().num_nodes(),
+            LayerIds::One(id) => self
+                .storage
+                .nodes()
+                .segments_par_iter()
+                .map(|segment| {
+                    let locked = segment.locked();
+                    locked
+                        .iter_entries()
+                        .filter(|entry| {
+                            !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
+                                || entry.has_layer_inner(*id)
+                        })
+                        .count()
+                })
+                .sum(),
+            LayerIds::Multiple(ids) => {
+                // no fast path, need to count
+                self.storage
+                    .nodes()
+                    .segments_par_iter()
+                    .map(|segment| {
+                        let locked = segment.locked();
+                        locked
+                            .iter_entries()
+                            .filter(|entry| {
+                                !entry.node_additions(STATIC_GRAPH_LAYER_ID).is_empty()
+                                    || ids.iter().any(|layer| entry.has_layer_inner(layer))
+                            })
+                            .count()
+                    })
+                    .sum()
+            }
+        }
     }
 
     #[inline]
-    pub fn internal_num_edges(&self) -> usize {
-        self.storage.edges().num_edges_layer(0)
+    pub fn internal_num_edges(&self, layer_ids: &LayerIds) -> usize {
+        match layer_ids {
+            LayerIds::None => 0,
+            LayerIds::All => self.storage.edges().num_edges_layer(STATIC_GRAPH_LAYER_ID),
+            LayerIds::One(id) => self.storage.edges().num_edges_layer(*id),
+            LayerIds::Multiple(ids) => {
+                // no fast path, need to count
+                self.storage
+                    .edges()
+                    .par_iter_segments()
+                    .map(|segment| {
+                        let head = segment.head();
+                        (0..segment.num_edges())
+                            .map(LocalPOS)
+                            .filter(|pos| {
+                                ids.iter()
+                                    .any(|layer| segment.has_edge(*pos, layer, head.deref()))
+                            })
+                            .count()
+                    })
+                    .sum()
+            }
+        }
     }
 
     pub fn read_locked(self: &Arc<Self>) -> ReadLockedLayer<EXT> {
@@ -240,7 +341,10 @@ where
         match key {
             entities::Layer::None => Ok(LayerIds::None),
             entities::Layer::All => Ok(LayerIds::All),
-            entities::Layer::Default => Ok(LayerIds::One(1)),
+            entities::Layer::Default => match self.edge_meta().get_default_layer_id() {
+                None => Ok(LayerIds::None),
+                Some(id) => Ok(LayerIds::One(id)),
+            },
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => Ok(LayerIds::One(id)),
                 None => Err(InvalidLayer::new(
@@ -287,7 +391,10 @@ where
         match key {
             entities::Layer::None => LayerIds::None,
             entities::Layer::All => LayerIds::All,
-            entities::Layer::Default => LayerIds::One(0),
+            entities::Layer::Default => match self.edge_meta().get_default_layer_id() {
+                None => LayerIds::None,
+                Some(id) => LayerIds::One(id),
+            },
             entities::Layer::One(id) => match self.edge_meta().get_layer_id(&id) {
                 Some(id) => LayerIds::One(id),
                 None => LayerIds::None,
@@ -318,7 +425,7 @@ where
         WriteLockedGraph::new(self)
     }
 
-    pub fn update_time(&self, earliest: EventTime) {
+    pub fn update_time(&self, _earliest: EventTime) {
         // self.storage.update_time(earliest);
     }
 }

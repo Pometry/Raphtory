@@ -12,13 +12,14 @@ use crate::{
     persist::{config::ConfigOps, strategy::PersistenceStrategy},
     segments::edge::segment::MemEdgeSegment,
 };
+use either::Either;
 use parking_lot::{RwLock, RwLockWriteGuard};
 use raphtory_api::core::entities::{
-    EID, VID,
+    EID, LayerId, VID,
     properties::meta::{Meta, STATIC_GRAPH_LAYER_ID},
 };
 use raphtory_core::{
-    entities::{ELID, LayerIds},
+    entities::{ELID, LayerIds, edges::edge_ref::EdgeRef},
     storage::timeindex::{AsTime, EventTime},
 };
 use rayon::prelude::*;
@@ -26,16 +27,16 @@ use std::{
     collections::HashMap,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
-const N: usize = 32;
+pub static N: LazyLock<usize> = LazyLock::new(|| rayon::current_num_threads());
 
 #[derive(Debug)]
 pub struct EdgeStorageInner<ES, EXT> {
     segments: boxcar::Vec<Arc<ES>>,
     layer_counter: Arc<GraphStats>,
-    free_pages: Box<[RwLock<usize>; N]>,
+    free_pages: Box<[RwLock<usize>]>,
     edges_path: Option<PathBuf>,
     prop_meta: Arc<Meta>,
     ext: EXT,
@@ -47,19 +48,21 @@ pub struct ReadLockedEdgeStorage<ES: EdgeSegmentOps<Extension = EXT>, EXT> {
     locked_pages: Box<[ES::ArcLockedSegment]>,
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedEdgeStorage<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
+    ReadLockedEdgeStorage<ES, EXT>
+{
     pub fn storage(&self) -> &EdgeStorageInner<ES, EXT> {
         &self.storage
     }
 
     pub fn edge_ref(
         &self,
-        e_id: impl Into<EID>,
+        e_id_ref: Either<EID, EdgeRef>,
     ) -> <<ES as EdgeSegmentOps>::ArcLockedSegment as LockedESegment>::EntryRef<'_> {
-        let e_id = e_id.into();
+        let e_id = e_id_ref.either(|eid| eid, |eref| eref.pid());
         let (page_id, pos) = self.storage.resolve_pos(e_id);
         let locked_page = &self.locked_pages[page_id];
-        locked_page.entry_ref(pos)
+        locked_page.entry_ref(pos, e_id_ref.right())
     }
 
     pub fn iter<'a, 'b: 'a>(
@@ -120,7 +123,10 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedEd
         .map(|(row_group_id, iter)| {
             (
                 row_group_id,
-                iter.filter(|eid| self.edge_ref(*eid).edge(0).is_some()),
+                iter.filter(|eid| {
+                    self.edge_ref(Either::Left(*eid))
+                        .has_layer_inner(STATIC_GRAPH_LAYER_ID)
+                }),
             )
         })
     }
@@ -133,7 +139,9 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> ReadLockedEd
     }
 }
 
-impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageInner<ES, EXT> {
+impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy<ES = ES>>
+    EdgeStorageInner<ES, EXT>
+{
     pub fn locked(self: &Arc<Self>) -> ReadLockedEdgeStorage<ES, EXT> {
         let locked_pages = self
             .segments
@@ -158,8 +166,12 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         &self.segments
     }
 
+    pub fn num_segments(&self) -> usize {
+        self.segments.count()
+    }
+
     pub fn new_with_meta(edges_path: Option<PathBuf>, edge_meta: Arc<Meta>, ext: EXT) -> Self {
-        let free_pages = (0..N).map(RwLock::new).collect::<Box<[_]>>();
+        let free_pages = (0..(*N)).map(RwLock::new).collect::<Box<[_]>>();
         let empty = Self {
             segments: boxcar::Vec::new(),
             layer_counter: GraphStats::new().into(),
@@ -176,15 +188,15 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             || prop_mapper.num_fields() > 0
             || metadata_mapper.num_fields() > 0
         {
-            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID);
+            let segment = empty.get_or_create_segment(STATIC_GRAPH_LAYER_ID.0);
             let mut head = segment.head_mut();
 
             for layer in layer_mapper.ids() {
-                head.get_or_create_layer(layer);
+                head.get_or_create_layer(LayerId(layer));
             }
 
             if prop_mapper.num_fields() > 0 {
-                head.get_or_create_layer(0)
+                head.get_or_create_layer(LayerId(0))
                     .properties_mut()
                     .set_has_properties()
             }
@@ -215,8 +227,19 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         Iterator::max(self.segments.iter().filter_map(|(_, page)| page.latest()))
     }
 
-    pub fn t_len(&self) -> usize {
-        self.segments.iter().map(|(_, page)| page.t_len()).sum()
+    pub fn t_len(&self, layer_id: usize) -> usize {
+        self.segments
+            .iter()
+            .map(|(_, page)| page.t_len(layer_id))
+            .sum()
+    }
+
+    /// The total update count (includes edge additions and deletions) for all layers
+    pub fn num_updates(&self) -> usize {
+        self.segments()
+            .iter()
+            .map(|(_, page)| page.num_updates())
+            .sum()
     }
 
     pub fn prop_meta(&self) -> &Arc<Meta> {
@@ -239,6 +262,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         }
 
         let mut pages = std::fs::read_dir(edges_path)?
+            .par_bridge()
             .filter(|entry| {
                 entry
                     .as_ref()
@@ -306,7 +330,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             .map(|last| last + 1)
             .unwrap_or_else(|| pages.count());
 
-        free_pages.resize_with(N, || {
+        free_pages.resize_with(*N, || {
             let lock = RwLock::new(next_free_page);
             next_free_page += 1;
             lock
@@ -316,7 +340,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
         for (_, page) in pages.iter() {
             for layer_id in 0..page.num_layers() {
-                let count = page.layer_count(layer_id) as usize;
+                let count = page.layer_count(LayerId(layer_id)) as usize;
                 if layer_counts.len() <= layer_id {
                     layer_counts.resize(layer_id + 1, 0);
                 }
@@ -452,14 +476,14 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
 
     pub fn get_edge(&self, e_id: ELID) -> Option<(VID, VID)> {
         let layer = e_id.layer();
-        let e_id = e_id.edge;
+        let e_id = e_id.eid();
         let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len());
         let segment = self.segments.get(segment_id)?;
         segment.get_edge(local_edge, layer, segment.head())
     }
 
-    pub fn edge(&self, e_id: impl Into<EID>) -> ES::Entry<'_> {
-        let e_id = e_id.into();
+    pub fn edge(&self, e_id_ref: Either<EID, EdgeRef>) -> ES::Entry<'_> {
+        let e_id = e_id_ref.either(|eid| eid, |eref| eref.pid());
         let (segment_id, local_edge) = resolve_pos(e_id, self.max_page_len());
         let segment = self.segments.get(segment_id).unwrap_or_else(|| {
             panic!(
@@ -467,15 +491,30 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
                 self.segments.count()
             )
         });
-        segment.entry(local_edge)
+        segment.entry(local_edge, e_id_ref.right())
     }
 
     pub fn num_edges(&self) -> usize {
-        self.layer_counter.get(0)
+        self.layer_counter.get(LayerId(0))
     }
 
-    pub fn num_edges_layer(&self, layer_id: usize) -> usize {
+    pub fn num_edges_layer(&self, layer_id: LayerId) -> usize {
         self.layer_counter.get(layer_id)
+    }
+
+    pub fn num_layers(&self) -> usize {
+        self.segments
+            .iter()
+            .map(|(_, page)| page.num_layers())
+            .max()
+            .unwrap_or(0)
+    }
+
+    pub fn num_temporal_edges_layer(&self, layer_id: LayerId) -> usize {
+        self.segments
+            .iter()
+            .map(|(_, page)| page.t_len(layer_id.0))
+            .sum()
     }
 
     pub fn get_writer<'a>(
@@ -502,7 +541,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
     ) -> EdgeWriter<'a, RwLockWriteGuard<'a, MemEdgeSegment>, ES> {
         // optimistic first try to get a free page 3 times
         let num_edges = self.num_edges();
-        let slot_idx = num_edges % N;
+        let slot_idx = num_edges % *N;
         let maybe_free_page = self.free_pages[slot_idx..]
             .iter()
             .cycle()
@@ -543,7 +582,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
     }
 
     pub fn reserve_free_pos(&self, row: usize) -> (usize, LocalPOS) {
-        let slot_idx = row % N;
+        let slot_idx = row % *N;
         let maybe_free_page = {
             let lock_slot = self.free_pages[slot_idx].read_recursive();
             let page_id = *lock_slot;
@@ -588,13 +627,13 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             .ok()
     }
 
-    fn par_iter_segments(&self) -> impl ParallelIterator<Item = &ES> {
+    pub fn par_iter_segments(&self) -> impl ParallelIterator<Item = &ES> {
         (0..self.segments.count())
             .into_par_iter()
             .filter_map(|idx| self.segments.get(idx).map(|seg| seg.deref()))
     }
 
-    pub fn par_iter(&self, layer: usize) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
+    pub fn par_iter(&self, layer: LayerId) -> impl ParallelIterator<Item = ES::Entry<'_>> + '_ {
         self.par_iter_segments().flat_map(move |page| {
             (0..page.num_edges())
                 .into_par_iter()
@@ -605,7 +644,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
         })
     }
 
-    pub fn iter(&self, layer: usize) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
+    pub fn iter(&self, layer: LayerId) -> impl Iterator<Item = ES::Entry<'_>> + '_ {
         (0..self.segments.count())
             .filter_map(move |page_id| self.segments.get(page_id))
             .flat_map(move |page| {
@@ -635,7 +674,7 @@ impl<ES: EdgeSegmentOps<Extension = EXT>, EXT: PersistenceStrategy> EdgeStorageI
             })
     }
 
-    pub(crate) fn segment_counts(&self) -> SegmentCounts<EID> {
+    pub fn segment_counts(&self) -> SegmentCounts<EID> {
         SegmentCounts::new(
             self.max_page_len(),
             self.pages().iter().map(|(_, seg)| seg.num_edges()),

@@ -20,7 +20,7 @@ use tantivy::{
         Occur::{Must, MustNot, Should},
         PhrasePrefixQuery, Query, RangeQuery, TermQuery,
     },
-    schema::{Field, FieldType, IndexRecordOption, Type},
+    schema::{Field, FieldType, IndexRecordOption},
     tokenizer::TokenizerManager,
     Term,
 };
@@ -42,7 +42,6 @@ impl<'a> QueryBuilder<'a> {
     ) -> Result<Option<Box<dyn Query>>, GraphError> {
         let prop_name = filter.prop_ref.name();
         let prop_value = &filter.prop_value;
-        let prop_field_type = property_index.get_prop_field_type(prop_name)?;
         let query: Option<Box<dyn Query>> = match prop_value {
             PropertyFilterValue::Single(prop_value) => match &filter.operator {
                 FilterOperator::Eq => {
@@ -58,22 +57,22 @@ impl<'a> QueryBuilder<'a> {
                 FilterOperator::Lt => {
                     let term =
                         create_property_exact_tantivy_term(property_index, prop_name, prop_value)?;
-                    create_lt_query(prop_name.to_string(), prop_field_type, term)
+                    create_lt_query(term)
                 }
                 FilterOperator::Le => {
                     let term =
                         create_property_exact_tantivy_term(property_index, prop_name, prop_value)?;
-                    create_le_query(prop_name.to_string(), prop_field_type, term)
+                    create_le_query(term)
                 }
                 FilterOperator::Gt => {
                     let term =
                         create_property_exact_tantivy_term(property_index, prop_name, prop_value)?;
-                    create_gt_query(prop_name.to_string(), prop_field_type, term)
+                    create_gt_query(term)
                 }
                 FilterOperator::Ge => {
                     let term =
                         create_property_exact_tantivy_term(property_index, prop_name, prop_value)?;
-                    create_ge_query(prop_name.to_string(), prop_field_type, term)
+                    create_ge_query(term)
                 }
                 FilterOperator::StartsWith => {
                     let terms = create_property_tokenized_tantivy_terms(
@@ -195,6 +194,7 @@ impl<'a> QueryBuilder<'a> {
         Ok((Arc::from(node_index.clone()), query))
     }
 
+    #[allow(dead_code)]
     pub(crate) fn build_edge_query(
         &self,
         filter: &Filter,
@@ -379,6 +379,7 @@ fn create_node_tokenized_tantivy_terms(
     create_terms_from_tokens(field, tokens)
 }
 
+#[allow(dead_code)]
 fn create_edge_exact_tantivy_term(
     edge_index: &EdgeIndex,
     field_name: &str,
@@ -388,6 +389,7 @@ fn create_edge_exact_tantivy_term(
     Ok(Term::from_field_text(field, field_value))
 }
 
+#[allow(dead_code)]
 fn create_edge_tokenized_tantivy_terms(
     edge_index: &EdgeIndex,
     field_name: &str,
@@ -424,39 +426,31 @@ fn create_ne_query(term: Term) -> Option<Box<dyn Query>> {
     ])))
 }
 
-fn create_lt_query(prop_name: String, prop_field_type: Type, term: Term) -> Option<Box<dyn Query>> {
-    Some(Box::new(RangeQuery::new_term_bounds(
-        prop_name,
-        prop_field_type,
-        &Bound::Unbounded,
-        &Bound::Excluded(term),
+fn create_lt_query(term: Term) -> Option<Box<dyn Query>> {
+    Some(Box::new(RangeQuery::new(
+        Bound::Unbounded,
+        Bound::Excluded(term),
     )))
 }
 
-fn create_le_query(prop_name: String, prop_field_type: Type, term: Term) -> Option<Box<dyn Query>> {
-    Some(Box::new(RangeQuery::new_term_bounds(
-        prop_name.to_string(),
-        prop_field_type,
-        &Bound::Unbounded,
-        &Bound::Included(term),
+fn create_le_query(term: Term) -> Option<Box<dyn Query>> {
+    Some(Box::new(RangeQuery::new(
+        Bound::Unbounded,
+        Bound::Included(term),
     )))
 }
 
-fn create_gt_query(prop_name: String, prop_field_type: Type, term: Term) -> Option<Box<dyn Query>> {
-    Some(Box::new(RangeQuery::new_term_bounds(
-        prop_name.to_string(),
-        prop_field_type,
-        &Bound::Excluded(term),
-        &Bound::Unbounded,
+fn create_gt_query(term: Term) -> Option<Box<dyn Query>> {
+    Some(Box::new(RangeQuery::new(
+        Bound::Excluded(term),
+        Bound::Unbounded,
     )))
 }
 
-fn create_ge_query(prop_name: String, prop_field_type: Type, term: Term) -> Option<Box<dyn Query>> {
-    Some(Box::new(RangeQuery::new_term_bounds(
-        prop_name.to_string(),
-        prop_field_type,
-        &Bound::Included(term),
-        &Bound::Unbounded,
+fn create_ge_query(term: Term) -> Option<Box<dyn Query>> {
+    Some(Box::new(RangeQuery::new(
+        Bound::Included(term),
+        Bound::Unbounded,
     )))
 }
 

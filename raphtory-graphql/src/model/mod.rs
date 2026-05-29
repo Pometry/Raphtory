@@ -1,22 +1,27 @@
 use crate::{
-    auth::ContextValidation,
-    data::{Data, DeletionError},
+    auth::{Access, ContextValidation},
+    auth_policy::{AuthorizationPolicy, NamespacePermission},
+    data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
-            mutable_graph::GqlMutableGraph, namespace::Namespace, namespaced_item::NamespacedItem,
+            meta_graph::MetaGraph, mutable_graph::GqlMutableGraph, namespace::Namespace,
+            namespaced_item::NamespacedItem, node_id::GqlNodeId,
             vectorised_graph::GqlVectorisedGraph,
         },
-        plugins::{mutation_plugin::MutationPlugin, query_plugin::QueryPlugin},
+        plugins::{
+            mutation_plugin::MutationPlugin, query_plugin::QueryPlugin, PermissionsEntrypointMut,
+            PermissionsEntrypointQuery,
+        },
     },
-    paths::{ValidGraphPaths, ValidWriteableGraphFolder},
+    paths::{ExistingGraphFolder, ValidGraphPaths, ValidWriteableGraphFolder},
     rayon::blocking_compute,
     url_encode::{url_decode_graph_at, url_encode_graph},
 };
 use async_graphql::Context;
 use dynamic_graphql::{
-    App, Enum, Mutation, MutationFields, MutationRoot, ResolvedObject, ResolvedObjectFields,
-    Result, Upload,
+    App, InputObject, Mutation, MutationFields, MutationRoot, OneOfInput, ResolvedObject,
+    ResolvedObjectFields, Result, Upload,
 };
 use itertools::Itertools;
 use raphtory::{
@@ -27,19 +32,63 @@ use raphtory::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::GraphError,
+    errors::{GraphError, GraphResult},
     prelude::*,
+    vectors::{
+        cache::CachedEmbeddingModel,
+        storage::OpenAIEmbeddings,
+        template::{DocumentTemplate, DEFAULT_EDGE_TEMPLATE, DEFAULT_NODE_TEMPLATE},
+    },
     version,
 };
-use std::{
-    error::Error,
-    fmt::{Display, Formatter},
-};
+use std::sync::Arc;
+use tracing::warn;
 
-pub(crate) mod graph;
+pub mod graph;
 pub mod plugins;
 pub(crate) mod schema;
 pub(crate) mod sorting;
+
+#[derive(InputObject, Debug, Clone, Default)]
+pub struct OpenAIConfig {
+    model: String,
+    api_base: Option<String>,
+    api_key_env: Option<String>,
+    org_id: Option<String>,
+    project_id: Option<String>,
+}
+
+#[derive(OneOfInput, Clone, Debug)]
+pub enum EmbeddingModel {
+    /// OpenAI embedding models or compatible providers
+    OpenAI(OpenAIConfig),
+}
+
+impl EmbeddingModel {
+    async fn cache<'a>(self, ctx: &Context<'a>) -> GraphResult<CachedEmbeddingModel> {
+        let data = ctx.data_unchecked::<Data>();
+        match self {
+            Self::OpenAI(OpenAIConfig {
+                model,
+                api_base,
+                api_key_env,
+                org_id,
+                project_id,
+            }) => {
+                let embeddings = OpenAIEmbeddings {
+                    model,
+                    api_base,
+                    api_key_env,
+                    org_id,
+                    project_id,
+                    dim: None,
+                };
+                let vector_cache = data.vector_cache.resolve().await?;
+                vector_cache.openai(embeddings.into()).await
+            }
+        }
+    }
+}
 
 /// a thin wrapper around spawn_blocking that unwraps the join handle
 pub(crate) async fn blocking_io<F, R>(f: F) -> R
@@ -49,17 +98,6 @@ where
 {
     tokio::task::spawn_blocking(f).await.unwrap()
 }
-
-#[derive(Debug)]
-pub struct MissingGraph;
-
-impl Display for MissingGraph {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Graph does not exist")
-    }
-}
-
-impl Error for MissingGraph {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum GqlGraphError {
@@ -75,18 +113,62 @@ pub enum GqlGraphError {
     FailedToCreateDir(String),
 }
 
-#[derive(Enum)]
-#[graphql(name = "GraphType")]
-pub enum GqlGraphType {
-    /// Persistent.
-    Persistent,
-    /// Event.
-    Event,
+/// Auto-grants Write on `path` for the creator's role after a graph is created.
+/// Returns an error if the grant fails so the caller can roll back the graph.
+/// No-op when there is no active auth policy; identity checks are delegated to the policy.
+fn auto_grant_on_create(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) -> async_graphql::Result<()> {
+    if let Some(policy) = policy {
+        policy.on_graph_created(ctx, path)?;
+    }
+    Ok(())
+}
+
+fn require_namespace_write(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    ns_path: &str,
+    new_path: &str,
+    operation: &str,
+) -> async_graphql::Result<()> {
+    match policy {
+        None => ctx.require_jwt_write_access().map_err(Into::into),
+        Some(p) => {
+            if p.namespace_permissions(ctx, ns_path) < Some(NamespacePermission::Write) {
+                return Err(PermissionError::NamespaceWriteRequired {
+                    namespace: ns_path.to_string(),
+                    graph: new_path.to_string(),
+                    operation: operation.to_string(),
+                }
+                .into());
+            }
+            Ok(())
+        }
+    }
 }
 
 #[derive(ResolvedObject)]
 #[graphql(root)]
 pub(crate) struct QueryRoot;
+
+#[derive(OneOfInput, Clone, Debug)]
+pub enum Template {
+    /// The default template.
+    Enabled(bool),
+    /// A custom template.
+    Custom(String),
+}
+
+fn resolve(template: Option<Template>, default: &str) -> Option<String> {
+    match template? {
+        Template::Enabled(false) => None,
+        Template::Enabled(true) => Some(default.to_owned()),
+        Template::Custom(template) => Some(template),
+    }
+}
 
 #[ResolvedObjectFields]
 impl QueryRoot {
@@ -96,30 +178,114 @@ impl QueryRoot {
     }
 
     /// Returns a graph
-    async fn graph<'a>(ctx: &Context<'a>, path: &str) -> Result<GqlGraph> {
+
+    async fn graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(
+            desc = "Graph path relative to the root namespace (e.g. `\"master\"` or `\"team/project/graph\"`)."
+        )]
+        path: &str,
+        #[graphql(
+            desc = "Optional override for graph semantics — `EVENT` treats every update as a point-in-time event, `PERSISTENT` carries values forward until overwritten or deleted. Defaults to the stored graph's native type."
+        )]
+        graph_type: Option<GqlGraphType>,
+    ) -> Result<Option<GqlGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        Ok(data.get_graph(path).await?.into())
+        // Ok(None) = permission denied (hides existence/access level); Err = load failed.
+        let Some((folder, graph)) = data
+            .get_graph_with_read_permission(ctx, path, graph_type)
+            .await?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(GqlGraph::new(folder, graph)))
+    }
+
+    /// Returns lightweight metadata for a graph (node/edge counts, timestamps) without loading it.
+    /// Requires at least INTROSPECT permission.
+
+    async fn graph_metadata<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<Option<MetaGraph>> {
+        let data = ctx.data_unchecked::<Data>();
+
+        if let Some(policy) = &data.auth_policy {
+            let role = ctx.data::<Option<String>>().ok().and_then(|r| r.as_deref());
+            if let Err(_) = policy.graph_permissions(ctx, &path) {
+                warn!(
+                    role = role.unwrap_or("<no role>"),
+                    graph = path.as_str(),
+                    "Access denied by auth policy"
+                );
+                return Ok(None);
+            }
+        }
+
+        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        Ok(Some(MetaGraph::new(folder)))
     }
 
     /// Update graph query, has side effects to update graph state
     ///
     /// Returns:: GqlMutableGraph
-    async fn update_graph<'a>(ctx: &Context<'a>, path: String) -> Result<GqlMutableGraph> {
-        ctx.require_write_access()?;
-        let data = ctx.data_unchecked::<Data>();
 
-        let graph = data.get_graph(path.as_ref()).await?.into();
+    async fn update_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<GqlMutableGraph> {
+        let data = ctx.data_unchecked::<Data>();
+        let graph = data
+            .get_graph_with_write_permission(ctx, &path)
+            .await?
+            .into();
 
         Ok(graph)
+    }
+
+    /// Update graph query, has side effects to update graph state
+    ///
+    /// Returns:: GqlMutableGraph
+
+    async fn vectorise_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+        #[graphql(desc = "Optional embedding model; defaults to OpenAI's standard model.")]
+        model: Option<EmbeddingModel>,
+        #[graphql(
+            desc = "Optional node-document template (which fields go into each node's text representation); defaults to the built-in template."
+        )]
+        nodes: Option<Template>,
+        #[graphql(desc = "Optional edge-document template; defaults to the built-in template.")]
+        edges: Option<Template>,
+    ) -> Result<bool> {
+        ctx.require_jwt_write_access()?;
+        let data = ctx.data_unchecked::<Data>();
+        let template = DocumentTemplate {
+            node_template: resolve(nodes, DEFAULT_NODE_TEMPLATE),
+            edge_template: resolve(edges, DEFAULT_EDGE_TEMPLATE),
+        };
+        let cached_model = model
+            .unwrap_or(EmbeddingModel::OpenAI(Default::default()))
+            .cache(ctx)
+            .await?;
+        let folder = ExistingGraphFolder::try_from(data.work_dir.clone(), &path)?;
+        data.vectorise_folder(&folder, &template, cached_model)
+            .await?;
+        Ok(true)
     }
 
     /// Create vectorised graph in the format used for queries
     ///
     /// Returns:: GqlVectorisedGraph
-    async fn vectorised_graph<'a>(ctx: &Context<'a>, path: &str) -> Option<GqlVectorisedGraph> {
+
+    async fn vectorised_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
+    ) -> Result<Option<GqlVectorisedGraph>> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path).await.ok()?.vectors?;
-        Some(g.into())
+        data.get_vectors_with_read_permission(ctx, path).await
     }
 
     /// Returns all namespaces using recursive search
@@ -129,7 +295,7 @@ impl QueryRoot {
         let data = ctx.data_unchecked::<Data>();
         let root = Namespace::root(data.work_dir.clone());
         let list = blocking_compute(move || {
-            root.get_all_children()
+            root.self_and_all_children()
                 .filter_map(|child| match child {
                     NamespacedItem::Namespace(item) => Some(item),
                     NamespacedItem::MetaGraph(_) => None,
@@ -144,6 +310,7 @@ impl QueryRoot {
     /// Returns a specific namespace at a given path
     ///
     /// Returns:: Namespace or error if no namespace found
+
     async fn namespace<'a>(ctx: &Context<'a>, path: String) -> Result<Namespace> {
         let data = ctx.data_unchecked::<Data>();
         Ok(Namespace::try_new(data.work_dir.clone(), path)?)
@@ -162,17 +329,23 @@ impl QueryRoot {
         QueryPlugin::default()
     }
 
-    /// Encodes graph and returns as string
+    /// Encodes graph and returns as string.
     ///
     /// Returns:: Base64 url safe encoded string
-    async fn receive_graph<'a>(ctx: &Context<'a>, path: String) -> Result<String> {
-        let path = path.as_ref();
+
+    async fn receive_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
-        let g = data.get_graph(path).await?.graph.clone();
-        let res = url_encode_graph(g)?;
-        Ok(res)
+        let (_, graph) = data.get_graph_requiring_read(ctx, &path, None).await?;
+        let materialized = blocking_compute(move || graph.materialize())
+            .await
+            .map_err(|e| async_graphql::Error::new(e.to_string()))?;
+        Ok(url_encode_graph(materialized)?)
     }
 
+    /// Version string of the running `raphtory-graphql` server build.
     async fn version<'a>(_ctx: &Context<'a>) -> String {
         String::from(version())
     }
@@ -192,20 +365,29 @@ impl Mut {
     }
 
     /// Delete graph from a path on the server.
-    // If namespace is not provided, it will be set to the current working directory.
-    async fn delete_graph<'a>(ctx: &Context<'a>, path: String) -> Result<bool, DeletionError> {
+
+    async fn delete_graph<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: String,
+    ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
+        require_graph_write(ctx, &data.auth_policy, &path)?;
+        let src_ns = parent_namespace(&path);
+        require_namespace_write(ctx, &data.auth_policy, src_ns, &path, "delete")?;
         data.delete_graph(&path).await?;
         Ok(true)
     }
 
     /// Creates a new graph.
+
     async fn new_graph<'a>(
         ctx: &Context<'a>,
-        path: String,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
         graph_type: GqlGraphType,
     ) -> Result<bool> {
         let data = ctx.data_unchecked::<Data>();
+        let ns = parent_namespace(&path);
+        require_namespace_write(ctx, &data.auth_policy, ns, &path, "create")?;
         let overwrite = false;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         let graph_path = folder.graph_folder();
@@ -222,38 +404,65 @@ impl Mut {
         };
 
         data.insert_graph(folder, graph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
 
     /// Move graph from a path on the server to a new_path on the server.
+
     async fn move_graph<'a>(
         ctx: &Context<'a>,
-        path: &str,
-        new_path: &str,
+        #[graphql(desc = "Current graph path relative to the root namespace.")] path: &str,
+        #[graphql(desc = "Destination path relative to the root namespace.")] new_path: &str,
+        #[graphql(
+            desc = "If true, allow replacing an existing graph at `newPath`; defaults to false."
+        )]
         overwrite: Option<bool>,
     ) -> Result<bool> {
-        Self::copy_graph(ctx, path, new_path, overwrite).await?;
         let data = ctx.data_unchecked::<Data>();
-        data.delete_graph(path).await?;
+        // src: require WRITE on graph (moving = deleting source)
+        require_graph_write(ctx, &data.auth_policy, path)?;
+        // src: require WRITE on parent namespace (removing graph from namespace)
+        let src_ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, src_ns, path, "move")?;
+        // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
+        if path != new_path {
+            // moving with the same path should be a no-op, not delete the graph
+            Self::copy_graph(ctx, path, new_path, overwrite).await?;
+            data.delete_graph(path).await?;
+        }
         Ok(true)
     }
 
     /// Copy graph from a path on the server to a new_path on the server.
+
     async fn copy_graph<'a>(
         ctx: &Context<'a>,
-        path: &str,
-        new_path: &str,
+        #[graphql(desc = "Source graph path relative to the root namespace.")] path: &str,
+        #[graphql(desc = "Destination path relative to the root namespace.")] new_path: &str,
+        #[graphql(
+            desc = "If true, allow replacing an existing graph at `newPath`; defaults to false."
+        )]
         overwrite: Option<bool>,
     ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let dst_ns = parent_namespace(new_path);
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, new_path, "create")?;
         // doing this in a more efficient way is not trivial, this at least is correct
         // there are questions like, maybe the new vectorised graph have different rules
         // for the templates or if it needs to be vectorised at all
         let overwrite = overwrite.unwrap_or(false);
-        let data = ctx.data_unchecked::<Data>();
-        let graph = data.get_graph(path).await?.graph;
+        let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
-        data.insert_graph(folder, graph).await?;
+        data.insert_graph(folder, src.graph().clone()).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
+            let _ = data.delete_graph(new_path).await;
+            return Err(e);
+        }
 
         Ok(true)
     }
@@ -262,16 +471,23 @@ impl Mut {
     ///
     /// Returns::
     /// name of the new graph
+
     async fn upload_graph<'a>(
         ctx: &Context<'a>,
-        path: String,
-        graph: Upload,
-        overwrite: bool,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: String,
+        #[graphql(desc = "Multipart upload of the serialised graph file.")] graph: Upload,
+        #[graphql(desc = "If true, replace any graph already at `path`.")] overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
+        let dst_ns = parent_namespace(&path);
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, &path, "upload")?;
         let in_file = graph.value(ctx)?.content;
         let folder = data.validate_path_for_insert(&path, overwrite)?;
         data.insert_graph_as_bytes(folder, in_file).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &path) {
+            let _ = data.delete_graph(&path).await;
+            return Err(e);
+        }
 
         Ok(path)
     }
@@ -280,13 +496,16 @@ impl Mut {
     ///
     /// Returns::
     /// path of the new graph
+
     async fn send_graph<'a>(
         ctx: &Context<'a>,
-        path: &str,
-        graph: String,
-        overwrite: bool,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
+        #[graphql(desc = "Base64-encoded bincode of the serialised graph.")] graph: String,
+        #[graphql(desc = "If true, replace any graph already at `path`.")] overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
+        let dst_ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, path, "send")?;
         let folder = if overwrite {
             ValidWriteableGraphFolder::try_existing_or_new(data.work_dir.clone(), path)?
         } else {
@@ -299,23 +518,92 @@ impl Mut {
         })
         .await?;
         data.insert_graph(folder, g).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, path) {
+            let _ = data.delete_graph(path).await;
+            return Err(e);
+        }
         Ok(path.to_owned())
+    }
+
+    /// Create an empty namespace at `path`.
+    ///
+    /// Creates any missing parent namespaces along the way. Requires WRITE
+    /// permission on the parent namespace. Rejects paths that already host a
+    /// graph or an existing namespace, and paths that fail validation.
+    ///
+    /// Returns:: the path of the created namespace
+    async fn create_namespace<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Destination path relative to the root namespace.")] path: &str,
+    ) -> Result<String> {
+        let data = ctx.data_unchecked::<Data>();
+        let ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, ns, path, "create")?;
+        data.create_namespace(path).await?;
+        Ok(path.to_string())
+    }
+
+    /// Delete a namespace and all of its descendants (graphs and sub-namespaces).
+    ///
+    /// Requires WRITE permission on the parent namespace, on the namespace
+    /// itself, and on every descendant graph and sub-namespace. Cached graphs
+    /// at any deleted path are invalidated. Rejects empty and non-existent
+    /// paths.
+    ///
+    /// Returns:: true on success
+    async fn delete_namespace<'a>(
+        ctx: &Context<'a>,
+        #[graphql(desc = "Path to delete relative to the root namespace.")] path: &str,
+    ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
+        let parent_ns = parent_namespace(path);
+        require_namespace_write(ctx, &data.auth_policy, parent_ns, path, "delete")?;
+        require_namespace_write(ctx, &data.auth_policy, path, path, "delete")?;
+
+        let namespace = Namespace::try_new(data.work_dir.clone(), path.to_string())?;
+        let ns_clone = namespace.clone();
+        let descendants: Vec<NamespacedItem> =
+            blocking_compute(move || ns_clone.get_all_children().collect()).await;
+        for item in &descendants {
+            match item {
+                NamespacedItem::Namespace(n) => {
+                    require_namespace_write(
+                        ctx,
+                        &data.auth_policy,
+                        n.relative_path(),
+                        path,
+                        "delete",
+                    )?;
+                }
+                NamespacedItem::MetaGraph(g) => {
+                    require_graph_write(ctx, &data.auth_policy, g.local_path())?;
+                }
+            }
+        }
+
+        data.delete_namespace(path, &descendants).await?;
+        Ok(true)
     }
 
     /// Returns a subgraph given a set of nodes from an existing graph in the server.
     ///
     /// Returns::
     /// name of the new graph
+
     async fn create_subgraph<'a>(
         ctx: &Context<'a>,
-        parent_path: &str,
-        nodes: Vec<String>,
-        new_path: String,
-        overwrite: bool,
+        #[graphql(desc = "Source graph path relative to the root namespace.")] parent_path: &str,
+        #[graphql(desc = "Node ids to include in the subgraph.")] nodes: Vec<GqlNodeId>,
+        #[graphql(desc = "Destination path relative to the root namespace.")] new_path: String,
+        #[graphql(desc = "If true, replace any graph already at `newPath`.")] overwrite: bool,
     ) -> Result<String> {
         let data = ctx.data_unchecked::<Data>();
+        let dst_ns = parent_namespace(&new_path);
+        require_namespace_write(ctx, &data.auth_policy, dst_ns, &new_path, "create")?;
         let folder = data.validate_path_for_insert(&new_path, overwrite)?;
-        let parent_graph = data.get_graph(parent_path).await?.graph;
+        let (_, parent_graph) = data
+            .get_graph_requiring_read(ctx, parent_path, None)
+            .await?;
         let folder_clone = folder.clone();
         let new_subgraph = blocking_compute(move || {
             let subgraph = parent_graph.subgraph(nodes);
@@ -328,20 +616,32 @@ impl Mut {
         .await?;
 
         data.insert_graph(folder, new_subgraph).await?;
+        if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, &new_path) {
+            let _ = data.delete_graph(&new_path).await;
+            return Err(e);
+        }
         Ok(new_path)
     }
 
     /// (Experimental) Creates search index.
+
     async fn create_index<'a>(
         ctx: &Context<'a>,
-        path: &str,
+        #[graphql(desc = "Graph path relative to the root namespace.")] path: &str,
+        #[graphql(
+            desc = "Optional spec selecting which node/edge property fields to index. Omit to index a default set."
+        )]
         index_spec: Option<IndexSpecInput>,
         in_ram: bool,
     ) -> Result<bool> {
+        let data = ctx.data_unchecked::<Data>();
         #[cfg(feature = "search")]
         {
-            let data = ctx.data_unchecked::<Data>();
-            let graph = data.get_graph(path).await?.graph;
+            let graph = data
+                .get_graph_with_write_permission(ctx, path)
+                .await?
+                .graph()
+                .clone();
             match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;
@@ -370,4 +670,10 @@ impl Mut {
 }
 
 #[derive(App)]
-pub struct App(QueryRoot, MutRoot, Mut);
+pub struct App(
+    QueryRoot,
+    MutRoot,
+    Mut,
+    PermissionsEntrypointMut,
+    PermissionsEntrypointQuery,
+);

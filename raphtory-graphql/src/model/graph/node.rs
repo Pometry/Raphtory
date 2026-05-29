@@ -3,6 +3,7 @@ use crate::{
         edges::GqlEdges,
         filtering::{GqlEdgeFilter, GqlNodeFilter, NodeViewCollection},
         history::GqlHistory,
+        node_id::GqlNodeId,
         nodes::GqlNodes,
         path_from_node::GqlPathFromNode,
         property::{GqlMetadata, GqlProperties},
@@ -53,9 +54,10 @@ impl<G: StaticGraphViewOps + IntoDynamic> From<NodeView<'static, G>> for GqlNode
 ///
 /// Collections can be filtered and used to create lists.
 impl GqlNode {
-    /// Returns the unique id of the node.
-    async fn id(&self) -> String {
-        self.vv.id().to_string()
+    /// Returns the unique id of the node — `String` for string-indexed
+    /// graphs, non-negative `Int` for integer-indexed graphs.
+    async fn id(&self) -> GqlNodeId {
+        GqlNodeId(self.vv.id())
     }
 
     /// Returns the name of the node.
@@ -73,24 +75,37 @@ impl GqlNode {
     }
 
     /// Return a view of node containing all layers specified.
-    async fn layers(&self, names: Vec<String>) -> GqlNode {
+
+    async fn layers(
+        &self,
+        #[graphql(desc = "Layer names to include.")] names: Vec<String>,
+    ) -> GqlNode {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.valid_layers(names).into()).await
     }
 
     /// Returns a collection containing nodes belonging to all layers except the excluded list of layers.
-    async fn exclude_layers(&self, names: Vec<String>) -> GqlNode {
+
+    async fn exclude_layers(
+        &self,
+        #[graphql(desc = "Layer names to exclude.")] names: Vec<String>,
+    ) -> GqlNode {
         let self_clone = self.clone();
         blocking_compute(move || self_clone.vv.exclude_valid_layers(names).into()).await
     }
 
     /// Returns a collection containing nodes belonging to the specified layer.
-    async fn layer(&self, name: String) -> GqlNode {
+
+    async fn layer(&self, #[graphql(desc = "Layer name to include.")] name: String) -> GqlNode {
         self.vv.valid_layers(name).into()
     }
 
     /// Returns a collection containing nodes belonging to all layers except the excluded layer.
-    async fn exclude_layer(&self, name: String) -> GqlNode {
+
+    async fn exclude_layer(
+        &self,
+        #[graphql(desc = "Layer name to exclude.")] name: String,
+    ) -> GqlNode {
         self.vv.exclude_valid_layers(name).into()
     }
 
@@ -103,10 +118,20 @@ impl GqlNode {
     /// e.g. "1 month and 1 day" will align at the start of the day.
     /// Note that passing a step larger than window while alignment_unit is not "Unaligned" may lead to some entries appearing before
     /// the start of the first window and/or after the end of the last window (i.e. not included in any window).
+
     async fn rolling(
         &self,
+        #[graphql(
+            desc = "Width of each window. Pass either `{epoch: <ms>}` for a discrete number of milliseconds (e.g. `{epoch: 1000}` for 1 second), or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}` or `{duration: 2 hours and 30 minutes}`)."
+        )]
         window: WindowDuration,
+        #[graphql(
+            desc = "Optional gap between the start of one window and the start of the next. Accepts the same `{epoch: <ms>}` or `{duration: <text>}` values as `window`. Defaults to `window` — i.e. windows touch end-to-end with no overlap and no gap."
+        )]
         step: Option<WindowDuration>,
+        #[graphql(
+            desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step` (or `window` if no step is set)."
+        )]
         alignment_unit: Option<GqlAlignmentUnit>,
     ) -> Result<GqlNodeWindowSet, GraphError> {
         let window = window.try_into_interval()?;
@@ -126,9 +151,16 @@ impl GqlNode {
     /// alignment_unit optionally aligns the windows to the specified unit. "Unaligned" can be passed for no alignment.
     /// If unspecified (i.e. by default), alignment is done on the smallest unit of time in the step.
     /// e.g. "1 month and 1 day" will align at the start of the day.
+
     async fn expanding(
         &self,
+        #[graphql(
+            desc = "How much the window grows by on each step. Pass either `{epoch: <ms>}` for a discrete number of milliseconds, or `{duration: <text>}` for a calendar duration (e.g. `{duration: 1 day}`)."
+        )]
         step: WindowDuration,
+        #[graphql(
+            desc = "Optional anchor for window boundaries — pass `Unaligned` to disable, or one of the unit values (e.g. `Day`, `Hour`, `Minute`) to align edges to that calendar unit. Defaults to the smallest unit present in `step`."
+        )]
         alignment_unit: Option<GqlAlignmentUnit>,
     ) -> Result<GqlNodeWindowSet, GraphError> {
         let step = step.try_into_interval()?;
@@ -141,12 +173,21 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events between the specified start (inclusive) and end (exclusive).
-    async fn window(&self, start: GqlTimeInput, end: GqlTimeInput) -> GqlNode {
+
+    async fn window(
+        &self,
+        #[graphql(desc = "Inclusive lower bound.")] start: GqlTimeInput,
+        #[graphql(desc = "Exclusive upper bound.")] end: GqlTimeInput,
+    ) -> GqlNode {
         self.vv.window(start.into_time(), end.into_time()).into()
     }
 
     /// Create a view of the node including all events at a specified time.
-    async fn at(&self, time: GqlTimeInput) -> GqlNode {
+
+    async fn at(
+        &self,
+        #[graphql(desc = "Instant to pin the view to.")] time: GqlTimeInput,
+    ) -> GqlNode {
         self.vv.at(time.into_time()).into()
     }
 
@@ -157,7 +198,11 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events that are valid at the specified time.
-    async fn snapshot_at(&self, time: GqlTimeInput) -> GqlNode {
+
+    async fn snapshot_at(
+        &self,
+        #[graphql(desc = "Instant at which entities must be valid.")] time: GqlTimeInput,
+    ) -> GqlNode {
         self.vv.snapshot_at(time.into_time()).into()
     }
 
@@ -168,29 +213,54 @@ impl GqlNode {
     }
 
     /// Create a view of the node including all events before specified end time (exclusive).
-    async fn before(&self, time: GqlTimeInput) -> GqlNode {
+
+    async fn before(
+        &self,
+        #[graphql(desc = "Exclusive upper bound.")] time: GqlTimeInput,
+    ) -> GqlNode {
         self.vv.before(time.into_time()).into()
     }
 
     /// Create a view of the node including all events after the specified start time (exclusive).
-    async fn after(&self, time: GqlTimeInput) -> GqlNode {
+
+    async fn after(
+        &self,
+        #[graphql(desc = "Exclusive lower bound.")] time: GqlTimeInput,
+    ) -> GqlNode {
         self.vv.after(time.into_time()).into()
     }
 
     /// Shrink a Window to a specified start and end time, if these are earlier and later than the current start and end respectively.
-    async fn shrink_window(&self, start: GqlTimeInput, end: GqlTimeInput) -> Self {
+
+    async fn shrink_window(
+        &self,
+        #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
+        start: GqlTimeInput,
+        #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
+        end: GqlTimeInput,
+    ) -> Self {
         self.vv
             .shrink_window(start.into_time(), end.into_time())
             .into()
     }
 
     /// Set the start of the window to the larger of a specified start time and self.start().
-    async fn shrink_start(&self, start: GqlTimeInput) -> Self {
+
+    async fn shrink_start(
+        &self,
+        #[graphql(desc = "Proposed new start (TimeInput); ignored if it would widen the window.")]
+        start: GqlTimeInput,
+    ) -> Self {
         self.vv.shrink_start(start.into_time()).into()
     }
 
     /// Set the end of the window to the smaller of a specified end and self.end().
-    async fn shrink_end(&self, end: GqlTimeInput) -> Self {
+
+    async fn shrink_end(
+        &self,
+        #[graphql(desc = "Proposed new end (TimeInput); ignored if it would widen the window.")]
+        end: GqlTimeInput,
+    ) -> Self {
         self.vv.shrink_end(end.into_time()).into()
     }
 

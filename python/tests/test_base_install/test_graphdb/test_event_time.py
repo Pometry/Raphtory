@@ -98,13 +98,13 @@ def test_time_input_parsing(example_graph):
         assert gw.nodes == [1], f"Unexpected nodes for end={end!r}"
 
     assert g.window(86400000, 88200000).nodes == [2]
-    assert g.window(86400000, 88200001).nodes == [2, 3]
+    assert g.window(86400000, 88200001).nodes.id.sorted_by_id() == [2, 3]
     gw = g.window(88200000, "2000-01-01")
     assert gw.nodes == [3]
     gw = g.window(88200000, "2000-01-01 00:00:01")
-    assert gw.nodes == [3, 4]
+    assert gw.nodes.id.sorted_by_id() == [3, 4]
     gw = g.window(88200000, "2000-01-02")
-    assert gw.nodes == [3, 4]
+    assert gw.nodes.id.sorted_by_id() == [3, 4]
 
 
 def test_optional_event_time_none_comparison():

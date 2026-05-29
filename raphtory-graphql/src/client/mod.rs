@@ -26,13 +26,13 @@ pub fn is_online(url: &str) -> bool {
 pub(crate) fn inner_collection(value: &Prop) -> String {
     match value {
         Prop::Str(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
-        Prop::U8(value) => format!("{{ u64: {} }}", value),
-        Prop::U16(value) => format!("{{ u64: {} }}", value),
-        Prop::I32(value) => format!("{{ i64: {} }}", value),
+        Prop::U8(value) => format!("{{ u8: {} }}", value),
+        Prop::U16(value) => format!("{{ u16: {} }}", value),
+        Prop::I32(value) => format!("{{ i32: {} }}", value),
         Prop::I64(value) => format!("{{ i64: {} }}", value),
-        Prop::U32(value) => format!("{{ u64: {} }}", value),
+        Prop::U32(value) => format!("{{ u32: {} }}", value),
         Prop::U64(value) => format!("{{ u64: {} }}", value),
-        Prop::F32(value) => format!("{{ f64: {} }}", value),
+        Prop::F32(value) => format!("{{ f32: {} }}", value),
         Prop::F64(value) => format!("{{ f64: {} }}", value),
         Prop::Bool(value) => format!("{{ bool: {} }}", value),
         Prop::List(value) => {
@@ -52,9 +52,12 @@ pub(crate) fn inner_collection(value: &Prop) -> String {
                 .collect();
             format!("{{ object: [{}] }}", properties_array.join(", "))
         }
-        Prop::DTime(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
-        Prop::NDTime(value) => format!("{{ str: {} }}", serde_json::to_string(value).unwrap()),
-        Prop::Decimal(value) => format!("{{ decimal: \"{}\" }}", value),
+        Prop::DTime(dt) => format!("{{ dtime: \"{}\" }}", dt.to_rfc3339()),
+        Prop::NDTime(ndt) => format!(
+            "{{ ndtime: \"{}\" }}",
+            ndt.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()
+        ),
+        Prop::Decimal(value) => format!("{{ decimal: \"{}\" }}", value.to_string()),
     }
 }
 
@@ -66,17 +69,17 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
             serde_json::to_string(value).unwrap()
         ),
         Prop::U8(value) => format!(
-            "{{ key: {}, value: {{ u64: {} }} }}",
+            "{{ key: {}, value: {{ u8: {} }} }}",
             serde_json::to_string(key).unwrap(),
             value
         ),
         Prop::U16(value) => format!(
-            "{{ key: {}, value: {{ u64: {} }} }}",
+            "{{ key: {}, value: {{ u16: {} }} }}",
             serde_json::to_string(key).unwrap(),
             value
         ),
         Prop::I32(value) => format!(
-            "{{ key: {}, value: {{ i64: {} }} }}",
+            "{{ key: {}, value: {{ i32: {} }} }}",
             serde_json::to_string(key).unwrap(),
             value
         ),
@@ -86,7 +89,7 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
             value
         ),
         Prop::U32(value) => format!(
-            "{{ key: {}, value: {{ u64: {} }} }}",
+            "{{ key: {}, value: {{ u32: {} }} }}",
             serde_json::to_string(key).unwrap(),
             value
         ),
@@ -96,7 +99,7 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
             value
         ),
         Prop::F32(value) => format!(
-            "{{ key: {}, value: {{ f64: {} }} }}",
+            "{{ key: {}, value: {{ f32: {} }} }}",
             serde_json::to_string(key).unwrap(),
             value
         ),
@@ -135,20 +138,20 @@ fn to_graphql_valid(key: &String, value: &Prop) -> String {
                 properties_array.join(", ")
             )
         }
-        Prop::DTime(value) => format!(
-            "{{ key: {}, value: {{ str: {} }} }}",
+        Prop::DTime(dt) => format!(
+            "{{ key: {}, value: {{ dtime: \"{}\" }} }}",
             serde_json::to_string(key).unwrap(),
-            serde_json::to_string(value).unwrap()
+            dt.to_rfc3339()
         ),
-        Prop::NDTime(value) => format!(
-            "{{ key: {}, value: {{ str: {} }} }}",
+        Prop::NDTime(ndt) => format!(
+            "{{ key: {}, value: {{ ndtime: \"{}\" }} }}",
             serde_json::to_string(key).unwrap(),
-            serde_json::to_string(value).unwrap()
+            ndt.format("%Y-%m-%dT%H:%M:%S%.3f").to_string()
         ),
         Prop::Decimal(value) => format!(
             "{{ key: {}, value: {{ decimal: \"{}\" }} }}",
             serde_json::to_string(key).unwrap(),
-            value
+            value.to_string()
         ),
     }
 }

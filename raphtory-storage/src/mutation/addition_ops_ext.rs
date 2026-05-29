@@ -1,27 +1,33 @@
-use crate::mutation::{
-    addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+use crate::{
     durability_ops::DurabilityOps,
-    MutationError, NodeWriterT,
+    mutation::{
+        addition_ops::{EdgeWriteLock, InternalAdditionOps, NodeWriteLock, SessionAdditionOps},
+        MutationError, NodeWriterT,
+    },
+    recovery_ops::RecoveryOps,
 };
 use db4_graph::{TemporalGraph, WriteLockedGraph};
 use raphtory_api::core::{
-    entities::properties::{
-        meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
-        prop::{Prop, PropType, PropUnwrap},
+    entities::{
+        properties::{
+            meta::{Meta, DEFAULT_NODE_TYPE_ID, NODE_TYPE_IDX, STATIC_GRAPH_LAYER_ID},
+            prop::{Prop, PropType, PropUnwrap},
+        },
+        LayerId,
     },
     storage::dict_mapper::MaybeNew,
 };
 use raphtory_core::{
     entities::{
-        graph::tgraph::TooManyLayers,
         nodes::node_ref::{AsNodeRef, NodeRef},
-        GidRef, EID, MAX_LAYER, VID,
+        GidRef, EID, VID,
     },
     storage::timeindex::EventTime,
 };
 use std::sync::atomic::Ordering;
 use storage::{
     api::{edges::EdgeSegmentOps, graph_props::GraphPropSegmentOps, nodes::NodeSegmentOps},
+    error::StorageError,
     pages::{
         node_page::writer::{node_info_as_props, NodeWriters},
         resolve_pos,
@@ -32,7 +38,7 @@ use storage::{
     resolver::{GIDResolverOps, Initialiser, MaybeInit},
     transaction::TransactionManager,
     wal::LSN,
-    Extension, LocalPOS, Wal, ES, GS, NS,
+    ControlFile, Extension, LocalPOS, Wal, ES, GS, NS,
 };
 
 pub struct AtomicAddEdge<'a, EXT>
@@ -63,7 +69,7 @@ where
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         self.static_session.add_edge_into_layer(
@@ -75,7 +81,7 @@ where
         );
     }
 
-    fn internal_delete_edge(&mut self, t: EventTime, layer: usize) {
+    fn internal_delete_edge(&mut self, t: EventTime, layer: LayerId) {
         self.static_session.delete_edge_from_layer(
             t,
             self.src.inner(),
@@ -183,7 +189,7 @@ impl<'a> NodeWriteLock for AtomicAddNode<'a> {
     fn internal_add_update(
         &mut self,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: impl IntoIterator<Item = (usize, Prop)>,
     ) {
         let pos = self.local_pos();
@@ -227,19 +233,14 @@ impl InternalAdditionOps for TemporalGraph {
         Ok(locked_g)
     }
 
-    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<usize>, Self::Error> {
+    fn resolve_layer(&self, layer: Option<&str>) -> Result<MaybeNew<LayerId>, Self::Error> {
         let id = self.edge_meta().get_or_create_layer_id(layer);
         // TODO: we replicate the layer id in the node meta as well, perhaps layer meta should be common
         if id.is_new() {
             self.node_meta().layer_meta().set_id(
-                self.edge_meta().layer_meta().get_name(id.inner()),
-                id.inner(),
+                self.edge_meta().layer_meta().get_name(id.inner().0),
+                id.inner().0,
             );
-        }
-        if let MaybeNew::New(id) = id {
-            if id > MAX_LAYER {
-                Err(TooManyLayers)?;
-            }
         }
         Ok(id)
     }
@@ -250,10 +251,9 @@ impl InternalAdditionOps for TemporalGraph {
                 let id = match self.logical_to_physical.get_or_init(id)? {
                     MaybeInit::VID(vid) => MaybeNew::Existing(vid),
                     MaybeInit::Init(init) => {
-                        let (seg, pos) = self
-                            .storage()
-                            .nodes()
-                            .reserve_free_pos(self.event_counter.fetch_add(1, Ordering::Relaxed));
+                        let (seg, pos) = self.storage().nodes().reserve_free_pos(
+                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
+                        );
                         let vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
                         init.init(vid)?;
                         MaybeNew::New(vid)
@@ -332,6 +332,23 @@ impl InternalAdditionOps for TemporalGraph {
         Ok((vid, node_type_id))
     }
 
+    unsafe fn bulk_load_resolve_node(&self, id: GidRef<'_>) -> Result<VID, Self::Error> {
+        let vid = match self.logical_to_physical.get(id) {
+            Some(vid) => vid,
+            None => {
+                let (seg, pos) = self
+                    .storage()
+                    .nodes()
+                    .reserve_free_pos(self.round_robin_counter.fetch_add(1, Ordering::Relaxed));
+                let new_vid = pos.as_vid(seg, self.extension().config().max_node_page_len());
+                self.logical_to_physical.set(id, new_vid)?;
+                new_vid
+            }
+        };
+
+        Ok(vid)
+    }
+
     fn validate_gids<'a>(
         &self,
         gids: impl IntoIterator<Item = GidRef<'a>>,
@@ -351,20 +368,41 @@ impl InternalAdditionOps for TemporalGraph {
         e_id: Option<EID>,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
         let nodes = self.storage().nodes();
-        let src_init = match src {
-            NodeRef::Internal(vid) => MaybeInit::VID(vid),
-            NodeRef::External(gid) => self.logical_to_physical.get_or_init(gid)?,
+
+        let (src_init, dst_init) = match (src, dst) {
+            (NodeRef::Internal(src_id), NodeRef::Internal(dst_id)) => {
+                (MaybeInit::VID(src_id), Some(MaybeInit::VID(dst_id)))
+            }
+            (NodeRef::Internal(src_id), NodeRef::External(dst_gid)) => (
+                MaybeInit::VID(src_id),
+                Some(self.logical_to_physical.get_or_init(dst_gid)?),
+            ),
+            (NodeRef::External(src_gid), NodeRef::Internal(dst_id)) => (
+                self.logical_to_physical.get_or_init(src_gid)?,
+                Some(MaybeInit::VID(dst_id)),
+            ),
+            (NodeRef::External(src_gid), NodeRef::External(dst_gid)) => {
+                // resolve the smaller id first to avoid deadlocks when adding the same edge in both directions
+                match src_gid.cmp(&dst_gid) {
+                    std::cmp::Ordering::Less => (
+                        self.logical_to_physical.get_or_init(src_gid)?,
+                        Some(self.logical_to_physical.get_or_init(dst_gid)?),
+                    ),
+                    std::cmp::Ordering::Equal => {
+                        (self.logical_to_physical.get_or_init(src_gid)?, None)
+                    }
+                    std::cmp::Ordering::Greater => {
+                        let dst_init = self.logical_to_physical.get_or_init(dst_gid)?;
+                        (
+                            self.logical_to_physical.get_or_init(src_gid)?,
+                            Some(dst_init),
+                        )
+                    }
+                }
+            }
         };
 
-        let dst_init = if src == dst {
-            None
-        } else {
-            match dst {
-                NodeRef::Internal(vid) => Some(MaybeInit::VID(vid)),
-                NodeRef::External(gid) => Some(self.logical_to_physical.get_or_init(gid)?),
-            }
-        }
-        .filter(|dst_init| dst_init != &src_init);
+        let dst_init = dst_init.filter(|dst_init| dst_init != &src_init);
 
         let (mut node_writers, src_id, dst_id) = match (src_init, dst_init) {
             (src_init, None) => {
@@ -384,7 +422,7 @@ impl InternalAdditionOps for TemporalGraph {
                     }
                     MaybeInit::Init(init) => {
                         let (pos, writer) = nodes.reserve_and_lock_segment(
-                            self.event_counter.fetch_add(1, Ordering::Relaxed),
+                            self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                             1,
                         );
                         let vid =
@@ -404,7 +442,7 @@ impl InternalAdditionOps for TemporalGraph {
             (MaybeInit::Init(src_init), Some(MaybeInit::Init(dst_init))) => {
                 // both new, put them in the same segment
                 let (pos, writer) = nodes.reserve_and_lock_segment(
-                    self.event_counter.fetch_add(1, Ordering::Relaxed),
+                    self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                     2,
                 );
                 let src_id =
@@ -424,19 +462,22 @@ impl InternalAdditionOps for TemporalGraph {
             }
             (MaybeInit::Init(src_init), Some(MaybeInit::VID(dst_id))) => {
                 let (dst_chunk, _) = nodes.resolve_pos(dst_id);
-                let dst_writer = nodes.writer(dst_chunk);
+                let mut dst_writer = nodes.writer(dst_chunk);
                 match nodes.reserve_segment_row(dst_writer.page) {
                     None => {
-                        // existing segment is full, need to get a new one
-                        let (src_pos, src_writer) = nodes.reserve_and_lock_segment(
-                            self.event_counter.fetch_add(1, Ordering::Relaxed),
-                            1,
-                        );
-                        let src_id = src_pos.as_vid(
-                            src_writer.page.segment_id(),
-                            src_writer.mut_segment.max_page_len(),
-                        );
-                        src_init.init(src_id)?;
+                        let (src_id, src_writer) = dst_writer.unlocked(|| {
+                            // existing segment is full, need to get a new one, unlock dst_writer such that the segment can be evicted from the free segments
+                            let (src_pos, src_writer) = nodes.reserve_and_lock_segment(
+                                self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
+                                1,
+                            );
+                            let src_id = src_pos.as_vid(
+                                src_writer.page.segment_id(),
+                                src_writer.mut_segment.max_page_len(),
+                            );
+                            src_init.init(src_id)?;
+                            Ok::<_, StorageError>((src_id, src_writer))
+                        })?;
                         (
                             NodeWriters {
                                 src: src_writer,
@@ -465,18 +506,22 @@ impl InternalAdditionOps for TemporalGraph {
             }
             (MaybeInit::VID(src_id), Some(MaybeInit::Init(dst_init))) => {
                 let (src_chunk, _) = nodes.resolve_pos(src_id);
-                let src_writer = nodes.writer(src_chunk);
+                let mut src_writer = nodes.writer(src_chunk);
                 match nodes.reserve_segment_row(src_writer.page) {
                     None => {
-                        let (dst_pos, dst_writer) = nodes.reserve_and_lock_segment(
-                            self.event_counter.fetch_add(1, Ordering::Relaxed),
-                            1,
-                        );
-                        let dst_id = dst_pos.as_vid(
-                            dst_writer.page.segment_id(),
-                            dst_writer.mut_segment.max_page_len(),
-                        );
-                        dst_init.init(dst_id)?;
+                        let (dst_id, dst_writer) = src_writer.unlocked(|| {
+                            // unlocked to make sure we can evict this segment from the free segments to avoid deadlocking
+                            let (dst_pos, dst_writer) = nodes.reserve_and_lock_segment(
+                                self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
+                                1,
+                            );
+                            let dst_id = dst_pos.as_vid(
+                                dst_writer.page.segment_id(),
+                                dst_writer.mut_segment.max_page_len(),
+                            );
+                            dst_init.init(dst_id)?;
+                            Ok::<_, StorageError>((dst_id, dst_writer))
+                        })?;
                         (
                             NodeWriters {
                                 src: src_writer,
@@ -624,7 +669,7 @@ impl InternalAdditionOps for TemporalGraph {
                 MaybeInit::VID(vid) => vid,
                 MaybeInit::Init(init) => {
                     let (pos, mut writer) = self.storage().nodes().reserve_and_lock_segment(
-                        self.event_counter.fetch_add(1, Ordering::Relaxed),
+                        self.round_robin_counter.fetch_add(1, Ordering::Relaxed),
                         1,
                     );
                     writer.store_node_id(pos, STATIC_GRAPH_LAYER_ID, gid.to_owned());
@@ -651,10 +696,11 @@ impl InternalAdditionOps for TemporalGraph {
         t: EventTime,
         v: VID,
         props: Vec<(usize, Prop)>,
+        layer_id: LayerId,
     ) -> Result<NodeWriterT<'_>, Self::Error> {
         let (segment, node_pos) = self.storage().nodes().resolve_pos(v);
         let mut node_writer = self.storage().node_writer(segment);
-        node_writer.add_props(t, node_pos, STATIC_GRAPH_LAYER_ID, props);
+        node_writer.add_props(t, node_pos, layer_id, props);
         Ok(node_writer)
     }
 
@@ -705,4 +751,10 @@ impl DurabilityOps for TemporalGraph {
     fn wal(&self) -> Result<&Wal, MutationError> {
         Ok(&self.extension().wal())
     }
+
+    fn control_file(&self) -> Result<&ControlFile, MutationError> {
+        Ok(&self.extension().control_file())
+    }
 }
+
+impl RecoveryOps for TemporalGraph {}

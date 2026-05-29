@@ -7,12 +7,13 @@
 use crate::python::graph::index::PyIndexSpec;
 use crate::{
     algorithms::components::LargestConnectedComponent,
+    arrow_loader::df_loaders::edges::ColumnNames,
     db::{
         api::view::internal::{DynamicGraph, IntoDynamic, MaterializedGraph},
         graph::{edge::EdgeView, node::NodeView, views::node_subgraph::NodeSubgraph},
     },
     errors::GraphError,
-    io::{arrow::df_loaders::edges::ColumnNames, parquet_loaders::*},
+    io::parquet_loaders::*,
     prelude::*,
     python::{
         config::PyConfig,
@@ -191,15 +192,24 @@ impl PyGraph {
     ///     path (str | PathLike): the path of the graph folder
     ///     config (Config, optional): specify a new config to override the values saved for the graph
     ///                                (note that the page sizes cannot be overridden and are ignored)
+    ///     read_only (bool): open as a read-only snapshot. Multiple processes can hold
+    ///                       a read-only handle to the same graph directory concurrently;
+    ///                       mutating the returned graph will fail. Defaults to ``False``.
     ///
     /// Returns:
     ///     Graph: the graph
-    #[pyo3(signature = (path, config = None))]
+    #[pyo3(signature = (path, config = None, read_only = false))]
     #[staticmethod]
-    pub fn load(path: PathBuf, config: Option<PyConfig>) -> Result<Graph, GraphError> {
-        match config {
-            None => Graph::load(&path),
-            Some(PyConfig(config)) => Graph::load_with_config(&path, config),
+    pub fn load(
+        path: PathBuf,
+        config: Option<PyConfig>,
+        read_only: bool,
+    ) -> Result<Graph, GraphError> {
+        match (config, read_only) {
+            (None, false) => Graph::load(&path),
+            (Some(PyConfig(config)), false) => Graph::load_with_config(&path, config),
+            (None, true) => Graph::load_read_only(&path),
+            (Some(PyConfig(config)), true) => Graph::load_read_only_with_config(&path, config),
         }
     }
 
@@ -209,6 +219,25 @@ impl PyGraph {
     ///     None: This function does not return a value, if the operation is successful.
     pub fn flush(&self) -> Result<(), GraphError> {
         self.graph.flush()
+    }
+
+    /// Return a read-only handle to this graph.
+    ///
+    /// Mutations on the returned graph (``add_node``, ``add_edge``,
+    /// ``add_metadata``, etc.) raise an error containing ``"locked"``.
+    /// The underlying data is shared with the original handle — this is
+    /// not a snapshot.
+    ///
+    /// .. warning::
+    ///     While this handle is live, the original graph cannot be
+    ///     mutated either: writes from it will block on the read locks
+    ///     held by this handle. Drop the read-only handle (``del ro``)
+    ///     before mutating the original.
+    ///
+    /// Returns:
+    ///     Graph: a read-only handle to the same graph data.
+    pub fn read_only(&self) -> Graph {
+        self.graph.read_only()
     }
 
     fn __reduce__(&self) -> Result<(PyGraphEncoder, (Vec<u8>,)), GraphError> {
@@ -248,6 +277,7 @@ impl PyGraph {
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
+    ///    layer (str, optional): The optional string which will be used as a node layer.
     ///
     /// Returns:
     ///     MutableNode: The added node.
@@ -255,7 +285,7 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (timestamp, id, properties = None, node_type = None, event_id = None)
+        signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None)
     )]
     pub fn add_node(
         &self,
@@ -264,6 +294,7 @@ impl PyGraph {
         properties: Option<Bound<PyDict>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Graph>, GraphError> {
         let props = properties
             .into_iter()
@@ -275,10 +306,11 @@ impl PyGraph {
             })
             .collect::<Result<Vec<_>, _>>()?;
         match event_id {
-            None => self.graph.add_node(timestamp, id, props, node_type),
-            Some(event_id) => self
-                .graph
-                .add_node((timestamp, event_id), id, props, node_type),
+            None => self.graph.add_node(timestamp, id, props, node_type, layer),
+            Some(event_id) => {
+                self.graph
+                    .add_node((timestamp, event_id), id, props, node_type, layer)
+            }
         }
     }
 
@@ -290,13 +322,13 @@ impl PyGraph {
     ///    properties (PropInput, optional): The properties of the node.
     ///    node_type (str, optional): The optional string which will be used as a node type.
     ///    event_id (int, optional): The optional integer which will be used as an event id.
-    ///
+    ///    layer (str, optional): The optional string which will be used as a layer.
     /// Returns:
     ///     MutableNode: The created node.
     ///
     /// Raises:
     ///     GraphError: If the operation fails.
-    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None))]
+    #[pyo3(signature = (timestamp, id, properties = None, node_type = None, event_id = None, layer = None))]
     pub fn create_node(
         &self,
         timestamp: EventTimeComponent,
@@ -304,17 +336,22 @@ impl PyGraph {
         properties: Option<HashMap<String, Prop>>,
         node_type: Option<&str>,
         event_id: Option<usize>,
+        layer: Option<&str>,
     ) -> Result<NodeView<'static, Graph>, GraphError> {
         match event_id {
-            None => {
-                self.graph
-                    .create_node(timestamp, id, properties.unwrap_or_default(), node_type)
-            }
+            None => self.graph.create_node(
+                timestamp,
+                id,
+                properties.unwrap_or_default(),
+                node_type,
+                layer,
+            ),
             Some(event_id) => self.graph.create_node(
                 (timestamp, event_id),
                 id,
                 properties.unwrap_or_default(),
                 node_type,
+                layer,
             ),
         }
     }
@@ -700,6 +737,8 @@ impl PyGraph {
     ///     schema (list[tuple[str, DataType | PropType | str]] | dict[str, DataType | PropType | str], optional): A list of (column_name, column_type) tuples or dict of {"column_name": column_type} to cast columns to. Defaults to None.
     ///     csv_options (dict[str, str | bool], optional): A dictionary of CSV reading options such as delimiter, comment, escape, quote, and terminator characters, as well as allow_truncated_rows and has_header flags. Defaults to None.
     ///     event_id (str, optional): The column name for the secondary index. Defaults to None.
+    ///     layer (str, optional): A value to use as the layer for all nodes. Cannot be used in combination with layer_col. Defaults to None.
+    ///     layer_col (str, optional): The node layer column name in a dataframe. Cannot be used in combination with layer. Defaults to None.
     ///
     /// Returns:
     ///     None: This function does not return a value if the operation is successful.
@@ -707,14 +746,13 @@ impl PyGraph {
     /// Raises:
     ///     GraphError: If the operation fails.
     #[pyo3(
-        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None)
+        signature = (data, time, id, node_type = None, node_type_col = None, properties = None, metadata= None, shared_metadata = None, schema = None, csv_options = None, event_id = None, layer = None, layer_col = None)
     )]
     fn load_nodes(
         &self,
         data: &Bound<PyAny>,
         time: &str,
         id: &str,
-
         node_type: Option<&str>,
         node_type_col: Option<&str>,
         properties: Option<Vec<PyBackedStr>>,
@@ -723,6 +761,8 @@ impl PyGraph {
         schema: Option<Bound<PyAny>>,
         csv_options: Option<CsvReadOptions>,
         event_id: Option<&str>,
+        layer: Option<&str>,
+        layer_col: Option<&str>,
     ) -> Result<(), GraphError> {
         let properties = convert_py_prop_args(properties.as_deref()).unwrap_or_default();
         let metadata = convert_py_prop_args(metadata.as_deref()).unwrap_or_default();
@@ -738,6 +778,8 @@ impl PyGraph {
                 &properties,
                 &metadata,
                 shared_metadata.as_ref(),
+                layer,
+                layer_col,
                 column_schema,
                 event_id,
             )
@@ -770,6 +812,8 @@ impl PyGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
                     None,
                     true,
                     arced_schema.clone(),
@@ -786,6 +830,8 @@ impl PyGraph {
                     &properties,
                     &metadata,
                     shared_metadata.as_ref(),
+                    layer,
+                    layer_col,
                     csv_options.as_ref(),
                     arced_schema,
                     event_id,

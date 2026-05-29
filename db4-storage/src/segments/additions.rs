@@ -63,6 +63,7 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
 
     type RangeType = Self;
 
+    #[inline]
     fn active(&self, w: Range<Self::IndexType>) -> bool {
         match self {
             MemAdditions::Props(props) => props.active(w),
@@ -107,6 +108,15 @@ impl<'a> TimeIndexOps<'a> for MemAdditions<'a> {
             MemAdditions::Edges(edges) => edges.len(),
             MemAdditions::WProps(window) => window.len(),
             MemAdditions::WEdges(window) => window.len(),
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        match self {
+            MemAdditions::Edges(edges) => TCell::is_empty(edges),
+            MemAdditions::Props(props) => TCell::is_empty(props),
+            MemAdditions::WEdges(edges) => edges.is_empty(),
+            MemAdditions::WProps(edges) => edges.is_empty(),
         }
     }
 }

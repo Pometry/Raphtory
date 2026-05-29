@@ -1,7 +1,19 @@
+use crate::{
+    LocalPOS, error::StorageError, persist::strategy::PersistenceStrategy,
+    segments::edge::segment::MemEdgeSegment, wal::LSN,
+};
 use parking_lot::{RwLockReadGuard, RwLockWriteGuard, lock_api::ArcRwLockReadGuard};
-use raphtory_api::core::entities::properties::{meta::Meta, prop::Prop, tprop::TPropOps};
+use raphtory_api::core::entities::{
+    LayerId,
+    edges::edge_ref::Dir,
+    properties::{
+        meta::Meta,
+        prop::{AsPropRef, Prop},
+        tprop::TPropOps,
+    },
+};
 use raphtory_core::{
-    entities::{EID, LayerIds, VID},
+    entities::{EID, LayerIds, VID, edges::edge_ref::EdgeRef},
     storage::timeindex::{EventTime, TimeIndexOps},
 };
 use rayon::iter::ParallelIterator;
@@ -11,10 +23,8 @@ use std::{
     sync::{Arc, atomic::AtomicU32},
 };
 
-use crate::{LocalPOS, error::StorageError, segments::edge::segment::MemEdgeSegment, wal::LSN};
-
 pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
-    type Extension;
+    type Extension: PersistenceStrategy<ES = Self>;
 
     type Entry<'a>: EdgeEntryOps<'a>
     where
@@ -22,13 +32,15 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
 
     type ArcLockedSegment: LockedESegment;
 
+    fn extension(&self) -> &Self::Extension;
+
     fn latest(&self) -> Option<EventTime>;
     fn earliest(&self) -> Option<EventTime>;
 
-    fn t_len(&self) -> usize;
+    fn t_len(&self, layer_id: usize) -> usize;
     fn num_layers(&self) -> usize;
-    // Persistent layer count, not used for up to date counts
-    fn layer_count(&self, layer_id: usize) -> u32;
+    // Persistent layer count, not used for up-to-date counts
+    fn layer_count(&self, layer_id: LayerId) -> u32;
 
     fn load(
         page_id: usize,
@@ -51,6 +63,9 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
             .load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    /// total number of addition and deletion events
+    fn num_updates(&self) -> usize;
+
     fn head(&self) -> RwLockReadGuard<'_, MemEdgeSegment>;
 
     fn head_arc(&self) -> ArcRwLockReadGuard<parking_lot::RawRwLock, MemEdgeSegment>;
@@ -60,6 +75,8 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn try_head_mut(&self) -> Option<RwLockWriteGuard<'_, MemEdgeSegment>>;
 
     fn set_dirty(&self, dirty: bool);
+
+    fn is_dirty(&self) -> bool;
 
     /// notify that an edge was added (might need to write to disk)
     fn notify_write(
@@ -72,26 +89,28 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
-    fn contains_edge(
+    fn has_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> bool;
+
+    fn immut_has_edge(&self, edge_pos: LocalPOS, layer_id: LayerId) -> bool;
 
     fn get_edge(
         &self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: impl Deref<Target = MemEdgeSegment>,
     ) -> Option<(VID, VID)>;
 
-    fn entry<'a>(&'a self, edge_pos: LocalPOS) -> Self::Entry<'a>;
+    fn entry<'a>(&'a self, edge_pos: LocalPOS, edge_ref: Option<EdgeRef>) -> Self::Entry<'a>;
 
     fn layer_entry<'a>(
         &'a self,
         edge_pos: LocalPOS,
-        layer_id: usize,
+        layer_id: LayerId,
         locked_head: Option<parking_lot::RwLockReadGuard<'a, MemEdgeSegment>>,
     ) -> Option<Self::Entry<'a>>;
 
@@ -106,6 +125,13 @@ pub trait EdgeSegmentOps: Send + Sync + std::fmt::Debug + 'static {
     fn immut_lsn(&self) -> LSN;
 
     fn flush(&self) -> Result<(), StorageError>;
+
+    fn check_metadata_immut<PR: AsPropRef>(
+        &self,
+        edge_pos: LocalPOS,
+        layer_id: LayerId,
+        props: &[(usize, PR)],
+    ) -> Result<(), StorageError>;
 }
 
 pub trait LockedESegment: Send + Sync + std::fmt::Debug {
@@ -113,7 +139,11 @@ pub trait LockedESegment: Send + Sync + std::fmt::Debug {
     where
         Self: 'a;
 
-    fn entry_ref<'a>(&'a self, edge_pos: impl Into<LocalPOS>) -> Self::EntryRef<'a>
+    fn entry_ref<'a>(
+        &'a self,
+        edge_pos: impl Into<LocalPOS>,
+        edge_ref: Option<EdgeRef>,
+    ) -> Self::EntryRef<'a>
     where
         Self: 'a;
 
@@ -146,24 +176,21 @@ pub trait EdgeRefOps<'a>: Copy + Clone + Send + Sync {
     type Deletions: TimeIndexOps<'a, IndexType = EventTime>;
     type TProps: TPropOps<'a>;
 
-    fn edge(self, layer_id: usize) -> Option<(VID, VID)>;
-
-    fn has_layer_inner(self, layer_id: usize) -> bool {
-        self.edge(layer_id).is_some()
-    }
+    fn has_layer_inner(self, layer_id: LayerId) -> bool;
 
     fn internal_num_layers(self) -> usize;
 
-    fn layer_additions(self, layer_id: usize) -> Self::Additions;
-    fn layer_deletions(self, layer_id: usize) -> Self::Deletions;
+    fn layer_additions(self, layer_id: LayerId) -> Self::Additions;
+    fn layer_deletions(self, layer_id: LayerId) -> Self::Deletions;
 
-    fn c_prop(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn c_prop(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
-    fn layer_t_prop(self, layer_id: usize, prop_id: usize) -> Self::TProps;
+    fn layer_t_prop(self, layer_id: LayerId, prop_id: usize) -> Self::TProps;
 
     fn src(&self) -> Option<VID>;
 
     fn dst(&self) -> Option<VID>;
 
     fn edge_id(&self) -> EID;
+    fn edge_ref(self, dir: Dir) -> Option<EdgeRef>;
 }

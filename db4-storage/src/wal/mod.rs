@@ -1,10 +1,9 @@
 use crate::error::StorageError;
-use raphtory_api::core::entities::{GidRef, properties::prop::Prop};
+use raphtory_api::core::entities::{GidRef, LayerId, properties::prop::Prop};
 use raphtory_core::{
     entities::{EID, GID, VID},
     storage::timeindex::EventTime,
 };
-use std::path::Path;
 
 pub mod entry;
 pub mod no_wal;
@@ -14,17 +13,6 @@ pub type TransactionID = u64;
 
 /// Core Wal methods.
 pub trait WalOps {
-    type Config;
-
-    fn new(dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>
-    where
-        Self: Sized;
-
-    /// Loads an existing WAL file from the given directory in append mode.
-    fn load(dir: Option<&Path>, config: Self::Config) -> Result<Self, StorageError>
-    where
-        Self: Sized;
-
     /// Appends data to the WAL and returns the assigned LSN.
     fn append(&self, data: &[u8]) -> Result<LSN, StorageError>;
 
@@ -32,15 +20,18 @@ pub trait WalOps {
     /// Returns immediately if the given LSN is already flushed to disk.
     fn flush(&self, lsn: LSN) -> Result<(), StorageError>;
 
-    /// Rotates the underlying WAL file.
-    /// `cutoff_lsn` acts as a hint for which records can be safely discarded during rotation.
-    fn rotate(&self, cutoff_lsn: LSN) -> Result<(), StorageError>;
+    /// Reads the WAL record at the given LSN.
+    /// Returns `Ok(None)` if there is no record at that LSN.
+    fn read(&self, lsn: LSN) -> Result<Option<ReplayRecord>, StorageError>;
 
-    /// Returns an iterator over the entries in the wal.
-    fn replay(&self) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
+    /// Returns an iterator over the entries in the wal, starting from the given LSN.
+    fn replay(&self, start: LSN) -> impl Iterator<Item = Result<ReplayRecord, StorageError>>;
 
-    /// Returns true if there are entries in the WAL file on disk.
-    fn has_entries(&self) -> Result<bool, StorageError>;
+    /// Returns the current position in the WAL stream.
+    fn position(&self) -> LSN;
+
+    /// Sets the position in the WAL stream.
+    fn set_position(&self, lsn: LSN) -> Result<(), StorageError>;
 }
 
 #[derive(Debug)]
@@ -49,16 +40,16 @@ pub struct ReplayRecord {
 
     data: Vec<u8>,
 
-    /// The raw bytes of the WAL entry stored on disk, including CRC data.
-    raw_bytes: Vec<u8>,
+    /// LSN immediately after this record in the WAL stream.
+    next_lsn: LSN,
 }
 
 impl ReplayRecord {
-    pub fn new(lsn: LSN, data: Vec<u8>, raw_bytes: Vec<u8>) -> Self {
+    pub fn new(lsn: LSN, data: Vec<u8>, next_lsn: LSN) -> Self {
         Self {
             lsn,
             data,
-            raw_bytes,
+            next_lsn,
         }
     }
 
@@ -66,12 +57,13 @@ impl ReplayRecord {
         self.lsn
     }
 
-    pub fn data(&self) -> &[u8] {
-        &self.data
+    /// Returns the LSN immediately following this record in the WAL stream.
+    pub fn next_lsn(&self) -> LSN {
+        self.next_lsn
     }
 
-    pub fn raw_bytes(&self) -> &[u8] {
-        &self.raw_bytes
+    pub fn data(&self) -> &[u8] {
+        &self.data
     }
 }
 
@@ -90,7 +82,7 @@ pub trait GraphWalOps {
         dst_id: VID,
         eid: EID,
         layer_name: Option<&str>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
@@ -98,7 +90,7 @@ pub trait GraphWalOps {
         &self,
         transaction_id: TransactionID,
         eid: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
@@ -112,7 +104,7 @@ pub trait GraphWalOps {
         dst_id: VID,
         eid: EID,
         layer_name: Option<&str>,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> Result<LSN, StorageError>;
 
     fn log_add_node(
@@ -123,6 +115,8 @@ pub trait GraphWalOps {
         node_id: VID,
         node_type_and_id: Option<(&str, usize)>,
         props: Vec<(&str, usize, Prop)>,
+        layer_name: Option<&str>,
+        layer_id: LayerId,
     ) -> Result<LSN, StorageError>;
 
     fn log_add_node_metadata(
@@ -153,16 +147,28 @@ pub trait GraphWalOps {
         props: Vec<(&str, usize, Prop)>,
     ) -> Result<LSN, StorageError>;
 
-    /// Logs a checkpoint record, indicating that all Wal operations upto and including
-    /// `lsn` has been persisted to disk.
-    fn log_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+    /// Logs a checkpoint indicating that all LSN < `redo` are persisted.
+    /// On recovery, replay will start from `redo` in the WAL stream.
+    fn log_checkpoint(&self, redo: LSN) -> Result<LSN, StorageError>;
 
-    /// Returns an iterator over the entries in the wal.
-    fn replay_iter(&self) -> impl Iterator<Item = Result<(LSN, Self::ReplayEntry), StorageError>>;
+    /// Logs a shutdown checkpoint indicating a clean shutdown with all writes persisted.
+    fn log_shutdown_checkpoint(&self) -> Result<LSN, StorageError>;
 
-    /// Replays and applies all the entries in the wal to the given graph.
-    /// Subsequent appends to the WAL will start from the LSN of the last replayed entry.
-    fn replay_to_graph<G: GraphReplay>(&self, graph: &mut G) -> Result<(), StorageError>;
+    /// Reads and decodes the WAL entry at the given LSN and validates that it is a checkpoint.
+    /// Returns the checkpoint redo LSN, denoting where replay should start from.
+    fn read_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+
+    /// Reads and decodes the WAL entry at the given LSN and validates that it is a shutdown checkpoint.
+    /// Returns the LSN immediately after this record, marking the end of the WAL stream.
+    fn read_shutdown_checkpoint(&self, lsn: LSN) -> Result<LSN, StorageError>;
+
+    /// Replays and applies all the entries in the wal to the given graph, starting from the given LSN.
+    /// Returns the LSN immediately after the last entry in the WAL stream on success.
+    fn replay_to_graph<G: GraphReplay>(
+        &self,
+        graph: &mut G,
+        start: LSN,
+    ) -> Result<LSN, StorageError>;
 }
 
 /// Trait for defining callbacks for replaying from wal.
@@ -178,7 +184,7 @@ pub trait GraphReplay {
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 
@@ -187,7 +193,7 @@ pub trait GraphReplay {
         lsn: LSN,
         transaction_id: TransactionID,
         eid: EID,
-        layer_id: usize,
+        layer_id: LayerId,
         props: Vec<(String, usize, Prop)>,
     ) -> Result<(), StorageError>;
 
@@ -202,7 +208,7 @@ pub trait GraphReplay {
         dst_id: VID,
         eid: EID,
         layer_name: Option<String>,
-        layer_id: usize,
+        layer_id: LayerId,
     ) -> Result<(), StorageError>;
 
     fn replay_add_node(

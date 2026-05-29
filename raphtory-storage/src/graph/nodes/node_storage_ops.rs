@@ -1,10 +1,15 @@
 use raphtory_api::core::{
-    entities::{edges::edge_ref::EdgeRef, properties::prop::Prop, GidRef, LayerIds, VID},
+    entities::{
+        edges::edge_ref::EdgeRef,
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop},
+        GidRef, LayerId, LayerIds, VID,
+    },
+    storage::timeindex::TimeIndexOps,
     Direction,
 };
 use raphtory_core::{entities::LayerVariants, storage::timeindex::EventTime};
-use std::{borrow::Cow, ops::Range};
-use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, NodeEntryRef};
+use std::{borrow::Cow, ops::Range, sync::Arc};
+use storage::{api::nodes::NodeRefOps, gen_ts::LayerIter, utils::Iter3, NodeEntryRef};
 
 pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn degree(self, layers: &LayerIds, dir: Direction) -> usize;
@@ -30,7 +35,11 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a;
+
+    fn has_layers(self, layer_ids: &'a LayerIds) -> bool {
+        !self.additions().is_empty() || self.layer_ids_iter(layer_ids).next().is_some()
+    }
 
     fn node_additions<L: Into<LayerIter<'a>>>(self, layer_id: L) -> storage::NodePropAdditions<'a>;
 
@@ -41,26 +50,60 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
 
     fn additions(self) -> storage::NodePropAdditions<'a>;
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a>;
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a>;
 
     fn temporal_prop_iter(
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, storage::NodeTProps<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, storage::NodeTProps<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a>;
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    /// Number of layers in the underlying storage for this node.
+    fn num_layers(self) -> usize;
+
+    /// Iterate over `NodeTProps` for each layer specified by `layer_ids`, always
+    /// including `STATIC_GRAPH_LAYER_ID` (the layer for nodes added without an
+    /// explicit layer name).  This mirrors the behaviour of `layer_ids_with_static`
+    /// used for node additions: unlayered nodes must be visible in every view.
+    fn tprop_iter_layers(
+        self,
+        layer_ids: &LayerIds,
+        prop_id: usize,
+    ) -> impl Iterator<Item = storage::NodeTProps<'a>> + Send + Sync + 'a {
+        let layers = match layer_ids {
+            LayerIds::None => LayerVariants::None(std::iter::once(STATIC_GRAPH_LAYER_ID)),
+            LayerIds::All => LayerVariants::All((0..self.num_layers()).map(LayerId)),
+            LayerIds::One(id) => {
+                if *id == STATIC_GRAPH_LAYER_ID {
+                    LayerVariants::One(std::iter::once(*id))
+                } else {
+                    LayerVariants::Multiple(Iter3::I([STATIC_GRAPH_LAYER_ID, *id].into_iter()))
+                }
+            }
+            LayerIds::Multiple(ids) => {
+                if ids.contains(STATIC_GRAPH_LAYER_ID) {
+                    LayerVariants::Multiple(Iter3::J(ids.clone().into_iter()))
+                } else {
+                    let v = std::iter::once(STATIC_GRAPH_LAYER_ID).chain(ids.clone().into_iter());
+                    LayerVariants::Multiple(Iter3::K(v))
+                }
+            }
+        };
+        layers.map(move |id| self.temporal_prop_layer(id, prop_id))
+    }
+
+    fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
     fn constant_prop_iter(
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, Prop)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
         self.layer_ids_iter(layer_ids)
             .filter_map(move |id| Some((id, self.constant_prop_layer(id, prop_id)?)))
     }
@@ -68,10 +111,14 @@ pub trait NodeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)>;
 
-    fn temp_prop_rows(self) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        self.temp_prop_rows_range(None)
+    fn temp_prop_rows(
+        self,
+        prop_ids: Arc<[usize]>,
+    ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
+        self.temp_prop_rows_range(None, prop_ids)
     }
 }
 
@@ -107,11 +154,13 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => LayerVariants::All(
-                (0..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
+                (0..self.internal_num_layers())
+                    .map(LayerId)
+                    .filter(move |&l| self.has_layer_inner(l)),
             ),
             LayerIds::One(id) => {
                 LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
@@ -141,21 +190,26 @@ impl<'a> NodeStorageOps<'a> for NodeEntryRef<'a> {
     }
 
     fn tprop(self, prop_id: usize) -> storage::NodeTProps<'a> {
-        NodeRefOps::temporal_prop_layer(self, 0, prop_id)
+        NodeRefOps::temporal_prop_layer(self, LayerId(0), prop_id)
     }
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> storage::NodeTProps<'a> {
+    fn num_layers(self) -> usize {
+        NodeRefOps::internal_num_layers(&self)
+    }
+
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> storage::NodeTProps<'a> {
         NodeRefOps::temporal_prop_layer(self, layer_id, prop_id)
     }
 
-    fn constant_prop_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn constant_prop_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         NodeRefOps::c_prop(self, layer_id, prop_id)
     }
 
     fn temp_prop_rows_range(
         self,
         w: Option<Range<EventTime>>,
+        prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, usize, Vec<(usize, Prop)>)> {
-        NodeRefOps::temp_prop_rows(self, w)
+        NodeRefOps::temp_prop_rows(self, w, prop_ids)
     }
 }

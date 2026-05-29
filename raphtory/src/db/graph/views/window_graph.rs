@@ -42,7 +42,8 @@ use crate::{
     db::{
         api::{
             properties::internal::{
-                InheritMetadataPropertiesOps, InternalTemporalPropertiesOps,
+                InheritEdgePropertySchemaOps, InheritMetadataPropertiesOps,
+                InheritNodePropertySchemaOps, InternalTemporalPropertiesOps,
                 InternalTemporalPropertyViewOps,
             },
             state::Index,
@@ -64,7 +65,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::prop::{Prop, PropType},
-            ELID,
+            LayerId, ELID,
         },
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
@@ -177,6 +178,10 @@ impl<'graph, G: GraphViewOps<'graph>> InheritMaterialize for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> InheritMetadataPropertiesOps for WindowedGraph<G> {}
 
+impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for WindowedGraph<G> {}
+
+impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for WindowedGraph<G> {}
+
 impl<'graph, G: GraphViewOps<'graph>> InheritLayerOps for WindowedGraph<G> {}
 
 impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
@@ -204,7 +209,7 @@ impl<'graph, G: GraphViewOps<'graph>> ListOps for WindowedGraph<G> {
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for WindowedGraph<G> {
     #[inline]
     fn internal_nodes_filtered(&self) -> bool {
-        self.window_is_empty() || self.graph.internal_nodes_filtered() || self.window_is_bounding()
+        self.window_is_empty() || self.graph.internal_nodes_filtered()
     }
 
     #[inline]
@@ -297,6 +302,12 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
     fn edge_time_semantics(&self) -> TimeSemantics {
         self.graph.edge_time_semantics().window(self.window_bound())
     }
+
+    #[inline]
+    fn window_filtered(&self) -> bool {
+        self.window_is_bounding()
+    }
+
     fn view_start(&self) -> Option<EventTime> {
         self.start
     }
@@ -390,57 +401,69 @@ impl<'graph, G: GraphViewOps<'graph>> GraphTimeSemanticsOps for WindowedGraph<G>
 // actual filtering is handled upstream for efficiency and to avoid double-checking nested windows
 // here we just define the optimisation flags
 impl<G: GraphView> InternalEdgeFilterOps for WindowedGraph<G> {
+    #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.window_is_bounding() || self.graph.internal_edge_filtered()
+        self.window_is_empty() || self.graph.internal_edge_filtered()
     }
 
+    #[inline]
     fn internal_edge_list_trusted(&self) -> bool {
         self.window_is_empty()
             || (!self.window_is_bounding() && self.graph.internal_edge_list_trusted())
     }
 
+    #[inline]
     fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
-        self.graph.internal_filter_edge(edge, layer_ids)
+        !self.window_is_empty() && self.graph.internal_filter_edge(edge, layer_ids)
     }
 
+    #[inline]
     fn node_filter_includes_edge_filter(&self) -> bool {
         self.window_is_empty() || self.graph.node_filter_includes_edge_filter()
     }
 }
 impl<G: GraphView> InternalEdgeLayerFilterOps for WindowedGraph<G> {
+    #[inline]
     fn internal_edge_layer_filtered(&self) -> bool {
-        self.window_is_bounding() || self.graph.internal_edge_layer_filtered()
+        self.graph.internal_edge_layer_filtered()
     }
 
+    #[inline]
     fn internal_layer_filter_edge_list_trusted(&self) -> bool {
         self.window_is_empty()
             || (!self.window_is_bounding() && self.graph.internal_layer_filter_edge_list_trusted())
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: usize) -> bool {
+    #[inline]
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.graph.internal_filter_edge_layer(edge, layer)
     }
 
+    #[inline]
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
         self.window_is_empty() || self.graph.node_filter_includes_edge_layer_filter()
     }
 }
 
 impl<G: GraphView> InternalExplodedEdgeFilterOps for WindowedGraph<G> {
+    #[inline]
     fn internal_exploded_edge_filtered(&self) -> bool {
         self.graph.internal_exploded_edge_filtered()
     }
 
+    #[inline]
     fn internal_exploded_filter_edge_list_trusted(&self) -> bool {
         self.window_is_empty()
             || (!self.window_is_bounding()
                 && self.graph.internal_exploded_filter_edge_list_trusted())
     }
 
+    #[inline]
     fn internal_filter_exploded_edge(&self, eid: ELID, t: EventTime, layer_ids: &LayerIds) -> bool {
         self.graph.internal_filter_exploded_edge(eid, t, layer_ids)
     }
 
+    #[inline]
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
         self.window_is_empty() || self.graph.node_filter_includes_exploded_edge_filter()
     }

@@ -21,8 +21,7 @@ use raphtory_api::core::{
     storage::{arc_str::OptionAsStr, timeindex::AsTime},
 };
 use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
-    property_addition_ops::InternalPropertyAdditionOps,
+    addition_ops::InternalAdditionOps, property_addition_ops::InternalPropertyAdditionOps,
 };
 use std::{borrow::Borrow, fmt::Debug};
 
@@ -303,7 +302,7 @@ fn import_node_internal<
     let session = graph.write_session().map_err(|err| err.into())?;
     let keys = node.graph.node_meta().temporal_prop_mapper().all_keys();
 
-    for (t, row) in node.rows() {
+    for (t, l, row) in node.rows() {
         let t = time_from_input_session(&session, t)?;
 
         let props = graph
@@ -318,7 +317,7 @@ fn import_node_internal<
             .map_err(into_graph_err)?;
 
         graph
-            .internal_add_node(t, node_internal, props)
+            .internal_add_node(t, node_internal, props, l)
             .map_err(into_graph_err)?;
     }
 
@@ -383,11 +382,7 @@ fn import_edge_internal<
 }
 
 fn check_existing_nodes<
-    G: StaticGraphViewOps
-        + InternalAdditionOps
-        + InternalDeletionOps
-        + InternalPropertyAdditionOps
-        + InternalMaterialize,
+    G: StaticGraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalMaterialize,
     V: AsNodeRef,
 >(
     graph: &G,
@@ -409,11 +404,7 @@ fn check_existing_nodes<
 }
 
 fn check_existing_edges<
-    G: StaticGraphViewOps
-        + InternalAdditionOps
-        + InternalDeletionOps
-        + InternalPropertyAdditionOps
-        + InternalMaterialize,
+    G: StaticGraphViewOps + InternalAdditionOps + InternalPropertyAdditionOps + InternalMaterialize,
     V: AsNodeRef + Clone + Debug,
 >(
     graph: &G,

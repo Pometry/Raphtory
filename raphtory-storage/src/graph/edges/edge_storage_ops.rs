@@ -2,8 +2,8 @@ use iter_enum::{DoubleEndedIterator, ExactSizeIterator, FusedIterator, Iterator}
 use raphtory_api::core::{
     entities::{
         edges::edge_ref::{Dir, EdgeRef},
-        properties::{prop::Prop, tprop::TPropOps},
-        LayerIds, LayerVariants, EID, VID,
+        properties::{meta::STATIC_GRAPH_LAYER_ID, prop::Prop, tprop::TPropOps},
+        LayerId, LayerIds, LayerVariants, EID, VID,
     },
     storage::timeindex::{EventTime, TimeIndexOps},
 };
@@ -79,10 +79,8 @@ impl<'a> TimeIndexOps<'a> for TimeIndexRef<'a> {
 }
 
 pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
-    fn edge_ref(self, dir: Dir) -> EdgeRef {
-        EdgeRef::new(self.eid(), self.src(), self.dst(), dir)
-    }
-
+    fn edge_ref(self, dir: Dir) -> EdgeRef;
+    #[inline]
     fn out_ref(self) -> EdgeRef {
         self.edge_ref(Dir::Out)
     }
@@ -107,12 +105,12 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn layer_ids_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = usize> + Send + Sync + 'a;
+    ) -> impl Iterator<Item = LayerId> + Send + Sync + 'a;
 
     fn additions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, storage::EdgeAdditions<'a>)> + Send + Sync + 'a {
+    ) -> impl Iterator<Item = (LayerId, storage::EdgeAdditions<'a>)> + Send + Sync + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.additions(id)))
     }
@@ -120,7 +118,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
     fn deletions_iter(
         self,
         layer_ids: &'a LayerIds,
-    ) -> impl Iterator<Item = (usize, storage::EdgeDeletions<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, storage::EdgeDeletions<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.deletions(id)))
     }
@@ -130,7 +128,7 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<
         Item = (
-            usize,
+            LayerId,
             storage::EdgeAdditions<'a>,
             storage::EdgeDeletions<'a>,
         ),
@@ -139,34 +137,39 @@ pub trait EdgeStorageOps<'a>: Copy + Sized + Send + Sync + 'a {
             .map(move |id| (id, self.additions(id), self.deletions(id)))
     }
 
-    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a>;
+    fn additions(self, layer_id: LayerId) -> storage::EdgeAdditions<'a>;
 
-    fn deletions(self, layer_id: usize) -> storage::EdgeDeletions<'a>;
+    fn deletions(self, layer_id: LayerId) -> storage::EdgeDeletions<'a>;
 
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a;
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> impl TPropOps<'a> + 'a;
 
     fn temporal_prop_iter(
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, impl TPropOps<'a>)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
         self.layer_ids_iter(layer_ids)
             .map(move |id| (id, self.temporal_prop_layer(id, prop_id)))
     }
 
-    fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop>;
+    fn metadata_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop>;
 
     fn metadata_iter(
         self,
         layer_ids: &'a LayerIds,
         prop_id: usize,
-    ) -> impl Iterator<Item = (usize, Prop)> + 'a {
+    ) -> impl Iterator<Item = (LayerId, Prop)> + 'a {
         self.layer_ids_iter(layer_ids)
             .filter_map(move |id| Some((id, self.metadata_layer(id, prop_id)?)))
     }
 }
 
 impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
+    #[inline]
+    fn edge_ref(self, dir: Dir) -> EdgeRef {
+        EdgeRefOps::edge_ref(self, dir).expect("valid edge entry should have edge ref info")
+    }
+
     fn added(self, layer_ids: &LayerIds, w: Range<i64>) -> bool {
         match layer_ids {
             LayerIds::None => false,
@@ -176,46 +179,38 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
             LayerIds::One(l_id) => self.layer_additions(*l_id).active_t(w),
             LayerIds::Multiple(layers) => layers
                 .iter()
-                .any(|l_id| self.added(&LayerIds::One(l_id), w.clone())),
+                .any(|l_id| self.layer_additions(l_id).active_t(w.clone())),
         }
     }
 
     fn has_layer(self, layer_ids: &LayerIds) -> bool {
         match layer_ids {
             LayerIds::None => false,
-            LayerIds::All => self.edge(0).is_some(),
-            LayerIds::One(id) => self.edge(*id).is_some(),
+            LayerIds::All => self.has_layer_inner(STATIC_GRAPH_LAYER_ID),
+            LayerIds::One(id) => self.has_layer_inner(*id),
             LayerIds::Multiple(ids) => self.has_layers(ids),
         }
     }
 
     fn src(self) -> VID {
-        EdgeRefOps::src(&self).unwrap_or_else(|| {
-            panic!(
-                "EdgeRefOps::src should not return None for eid {:?}",
-                self.eid(),
-            )
-        })
+        EdgeRefOps::src(&self).expect("valid edge entry should have src")
     }
 
     fn dst(self) -> VID {
-        EdgeRefOps::dst(&self).unwrap_or_else(|| {
-            panic!(
-                "EdgeRefOps::dst should not return None for eid {:?}",
-                self.eid(),
-            )
-        })
+        EdgeRefOps::dst(&self).expect("valid edge entry should have dst")
     }
 
     fn eid(self) -> EID {
         EdgeRefOps::edge_id(&self)
     }
 
-    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = usize> + 'a {
+    fn layer_ids_iter(self, layer_ids: &'a LayerIds) -> impl Iterator<Item = LayerId> + 'a {
         match layer_ids {
             LayerIds::None => LayerVariants::None(std::iter::empty()),
             LayerIds::All => LayerVariants::All(
-                (1..self.internal_num_layers()).filter(move |&l| self.has_layer_inner(l)),
+                (1..self.internal_num_layers())
+                    .map(LayerId)
+                    .filter(move |&l| self.has_layer_inner(l)),
             ),
             LayerIds::One(id) => {
                 LayerVariants::One(self.has_layer_inner(*id).then_some(*id).into_iter())
@@ -226,20 +221,20 @@ impl<'a> EdgeStorageOps<'a> for storage::EdgeEntryRef<'a> {
         }
     }
 
-    fn additions(self, layer_id: usize) -> storage::EdgeAdditions<'a> {
+    fn additions(self, layer_id: LayerId) -> storage::EdgeAdditions<'a> {
         EdgeRefOps::layer_additions(self, layer_id)
     }
 
-    fn deletions(self, layer_id: usize) -> storage::EdgeDeletions<'a> {
+    fn deletions(self, layer_id: LayerId) -> storage::EdgeDeletions<'a> {
         EdgeRefOps::layer_deletions(self, layer_id)
     }
 
     #[inline(always)]
-    fn temporal_prop_layer(self, layer_id: usize, prop_id: usize) -> impl TPropOps<'a> + 'a {
+    fn temporal_prop_layer(self, layer_id: LayerId, prop_id: usize) -> impl TPropOps<'a> + 'a {
         EdgeRefOps::layer_t_prop(self, layer_id, prop_id)
     }
 
-    fn metadata_layer(self, layer_id: usize, prop_id: usize) -> Option<Prop> {
+    fn metadata_layer(self, layer_id: LayerId, prop_id: usize) -> Option<Prop> {
         EdgeRefOps::c_prop(self, layer_id, prop_id)
     }
 }
