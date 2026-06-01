@@ -1,7 +1,7 @@
 import json
 import tempfile
 
-from utils import PORT, run_group_graphql_test
+from utils import run_group_graphql_test
 from raphtory import Graph
 from raphtory.graphql import GraphServer
 
@@ -477,7 +477,7 @@ def _run_typed_accessors_cases(graph, cases):
     (needed for fields like `unique` whose ordering is non-deterministic).
     """
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir, create_index=True).start(PORT) as server:
+    with GraphServer(tmp_work_dir, create_index=True).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
         for query, expected, transform in cases:

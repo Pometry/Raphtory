@@ -11,11 +11,7 @@ was used.
 
 import json
 import tempfile
-
-from raphtory import Graph
 from raphtory.graphql import GraphServer
-
-from utils import PORT
 
 
 def _query(server, q: str) -> dict:
@@ -28,7 +24,7 @@ def test_add_node_accepts_int_string_and_object_time():
     `{timestamp, eventId}` object. Each insertion lands at its expected
     timestamp and is queryable afterwards."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start(PORT) as server:
+    with GraphServer(work_dir, create_index=True).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -65,7 +61,7 @@ def test_add_edge_and_delete_edge_accept_time_input_shapes():
     """`addEdge` / `deleteEdge` accept the same forms; verify on a persistent
     graph so the deletion is visible via `isValid`."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start(PORT) as server:
+    with GraphServer(work_dir, create_index=True).start() as server:
         client = server.get_client()
         client.new_graph("g", "PERSISTENT")
 
@@ -105,7 +101,7 @@ def test_add_properties_accepts_time_input_shapes():
     """`addProperties` (graph-level temporal properties) accepts Int, string,
     and object."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start(PORT) as server:
+    with GraphServer(work_dir, create_index=True).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -148,7 +144,7 @@ def test_temporal_property_input_accepts_time_input_in_batch():
     """Inside `addNodes` / `addEdges`, the `time` field on each per-update
     `TemporalPropertyInput` accepts every `TimeInput` shape."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start(PORT) as server:
+    with GraphServer(work_dir, create_index=True).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -195,7 +191,7 @@ def test_add_edges_batch_accepts_time_input_shapes():
     `time` field on its `TemporalPropertyInput` entries accepts every
     `TimeInput` shape — Int, RFC3339 string, and `{timestamp, eventId}` object."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start(PORT) as server:
+    with GraphServer(work_dir, create_index=True).start() as server:
         client = server.get_client()
         client.new_graph("g", "EVENT")
 
@@ -241,7 +237,7 @@ def test_mutable_node_and_edge_add_updates_accept_time_input():
     """`MutableNode.addUpdates` and `MutableEdge.addUpdates` / `delete` accept
     every `TimeInput` shape via the `node()` / `edge()` lookups."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, create_index=True).start(PORT) as server:
+    with GraphServer(work_dir, create_index=True).start() as server:
         client = server.get_client()
         client.new_graph("g", "PERSISTENT")
 
