@@ -529,29 +529,6 @@ impl NodeResolveCache {
             NodeResolveCache::Str { len, .. } | NodeResolveCache::U64 { len, .. } => *len,
         }
     }
-
-    fn print_stats(&self) {
-        match self {
-            NodeResolveCache::U64 { caches, .. } => {
-                let (h, m) = (caches.iter().map(|c| (c.hits(), c.misses())))
-                    .reduce(|(h1, m1), (h2, m2)| (h1 + h2, m1 + m2))
-                    .unwrap_or((0, 0));
-                println!(
-                    "hits: {h}, misses: {m}, ratio: {}",
-                    h as f64 / (((h + m) as f64) + f64::EPSILON)
-                )
-            }
-            NodeResolveCache::Str { caches, .. } => {
-                let (h, m) = (caches.iter().map(|c| (c.hits(), c.misses())))
-                    .reduce(|(h1, m1), (h2, m2)| (h1 + h2, m1 + m2))
-                    .unwrap_or((0, 0));
-                println!(
-                    "hits: {h}, misses: {m}, ratio: {}",
-                    h as f64 / (((h + m) as f64) + f64::EPSILON)
-                )
-            }
-        }
-    }
 }
 
 impl NodeResolveCache {
