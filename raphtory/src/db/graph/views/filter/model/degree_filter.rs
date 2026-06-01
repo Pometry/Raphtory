@@ -4,8 +4,10 @@ use std::sync::Arc;
 use raphtory_api::core::entities::properties::prop::PropType;
 use raphtory_api::core::{Direction, entities::properties::prop::Prop};
 use raphtory_core::entities::{VID};
+use raphtory_storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use crate::db::api::state::ops::GraphView;
 use crate::db::api::state::ops::filter::NodeDegreeFilterOp;
+use crate::db::graph::node::NodeView;
 use crate::db::graph::views::filter::CreateFilter;
 use crate::db::graph::views::filter::model::{CompositeNodeFilter, NodeFilter};
 use crate::db::graph::views::filter::model::property_filter::{Op, PropertyFilterInput, PropertyRef, PropertyFilter};
@@ -39,8 +41,8 @@ pub struct DegreeFilter {
 }
 
 impl DegreeFilter {
-    pub fn matches<'graph, G: GraphViewOps<'graph>>(&self, graph: &G, node: VID) -> bool {
-        let node_view = graph.node(node).unwrap();
+    pub fn matches<'graph, G: GraphViewOps<'graph>>(&self, graph: &G, node: NodeStorageRef) -> bool {
+        let node_view = NodeView::new_internal(graph, node.vid());
         let node_degree = match self.direction {
             Direction::IN => {
                 node_view.in_degree()

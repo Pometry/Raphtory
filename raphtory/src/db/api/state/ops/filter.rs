@@ -240,8 +240,9 @@ impl<G: GraphView> NodeOp for NodeDegreeFilterOp<G> {
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        let node = storage.core_node(node);
         self.filter
-            .matches(&self.graph, node)
+            .matches(&self.graph, node.as_ref())
     }
 }
 

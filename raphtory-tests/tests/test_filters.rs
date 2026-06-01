@@ -1824,9 +1824,8 @@ use crate::{
         }
     }
 
-    fn degree_graph() -> Graph {
-        let graph = Graph::new();
-
+    fn degree_graph_with_add_node_and_add_edge() -> Graph {
+        let graph = degree_graph_with_add_edge_only();
         let add_nodes = [
             (0, "1", Some("layer_a")),
             (0, "7", None),
@@ -1842,6 +1841,12 @@ use crate::{
         for (t, id, layer) in add_nodes {
             graph.add_node(t, id, NO_PROPS, None, layer).unwrap();
         }
+        graph
+    }
+
+
+    fn degree_graph_with_add_edge_only() -> Graph {
+        let graph = Graph::new();
 
         let edges = [
             (1, "1", "2", "layer_a"),
@@ -1889,7 +1894,7 @@ use crate::{
     proptest! {
         #[test]
         fn prop_degree_filter_both_direction_comparison(threshold in 0u64..15) {
-            let graph = degree_graph();
+            let graph = degree_graph_with_add_node_and_add_edge();
 
             assert_filter_against_manual_and_layers(
                 &graph,
@@ -1942,7 +1947,7 @@ use crate::{
 
         #[test]
         fn prop_degree_filter_in_direction_comparison(threshold in 0u64..15) {
-            let graph = degree_graph();
+            let graph = degree_graph_with_add_node_and_add_edge();
 
             assert_filter_against_manual_and_layers(
                 &graph,
@@ -1995,7 +2000,7 @@ use crate::{
 
         #[test]
         fn prop_degree_filter_out_direction_comparison(threshold in 0u64..15) {
-            let graph = degree_graph();
+            let graph = degree_graph_with_add_node_and_add_edge();
 
             assert_filter_against_manual_and_layers(
                 &graph,
@@ -2048,7 +2053,7 @@ use crate::{
 
         #[test]
         fn prop_degree_filter_is_in(val1 in 0u64..15, val2 in 0u64..15) {
-            let graph = degree_graph();
+            let graph = degree_graph_with_add_node_and_add_edge();
             let set = [val1, val2];
 
             assert_filter_against_manual_and_layers(
@@ -2078,7 +2083,7 @@ use crate::{
 
         #[test]
         fn prop_degree_filter_is_not_in(val1 in 0u64..15, val2 in 0u64..15) {
-            let graph = degree_graph();
+            let graph = degree_graph_with_add_node_and_add_edge();
             let set = [val1, val2];
 
             assert_filter_against_manual_and_layers(
