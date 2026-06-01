@@ -6192,6 +6192,7 @@ dependencies = [
  "pyo3-arrow",
  "pythonize",
  "quad-rand",
+ "quick_cache",
  "rand 0.9.4",
  "rand_distr 0.5.1",
  "raphtory-api",
