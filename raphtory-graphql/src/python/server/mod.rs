@@ -10,6 +10,10 @@ pub(crate) enum BridgeCommand {
     StopListening,
 }
 
+pub(crate) struct ServerStarted {
+    port: u16,
+}
+
 pub(crate) fn wait_server(running_server: &mut Option<ServerHandler>) -> PyResult<()> {
     let owned_running_server = running_server
         .take()

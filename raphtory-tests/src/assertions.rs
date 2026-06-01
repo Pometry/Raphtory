@@ -2,7 +2,7 @@ use raphtory::{
     db::api::view::{filter_ops::Filter, StaticGraphViewOps},
     prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
-use std::ops::Range;
+use std::{ops::Range, thread, time::Duration};
 
 #[cfg(feature = "search")]
 use raphtory::prelude::{IndexMutationOps, SearchableGraphOps};
@@ -382,18 +382,7 @@ fn assert_results(
     variants: Vec<TestGraphVariants>,
     apply: impl ApplyFilter,
 ) {
-    fn sorted<I, S>(iter: I) -> Vec<String>
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        let mut v: Vec<String> = iter.into_iter().map(|s| s.as_ref().to_string()).collect();
-        v.sort();
-        v
-    }
-
     let graph = init_graph(Graph::new());
-
     let expected = sorted(expected.iter());
 
     for v in variants {
@@ -413,6 +402,16 @@ fn assert_results(
             }
         }
     }
+}
+
+fn sorted<I, S>(iter: I) -> Vec<String>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let mut v: Vec<String> = iter.into_iter().map(|s| s.as_ref().to_string()).collect();
+    v.sort();
+    v
 }
 
 pub fn filter_nodes(graph: &Graph, filter: impl CreateFilter) -> Vec<String> {

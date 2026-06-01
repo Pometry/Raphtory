@@ -13,7 +13,7 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{AsPropRef, Prop, PropType},
         },
-        GidRef, LayerId, EID, VID,
+        GidRef, LayerId, LayerIds, EID, VID,
     },
     storage::{dict_mapper::MaybeNew, timeindex::EventTime},
 };
@@ -64,6 +64,21 @@ pub struct Storage {
     graph: GraphStorage,
     #[cfg(feature = "search")]
     pub(crate) index: RwLock<GraphIndex>,
+}
+
+#[cfg(feature = "io")]
+impl Drop for Storage {
+    fn drop(&mut self) {
+        if let Some(disk_path) = self.graph.disk_storage_path() {
+            let disk_path = disk_path.to_path_buf();
+            let node_count = self.graph.unfiltered_num_nodes(&LayerIds::All);
+            let edge_count = self.graph.unfiltered_num_edges(&LayerIds::All);
+            // Drop must not panic - ignore any error refreshing the metadata
+            // file. The graph data itself is already persisted by the storage
+            // layer so a stale `.meta` only affects node and edge counts (for now).
+            let _ = storage::refresh_disk_graph_metadata(&disk_path, node_count, edge_count);
+        }
+    }
 }
 
 impl From<GraphStorage> for Storage {
@@ -387,12 +402,10 @@ impl InheritViewOps for Storage {}
 #[derive(Clone)]
 pub struct StorageWriteSession<'a> {
     session: UnlockedSession<'a>,
-    storage: &'a Storage,
 }
 
 pub struct AtomicAddEdgeSession<'a> {
     session: AtomicAddEdge<'a, Extension>,
-    storage: &'a Storage,
 }
 
 impl EdgeWriteLock for AtomicAddEdgeSession<'_> {
@@ -542,10 +555,7 @@ impl InternalAdditionOps for Storage {
 
     fn write_session(&self) -> Result<Self::WS<'_>, Self::Error> {
         let session = self.graph.write_session()?;
-        Ok(StorageWriteSession {
-            session,
-            storage: self,
-        })
+        Ok(StorageWriteSession { session })
     }
 
     fn atomic_add_edge(
@@ -555,10 +565,7 @@ impl InternalAdditionOps for Storage {
         e_id: Option<EID>,
     ) -> Result<Self::AtomicAddEdge<'_>, Self::Error> {
         let session = self.graph.atomic_add_edge(src, dst, e_id)?;
-        Ok(AtomicAddEdgeSession {
-            session,
-            storage: self,
-        })
+        Ok(AtomicAddEdgeSession { session })
     }
 
     fn internal_add_node(

@@ -2,8 +2,6 @@ use bigdecimal::BigDecimal;
 use chrono::NaiveDateTime;
 use itertools::Itertools;
 use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
-#[cfg(feature = "proto")]
-use raphtory::serialise::StableDecode;
 use raphtory::{
     algorithms::{
         centrality::{degree_centrality::degree_centrality, pagerank::unweighted_page_rank},
@@ -52,7 +50,6 @@ use std::{
     ops::{Deref, Range},
     sync::Arc,
 };
-#[cfg(feature = "proto")]
 use tempfile::TempDir;
 use tracing::{error, info};
 
@@ -759,7 +756,6 @@ fn props_with_layers() {
 }
 
 #[test]
-#[cfg(feature = "proto")]
 fn graph_save_to_load_from_file() {
     let vs = vec![
         (1, 1, 2),
@@ -776,7 +772,7 @@ fn graph_save_to_load_from_file() {
         g.add_edge(*t, *src, *dst, NO_PROPS, None).unwrap();
     }
 
-    let tmp_raphtory_path: TempDir = TempDir::new().unwrap();
+    let tmp_raphtory_path = TempDir::new().unwrap();
 
     let graph_path = format!("{}/graph.bin", tmp_raphtory_path.path().display());
     g.encode(&graph_path).unwrap();
@@ -2960,18 +2956,6 @@ fn test_node_state_merge() {
         )])),
     );
     assert_eq!(m2.values().num_rows(), graph.count_nodes());
-}
-
-#[test]
-#[cfg(feature = "proto")]
-fn save_load_serial() {
-    let g = Graph::new();
-    g.add_edge(0, 0, 1, NO_PROPS, None).unwrap();
-    let dir = tempfile::tempdir().unwrap();
-    let file_path = dir.path().join("abcd11");
-    g.encode(&file_path).unwrap();
-    let gg = Graph::decode(&file_path).unwrap();
-    assert_graph_equal(&g, &gg);
 }
 
 #[test]

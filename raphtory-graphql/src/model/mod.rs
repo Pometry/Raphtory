@@ -2,7 +2,6 @@ use crate::{
     auth::{Access, ContextValidation},
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
-    graph::GraphWithVectors,
     model::{
         graph::{
             collection::GqlCollection, graph::GqlGraph, index::IndexSpecInput,
@@ -431,8 +430,11 @@ impl Mut {
         let src_ns = parent_namespace(path);
         require_namespace_write(ctx, &data.auth_policy, src_ns, path, "move")?;
         // copy_graph handles dst namespace WRITE check (and src READ, which WRITE implies)
-        Self::copy_graph(ctx, path, new_path, overwrite).await?;
-        data.delete_graph(path).await?;
+        if path != new_path {
+            // moving with the same path should be a no-op, not delete the graph
+            Self::copy_graph(ctx, path, new_path, overwrite).await?;
+            data.delete_graph(path).await?;
+        }
         Ok(true)
     }
 
@@ -456,7 +458,7 @@ impl Mut {
         let overwrite = overwrite.unwrap_or(false);
         let src = data.get_raw_graph_with_read_permission(ctx, path).await?;
         let folder = data.validate_path_for_insert(new_path, overwrite)?;
-        data.insert_graph(folder, src.graph).await?;
+        data.insert_graph(folder, src.graph().clone()).await?;
         if let Err(e) = auto_grant_on_create(ctx, &data.auth_policy, new_path) {
             let _ = data.delete_graph(new_path).await;
             return Err(e);
@@ -635,7 +637,11 @@ impl Mut {
         let data = ctx.data_unchecked::<Data>();
         #[cfg(feature = "search")]
         {
-            let graph = data.get_graph_with_write_permission(ctx, path).await?.graph;
+            let graph = data
+                .get_graph_with_write_permission(ctx, path)
+                .await?
+                .graph()
+                .clone();
             match index_spec {
                 Some(index_spec) => {
                     let index_spec = index_spec.to_index_spec(graph.clone())?;

@@ -603,8 +603,8 @@ pub fn run_graph_ops_benches(
     );
 }
 
-pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
-    bench(group, "proto_encode", None, |b: &mut Bencher| {
+pub fn run_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+    bench(group, "encode", None, |b: &mut Bencher| {
         b.iter_batched(
             || TempDir::new().unwrap(),
             |f| graph.encode(f.path()).unwrap(),
@@ -613,10 +613,10 @@ pub fn run_proto_encode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: G
     });
 }
 
-pub fn run_proto_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
+pub fn run_decode_benchmark(group: &mut BenchmarkGroup<WallTime>, graph: Graph) {
     let f = TempDir::new().unwrap();
     graph.encode(f.path()).unwrap();
-    bench(group, "proto_decode", None, |b| {
+    bench(group, "decode", None, |b| {
         b.iter(|| Graph::decode(f.path()).unwrap())
     })
 }

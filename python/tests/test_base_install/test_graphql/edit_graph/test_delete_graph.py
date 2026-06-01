@@ -8,8 +8,8 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 
 def test_delete_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """mutation {
           deleteGraph(
@@ -23,8 +23,8 @@ def test_delete_graph_fails_if_graph_not_found():
 
 def test_delete_graph_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")
@@ -47,8 +47,8 @@ def test_delete_graph_succeeds_if_graph_found():
 
 def test_delete_graph_using_client_api_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")
@@ -66,8 +66,8 @@ def test_delete_graph_using_client_api_succeeds_if_graph_found():
 
 def test_delete_graph_succeeds_if_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")

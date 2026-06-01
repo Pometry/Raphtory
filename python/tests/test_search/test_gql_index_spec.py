@@ -108,10 +108,9 @@ def test_create_index_with_default_spec(graph):
 
 @pytest.mark.parametrize("graph", [EVENT_GRAPH, PERSISTENT_GRAPH])
 def test_create_index_using_client(graph):
-
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.send_graph(path="g", graph=graph)
 
         query = """{graph(path: "g") {nodes {list {name}}}}"""

@@ -1,10 +1,9 @@
+use super::GraphStorage;
 use crate::db::api::{
     properties::internal::{EdgePropertySchemaOps, NodePropertySchemaOps},
     view::BoxedLIter,
 };
 use raphtory_api::{core::storage::arc_str::ArcStr, iter::IntoDynBoxed};
-
-use super::GraphStorage;
 
 impl NodePropertySchemaOps for GraphStorage {
     fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {

@@ -15,10 +15,7 @@ fail.
 
 import json
 import tempfile
-
 from raphtory.graphql import GraphServer
-
-from utils import PORT
 
 
 def _query(server, q: str) -> dict:
@@ -44,7 +41,7 @@ def test_add_properties_same_timestamp_appends():
     """`addProperties` three times at the same ms → three history entries
     with the same timestamp and distinct values."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             {
@@ -77,7 +74,7 @@ def test_add_node_same_timestamp_appends():
     both updates land. Verified on the node's `history` and on the
     temporal property's `history`."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             {
@@ -113,7 +110,7 @@ def test_add_edge_same_timestamp_appends():
     """`addEdge` twice at the same ms → both edge updates land. Verified on
     the edge's `history` and on the temporal property's `history`."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             {
@@ -149,7 +146,7 @@ def test_create_node_then_add_node_same_timestamp_appends():
     """`createNode` followed by `addNode` at the same ms → both updates
     land (createNode creates the node, addNode appends an update)."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             {
@@ -186,7 +183,7 @@ def test_create_node_then_add_node_same_timestamp_appends():
 
 def test_mutable_node_add_updates_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             { updateGraph(path: "g") { addNode(time: 0, name: "n") { success } } }
@@ -226,7 +223,7 @@ def test_mutable_node_add_updates_same_timestamp_appends():
 
 def test_mutable_edge_add_updates_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             { updateGraph(path: "g") { addEdge(time: 0, src: "a", dst: "b") { success } } }
@@ -271,7 +268,7 @@ def test_add_nodes_batch_same_timestamp_appends():
     """A single batch `addNodes` with three updates at the same ms on the
     same node should produce three history entries."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             {
@@ -310,7 +307,7 @@ def test_add_nodes_batch_same_timestamp_appends():
 
 def test_add_edges_batch_same_timestamp_appends():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             {
@@ -354,7 +351,7 @@ def test_delete_edge_same_timestamp_appends():
     """Multiple `deleteEdge` calls at the same ms on a persistent graph all
     land in the deletion history with the same timestamp."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         client = server.get_client()
         client.new_graph("g", "PERSISTENT")
         client.query("""
@@ -387,7 +384,7 @@ def test_object_time_input_distinct_event_ids_append():
     """Two writes at the same timestamp with distinct explicit event_ids
     both land — the user-provided event_ids partition the events."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start(PORT) as server:
+    with GraphServer(work_dir).start() as server:
         _new_event_graph(server)
         server.get_client().query("""
             {

@@ -14,7 +14,7 @@ edition.workspace = true
 
 [dependencies]
 raphtory-api.workspace = true
-raphtory = {workspace = true, features = ["io"]}
+raphtory = { workspace = true, features = ["io", "panic-on-drop"] }
 ahash.workspace = true
 proptest.workspace = true
 proptest-derive.workspace = true

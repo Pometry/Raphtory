@@ -10,11 +10,11 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 SERVER_URL = "http://localhost:1736"
 
 
-def batch_query(body):
+def batch_query(port, body):
     """POST a raw JSON body (needed for batch requests — the client only sends single queries)."""
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(
-        SERVER_URL + "/",
+        f"http://localhost:{port}/",
         data=data,
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -40,16 +40,16 @@ def make_graph(client, path="g"):
 
 def test_introspection_enabled_by_default():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         result = client.query("{ __schema { queryType { name } } }")
         assert result["__schema"]["queryType"]["name"]
 
 
 def test_disable_introspection():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_introspection=True).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, disable_introspection=True).start() as server:
+        client = server.get_client()
         client.query("{ version }")
 
         with pytest.raises(Exception) as excinfo:
@@ -60,8 +60,8 @@ def test_disable_introspection():
 
 def test_max_query_depth():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_query_depth=3).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, max_query_depth=3).start() as server:
+        client = server.get_client()
         make_graph(client)
 
         client.query('{ graph(path: "g") { created } }')
@@ -75,8 +75,8 @@ def test_max_query_depth():
 
 def test_max_query_complexity():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_query_complexity=3).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, max_query_complexity=3).start() as server:
+        client = server.get_client()
         make_graph(client)
 
         client.query("{ version }")
@@ -253,8 +253,8 @@ PAGE_QUERIES = [
 def test_disable_lists_all_resolvers():
     """Every `list` endpoint across every paginated type rejects with the same error."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_lists=True).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, disable_lists=True).start() as server:
+        client = server.get_client()
         make_graph(client)
 
         for name, query in LIST_QUERIES:
@@ -269,8 +269,8 @@ def test_disable_lists_all_resolvers():
 def test_disable_lists_page_still_works():
     """Even with `disable_lists=True`, `page` queries still succeed."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_lists=True).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, disable_lists=True).start() as server:
+        client = server.get_client()
         make_graph(client)
         result = client.query(
             '{ graph(path: "g") { nodes { page(limit: 10) { name } } } }'
@@ -281,8 +281,8 @@ def test_disable_lists_page_still_works():
 def test_max_page_size_all_resolvers():
     """Every `page` endpoint across every paginated type enforces max_page_size."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_page_size=2).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, max_page_size=2).start() as server:
+        client = server.get_client()
         make_graph(client)
 
         for name, query in PAGE_QUERIES:
@@ -296,8 +296,8 @@ def test_max_page_size_all_resolvers():
 def test_max_page_size_under_cap_works():
     """Pages at or below max_page_size still succeed."""
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_page_size=2).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, max_page_size=2).start() as server:
+        client = server.get_client()
         make_graph(client)
         result = client.query(
             '{ graph(path: "g") { nodes { page(limit: 2) { name } } } }'
@@ -307,30 +307,33 @@ def test_max_page_size_under_cap_works():
 
 def test_disable_batching():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, disable_batching=True).start():
-        RaphtoryClient(SERVER_URL).query("{ version }")
+    with GraphServer(work_dir, disable_batching=True).start() as server:
+        server.get_client().query("{ version }")
 
-        status, body = batch_query([{"query": "{ version }"}, {"query": "{ version }"}])
+        status, body = batch_query(
+            server.port(), [{"query": "{ version }"}, {"query": "{ version }"}]
+        )
         assert status == 400
         assert "Query batching is disabled on this server" in str(body)
 
 
 def test_max_batch_size():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_batch_size=2).start():
-        status, body = batch_query([{"query": "{ version }"}] * 2)
+    with GraphServer(work_dir, max_batch_size=2).start() as server:
+        port = server.port()
+        status, body = batch_query(port, [{"query": "{ version }"}] * 2)
         assert status == 200
         assert isinstance(body, list) and len(body) == 2
 
-        status, body = batch_query([{"query": "{ version }"}] * 3)
+        status, body = batch_query(port, [{"query": "{ version }"}] * 3)
         assert status == 400
         assert "Batch size 3 exceeds the maximum allowed 2" in str(body)
 
 
 def test_max_recursive_depth():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_recursive_depth=2).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, max_recursive_depth=2).start() as server:
+        client = server.get_client()
         make_graph(client)
 
         # depth 2: { graph { created } } — root selection set is depth 0, graph{...} pushes to 1
@@ -345,8 +348,8 @@ def test_max_recursive_depth():
 
 def test_max_directives_per_field():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir, max_directives_per_field=1).start():
-        client = RaphtoryClient(SERVER_URL)
+    with GraphServer(work_dir, max_directives_per_field=1).start() as server:
+        client = server.get_client()
 
         # 1 directive — allowed
         client.query("{ version @skip(if: false) }")
@@ -370,8 +373,8 @@ def test_concurrency_flags_smoke():
         work_dir,
         heavy_query_limit=4,
         exclusive_writes=True,
-    ).start():
-        client = RaphtoryClient(SERVER_URL)
+    ).start() as server:
+        client = server.get_client()
         make_graph(client)
         # Read path: works under exclusive_writes's read lock.
         assert client.query('{ graph(path: "g") { nodes { count } } }')

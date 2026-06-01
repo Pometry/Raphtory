@@ -98,11 +98,6 @@ impl AppConfigBuilder {
         self
     }
 
-    pub fn with_cache_tti_seconds(mut self, tti_seconds: u64) -> Self {
-        self.cache.tti_seconds = tti_seconds;
-        self
-    }
-
     pub fn with_auth_public_key(
         mut self,
         public_key: Option<String>,
@@ -252,9 +247,6 @@ pub fn load_config(
 
     if let Ok(cache_capacity) = settings.get::<u64>("cache.capacity") {
         app_config_builder = app_config_builder.with_cache_capacity(cache_capacity);
-    }
-    if let Ok(cache_tti_seconds) = settings.get::<u64>("cache.tti_seconds") {
-        app_config_builder = app_config_builder.with_cache_tti_seconds(cache_tti_seconds);
     }
 
     if let Ok(public_key) = settings.get::<Option<String>>("auth.public_key") {
