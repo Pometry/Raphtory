@@ -703,8 +703,11 @@ impl From<LayerId> for LayerIds {
 
 #[cfg(test)]
 mod tests {
+    use std::hash::{Hash, Hasher};
+
+    use super::*;
     use crate::core::entities::{LayerId, EID, MAX_EID};
-    use proptest::{prop_assert, prop_assert_eq, proptest};
+    use proptest::{prelude::*, prop_assert, prop_assert_eq, proptest};
 
     #[test]
     fn test_elid_layer_proptest() {
@@ -728,6 +731,18 @@ mod tests {
             prop_assert!(elid.is_deletion());
             prop_assert_eq!(elid, elid.into_deletion());
             prop_assert_eq!(elid.eid().0, eid);
+        })
+    }
+
+    #[test]
+    fn gid_and_gid_ref_hash_to_the_same_thing() {
+        proptest!(|(gid in prop_oneof![any::<u64>().prop_map(GID::U64), ".*".prop_map(GID::Str)])| {
+            let gid_ref: GidRef<'_> = (&gid).into();
+            let mut gid_hasher = std::collections::hash_map::DefaultHasher::new();
+            let mut gid_ref_hasher = std::collections::hash_map::DefaultHasher::new();
+            gid.hash(&mut gid_hasher);
+            gid_ref.hash(&mut gid_ref_hasher);
+            prop_assert_eq!(gid_hasher.finish(), gid_ref_hasher.finish());
         })
     }
 }
