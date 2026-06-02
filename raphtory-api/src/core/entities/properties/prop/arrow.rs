@@ -299,7 +299,8 @@ impl DirectConvert for Date64Type {
 impl DirectConvert for Date32Type {
     fn prop_ref(native: Self::Native, _dtype: &DataType) -> PropRef<'static> {
         PropRef::from(
-            Date32Type::to_naive_date(native)
+            Date32Type::to_naive_date_opt(native)
+                .unwrap()
                 .and_hms_opt(0, 0, 0)
                 .unwrap()
                 .and_utc(),

@@ -7,7 +7,7 @@ use crate::{
             properties::internal::{
                 InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
             },
-            storage::storage::{PersistenceStrategy, Storage},
+            storage::storage::{Storage},
             view::internal::*,
         },
         graph::graph::graph_equal,
@@ -34,7 +34,7 @@ use storage::{
 };
 
 #[cfg(feature = "io")]
-use storage::Extension;
+use storage::{Extension, persist::strategy::PersistenceStrategy};
 
 /// A graph view where an edge remains active from the time it is added until it is explicitly marked as deleted.
 ///

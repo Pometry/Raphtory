@@ -116,7 +116,7 @@ proptest.workspace = true
 proptest-derive.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-tikv-jemallocator = "0.6.1"
+tikv-jemallocator.workspace = true
 
 
 [features]
