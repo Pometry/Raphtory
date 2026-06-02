@@ -7,6 +7,7 @@ use raphtory_core::entities::{VID};
 use raphtory_storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use crate::db::api::state::ops::GraphView;
 use crate::db::api::state::ops::filter::NodeDegreeFilterOp;
+use crate::db::graph::assertions::TestGraphVariants::Graph;
 use crate::db::graph::node::NodeView;
 use crate::db::graph::views::filter::CreateFilter;
 use crate::db::graph::views::filter::model::{CompositeNodeFilter, NodeFilter};
@@ -23,12 +24,14 @@ use std::{fmt, fmt::Display};
 #[derive(Clone)]
 pub struct DegreeFilterBuilder {
     direction: Direction,
+    error: Option<String>
 }
 
 impl DegreeFilterBuilder {
     pub fn new(direction: Direction) -> Self {
         Self {
             direction,
+            error: None
         }
     }
 }
@@ -37,7 +40,8 @@ impl DegreeFilterBuilder {
 pub struct DegreeFilter {
     pub direction: Direction,
     pub operator: FilterOperator,
-    pub value: PropertyFilterValue
+    pub value: PropertyFilterValue,
+    pub error: Option<String>
 }
 
 
@@ -65,7 +69,44 @@ impl CreateFilter for DegreeFilter {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        Ok(NodeDegreeFilterOp::new(graph, self))
+        if self.error.is_some() {
+            return Err(GraphError::InvalidFilter(self.error.unwrap()));
+        }
+        let value = match self.value {
+            PropertyFilterValue::Single(ref prop_val) => {
+                let casted_val = prop_val.clone().try_cast(PropType::U64).ok_or_else(|| {
+                    GraphError::InvalidFilter(format!(
+                        "degree filter expects an integer value, got {:?}", 
+                        prop_val
+                    ))
+                })?;
+                
+                PropertyFilterValue::Single(casted_val)
+            }
+            PropertyFilterValue::Set(ref prop_vals) => {
+                let casted_set = prop_vals
+                    .iter()
+                    .map(|val| {
+                        val.clone().try_cast(PropType::U64).ok_or_else(|| {
+                            GraphError::InvalidFilter(format!(
+                                "degree filter expects an integer value, got {:?}", 
+                                val
+                            ))
+                        })
+                    })
+                    .collect::<Result<HashSet<Prop>, GraphError>>()?;
+
+                PropertyFilterValue::Set(Arc::new(casted_set))
+            }
+            PropertyFilterValue::None => {
+                return Err(GraphError::InvalidFilter(
+                    "degree filter requires a value".to_string()
+                ));
+            }
+        }; 
+        let mut filter = self.clone(); 
+        filter.value = value;
+        Ok(NodeDegreeFilterOp::new(graph, filter))
     }
 
     fn filter_graph_view<'graph, G: GraphView + 'graph>(
@@ -108,7 +149,11 @@ where
     type Marker = NodeFilter;
 
     fn property_ref(&self) -> PropertyRef {
-        property_ref(&self.direction)
+        if let Some(ref error) = self.error {
+            PropertyRef::Property(error.clone())
+        } else {
+            property_ref(&self.direction)
+        }
     }
 
     fn ops(&self) -> &[Op] {
@@ -120,20 +165,23 @@ where
     }
 
     fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        let value = match filter.prop_value {
-           PropertyFilterValue::Single(ref prop_val) => PropertyFilterValue::Single(prop_val.clone().try_cast(PropType::U64).unwrap_or(prop_val.clone())),
-           PropertyFilterValue::Set(ref prop_vals) => PropertyFilterValue::Set(Arc::new(prop_vals.iter().map(|val| val.clone().try_cast(PropType::U64).unwrap_or(val.clone())).collect::<HashSet<Prop>>())),
-           PropertyFilterValue::None => PropertyFilterValue::None
-        };  
+        let error = if filter.prop_ref.name().starts_with("Error") {
+            Some(filter.prop_ref.name().to_string())
+        } else {
+            None
+        };
         DegreeFilter {
-             value,
+             value: filter.prop_value,
              direction: self.direction,
-             operator: filter.operator 
+             operator: filter.operator,
+             error 
         }
     }
 
     fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        panic!("DegreeFilter does not support expression builders");
+        let mut builder = self.clone(); 
+        builder.error = Some("Error: DegreeFilter does not support expressions".to_string());
+        builder
     }
 }
 
