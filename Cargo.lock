@@ -6540,7 +6540,6 @@ name = "raphtory-graphql"
 version = "0.18.0"
 dependencies = [
  "ahash",
- "arrow-array",
  "async-graphql",
  "async-graphql-poem",
  "base64 0.22.1",
@@ -6567,7 +6566,6 @@ dependencies = [
  "raphtory",
  "raphtory-api",
  "raphtory-storage",
- "raphtory-tests",
  "rayon",
  "reqwest 0.13.3",
  "rust-embed",

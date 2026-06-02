@@ -66,8 +66,6 @@ rust-embed = { workspace = true }
 parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
-raphtory-tests = { workspace = true }
-arrow-array = { workspace = true }
 
 [features]
 python = ["dep:pyo3", "raphtory/python"]
