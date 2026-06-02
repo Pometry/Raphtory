@@ -1426,6 +1426,7 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                     direction: core_direction,
                     operator,
                     value,
+                    error: None
                 })) 
             }
             GqlNodeFilter::Property(prop) => {
