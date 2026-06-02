@@ -1,7 +1,13 @@
 use crate::db::api::view::BoxedLIter;
 use raphtory_api::{
     core::{
-        entities::properties::prop::{Prop, PropType},
+        entities::{
+            properties::{
+                layer_schema::LayerPropSchema,
+                prop::{Prop, PropType},
+            },
+            LayerIds,
+        },
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
     inherit::Base,
@@ -20,6 +26,26 @@ pub trait NodePropertySchemaOps: Send + Sync {
     fn node_visible_metadata_id(&self, name: &str) -> Option<usize>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
+
+    /// Union of the per-(segment, layer) presence bitsets for all node
+    /// properties present in the supplied layers.
+    ///
+    /// Storage-backed implementations (see `GraphStorage`) read the persisted
+    /// `LayerStats` and union across segments — O(num props), no row
+    /// scanning. The default implementation falls back to the
+    /// `_visible_*_prop_ids` iterators (which return all globally registered
+    /// ids), preserving the historical behavior for view-only types that
+    /// don't reach storage.
+    fn node_layer_prop_schema(&self, _layers: &LayerIds) -> LayerPropSchema {
+        let mut schema = LayerPropSchema::new();
+        for id in self.node_visible_temporal_prop_ids() {
+            schema.insert_temporal(id);
+        }
+        for id in self.node_visible_metadata_ids() {
+            schema.insert_metadata(id);
+        }
+        schema
+    }
 }
 
 /// Same as `NodePropertySchemaOps` but for edge properties.
@@ -32,6 +58,20 @@ pub trait EdgePropertySchemaOps: Send + Sync {
     fn edge_visible_metadata_id(&self, name: &str) -> Option<usize>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
+
+    /// Union of the per-(segment, layer) presence bitsets for all edge
+    /// properties present in the supplied layers. See
+    /// [`NodePropertySchemaOps::node_layer_prop_schema`].
+    fn edge_layer_prop_schema(&self, _layers: &LayerIds) -> LayerPropSchema {
+        let mut schema = LayerPropSchema::new();
+        for id in self.edge_visible_temporal_prop_ids() {
+            schema.insert_temporal(id);
+        }
+        for id in self.edge_visible_metadata_ids() {
+            schema.insert_metadata(id);
+        }
+        schema
+    }
 }
 
 /// Marker: delegate `NodePropertySchemaOps` through `Base`.
@@ -67,6 +107,10 @@ where
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_metadata_name(id)
     }
+    #[inline]
+    fn node_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
+        self.base().node_layer_prop_schema(layers)
+    }
 }
 
 impl<G: InheritEdgePropertySchemaOps + Send + Sync> EdgePropertySchemaOps for G
@@ -96,6 +140,10 @@ where
     #[inline]
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().edge_visible_metadata_name(id)
+    }
+    #[inline]
+    fn edge_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
+        self.base().edge_layer_prop_schema(layers)
     }
 }
 

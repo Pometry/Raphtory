@@ -88,6 +88,19 @@ impl LayerPropSchema {
         union_into(&mut self.metadata, &other.metadata);
     }
 
+    /// Position-wise AND of the temporal-prop bits with the supplied
+    /// visibility mask. Bits at positions beyond `mask.len()` are cleared
+    /// (treated as "not visible").
+    pub fn intersect_temporal_with(&mut self, mask: &[bool]) {
+        intersect_into(&mut self.temporal_props, mask);
+    }
+
+    /// Position-wise AND of the metadata bits with the supplied visibility
+    /// mask. See [`Self::intersect_temporal_with`].
+    pub fn intersect_metadata_with(&mut self, mask: &[bool]) {
+        intersect_into(&mut self.metadata, mask);
+    }
+
     pub fn is_empty(&self) -> bool {
         !self.temporal_props.iter().any(|&b| b) && !self.metadata.iter().any(|&b| b)
     }
@@ -99,6 +112,12 @@ fn union_into(dst: &mut Vec<bool>, src: &[bool]) {
     }
     for (d, s) in dst.iter_mut().zip(src.iter()) {
         *d |= *s;
+    }
+}
+
+fn intersect_into(dst: &mut Vec<bool>, mask: &[bool]) {
+    for (i, d) in dst.iter_mut().enumerate() {
+        *d &= mask.get(i).copied().unwrap_or(false);
     }
 }
 
@@ -149,6 +168,24 @@ mod tests {
         a.union_with(&b);
         assert_eq!(a.temporal_prop_ids().collect::<Vec<_>>(), vec![1, 10]);
         assert_eq!(a.metadata_prop_ids().collect::<Vec<_>>(), vec![3, 7]);
+    }
+
+    #[test]
+    fn intersect() {
+        let mut s = LayerPropSchema::new();
+        s.insert_temporal(0);
+        s.insert_temporal(2);
+        s.insert_temporal(5);
+        s.insert_metadata(1);
+        s.insert_metadata(3);
+
+        // Mask shorter than schema — trailing bits clear.
+        s.intersect_temporal_with(&[true, false, true]);
+        assert_eq!(s.temporal_prop_ids().collect::<Vec<_>>(), vec![0, 2]);
+
+        // Mask covers schema — keep only marked bits.
+        s.intersect_metadata_with(&[false, false, false, true, true]);
+        assert_eq!(s.metadata_prop_ids().collect::<Vec<_>>(), vec![3]);
     }
 
     #[test]

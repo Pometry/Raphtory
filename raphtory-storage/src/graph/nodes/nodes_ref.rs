@@ -1,6 +1,6 @@
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{properties::layer_schema::LayerPropSchema, LayerIds, VID};
 use rayon::iter::ParallelIterator;
 use storage::{Extension, ReadLockedNodes};
 
@@ -43,6 +43,24 @@ impl<'a> NodesStorageEntry<'a> {
 
     pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.iter())
+    }
+
+    /// Union of per-(segment, layer) node property-presence schemas across the
+    /// supplied layers. Reads from the persisted `LayerStats` on disk and the
+    /// incrementally-tracked schema on the mem head — no row scanning.
+    pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
+        let inner = match self {
+            NodesStorageEntry::Mem(nodes) => nodes.storage(),
+            NodesStorageEntry::Unlocked(nodes) => nodes.storage(),
+        };
+        let num_layers = inner.num_layers();
+        let mut schema = LayerPropSchema::new();
+        for seg in inner.segments_iter() {
+            for layer_id in layers.iter(num_layers) {
+                schema.union_with(&seg.layer_schema(layer_id));
+            }
+        }
+        schema
     }
 
     /// Returns a parallel iterator over nodes row groups

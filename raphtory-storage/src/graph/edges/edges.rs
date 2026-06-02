@@ -1,6 +1,9 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 use either::Either;
-use raphtory_api::core::entities::{properties::meta::STATIC_GRAPH_LAYER_ID, LayerIds, EID};
+use raphtory_api::core::entities::{
+    properties::{layer_schema::LayerPropSchema, meta::STATIC_GRAPH_LAYER_ID},
+    LayerIds, EID,
+};
 use raphtory_core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::ParallelIterator;
 use std::sync::Arc;
@@ -144,5 +147,23 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => storage.storage().num_edges(),
             EdgesStorageRef::Unlocked(storage) => storage.storage().num_edges(),
         }
+    }
+
+    /// Union of per-(segment, layer) edge property-presence schemas across the
+    /// supplied layers. Reads from the persisted `LayerStats` on disk and the
+    /// incrementally-tracked schema on the mem head — no row scanning.
+    pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
+        let inner = match self {
+            EdgesStorageRef::Mem(storage) => storage.storage(),
+            EdgesStorageRef::Unlocked(storage) => storage.storage(),
+        };
+        let num_layers = inner.num_layers();
+        let mut schema = LayerPropSchema::new();
+        for (_, seg) in inner.segments().iter() {
+            for layer_id in layers.iter(num_layers) {
+                schema.union_with(&seg.layer_schema(layer_id));
+            }
+        }
+        schema
     }
 }

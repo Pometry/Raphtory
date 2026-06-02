@@ -406,7 +406,6 @@ pub fn materialize_impl(
     let stream_capacity = 10;
     let (tx, rx) = crossbeam_channel::bounded::<RecordBatchMessage>(stream_capacity);
 
-    // let mut scope_result = Ok(());
     // Use std::thread::scope rather than rayon::scope so the producer runs on its own OS thread.
     // With rayon::scope on a single-thread pool, the main thread blocking on rx.recv() would starve the spawned producer.
     std::thread::scope(|scope| {

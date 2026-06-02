@@ -3,7 +3,13 @@ use crate::db::api::{
     properties::internal::{EdgePropertySchemaOps, NodePropertySchemaOps},
     view::BoxedLIter,
 };
-use raphtory_api::{core::storage::arc_str::ArcStr, iter::IntoDynBoxed};
+use raphtory_api::{
+    core::{
+        entities::{properties::layer_schema::LayerPropSchema, LayerIds},
+        storage::arc_str::ArcStr,
+    },
+    iter::IntoDynBoxed,
+};
 
 impl NodePropertySchemaOps for GraphStorage {
     fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
@@ -26,6 +32,10 @@ impl NodePropertySchemaOps for GraphStorage {
     }
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         Some(self.node_meta().metadata_mapper().get_name(id).clone())
+    }
+
+    fn node_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
+        self.nodes().layer_prop_schema(layers)
     }
 }
 
@@ -50,5 +60,9 @@ impl EdgePropertySchemaOps for GraphStorage {
     }
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         Some(self.edge_meta().metadata_mapper().get_name(id).clone())
+    }
+
+    fn edge_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
+        self.edges().layer_prop_schema(layers)
     }
 }

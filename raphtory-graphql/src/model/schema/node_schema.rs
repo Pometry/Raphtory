@@ -64,6 +64,11 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
+        // Per-layer presence schema, unioned across every layer — gives us the
+        // set of temporal prop ids that have actually been written, without
+        // scanning nodes. Intersected with the (redaction-aware) visibility
+        // set so that hidden ids are filtered out.
+        let layer_schema = self.graph.node_layer_prop_schema(&LayerIds::All);
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_temporal_prop_ids().collect();
         let (keys, property_types): (Vec<_>, Vec<_>) = self
@@ -72,7 +77,7 @@ impl NodeSchema {
             .temporal_prop_mapper()
             .locked()
             .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id))
+            .filter(|(id, _, _)| visible.contains(id) && layer_schema.contains_temporal(*id))
             .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
@@ -114,6 +119,7 @@ impl NodeSchema {
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
+        let layer_schema = self.graph.node_layer_prop_schema(&LayerIds::All);
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_metadata_ids().collect();
         let (keys, property_types): (Vec<_>, Vec<_>) = self
@@ -122,7 +128,7 @@ impl NodeSchema {
             .metadata_mapper()
             .locked()
             .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id))
+            .filter(|(id, _, _)| visible.contains(id) && layer_schema.contains_metadata(*id))
             .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
