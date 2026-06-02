@@ -7,8 +7,6 @@ use raphtory_core::entities::{VID};
 use raphtory_storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps};
 use crate::db::api::state::ops::GraphView;
 use crate::db::api::state::ops::filter::NodeDegreeFilterOp;
-use crate::db::graph::assertions::TestGraphVariants::Graph;
-use crate::db::graph::node::NodeView;
 use crate::db::graph::views::filter::CreateFilter;
 use crate::db::graph::views::filter::model::{CompositeNodeFilter, NodeFilter};
 use crate::db::graph::views::filter::model::property_filter::{Op, PropertyFilterInput, PropertyRef, PropertyFilter};
