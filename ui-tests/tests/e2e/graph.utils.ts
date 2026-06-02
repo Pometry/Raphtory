@@ -15,6 +15,7 @@ interface G6EdgeData {
     id?: string;
     source: string;
     target: string;
+    states?: string[];
 }
 type BrowserWindow = Window & {
     __TESTING_ENABLED__?: boolean;
@@ -120,7 +121,10 @@ export async function ctrlClickOnNode(page: Page, displayName: string) {
         .click({ position, modifiers: ['Control'] });
 }
 
-/** Click the midpoint of an edge identified by its src and dst node display names. */
+/** Click a point along an edge identified by its src and dst node display names.
+ *  Tries several positions along the line in case the midpoint sits on top of a
+ *  node or its label. After each click we re-query graph state and stop as soon
+ *  as the edge appears selected. */
 export async function clickOnEdge(
     page: Page,
     srcDisplayName: string,
@@ -131,11 +135,20 @@ export async function clickOnEdge(
         getNodePosition(page, srcDisplayName),
         getNodePosition(page, dstDisplayName),
     ]);
-    const position = { x: (src.x + dst.x) / 2, y: (src.y + dst.y) / 2 };
-    await page
-        .locator('canvas')
-        .nth(1)
-        .click({ position, modifiers: options?.modifiers });
+    const canvas = page.locator('canvas').nth(1);
+    // Order tried: midpoint first (preserves existing behaviour for the common
+    // case), then progressively closer to each endpoint where curves and label
+    // overlaps deviate less from the straight line.
+    const ratios = [0.5, 0.35, 0.65, 0.25, 0.75];
+    for (const t of ratios) {
+        const position = {
+            x: src.x + (dst.x - src.x) * t,
+            y: src.y + (dst.y - src.y) * t,
+        };
+        await canvas.click({ position, modifiers: options?.modifiers });
+        const state = await getGraphState(page);
+        if (state.selectedEdges.length > 0) return;
+    }
 }
 
 export async function navigateToGraphPageBySearch(
@@ -403,6 +416,7 @@ export async function fillInStyling(
 interface GraphState {
     highlighted: { id: string }[];
     selected: string[];
+    selectedEdges: string[];
     nodes: {
         id: string;
         colour: string | undefined;
@@ -429,6 +443,13 @@ export async function getGraphState(page: Page): Promise<GraphState> {
                 selected: data.nodes
                     .filter((n) => n.states?.includes('selected'))
                     .map((n) => n.id),
+                selectedEdges: data.edges
+                    .filter(
+                        (e) =>
+                            e.id !== undefined &&
+                            e.states?.includes('selected'),
+                    )
+                    .map((e) => e.id as string),
                 nodes: data.nodes.map((n) => {
                     let badgeText: string | undefined;
                     try {

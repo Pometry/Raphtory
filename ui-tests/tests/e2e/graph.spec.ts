@@ -944,15 +944,17 @@ test('Brush select on main canvas works from first click', async ({ page }) => {
         graphName: 'persistent_filler',
     });
 
-    // Box from None to Ben in the current persistent_filler layout. Padding so
+    // Box from None to Hamza in the current persistent_filler layout. Padding so
     // both node centres are inside the brush region; coordinates derived from
-    // the live layout so the test isn't tied to a hardcoded layout.
-    const positions = await getNodePositions(page, ['None', 'Ben']);
+    // the live layout so the test isn't tied to a hardcoded layout. This pair
+    // bounds a clean rectangle at the bottom of the canvas with no other nodes
+    // inside, so the brush picks up exactly the two we want.
+    const positions = await getNodePositions(page, ['None', 'Hamza']);
     const padding = 30;
-    const left = Math.min(positions.None.x, positions.Ben.x) - padding;
-    const right = Math.max(positions.None.x, positions.Ben.x) + padding;
-    const top = Math.min(positions.None.y, positions.Ben.y) - padding;
-    const bottom = Math.max(positions.None.y, positions.Ben.y) + padding;
+    const left = Math.min(positions.None.x, positions.Hamza.x) - padding;
+    const right = Math.max(positions.None.x, positions.Hamza.x) + padding;
+    const top = Math.min(positions.None.y, positions.Hamza.y) - padding;
+    const bottom = Math.max(positions.None.y, positions.Hamza.y) + padding;
 
     await page.keyboard.down('Shift');
     await page.mouse.move(right, top);
@@ -962,7 +964,7 @@ test('Brush select on main canvas works from first click', async ({ page }) => {
     await page.mouse.up();
     await page.keyboard.up('Shift');
     const state = await getGraphState(page);
-    expect(new Set(state.selected)).toEqual(new Set(['None', 'Ben']));
+    expect(new Set(state.selected)).toEqual(new Set(['None', 'Hamza']));
 });
 
 test('Shift+click an already-selected node deselects it', async ({ page }) => {

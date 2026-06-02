@@ -58,14 +58,28 @@ export async function clickAfterPaginating(
         nextPageButtonProvided ??
         page.getByRole('button', { name: 'Next page', exact: true });
     const MAX_PAGES = 100;
+    const PAGE_LOAD_TIMEOUT = 5000;
     for (let i = 0; i < MAX_PAGES; i++) {
-        await page.waitForTimeout(200);
-        await nextPageButton.isVisible();
-        if (await target.isVisible()) {
+        // Wait for the target to appear on this page or, failing that, for the
+        // next-page button to become reliably interactive. The picker is async
+        // and starts with rows hidden + next-page disabled while data loads;
+        // checking immediately would incorrectly conclude "not found".
+        const found = await target
+            .waitFor({ state: 'visible', timeout: PAGE_LOAD_TIMEOUT })
+            .then(() => true)
+            .catch(() => false);
+        if (found) {
             await target.click();
             return;
         }
-        if (await nextPageButton.isDisabled()) {
+        // Target didn't appear on this page within the timeout. Wait briefly
+        // for the next-page button to settle before deciding whether more
+        // pages are available.
+        const nextPageVisible = await nextPageButton
+            .waitFor({ state: 'visible', timeout: PAGE_LOAD_TIMEOUT })
+            .then(() => true)
+            .catch(() => false);
+        if (!nextPageVisible || (await nextPageButton.isDisabled())) {
             throw new Error(`${description} not found after ${i + 1} pages`);
         }
         await nextPageButton.click();
