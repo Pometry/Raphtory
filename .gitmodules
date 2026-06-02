@@ -1,6 +1,0 @@
-[submodule "optd"]
-        path = optd
-	url = git@github.com:Pometry/optd.git
-[submodule "clam-core"]
-        path = clam-core
-	url = git@github.com:Pometry/optd-graph.git
