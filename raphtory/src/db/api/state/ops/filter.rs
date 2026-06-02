@@ -2,18 +2,18 @@ use crate::{
     db::{
         api::{
             state::{
-                Index, ops::{Const, IntoDynNodeOp, NodeOp, TypeId}
+                Index, ops::{Const, Degree, IntoDynNodeOp, NodeOp, TypeId}
             },
             view::internal::{GraphView, NodeList},
         },
         graph::{
             create_node_type_filter,
-            views::filter::model::{FilterOperator, degree_filter::DegreeFilter, filter::{Filter, FilterValue}, node_filter::NodeFilter}, 
+            views::filter::model::{FilterOperator, degree_filter::DegreeFilter, filter::{Filter, FilterValue}, node_filter::NodeFilter, property_filter::PropertyFilterValue}, 
         },
     },
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::entities::VID;
+use raphtory_api::core::entities::{VID, properties::prop::Prop};
 use raphtory_core::entities::nodes::node_ref::AsNodeRef;
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
 use std::sync::Arc;
@@ -223,15 +223,21 @@ impl<G: GraphView> NodeOp for NodePropertyFilterOp<G> {
 
 #[derive(Debug, Clone)]
 pub struct NodeDegreeFilterOp<G> {
-    graph: G,
-    filter: DegreeFilter
+    degree: Degree<G>,
+    operator: FilterOperator,
+    value: PropertyFilterValue
 }
 
 impl<G> NodeDegreeFilterOp<G> {
     pub(crate) fn new(graph: G, filter: DegreeFilter) -> Self {
+        let degree = Degree {
+            dir: filter.direction,
+            view: graph 
+        };
         Self {
-            graph,
-            filter
+            degree,
+            operator: filter.operator,
+            value: filter.value
         }
     }
 }
@@ -240,9 +246,9 @@ impl<G: GraphView> NodeOp for NodeDegreeFilterOp<G> {
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        let node = storage.core_node(node);
-        self.filter
-            .matches(&self.graph, node.as_ref())
+        let node_degree = self.degree.apply(storage, node);
+        let node_degree_prop = Prop::U64(node_degree as u64);
+        self.operator.apply_to_property(&self.value, Some(&node_degree_prop))
     }
 }
 

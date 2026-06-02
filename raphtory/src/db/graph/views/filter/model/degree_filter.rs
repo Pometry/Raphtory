@@ -40,24 +40,6 @@ pub struct DegreeFilter {
     pub value: PropertyFilterValue
 }
 
-impl DegreeFilter {
-    pub fn matches<'graph, G: GraphViewOps<'graph>>(&self, graph: &G, node: NodeStorageRef) -> bool {
-        let node_view = NodeView::new_internal(graph, node.vid());
-        let node_degree = match self.direction {
-            Direction::IN => {
-                node_view.in_degree()
-            },          
-            Direction::OUT => {
-                node_view.out_degree()
-            }, 
-            Direction::BOTH => {
-                node_view.degree()
-            }
-        };
-        let node_degree_prop =  Prop::U64(node_degree as u64);
-        self.operator.apply_to_property(&self.value, Some(&node_degree_prop))
-    }
-}
 
 impl CreateFilter for DegreeFilter {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
