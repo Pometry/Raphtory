@@ -399,7 +399,7 @@ mod lazy_vec_tests {
     }
 
     #[test]
-    fn lazy_vec_is_opt_vec_push() {
+    fn lazy_vec_is_opt_vec_push_proptest() {
         proptest!(|(
             v in Vec::<Option<u32>>::arbitrary(),
         )| {

@@ -25,7 +25,7 @@ mod state_test {
     };
 
     #[test]
-    fn check_merge_2_vecs() {
+    fn check_merge_2_vecs_proptest() {
         proptest!(|(mut a: Vec<usize>, b: Vec<usize>)| {
             let len_a = a.len();
             let len_b = b.len();
