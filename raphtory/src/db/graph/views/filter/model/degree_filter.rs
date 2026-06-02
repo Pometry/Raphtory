@@ -74,8 +74,8 @@ impl CreateFilter for DegreeFilter {
             PropertyFilterValue::Single(ref prop_val) => {
                 let casted_val = prop_val.clone().try_cast(PropType::U64).ok_or_else(|| {
                     GraphError::InvalidFilter(format!(
-                        "degree filter expects an integer value, got {:?}", 
-                        prop_val
+                        "degree filter expects an integer value, got {}", 
+                        prop_val.to_string()
                     ))
                 })?;
                 
@@ -87,8 +87,8 @@ impl CreateFilter for DegreeFilter {
                     .map(|val| {
                         val.clone().try_cast(PropType::U64).ok_or_else(|| {
                             GraphError::InvalidFilter(format!(
-                                "degree filter expects an integer value, got {:?}", 
-                                val
+                                "degree filter expects an integer value, got {}", 
+                                val.to_string()
                             ))
                         })
                     })
