@@ -26,8 +26,8 @@ use arrow::{
     row::{RowConverter, SortField},
 };
 use arrow_array::{
-    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, StringArray,
-    UInt32Array, UInt64Array,
+    builder::UInt64Builder, Array, ArrayRef, LargeStringArray, RecordBatch, UInt32Array,
+    UInt64Array,
 };
 use arrow_schema::{ArrowError, DataType, Field, FieldRef, Schema, SchemaBuilder, SortOptions};
 use arrow_select::{concat::concat, take::take};

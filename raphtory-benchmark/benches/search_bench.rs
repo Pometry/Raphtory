@@ -351,7 +351,7 @@ fn get_random_node_property_filters(
 
     for node_name in node_names {
         if let Some(node) = graph.node(&node_name) {
-            let mut chosen_filter = None;
+            let mut chosen_filter;
 
             let (metadata, temporal_props) = if filter_op.is_strictly_numeric_operation() {
                 (
@@ -461,7 +461,7 @@ fn get_random_edge_property_filters(
 
     for (src, dst) in edges {
         if let Some(edge) = graph.edge(&src, &dst) {
-            let mut chosen_filter = None;
+            let mut chosen_filter;
 
             let (metadata, temporal_props) = if filter_op.is_strictly_numeric_operation() {
                 (

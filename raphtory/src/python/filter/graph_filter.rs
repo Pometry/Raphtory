@@ -23,8 +23,8 @@ use std::sync::Arc;
 ///     Graph.at(5)
 ///     Graph.latest().layer("fire_nation")
 ///     Graph.layers(["A", "B"]).snapshot_latest()
-#[pyclass(frozen, name = "Graph", module = "raphtory.filter")]
-#[derive(Clone)]
+#[pyclass(frozen, name = "Graph", module = "raphtory.filter", from_py_object)]
+#[derive(Clone, Copy)]
 pub struct PyGraphFilter;
 
 #[pymethods]

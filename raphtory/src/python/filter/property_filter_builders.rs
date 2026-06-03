@@ -29,7 +29,6 @@ use std::sync::Arc;
 /// Returned expressions can be combined with `&`, `|`, and `~` at the
 /// `filter.FilterExpr` level (where supported).
 #[pyclass(frozen, name = "FilterOps", module = "raphtory.filter", subclass)]
-#[derive(Clone)]
 pub struct PyPropertyExprBuilder(pub Arc<dyn DynPropertyFilterBuilder>);
 
 impl PyPropertyExprBuilder {
@@ -300,7 +299,6 @@ impl PyPropertyExprBuilder {
     module = "raphtory.filter",
     extends = PyPropertyExprBuilder
 )]
-#[derive(Clone)]
 pub struct PyPropertyFilterBuilder(pub(crate) Arc<dyn DynTemporalPropertyFilterBuilder>);
 
 impl PyPropertyFilterBuilder {

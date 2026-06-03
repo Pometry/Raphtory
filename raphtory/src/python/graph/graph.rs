@@ -54,7 +54,7 @@ use std::{
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled)
 ///     config (Config, optional): The configuration options for the graph
 #[derive(Clone)]
-#[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen)]
+#[pyclass(name = "Graph", extends = PyGraphView, module = "raphtory", frozen, from_py_object)]
 pub struct PyGraph {
     pub graph: Graph,
 }

@@ -33,7 +33,12 @@ use std::sync::Arc;
 ///     Edge.src().id() == 1
 ///     Edge.dst().id().is_in([1, 2, 3])
 ///     Edge.src().id().starts_with("user:")
-#[pyclass(frozen, name = "EdgeEndpointIdFilter", module = "raphtory.filter")]
+#[pyclass(
+    frozen,
+    name = "EdgeEndpointIdFilter",
+    module = "raphtory.filter",
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyEdgeEndpointIdFilterBuilder(pub EdgeEndpointWrapper<NodeIdFilterBuilder>);
 
@@ -205,7 +210,6 @@ impl PyEdgeEndpointIdFilterBuilder {
 ///     Edge.src().name() == "alice"
 ///     Edge.dst().name().contains("ali")
 #[pyclass(frozen, name = "EdgeEndpointNameFilter", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilterBuilder>);
 
 /// Filters an edge endpoint by its node type.
@@ -217,7 +221,6 @@ pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilte
 ///     Edge.src().node_type() == "fire_nation"
 ///     Edge.dst().node_type().is_not_in(["air_nomads"])
 #[pyclass(frozen, name = "EdgeEndpointTypeFilter", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeEndpointTypeFilterBuilder(pub EdgeEndpointWrapper<NodeTypeFilterBuilder>);
 
 impl_node_text_filter_builder!(PyEdgeEndpointNameFilterBuilder);
@@ -234,7 +237,6 @@ impl_node_text_filter_builder!(PyEdgeEndpointTypeFilterBuilder);
 ///     Edge.dst().name().starts_with("user:")
 ///     Edge.src().property("country") == "UK"
 #[pyclass(frozen, name = "EdgeEndpoint", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeEndpoint(pub EdgeEndpointWrapper<NodeFilter>);
 
 #[pymethods]
@@ -314,7 +316,6 @@ impl PyEdgeEndpoint {
 ///     Edge.window(0, 10).is_active()
 ///     Edge.layer("fire_nation").is_valid()
 #[pyclass(frozen, name = "Edge", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyEdgeFilter;
 
 #[pymethods]
