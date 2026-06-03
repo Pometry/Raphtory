@@ -64,10 +64,11 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        // Per-layer presence schema, unioned across every layer — gives us the
-        // set of temporal prop ids that have actually been written, without
-        // scanning nodes. Intersected with the (redaction-aware) visibility
-        // set so that hidden ids are filtered out.
+        // Property presence schema across every layer. Shouldn't make a difference for normal `GraphStorage`.
+        // Masks redacted properties from `PropertyRedactedGraph`.
+        // FIXME: Shouldn't all ids in the PropMapper exist somewhere in the graph, thus be present in the LayerPropSchema?
+        // FIXME: For the PropertyRedactedGraph, isn't the same filtering already being applied in `node_visible_temporal_prop_ids`?
+        // FIXME: Do we even wanna do this?
         let layer_schema = self.graph.node_layer_prop_schema(&LayerIds::All);
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_temporal_prop_ids().collect();
@@ -119,6 +120,11 @@ impl NodeSchema {
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
+        // Property presence schema across every layer. Shouldn't make a difference for normal `GraphStorage`.
+        // Masks redacted properties from `PropertyRedactedGraph`.
+        // FIXME: Shouldn't all ids in the PropMapper exist somewhere in the graph, thus be present in the LayerPropSchema?
+        // FIXME: For the PropertyRedactedGraph, isn't the same filtering already being applied in `node_visible_temporal_prop_ids`?
+        // FIXME: Do we even wanna do this?
         let layer_schema = self.graph.node_layer_prop_schema(&LayerIds::All);
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_metadata_ids().collect();

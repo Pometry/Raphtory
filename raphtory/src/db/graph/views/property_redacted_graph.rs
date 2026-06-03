@@ -313,7 +313,7 @@ impl<G: GraphView> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
     }
 }
 
-/// Mask out redacted bits from a `LayerPropSchema`
+/// Mask out redacted bits from a layer property schema
 fn mask_schema(
     mut schema: LayerPropSchema,
     temporal_visible: &[bool],

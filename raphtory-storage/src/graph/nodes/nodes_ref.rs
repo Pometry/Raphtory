@@ -47,7 +47,7 @@ impl<'a> NodesStorageEntry<'a> {
 
     /// Union of per-(segment, layer) node property-presence schemas across the
     /// supplied layers. Reads from the persisted `LayerStats` on disk and the
-    /// incrementally-tracked schema on the mem head — no row scanning.
+    /// incrementally-tracked schema on the mem head.
     pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         let inner = match self {
             NodesStorageEntry::Mem(nodes) => nodes.storage(),

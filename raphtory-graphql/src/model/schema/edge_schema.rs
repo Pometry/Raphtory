@@ -57,59 +57,57 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
         self.dst_type.clone()
     }
 
-    /// Returns the list of property schemas for edges connecting these types of nodes.
-    ///
-    /// Edges are filtered by `(src_type, dst_type)` and their temporal
-    /// properties are aggregated into per-key value-variant sets (preserved
-    /// up to `ENUM_BOUNDARY` distinct values per key, see `merge_schemas`).
-    /// The resulting key set is intersected with the per-layer property
-    /// bitset so anything not actually present in this layer is dropped.
+    /// Returns the list of property schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn properties(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
-            let mapper = cloned.graph.edge_meta().temporal_prop_mapper();
             let layers = cloned.graph.layer_ids().clone();
             let layer_schema = cloned.graph.edge_layer_prop_schema(&layers);
-            let aggregate: SchemaAggregate = cloned
+            let schema: SchemaAggregate = cloned
                 .edges()
-                .map(collect_edge_property_schema)
+                .map(|e| collect_edge_property_schema(e, &layer_schema, false))
                 .reduce(merge_schemas)
                 .unwrap_or_default();
-            aggregate_to_property_list(aggregate, mapper, &layer_schema, PropKind::Temporal)
+            schema.into_iter().map(|prop| prop.into()).collect_vec()
         })
         .await
     }
-    /// Returns the list of metadata schemas for edges connecting these types of nodes.
-    /// Same shape as `properties` but over metadata fields rather than
-    /// temporal properties.
+    /// Returns the list of metadata schemas for edges matching these `(src_node_type, dst_node_type)`
     async fn metadata(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
-            let mapper = cloned.graph.edge_meta().metadata_mapper();
             let layers = cloned.graph.layer_ids().clone();
             let layer_schema = cloned.graph.edge_layer_prop_schema(&layers);
-            let aggregate: SchemaAggregate = cloned
+            let schema: SchemaAggregate = cloned
                 .edges()
-                .map(collect_edge_metadata_schema)
+                .map(|e| collect_edge_metadata_schema(e, &layer_schema, true))
                 .reduce(merge_schemas)
                 .unwrap_or_default();
-            aggregate_to_property_list(aggregate, mapper, &layer_schema, PropKind::Metadata)
+            schema.into_iter().map(|prop| prop.into()).collect_vec()
         })
         .await
     }
 }
 
-#[derive(Copy, Clone)]
-enum PropKind {
-    Temporal,
-    Metadata,
-}
-
-fn collect_schema<P: PropertiesOps>(props: P, mapper: &PropMapper) -> SchemaAggregate {
+fn collect_schema<P: PropertiesOps>(
+    props: P,
+    mapper: &PropMapper,
+    layer_schema: &LayerPropSchema,
+    is_metadata: bool,
+) -> SchemaAggregate {
     props
         .iter()
         .zip(props.ids())
         .filter_map(|((key, value), id)| {
+            // skip properties not in the layer schema
+            // FIXME: Is this even necessary?
+            // `edge.properties()` should only return properties present somewhere in the graph (by definition)
+            if (is_metadata && !layer_schema.contains_metadata(id))
+                || (!is_metadata && !layer_schema.contains_temporal(id))
+            {
+                return None;
+            }
+
             let value = value?;
             let key_with_prop_type = (
                 key.to_string(),
@@ -125,42 +123,20 @@ fn collect_schema<P: PropertiesOps>(props: P, mapper: &PropMapper) -> SchemaAggr
 
 fn collect_edge_property_schema<'graph, G: GraphViewOps<'graph>>(
     edge: EdgeView<G>,
+    layer_schema: &LayerPropSchema,
+    is_metadata: bool,
 ) -> SchemaAggregate {
     let props = edge.properties();
     let mapper = edge.graph.edge_meta().temporal_prop_mapper();
-    collect_schema(props, mapper)
+    collect_schema(props, mapper, layer_schema, is_metadata)
 }
 
 fn collect_edge_metadata_schema<'graph, G: GraphViewOps<'graph>>(
     edge: EdgeView<G>,
+    layer_schema: &LayerPropSchema,
+    is_metadata: bool,
 ) -> SchemaAggregate {
     let props = edge.metadata();
     let mapper = edge.graph.edge_meta().metadata_mapper();
-    collect_schema(props, mapper)
-}
-
-/// Convert an aggregate into the final `PropertySchema` list, dropping any
-/// keys that aren't in the per-layer bitset. The intersection is the bitset
-/// adaptation: edges of this `(src_type, dst_type)` may have surfaced
-/// properties whose ids the layer bitset disagrees with (e.g. through a
-/// filtered or redacted view) — those are removed here.
-fn aggregate_to_property_list(
-    aggregate: SchemaAggregate,
-    mapper: &PropMapper,
-    layer_schema: &LayerPropSchema,
-    kind: PropKind,
-) -> Vec<PropertySchema> {
-    aggregate
-        .into_iter()
-        .filter(|((key, _dtype), _values)| {
-            mapper
-                .get_id(key)
-                .map(|id| match kind {
-                    PropKind::Temporal => layer_schema.contains_temporal(id),
-                    PropKind::Metadata => layer_schema.contains_metadata(id),
-                })
-                .unwrap_or(false)
-        })
-        .map(|prop| prop.into())
-        .collect_vec()
+    collect_schema(props, mapper, layer_schema, is_metadata)
 }

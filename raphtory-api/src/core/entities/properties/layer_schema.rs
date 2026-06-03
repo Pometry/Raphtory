@@ -1,17 +1,9 @@
-/// Per-segment / per-layer summary of which property ids have values in a
-/// given (layer, segment) pair.
+/// Per-segment / per-layer summary of which property ids have values in a given (layer, segment) pair.
+/// The Vec<bool> "bitsets" round-trip through disk via rkyv in LayerStatStore.
 ///
 /// `temporal_props[i] == true` means a value has been written for global
 /// temporal-prop-id `i` in this segment for this layer. Same for `metadata`
 /// with the global metadata-prop-id space.
-///
-/// Bitsets are merged across segments and layers by `union_with`, giving the
-/// per-layer property schema without scanning entities.
-///
-/// The representation is intentionally simple — a `Vec<bool>` rather than a
-/// packed bitset — because the schema is small (number of properties, not
-/// number of rows) and needs to round-trip through disk via rkyv. We can swap
-/// in a denser representation later if profiling justifies it.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct LayerPropSchema {
     temporal_props: Vec<bool>,
@@ -23,7 +15,7 @@ impl LayerPropSchema {
         Self::default()
     }
 
-    /// Build a schema directly from two presence vectors. Used when
+    /// Build a schema directly from two presence vectors. Useful when
     /// reconstructing a schema from persisted on-disk state.
     pub fn from_bools(temporal_props: Vec<bool>, metadata: Vec<bool>) -> Self {
         Self {
@@ -88,15 +80,14 @@ impl LayerPropSchema {
         union_into(&mut self.metadata, &other.metadata);
     }
 
-    /// Position-wise AND of the temporal-prop bits with the supplied
-    /// visibility mask. Bits at positions beyond `mask.len()` are cleared
-    /// (treated as "not visible").
+    /// Position-wise AND of the temporal-prop bits with the supplied visibility mask.
+    /// Bits at positions beyond `mask.len()` are treated as not visible.
     pub fn intersect_temporal_with(&mut self, mask: &[bool]) {
         intersect_into(&mut self.temporal_props, mask);
     }
 
-    /// Position-wise AND of the metadata bits with the supplied visibility
-    /// mask. See [`Self::intersect_temporal_with`].
+    /// Position-wise AND of the metadata bits with the supplied visibility mask.
+    /// Bits at positions beyond `mask.len()` are treated as not visible.
     pub fn intersect_metadata_with(&mut self, mask: &[bool]) {
         intersect_into(&mut self.metadata, mask);
     }

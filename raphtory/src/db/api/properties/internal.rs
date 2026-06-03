@@ -27,15 +27,8 @@ pub trait NodePropertySchemaOps: Send + Sync {
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
 
-    /// Union of the per-(segment, layer) presence bitsets for all node
-    /// properties present in the supplied layers.
-    ///
-    /// Storage-backed implementations (see `GraphStorage`) read the persisted
-    /// `LayerStats` and union across segments — O(num props), no row
-    /// scanning. The default implementation falls back to the
-    /// `_visible_*_prop_ids` iterators (which return all globally registered
-    /// ids), preserving the historical behavior for view-only types that
-    /// don't reach storage.
+    /// Union of the (segment, layer) property presence bitsets for all node properties present in the layers.
+    /// Override for behaviour other than "all node properties registered globally".
     fn node_layer_prop_schema(&self, _layers: &LayerIds) -> LayerPropSchema {
         let mut schema = LayerPropSchema::new();
         for id in self.node_visible_temporal_prop_ids() {
@@ -59,9 +52,8 @@ pub trait EdgePropertySchemaOps: Send + Sync {
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
 
-    /// Union of the per-(segment, layer) presence bitsets for all edge
-    /// properties present in the supplied layers. See
-    /// [`NodePropertySchemaOps::node_layer_prop_schema`].
+    /// Union of the (segment, layer) property presence bitsets for all edge properties present in the layers.
+    /// Override for behaviour other than "all edge properties registered globally".
     fn edge_layer_prop_schema(&self, _layers: &LayerIds) -> LayerPropSchema {
         let mut schema = LayerPropSchema::new();
         for id in self.edge_visible_temporal_prop_ids() {
