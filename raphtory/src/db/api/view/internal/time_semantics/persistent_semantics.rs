@@ -375,19 +375,18 @@ impl NodeTimeSemanticsOps for PersistentSemantics {
         w: Range<EventTime>,
         prop_ids: Arc<[usize]>,
     ) -> impl Iterator<Item = (EventTime, LayerId, Vec<(usize, Prop)>)> + Send + Sync + 'graph {
-        let mut exact_layers = node.layer_ids_iter(view.layer_ids()).collect_vec();
-        if !view.layer_ids().is_all()
-            && node
-                .layer_ids_iter(&LayerIds::One(STATIC_GRAPH_LAYER_ID))
+        // make sure static graph layer is always visible, even if excluded from the view
+        let layers = view
+            .layer_ids()
+            .union(&LayerIds::One(STATIC_GRAPH_LAYER_ID));
+        let num_layers = node.num_layers();
+        let exact_layers = layers.into_iter(num_layers).filter(move |&layer_id| {
+            node.layer_ids_iter(&LayerIds::One(layer_id))
                 .next()
                 .is_some()
-        {
-            exact_layers.push(STATIC_GRAPH_LAYER_ID);
-            exact_layers.sort();
-            exact_layers.dedup();
-        }
+        });
 
-        exact_layers.into_iter().flat_map(move |layer_id| {
+        exact_layers.flat_map(move |layer_id| {
             let mut rows = node
                 .temp_prop_rows_range(Some(w.clone()), prop_ids.clone())
                 .filter(|(_, row_layer, _)| *row_layer == layer_id.0)
