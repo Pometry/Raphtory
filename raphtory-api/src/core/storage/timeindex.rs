@@ -294,7 +294,7 @@ impl AsTime for EventTime {
 mod test {
     use super::*;
     #[test]
-    fn symetric_next_previous() {
+    fn symetric_next_previous_proptest() {
         proptest::proptest!(|(t in i64::MIN..=i64::MAX, s in 0..=usize::MAX)| {
             let event_time = EventTime(t, s);
             assert_eq!(event_time, event_time.next().previous());

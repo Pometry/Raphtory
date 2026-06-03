@@ -30,6 +30,7 @@ num-traits = { workspace = true }
 num-integer = { workspace = true }
 parking_lot = { workspace = true }
 once_cell = { workspace = true }
+quick_cache = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
 rayon = { workspace = true }

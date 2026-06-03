@@ -418,7 +418,7 @@ mod serialise_test {
     }
 
     #[test]
-    fn encode_decode_prop_test() {
+    fn encode_decode_proptest() {
         proptest!(|(edges in build_edge_list(100, 100))| {
             let g = build_graph_from_edge_list(&edges);
             let bytes = g.encode_to_bytes().unwrap();

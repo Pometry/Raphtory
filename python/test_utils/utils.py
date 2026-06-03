@@ -58,33 +58,11 @@ def sort_by_gql_name_or_id(d):
         return d
 
 
-if "DISK_TEST_MARK" in os.environ:
-
-    def with_disk_graph(func):
-        def inner(graph):
-            def inner2(graph, tmpdirname):
-                g = graph.to_disk_graph(tmpdirname)
-                func(g)
-
-            func(graph)
-            with tempfile.TemporaryDirectory() as tmpdirname:
-                inner2(graph, tmpdirname)
-
-        return inner
-
-else:
-
-    def with_disk_graph(func):
-        return func
-
-
-def with_disk_variants(init_fn, variants=None):
+def with_variants(init_fn, variants=None):
     if variants is None:
         variants = [
             "graph",
             "persistent_graph",
-            "event_disk_graph",
-            "persistent_disk_graph",
         ]
 
     if isinstance(variants, str):
@@ -107,26 +85,6 @@ def with_disk_variants(init_fn, variants=None):
             if "persistent_graph" in variants:
                 pg = init_fn(PersistentGraph())
                 check(pg)
-
-            if "DISK_TEST_MARK" in os.environ:
-                from raphtory import DiskGraphStorage
-
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    if (
-                        "event_disk_graph" in variants
-                        or "persistent_disk_graph" in variants
-                    ):
-                        g = init_fn(Graph())
-                        g.to_disk_graph(tmpdir)
-                        disk = DiskGraphStorage.load_from_dir(tmpdir)
-
-                        if "event_disk_graph" in variants:
-                            check(disk.to_events())
-
-                        if "persistent_disk_graph" in variants:
-                            check(disk.to_persistent())
-
-                        del disk
 
         return wrapper
 

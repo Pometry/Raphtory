@@ -297,7 +297,7 @@ mod tests {
     use proptest::{arbitrary::any, prelude::*, proptest};
 
     #[test]
-    fn test_merge() {
+    fn test_merge_proptest() {
         proptest!(|(input in any::<Vec<Vec<usize>>>().prop_map(|mut input| {
                         for inner in input.iter_mut() {
                 inner.sort();
@@ -314,7 +314,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reverse() {
+    fn test_reverse_proptest() {
         proptest!(|(input in any::<Vec<Vec<usize>>>().prop_map(|mut input| {
                         for inner in input.iter_mut() {
                 inner.sort();
@@ -332,7 +332,7 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_merge_fn() {
+    fn test_custom_merge_fn_proptest() {
         proptest!(|(input in any::<Vec<Vec<usize>>>().prop_map(|mut input| {
                         for inner in input.iter_mut() {
                 inner.sort();
@@ -349,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_merge_fn_rev() {
+    fn test_custom_merge_fn_rev_proptest() {
         proptest!(|(input in any::<Vec<Vec<usize>>>().prop_map(|mut input| {
                         for inner in input.iter_mut() {
                 inner.sort();
