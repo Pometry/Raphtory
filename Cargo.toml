@@ -14,11 +14,8 @@ members = [
     "raphtory-storage",
     "raphtory-api-macros",
     "raphtory-tests",
-    "raphtory-itertools",
-    "clam-core",
-    "clam-core/snb"]
+    "raphtory-itertools", ]
 default-members = ["raphtory"]
-exclude = ["optd"]
 resolver = "2"
 
 [workspace.package]

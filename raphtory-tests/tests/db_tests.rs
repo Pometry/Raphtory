@@ -148,7 +148,7 @@ fn test_empty_graph() {
 }
 
 #[test]
-fn test_multithreaded_add_edge() {
+fn test_multithreaded_add_edge_proptest() {
     proptest!(|(edges: Vec<(u64, u64)>)| {
         let g = Graph::new();
         edges.par_iter().enumerate().for_each(|(t, (i, j))| {
@@ -159,7 +159,7 @@ fn test_multithreaded_add_edge() {
 }
 
 #[test]
-fn test_multithreaded_add_edge_both_directions() {
+fn test_multithreaded_add_edge_both_directions_proptest() {
     proptest!(|(edges: Vec<(u64, u64)>)| {
         let g = Graph::new();
         let mut self_loop_count = 0;
@@ -178,7 +178,7 @@ fn test_multithreaded_add_edge_both_directions() {
 }
 
 #[test]
-fn add_node_grows_graph_len() {
+fn add_node_grows_graph_len_proptest() {
     proptest!(|(vs: Vec<(i64, u64)>)| {
         let g = Graph::new();
 
@@ -194,7 +194,7 @@ fn add_node_grows_graph_len() {
 }
 
 #[test]
-fn add_node_gets_names() {
+fn add_node_gets_names_proptest() {
     proptest!(|(vs: Vec<String>)| {
         global_info_logger();
         let g = Graph::new();
@@ -217,7 +217,7 @@ fn add_node_gets_names() {
 }
 
 #[test]
-fn add_edge_grows_graph_edge_len() {
+fn add_edge_grows_graph_edge_len_proptest() {
     proptest!(|(edges: Vec<(i64, u64, u64)>)| {
         let g = Graph::new();
 
@@ -256,7 +256,7 @@ fn simple_add_edge() {
 }
 
 #[test]
-fn add_edge_works() {
+fn add_edge_works_proptest() {
     proptest!(|(edges: Vec<(i64, u64, u64)>)| {
         let g = Graph::new();
         for &(t, src, dst) in edges.iter() {
@@ -268,7 +268,7 @@ fn add_edge_works() {
 }
 
 #[test]
-fn get_edge_works() {
+fn get_edge_works_proptest() {
     proptest!(|(edges: Vec<(i64, u64, u64)>)| {
         let g = Graph::new();
         for &(t, src, dst) in edges.iter() {
@@ -2154,7 +2154,7 @@ fn test_graph_metadata_with_maps() {
 }
 
 #[test]
-fn test_graph_metadata_names() {
+fn test_graph_metadata_names_proptest() {
     proptest!(|(u64_props: HashMap<String, u64>)| {
         let g = Graph::new();
 
@@ -2175,7 +2175,7 @@ fn test_graph_metadata_names() {
 }
 
 #[test]
-fn test_graph_temporal_props() {
+fn test_graph_temporal_props_proptest() {
     proptest!(|(str_props: HashMap<String, String>)| {
         global_info_logger();
 
@@ -2781,7 +2781,7 @@ fn test_unique_layers() {
 }
 
 #[test]
-fn node_from_id_is_consistent() {
+fn node_from_id_is_consistent_proptest() {
     proptest!(|(nodes: Vec<u64>)| {
         let g = Graph::new();
         for v in nodes.iter() {
@@ -2811,7 +2811,7 @@ fn large_id_is_consistent() {
 }
 
 #[test]
-fn exploded_edge_times_is_consistent() {
+fn exploded_edge_times_is_consistent_proptest() {
     let edges = proptest::collection::vec(
         (
             0u64..100,
@@ -3624,7 +3624,7 @@ fn test_id_filter() {
 }
 
 #[test]
-fn test_indexed() {
+fn test_indexed_proptest() {
     proptest!(|(graph in build_graph_strat(10, 10, 10, 10, false), nodes in subsequence((0..10).collect::<Vec<_>>(), 0..10))| {
         let graph = Graph::from(build_graph(&graph));
         let expected_node_ids = nodes.iter().copied().filter(|&id| graph.has_node(id)).collect::<Vec<_>>();
@@ -3634,7 +3634,7 @@ fn test_indexed() {
 }
 
 #[test]
-fn materialize_window_prop_test() {
+fn materialize_window_proptest() {
     proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>())| {
         let g = Graph::from(build_graph(&graph_f));
         let gw = g.window(w.start, w.end);

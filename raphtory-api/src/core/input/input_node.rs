@@ -98,14 +98,14 @@ mod test {
     }
 
     #[test]
-    fn test_u64_string_works() {
+    fn test_u64_string_works_proptest() {
         proptest!(|(n in any::<u64>())| {
             assert_eq!(n.to_string().id(), n);
         });
     }
 
     #[test]
-    fn test_if_str_parses_it_is_a_u64() {
+    fn test_if_str_parses_it_is_a_u64_proptest() {
         proptest!(|(s in any::<String>())| {
             let res = parse_u64_strict(&s);
             if let Some(n) = res {

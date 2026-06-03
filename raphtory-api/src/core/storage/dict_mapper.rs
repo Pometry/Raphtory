@@ -466,7 +466,7 @@ mod test {
     }
 
     #[test]
-    fn check_dict_mapper_concurrent_write() {
+    fn check_dict_mapper_concurrent_write_proptest() {
         proptest!(|(write: Vec<String>)| {
             let n = 100;
             let mapper: DictMapper = DictMapper::default();

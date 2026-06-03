@@ -241,7 +241,7 @@ mod io_tests {
     }
 
     #[test]
-    fn test_load_edges() {
+    fn test_load_edges_proptest() {
         proptest!(|(edges in build_edge_list(1000, 100), chunk_size in 1usize..=1000)| {
             let distinct_edges = edges.iter().map(|(src, dst, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
             let df_view = build_df(chunk_size, &edges);
@@ -427,7 +427,7 @@ mod io_tests {
     }
 
     #[test]
-    fn test_load_edges_str() {
+    fn test_load_edges_str_proptest() {
         proptest!(|(edges in build_edge_list_str(100, 100), chunk_size in 1usize..=100)| {
             let distinct_edges = edges.iter().map(|(src, dst, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
             let df_view = build_df_str(chunk_size, &edges);
@@ -1244,7 +1244,7 @@ mod parquet_tests {
     }
 
     #[test]
-    fn write_graph_props_to_parquet() {
+    fn write_graph_props_to_parquet_proptest() {
         proptest!(|(props in build_props_dyn(0..=10))| {
             check_graph_props(props, true);
         });
@@ -1260,13 +1260,13 @@ mod parquet_tests {
     }
 
     #[test]
-    fn write_nodes_any_props_to_parquet() {
+    fn write_nodes_any_props_to_parquet_proptest() {
         proptest!(|(nodes in build_nodes_dyn(0..=10, 0..=10, 0..=10))| {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
-    fn write_edges_any_props_to_parquet() {
+    fn write_edges_any_props_to_parquet_proptest() {
         proptest!(|(edges in build_edge_list_dyn(0..=10, 0..=10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
@@ -1291,7 +1291,7 @@ mod parquet_tests {
     }
 
     #[test]
-    fn write_graph_to_parquet() {
+    fn write_graph_to_parquet_proptest() {
         proptest!(|(graph in build_graph_strat(10, 10, 10, 10, true))| {
             build_and_check_parquet_encoding(graph);
         })
