@@ -251,9 +251,7 @@ impl<T: HasRow> SegmentContainer<T> {
         &self.properties
     }
 
-    /// Per-layer property-presence summary for this container (one container =
-    /// one layer of one segment). Cheap — just borrows the incrementally
-    /// maintained bitsets.
+    /// Per-layer property-presence summary for this container (which corresponds to a single layer)
     pub fn layer_schema(&self) -> &LayerPropSchema {
         self.properties.layer_schema()
     }

@@ -24,6 +24,7 @@ use std::sync::Arc;
 
 pub mod props_meta_writer;
 
+// Held by SegmentContainer, which corresponds to one layer in Mem(Edge/Node)Segment
 #[derive(Debug, Default)]
 pub struct Properties {
     c_properties: Vec<PropColumn>,
@@ -39,9 +40,8 @@ pub struct Properties {
     has_properties: bool,
     has_deletions: bool,
     pub additions_count: usize,
-    /// Per-segment record of which (global) property ids have ever been written
-    /// to this `Properties`. Maintained incrementally on every write so that
-    /// the layer schema can be derived without scanning entities.
+    /// Per-(segment, layer) record of which (global) property ids have ever been written
+    /// to this `Properties`. Maintained incrementally on every write.
     layer_schema: LayerPropSchema,
 }
 
@@ -99,8 +99,7 @@ impl Properties {
         self.t_properties.num_columns()
     }
 
-    /// Returns the per-segment property-presence summary maintained
-    /// incrementally as `append_t_props` / `append_const_props` are called.
+    /// Returns the property-presence summary maintained incrementally by `append_t_props` / `append_const_props`.
     pub fn layer_schema(&self) -> &LayerPropSchema {
         &self.layer_schema
     }
@@ -298,6 +297,7 @@ impl<'a> PropMutEntry<'a> {
             ..
         } = &mut *self.properties;
 
+        // Inspect fn (layer_schema.insert_temporal(id)) is called when this is pushed in t_prop_row below
         let tracked = props
             .into_iter()
             .inspect(|(prop_id, _)| layer_schema.insert_temporal(*prop_id));

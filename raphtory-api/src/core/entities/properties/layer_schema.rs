@@ -1,5 +1,5 @@
 /// Per-segment / per-layer summary of which property ids have values in a given (layer, segment) pair.
-/// The Vec<bool> "bitsets" round-trip through disk via rkyv in LayerStatStore.
+/// The Vec<bool> "bitsets" themselves round-trip via rkyv in LayerStatStore when disk storage is enabled.
 ///
 /// `temporal_props[i] == true` means a value has been written for global
 /// temporal-prop-id `i` in this segment for this layer. Same for `metadata`
@@ -81,13 +81,13 @@ impl LayerPropSchema {
     }
 
     /// Position-wise AND of the temporal-prop bits with the supplied visibility mask.
-    /// Bits at positions beyond `mask.len()` are treated as not visible.
+    /// Careful: Bits at positions beyond `mask.len()` are treated as not visible.
     pub fn intersect_temporal_with(&mut self, mask: &[bool]) {
         intersect_into(&mut self.temporal_props, mask);
     }
 
     /// Position-wise AND of the metadata bits with the supplied visibility mask.
-    /// Bits at positions beyond `mask.len()` are treated as not visible.
+    /// Careful: Bits at positions beyond `mask.len()` are treated as not visible.
     pub fn intersect_metadata_with(&mut self, mask: &[bool]) {
         intersect_into(&mut self.metadata, mask);
     }
