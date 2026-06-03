@@ -13,9 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         name: Checkout
-        with:
-          submodules: recursive
-          token: '${{ secrets.PULL_TOKEN }}'
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
