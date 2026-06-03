@@ -499,7 +499,7 @@ pub(crate) enum PermissionError {
 
 #[derive(Enum)]
 #[graphql(name = "GraphType")]
-pub(crate) enum GqlGraphType {
+pub enum GqlGraphType {
     /// Persistent.
     Persistent,
     /// Event.
