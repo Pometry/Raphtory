@@ -20,6 +20,7 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, VID},
+    storage::arc_str::ArcStr,
     Direction,
 };
 use raphtory_storage::graph::graph::GraphStorage;
@@ -53,34 +54,40 @@ impl Comparable for usize {
     }
 }
 
-impl Comparable for String {
-    fn binary_cmp(op: &BinaryOp, left: &String, right: &String) -> bool {
-        // Coerce to &str to avoid ambiguity with NodeExprFilterOps methods of the same name.
-        let (l, r): (&str, &str) = (left, right);
-        match op {
-            BinaryOp::Eq => left == right,
-            BinaryOp::Ne => left != right,
-            BinaryOp::Lt => left < right,
-            BinaryOp::Le => left <= right,
-            BinaryOp::Gt => left > right,
-            BinaryOp::Ge => left >= right,
-            BinaryOp::StartsWith => l.starts_with(r),
-            BinaryOp::EndsWith => l.ends_with(r),
-            BinaryOp::Contains => l.contains(r),
-            BinaryOp::NotContains => !l.contains(r),
-            BinaryOp::FuzzySearch {
-                levenshtein_distance,
-                prefix_match,
-            } => {
-                let l = l.to_lowercase();
-                let r = r.to_lowercase();
-                let lev = levenshtein(&r, &l) <= *levenshtein_distance;
-                let prefix = *prefix_match && l.as_str().starts_with(r.as_str());
-                lev || prefix
+macro_rules! impl_comparable_str {
+    ($ty:ty) => {
+        impl Comparable for $ty {
+            fn binary_cmp(op: &BinaryOp, left: &$ty, right: &$ty) -> bool {
+                let (l, r): (&str, &str) = (left, right);
+                match op {
+                    BinaryOp::Eq => l == r,
+                    BinaryOp::Ne => l != r,
+                    BinaryOp::Lt => l < r,
+                    BinaryOp::Le => l <= r,
+                    BinaryOp::Gt => l > r,
+                    BinaryOp::Ge => l >= r,
+                    BinaryOp::StartsWith => l.starts_with(r),
+                    BinaryOp::EndsWith => l.ends_with(r),
+                    BinaryOp::Contains => l.contains(r),
+                    BinaryOp::NotContains => !l.contains(r),
+                    BinaryOp::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => {
+                        let l = l.to_lowercase();
+                        let r = r.to_lowercase();
+                        let lev = levenshtein(&r, &l) <= *levenshtein_distance;
+                        let prefix = *prefix_match && l.as_str().starts_with(r.as_str());
+                        lev || prefix
+                    }
+                }
             }
         }
-    }
+    };
 }
+
+impl_comparable_str!(String);
+impl_comparable_str!(ArcStr);
 
 impl Comparable for Prop {
     fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
@@ -189,25 +196,6 @@ where
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> Option<O::Output> {
         Some(self.0.apply(storage, node))
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NodeTypeStringOp — maps Type's Option<ArcStr> to Option<String>
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Evaluates `Type` from `node.rs` and converts `ArcStr` to `String`.
-///
-/// `Type: NodeOp<Output = Option<ArcStr>>` — this op converts to `Option<String>`
-/// without reimplementing the type-id lookup logic.
-#[derive(Clone)]
-pub(crate) struct NodeTypeStringOp;
-
-impl NodeOp for NodeTypeStringOp {
-    type Output = Option<String>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<String> {
-        Type.apply(storage, node).map(|a| a.to_string())
     }
 }
 
@@ -329,16 +317,15 @@ impl NodeExpr for Metadata {
 
 /// `Type` from `db/api/state/ops/node.rs` used as a node expression.
 ///
-/// `Type: NodeOp<Output = Option<ArcStr>>` — this impl converts to `Option<String>`
-/// via `NodeTypeStringOp` without reimplementing the type-id lookup.
+/// `Type: NodeOp<Output = Option<ArcStr>>` — used directly, no conversion.
 impl NodeExpr for Type {
-    type Output = Option<String>;
+    type Output = Option<ArcStr>;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<String>> + 'g>, GraphError> {
-        Ok(Arc::new(NodeTypeStringOp))
+    ) -> Result<Arc<dyn NodeOp<Output = Option<ArcStr>> + 'g>, GraphError> {
+        Ok(Arc::new(Type))
     }
 }
 
@@ -384,6 +371,17 @@ impl NodeExpr for String {
         &self,
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<String>> + 'g>, GraphError> {
+        Ok(Arc::new(Const(Some(self.clone()))))
+    }
+}
+
+impl NodeExpr for ArcStr {
+    type Output = Option<ArcStr>;
+
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        _graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Option<ArcStr>> + 'g>, GraphError> {
         Ok(Arc::new(Const(Some(self.clone()))))
     }
 }

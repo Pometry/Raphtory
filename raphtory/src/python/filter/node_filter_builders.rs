@@ -25,7 +25,10 @@ use crate::{
     },
 };
 use pyo3::{pyclass, pymethods, Bound, IntoPyObject, PyResult, Python};
-use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
+use raphtory_api::core::{
+    entities::GID,
+    storage::{arc_str::ArcStr, timeindex::EventTime},
+};
 use std::sync::Arc;
 
 /// Filters nodes by their ID value.
@@ -289,7 +292,56 @@ macro_rules! impl_node_text_filter_builder {
 }
 
 impl_node_text_filter_builder!(PyNodeNameFilterBuilder, Name);
-impl_node_text_filter_builder!(PyNodeTypeFilterBuilder, Type);
+
+#[pymethods]
+impl PyNodeTypeFilterBuilder {
+    fn __eq__(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(Type.eq(ArcStr::from(value))))
+    }
+
+    fn __ne__(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(Type.ne(ArcStr::from(value))))
+    }
+
+    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        let vals: Vec<ArcStr> = values.into_iter().map(ArcStr::from).collect();
+        PyFilterExpr(Arc::new(Type.is_in(vals)))
+    }
+
+    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        let vals: Vec<ArcStr> = values.into_iter().map(ArcStr::from).collect();
+        PyFilterExpr(Arc::new(Type.is_not_in(vals)))
+    }
+
+    fn starts_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(Type.starts_with(ArcStr::from(value))))
+    }
+
+    fn ends_with(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(Type.ends_with(ArcStr::from(value))))
+    }
+
+    fn contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(Type.contains(ArcStr::from(value))))
+    }
+
+    fn not_contains(&self, value: String) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(Type.not_contains(ArcStr::from(value))))
+    }
+
+    fn fuzzy_search(
+        &self,
+        value: String,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> PyFilterExpr {
+        PyFilterExpr(Arc::new(Type.fuzzy_search(
+            ArcStr::from(value),
+            levenshtein_distance,
+            prefix_match,
+        )))
+    }
+}
 
 /// Constructs node filter expressions.
 ///
