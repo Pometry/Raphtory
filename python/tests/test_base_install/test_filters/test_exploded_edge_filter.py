@@ -449,7 +449,7 @@ def test_all_property_types(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-                len(result) == expected
+            len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     nonsense_filter_cases = [
@@ -822,7 +822,9 @@ def test_all_property_types(GraphClass):
 
     with pytest.raises(Exception) as e:
         filter.ExplodedEdge.property("name").fuzzy_search(2, 2, False)
-    assert "argument 'prop_value': 'int' object is not an instance of 'str'" in str(e.value)
+    assert "argument 'prop_value': 'int' object is not an instance of 'str'" in str(
+        e.value
+    )
 
     missing_prop = [
         (filter.ExplodedEdge.property("blah") == 2),
@@ -912,7 +914,7 @@ def test_temporal_constant(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-                len(result) == expected
+            len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     g = GraphClass()
@@ -942,5 +944,5 @@ def test_temporal_constant(GraphClass):
         result = g.filter(expr).edges.explode()
         print(g.edges.explode().metadata.get("weight"))
         assert (
-                len(result) == expected
+            len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
