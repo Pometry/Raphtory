@@ -187,6 +187,7 @@ impl Properties {
                         _ => None,
                     })
                     .unwrap();
+
                 Some(Arc::new(
                     Decimal128Array::from_iter(indices.map(|i| {
                         lazy_vec.get_opt(i).and_then(|bd| {
@@ -229,6 +230,7 @@ impl Properties {
         }
     }
 
+    /// Convert the temporal property column with `col_id` into an Arrow array.
     pub fn take_t_column(
         &self,
         col_id: usize,
@@ -239,14 +241,15 @@ impl Properties {
         self.column_as_array(column, col_id, meta, indices)
     }
 
+    /// Convert the constant property column with `col_id` into an Arrow array.
     pub fn take_c_column(
         &self,
-        col: usize,
+        col_id: usize,
         meta: &PropMapper,
         indices: impl Iterator<Item = usize>,
     ) -> Option<ArrayRef> {
-        let column = self.c_properties.get(col)?;
-        self.column_as_array(column, col, meta, indices)
+        let column = self.c_properties.get(col_id)?;
+        self.column_as_array(column, col_id, meta, indices)
     }
 
     fn update_earliest_latest(&mut self, t: EventTime) {

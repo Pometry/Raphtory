@@ -265,11 +265,13 @@ impl PartialOrd for Prop {
 }
 
 pub struct SerdeArrowProp<'a>(pub &'a Prop);
+
 #[derive(Clone, Copy, Debug)]
 pub struct SerdeArrowList<'a>(pub &'a PropArray);
 
 #[derive(Clone, Copy, Debug)]
 pub struct SerdeArrowArray<'a>(pub &'a ArrayRef);
+
 #[derive(Clone, Copy)]
 pub struct SerdeArrowMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
 
@@ -286,9 +288,11 @@ impl<'a> Serialize for SerdeArrowList<'a> {
         match &self.0 {
             PropArray::Vec(list) => {
                 let mut state = serializer.serialize_seq(Some(self.0.len()))?;
+
                 for prop in list.iter() {
                     state.serialize_element(&SerdeArrowProp(prop))?;
                 }
+
                 state.end()
             }
             PropArray::Array(array) => SerdeArrowArray(array).serialize(serializer),
@@ -329,6 +333,7 @@ impl<'a> Serialize for SerdeArrowProp<'a> {
             Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
             Prop::List(l) => SerdeArrowList(l).serialize(serializer),
             Prop::Map(m) => SerdeArrowMap(m).serialize(serializer),
+            // TODO: Serialization should match PropColumn::Decimal using precision and scale.
             Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
         }
     }
