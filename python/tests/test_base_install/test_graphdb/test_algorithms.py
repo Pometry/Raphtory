@@ -60,7 +60,9 @@ def test_connected_components():
         actual.to_parquet(f.name)
         df = pandas.read_parquet(f.name)
         print(df)
-        assert dict(zip(df["id"], df["component_id"])) == {str(n): c["component_id"] for n, c in expected.items()}
+        assert dict(zip(df["id"], df["component_id"])) == {
+            str(n): c["component_id"] for n, c in expected.items()
+        }
 
 
 def test_largest_connected_component():
