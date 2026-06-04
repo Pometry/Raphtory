@@ -22,14 +22,14 @@ use std::{fmt, fmt::Display};
 #[derive(Clone)]
 pub struct DegreeFilterBuilder {
     direction: Direction,
-    error: Option<String>
+    ops: Vec<Op>,
 }
 
 impl DegreeFilterBuilder {
     pub fn new(direction: Direction) -> Self {
         Self {
             direction,
-            error: None
+            ops: Vec::new(),
         }
     }
 }
@@ -39,7 +39,7 @@ pub struct DegreeFilter {
     pub direction: Direction,
     pub operator: FilterOperator,
     pub value: PropertyFilterValue,
-    pub error: Option<String>
+    pub ops: Vec<Op>,
 }
 
 
@@ -67,8 +67,18 @@ impl CreateFilter for DegreeFilter {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        if self.error.is_some() {
-            return Err(GraphError::InvalidFilter(self.error.unwrap()));
+        if self.ops.len() > 0 {
+            return Err(GraphError::InvalidFilter(
+                "degree filter does not support expressions".to_string(),
+            ));
+        }
+        match self.operator {
+            FilterOperator::Eq | FilterOperator::Ne| FilterOperator::Gt | FilterOperator::Ge | FilterOperator::Lt | FilterOperator::Le | FilterOperator::IsIn | FilterOperator::IsNotIn => {},
+            _ => {
+                return Err(GraphError::InvalidFilter(
+                    format!("degree filter does not support operator {:?}", self.operator)
+                ));
+            }
         }
         let value = match self.value {
             PropertyFilterValue::Single(ref prop_val) => {
@@ -147,15 +157,11 @@ where
     type Marker = NodeFilter;
 
     fn property_ref(&self) -> PropertyRef {
-        if let Some(ref error) = self.error {
-            PropertyRef::Property(error.clone())
-        } else {
-            property_ref(&self.direction)
-        }
+        property_ref(&self.direction)
     }
 
     fn ops(&self) -> &[Op] {
-        &[]
+        &self.ops
     }
 
     fn entity(&self) -> Self::Marker {
@@ -163,23 +169,18 @@ where
     }
 
     fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        let error = if filter.prop_ref.name().starts_with("Error") {
-            Some(filter.prop_ref.name().to_string())
-        } else {
-            None
-        };
         DegreeFilter {
              value: filter.prop_value,
              direction: self.direction,
              operator: filter.operator,
-             error 
+             ops: filter.ops,
         }
     }
 
     fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        let mut builder = self.clone(); 
-        builder.error = Some("Error: DegreeFilter does not support expressions".to_string());
-        builder
+        let mut filter = self.clone();
+        filter.ops = builder.ops;
+        filter
     }
 }
 
@@ -197,7 +198,7 @@ impl Display for DegreeFilter {
             prop_ref: property_ref(&self.direction),
             prop_value: self.value.clone(),
             operator: self.operator.clone(),
-            ops: vec![],
+            ops: self.ops.clone(),
             entity: NodeFilter,
         };
         property_filter.fmt(f)
