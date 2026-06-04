@@ -499,7 +499,7 @@ pub(crate) enum PermissionError {
 
 #[derive(Enum)]
 #[graphql(name = "GraphType")]
-pub(crate) enum GqlGraphType {
+pub enum GqlGraphType {
     /// Persistent.
     Persistent,
     /// Event.
@@ -686,7 +686,7 @@ impl Data {
 
     /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
     /// existence and access level). Load failure → `Err` (graph was deleted, etc.).
-    pub(crate) async fn get_graph_with_read_permission(
+    pub async fn get_graph_with_read_permission(
         &self,
         ctx: &Context<'_>,
         path: &str,
