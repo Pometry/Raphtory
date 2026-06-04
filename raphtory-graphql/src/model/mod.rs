@@ -32,7 +32,7 @@ use raphtory::{
         },
         graph::views::deletion_graph::PersistentGraph,
     },
-    errors::GraphResult,
+    errors::{GraphError, GraphResult},
     prelude::*,
     vectors::{
         cache::CachedEmbeddingModel,

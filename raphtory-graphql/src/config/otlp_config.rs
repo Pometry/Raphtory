@@ -9,18 +9,38 @@ use opentelemetry_sdk::{
 use serde::Deserialize;
 use std::time::Duration;
 use strum::IntoEnumIterator;
-use strum_macros::{Display, EnumIter, EnumString};
+use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
 
 #[derive(
-    Clone, Debug, Deserialize, PartialEq, serde::Serialize, EnumIter, EnumString, Display, ValueEnum,
+    Clone,
+    Debug,
+    Deserialize,
+    PartialEq,
+    serde::Serialize,
+    EnumIter,
+    EnumString,
+    Display,
+    ValueEnum,
+    IntoStaticStr,
 )]
 #[clap(rename_all = "UPPERCASE")]
+#[serde(try_from = "String")]
+#[serde(into = "&str")]
+#[strum(ascii_case_insensitive)]
 pub enum TracingLevel {
     COMPLETE,
     ESSENTIAL,
     MINIMAL,
+}
+
+impl TryFrom<String> for TracingLevel {
+    type Error = strum::ParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
 }
 
 impl TracingLevel {
