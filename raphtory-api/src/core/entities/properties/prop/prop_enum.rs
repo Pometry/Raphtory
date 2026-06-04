@@ -14,7 +14,7 @@ use arrow_array::{
     },
     Array, ArrayRef, LargeListArray, StructArray,
 };
-use arrow_schema::{DataType, Field, FieldRef, Fields, TimeUnit};
+use arrow_schema::{DataType, Field, FieldRef, Fields, TimeUnit, DECIMAL128_MAX_PRECISION};
 use serde_arrow::ArrayBuilder;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
@@ -335,8 +335,25 @@ impl<'a> Serialize for SerdeArrowProp<'a> {
             Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
             Prop::List(l) => SerdeArrowList(l).serialize(serializer),
             Prop::Map(m) => SerdeArrowMap(m).serialize(serializer),
-            // TODO: Serialization should match PropColumn::Decimal using precision and scale.
-            Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
+            Prop::Decimal(dec) => {
+                // Serialize BigDecimal as string manually to match
+                // the Arrow Decimal128 format.
+                let (num, scale) = dec.as_bigint_and_scale();
+
+                let num_i128 = num.to_i128().ok_or_else(|| {
+                    serde::ser::Error::custom(format!(
+                        "decimal value {dec} is out of range for i128 representation"
+                    ))
+                })?;
+
+                let num_formatted = Decimal128Type::format_decimal(
+                    num_i128,
+                    DECIMAL128_MAX_PRECISION,
+                    scale as i8
+                );
+
+                serializer.serialize_str(&num_formatted)
+            }
         }
     }
 }
@@ -349,6 +366,7 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
         let dtype = self.0.data_type();
         let len = self.0.len();
         let mut state = serializer.serialize_seq(Some(len))?;
+
         match dtype {
             DataType::Boolean => {
                 for v in self.0.as_boolean().iter() {
@@ -444,9 +462,13 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
             }
             DataType::Decimal128(precision, scale) => {
                 for v in self.0.as_primitive::<Decimal128Type>().iter() {
-                    let element = v.map(|v| Decimal128Type::format_decimal(v, *precision, *scale));
+                    // i128 is not supported directly by serde_arrow,
+                    // so we format as string manually.
+                    let element = v.map(|v|
+                        Decimal128Type::format_decimal(v, *precision, *scale)
+                    );
+
                     state.serialize_element(&element)?
-                    // i128 not supported by serde_arrow!
                 }
             }
             DataType::Struct(_) => {

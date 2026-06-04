@@ -193,8 +193,8 @@ impl Properties {
                 };
 
                 let array = Decimal128Array::from_iter(indices.map(|i| {
-                    lazy_vec.get_opt(i).and_then(|bd| {
-                        let (num, _) = bd.as_bigint_and_scale();
+                    lazy_vec.get_opt(i).and_then(|big_decimal| {
+                        let (num, _) = big_decimal.as_bigint_and_scale();
                         num.to_i128()
                     })
                 }))
