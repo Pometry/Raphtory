@@ -707,7 +707,7 @@ mod tests {
 
     use super::*;
     use crate::core::entities::{LayerId, EID, MAX_EID};
-    use proptest::{prelude::*, prop_assert, prop_assert_eq, proptest};
+    use proptest::{prelude::*, prop_assert, prop_assert_eq, prop_oneof, proptest};
 
     #[test]
     fn test_elid_layer_proptest() {

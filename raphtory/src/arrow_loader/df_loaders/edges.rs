@@ -212,12 +212,12 @@ pub fn load_edges_from_df<G: StaticGraphViewOps + PropertyAdditionOps + Addition
     })?;
 
     assert!(
-        (resolve_nodes ^ edge_index.is_some()),
+        resolve_nodes ^ edge_index.is_some(),
         "resolve_nodes must be false when edge_id is provided or true when edge_id is None, {{resolve_nodes:{resolve_nodes:?}, edge_id:{edge_index:?}}}"
     );
 
     assert!(
-        (resolve_nodes ^ layer_id_index.is_some()),
+        resolve_nodes ^ layer_id_index.is_some(),
         "resolve_nodes must be false when layer_id is provided or true when layer_id is None, {{resolve_nodes:{resolve_nodes:?}, layer_id:{layer_id_index:?}}}"
     );
 

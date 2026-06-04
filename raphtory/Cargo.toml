@@ -100,20 +100,15 @@ tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 pythonize = { workspace = true, optional = true }
 
-# test utils
-proptest = { workspace = true, optional = true }
-proptest-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
-pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }                             # for vector testing
 dotenv = { workspace = true }                            # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
 proptest.workspace = true
-proptest-derive.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator.workspace = true

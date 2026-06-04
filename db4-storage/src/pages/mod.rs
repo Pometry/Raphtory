@@ -336,7 +336,7 @@ impl<I: From<usize> + Into<usize>> SegmentCounts<I> {
     pub fn into_iter(self) -> impl Iterator<Item = I> {
         let max_seg_len = self.max_seg_len as usize;
         self.counts.into_iter().enumerate().flat_map(move |(i, c)| {
-            let g_pos = i * max_seg_len as usize;
+            let g_pos = i * max_seg_len;
             (0..c).map(move |offset| I::from(g_pos + offset as usize))
         })
     }

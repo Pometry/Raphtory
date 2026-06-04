@@ -146,14 +146,13 @@ tracing-subscriber = { version = "0.3.23", features = ["std", "env-filter"] }
 indoc = "2.0.7"
 walkdir = "2"
 config = "0.15.23"
-either = "=1.15.0"
+either = "1.16.0"
 clap = { version = "4.6.0", features = ["derive", "env"] }
 memmap2 = { version = "0.9.10" }
 ahash = { version = "0.8.12", features = ["serde"] }
 bytemuck = { version = "1.25.0", features = ["derive"] }
 ouroboros = "0.18.5"
 url = "2.5"
-base64-compat = { package = "base64-compat", version = "1.0.0" }
 lazy_static = "1.5.0"
 pest = "2.8.6"
 pest_derive = "2.8.6"

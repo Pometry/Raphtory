@@ -361,7 +361,7 @@ impl DirectConvert for Decimal128Type {
         match dtype {
             DataType::Decimal128(_, scale) => PropRef::Decimal {
                 num: native,
-                scale: *scale as i8,
+                scale: *scale,
             },
             _ => unreachable!(),
         }

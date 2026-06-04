@@ -758,15 +758,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
 
 [[package]]
-name = "base64-compat"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a8d4d2746f89841e49230dd26917df1876050f95abafafbe34f47cb534b88d7"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "bigdecimal"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6303,9 +6294,7 @@ dependencies = [
  "ouroboros",
  "parking_lot",
  "parquet",
- "pretty_assertions",
  "proptest",
- "proptest-derive",
  "pyo3",
  "pyo3-arrow",
  "pythonize",
@@ -6419,17 +6408,13 @@ dependencies = [
  "chrono",
  "dashmap",
  "either",
- "hashbrown 0.17.1",
  "iter-enum",
  "itertools 0.14.0",
- "lock_api",
- "once_cell",
  "ouroboros",
  "parking_lot",
  "proptest",
  "pyo3",
  "raphtory-api",
- "rayon",
  "regex",
  "rustc-hash",
  "serde",
@@ -6444,7 +6429,6 @@ dependencies = [
  "async-graphql",
  "async-graphql-poem",
  "base64",
- "base64-compat",
  "bigdecimal",
  "chrono",
  "clap",
@@ -6522,23 +6506,16 @@ dependencies = [
 name = "raphtory-storage"
 version = "0.18.0"
 dependencies = [
- "arrow-array",
- "arrow-schema",
- "bigdecimal",
  "db4-graph",
  "db4-storage",
  "either",
  "iter-enum",
  "itertools 0.14.0",
- "num-traits",
  "parking_lot",
- "proptest",
  "raphtory-api",
  "raphtory-api-macros",
  "raphtory-core",
  "rayon",
- "serde",
- "tempfile",
  "thiserror 2.0.18",
 ]
 
