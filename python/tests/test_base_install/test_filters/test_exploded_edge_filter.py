@@ -7,7 +7,6 @@ from datetime import datetime
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_graph(GraphClass):
-
     g = GraphClass()
     g.add_edge(1, 1, 2, layer="blue", properties={"weight": 1, "name": "bob"})
     g.add_edge(2, 1, 2, layer="blue", properties={"weight": 2, "name": "dave"})
@@ -200,7 +199,6 @@ def test_with_edge_node_filter(GraphClass):
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_all_property_types(GraphClass):
-
     g = GraphClass()
 
     g.add_edge(
@@ -451,7 +449,7 @@ def test_all_property_types(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-            len(result) == expected
+                len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     nonsense_filter_cases = [
@@ -824,7 +822,7 @@ def test_all_property_types(GraphClass):
 
     with pytest.raises(Exception) as e:
         filter.ExplodedEdge.property("name").fuzzy_search(2, 2, False)
-    assert "argument 'prop_value': 'int' object cannot be cast as 'str'" in str(e.value)
+    assert "argument 'prop_value': 'int' object is not an instance of 'str'" in str(e.value)
 
     missing_prop = [
         (filter.ExplodedEdge.property("blah") == 2),
@@ -852,7 +850,6 @@ def test_all_property_types(GraphClass):
 
 @pytest.mark.parametrize("GraphClass", [Graph, PersistentGraph])
 def test_temporal_constant(GraphClass):
-
     g = GraphClass()
     g.add_edge(
         1,
@@ -915,7 +912,7 @@ def test_temporal_constant(GraphClass):
     for i, (expr, expected) in enumerate(test_cases):
         result = g.filter(expr).edges.explode()
         assert (
-            len(result) == expected
+                len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
 
     g = GraphClass()
@@ -945,5 +942,5 @@ def test_temporal_constant(GraphClass):
         result = g.filter(expr).edges.explode()
         print(g.edges.explode().metadata.get("weight"))
         assert (
-            len(result) == expected
+                len(result) == expected
         ), f"Test {i} failed: expected {expected}, got {len(result)}"
