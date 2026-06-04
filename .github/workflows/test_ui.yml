@@ -16,27 +16,28 @@ jobs:
     name: UI Tests
     needs: select-strategy
     strategy:
+      fail-fast: false
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        os: [ubuntu-latest]
-    runs-on: "${{ matrix.os }}"
+        browser: [chromium, firefox]
+        shard: [1, 2, 3]
+    runs-on: windows-latest
+    env:
+      NUM_SHARDS: 3
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v5
         name: Checkout
         with:
           ref: ${{ github.head_ref }}
-          submodules: recursive
-          token: "${{ secrets.PULL_TOKEN }}"
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
-      - name: Setup SSH for UI tests
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.UI_TESTS_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-      - name: Update UI tests
-        run: make update-ui-tests
+      - name: Install Server-Media-Foundation (firefox needs it on Windows Server)
+        if: matrix.browser == 'firefox'
+        shell: pwsh
+        run: Install-WindowsFeature Server-Media-Foundation
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
         with:
@@ -45,8 +46,6 @@ jobs:
         name: Cargo cache
         with:
           cache-all-crates: true
-      - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.9
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v4
         with:
@@ -63,22 +62,68 @@ jobs:
         with:
           working-directory: python
           command: develop
-          sccache: true
           args: --release
-      - name: Prepare for testing UI
+      - name: Install ui-tests npm deps
         working-directory: ui-tests
-        run: npm install && npx playwright install --with-deps --only-shell
+        run: npm install
+      - name: Resolve playwright cache dir
+        id: pw-cache-dir
+        run: |
+          case "$RUNNER_OS" in
+              Windows) echo "dir=$LOCALAPPDATA/ms-playwright" >> "$GITHUB_OUTPUT" ;;
+              macOS)   echo "dir=$HOME/Library/Caches/ms-playwright" >> "$GITHUB_OUTPUT" ;;
+              *)       echo "dir=$HOME/.cache/ms-playwright" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Cache playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pw-cache-dir.outputs.dir }}
+          key: playwright-${{ runner.os }}-${{ matrix.browser }}-${{ hashFiles('ui-tests/package-lock.json') }}
+      - name: Install playwright browser
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 15
+        working-directory: ui-tests
+        run: npx playwright install ${{ matrix.browser }}
       - name: Test UI
         timeout-minutes: 30
         run: |
-          source .venv/bin/activate
+          # On Windows the venv activate script lives under Scripts/ rather than bin/.
+          source .venv/Scripts/activate
+          python ui-tests/test_server.py &
+          # Wait until the picker's exact GraphQL query reports the vanilla
+          # namespace at the root, then require three consecutive successes so
+          # the server is stable before we let the browser hit it (raphtory on
+          # Windows can return transient empty results during background discovery).
+          query='{"query":"{ namespace(path: \"\") { items { page(limit: 5, pageIndex: 0) { __typename ... on Namespace { path } ... on MetaGraph { path } } count } } }"}'
+          streak=0
+          for i in $(seq 1 120); do
+              body=$(curl -s -m 5 -H 'Content-Type: application/json' \
+                  -d "$query" http://localhost:1736/ || true)
+              if echo "$body" | grep -q '"path":"vanilla"'; then
+                  streak=$((streak + 1))
+                  echo "Picker query OK ($streak/3)"
+                  if [ "$streak" = "3" ]; then
+                      break
+                  fi
+              else
+                  streak=0
+              fi
+              if [ "$i" = "120" ]; then
+                  echo "Timed out waiting for raphtory picker to be stable"
+                  echo "Last response: $body"
+                  exit 1
+              fi
+              sleep 2
+          done
+          # Extra settle time for any background indexing
+          sleep 10
           cd ui-tests
-          python test_server.py &
-          UI_BASE_URL=http://localhost:1736 npm run test
+          UI_BASE_URL=http://localhost:1736 npx playwright test --project ${{ matrix.browser }} --shard=${{ matrix.shard }}/${{ env.NUM_SHARDS }}
       - name: Upload UI Report
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report-with-py-${{ matrix.python }}
+          name: playwright-report-${{ matrix.browser }}-py-${{ matrix.python }}-shard-${{ matrix.shard }}
           path: ui-tests/playwright-report
           retention-days: 7

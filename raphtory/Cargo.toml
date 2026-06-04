@@ -13,7 +13,6 @@ readme.workspace = true
 homepage.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 raphtory-api.workspace = true
 raphtory-core.workspace = true
@@ -76,7 +75,6 @@ reqwest = { workspace = true, features = ["blocking"], optional = true }
 tokio = { workspace = true, optional = true }
 kdam = { workspace = true, optional = true }
 
-
 # search optional dependencies
 tantivy = { workspace = true, optional = true }
 
@@ -104,8 +102,8 @@ pythonize = { workspace = true, optional = true }
 [dev-dependencies]
 csv = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }                             # for vector testing
-dotenv = { workspace = true }                            # for vector testing
+tokio = { workspace = true } # for vector testing
+dotenv = { workspace = true } # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
 proptest.workspace = true
@@ -113,12 +111,12 @@ proptest.workspace = true
 [target.'cfg(target_os = "macos")'.dependencies]
 tikv-jemallocator.workspace = true
 
-
 [features]
 default = [] # we can't depend on ourselves but we want to share test-utils
 
 # enables progress bars
 progress = ["dep:kdam"]
+
 # Enables the graph loader io module
 io = [
     "dep:neo4rs",
@@ -134,6 +132,7 @@ io = [
 
 # search
 search = ["dep:tantivy", "dep:tempfile", "io"]
+
 # vectors
 vectors = [
     "dep:futures-util",

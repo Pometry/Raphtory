@@ -2,21 +2,88 @@
     "graphType": "PERSISTENT",
     "nodes": [
         { "time": 1640995200000, "name": "None" },
-        { "time": 1648598400000, "name": "Pedro", "nodeType": "Person", "properties": { "age": 28 } },
-        { "time": 1656288000000, "name": "Ben", "nodeType": "Person", "properties": { "age": 30 } },
-        { "time": 1663977600000, "name": "Hamza", "nodeType": "Person", "properties": { "age": 30 } },
+        {
+            "time": 1648598400000,
+            "name": "Pedro",
+            "nodeType": "Person",
+            "properties": { "age": 28 }
+        },
+        {
+            "time": 1656288000000,
+            "name": "Ben",
+            "nodeType": "Person",
+            "properties": { "age": 30 }
+        },
+        {
+            "time": 1663977600000,
+            "name": "Hamza",
+            "nodeType": "Person",
+            "properties": { "age": 30 }
+        },
         { "time": 1687046400000, "name": "Pometry", "nodeType": "Company" }
     ],
     "edges": [
-        { "time": 1671667200000, "src": "Ben", "dst": "Hamza", "layer": "meets", "properties": { "where": "London" } },
-        { "time": 1679356800000, "src": "Ben", "dst": "Pedro", "layer": "meets", "properties": { "where": "Madrid" } },
-        { "time": 1687132800000, "src": "Ben", "dst": "Pometry", "layer": "founds" },
-        { "time": 1687132800000, "src": "Hamza", "dst": "Pometry", "layer": "founds" },
-        { "time": 1689734400000, "src": "Hamza", "dst": "Pedro", "layer": "meets", "properties": { "where": "London" } },
-        { "time": 1697424000000, "src": "Hamza", "dst": "Pedro", "layer": "meets", "properties": { "where": "Madrid" } },
-        { "time": 1705017600000, "src": "Hamza", "dst": "Pedro", "layer": "transfers", "properties": { "amount": 20 } },
-        { "time": 1707609600000, "src": "Pedro", "dst": "Hamza", "layer": "transfers", "properties": { "amount": 40 } },
-        { "time": 1710115200000, "src": "Ben", "dst": "Hamza", "layer": "transfers", "properties": { "amount": 40 } }
+        {
+            "time": 1671667200000,
+            "src": "Ben",
+            "dst": "Hamza",
+            "layer": "meets",
+            "properties": { "where": "London" }
+        },
+        {
+            "time": 1679356800000,
+            "src": "Ben",
+            "dst": "Pedro",
+            "layer": "meets",
+            "properties": { "where": "Madrid" }
+        },
+        {
+            "time": 1687132800000,
+            "src": "Ben",
+            "dst": "Pometry",
+            "layer": "founds"
+        },
+        {
+            "time": 1687132800000,
+            "src": "Hamza",
+            "dst": "Pometry",
+            "layer": "founds"
+        },
+        {
+            "time": 1689734400000,
+            "src": "Hamza",
+            "dst": "Pedro",
+            "layer": "meets",
+            "properties": { "where": "London" }
+        },
+        {
+            "time": 1697424000000,
+            "src": "Hamza",
+            "dst": "Pedro",
+            "layer": "meets",
+            "properties": { "where": "Madrid" }
+        },
+        {
+            "time": 1705017600000,
+            "src": "Hamza",
+            "dst": "Pedro",
+            "layer": "transfers",
+            "properties": { "amount": 20 }
+        },
+        {
+            "time": 1707609600000,
+            "src": "Pedro",
+            "dst": "Hamza",
+            "layer": "transfers",
+            "properties": { "amount": 40 }
+        },
+        {
+            "time": 1710115200000,
+            "src": "Ben",
+            "dst": "Hamza",
+            "layer": "transfers",
+            "properties": { "amount": 40 }
+        }
     ],
     "deletions": [
         { "time": 90, "src": "Ben", "dst": "Pedro", "layer": "meets" }

@@ -815,6 +815,7 @@ impl PyGraph {
                     layer,
                     layer_col,
                     None,
+                    None,
                     true,
                     arced_schema.clone(),
                 )?;
@@ -1038,6 +1039,8 @@ impl PyGraph {
                     None,
                     &metadata,
                     shared_metadata.as_ref(),
+                    None,
+                    None,
                     None,
                     arced_schema.clone(),
                 )?;

@@ -47,6 +47,7 @@ use crate::arrow_loader::{
 #[cfg(feature = "progress")]
 use kdam::BarExt;
 
+/// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]
 pub fn load_nodes_from_df<
     G: StaticGraphViewOps + PropertyAdditionOps + AdditionOps + std::fmt::Debug,
@@ -62,7 +63,8 @@ pub fn load_nodes_from_df<
     node_type_col: Option<&str>,
     graph: &G,
     resolve_nodes: bool,
-    layer_id: Option<&str>,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
     layer_id_col: Option<&str>,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
@@ -82,7 +84,8 @@ pub fn load_nodes_from_df<
         let node_type_index =
             node_type_col.map(|node_type_col| df_view.get_index(node_type_col.as_ref()));
         let node_type_index = node_type_index.transpose()?;
-        let layer_index = layer_id_col
+        let layer_col_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
+        let layer_id_index = layer_id_col
             .map(|name| df_view.get_index(name))
             .transpose()?;
 
@@ -124,11 +127,23 @@ pub fn load_nodes_from_df<
                 })?;
             let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
             let node_type_col_resolved = node_type_col.resolve_node_type(graph)?;
-            // When no layer is specified, node properties go to STATIC_GRAPH_LAYER_ID.
-            // resolve_layer(None) would return "_default" (LayerId 1), which is wrong for nodes.
-            let layer_col_resolved = if layer_id.is_some() || layer_index.is_some() {
-                let layer_col = lift_layer_col(layer_id, layer_index, &df)?;
-                Some(layer_col.resolve_layer(None, graph)?)
+            // Two paths:
+            // Fast path (parquet round-trip) when both layer_col and layer_id_col are provided.
+            // Slow path (user-facing CSV/parquet without numeric ids) resolve by name
+            let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
+                let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
+                let layer_id_values = layer_id_index
+                    .map(|idx| {
+                        df.chunk[idx]
+                            .as_primitive_opt::<UInt64Type>()
+                            .ok_or_else(|| {
+                                LoadError::InvalidLayerType(df.chunk[idx].data_type().clone())
+                            })
+                            .map(|array| array.values().as_ref())
+                    })
+                    .transpose()?;
+
+                Some(layer_col.resolve_layer(layer_id_values, graph, true)?)
             } else {
                 None
             };
@@ -257,6 +272,8 @@ pub fn load_node_props_from_df<
     shared_metadata: Option<&HashMap<String, Prop>>,
     graph: &G,
     is_materializing: bool,
+    layer: Option<&str>,
+    layer_col: Option<&str>,
 ) -> Result<(), GraphError> {
     if df_view.is_empty() {
         return Ok(());
@@ -276,6 +293,8 @@ pub fn load_node_props_from_df<
     let node_id_index = node_id_col
         .map(|node_col| df_view.get_index(node_col.as_ref()))
         .transpose()?;
+
+    let layer_col_index = layer_col.map(|name| df_view.get_index(name)).transpose()?;
 
     let node_gid_index = df_view.get_index(node_id)?;
     let session = graph.write_session().map_err(into_graph_err)?;
@@ -307,6 +326,13 @@ pub fn load_node_props_from_df<
             })?;
         let node_type_col = lift_node_type_col(node_type, node_type_index, &df)?;
         let node_col = df.node_col(node_gid_index)?;
+        // In the public API, all node_props/nodes_c/node metadata go to STATIC_GRAPH_LAYER.
+        let layer_col_resolved = if layer.is_some() || layer_col_index.is_some() {
+            let layer_col = lift_layer_col(layer, layer_col_index, &df)?;
+            Some(layer_col.resolve_layer(None, graph, true)?)
+        } else {
+            None
+        };
 
         let (node_col_resolved, node_type_col_resolved) = get_or_resolve_node_vids_no_events::<G>(
             graph,
@@ -348,6 +374,10 @@ pub fn load_node_props_from_df<
                 // filter out unresolved vids
                 {
                     if let Some(mut_node) = writer.resolve_pos(*vid) {
+                        let row_layer = layer_col_resolved
+                            .as_ref()
+                            .map_or(STATIC_GRAPH_LAYER_ID, |r| LayerId(r[idx]));
+                        // gid and node_type live at STATIC_GRAPH_LAYER
                         writer.store_node_id_and_node_type(
                             mut_node,
                             STATIC_GRAPH_LAYER_ID,
@@ -365,11 +395,7 @@ pub fn load_node_props_from_df<
                         c_props.extend(shared_metadata.iter().map(|(i, p)| (*i, p.as_prop_ref())));
 
                         if !c_props.is_empty() {
-                            writer.update_c_props(
-                                mut_node,
-                                STATIC_GRAPH_LAYER_ID,
-                                c_props.drain(..),
-                            );
+                            writer.update_c_props(mut_node, row_layer, c_props.drain(..));
                         }
                     };
                 }
