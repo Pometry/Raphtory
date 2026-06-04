@@ -14,7 +14,8 @@ use arrow_array::{
     },
     Array, ArrayRef, LargeListArray, StructArray,
 };
-use arrow_schema::{DataType, Field, FieldRef, TimeUnit};
+use arrow_schema::{DataType, Field, FieldRef, Fields, TimeUnit};
+use serde_arrow::ArrayBuilder;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -35,7 +36,8 @@ use std::{
 };
 use thiserror::Error;
 
-pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
+// Equivalent to parquet decimal(38, 0).
+pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128;
 
 #[derive(Error, Debug)]
 #[error("Decimal {0} too large.")]
@@ -780,11 +782,7 @@ pub fn list_array_from_props<P: Serialize + fmt::Debug + Clone>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> Result<LargeListArray, serde_arrow::Error> {
-    use arrow_schema::{Field, Fields};
-    use serde_arrow::ArrayBuilder;
-
     let fields: Fields = vec![Field::new("value", dt.clone(), true)].into();
-
     let mut builder = ArrayBuilder::from_arrow(&fields)?;
 
     for value in props {
@@ -800,10 +798,7 @@ pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> Result<StructArray, serde_arrow::Error> {
-    use serde_arrow::ArrayBuilder;
-
     let fields = [FieldRef::new(Field::new("value", dt.clone(), true))];
-
     let mut builder = ArrayBuilder::from_arrow(&fields)?;
 
     for p in props {
@@ -811,6 +806,7 @@ pub fn struct_array_from_props<P: Serialize>(
     }
 
     let arrays = builder.to_arrow()?;
+
     Ok(arrays.first().unwrap().as_struct().clone())
 }
 
