@@ -13,15 +13,15 @@ use crate::{
     errors::GraphError,
     parquet_encoder::{
         model::{ParquetCNode, ParquetTNode},
-        run_encode_indexed, RecordBatchSink, NODE_GID_COL, NODE_VID_COL, ROW_GROUP_SIZE,
-        SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
+        run_encode_indexed, RecordBatchSink, LAYER_COL, LAYER_ID_COL, NODE_GID_COL, NODE_VID_COL,
+        ROW_GROUP_SIZE, SECONDARY_INDEX_COL, TIME_COL, TYPE_COL, TYPE_ID_COL,
     },
     prelude::NodeViewOps,
 };
 use arrow::datatypes::{DataType, Field, SchemaRef};
 use either::Either;
 use itertools::Itertools;
-use raphtory_api::iter::IntoDynBoxed;
+use raphtory_api::{core::entities::properties::meta::STATIC_GRAPH_LAYER_ID, iter::IntoDynBoxed};
 use raphtory_core::entities::VID;
 use raphtory_storage::graph::nodes::nodes_ref::NodesStorageEntry;
 use rayon::prelude::*;
@@ -100,22 +100,26 @@ pub(crate) fn encode_nodes_tprop<G: GraphView, S: RecordBatchSink>(
                 Field::new(TYPE_COL, DataType::Utf8, true),
                 Field::new(TIME_COL, DataType::Int64, false),
                 Field::new(SECONDARY_INDEX_COL, DataType::UInt64, true),
+                Field::new(LAYER_COL, DataType::Utf8, true),
+                Field::new(LAYER_ID_COL, DataType::UInt64, false),
             ]
         },
         |nodes, g, decoder, sink| {
-            let nodes = nodes.collect::<Vec<_>>();
-            let nodes = nodes.into_iter();
-
             let cols = g.node_meta().temporal_prop_mapper().all_keys();
             let cols = &cols;
+            let layer_meta = g.node_meta().layer_meta();
             for node_rows in nodes
                 .flat_map(move |node| {
                     GenLockedIter::from(node, |node| {
                         node.rows()
-                            .map(|(t, _, props)| ParquetTNode {
+                            .map(|(t, layer_id, props)| ParquetTNode {
                                 export_id: node.id(),
                                 export_vid: node.node.0,
                                 export_node_type: node.node_type(),
+                                // null for STATIC_GRAPH_LAYER
+                                export_layer: (layer_id != STATIC_GRAPH_LAYER_ID)
+                                    .then(|| layer_meta.get_name(layer_id.0)),
+                                export_layer_id: layer_id.0,
                                 cols,
                                 t,
                                 props,

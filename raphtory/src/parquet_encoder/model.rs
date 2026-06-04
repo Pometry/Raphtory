@@ -197,6 +197,8 @@ pub(crate) struct ParquetTNode<'a> {
     pub export_id: GID,
     pub export_vid: usize,
     pub export_node_type: Option<ArcStr>,
+    pub export_layer: Option<ArcStr>, // `None` for STATIC_GRAPH_LAYER
+    pub export_layer_id: usize,
     pub cols: &'a [ArcStr],
     pub t: EventTime,
     pub props: Vec<(usize, Prop)>,
@@ -214,6 +216,8 @@ impl<'a> Serialize for ParquetTNode<'a> {
         state.serialize_entry(TYPE_COL, &self.export_node_type)?;
         state.serialize_entry(TIME_COL, &self.t.0)?;
         state.serialize_entry(SECONDARY_INDEX_COL, &self.t.1)?;
+        state.serialize_entry(LAYER_COL, &self.export_layer)?;
+        state.serialize_entry(LAYER_ID_COL, &self.export_layer_id)?;
 
         for (name, prop) in self.props.iter() {
             state.serialize_entry(&self.cols[*name], &SerdeArrowProp(prop))?;
