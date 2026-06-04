@@ -12,7 +12,7 @@ use crate::{
                 edge_property_filtered_graph::EdgePropertyFilteredGraph,
                 exploded_edge_property_filter::ExplodedEdgePropertyFilteredGraph,
                 model::{
-                    edge_filter::CompositeEdgeFilter, ComposableFilter,
+                    edge_filter::CompositeEdgeFilter, filter_value::FilterValue, ComposableFilter,
                     CompositeExplodedEdgeFilter, CompositeNodeFilter, ExplodedEdgeFilter,
                     FilterOperator, TryAsCompositeFilter,
                 },
@@ -42,7 +42,7 @@ use raphtory_storage::graph::{
     edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
-use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
+use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
 mod evaluate;
@@ -109,12 +109,8 @@ impl PropertyRef {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PropertyFilterValue {
-    None,
-    Single(Prop),
-    Set(Arc<HashSet<Prop>>),
-}
+/// Property filter value: a specialisation of `FilterValue<T>` for stored `Prop` values.
+pub type PropertyFilterValue = FilterValue<Prop>;
 
 pub struct PropertyFilterInput {
     pub prop_ref: PropertyRef,

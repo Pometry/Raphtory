@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        filter::FilterValue,
+        filter::FieldFilterValue,
         FilterOperator::{
             Contains, EndsWith, Eq, Ge, Gt, IsIn, IsNone, IsNotIn, IsSome, Le, Lt, Ne, NotContains,
             StartsWith, *,
@@ -20,11 +20,11 @@ pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphE
         return Ok(());
     };
 
-    fn filter_value_kind(fv: &FilterValue) -> &'static str {
+    fn filter_value_kind(fv: &FieldFilterValue) -> &'static str {
         match fv {
-            FilterValue::ID(GID::U64(_)) => "U64",
-            FilterValue::ID(GID::Str(_)) => "Str",
-            FilterValue::IDSet(set) => {
+            FieldFilterValue::ID(GID::U64(_)) => "U64",
+            FieldFilterValue::ID(GID::Str(_)) => "Str",
+            FieldFilterValue::IDSet(set) => {
                 if set.iter().all(|g| matches!(g, GID::U64(_))) {
                     "U64"
                 } else if set.iter().all(|g| matches!(g, GID::Str(_))) {
@@ -33,20 +33,20 @@ pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphE
                     "heterogeneous id set"
                 }
             }
-            FilterValue::Single(_) => "Str",
-            FilterValue::Set(_) => "Str",
+            FieldFilterValue::Single(_) => "Str",
+            FieldFilterValue::Set(_) => "Str",
         }
     }
 
-    let value_matches_kind = |fv: &FilterValue, expect: GidType| -> bool {
+    let value_matches_kind = |fv: &FieldFilterValue, expect: GidType| -> bool {
         match (fv, expect) {
-            (FilterValue::ID(GID::U64(_)), U64) => true,
-            (FilterValue::IDSet(set), U64) => set.iter().all(|g| matches!(g, GID::U64(_))),
+            (FieldFilterValue::ID(GID::U64(_)), U64) => true,
+            (FieldFilterValue::IDSet(set), U64) => set.iter().all(|g| matches!(g, GID::U64(_))),
 
-            (FilterValue::ID(GID::Str(_)), Str) => true,
-            (FilterValue::IDSet(set), Str) => set.iter().all(|g| matches!(g, GID::Str(_))),
-            (FilterValue::Single(_), Str) => true,
-            (FilterValue::Set(_), Str) => true,
+            (FieldFilterValue::ID(GID::Str(_)), Str) => true,
+            (FieldFilterValue::IDSet(set), Str) => set.iter().all(|g| matches!(g, GID::Str(_))),
+            (FieldFilterValue::Single(_), Str) => true,
+            (FieldFilterValue::Set(_), Str) => true,
 
             _ => false,
         }
@@ -89,7 +89,7 @@ pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphE
         IsIn | IsNotIn => {
             if !matches!(
                 filter.field_value,
-                FilterValue::IDSet(_) | FilterValue::Set(_)
+                FieldFilterValue::IDSet(_) | FieldFilterValue::Set(_)
             ) {
                 return Err(GraphError::InvalidGqlFilter(
                     "IN/NOT_IN on ID expects a set of IDs".into(),
@@ -99,7 +99,7 @@ pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphE
         StartsWith | EndsWith | Contains | NotContains | FuzzySearch { .. } => {
             if !matches!(
                 filter.field_value,
-                FilterValue::ID(GID::Str(_)) | FilterValue::Single(_)
+                FieldFilterValue::ID(GID::Str(_)) | FieldFilterValue::Single(_)
             ) {
                 return Err(GraphError::InvalidGqlFilter(
                     "String operators on ID expect a single string ID".into(),
@@ -107,7 +107,7 @@ pub fn validate(id_dtype: Option<GidType>, filter: &Filter) -> Result<(), GraphE
             }
         }
         Lt | Le | Gt | Ge => {
-            if !matches!(filter.field_value, FilterValue::ID(GID::U64(_))) {
+            if !matches!(filter.field_value, FieldFilterValue::ID(GID::U64(_))) {
                 return Err(GraphError::InvalidGqlFilter(
                     "Numeric operators on ID expect a single numeric (u64) ID".into(),
                 ));

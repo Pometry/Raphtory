@@ -10,7 +10,7 @@ use crate::{
         graph::{
             create_node_type_filter,
             views::filter::model::{
-                filter::{Filter, FilterValue},
+                filter::{FieldFilterValue, Filter},
                 node_filter::NodeFilter,
                 FilterOperator,
             },
@@ -96,7 +96,7 @@ impl NodeOp for NodeIdFilterOp {
         let op = &self.filter.operator;
         match op {
             FilterOperator::Eq => match &self.filter.field_value {
-                FilterValue::ID(id) => {
+                FieldFilterValue::ID(id) => {
                     let vid = storage.internalise_node(id.as_node_ref());
                     NodeList::List {
                         elems: vid.into_iter().collect(),
@@ -105,7 +105,7 @@ impl NodeOp for NodeIdFilterOp {
                 _ => unreachable!(),
             },
             FilterOperator::IsIn => match &self.filter.field_value {
-                FilterValue::IDSet(ids) => NodeList::List {
+                FieldFilterValue::IDSet(ids) => NodeList::List {
                     elems: ids
                         .iter()
                         .filter_map(|id| storage.internalise_node(id.as_node_ref()))
@@ -153,7 +153,7 @@ impl NodeOp for NodeNameFilterOp {
         let op = &self.filter.operator;
         match op {
             FilterOperator::Eq => match &self.filter.field_value {
-                FilterValue::Single(name) => {
+                FieldFilterValue::Single(name) => {
                     let vid = storage.internalise_node(name.as_node_ref());
                     NodeList::List {
                         elems: vid.into_iter().collect(),
@@ -162,7 +162,7 @@ impl NodeOp for NodeNameFilterOp {
                 _ => unreachable!(),
             },
             FilterOperator::IsIn => match &self.filter.field_value {
-                FilterValue::Set(names) => NodeList::List {
+                FieldFilterValue::Set(names) => NodeList::List {
                     elems: names
                         .iter()
                         .filter_map(|name| storage.internalise_node(name.as_node_ref()))

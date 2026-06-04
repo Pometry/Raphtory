@@ -7,7 +7,7 @@ use crate::{
                         AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
                         OrOp,
                     },
-                    NodeOp, TypeId,
+                    Name, NodeOp, Type, TypeId,
                 },
                 NodeStateValue, TypedNodeState,
             },
@@ -15,15 +15,13 @@ use crate::{
         },
         graph::views::filter::{
             model::{
+                attribute::{DegreeExpr, Metadata, Property},
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_filter::{
-                    builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
-                    validate::validate,
-                },
+                node_filter::{builders::NodeIdFilterBuilder, validate::validate},
                 node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
@@ -61,14 +59,21 @@ impl NodeFilter {
         NodeIdFilterBuilder
     }
 
+    /// Selects the node name field for filtering.
+    ///
+    /// Returns `Name` which implements `NodeExprFilterOps` — use `.eq("Alice")`,
+    /// `.contains("ali")`, `.is_in([…])`, etc. directly on the returned value.
     #[inline]
-    pub fn name() -> NodeNameFilterBuilder {
-        NodeNameFilterBuilder
+    pub fn name() -> Name {
+        Name
     }
 
+    /// Selects the node type field for filtering.
+    ///
+    /// Returns `Type` which implements `NodeExprFilterOps`.
     #[inline]
-    pub fn node_type() -> NodeTypeFilterBuilder {
-        NodeTypeFilterBuilder
+    pub fn node_type() -> Type {
+        Type
     }
 
     /// Build a filter from a boolean column inside a TypedNodeState.
@@ -81,6 +86,36 @@ impl NodeFilter {
         T: Clone + Send + Sync + 'graph,
     {
         state.bool_col_filter(col)
+    }
+
+    /// Total degree expression — serializable, supports `.gt(n)`, `.lt(n)`, etc.
+    #[inline]
+    pub fn degree() -> DegreeExpr {
+        DegreeExpr::Total
+    }
+
+    /// In-degree expression — serializable.
+    #[inline]
+    pub fn in_degree() -> DegreeExpr {
+        DegreeExpr::In
+    }
+
+    /// Out-degree expression — serializable.
+    #[inline]
+    pub fn out_degree() -> DegreeExpr {
+        DegreeExpr::Out
+    }
+
+    /// Current (latest) value of a named property — serializable.
+    #[inline]
+    pub fn property(name: impl Into<String>) -> Property {
+        Property::new(name)
+    }
+
+    /// Static metadata field — serializable.
+    #[inline]
+    pub fn metadata(name: impl Into<String>) -> Metadata {
+        Metadata::new(name)
     }
 }
 

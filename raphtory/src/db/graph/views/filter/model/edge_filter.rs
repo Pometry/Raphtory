@@ -162,12 +162,12 @@ impl EdgeEndpointWrapper<NodeFilter> {
 
     #[inline]
     pub fn name(&self) -> EdgeEndpointWrapper<NodeNameFilterBuilder> {
-        EdgeEndpointWrapper::new(NodeFilter::name(), self.endpoint)
+        EdgeEndpointWrapper::new(NodeNameFilterBuilder, self.endpoint)
     }
 
     #[inline]
     pub fn node_type(&self) -> EdgeEndpointWrapper<NodeTypeFilterBuilder> {
-        EdgeEndpointWrapper::new(NodeFilter::node_type(), self.endpoint)
+        EdgeEndpointWrapper::new(NodeTypeFilterBuilder, self.endpoint)
     }
 }
 

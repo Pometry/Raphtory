@@ -9,7 +9,7 @@ use dynamic_graphql::{
 use raphtory::{
     db::graph::views::filter::model::{
         edge_filter::{CompositeEdgeFilter, EdgeFilter},
-        filter::{Filter, FilterValue},
+        filter::{FieldFilterValue, Filter},
         filter_operator::FilterOperator,
         graph_filter::GraphFilter,
         is_active_edge_filter::IsActiveEdge,
@@ -1028,17 +1028,17 @@ fn require_u64_value(op: &str, v: &Value) -> Result<u64, GraphError> {
     }
 }
 
-fn parse_node_id_scalar(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
+fn parse_node_id_scalar(op: &str, v: &Value) -> Result<FieldFilterValue, GraphError> {
     match v {
-        Value::U64(i) => Ok(FilterValue::ID(GID::U64(*i))),
-        Value::Str(s) => Ok(FilterValue::ID(GID::Str(s.clone()))),
+        Value::U64(i) => Ok(FieldFilterValue::ID(GID::U64(*i))),
+        Value::Str(s) => Ok(FieldFilterValue::ID(GID::Str(s.clone()))),
         other => Err(GraphError::InvalidGqlFilter(format!(
             "{op} requires int or str, got {other}"
         ))),
     }
 }
 
-fn parse_node_id_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
+fn parse_node_id_list(op: &str, v: &Value) -> Result<FieldFilterValue, GraphError> {
     let Value::List(vs) = v else {
         return Err(GraphError::InvalidGqlFilter(format!(
             "{op} requires a list value, got {v}"
@@ -1067,10 +1067,10 @@ fn parse_node_id_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
             }
         }
     }
-    Ok(FilterValue::IDSet(Arc::new(set)))
+    Ok(FieldFilterValue::IDSet(Arc::new(set)))
 }
 
-fn parse_string_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
+fn parse_string_list(op: &str, v: &Value) -> Result<FieldFilterValue, GraphError> {
     let Value::List(vs) = v else {
         return Err(GraphError::InvalidGqlFilter(format!(
             "{op} requires a list value, got {v}"
@@ -1090,13 +1090,15 @@ fn parse_string_list(op: &str, v: &Value) -> Result<FilterValue, GraphError> {
         })
         .collect::<Result<Vec<_>, _>>()?;
 
-    Ok(FilterValue::Set(Arc::new(strings.into_iter().collect())))
+    Ok(FieldFilterValue::Set(Arc::new(
+        strings.into_iter().collect(),
+    )))
 }
 
 fn translate_node_field_where(
     field: NodeField,
     cond: &NodeFieldCondition,
-) -> Result<(String, FilterValue, FilterOperator), GraphError> {
+) -> Result<(String, FieldFilterValue, FilterOperator), GraphError> {
     use FilterOperator as FO;
     use NodeField::*;
     use NodeFieldCondition::*;
@@ -1109,43 +1111,43 @@ fn translate_node_field_where(
         (NodeId, Ne(v)) => (field_name, parse_node_id_scalar(op, v)?, FO::Ne),
         (NodeId, Gt(v)) => (
             field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
+            FieldFilterValue::ID(GID::U64(require_u64_value(op, v)?)),
             FO::Gt,
         ),
         (NodeId, Ge(v)) => (
             field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
+            FieldFilterValue::ID(GID::U64(require_u64_value(op, v)?)),
             FO::Ge,
         ),
         (NodeId, Lt(v)) => (
             field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
+            FieldFilterValue::ID(GID::U64(require_u64_value(op, v)?)),
             FO::Lt,
         ),
         (NodeId, Le(v)) => (
             field_name,
-            FilterValue::ID(GID::U64(require_u64_value(op, v)?)),
+            FieldFilterValue::ID(GID::U64(require_u64_value(op, v)?)),
             FO::Le,
         ),
 
         (NodeId, StartsWith(v)) => (
             field_name,
-            FilterValue::ID(GID::Str(require_string_value(op, v)?)),
+            FieldFilterValue::ID(GID::Str(require_string_value(op, v)?)),
             FO::StartsWith,
         ),
         (NodeId, EndsWith(v)) => (
             field_name,
-            FilterValue::ID(GID::Str(require_string_value(op, v)?)),
+            FieldFilterValue::ID(GID::Str(require_string_value(op, v)?)),
             FO::EndsWith,
         ),
         (NodeId, Contains(v)) => (
             field_name,
-            FilterValue::ID(GID::Str(require_string_value(op, v)?)),
+            FieldFilterValue::ID(GID::Str(require_string_value(op, v)?)),
             FO::Contains,
         ),
         (NodeId, NotContains(v)) => (
             field_name,
-            FilterValue::ID(GID::Str(require_string_value(op, v)?)),
+            FieldFilterValue::ID(GID::Str(require_string_value(op, v)?)),
             FO::NotContains,
         ),
 
@@ -1154,53 +1156,53 @@ fn translate_node_field_where(
 
         (NodeName, Eq(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Eq,
         ),
         (NodeName, Ne(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Ne,
         ),
         (NodeName, Gt(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Gt,
         ),
         (NodeName, Ge(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Ge,
         ),
         (NodeName, Lt(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Lt,
         ),
         (NodeName, Le(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Le,
         ),
 
         (NodeName, StartsWith(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::StartsWith,
         ),
         (NodeName, EndsWith(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::EndsWith,
         ),
         (NodeName, Contains(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Contains,
         ),
         (NodeName, NotContains(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::NotContains,
         ),
 
@@ -1209,53 +1211,53 @@ fn translate_node_field_where(
 
         (NodeType, Eq(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Eq,
         ),
         (NodeType, Ne(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Ne,
         ),
         (NodeType, Gt(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Gt,
         ),
         (NodeType, Ge(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Ge,
         ),
         (NodeType, Lt(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Lt,
         ),
         (NodeType, Le(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Le,
         ),
 
         (NodeType, StartsWith(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::StartsWith,
         ),
         (NodeType, EndsWith(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::EndsWith,
         ),
         (NodeType, Contains(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::Contains,
         ),
         (NodeType, NotContains(v)) => (
             field_name,
-            FilterValue::Single(require_string_value(op, v)?),
+            FieldFilterValue::Single(require_string_value(op, v)?),
             FO::NotContains,
         ),
 

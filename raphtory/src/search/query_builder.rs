@@ -1,6 +1,6 @@
 use crate::{
     db::graph::views::filter::model::{
-        filter::{Filter, FilterValue},
+        filter::{FieldFilterValue, Filter},
         filter_operator::FilterOperator,
         property_filter::PropertyFilterValue,
     },
@@ -43,7 +43,7 @@ impl<'a> QueryBuilder<'a> {
         let prop_name = filter.prop_ref.name();
         let prop_value = &filter.prop_value;
         let query: Option<Box<dyn Query>> = match prop_value {
-            PropertyFilterValue::Single(prop_value) => match &filter.operator {
+            PropertyFieldFilterValue::Single(prop_value) => match &filter.operator {
                 FilterOperator::Eq => {
                     let term =
                         create_property_exact_tantivy_term(property_index, prop_name, prop_value)?;
@@ -105,7 +105,7 @@ impl<'a> QueryBuilder<'a> {
                 } => None,
                 _ => unreachable!(),
             },
-            PropertyFilterValue::Set(prop_values) => {
+            PropertyFieldFilterValue::Set(prop_values) => {
                 let terms: Result<Vec<Term>, GraphError> = prop_values
                     .deref()
                     .iter()
@@ -120,7 +120,7 @@ impl<'a> QueryBuilder<'a> {
                     _ => unreachable!(),
                 }
             }
-            PropertyFilterValue::None => match &filter.operator {
+            PropertyFieldFilterValue::None => match &filter.operator {
                 FilterOperator::IsSome => Some(Box::new(AllQuery)),
                 FilterOperator::IsNone => None,
                 _ => unreachable!(),
@@ -140,7 +140,7 @@ impl<'a> QueryBuilder<'a> {
         let operator = &filter.operator;
 
         let query = match filter_value {
-            FilterValue::Single(node_value) => match operator {
+            FieldFilterValue::Single(node_value) => match operator {
                 FilterOperator::Eq => {
                     let term = create_node_exact_tantivy_term(node_index, field_name, node_value)?;
                     create_eq_query(term)
@@ -171,7 +171,7 @@ impl<'a> QueryBuilder<'a> {
                 } => None,
                 _ => unreachable!(),
             },
-            FilterValue::Set(node_values) => {
+            FieldFilterValue::Set(node_values) => {
                 let terms: Result<Vec<Term>, GraphError> = node_values
                     .deref()
                     .iter()
@@ -205,7 +205,7 @@ impl<'a> QueryBuilder<'a> {
         let operator = &filter.operator;
 
         let query = match filter_value {
-            FilterValue::Single(node_value) => match operator {
+            FieldFilterValue::Single(node_value) => match operator {
                 FilterOperator::Eq => {
                     let term = create_edge_exact_tantivy_term(edge_index, field_name, node_value)?;
                     create_eq_query(term)
@@ -236,7 +236,7 @@ impl<'a> QueryBuilder<'a> {
                 } => None,
                 _ => unreachable!(),
             },
-            FilterValue::Set(edge_values) => {
+            FieldFilterValue::Set(edge_values) => {
                 let terms: Result<Vec<Term>, GraphError> = edge_values
                     .deref()
                     .iter()
