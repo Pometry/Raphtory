@@ -327,6 +327,26 @@ pub enum DegreeDirection {
     Both,
 }
 
+impl From<DegreeDirection> for Direction {
+    fn from(d: DegreeDirection) -> Self {
+        match d {
+            DegreeDirection::In   => Direction::IN,
+            DegreeDirection::Out  => Direction::OUT,
+            DegreeDirection::Both => Direction::BOTH,
+        }
+    }
+}
+
+impl From<DegreeDirection> for String {
+    fn from(d: DegreeDirection) -> Self {
+        match d {
+            DegreeDirection::In => "in_degree".to_string(),
+            DegreeDirection::Out => "out_degree".to_string(),
+            DegreeDirection::Both => "degree".to_string(), 
+        }
+    }
+}
+
 #[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct DegreeFilterNew {
     pub direction: DegreeDirection,
@@ -1409,24 +1429,18 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                 }))
             }
             GqlNodeFilter::Degree(degree) => {
-                let core_direction = match degree.direction {
-                    DegreeDirection::In => Direction::IN,
-                    DegreeDirection::Out => Direction::OUT,
-                    DegreeDirection::Both => Direction::BOTH,
-                };
+                let core_direction: Direction = degree.direction.into();
 
-                let field_name = match degree.direction {
-                    DegreeDirection::In => "in_degree",
-                    DegreeDirection::Out => "out_degree",
-                    DegreeDirection::Both => "degree",
-                };
+                let field_name: String = degree.direction.into();
 
-                let (operator, value) = translate_prop_leaf_to_filter(field_name, &degree.where_)?;
+                let mut ops = Vec::new();
+                peel_prop_wrappers_and_collect_ops(&degree.where_, &mut ops);
+                let (operator, value) = translate_prop_leaf_to_filter(&field_name, &degree.where_)?;
                 Ok(CompositeNodeFilter::Degree(DegreeFilter {
                     direction: core_direction,
                     operator,
                     value,
-                    error: None
+                    ops
                 })) 
             }
             GqlNodeFilter::Property(prop) => {

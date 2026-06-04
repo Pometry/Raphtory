@@ -2010,6 +2010,7 @@ use crate::{
             );
         }
 
+        #[test]
         fn prop_degree_filter_and(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 
@@ -2038,6 +2039,7 @@ use crate::{
             );
         } 
 
+        #[test]
         fn prop_degree_filter_or(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 
@@ -2066,6 +2068,7 @@ use crate::{
             );
         }
 
+        #[test]
         fn prop_degree_filter_not(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 
@@ -2073,7 +2076,7 @@ use crate::{
                 &graph,
                 NodeFilter.degree().lt(threshold).or(NodeFilter.degree().gt(threshold + 5).not()),
                 Direction::BOTH,
-                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("BOTH < {} OR BOTH > {}", threshold, threshold + 5),
             );
 
@@ -2081,7 +2084,7 @@ use crate::{
                 &graph,
                 NodeFilter.in_degree().lt(threshold).or(NodeFilter.in_degree().gt(threshold + 5).not()),
                 Direction::IN,
-                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("IN < {} OR IN > {}", threshold, threshold + 5),
             );
 
@@ -2089,7 +2092,7 @@ use crate::{
                 &graph,
                 NodeFilter.out_degree().lt(threshold).or(NodeFilter.out_degree().gt(threshold + 5).not()),
                 Direction::OUT,
-                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                |d| d < threshold as usize || d <= (threshold + 5) as usize,
                 &format!("OUT < {} OR OUT > {}", threshold, threshold + 5),
             );
         }
