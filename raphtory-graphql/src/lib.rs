@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 pub use crate::{
     auth::{require_jwt_write_access_dynamic, Access},
     model::graph::filtering::GraphAccessFilter,
