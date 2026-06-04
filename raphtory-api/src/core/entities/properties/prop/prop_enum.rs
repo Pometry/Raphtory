@@ -15,7 +15,6 @@ use arrow_array::{
     Array, ArrayRef, LargeListArray, StructArray,
 };
 use arrow_schema::{DataType, Field, FieldRef, Fields, TimeUnit, DECIMAL128_MAX_PRECISION};
-use serde_arrow::ArrayBuilder;
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -25,6 +24,7 @@ use serde::{
     ser::{Error, SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
+use serde_arrow::ArrayBuilder;
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -346,11 +346,8 @@ impl<'a> Serialize for SerdeArrowProp<'a> {
                     ))
                 })?;
 
-                let num_formatted = Decimal128Type::format_decimal(
-                    num_i128,
-                    DECIMAL128_MAX_PRECISION,
-                    scale as i8
-                );
+                let num_formatted =
+                    Decimal128Type::format_decimal(num_i128, DECIMAL128_MAX_PRECISION, scale as i8);
 
                 serializer.serialize_str(&num_formatted)
             }
@@ -464,9 +461,7 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
                 for v in self.0.as_primitive::<Decimal128Type>().iter() {
                     // i128 is not supported directly by serde_arrow,
                     // so we format as string manually.
-                    let element = v.map(|v|
-                        Decimal128Type::format_decimal(v, *precision, *scale)
-                    );
+                    let element = v.map(|v| Decimal128Type::format_decimal(v, *precision, *scale));
 
                     state.serialize_element(&element)?
                 }
