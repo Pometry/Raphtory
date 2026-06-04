@@ -30,9 +30,8 @@ pub use crate::{
             filter::{
                 model::{
                     attribute::{
-                        AttrNodeExpr, Attribute, BinOpNodeFilter, Comparable, ConstExpr,
-                        DegreeExpr, Metadata, NodeExpr, NodeExprFilterOps, Property, SetNodeFilter,
-                        UnaryNodeFilter, Unwrap,
+                        BinOpNodeFilter, Comparable, ConstExpr, DegreeExpr, Metadata, NodeExpr,
+                        NodeExprFilterOps, Property, SetNodeFilter, UnaryNodeFilter, Unwrap,
                     },
                     edge_filter::{EdgeEndpointWrapper, EdgeFilter},
                     exploded_edge_filter::{

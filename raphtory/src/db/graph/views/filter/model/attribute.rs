@@ -138,25 +138,6 @@ impl<T> Unwrap for Option<T> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Attribute<E> — user-defined value extractor
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// A typed attribute that can be extracted from a graph entity.
-///
-/// `E` is the entity identifier type (e.g. `VID` for nodes).
-/// User-defined attributes implement this trait and can be wrapped in
-/// `AttrNodeExpr<A>` to use them as `NodeExpr`.
-// pub trait Attribute<E>: Clone + Send + Sync + 'static {
-//     type Output: PartialEq + PartialOrd + Eq + Hash + Clone + Send + Sync;
-//
-//     fn extract<'graph, G: GraphViewOps<'graph>>(
-//         &self,
-//         graph: &G,
-//         entity: E,
-//     ) -> Option<Self::Output>;
-// }
-
-// ─────────────────────────────────────────────────────────────────────────────
 // NodeExpr — typed node expression with associated Output type
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -176,7 +157,6 @@ impl<T> Unwrap for Option<T> {
 /// NodeFilter::name().eq("Alice")
 /// ```
 ///
-/// Wrap a user-defined `Attribute<VID>` in `AttrNodeExpr` to use it here.
 pub trait NodeExpr: Clone + Send + Sync + 'static {
     type Output: Comparable + Clone + Send + Sync + 'static;
 
@@ -232,97 +212,48 @@ impl NodeOp for NodeTypeStringOp {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NodePropOp<G> — property/metadata lookup, prop_id resolved at creation time
+// NodePropOp<G> / NodeMetaOp<G> — prop_id resolved at creation time
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Evaluates a named property or metadata field.
-///
-/// The property name is resolved to a column ID once in `create_node_op`; per-node
-/// evaluation is O(1).
+/// Evaluates a temporal property by pre-resolved column ID.
 #[derive(Clone)]
 pub(crate) struct NodePropOp<G> {
-    // split into prop_op and metadata_op
     graph: G,
     prop_id: usize,
-    is_metadata: bool,
 }
 
 impl<G: GraphView> NodeOp for NodePropOp<G> {
     type Output = Option<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
-        let n = self.graph.node(node)?;
-        if self.is_metadata {
-            n.metadata().get_by_id(self.prop_id)
-        } else {
-            n.properties().get_by_id(self.prop_id)
-        }
+        self.graph.node(node)?.properties().get_by_id(self.prop_id)
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AttributeNodeOp<A, G> — bridges Attribute<VID> to NodeOp<Output = Option<T>>
-// ─────────────────────────────────────────────────────────────────────────────
+/// Evaluates a metadata (static) field by pre-resolved column ID.
+#[derive(Clone)]
+pub(crate) struct NodeMetaOp<G> {
+    graph: G,
+    prop_id: usize,
+}
 
-// #[derive(Clone)]
-// pub(crate) struct AttributeNodeOp<A, G> {
-//     attribute: A,
-//     graph: G,
-// }
+impl<G: GraphView> NodeOp for NodeMetaOp<G> {
+    type Output = Option<Prop>;
 
-// impl<A: Attribute<VID>, G: GraphView> NodeOp for AttributeNodeOp<A, G> {
-//     type Output = Option<A::Output>;
-//
-//     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<A::Output> {
-//         self.attribute.extract(&self.graph, node)
-//     }
-// }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// AttrNodeExpr<A> — wraps Attribute<VID> as a NodeExpr
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Wraps a user-defined `Attribute<VID>` so it can be used as a `NodeExpr`.
-///
-/// User-defined attributes are NOT serializable (`try_as_spec` returns `None`),
-/// so `BinOpNodeFilter` built from them cannot be stored in the permissions store.
-///
-/// Usage:
-/// ```rust,ignore
-/// AttrNodeExpr(MyDegreeAttr).gt(2usize)
-/// AttrNodeExpr(MyDegreeAttr).gt(AttrNodeExpr(MyHalfDegreeAttr))
-/// ```
-// #[derive(Clone)]
-// pub struct AttrNodeExpr<A>(pub A);
-//
-// impl<A: Attribute<VID>> NodeExpr for AttrNodeExpr<A>
-// where
-//     A::Output: Comparable + Clone + Send + Sync + 'static,
-//     Option<A::Output>: Comparable,
-// {
-//     type Output = Option<A::Output>;
-//
-//     fn create_node_op<'g, G: GraphView + 'g>(
-//         &self,
-//         graph: G,
-//     ) -> Result<Arc<dyn NodeOp<Output = Option<A::Output>> + 'g>, GraphError> {
-//         Ok(Arc::new(AttributeNodeOp { attribute: self.0.clone(), graph }))
-//     }
-// }
+    fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
+        self.graph.node(node)?.metadata().get_by_id(self.prop_id)
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Concrete expression structs
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Degree expression (total / in / out).
+/// Wraps a `Direction` so it can be used as a `NodeExpr` for degree filtering.
 ///
-/// Delegates to `Degree<G>` from `db/api/state/ops/node.rs` — no reimplementation.
+/// Delegates to `Degree<G>` from `db/api/state/ops/node.rs`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DegreeExpr {
-    Total,
-    In,
-    Out,
-}
+pub struct DegreeExpr(pub Direction);
 
 impl NodeExpr for DegreeExpr {
     type Output = Option<usize>;
@@ -331,12 +262,10 @@ impl NodeExpr for DegreeExpr {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<usize>> + 'g>, GraphError> {
-        let dir = match self {
-            DegreeExpr::Total => Direction::BOTH,
-            DegreeExpr::In => Direction::IN,
-            DegreeExpr::Out => Direction::OUT,
-        };
-        Ok(Arc::new(OptionWrapOp(Degree { dir, view: graph })))
+        Ok(Arc::new(OptionWrapOp(Degree {
+            dir: self.0,
+            view: graph,
+        })))
     }
 }
 
@@ -365,11 +294,7 @@ impl NodeExpr for Property {
             .node_meta()
             .get_prop_id_and_type(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
-        Ok(Arc::new(NodePropOp {
-            graph,
-            prop_id,
-            is_metadata: false,
-        }))
+        Ok(Arc::new(NodePropOp { graph, prop_id }))
     }
 }
 
@@ -398,11 +323,7 @@ impl NodeExpr for Metadata {
             .node_meta()
             .get_prop_id_and_type(&self.name, true)
             .ok_or_else(|| GraphError::MetadataMissingError(self.name.clone()))?;
-        Ok(Arc::new(NodePropOp {
-            graph,
-            prop_id,
-            is_metadata: true,
-        }))
+        Ok(Arc::new(NodeMetaOp { graph, prop_id }))
     }
 }
 
@@ -489,7 +410,6 @@ impl NodeExpr for Prop {
     }
 }
 
-// TODO: try IntoProp
 macro_rules! impl_node_expr_for_numeric {
     ($prim:ty, $variant:ident) => {
         impl NodeExpr for $prim {
@@ -636,8 +556,8 @@ where
 ///
 /// Created by `NodeExprFilterOps`:
 /// ```rust,ignore
-/// DegreeExpr::Total.gt(2usize)
-/// DegreeExpr::Out.gt(DegreeExpr::In)
+/// DegreeExpr(Direction::BOTH).gt(2usize)
+/// DegreeExpr(Direction::OUT).gt(DegreeExpr(Direction::IN))
 /// NodeFilter::property("age").gt(30i64)
 /// NodeFilter::name().eq("Alice")
 /// ```
@@ -946,8 +866,8 @@ where
 ///
 /// `gt(rhs)` accepts any `R: NodeExpr<Output = Self::Output>`:
 /// ```rust,ignore
-/// DegreeExpr::Total.gt(2usize)
-/// DegreeExpr::Out.gt(DegreeExpr::In)
+/// DegreeExpr(Direction::BOTH).gt(2usize)
+/// DegreeExpr(Direction::OUT).gt(DegreeExpr(Direction::IN))
 /// NodeFilter::property("age").gt(30i64)
 /// AttrNodeExpr(MyAttr).is_in([2usize, 3usize])
 /// ```
@@ -1064,38 +984,8 @@ mod tests {
     use super::*;
     use crate::prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS};
 
-    // ── user-defined attributes (via Attribute<VID> — not serializable) ──────
-
-    #[derive(Clone)]
-    struct DegreeAttr;
-
-    impl Attribute<VID> for DegreeAttr {
-        type Output = usize;
-
-        fn extract<'graph, G: GraphViewOps<'graph>>(
-            &self,
-            graph: &G,
-            entity: VID,
-        ) -> Option<usize> {
-            graph.node(entity).map(|n| n.degree())
-        }
-    }
-
-    #[derive(Clone)]
-    struct HalfDegreeAttr;
-
-    impl Attribute<VID> for HalfDegreeAttr {
-        type Output = usize;
-
-        fn extract<'graph, G: GraphViewOps<'graph>>(
-            &self,
-            graph: &G,
-            entity: VID,
-        ) -> Option<usize> {
-            graph.node(entity).map(|n| n.degree() / 2)
-        }
-    }
-
+    // Test graph: a→b, a→c, b→c
+    // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
     fn build_test_graph() -> Graph {
         let g = Graph::new();
         g.add_edge(0, "a", "b", NO_PROPS, None).unwrap();
@@ -1120,13 +1010,13 @@ mod tests {
         names
     }
 
-    // ── NodeExprFilterOps comparison tests ───────────────────────────────────
+    // ── DegreeExpr comparison operators ──────────────────────────────────────
 
     #[test]
-    fn degree_ge_2_keeps_high_degree_nodes() {
+    fn degree_ge_2_keeps_all_nodes() {
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(AttrNodeExpr(DegreeAttr).ge(2usize), g),
+            filtered_names(DegreeExpr(Direction::BOTH).ge(2usize), g),
             vec!["a", "b", "c"]
         );
     }
@@ -1134,14 +1024,14 @@ mod tests {
     #[test]
     fn degree_eq_1_keeps_no_nodes() {
         let g = build_test_graph();
-        assert!(filtered_names(AttrNodeExpr(DegreeAttr).eq(1usize), g).is_empty());
+        assert!(filtered_names(DegreeExpr(Direction::BOTH).eq(1usize), g).is_empty());
     }
 
     #[test]
     fn degree_le_2_keeps_all_nodes() {
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(AttrNodeExpr(DegreeAttr).le(2usize), g),
+            filtered_names(DegreeExpr(Direction::BOTH).le(2usize), g),
             vec!["a", "b", "c"]
         );
     }
@@ -1149,41 +1039,34 @@ mod tests {
     #[test]
     fn degree_gt_2_keeps_no_nodes() {
         let g = build_test_graph();
-        assert!(filtered_names(AttrNodeExpr(DegreeAttr).gt(2usize), g).is_empty());
+        assert!(filtered_names(DegreeExpr(Direction::BOTH).gt(2usize), g).is_empty());
     }
 
     #[test]
     fn degree_ne_2_keeps_no_nodes_when_all_are_2() {
         let g = build_test_graph();
-        assert!(filtered_names(AttrNodeExpr(DegreeAttr).ne(2usize), g).is_empty());
+        assert!(filtered_names(DegreeExpr(Direction::BOTH).ne(2usize), g).is_empty());
     }
 
-    // ── unified gt: constant and expression RHS use the SAME method ──────────
+    // ── expression-vs-expression: RHS can be another NodeExpr ────────────────
 
     #[test]
-    fn degree_gt_half_degree_unified_method() {
+    fn total_gt_in_degree_selects_nodes_with_outgoing_edges() {
+        // total=2, in-degrees: a=0, b=1, c=2 → total > in for a and b only
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(AttrNodeExpr(DegreeAttr).gt(AttrNodeExpr(HalfDegreeAttr)), g),
-            vec!["a", "b", "c"]
+            filtered_names(DegreeExpr(Direction::BOTH).gt(DegreeExpr(Direction::IN)), g),
+            vec!["a", "b"]
         );
     }
 
-    #[test]
-    fn degree_eq_half_degree_keeps_no_nodes_when_unequal() {
-        let g = build_test_graph();
-        assert!(
-            filtered_names(AttrNodeExpr(DegreeAttr).eq(AttrNodeExpr(HalfDegreeAttr)), g).is_empty()
-        );
-    }
-
-    // ── set / unary ops via NodeExprFilterOps ────────────────────────────────
+    // ── unary ops ────────────────────────────────────────────────────────────
 
     #[test]
     fn degree_is_some_keeps_all_nodes() {
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(AttrNodeExpr(DegreeAttr).is_some(), g),
+            filtered_names(DegreeExpr(Direction::BOTH).is_some(), g),
             vec!["a", "b", "c"]
         );
     }
@@ -1191,14 +1074,16 @@ mod tests {
     #[test]
     fn degree_is_none_keeps_no_nodes() {
         let g = build_test_graph();
-        assert!(filtered_names(AttrNodeExpr(DegreeAttr).is_none(), g).is_empty());
+        assert!(filtered_names(DegreeExpr(Direction::BOTH).is_none(), g).is_empty());
     }
+
+    // ── set ops ──────────────────────────────────────────────────────────────
 
     #[test]
     fn degree_is_in_set() {
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(AttrNodeExpr(DegreeAttr).is_in([2usize]), g),
+            filtered_names(DegreeExpr(Direction::BOTH).is_in([2usize]), g),
             vec!["a", "b", "c"]
         );
     }
@@ -1206,24 +1091,13 @@ mod tests {
     #[test]
     fn degree_is_not_in_set_excludes_matching_nodes() {
         let g = build_test_graph();
-        assert!(filtered_names(AttrNodeExpr(DegreeAttr).is_not_in([2usize]), g).is_empty());
+        assert!(filtered_names(DegreeExpr(Direction::BOTH).is_not_in([2usize]), g).is_empty());
     }
 
-    // ── built-in DegreeExpr ──────────────────────────────────────────────────
+    // ── ConstExpr for custom output types ────────────────────────────────────
 
     #[test]
-    fn builtin_degree_ge_2() {
-        let g = build_test_graph();
-        assert_eq!(
-            filtered_names(DegreeExpr::Total.ge(2usize), g),
-            vec!["a", "b", "c"]
-        );
-    }
-
-    // ── ConstExpr still works for custom output types ─────────────────────────
-
-    #[test]
-    fn const_expr_still_works() {
+    fn const_expr_works() {
         let filter = BinOpNodeFilter::new(ConstExpr(2usize), BinaryOp::Eq, ConstExpr(2usize));
         let g = build_test_graph();
         assert_eq!(filtered_names(filter, g), vec!["a", "b", "c"]);

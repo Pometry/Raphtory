@@ -37,7 +37,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{storage::timeindex::EventTime, Direction};
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
@@ -88,22 +88,22 @@ impl NodeFilter {
         state.bool_col_filter(col)
     }
 
-    /// Total degree expression — serializable, supports `.gt(n)`, `.lt(n)`, etc.
+    /// Total degree expression — supports `.gt(n)`, `.lt(n)`, etc.
     #[inline]
     pub fn degree() -> DegreeExpr {
-        DegreeExpr::Total
+        DegreeExpr(Direction::BOTH)
     }
 
-    /// In-degree expression — serializable.
+    /// In-degree expression.
     #[inline]
     pub fn in_degree() -> DegreeExpr {
-        DegreeExpr::In
+        DegreeExpr(Direction::IN)
     }
 
-    /// Out-degree expression — serializable.
+    /// Out-degree expression.
     #[inline]
     pub fn out_degree() -> DegreeExpr {
-        DegreeExpr::Out
+        DegreeExpr(Direction::OUT)
     }
 
     /// Current (latest) value of a named property — serializable.
