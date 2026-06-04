@@ -213,8 +213,11 @@ impl Properties {
                     .map(|i| lazy_vec.get_opt(i))
                     .map(|e| e.map(|m| SerdeArrowMap(m)));
 
-                let struct_array =
-                    struct_array_from_props(&dt, array_iter).map_err(StorageError::from_external)?;
+                let struct_array = struct_array_from_props(&dt, array_iter).map_err(|e| {
+                    StorageError::GenericFailure(format!(
+                        "Failed to build struct array for column{col_id}: {e}"
+                    ))
+                })?;
 
                 Ok(Some(Arc::new(struct_array)))
             }
@@ -228,8 +231,11 @@ impl Properties {
                     .map(|i| lazy_vec.get_opt(i))
                     .map(|opt_list| opt_list.map(SerdeArrowList));
 
-                let list_array =
-                    list_array_from_props(&dt, array_iter).map_err(StorageError::from_external)?;
+                let list_array = list_array_from_props(&dt, array_iter).map_err(|e| {
+                    StorageError::GenericFailure(format!(
+                        "Failed to build list array for column {col_id}: {e}"
+                    ))
+                })?;
 
                 Ok(Some(Arc::new(list_array)))
             }
