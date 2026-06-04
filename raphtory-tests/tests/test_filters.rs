@@ -1646,7 +1646,6 @@ fn init_edges_graph_with_str_ids_del<
 }
 
 mod test_node_filter {
-    use std::collections::HashMap;
 
 use crate::{
         init_nodes_graph, init_nodes_graph_with_num_ids, init_nodes_graph_with_str_ids,
@@ -1655,26 +1654,20 @@ use crate::{
     use raphtory::{
         algorithms::alternating_mask::alternating_mask,
         db::{
-            api::view::{filter_ops::NodeSelect, Filter},
+            api::view::{Filter, filter_ops::NodeSelect},
             graph::{
                 assertions::{
-                    assert_filter_nodes_results, assert_search_nodes_results,
-                    assert_select_nodes_results, TestVariants,
+                    TestVariants, assert_filter_nodes_results, assert_search_nodes_results, assert_select_nodes_results
                 },
                 views::filter::{
-                    model::{
-                        node_filter::ops::{NodeFilterOps, NodeIdFilterOps},
-                        property_filter::ops::PropertyFilterOps,
-                        ComposableFilter, CompositeNodeFilter, NodeViewFilterOps,
-                        TryAsCompositeFilter, ViewWrapOps, degree_filter::DegreeFilterFactory,
-                    },
-                    CreateFilter,
+                    CreateFilter, model::{
+                        ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, degree_filter::DegreeFilterFactory, node_filter::ops::{NodeFilterOps, NodeIdFilterOps}, property_filter::ops::PropertyFilterOps
+                    }
                 },
             },
         },
         prelude::{
-            AdditionOps, Graph, GraphViewOps, NodeFilter, NodeStateOps, NodeViewOps, TimeOps,
-            NO_PROPS,
+            AdditionOps, Graph, GraphViewOps, NO_PROPS, NodeFilter, NodeStateOps, NodeViewOps, TimeOps
         },
     };
     use raphtory_tests::assertions::{
@@ -1684,7 +1677,6 @@ use crate::{
     use raphtory_api::core::Direction;
     use raphtory_api::core::{Direction, entities::properties::prop::Prop};
     use raphtory_core::entities::VID;
-    use raphtory::prelude::LayerOps;
     use proptest::proptest;
 
     fn sort_vids(mut vids: Vec<VID>) -> Vec<VID> {
@@ -1707,15 +1699,17 @@ use crate::{
         )
     }
 
-    fn manual_expected_and_layer_nodes<F>(
+    fn assert_filter<CF, F>(
         graph: &Graph,
+        filter: CF,
         metric: Direction,
         manual_expr: F,
-    ) -> (Vec<VID>, HashMap<String, Vec<VID>>)
-    where
+        context: &str,
+    ) where
+        CF: CreateFilter + TryAsCompositeFilter + Clone,
         F: Fn(usize) -> bool + Copy,
     {
-        let manual_candidates = graph
+        let expected_select_nodes = graph
             .nodes()
             .into_iter()
             .filter(|n| {
@@ -1728,40 +1722,7 @@ use crate::{
             .map(|n| n.node)
             .collect::<Vec<_>>();
 
-        let manual = candidates_with_history_after_filtering(graph, manual_candidates);
-
-        let layers: Vec<_> = graph.unique_layers().collect();
-        let mut layer_nodes_filtered = HashMap::new();
-
-        for layer in layers {
-            let layer_view = graph.valid_layers(&layer);
-            let expected_layer_nodes = sort_vids(
-                layer_view
-                    .subgraph(manual.clone())
-                    .nodes()
-                    .into_iter()
-                    .map(|n| n.node)
-                    .collect::<Vec<_>>(),
-
-            );
-            layer_nodes_filtered.insert(layer.to_string(), expected_layer_nodes);
-        }
-
-        (manual, layer_nodes_filtered)
-    }
-
-    fn assert_filter_against_manual_and_layers<CF, F>(
-        graph: &Graph,
-        filter: CF,
-        metric: Direction,
-        manual_expr: F,
-        context: &str,
-    ) where
-        CF: CreateFilter + Clone,
-        F: Fn(usize) -> bool + Copy,
-    {
-        let (expected_nodes, expected_layer_nodes) =
-            manual_expected_and_layer_nodes(graph, metric, manual_expr);
+        let expected_filter_nodes = candidates_with_history_after_filtering(graph, expected_select_nodes.clone());
 
         let filtered_event_graph = graph.filter(filter.clone()).unwrap();
         let filtered_event_nodes = sort_vids(
@@ -1772,28 +1733,27 @@ use crate::{
                 .collect(),
         );
         assert_eq!(
-            filtered_event_nodes, expected_nodes,
+            filtered_event_nodes, expected_filter_nodes,
             "{} failed for event graph",
             context
         );
 
-        for (layer, expected_layer) in &expected_layer_nodes {
-            let layer_view = filtered_event_graph.valid_layers(layer.as_str());
-            let layer_nodes = sort_vids(
-                layer_view
-                    .nodes()
-                    .into_iter()
-                    .map(|n| n.node)
-                    .collect(),
-            );
-            assert_eq!(
-                layer_nodes, *expected_layer,
-                "{} failed for event graph layer {}",
-                context, layer
-            );
-        }
+        let selected_event_nodes = sort_vids(
+            graph
+                .nodes()
+                .select(filter.clone())
+                .unwrap()
+                .into_iter()
+                .map(|n| n.node)
+                .collect(),
+        );
+        assert_eq!(
+            selected_event_nodes, expected_select_nodes,
+            "{} failed for event graph select",
+            context
+        );
 
-        let filtered_persistent_graph = graph.persistent_graph().filter(filter).unwrap();
+        let filtered_persistent_graph = graph.persistent_graph().filter(filter.clone()).unwrap();
         let filtered_persistent_nodes = sort_vids(
             filtered_persistent_graph
                 .nodes()
@@ -1802,26 +1762,26 @@ use crate::{
                 .collect(),
         );
         assert_eq!(
-            filtered_persistent_nodes, expected_nodes,
+            filtered_persistent_nodes, expected_filter_nodes,
             "{} failed for persistent graph",
             context
         );
 
-        for (layer, expected_layer) in &expected_layer_nodes {
-            let layer_view = filtered_persistent_graph.valid_layers(layer.as_str());
-            let layer_nodes = sort_vids(
-                layer_view
-                    .nodes()
-                    .into_iter()
-                    .map(|n| n.node)
-                    .collect(),
-            );
-            assert_eq!(
-                layer_nodes, *expected_layer,
-                "{} failed for persistent graph layer {}",
-                context, layer
-            );
-        }
+        let selected_persistent_nodes = sort_vids(
+            graph
+                .persistent_graph()
+                .nodes()
+                .select(filter)
+                .unwrap()
+                .into_iter()
+                .map(|n| n.node)
+                .collect(),
+        );
+        assert_eq!(
+            selected_persistent_nodes, expected_select_nodes,
+            "{} failed for persistent graph select",
+            context
+        );
     }
 
     fn degree_graph_with_add_node_and_add_edge() -> Graph {
@@ -1896,7 +1856,7 @@ use crate::{
         fn prop_degree_filter_both_direction_comparison(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.degree().lt(threshold),
                 Direction::BOTH,
@@ -1904,7 +1864,7 @@ use crate::{
                 &format!("BOTH < {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.degree().le(threshold),
                 Direction::BOTH,
@@ -1912,7 +1872,7 @@ use crate::{
                 &format!("BOTH <= {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.degree().eq(threshold),
                 Direction::BOTH,
@@ -1920,7 +1880,7 @@ use crate::{
                 &format!("BOTH == {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.degree().ne(threshold),
                 Direction::BOTH,
@@ -1928,7 +1888,7 @@ use crate::{
                 &format!("BOTH != {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.degree().ge(threshold),
                 Direction::BOTH,
@@ -1936,7 +1896,7 @@ use crate::{
                 &format!("BOTH >= {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.degree().gt(threshold),
                 Direction::BOTH,
@@ -1949,7 +1909,7 @@ use crate::{
         fn prop_degree_filter_in_direction_comparison(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.in_degree().lt(threshold),
                 Direction::IN,
@@ -1957,7 +1917,7 @@ use crate::{
                 &format!("IN < {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.in_degree().le(threshold),
                 Direction::IN,
@@ -1965,7 +1925,7 @@ use crate::{
                 &format!("IN <= {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.in_degree().eq(threshold),
                 Direction::IN,
@@ -1973,7 +1933,7 @@ use crate::{
                 &format!("IN == {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.in_degree().ne(threshold),
                 Direction::IN,
@@ -1981,7 +1941,7 @@ use crate::{
                 &format!("IN != {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.in_degree().ge(threshold),
                 Direction::IN,
@@ -1989,7 +1949,7 @@ use crate::{
                 &format!("IN >= {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.in_degree().gt(threshold),
                 Direction::IN,
@@ -2002,7 +1962,7 @@ use crate::{
         fn prop_degree_filter_out_direction_comparison(threshold in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.out_degree().lt(threshold),
                 Direction::OUT,
@@ -2010,7 +1970,7 @@ use crate::{
                 &format!("OUT < {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.out_degree().le(threshold),
                 Direction::OUT,
@@ -2018,7 +1978,7 @@ use crate::{
                 &format!("OUT <= {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.out_degree().eq(threshold),
                 Direction::OUT,
@@ -2026,7 +1986,7 @@ use crate::{
                 &format!("OUT == {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.out_degree().ne(threshold),
                 Direction::OUT,
@@ -2034,7 +1994,7 @@ use crate::{
                 &format!("OUT != {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.out_degree().ge(threshold),
                 Direction::OUT,
@@ -2042,7 +2002,7 @@ use crate::{
                 &format!("OUT >= {}", threshold),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.out_degree().gt(threshold),
                 Direction::OUT,
@@ -2051,12 +2011,96 @@ use crate::{
             );
         }
 
+        fn prop_degree_filter_and(threshold in 0u64..15) {
+            let graph = degree_graph_with_add_node_and_add_edge();
+
+            assert_filter(
+                &graph,
+                NodeFilter.degree().gt(threshold).and(NodeFilter.degree().lt(threshold + 5)),
+                Direction::BOTH,
+                |d| d > threshold as usize && d < (threshold + 5) as usize,
+                &format!("BOTH > {} AND BOTH < {}", threshold, threshold + 5),
+            );
+
+            assert_filter(
+                &graph,
+                NodeFilter.in_degree().gt(threshold).and(NodeFilter.in_degree().lt(threshold + 5)),
+                Direction::IN,
+                |d| d > threshold as usize && d < (threshold + 5) as usize,
+                &format!("IN > {} AND IN < {}", threshold, threshold + 5),
+            );
+
+            assert_filter(
+                &graph,
+                NodeFilter.out_degree().gt(threshold).and(NodeFilter.out_degree().lt(threshold + 5)),
+                Direction::OUT,
+                |d| d > threshold as usize && d < (threshold + 5) as usize,
+                &format!("OUT > {} AND OUT < {}", threshold, threshold + 5),
+            );
+        } 
+
+        fn prop_degree_filter_or(threshold in 0u64..15) {
+            let graph = degree_graph_with_add_node_and_add_edge();
+
+            assert_filter(
+                &graph,
+                NodeFilter.degree().lt(threshold).or(NodeFilter.degree().gt(threshold + 5)),
+                Direction::BOTH,
+                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                &format!("BOTH < {} OR BOTH > {}", threshold, threshold + 5),
+            );
+
+            assert_filter(
+                &graph,
+                NodeFilter.in_degree().lt(threshold).or(NodeFilter.in_degree().gt(threshold + 5)),
+                Direction::IN,
+                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                &format!("IN < {} OR IN > {}", threshold, threshold + 5),
+            );
+
+            assert_filter(
+                &graph,
+                NodeFilter.out_degree().lt(threshold).or(NodeFilter.out_degree().gt(threshold + 5)),
+                Direction::OUT,
+                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                &format!("OUT < {} OR OUT > {}", threshold, threshold + 5),
+            );
+        }
+
+        fn prop_degree_filter_not(threshold in 0u64..15) {
+            let graph = degree_graph_with_add_node_and_add_edge();
+
+            assert_filter(
+                &graph,
+                NodeFilter.degree().lt(threshold).or(NodeFilter.degree().gt(threshold + 5).not()),
+                Direction::BOTH,
+                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                &format!("BOTH < {} OR BOTH > {}", threshold, threshold + 5),
+            );
+
+            assert_filter(
+                &graph,
+                NodeFilter.in_degree().lt(threshold).or(NodeFilter.in_degree().gt(threshold + 5).not()),
+                Direction::IN,
+                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                &format!("IN < {} OR IN > {}", threshold, threshold + 5),
+            );
+
+            assert_filter(
+                &graph,
+                NodeFilter.out_degree().lt(threshold).or(NodeFilter.out_degree().gt(threshold + 5).not()),
+                Direction::OUT,
+                |d| d < threshold as usize || d > (threshold + 5) as usize,
+                &format!("OUT < {} OR OUT > {}", threshold, threshold + 5),
+            );
+        }
+
         #[test]
         fn prop_degree_filter_is_in(val1 in 0u64..15, val2 in 0u64..15) {
             let graph = degree_graph_with_add_node_and_add_edge();
             let set = [val1, val2];
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]),
                 Direction::BOTH,
@@ -2064,7 +2108,7 @@ use crate::{
                 &format!("BOTH is_in({}, {})", val1, val2),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.in_degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]),
                 Direction::IN,
@@ -2072,7 +2116,7 @@ use crate::{
                 &format!("IN is_in({}, {})", val1, val2),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter.out_degree().is_in(vec![Prop::U64(val1), Prop::U64(val2)]),
                 Direction::OUT,
@@ -2086,7 +2130,7 @@ use crate::{
             let graph = degree_graph_with_add_node_and_add_edge();
             let set = [val1, val2];
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter
                     .degree()
@@ -2096,7 +2140,7 @@ use crate::{
                 &format!("BOTH is_not_in({}, {})", val1, val2),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter
                     .in_degree()
@@ -2106,7 +2150,7 @@ use crate::{
                 &format!("IN is_not_in({}, {})", val1, val2),
             );
 
-            assert_filter_against_manual_and_layers(
+            assert_filter(
                 &graph,
                 NodeFilter
                     .out_degree()

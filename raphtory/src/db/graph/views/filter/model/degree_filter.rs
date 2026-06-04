@@ -8,7 +8,7 @@ use raphtory_storage::graph::nodes::{node_ref::NodeStorageRef, node_storage_ops:
 use crate::db::api::state::ops::GraphView;
 use crate::db::api::state::ops::filter::NodeDegreeFilterOp;
 use crate::db::graph::views::filter::CreateFilter;
-use crate::db::graph::views::filter::model::{CompositeNodeFilter, NodeFilter};
+use crate::db::graph::views::filter::model::{ComposableFilter, CompositeNodeFilter, NodeFilter};
 use crate::db::graph::views::filter::model::property_filter::{Op, PropertyFilterInput, PropertyRef, PropertyFilter};
 use crate::db::graph::views::filter::model::property_filter::builders::{PropertyExprBuilder, PropertyExprBuilderInput};
 use crate::db::graph::views::filter::model::{CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TryAsCompositeFilter};
@@ -182,6 +182,8 @@ where
         builder
     }
 }
+
+impl ComposableFilter for DegreeFilter {}
 
 pub trait DegreeFilterFactory {
     fn in_degree(&self) -> DegreeFilterBuilder; 
