@@ -10,7 +10,7 @@ use std::{collections::HashMap, sync::Arc};
 /// [RemoteGraph.add_edge][raphtory.graphql.RemoteGraph.add_edge],
 /// and [RemoteGraph.delete_edge][raphtory.graphql.RemoteGraph.delete_edge].
 #[derive(Clone)]
-#[pyclass(name = "RemoteEdge", module = "raphtory.graphql")]
+#[pyclass(name = "RemoteEdge", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteEdge {
     pub(crate) edge: Arc<GraphQLRemoteEdge>,
 }

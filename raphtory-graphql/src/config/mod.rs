@@ -14,7 +14,7 @@ mod tests {
         app_config::{load_config, AppConfigBuilder},
         otlp_config::TracingLevel,
     };
-    use std::{fs, path::PathBuf};
+    use std::fs;
     use tempfile::NamedTempFile;
 
     #[test]

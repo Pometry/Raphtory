@@ -1,7 +1,8 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use raphtory::prelude::{Graph, IndexMutationOps, StableDecode, StableEncode};
 use raphtory_benchmark::graph_gen::raph_social::generate_graph;
 use tempfile::TempDir;
+use std::hint::black_box;
 
 fn bench_graph_init_index(c: &mut Criterion) {
     let graph = generate_graph(300, 500, 700, 1000);

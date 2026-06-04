@@ -1,8 +1,7 @@
 use clap::ValueEnum;
-use opentelemetry::{trace::TracerProvider, KeyValue};
+use opentelemetry::KeyValue;
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use opentelemetry_sdk::{
-    runtime,
     trace::{Sampler, SdkTracerProvider},
     Resource,
 };
