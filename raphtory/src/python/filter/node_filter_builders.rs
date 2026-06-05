@@ -2,8 +2,7 @@ use crate::{
     db::{
         api::state::ops::{Id, Name, Type},
         graph::views::filter::model::{
-            node_expr::NodeExprFilterOps,
-            node_filter::{builders::NodeNameFilterBuilder, ops::NodeFilterOps, NodeFilter},
+            node_filter::{ops::NodeFilterOps, NodeFilter},
             node_state_filter::NodeStateBoolColOp,
             property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
             NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
@@ -283,25 +282,19 @@ impl_node_text_filter_builder!(PyNodeNameFilterBuilder, Name);
 impl PyNodeNameFilterBuilder {
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
-        PyFilterExpr(Arc::new(NodeNameFilterBuilder.is_in(vals)))
+        PyFilterExpr(Arc::new(Name.is_in(vals)))
     }
 
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<String> = values.into_iter().collect();
-        PyFilterExpr(Arc::new(NodeNameFilterBuilder.is_not_in(vals)))
+        PyFilterExpr(Arc::new(Name.is_not_in(vals)))
     }
 }
 
+impl_node_text_filter_builder!(PyNodeTypeFilterBuilder, Type);
+
 #[pymethods]
 impl PyNodeTypeFilterBuilder {
-    fn __eq__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(Type.eq(ArcStr::from(value))))
-    }
-
-    fn __ne__(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(Type.ne(ArcStr::from(value))))
-    }
-
     fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<ArcStr> = values.into_iter().map(ArcStr::from).collect();
         PyFilterExpr(Arc::new(Type.is_in(vals)))
@@ -310,35 +303,6 @@ impl PyNodeTypeFilterBuilder {
     fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
         let vals: Vec<ArcStr> = values.into_iter().map(ArcStr::from).collect();
         PyFilterExpr(Arc::new(Type.is_not_in(vals)))
-    }
-
-    fn starts_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(Type.starts_with(ArcStr::from(value))))
-    }
-
-    fn ends_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(Type.ends_with(ArcStr::from(value))))
-    }
-
-    fn contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(Type.contains(ArcStr::from(value))))
-    }
-
-    fn not_contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(Type.not_contains(ArcStr::from(value))))
-    }
-
-    fn fuzzy_search(
-        &self,
-        value: String,
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(Type.fuzzy_search(
-            ArcStr::from(value),
-            levenshtein_distance,
-            prefix_match,
-        )))
     }
 }
 

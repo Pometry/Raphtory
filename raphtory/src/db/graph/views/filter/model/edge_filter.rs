@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::ops::{Id, NotANodeFilter},
+            state::ops::{Id, Name, NotANodeFilter, Type},
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
@@ -15,10 +15,8 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
-                    builders::{
-                        InternalNodeFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
-                    },
-                    CompositeNodeFilter, NodeFilter, NodeIdFilter,
+                    builders::InternalNodeFilterBuilder, CompositeNodeFilter, NodeFilter,
+                    NodeIdFilter,
                 },
                 property_filter::{
                     builders::{
@@ -160,13 +158,13 @@ impl EdgeEndpointWrapper<NodeFilter> {
     }
 
     #[inline]
-    pub fn name(&self) -> EdgeEndpointWrapper<NodeNameFilterBuilder> {
-        EdgeEndpointWrapper::new(NodeNameFilterBuilder, self.endpoint)
+    pub fn name(&self) -> EdgeEndpointWrapper<Name> {
+        EdgeEndpointWrapper::new(NodeFilter::name(), self.endpoint)
     }
 
     #[inline]
-    pub fn node_type(&self) -> EdgeEndpointWrapper<NodeTypeFilterBuilder> {
-        EdgeEndpointWrapper::new(NodeTypeFilterBuilder, self.endpoint)
+    pub fn node_type(&self) -> EdgeEndpointWrapper<Type> {
+        EdgeEndpointWrapper::new(NodeFilter::node_type(), self.endpoint)
     }
 }
 

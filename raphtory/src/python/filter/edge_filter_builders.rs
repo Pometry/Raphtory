@@ -1,13 +1,9 @@
 use crate::{
     db::{
-        api::state::ops::Id,
+        api::state::ops::{Id, Name, Type},
         graph::views::filter::model::{
             edge_filter::{EdgeEndpointWrapper, EdgeFilter},
-            node_filter::{
-                builders::{NodeNameFilterBuilder, NodeTypeFilterBuilder},
-                ops::NodeFilterOps,
-                NodeFilter,
-            },
+            node_filter::{ops::NodeFilterOps, NodeFilter},
             property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
             EdgeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
         },
@@ -208,7 +204,7 @@ impl PyEdgeEndpointIdFilterBuilder {
 ///     Edge.dst().name().contains("ali")
 #[pyclass(frozen, name = "EdgeEndpointNameFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilterBuilder>);
+pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<Name>);
 
 /// Filters an edge endpoint by its node type.
 ///
@@ -220,7 +216,7 @@ pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilte
 ///     Edge.dst().node_type().is_not_in(["air_nomads"])
 #[pyclass(frozen, name = "EdgeEndpointTypeFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpointTypeFilterBuilder(pub EdgeEndpointWrapper<NodeTypeFilterBuilder>);
+pub struct PyEdgeEndpointTypeFilterBuilder(pub EdgeEndpointWrapper<Type>);
 
 macro_rules! impl_edge_text_filter_builder {
     ($py_ty:ident) => {

@@ -57,6 +57,7 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Latest<T> {
 
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Latest<T> {
     type FilterType = T::FilterType;
+
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }

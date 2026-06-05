@@ -1,7 +1,10 @@
-use crate::db::graph::views::filter::model::{
-    filter::Filter,
-    node_filter::{NodeNameFilter, NodeTypeFilter},
-    Wrap,
+use crate::db::{
+    api::state::ops::{Name, Type},
+    graph::views::filter::model::{
+        filter::Filter,
+        node_filter::{NodeNameFilter, NodeTypeFilter},
+        Wrap,
+    },
 };
 use std::{ops::Deref, sync::Arc};
 
@@ -18,10 +21,7 @@ impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Arc<T> {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct NodeNameFilterBuilder;
-
-impl Wrap for NodeNameFilterBuilder {
+impl Wrap for Name {
     type Wrapped<T> = T;
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
@@ -29,7 +29,7 @@ impl Wrap for NodeNameFilterBuilder {
     }
 }
 
-impl InternalNodeFilterBuilder for NodeNameFilterBuilder {
+impl InternalNodeFilterBuilder for Name {
     type FilterType = NodeNameFilter;
 
     fn field_name(&self) -> &'static str {
@@ -37,10 +37,7 @@ impl InternalNodeFilterBuilder for NodeNameFilterBuilder {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct NodeTypeFilterBuilder;
-
-impl Wrap for NodeTypeFilterBuilder {
+impl Wrap for Type {
     type Wrapped<T> = T;
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
@@ -48,8 +45,9 @@ impl Wrap for NodeTypeFilterBuilder {
     }
 }
 
-impl InternalNodeFilterBuilder for NodeTypeFilterBuilder {
+impl InternalNodeFilterBuilder for Type {
     type FilterType = NodeTypeFilter;
+
     fn field_name(&self) -> &'static str {
         "node_type"
     }
