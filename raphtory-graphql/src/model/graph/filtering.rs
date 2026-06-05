@@ -1382,13 +1382,19 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
     fn try_from(filter: GqlNodeFilter) -> Result<Self, Self::Error> {
         match filter {
             GqlNodeFilter::Node(node) => {
+                let field = node.field;
                 let (field_name, field_value, operator) =
                     translate_node_field_where(node.field, &node.where_)?;
-                Ok(CompositeNodeFilter::Node(Filter {
+                let filter = Filter {
                     field_name,
                     field_value,
                     operator,
-                }))
+                };
+                Ok(match field {
+                    NodeField::NodeId => CompositeNodeFilter::Id(filter),
+                    NodeField::NodeName => CompositeNodeFilter::Name(filter),
+                    NodeField::NodeType => CompositeNodeFilter::Type(filter),
+                })
             }
             GqlNodeFilter::Property(prop) => {
                 let prop_ref = PropertyRef::Property(prop.name.clone());
