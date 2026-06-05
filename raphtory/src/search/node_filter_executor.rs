@@ -5,7 +5,6 @@ use crate::{
             node::NodeView,
             views::filter::{
                 model::{
-                    filter::Filter,
                     node_filter::{CompositeNodeFilter, NodeFilter},
                     property_filter::PropertyRef,
                 },
@@ -212,27 +211,23 @@ impl<'a> NodeFilterExecutor<'a> {
     fn filter_node_index<G: StaticGraphViewOps>(
         &self,
         graph: &G,
-        filter: &Filter,
+        composite: CompositeNodeFilter,
         limit: usize,
         offset: usize,
     ) -> Result<Vec<NodeView<'static, G>>, GraphError> {
+        let filter = match &composite {
+            CompositeNodeFilter::Id(f)
+            | CompositeNodeFilter::Name(f)
+            | CompositeNodeFilter::Type(f) => f,
+            _ => unreachable!(),
+        };
         let (node_index, query) = self.query_builder.build_node_query(filter)?;
         let reader = get_reader(&node_index.entity_index.index)?;
         let results = match query {
-            Some(query) => self.execute_filter_query(
-                CompositeNodeFilter::Node(filter.clone()),
-                graph,
-                query,
-                &reader,
-                limit,
-                offset,
-            )?,
-            None => fallback_filter_nodes(
-                graph,
-                &CompositeNodeFilter::Node(filter.clone()),
-                limit,
-                offset,
-            )?,
+            Some(query) => {
+                self.execute_filter_query(composite.clone(), graph, query, &reader, limit, offset)?
+            }
+            None => fallback_filter_nodes(graph, &composite, limit, offset)?,
         };
 
         Ok(results)
@@ -297,8 +292,14 @@ impl<'a> NodeFilterExecutor<'a> {
                     .map(|x| NodeView::new_internal(graph.clone(), x.node))
                     .collect())
             }
-            CompositeNodeFilter::Node(filter) => {
-                self.filter_node_index(graph, filter, limit, offset)
+            CompositeNodeFilter::Id(f) => {
+                self.filter_node_index(graph, CompositeNodeFilter::Id(f.clone()), limit, offset)
+            }
+            CompositeNodeFilter::Name(f) => {
+                self.filter_node_index(graph, CompositeNodeFilter::Name(f.clone()), limit, offset)
+            }
+            CompositeNodeFilter::Type(f) => {
+                self.filter_node_index(graph, CompositeNodeFilter::Type(f.clone()), limit, offset)
             }
             CompositeNodeFilter::IsActiveNode(filter) => {
                 fallback_filter_nodes(graph, filter, limit, offset)
