@@ -1,6 +1,6 @@
 import pytest
 from raphtory import Graph, PersistentGraph
-from filters_setup import init_graph, init_graph2, init_graph_degree_filter
+from filters_setup import init_graph, init_graph2, degree_graph_with_add_node_and_add_edge 
 from utils import run_graphql_test, run_graphql_error_test
 
 EVENT_GRAPH = init_graph(Graph())
@@ -163,90 +163,68 @@ def test_nodes_filter_windowed_is_not_active(graph):
     run_graphql_test(query, expected, graph)
 
 
-DEGREE_PERSISTENT_GRAPH = init_graph_degree_filter(PersistentGraph())
+GRAPH = degree_graph_with_add_node_and_add_edge(Graph())
+PERSISTENT_GRAPH = GRAPH.persistent_graph()
+EVENT_GRAPH = GRAPH.event_graph()
 
 
-@pytest.mark.parametrize("graph", [DEGREE_PERSISTENT_GRAPH])
-def test_filter_nodes_degree_both_eq_gql(graph):
-    query = """
-    query {
-      graph(path: "g") {
+@pytest.mark.parametrize("graph", [PERSISTENT_GRAPH, EVENT_GRAPH])
+@pytest.mark.parametrize(
+  "direction,degree_fn",
+  [
+    ("OUT", lambda node: node.out_degree()),
+    ("BOTH", lambda node: node.degree()),
+    ("IN", lambda node: node.in_degree()),
+  ],
+  ids=["out", "both", "in"],
+)
+@pytest.mark.parametrize(
+    "where_clause,predicate",
+    [
+        ("{ gt: { u64: 1 } }", lambda d: d > 1),
+        ("{ ge: { u64: 2 } }", lambda d: d >= 2),
+        ("{ le: { u64: 1 } }", lambda d: d <= 1),
+        ("{ lt: { u64: 2 } }", lambda d: d < 2),
+        ("{ ne: { u64: 2 } }", lambda d: d != 2),
+        ("{ eq: { u64: 2 } }", lambda d: d == 2),
+        (
+            "{ isIn: { list: [{u64: 1}, {u64: 2}] } }",
+            lambda d: d in {1, 2},
+        ),
+        (
+            "{ isNotIn: { list: [{u64: 1}, {u64: 2}] } }",
+            lambda d: d not in {1, 2},
+        ),
+    ],
+    ids=["gt", "ge", "le", "lt", "ne", "eq", "is_in", "is_not_in"],
+)
+def test_filter_nodes_degree_ops_gql(graph, direction, degree_fn, where_clause, predicate):
+    query = f"""
+    query {{
+      graph(path: "g") {{
         filterNodes(
-          expr: {
-            degree: {
-              direction: BOTH
-              where: { eq: { u64: 4 } }
-            }
-          }
-        ) {
-          nodes {
-            list { name }
-          }
-        }
-      }
-    }
+          expr: {{
+            degree: {{
+              direction: {direction}
+              where: {where_clause}
+            }}
+          }}
+        ) {{
+          nodes {{
+             ids
+          }}
+        }}
+      }}
+    }}
     """
-    expected_output = {
-        "graph": {
-            "filterNodes": {"nodes": {"list": [{"name": "1"}, {"name": "3"}]}}
-        }
-    }
-    run_graphql_test(query, expected_output, graph, sort_output=True)
-
-
-@pytest.mark.parametrize("graph", [DEGREE_PERSISTENT_GRAPH])
-def test_filter_nodes_degree_in_eq_gql(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        filterNodes(
-          expr: {
-            degree: {
-              direction: IN
-              where: { eq: { u64: 1 } }
-            }
-          }
-        ) {
-          nodes {
-            list { name }
-          }
-        }
-      }
-    }
-    """
+    expected_node_ids = [node.id for node in graph.nodes if predicate(degree_fn(node))]
     expected_output = {
         "graph": {
             "filterNodes": {
-                "nodes": {"list": [{"name": "2"}, {"name": "4"}, {"name": "5"}]}
+                "nodes": {
+                    "ids": expected_node_ids,
+                }
             }
-        }
-    }
-    run_graphql_test(query, expected_output, graph, sort_output=True)
-
-
-@pytest.mark.parametrize("graph", [DEGREE_PERSISTENT_GRAPH])
-def test_filter_nodes_degree_out_gt_gql(graph):
-    query = """
-    query {
-      graph(path: "g") {
-        filterNodes(
-          expr: {
-            degree: {
-              direction: OUT
-              where: { gt: { u64: 1 } }
-            }
-          }
-        ) {
-          nodes {
-            list { name }
-          }
-        }
-      }
-    }
-    """
-    expected_output = {
-        "graph": {
-            "filterNodes": {"nodes": {"list": [{"name": "1"}, {"name": "3"}]}}
         }
     }
     run_graphql_test(query, expected_output, graph, sort_output=True)

@@ -516,23 +516,74 @@ mod graphql_test {
         );
     }
 
+    fn degree_graph_with_add_node_and_add_edge() -> Graph {
+        let graph = degree_graph_with_add_edge_only();
+        let add_nodes = [
+            (0, "1", Some("layer_a")),
+            (0, "7", None),
+            (0, "8", None),
+            (3, "9", Some("layer_a")),
+            (4, "9", Some("layer_c")),
+            (5, "10", Some("layer_b")),
+            (6, "10", Some("layer_e")),
+            (7, "11", Some("layer_d")),
+            (8, "12", Some("layer_f")),
+            (9, "12", Some("layer_c")),
+        ];
+        for (t, id, layer) in add_nodes {
+            graph.add_node(t, id, NO_PROPS, None, layer).unwrap();
+        }
+        graph
+    }
+
+
+    fn degree_graph_with_add_edge_only() -> Graph {
+        let graph = Graph::new();
+
+        let edges = [
+            (1, "1", "2", "layer_a"),
+            (1, "1", "3", "layer_b"),
+            (1, "1", "4", "layer_a"),
+            (1, "1", "5", "layer_b"),
+            (1, "1", "6", "layer_a"),
+            (2, "2", "1", "layer_b"),
+            (2, "2", "3", "layer_a"),
+            (2, "2", "4", "layer_b"),
+            (2, "2", "5", "layer_a"),
+            (3, "3", "1", "layer_a"),
+            (3, "3", "4", "layer_b"),
+            (3, "3", "5", "layer_a"),
+            (4, "4", "1", "layer_b"),
+            (4, "4", "2", "layer_a"),
+            (5, "5", "1", "layer_b"),
+            (6, "6", "1", "layer_a"),
+            (6, "4", "3", "layer_b"),
+            (6, "5", "2", "layer_a"),
+            (6, "6", "2", "layer_b"),
+            (6, "5", "3", "layer_a"),
+            (7, "2", "6", "layer_c"),
+            (7, "3", "6", "layer_d"),
+            (7, "6", "4", "layer_e"),
+            (7, "1", "5", "layer_f"),
+            (8, "3", "2", "layer_c"),
+            (8, "4", "6", "layer_d"),
+            (8, "2", "5", "layer_e"),
+            (8, "6", "3", "layer_f"),
+            (9, "5", "4", "layer_c"),
+            (9, "4", "5", "layer_d"),
+            (9, "2", "4", "layer_e"),
+            (9, "3", "1", "layer_f"),
+        ];
+        for (t, src, dst, layer) in edges {
+            graph.add_edge(t, src, dst, NO_PROPS, Some(layer)).unwrap();
+        }
+
+        graph
+    }
+
     #[tokio::test]
     async fn query_nodefilter_degree_both_non_temporal() {
-        let graph = PersistentGraph::new();
-        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 4, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 5, NO_PROPS, None, None).unwrap();
-
-        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 1, 3, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 3, 4, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 3, 5, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 4, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 5, 1, NO_PROPS, None).unwrap();
-
+        let graph = degree_graph_with_add_node_and_add_edge();
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
@@ -547,7 +598,7 @@ mod graphql_test {
               expr: { degree: { direction: BOTH, where: { eq: { u64: 4 } } } }
             ) {
               nodes {
-                count
+                  ids
               }
             }
           }
@@ -575,21 +626,7 @@ mod graphql_test {
 
     #[tokio::test]
     async fn query_nodefilter_degree_in_and_out_non_temporal() {
-        let graph = PersistentGraph::new();
-        graph.add_node(0, 1, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 2, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 3, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 4, NO_PROPS, None, None).unwrap();
-        graph.add_node(0, 5, NO_PROPS, None, None).unwrap();
-
-        graph.add_edge(0, 1, 2, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 1, 3, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 2, 3, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 3, 4, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 3, 5, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 4, 1, NO_PROPS, None).unwrap();
-        graph.add_edge(0, 5, 1, NO_PROPS, None).unwrap();
-
+        let graph = degree_graph_with_add_node_and_add_edge();
         let graph: MaterializedGraph = graph.into();
         let graphs = HashMap::from([("graph".to_string(), graph)]);
         let tmp_dir = tempdir().unwrap();
