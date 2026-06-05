@@ -1,13 +1,9 @@
 use crate::{
     db::{
-        api::state::ops::{Name, Type},
+        api::state::ops::{Id, Name, Type},
         graph::views::filter::model::{
             node_expr::NodeExprFilterOps,
-            node_filter::{
-                builders::{NodeIdFilterBuilder, NodeNameFilterBuilder},
-                ops::{NodeFilterOps, NodeIdFilterOps},
-                NodeFilter,
-            },
+            node_filter::{builders::NodeNameFilterBuilder, ops::NodeFilterOps, NodeFilter},
             node_state_filter::NodeStateBoolColOp,
             property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
             NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
@@ -42,7 +38,7 @@ use std::sync::Arc;
 ///     Node.id().starts_with("user:")
 #[pyclass(frozen, name = "NodeIdFilterBuilder", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyNodeIdFilterBuilder(Arc<NodeIdFilterBuilder>);
+pub struct PyNodeIdFilterBuilder(Id);
 
 #[pymethods]
 impl PyNodeIdFilterBuilder {
@@ -364,7 +360,7 @@ impl PyNodeFilter {
     ///     filter.NodeIdFilterBuilder:
     #[staticmethod]
     fn id() -> PyNodeIdFilterBuilder {
-        PyNodeIdFilterBuilder(Arc::new(NodeFilter::id()))
+        PyNodeIdFilterBuilder(NodeFilter::id())
     }
 
     /// Selects the node name field for filtering.

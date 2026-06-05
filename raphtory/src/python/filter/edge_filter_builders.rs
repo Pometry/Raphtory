@@ -1,13 +1,16 @@
 use crate::{
-    db::graph::views::filter::model::{
-        edge_filter::{EdgeEndpointWrapper, EdgeFilter},
-        node_filter::{
-            builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
-            ops::{NodeFilterOps, NodeIdFilterOps},
-            NodeFilter,
+    db::{
+        api::state::ops::Id,
+        graph::views::filter::model::{
+            edge_filter::{EdgeEndpointWrapper, EdgeFilter},
+            node_filter::{
+                builders::{NodeNameFilterBuilder, NodeTypeFilterBuilder},
+                ops::NodeFilterOps,
+                NodeFilter,
+            },
+            property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+            EdgeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
         },
-        property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
-        EdgeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
     },
     python::{
         filter::{
@@ -34,7 +37,7 @@ use std::sync::Arc;
 ///     Edge.src().id().starts_with("user:")
 #[pyclass(frozen, name = "EdgeEndpointIdFilter", module = "raphtory.filter")]
 #[derive(Clone)]
-pub struct PyEdgeEndpointIdFilterBuilder(pub EdgeEndpointWrapper<NodeIdFilterBuilder>);
+pub struct PyEdgeEndpointIdFilterBuilder(pub EdgeEndpointWrapper<Id>);
 
 #[pymethods]
 impl PyEdgeEndpointIdFilterBuilder {
@@ -46,7 +49,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating equality.
     fn __eq__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.eq(value)))
+        PyFilterExpr(Arc::new(self.0.clone().eq(value)))
     }
 
     /// Checks whether the endpoint ID is not equal to the given value.
@@ -57,7 +60,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating inequality.
     fn __ne__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ne(value)))
+        PyFilterExpr(Arc::new(self.0.clone().ne(value)))
     }
 
     /// Checks whether the endpoint ID is less than the given value (exclusive).
@@ -68,7 +71,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `<` comparison.
     fn __lt__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.lt(value)))
+        PyFilterExpr(Arc::new(self.0.clone().lt(value)))
     }
 
     /// Checks whether the endpoint ID is less than or equal to the given value.
@@ -79,7 +82,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `<=` comparison.
     fn __le__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.le(value)))
+        PyFilterExpr(Arc::new(self.0.clone().le(value)))
     }
 
     /// Checks whether the endpoint ID is greater than the given value (exclusive).
@@ -90,7 +93,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `>` comparison.
     fn __gt__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.gt(value)))
+        PyFilterExpr(Arc::new(self.0.clone().gt(value)))
     }
 
     /// Checks whether the endpoint ID is greater than or equal to the given value.
@@ -101,7 +104,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating a `>=` comparison.
     fn __ge__(&self, value: GID) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ge(value)))
+        PyFilterExpr(Arc::new(self.0.clone().ge(value)))
     }
 
     /// Checks whether the endpoint ID is contained within the specified iterable of IDs.
@@ -112,7 +115,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating membership.
     fn is_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.is_in(values)))
+        PyFilterExpr(Arc::new(self.0.clone().is_in(values)))
     }
 
     /// Checks whether the endpoint ID is **not** contained within the specified iterable of IDs.
@@ -123,7 +126,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating non-membership.
     fn is_not_in(&self, values: FromIterable<GID>) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.is_not_in(values)))
+        PyFilterExpr(Arc::new(self.0.clone().is_not_in(values)))
     }
 
     /// Checks whether the string representation of the endpoint ID starts with the given prefix.
@@ -134,7 +137,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating prefix matching.
     fn starts_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.starts_with(value)))
+        PyFilterExpr(Arc::new(self.0.clone().starts_with(value)))
     }
 
     /// Checks whether the string representation of the endpoint ID ends with the given suffix.
@@ -145,7 +148,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating suffix matching.
     fn ends_with(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.ends_with(value)))
+        PyFilterExpr(Arc::new(self.0.clone().ends_with(value)))
     }
 
     /// Checks whether the string representation of the endpoint ID contains the given substring.
@@ -156,7 +159,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating substring search.
     fn contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.contains(value)))
+        PyFilterExpr(Arc::new(self.0.clone().contains(value)))
     }
 
     /// Checks whether the string representation of the endpoint ID **does not** contain the given substring.
@@ -167,7 +170,7 @@ impl PyEdgeEndpointIdFilterBuilder {
     /// Returns:
     ///     filter.FilterExpr: A filter expression evaluating substring exclusion.
     fn not_contains(&self, value: String) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.not_contains(value)))
+        PyFilterExpr(Arc::new(self.0.clone().not_contains(value)))
     }
 
     /// Performs fuzzy matching against the string representation of the endpoint ID.
@@ -187,7 +190,7 @@ impl PyEdgeEndpointIdFilterBuilder {
         levenshtein_distance: usize,
         prefix_match: bool,
     ) -> PyFilterExpr {
-        PyFilterExpr(Arc::new(self.0.fuzzy_search(
+        PyFilterExpr(Arc::new(self.0.clone().fuzzy_search(
             value,
             levenshtein_distance,
             prefix_match,

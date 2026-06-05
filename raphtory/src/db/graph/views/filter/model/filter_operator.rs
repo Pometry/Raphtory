@@ -86,6 +86,24 @@ impl Comparable for Prop {
     }
 }
 
+impl Comparable for GID {
+    fn binary_cmp(op: &BinaryOp, left: &GID, right: &GID) -> bool {
+        match (left, right) {
+            (GID::U64(l), GID::U64(r)) => match op {
+                BinaryOp::Eq => l == r,
+                BinaryOp::Ne => l != r,
+                BinaryOp::Lt => l < r,
+                BinaryOp::Le => l <= r,
+                BinaryOp::Gt => l > r,
+                BinaryOp::Ge => l >= r,
+                _ => false,
+            },
+            (GID::Str(l), GID::Str(r)) => String::binary_cmp(op, l, r),
+            _ => matches!(op, BinaryOp::Ne),
+        }
+    }
+}
+
 impl<T: Comparable> Comparable for Option<T> {
     fn binary_cmp(op: &BinaryOp, left: &Option<T>, right: &Option<T>) -> bool {
         match (left, right) {

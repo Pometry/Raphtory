@@ -2,7 +2,7 @@ use crate::{
     db::{
         api::{
             properties::PropertiesOps,
-            state::ops::{Const, Degree, Name, NodeOp, Type},
+            state::ops::{Const, Degree, Id, Name, NodeOp, Type},
             view::{internal::GraphView, NodeViewOps},
         },
         graph::views::filter::{
@@ -19,7 +19,7 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, VID},
+    entities::{properties::prop::Prop, GID, VID},
     storage::arc_str::ArcStr,
     Direction,
 };
@@ -198,6 +198,18 @@ impl NodeExpr for Name {
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
         Ok(Arc::new(Name))
+    }
+}
+
+/// `Id` from `db/api/state/ops/node.rs` used as a node expression.
+impl NodeExpr for Id {
+    type Output = GID;
+
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        _graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = GID> + 'g>, GraphError> {
+        Ok(Arc::new(Id))
     }
 }
 

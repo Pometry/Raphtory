@@ -1,7 +1,7 @@
 use crate::{
     db::{
         api::{
-            state::ops::NotANodeFilter,
+            state::ops::{Id, NotANodeFilter},
             view::{internal::GraphView, BoxableGraphView},
         },
         graph::views::filter::{
@@ -16,10 +16,9 @@ use crate::{
                 layered_filter::Layered,
                 node_filter::{
                     builders::{
-                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
-                        NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
+                        InternalNodeFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder,
                     },
-                    CompositeNodeFilter, NodeFilter,
+                    CompositeNodeFilter, NodeFilter, NodeIdFilter,
                 },
                 property_filter::{
                     builders::{
@@ -39,7 +38,7 @@ use crate::{
     errors::GraphError,
     prelude::GraphViewOps,
 };
-use raphtory_api::core::storage::timeindex::EventTime;
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime};
 use std::{fmt, fmt::Display, sync::Arc};
 
 // User facing entry for building edge filters.
@@ -156,7 +155,7 @@ impl<T> EdgeEndpointWrapper<T> {
 
 impl EdgeEndpointWrapper<NodeFilter> {
     #[inline]
-    pub fn id(&self) -> EdgeEndpointWrapper<NodeIdFilterBuilder> {
+    pub fn id(&self) -> EdgeEndpointWrapper<Id> {
         EdgeEndpointWrapper::new(NodeFilter::id(), self.endpoint)
     }
 
@@ -168,6 +167,73 @@ impl EdgeEndpointWrapper<NodeFilter> {
     #[inline]
     pub fn node_type(&self) -> EdgeEndpointWrapper<NodeTypeFilterBuilder> {
         EdgeEndpointWrapper::new(NodeTypeFilterBuilder, self.endpoint)
+    }
+}
+
+impl EdgeEndpointWrapper<Id> {
+    pub fn eq(self, value: impl Into<GID>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.eq(value))
+    }
+
+    pub fn ne(self, value: impl Into<GID>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.ne(value))
+    }
+
+    pub fn lt(self, value: impl Into<GID>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.lt(value))
+    }
+
+    pub fn le(self, value: impl Into<GID>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.le(value))
+    }
+
+    pub fn gt(self, value: impl Into<GID>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.gt(value))
+    }
+
+    pub fn ge(self, value: impl Into<GID>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.ge(value))
+    }
+
+    pub fn starts_with(self, s: impl Into<String>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.starts_with(s))
+    }
+
+    pub fn ends_with(self, s: impl Into<String>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.ends_with(s))
+    }
+
+    pub fn contains(self, s: impl Into<String>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.contains(s))
+    }
+
+    pub fn not_contains(self, s: impl Into<String>) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.not_contains(s))
+    }
+
+    pub fn fuzzy_search(
+        self,
+        s: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> EdgeEndpointWrapper<NodeIdFilter> {
+        self.map(|id| id.fuzzy_search(s, levenshtein_distance, prefix_match))
+    }
+
+    pub fn is_in<I, T>(self, values: I) -> EdgeEndpointWrapper<NodeIdFilter>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<GID>,
+    {
+        self.map(|id| id.is_in(values))
+    }
+
+    pub fn is_not_in<I, T>(self, values: I) -> EdgeEndpointWrapper<NodeIdFilter>
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<GID>,
+    {
+        self.map(|id| id.is_not_in(values))
     }
 }
 
@@ -183,12 +249,6 @@ impl<M> Wrap for EdgeEndpointWrapper<M> {
 }
 
 impl<T> ComposableFilter for EdgeEndpointWrapper<T> where T: TryAsCompositeFilter + Clone {}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for EdgeEndpointWrapper<T> {
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
 
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for EdgeEndpointWrapper<T> {
     type FilterType = T::FilterType;

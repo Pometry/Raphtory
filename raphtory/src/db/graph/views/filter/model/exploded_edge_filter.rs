@@ -15,8 +15,7 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
-                    builders::{InternalNodeFilterBuilder, InternalNodeIdFilterBuilder},
-                    CompositeNodeFilter, NodeFilter,
+                    builders::InternalNodeFilterBuilder, CompositeNodeFilter, NodeFilter,
                 },
                 property_filter::{
                     builders::{
@@ -149,14 +148,6 @@ impl<M> Wrap for ExplodedEdgeEndpointWrapper<M> {
             inner,
             endpoint: self.endpoint,
         }
-    }
-}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder
-    for ExplodedEdgeEndpointWrapper<T>
-{
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
     }
 }
 

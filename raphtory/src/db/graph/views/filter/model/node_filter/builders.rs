@@ -5,16 +5,6 @@ use crate::db::graph::views::filter::model::{
 };
 use std::{ops::Deref, sync::Arc};
 
-pub trait InternalNodeIdFilterBuilder: Send + Sync + Wrap {
-    fn field_name(&self) -> &'static str;
-}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Arc<T> {
-    fn field_name(&self) -> &'static str {
-        self.deref().field_name()
-    }
-}
-
 pub trait InternalNodeFilterBuilder: Send + Sync + Wrap {
     type FilterType: From<Filter>;
     fn field_name(&self) -> &'static str;
@@ -25,24 +15,6 @@ impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Arc<T> {
 
     fn field_name(&self) -> &'static str {
         self.deref().field_name()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct NodeIdFilterBuilder;
-
-impl Wrap for NodeIdFilterBuilder {
-    type Wrapped<T> = T;
-
-    fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
-        value
-    }
-}
-
-impl InternalNodeIdFilterBuilder for NodeIdFilterBuilder {
-    #[inline]
-    fn field_name(&self) -> &'static str {
-        "node_id"
     }
 }
 

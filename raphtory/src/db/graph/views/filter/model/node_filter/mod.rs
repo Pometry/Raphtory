@@ -7,7 +7,7 @@ use crate::{
                         AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
                         OrOp,
                     },
-                    Name, NodeOp, Type, TypeId,
+                    Id, Name, NodeOp, Type, TypeId,
                 },
                 NodeStateValue, TypedNodeState,
             },
@@ -21,7 +21,7 @@ use crate::{
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_expr::{DegreeExpr, Metadata, Property},
-                node_filter::{builders::NodeIdFilterBuilder, validate::validate},
+                node_filter::validate::validate,
                 node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
@@ -37,7 +37,7 @@ use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, PropertyFilter},
 };
-use raphtory_api::core::{storage::timeindex::EventTime, Direction};
+use raphtory_api::core::{entities::GID, storage::timeindex::EventTime, Direction};
 use std::{fmt, fmt::Display, sync::Arc};
 
 pub mod builders;
@@ -55,8 +55,8 @@ impl From<NodeFilter> for EntityMarker {
 
 impl NodeFilter {
     #[inline]
-    pub fn id() -> NodeIdFilterBuilder {
-        NodeIdFilterBuilder
+    pub fn id() -> Id {
+        Id
     }
 
     /// Selects the node name field for filtering.
@@ -226,6 +226,78 @@ impl TryAsCompositeFilter for NodeIdFilter {
         &self,
     ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
         Err(GraphError::NotSupported)
+    }
+}
+
+impl Id {
+    pub fn eq(self, value: impl Into<GID>) -> NodeIdFilter {
+        NodeIdFilter(Filter::eq_id("node_id", value))
+    }
+
+    pub fn ne(self, value: impl Into<GID>) -> NodeIdFilter {
+        NodeIdFilter(Filter::ne_id("node_id", value))
+    }
+
+    pub fn lt(self, value: impl Into<GID>) -> NodeIdFilter {
+        NodeIdFilter(Filter::lt("node_id", value))
+    }
+
+    pub fn le(self, value: impl Into<GID>) -> NodeIdFilter {
+        NodeIdFilter(Filter::le("node_id", value))
+    }
+
+    pub fn gt(self, value: impl Into<GID>) -> NodeIdFilter {
+        NodeIdFilter(Filter::gt("node_id", value))
+    }
+
+    pub fn ge(self, value: impl Into<GID>) -> NodeIdFilter {
+        NodeIdFilter(Filter::ge("node_id", value))
+    }
+
+    pub fn starts_with(self, s: impl Into<String>) -> NodeIdFilter {
+        NodeIdFilter(Filter::starts_with("node_id", s))
+    }
+
+    pub fn ends_with(self, s: impl Into<String>) -> NodeIdFilter {
+        NodeIdFilter(Filter::ends_with("node_id", s))
+    }
+
+    pub fn contains(self, s: impl Into<String>) -> NodeIdFilter {
+        NodeIdFilter(Filter::contains("node_id", s))
+    }
+
+    pub fn not_contains(self, s: impl Into<String>) -> NodeIdFilter {
+        NodeIdFilter(Filter::not_contains("node_id", s))
+    }
+
+    pub fn fuzzy_search(
+        self,
+        s: impl Into<String>,
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    ) -> NodeIdFilter {
+        NodeIdFilter(Filter::fuzzy_search(
+            "node_id",
+            s,
+            levenshtein_distance,
+            prefix_match,
+        ))
+    }
+
+    pub fn is_in<I, T>(self, values: I) -> NodeIdFilter
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<GID>,
+    {
+        NodeIdFilter(Filter::is_in_id("node_id", values))
+    }
+
+    pub fn is_not_in<I, T>(self, values: I) -> NodeIdFilter
+    where
+        I: IntoIterator<Item = T>,
+        T: Into<GID>,
+    {
+        NodeIdFilter(Filter::is_not_in_id("node_id", values))
     }
 }
 

@@ -10,9 +10,7 @@ use crate::{
                     is_deleted_filter::IsDeletedEdge,
                     is_self_loop_filter::IsSelfLoopEdge,
                     is_valid_filter::IsValidEdge,
-                    node_filter::builders::{
-                        InternalNodeFilterBuilder, InternalNodeIdFilterBuilder,
-                    },
+                    node_filter::builders::InternalNodeFilterBuilder,
                     property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
                     CompositeNodeFilter, EdgeViewFilterOps, InternalPropertyFilterBuilder,
@@ -72,12 +70,6 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
 impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Layered<T> {
     type FilterType = T::FilterType;
 
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalNodeIdFilterBuilder> InternalNodeIdFilterBuilder for Layered<T> {
     fn field_name(&self) -> &'static str {
         self.inner.field_name()
     }
