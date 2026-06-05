@@ -8,6 +8,8 @@ use crate::db::{
 };
 use std::{ops::Deref, sync::Arc};
 
+// TODO: remove this trait (and NodeFilterOps, NodeNameFilter, NodeTypeFilter, the search executors)
+// when the Tantivy search feature is removed.
 pub trait InternalNodeFilterBuilder: Send + Sync + Wrap {
     type FilterType: From<Filter>;
     fn field_name(&self) -> &'static str;
