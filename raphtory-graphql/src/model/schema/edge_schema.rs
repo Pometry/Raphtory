@@ -102,6 +102,8 @@ fn collect_schema<P: PropertiesOps>(
             // skip properties not in the layer schema
             // FIXME: Is this even necessary?
             // `edge.properties()` should only return properties present somewhere in the graph (by definition)
+            // For PropertyRedactedGraph, hidden properties are filtered out by InternalTemporalPropertiesOps
+            // and InternalMetadataOps. I think the layer_schema is useless here.
             if (is_metadata && !layer_schema.contains_metadata(id))
                 || (!is_metadata && !layer_schema.contains_temporal(id))
             {
