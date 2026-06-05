@@ -1,5 +1,5 @@
 use crate::{
-    auth::{Access, ContextValidation},
+    auth::ContextValidation,
     auth_policy::{AuthorizationPolicy, NamespacePermission},
     data::{parent_namespace, require_graph_write, Data, GqlGraphType, PermissionError},
     model::{
@@ -120,7 +120,7 @@ fn auto_grant_on_create(
     ctx: &Context<'_>,
     policy: &Option<Arc<dyn AuthorizationPolicy>>,
     path: &str,
-) -> async_graphql::Result<()> {
+) -> Result<()> {
     if let Some(policy) = policy {
         policy.on_graph_created(ctx, path)?;
     }
@@ -133,7 +133,7 @@ fn require_namespace_write(
     ns_path: &str,
     new_path: &str,
     operation: &str,
-) -> async_graphql::Result<()> {
+) -> Result<()> {
     match policy {
         None => ctx.require_jwt_write_access().map_err(Into::into),
         Some(p) => {

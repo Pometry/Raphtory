@@ -2,25 +2,44 @@ use clap::ValueEnum;
 use opentelemetry::KeyValue;
 use opentelemetry_otlp::{SpanExporter, WithExportConfig};
 use opentelemetry_sdk::{
-    runtime,
-    trace::{Sampler, TracerProvider},
+    trace::{Sampler, SdkTracerProvider},
     Resource,
 };
 use serde::Deserialize;
 use std::time::Duration;
 use strum::IntoEnumIterator;
-use strum_macros::{Display, EnumIter, EnumString};
+use strum_macros::{Display, EnumIter, EnumString, IntoStaticStr};
 
 pub const DEFAULT_TRACING_ENABLED: bool = false;
 
 #[derive(
-    Clone, Debug, Deserialize, PartialEq, serde::Serialize, EnumIter, EnumString, Display, ValueEnum,
+    Clone,
+    Debug,
+    Deserialize,
+    PartialEq,
+    serde::Serialize,
+    EnumIter,
+    EnumString,
+    Display,
+    ValueEnum,
+    IntoStaticStr,
 )]
 #[clap(rename_all = "UPPERCASE")]
+#[serde(try_from = "String")]
+#[serde(into = "&str")]
+#[strum(ascii_case_insensitive)]
 pub enum TracingLevel {
     COMPLETE,
     ESSENTIAL,
     MINIMAL,
+}
+
+impl TryFrom<String> for TracingLevel {
+    type Error = strum::ParseError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::try_from(value.as_str())
+    }
 }
 
 impl TracingLevel {
@@ -73,7 +92,7 @@ impl Default for TracingConfig {
 }
 
 impl TracingConfig {
-    pub fn tracer_provider(&self) -> std::io::Result<Option<TracerProvider>> {
+    pub fn tracer_provider(&self) -> std::io::Result<Option<SdkTracerProvider>> {
         if self.tracing_enabled {
             if !self.otlp_agent_host.starts_with("http://")
                 && !self.otlp_agent_host.starts_with("https://")
@@ -97,13 +116,17 @@ impl TracingConfig {
                 .build()
             {
                 Ok(exporter) => {
-                    let tracer_provider = TracerProvider::builder()
-                        .with_batch_exporter(exporter, runtime::Tokio)
+                    let tracer_provider = SdkTracerProvider::builder()
+                        .with_batch_exporter(exporter)
                         .with_sampler(Sampler::AlwaysOn)
-                        .with_resource(Resource::new(vec![KeyValue::new(
-                            "service.name",
-                            self.otlp_tracing_service_name.clone(),
-                        )]))
+                        .with_resource(
+                            Resource::builder()
+                                .with_attributes(vec![KeyValue::new(
+                                    "service.name",
+                                    self.otlp_tracing_service_name.clone(),
+                                )])
+                                .build(),
+                        )
                         .build();
                     println!(
                         // info!() here does not work since tracing is not enabled yet

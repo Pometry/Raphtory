@@ -34,7 +34,6 @@ use std::sync::Arc;
 ///     Node.id().is_in([1, 2, 3])
 ///     Node.id().starts_with("user:")
 #[pyclass(frozen, name = "NodeIdFilterBuilder", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeIdFilterBuilder(Arc<NodeIdFilterBuilder>);
 
 #[pymethods]
@@ -216,7 +215,6 @@ impl PyNodeIdFilterBuilder {
 ///     Node.name() == "alice"
 ///     Node.name().contains("ali")
 #[pyclass(frozen, name = "NodeNameFilterBuilder", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeNameFilterBuilder(Arc<NodeNameFilterBuilder>);
 
 /// Filters nodes by their node type.
@@ -227,7 +225,6 @@ pub struct PyNodeNameFilterBuilder(Arc<NodeNameFilterBuilder>);
 ///     Node.node_type() == "fire_nation"
 ///     Node.node_type().is_not_in(["air_nomads"])
 #[pyclass(frozen, name = "NodeTypeFilterBuilder", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeTypeFilterBuilder(Arc<NodeTypeFilterBuilder>);
 
 #[macro_export]
@@ -371,7 +368,6 @@ impl_node_text_filter_builder!(PyNodeTypeFilterBuilder);
 /// - a view-restricted filter context, or
 /// - a boolean predicate over node state.
 #[pyclass(frozen, name = "Node", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyNodeFilter;
 
 #[pymethods]

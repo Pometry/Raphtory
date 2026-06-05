@@ -44,7 +44,6 @@ walkdir = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 url = { workspace = true }
-base64-compat = { workspace = true }
 reqwest = { workspace = true }
 rustc-hash = { workspace = true }
 rayon = { workspace = true }

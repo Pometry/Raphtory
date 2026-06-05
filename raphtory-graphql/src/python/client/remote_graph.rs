@@ -19,7 +19,7 @@ use raphtory_api::core::{
 use std::{collections::HashMap, sync::Arc};
 
 #[derive(Clone)]
-#[pyclass(name = "RemoteGraph", module = "raphtory.graphql")]
+#[pyclass(name = "RemoteGraph", module = "raphtory.graphql", from_py_object)]
 pub struct PyRemoteGraph {
     pub(crate) graph: Arc<GraphQLRemoteGraph>,
 }

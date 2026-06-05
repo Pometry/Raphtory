@@ -184,7 +184,7 @@ fn parse_email_timestamp(timestamp: &str) -> PyResult<EventTime> {
 /// Arguments:
 ///     timestamp (int | float | datetime | str): A time input convertible to an EventTime.
 ///     event_id (int | float | datetime | str | None): Optionally, specify the event id. Defaults to None.
-#[pyclass(name = "EventTime", module = "raphtory", frozen)]
+#[pyclass(name = "EventTime", module = "raphtory", frozen, from_py_object)]
 #[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyEventTime {
     time: EventTime,
@@ -354,8 +354,13 @@ impl From<PyEventTime> for EventTime {
 /// If data is contained, OptionalEventTime instances can be used similarly to EventTime.
 /// If empty, time operations (such as .t, .dt, .event_id) will return None.
 /// An empty OptionalEventTime is considered smaller than (<) any EventTime or OptionalEventTime with data.
-#[pyclass(name = "OptionalEventTime", module = "raphtory", frozen)]
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Ord, PartialOrd, Eq)]
+#[pyclass(
+    name = "OptionalEventTime",
+    module = "raphtory",
+    frozen,
+    from_py_object
+)]
+#[derive(Debug, Copy, Clone, Serialize, PartialEq, Ord, PartialOrd, Eq)]
 pub struct PyOptionalEventTime {
     inner: Option<EventTime>,
 }

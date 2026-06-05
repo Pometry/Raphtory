@@ -87,7 +87,7 @@ minijinja-contrib = { workspace = true, optional = true }
 heed = { workspace = true, optional = true }
 moka = { workspace = true, optional = true, features = ["future"] }
 lancedb = { workspace = true, optional = true }
-axum = "0.8.4" # TODO put this in the proper place and make optional
+axum = { workspace = true, optional = true } # TODO put this in the proper place and make optional
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -98,23 +98,18 @@ tempfile = { workspace = true, optional = true }
 pyo3-arrow = { workspace = true, optional = true }
 pythonize = { workspace = true, optional = true }
 
-# test utils
-proptest = { workspace = true, optional = true }
-proptest-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 csv = { workspace = true }
-pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true } # for vector testing
 dotenv = { workspace = true } # for vector testing
 streaming-stats = { workspace = true }
 indoc = { workspace = true }
 proptest.workspace = true
-proptest-derive.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-tikv-jemallocator = "0.6.1"
+tikv-jemallocator.workspace = true
 
 [features]
 default = [] # we can't depend on ourselves but we want to share test-utils
@@ -151,6 +146,7 @@ vectors = [
     "dep:lancedb",
     "dep:tokio", # also used for the io feature
     "dep:tempfile", # also used for the storage feature
+    "dep:axum"
 ]
 
 # Enables generating the pyo3 python bindings

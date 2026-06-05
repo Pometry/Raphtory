@@ -76,7 +76,7 @@ use std::{
 };
 
 /// A node (or node) in the graph.
-#[pyclass(name = "Node", subclass, module = "raphtory", frozen)]
+#[pyclass(name = "Node", subclass, module = "raphtory", frozen, from_py_object)]
 #[derive(Clone)]
 pub struct PyNode {
     pub node: NodeView<'static, DynamicGraph>,
@@ -444,7 +444,7 @@ impl PyMutableNode {
 
 /// A list of nodes that can be iterated over.
 #[derive(Clone)]
-#[pyclass(name = "Nodes", module = "raphtory", frozen)]
+#[pyclass(name = "Nodes", module = "raphtory", frozen, from_py_object)]
 pub struct PyNodes {
     pub(crate) nodes: Nodes<'static, DynamicGraph, DynamicGraph, DynNodeFilter>,
 }

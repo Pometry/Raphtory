@@ -16,7 +16,7 @@ use crate::{
 use config::ConfigError;
 use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
+use opentelemetry_sdk::trace::{SdkTracerProvider as TP, Tracer};
 use poem::{
     get,
     listener::{Acceptor, Listener, TcpListener},

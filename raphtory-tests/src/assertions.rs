@@ -2,7 +2,7 @@ use raphtory::{
     db::api::view::{filter_ops::Filter, StaticGraphViewOps},
     prelude::{EdgeViewOps, Graph, GraphViewOps, NodeViewOps},
 };
-use std::{ops::Range, thread, time::Duration};
+use std::ops::Range;
 
 #[cfg(feature = "search")]
 use raphtory::prelude::{IndexMutationOps, SearchableGraphOps};
