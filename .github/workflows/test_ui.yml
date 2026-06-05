@@ -19,8 +19,8 @@ jobs:
       fail-fast: false
       matrix:
         python: ${{ fromJson(needs.select-strategy.outputs.python-versions) }}
-        browser: [chromium, firefox]
-        shard: [1, 2, 3]
+        browser: [ chromium, firefox ]
+        shard: [ 1, 2, 3 ]
     runs-on: windows-latest
     env:
       NUM_SHARDS: 3
@@ -30,8 +30,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         name: Checkout
-        with:
-          ref: ${{ github.head_ref }}
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Server-Media-Foundation (firefox needs it on Windows Server)
