@@ -516,7 +516,138 @@ mod graphql_test {
         );
     }
 
-   #[tokio::test]
+    fn degree_graph_with_add_node_and_add_edge() -> Graph {
+        let graph = degree_graph_with_add_edge_only();
+        let add_nodes = [
+            (0, "1", Some("layer_a")),
+            (0, "7", None),
+            (0, "8", None),
+            (3, "9", Some("layer_a")),
+            (4, "9", Some("layer_c")),
+            (5, "10", Some("layer_b")),
+            (6, "10", Some("layer_e")),
+            (7, "11", Some("layer_d")),
+            (8, "12", Some("layer_f")),
+            (9, "12", Some("layer_c")),
+        ];
+        for (t, id, layer) in add_nodes {
+            graph.add_node(t, id, NO_PROPS, None, layer).unwrap();
+        }
+        graph
+    }
+
+
+    fn degree_graph_with_add_edge_only() -> Graph {
+        let graph = Graph::new();
+
+        let edges = [
+            (1, "1", "2", "layer_a"),
+            (1, "1", "3", "layer_b"),
+            (1, "1", "4", "layer_a"),
+            (1, "1", "5", "layer_b"),
+            (1, "1", "6", "layer_a"),
+            (2, "2", "1", "layer_b"),
+            (2, "2", "3", "layer_a"),
+            (2, "2", "4", "layer_b"),
+            (2, "2", "5", "layer_a"),
+            (3, "3", "1", "layer_a"),
+            (3, "3", "4", "layer_b"),
+            (3, "3", "5", "layer_a"),
+            (4, "4", "1", "layer_b"),
+            (4, "4", "2", "layer_a"),
+            (5, "5", "1", "layer_b"),
+            (6, "6", "1", "layer_a"),
+            (6, "4", "3", "layer_b"),
+            (6, "5", "2", "layer_a"),
+            (6, "6", "2", "layer_b"),
+            (6, "5", "3", "layer_a"),
+            (7, "2", "6", "layer_c"),
+            (7, "3", "6", "layer_d"),
+            (7, "6", "4", "layer_e"),
+            (7, "1", "5", "layer_f"),
+            (8, "3", "2", "layer_c"),
+            (8, "4", "6", "layer_d"),
+            (8, "2", "5", "layer_e"),
+            (8, "6", "3", "layer_f"),
+            (9, "5", "4", "layer_c"),
+            (9, "4", "5", "layer_d"),
+            (9, "2", "4", "layer_e"),
+            (9, "3", "1", "layer_f"),
+        ];
+        for (t, src, dst, layer) in edges {
+            graph.add_edge(t, src, dst, NO_PROPS, Some(layer)).unwrap();
+        }
+
+        graph
+    }
+
+    #[tokio::test]
+    async fn test_degree_filter_nodes_and_select_gql() {
+        let graph: MaterializedGraph = degree_graph_with_add_node_and_add_edge().into();
+        let setup = setup_with_graphs(&[("g", graph)]).await;
+
+        let query = r#"
+        {
+          graph(path: "g") {
+            filterNodes(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+              nodes {
+                list {
+                  name
+                }
+              }
+            }
+            nodes {
+              select(expr: { degree: { direction: BOTH, where: { gt: { u64: 0 } } } }) {
+                list {
+                  name
+                }
+              }
+            }
+          }
+        }
+        "#;
+
+        let res = setup.schema.execute(Request::new(query)).await;
+        assert_eq!(res.errors, vec![], "{:?}", res.errors);
+
+        let data = json_sort_by_name(res.data.into_json().unwrap());
+
+        assert_eq!(
+            data,
+            json!({
+                "graph": {
+                    "filterNodes": {
+                        "nodes": {
+                            "list": [
+                                { "name": "1" },
+                                { "name": "2" },
+                                { "name": "3" },
+                                { "name": "4" },
+                                { "name": "5" },
+                                { "name": "6" }
+                            ]
+                        }
+                    },
+                    "nodes": {
+                        "select": {
+                            "list": [
+                                { "name": "1" },
+                                { "name": "2" },
+                                { "name": "3" },
+                                { "name": "4" },
+                                { "name": "5" },
+                                { "name": "6" }
+                            ]
+                        }
+                    }
+                }
+            })
+        );
+    }
+
+    
+
+    #[tokio::test]
     async fn test_unique_temporal_properties() {
         let g = Graph::new();
         g.add_metadata([("name", "graph")]).unwrap();
