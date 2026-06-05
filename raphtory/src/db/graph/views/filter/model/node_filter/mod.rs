@@ -15,12 +15,12 @@ use crate::{
         },
         graph::views::filter::{
             model::{
-                attribute::{DegreeExpr, Metadata, Property},
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
+                node_expr::{DegreeExpr, Metadata, Property},
                 node_filter::{builders::NodeIdFilterBuilder, validate::validate},
                 node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},

@@ -29,16 +29,16 @@ pub use crate::{
         graph::views::{
             filter::{
                 model::{
-                    attribute::{
-                        BinOpNodeFilter, Comparable, ConstExpr, DegreeExpr, Metadata, NodeExpr,
-                        NodeExprFilterOps, Property, SetNodeFilter, UnaryNodeFilter, Unwrap,
-                    },
                     edge_filter::{EdgeEndpointWrapper, EdgeFilter},
                     exploded_edge_filter::{
                         CompositeExplodedEdgeFilter, ExplodedEdgeEndpointWrapper,
                         ExplodedEdgeFilter,
                     },
-                    filter_operator::{BinaryOp, FilterOperator, SetOp, UnaryOp},
+                    filter_operator::{BinaryOp, Comparable, FilterOperator, SetOp, UnaryOp},
+                    node_expr::{
+                        BinOpNodeFilter, ConstExpr, DegreeExpr, Metadata, NodeExpr,
+                        NodeExprFilterOps, Property, SetNodeFilter, UnaryNodeFilter,
+                    },
                     node_filter::{NodeFilter, NodeNameFilter, NodeTypeFilter},
                     not_filter::NotFilter,
                     or_filter::OrFilter,
@@ -60,7 +60,6 @@ use raphtory_api::core::{
 use std::{ops::Deref, sync::Arc};
 
 pub mod and_filter;
-pub mod attribute;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
@@ -74,6 +73,7 @@ pub mod is_self_loop_filter;
 pub mod is_valid_filter;
 pub mod latest_filter;
 pub mod layered_filter;
+pub mod node_expr;
 pub mod node_filter;
 pub mod node_state_filter;
 pub mod not_filter;

@@ -2,9 +2,9 @@ use crate::{
     db::{
         api::state::ops::{Name, Type},
         graph::views::filter::model::{
-            attribute::NodeExprFilterOps,
+            node_expr::NodeExprFilterOps,
             node_filter::{
-                builders::NodeIdFilterBuilder,
+                builders::{NodeIdFilterBuilder, NodeNameFilterBuilder},
                 ops::{NodeFilterOps, NodeIdFilterOps},
                 NodeFilter,
             },
@@ -249,16 +249,6 @@ macro_rules! impl_node_text_filter_builder {
                 PyFilterExpr(Arc::new($expr.ne(value)))
             }
 
-            fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-                let vals: Vec<String> = values.into_iter().collect();
-                PyFilterExpr(Arc::new($expr.is_in(vals)))
-            }
-
-            fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
-                let vals: Vec<String> = values.into_iter().collect();
-                PyFilterExpr(Arc::new($expr.is_not_in(vals)))
-            }
-
             fn starts_with(&self, value: String) -> PyFilterExpr {
                 PyFilterExpr(Arc::new($expr.starts_with(value)))
             }
@@ -292,6 +282,19 @@ macro_rules! impl_node_text_filter_builder {
 }
 
 impl_node_text_filter_builder!(PyNodeNameFilterBuilder, Name);
+
+#[pymethods]
+impl PyNodeNameFilterBuilder {
+    fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        let vals: Vec<String> = values.into_iter().collect();
+        PyFilterExpr(Arc::new(NodeNameFilterBuilder.is_in(vals)))
+    }
+
+    fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+        let vals: Vec<String> = values.into_iter().collect();
+        PyFilterExpr(Arc::new(NodeNameFilterBuilder.is_not_in(vals)))
+    }
+}
 
 #[pymethods]
 impl PyNodeTypeFilterBuilder {

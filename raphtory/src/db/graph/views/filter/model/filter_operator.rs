@@ -1,9 +1,100 @@
 use crate::db::graph::views::filter::model::{
     filter::FieldFilterValue, filter_value::FilterValue, property_filter::PropertyFilterValue,
 };
-use raphtory_api::core::entities::{properties::prop::Prop, GidRef, GID};
+use raphtory_api::core::{
+    entities::{properties::prop::Prop, GidRef, GID},
+    storage::arc_str::ArcStr,
+};
 use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comparable — type-driven value comparison for BinOpNodeOp
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub trait Comparable: Clone + Send + Sync + 'static {
+    fn binary_cmp(op: &BinaryOp, left: &Self, right: &Self) -> bool;
+}
+
+impl Comparable for usize {
+    fn binary_cmp(op: &BinaryOp, left: &usize, right: &usize) -> bool {
+        match op {
+            BinaryOp::Eq => left == right,
+            BinaryOp::Ne => left != right,
+            BinaryOp::Lt => left < right,
+            BinaryOp::Le => left <= right,
+            BinaryOp::Gt => left > right,
+            BinaryOp::Ge => left >= right,
+            _ => false,
+        }
+    }
+}
+
+macro_rules! impl_comparable_str {
+    ($ty:ty) => {
+        impl Comparable for $ty {
+            fn binary_cmp(op: &BinaryOp, left: &$ty, right: &$ty) -> bool {
+                let (l, r): (&str, &str) = (left, right);
+                match op {
+                    BinaryOp::Eq => l == r,
+                    BinaryOp::Ne => l != r,
+                    BinaryOp::Lt => l < r,
+                    BinaryOp::Le => l <= r,
+                    BinaryOp::Gt => l > r,
+                    BinaryOp::Ge => l >= r,
+                    BinaryOp::StartsWith => l.starts_with(r),
+                    BinaryOp::EndsWith => l.ends_with(r),
+                    BinaryOp::Contains => l.contains(r),
+                    BinaryOp::NotContains => !l.contains(r),
+                    BinaryOp::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => {
+                        let l = l.to_lowercase();
+                        let r = r.to_lowercase();
+                        let lev = levenshtein(&r, &l) <= *levenshtein_distance;
+                        let prefix = *prefix_match && l.as_str().starts_with(r.as_str());
+                        lev || prefix
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_comparable_str!(String);
+impl_comparable_str!(ArcStr);
+
+impl Comparable for Prop {
+    fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
+        use std::cmp::Ordering::*;
+        match op {
+            BinaryOp::Eq => left == right,
+            BinaryOp::Ne => left != right,
+            BinaryOp::Lt => left.partial_cmp(right).map(|o| o == Less).unwrap_or(false),
+            BinaryOp::Le => left
+                .partial_cmp(right)
+                .map(|o| o != Greater)
+                .unwrap_or(false),
+            BinaryOp::Gt => left
+                .partial_cmp(right)
+                .map(|o| o == Greater)
+                .unwrap_or(false),
+            BinaryOp::Ge => left.partial_cmp(right).map(|o| o != Less).unwrap_or(false),
+            _ => false,
+        }
+    }
+}
+
+impl<T: Comparable> Comparable for Option<T> {
+    fn binary_cmp(op: &BinaryOp, left: &Option<T>, right: &Option<T>) -> bool {
+        match (left, right) {
+            (Some(l), Some(r)) => T::binary_cmp(op, l, r),
+            (None, None) => matches!(op, BinaryOp::Eq),
+            (None, Some(_)) | (Some(_), None) => matches!(op, BinaryOp::Ne),
+        }
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Focused operator enums for the NodeExpr expression system

@@ -9,7 +9,6 @@ use crate::{
         property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
         EdgeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
     },
-    impl_node_text_filter_builder,
     python::{
         filter::{
             filter_expr::PyFilterExpr,
@@ -220,8 +219,54 @@ pub struct PyEdgeEndpointNameFilterBuilder(pub EdgeEndpointWrapper<NodeNameFilte
 #[derive(Clone)]
 pub struct PyEdgeEndpointTypeFilterBuilder(pub EdgeEndpointWrapper<NodeTypeFilterBuilder>);
 
-impl_node_text_filter_builder!(PyEdgeEndpointNameFilterBuilder);
-impl_node_text_filter_builder!(PyEdgeEndpointTypeFilterBuilder);
+macro_rules! impl_edge_text_filter_builder {
+    ($py_ty:ident) => {
+        #[pymethods]
+        impl $py_ty {
+            fn __eq__(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.eq(value)))
+            }
+            fn __ne__(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.ne(value)))
+            }
+            fn is_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+                let vals: Vec<String> = values.into_iter().collect();
+                PyFilterExpr(Arc::new(self.0.is_in(vals)))
+            }
+            fn is_not_in(&self, values: FromIterable<String>) -> PyFilterExpr {
+                let vals: Vec<String> = values.into_iter().collect();
+                PyFilterExpr(Arc::new(self.0.is_not_in(vals)))
+            }
+            fn starts_with(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.starts_with(value)))
+            }
+            fn ends_with(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.ends_with(value)))
+            }
+            fn contains(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.contains(value)))
+            }
+            fn not_contains(&self, value: String) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.not_contains(value)))
+            }
+            fn fuzzy_search(
+                &self,
+                value: String,
+                levenshtein_distance: usize,
+                prefix_match: bool,
+            ) -> PyFilterExpr {
+                PyFilterExpr(Arc::new(self.0.fuzzy_search(
+                    value,
+                    levenshtein_distance,
+                    prefix_match,
+                )))
+            }
+        }
+    };
+}
+
+impl_edge_text_filter_builder!(PyEdgeEndpointNameFilterBuilder);
+impl_edge_text_filter_builder!(PyEdgeEndpointTypeFilterBuilder);
 
 /// Entry point for filtering an edge endpoint (source or destination).
 ///

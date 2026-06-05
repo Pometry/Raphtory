@@ -8,7 +8,7 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter,
-                filter_operator::{BinaryOp, SetOp, UnaryOp},
+                filter_operator::{BinaryOp, Comparable, SetOp, UnaryOp},
                 ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
                 TryAsCompositeFilter,
             },
@@ -24,125 +24,7 @@ use raphtory_api::core::{
     Direction,
 };
 use raphtory_storage::graph::graph::GraphStorage;
-use std::{collections::HashSet, hash::Hash, sync::Arc};
-use strsim::levenshtein;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Comparable — type-driven dispatch for BinOpNodeOp
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Comparison trait used by `BinOpNodeOp` to evaluate a `BinaryOp` against two values.
-///
-/// Implemented for `usize`, `String`, `Prop`, and `Option<T: Comparable>`.
-/// The `Option` impl handles `None` symmetrically: `(None, None)` is equal,
-/// one `None` is unequal, and ordering ops return `false` when either side is `None`.
-pub trait Comparable: Clone + Send + Sync + 'static {
-    fn binary_cmp(op: &BinaryOp, left: &Self, right: &Self) -> bool;
-}
-
-impl Comparable for usize {
-    fn binary_cmp(op: &BinaryOp, left: &usize, right: &usize) -> bool {
-        match op {
-            BinaryOp::Eq => left == right,
-            BinaryOp::Ne => left != right,
-            BinaryOp::Lt => left < right,
-            BinaryOp::Le => left <= right,
-            BinaryOp::Gt => left > right,
-            BinaryOp::Ge => left >= right,
-            _ => false,
-        }
-    }
-}
-
-macro_rules! impl_comparable_str {
-    ($ty:ty) => {
-        impl Comparable for $ty {
-            fn binary_cmp(op: &BinaryOp, left: &$ty, right: &$ty) -> bool {
-                let (l, r): (&str, &str) = (left, right);
-                match op {
-                    BinaryOp::Eq => l == r,
-                    BinaryOp::Ne => l != r,
-                    BinaryOp::Lt => l < r,
-                    BinaryOp::Le => l <= r,
-                    BinaryOp::Gt => l > r,
-                    BinaryOp::Ge => l >= r,
-                    BinaryOp::StartsWith => l.starts_with(r),
-                    BinaryOp::EndsWith => l.ends_with(r),
-                    BinaryOp::Contains => l.contains(r),
-                    BinaryOp::NotContains => !l.contains(r),
-                    BinaryOp::FuzzySearch {
-                        levenshtein_distance,
-                        prefix_match,
-                    } => {
-                        let l = l.to_lowercase();
-                        let r = r.to_lowercase();
-                        let lev = levenshtein(&r, &l) <= *levenshtein_distance;
-                        let prefix = *prefix_match && l.as_str().starts_with(r.as_str());
-                        lev || prefix
-                    }
-                }
-            }
-        }
-    };
-}
-
-impl_comparable_str!(String);
-impl_comparable_str!(ArcStr);
-
-impl Comparable for Prop {
-    fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
-        use std::cmp::Ordering::*;
-        match op {
-            BinaryOp::Eq => left == right,
-            BinaryOp::Ne => left != right,
-            BinaryOp::Lt => left.partial_cmp(right).map(|o| o == Less).unwrap_or(false),
-            BinaryOp::Le => left
-                .partial_cmp(right)
-                .map(|o| o != Greater)
-                .unwrap_or(false),
-            BinaryOp::Gt => left
-                .partial_cmp(right)
-                .map(|o| o == Greater)
-                .unwrap_or(false),
-            BinaryOp::Ge => left.partial_cmp(right).map(|o| o != Less).unwrap_or(false),
-            _ => false,
-        }
-    }
-}
-
-impl<T: Comparable> Comparable for Option<T> {
-    fn binary_cmp(op: &BinaryOp, left: &Option<T>, right: &Option<T>) -> bool {
-        match (left, right) {
-            (Some(l), Some(r)) => T::binary_cmp(op, l, r),
-            (None, None) => matches!(op, BinaryOp::Eq),
-            (None, Some(_)) | (Some(_), None) => matches!(op, BinaryOp::Ne),
-        }
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Unwrap — constrains Output = Option<Inner>
-// ─────────────────────────────────────────────────────────────────────────────
-
-pub trait Unwrap {
-    type Inner;
-    fn is_some(&self) -> bool;
-    fn is_none(&self) -> bool;
-    fn unwrap_inner(self) -> Option<Self::Inner>;
-}
-
-impl<T> Unwrap for Option<T> {
-    type Inner = T;
-    fn is_some(&self) -> bool {
-        Option::is_some(self)
-    }
-    fn is_none(&self) -> bool {
-        Option::is_none(self)
-    }
-    fn unwrap_inner(self) -> Option<T> {
-        self
-    }
-}
+use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NodeExpr — typed node expression with associated Output type
@@ -150,8 +32,9 @@ impl<T> Unwrap for Option<T> {
 
 /// A typed expression that produces a value per node.
 ///
-/// `Output` carries nullability directly: `Option<Prop>` for properties that
-/// may be absent, `Option<String>` for name/type, `Option<usize>` for degree.
+/// `Output` carries nullability only where the value can genuinely be absent:
+/// `Option<Prop>` for properties/metadata, `Option<ArcStr>` for node type.
+/// Always-present values use non-optional types: `usize` for degree, `String` for name.
 ///
 /// Calling `create_node_op` resolves name→ID lookups once against the graph,
 /// returning a `NodeOp` that evaluates in O(1) per node.
@@ -174,29 +57,6 @@ pub trait NodeExpr: Clone + Send + Sync + 'static {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError>;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// OptionWrapOp<O> — adapts NodeOp<Output = T> to NodeOp<Output = Option<T>>
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Wraps an inner `NodeOp` and returns `Some(inner.apply(...))`.
-///
-/// Used by `DegreeExpr` and `Name` to produce `Option`-wrapped outputs from
-/// the existing `Degree<G>` and `Name` ops in `db/api/state/ops/node.rs`,
-/// without reimplementing their logic.
-#[derive(Clone)]
-pub(crate) struct OptionWrapOp<O>(O);
-
-impl<O: NodeOp + Clone + Send + Sync> NodeOp for OptionWrapOp<O>
-where
-    O::Output: Clone + Send + Sync + 'static,
-{
-    type Output = Option<O::Output>;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Option<O::Output> {
-        Some(self.0.apply(storage, node))
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -244,16 +104,16 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 pub struct DegreeExpr(pub Direction);
 
 impl NodeExpr for DegreeExpr {
-    type Output = Option<usize>;
+    type Output = usize;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<usize>> + 'g>, GraphError> {
-        Ok(Arc::new(OptionWrapOp(Degree {
+    ) -> Result<Arc<dyn NodeOp<Output = usize> + 'g>, GraphError> {
+        Ok(Arc::new(Degree {
             dir: self.0,
             view: graph,
-        })))
+        }))
     }
 }
 
@@ -330,17 +190,14 @@ impl NodeExpr for Type {
 }
 
 /// `Name` from `db/api/state/ops/node.rs` used as a node expression.
-///
-/// Wraps the existing `Name` op via `OptionWrapOp` so it fits the
-/// `NodeExpr<Output = Option<String>>` interface without reimplementation.
 impl NodeExpr for Name {
-    type Output = Option<String>;
+    type Output = String;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<String>> + 'g>, GraphError> {
-        Ok(Arc::new(OptionWrapOp(Name)))
+    ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
+        Ok(Arc::new(Name))
     }
 }
 
@@ -354,24 +211,24 @@ impl NodeExpr for Name {
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl NodeExpr for usize {
-    type Output = Option<usize>;
+    type Output = usize;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<usize>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(Some(*self))))
+    ) -> Result<Arc<dyn NodeOp<Output = usize> + 'g>, GraphError> {
+        Ok(Arc::new(Const(*self)))
     }
 }
 
 impl NodeExpr for String {
-    type Output = Option<String>;
+    type Output = String;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<String>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(Some(self.clone()))))
+    ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
+        Ok(Arc::new(Const(self.clone())))
     }
 }
 
@@ -387,13 +244,13 @@ impl NodeExpr for ArcStr {
 }
 
 impl NodeExpr for &'static str {
-    type Output = Option<String>;
+    type Output = String;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<String>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(Some(self.to_string()))))
+    ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
+        Ok(Arc::new(Const(self.to_string())))
     }
 }
 
@@ -487,18 +344,12 @@ impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinOpNodeOp<'
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
-pub struct UnaryNodeOp<'g, T: Unwrap + Clone + Send + Sync + 'static>
-where
-    T::Inner: Clone + Send + Sync + 'static,
-{
-    inner: Arc<dyn NodeOp<Output = T> + 'g>,
+pub struct UnaryNodeOp<'g, I: Clone + Send + Sync + 'static> {
+    inner: Arc<dyn NodeOp<Output = Option<I>> + 'g>,
     op: UnaryOp,
 }
 
-impl<'g, T: Unwrap + Clone + Send + Sync + 'static> NodeOp for UnaryNodeOp<'g, T>
-where
-    T::Inner: Clone + Send + Sync + 'static,
-{
+impl<'g, I: Clone + Send + Sync + 'static> NodeOp for UnaryNodeOp<'g, I> {
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
@@ -515,23 +366,17 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
-pub struct SetNodeOp<'g, T: Unwrap + Clone + Send + Sync + 'static>
-where
-    T::Inner: Eq + Hash + Clone + Send + Sync + 'static,
-{
-    inner: Arc<dyn NodeOp<Output = T> + 'g>,
+pub struct SetNodeOp<'g, I: Eq + Hash + Clone + Send + Sync + 'static> {
+    inner: Arc<dyn NodeOp<Output = Option<I>> + 'g>,
     op: SetOp,
-    values: Arc<HashSet<T::Inner>>,
+    values: Arc<HashSet<I>>,
 }
 
-impl<'g, T: Unwrap + Clone + Send + Sync + 'static> NodeOp for SetNodeOp<'g, T>
-where
-    T::Inner: Eq + Hash + Clone + Send + Sync + 'static,
-{
+impl<'g, I: Eq + Hash + Clone + Send + Sync + 'static> NodeOp for SetNodeOp<'g, I> {
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
-        let v = self.inner.apply(storage, node).unwrap_inner();
+        let v = self.inner.apply(storage, node);
         match self.op {
             SetOp::IsIn => v.as_ref().map(|x| self.values.contains(x)).unwrap_or(false),
             SetOp::IsNotIn => v
@@ -672,39 +517,47 @@ where
 
 /// A node filter that tests the presence of an `Option`-valued expression.
 ///
-/// Created by `.is_some()` and `.is_none()` on any `NodeExpr` whose `Output`
-/// implements `Unwrap` (i.e., is an `Option<T>`).
-pub struct UnaryNodeFilter<E: NodeExpr>
+/// Created by `.is_some()` and `.is_none()` on any `NodeExpr<Output = Option<I>>`.
+pub struct UnaryNodeFilter<E, I>
 where
-    E::Output: Unwrap,
+    E: NodeExpr<Output = Option<I>>,
+    I: Clone + Send + Sync + 'static,
 {
     pub expr: E,
     pub op: UnaryOp,
+    _phantom: PhantomData<I>,
 }
 
-impl<E: NodeExpr> Clone for UnaryNodeFilter<E>
+impl<E, I> Clone for UnaryNodeFilter<E, I>
 where
-    E::Output: Unwrap,
+    E: NodeExpr<Output = Option<I>>,
+    I: Clone + Send + Sync + 'static,
 {
     fn clone(&self) -> Self {
         Self {
             expr: self.expr.clone(),
             op: self.op,
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<E: NodeExpr> ComposableFilter for UnaryNodeFilter<E> where E::Output: Unwrap {}
-
-impl<E: NodeExpr> CreateFilter for UnaryNodeFilter<E>
+impl<E, I> ComposableFilter for UnaryNodeFilter<E, I>
 where
-    E::Output: Unwrap + Clone + Send + Sync + 'static,
-    <E::Output as Unwrap>::Inner: Clone + Send + Sync + 'static,
+    E: NodeExpr<Output = Option<I>>,
+    I: Clone + Send + Sync + 'static,
+{
+}
+
+impl<E, I> CreateFilter for UnaryNodeFilter<E, I>
+where
+    E: NodeExpr<Output = Option<I>>,
+    I: Clone + Send + Sync + 'static,
 {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, UnaryNodeOp<'graph, E::Output>>;
+        NodeFilteredGraph<G, UnaryNodeOp<'graph, I>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = UnaryNodeOp<'graph, E::Output>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = UnaryNodeOp<'graph, I>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -736,10 +589,10 @@ where
     }
 }
 
-impl<E: NodeExpr> TryAsCompositeFilter for UnaryNodeFilter<E>
+impl<E, I> TryAsCompositeFilter for UnaryNodeFilter<E, I>
 where
-    E::Output: Unwrap + Clone + Send + Sync + 'static,
-    <E::Output as Unwrap>::Inner: Clone + Send + Sync + 'static,
+    E: NodeExpr<Output = Option<I>>,
+    I: Clone + Send + Sync + 'static,
 {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
@@ -764,43 +617,48 @@ where
 /// expression is contained in (or absent from) a fixed set.
 ///
 /// Created by `.is_in(values)` and `.is_not_in(values)`.
-#[derive(Clone)]
-pub struct SetNodeFilter<E: NodeExpr>
+pub struct SetNodeFilter<E, I>
 where
-    E::Output: Unwrap,
-    <E::Output as Unwrap>::Inner: Eq + Hash + Clone,
+    E: NodeExpr<Output = Option<I>>,
+    I: Eq + Hash + Clone + Send + Sync + 'static,
 {
     pub expr: E,
     pub op: SetOp,
-    pub values: Arc<HashSet<<E::Output as Unwrap>::Inner>>,
+    pub values: Arc<HashSet<I>>,
+    _phantom: PhantomData<I>,
 }
 
-// impl<E: NodeExpr> Clone for SetNodeFilter<E>
-// where
-//     E::Output: Unwrap,
-//     <E::Output as Unwrap>::Inner: Eq + Hash + Clone,
-// {
-//     fn clone(&self) -> Self {
-//         Self { expr: self.expr.clone(), op: self.op, values: self.values.clone() }
-//     }
-// }
-
-impl<E: NodeExpr> ComposableFilter for SetNodeFilter<E>
+impl<E, I> Clone for SetNodeFilter<E, I>
 where
-    E::Output: Unwrap,
-    <E::Output as Unwrap>::Inner: Eq + Hash + Clone,
+    E: NodeExpr<Output = Option<I>>,
+    I: Eq + Hash + Clone + Send + Sync + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            expr: self.expr.clone(),
+            op: self.op,
+            values: self.values.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<E, I> ComposableFilter for SetNodeFilter<E, I>
+where
+    E: NodeExpr<Output = Option<I>>,
+    I: Eq + Hash + Clone + Send + Sync + 'static,
 {
 }
 
-impl<E: NodeExpr> CreateFilter for SetNodeFilter<E>
+impl<E, I> CreateFilter for SetNodeFilter<E, I>
 where
-    E::Output: Unwrap + Clone + Send + Sync + 'static,
-    <E::Output as Unwrap>::Inner: Eq + Hash + Clone + Send + Sync + 'static,
+    E: NodeExpr<Output = Option<I>>,
+    I: Eq + Hash + Clone + Send + Sync + 'static,
 {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, SetNodeOp<'graph, E::Output>>;
+        NodeFilteredGraph<G, SetNodeOp<'graph, I>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = SetNodeOp<'graph, E::Output>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = SetNodeOp<'graph, I>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -836,10 +694,10 @@ where
     }
 }
 
-impl<E: NodeExpr> TryAsCompositeFilter for SetNodeFilter<E>
+impl<E, I> TryAsCompositeFilter for SetNodeFilter<E, I>
 where
-    E::Output: Unwrap + Clone + Send + Sync + 'static,
-    <E::Output as Unwrap>::Inner: Eq + Hash + Clone + Send + Sync + 'static,
+    E: NodeExpr<Output = Option<I>>,
+    I: Eq + Hash + Clone + Send + Sync + 'static,
 {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Err(GraphError::NotSupported)
@@ -867,7 +725,7 @@ where
 /// DegreeExpr(Direction::BOTH).gt(2usize)
 /// DegreeExpr(Direction::OUT).gt(DegreeExpr(Direction::IN))
 /// NodeFilter::property("age").gt(30i64)
-/// AttrNodeExpr(MyAttr).is_in([2usize, 3usize])
+/// DegreeExpr(Direction::BOTH).is_in([2usize, 3usize])
 /// ```
 pub trait NodeExprFilterOps: NodeExpr + Sized {
     fn gt<R: NodeExpr<Output = Self::Output>>(self, rhs: R) -> BinOpNodeFilter<Self, R> {
@@ -926,51 +784,57 @@ pub trait NodeExprFilterOps: NodeExpr + Sized {
         )
     }
 
-    fn is_some(self) -> UnaryNodeFilter<Self>
+    fn is_some<Inner>(self) -> UnaryNodeFilter<Self, Inner>
     where
-        Self::Output: Unwrap,
+        Self: NodeExpr<Output = Option<Inner>>,
+        Inner: Clone + Send + Sync + 'static,
     {
         UnaryNodeFilter {
             expr: self,
             op: UnaryOp::IsSome,
+            _phantom: PhantomData,
         }
     }
 
-    fn is_none(self) -> UnaryNodeFilter<Self>
+    fn is_none<Inner>(self) -> UnaryNodeFilter<Self, Inner>
     where
-        Self::Output: Unwrap,
+        Self: NodeExpr<Output = Option<Inner>>,
+        Inner: Clone + Send + Sync + 'static,
     {
         UnaryNodeFilter {
             expr: self,
             op: UnaryOp::IsNone,
+            _phantom: PhantomData,
         }
     }
 
-    fn is_in<I>(self, values: I) -> SetNodeFilter<Self>
+    fn is_in<Inner, Iter>(self, values: Iter) -> SetNodeFilter<Self, Inner>
     where
-        Self::Output: Unwrap,
-        <Self::Output as Unwrap>::Inner: Eq + Hash + Clone,
-        I: IntoIterator<Item = <Self::Output as Unwrap>::Inner>,
+        Self: NodeExpr<Output = Option<Inner>>,
+        Inner: Eq + Hash + Clone + Send + Sync + 'static,
+        Iter: IntoIterator<Item = Inner>,
     {
         let set: HashSet<_> = values.into_iter().collect();
         SetNodeFilter {
             expr: self,
             op: SetOp::IsIn,
             values: Arc::new(set),
+            _phantom: PhantomData,
         }
     }
 
-    fn is_not_in<I>(self, values: I) -> SetNodeFilter<Self>
+    fn is_not_in<Inner, Iter>(self, values: Iter) -> SetNodeFilter<Self, Inner>
     where
-        Self::Output: Unwrap,
-        <Self::Output as Unwrap>::Inner: Eq + Hash + Clone,
-        I: IntoIterator<Item = <Self::Output as Unwrap>::Inner>,
+        Self: NodeExpr<Output = Option<Inner>>,
+        Inner: Eq + Hash + Clone + Send + Sync + 'static,
+        Iter: IntoIterator<Item = Inner>,
     {
         let set: HashSet<_> = values.into_iter().collect();
         SetNodeFilter {
             expr: self,
             op: SetOp::IsNotIn,
             values: Arc::new(set),
+            _phantom: PhantomData,
         }
     }
 }
@@ -1056,40 +920,6 @@ mod tests {
             filtered_names(DegreeExpr(Direction::BOTH).gt(DegreeExpr(Direction::IN)), g),
             vec!["a", "b"]
         );
-    }
-
-    // ── unary ops ────────────────────────────────────────────────────────────
-
-    #[test]
-    fn degree_is_some_keeps_all_nodes() {
-        let g = build_test_graph();
-        assert_eq!(
-            filtered_names(DegreeExpr(Direction::BOTH).is_some(), g),
-            vec!["a", "b", "c"]
-        );
-    }
-
-    #[test]
-    fn degree_is_none_keeps_no_nodes() {
-        let g = build_test_graph();
-        assert!(filtered_names(DegreeExpr(Direction::BOTH).is_none(), g).is_empty());
-    }
-
-    // ── set ops ──────────────────────────────────────────────────────────────
-
-    #[test]
-    fn degree_is_in_set() {
-        let g = build_test_graph();
-        assert_eq!(
-            filtered_names(DegreeExpr(Direction::BOTH).is_in([2usize]), g),
-            vec!["a", "b", "c"]
-        );
-    }
-
-    #[test]
-    fn degree_is_not_in_set_excludes_matching_nodes() {
-        let g = build_test_graph();
-        assert!(filtered_names(DegreeExpr(Direction::BOTH).is_not_in([2usize]), g).is_empty());
     }
 
     // ── ConstExpr for custom output types ────────────────────────────────────
