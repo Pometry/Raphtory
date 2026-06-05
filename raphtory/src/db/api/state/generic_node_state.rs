@@ -519,7 +519,7 @@ impl<'graph, G: GraphViewOps<'graph>> GenericNodeState<'graph, G> {
             }
             builder.push(Arc::new(Field::new(
                 id_column.unwrap(),
-                DataType::Utf8,
+                DataType::LargeUtf8,
                 false,
             )));
             schema = Arc::new(Schema::new(builder.finish().fields));
