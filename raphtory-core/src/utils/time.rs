@@ -90,7 +90,10 @@ impl AlignmentUnit {
             AlignmentUnit::Minute => Self::floor_ms(timestamp, MINUTE_MS),
             AlignmentUnit::Hour => Self::floor_ms(timestamp, HOUR_MS),
             AlignmentUnit::Day => Self::floor_ms(timestamp, DAY_MS),
-            AlignmentUnit::Week => Self::floor_ms(timestamp, WEEK_MS),
+            AlignmentUnit::Week => {
+                let offset = DAY_MS * 4; // 0 is a Thursday
+                Self::floor_ms(timestamp - offset, WEEK_MS) + offset
+            }
             // Month and Year are variable (28, 30, or 31 days / 365 or 366 days so we can't simply use division)
             AlignmentUnit::Month => {
                 let naive = DateTime::from_timestamp_millis(timestamp)
@@ -495,8 +498,27 @@ impl Add<Interval> for EventTime {
 
 #[cfg(test)]
 mod time_tests {
-    use crate::utils::time::Interval;
-    use raphtory_api::core::utils::time::{ParseTimeError, TryIntoTime};
+    use crate::utils::time::{AlignmentUnit, Interval, WEEK_MS};
+    use chrono::{DateTime, Datelike, NaiveTime, Utc, Weekday};
+    use proptest::{arbitrary::any, prelude::Strategy, proptest};
+    use raphtory_api::core::{
+        storage::timeindex::AsTime,
+        utils::time::{ParseTimeError, TryIntoTime},
+    };
+
+    #[test]
+    fn alignment_week_proptest() {
+        proptest!(|(dt in (-8334601228800000i64..8210266876800000).prop_filter_map("not a valid date", DateTime::from_timestamp_millis))| {
+            let ts = dt.timestamp_millis();
+            let aligned = AlignmentUnit::Week.align_timestamp(ts);
+            let aligned_dt = aligned.dt().unwrap();
+            assert_eq!(aligned_dt, aligned_dt.with_time(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap()).unwrap());
+            assert!(ts - aligned < WEEK_MS);
+            assert_eq!(aligned_dt.weekday(), Weekday::Mon);
+
+
+        })
+    }
 
     #[test]
     fn interval_parsing() {
