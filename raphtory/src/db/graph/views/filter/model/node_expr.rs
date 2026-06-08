@@ -9,8 +9,9 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter_operator::{BinaryOp, Comparable, SetOp, UnaryOp},
+                property_filter::{evaluate::aggregate_values, Op},
                 ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
-                TryAsCompositeFilter,
+                TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
         },
@@ -48,7 +49,7 @@ use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
 /// ```
 ///
 pub trait NodeExpr: Clone + Send + Sync + 'static {
-    type Output: Comparable + Clone + Send + Sync + 'static;
+    type Output: Clone + Send + Sync + 'static;
 
     /// Compile the expression against a specific graph view.
     ///
@@ -853,10 +854,641 @@ pub trait NodeExprFilterOps: NodeExpr + Sized {
 
 impl<E: NodeExpr> NodeExprFilterOps for E {}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sealed trait for QuantifierMode
+// ─────────────────────────────────────────────────────────────────────────────
+
+mod sealed {
+    pub trait Sealed {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QuantifierMode — AnyMode / AllMode
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub trait QuantifierMode: sealed::Sealed + Clone + Copy + Send + Sync + 'static {
+    const IS_ANY: bool;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnyMode;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AllMode;
+
+impl sealed::Sealed for AnyMode {}
+impl sealed::Sealed for AllMode {}
+impl QuantifierMode for AnyMode {
+    const IS_ANY: bool = true;
+}
+impl QuantifierMode for AllMode {
+    const IS_ANY: bool = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TemporalNodePropOp<G> — returns all temporal values for a property
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Clone)]
+pub(crate) struct TemporalNodePropOp<G> {
+    graph: G,
+    prop_id: usize,
+}
+
+impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
+    type Output = Vec<Prop>;
+
+    fn apply(&self, _storage: &GraphStorage, node: VID) -> Vec<Prop> {
+        self.graph
+            .node(node)
+            .and_then(|n| {
+                n.properties()
+                    .temporal()
+                    .get_by_id(self.prop_id)
+                    .map(|tpv| tpv.values().collect())
+            })
+            .unwrap_or_default()
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TemporalPropertyExpr — NodeExpr<Output = Vec<Prop>>
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// All temporal values of a named property over the current view window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TemporalPropertyExpr {
+    pub name: String,
+}
+
+impl TemporalPropertyExpr {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into() }
+    }
+}
+
+impl NodeExpr for TemporalPropertyExpr {
+    type Output = Vec<Prop>;
+
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Vec<Prop>> + 'g>, GraphError> {
+        let (prop_id, _) = graph
+            .node_meta()
+            .get_prop_id_and_type(&self.name, false)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        Ok(Arc::new(TemporalNodePropOp { graph, prop_id }))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Aggregator NodeOps — compile-time resolved against a concrete graph view
+// ─────────────────────────────────────────────────────────────────────────────
+
+macro_rules! impl_agg_node_op {
+    ($name:ident, $output:ty, $body:expr) => {
+        pub struct $name<'g> {
+            pub(crate) inner: Arc<dyn NodeOp<Output = Vec<Prop>> + 'g>,
+        }
+
+        impl<'g> Clone for $name<'g> {
+            fn clone(&self) -> Self {
+                Self {
+                    inner: self.inner.clone(),
+                }
+            }
+        }
+
+        impl<'g> NodeOp for $name<'g> {
+            type Output = $output;
+
+            fn apply(&self, storage: &GraphStorage, node: VID) -> $output {
+                let vals = self.inner.apply(storage, node);
+                ($body)(vals)
+            }
+        }
+    };
+}
+
+impl_agg_node_op!(SumNodeOp, Option<Prop>, |vals: Vec<Prop>| {
+    aggregate_values(&vals, Op::Sum)
+});
+impl_agg_node_op!(AvgNodeOp, Option<Prop>, |vals: Vec<Prop>| {
+    aggregate_values(&vals, Op::Avg)
+});
+impl_agg_node_op!(MinNodeOp, Option<Prop>, |vals: Vec<Prop>| {
+    aggregate_values(&vals, Op::Min)
+});
+impl_agg_node_op!(MaxNodeOp, Option<Prop>, |vals: Vec<Prop>| {
+    aggregate_values(&vals, Op::Max)
+});
+impl_agg_node_op!(FirstNodeOp, Option<Prop>, |vals: Vec<Prop>| {
+    vals.into_iter().next()
+});
+impl_agg_node_op!(LastNodeOp, Option<Prop>, |vals: Vec<Prop>| {
+    vals.into_iter().last()
+});
+impl_agg_node_op!(LenNodeOp, usize, |vals: Vec<Prop>| { vals.len() });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Aggregator Exprs — NodeExpr wrappers producing a single scalar
+// ─────────────────────────────────────────────────────────────────────────────
+
+macro_rules! impl_agg_expr {
+    ($expr:ident, $op_ty:ident, $output:ty) => {
+        pub struct $expr<E: NodeExpr<Output = Vec<Prop>>>(pub E);
+
+        impl<E: NodeExpr<Output = Vec<Prop>>> Clone for $expr<E> {
+            fn clone(&self) -> Self {
+                $expr(self.0.clone())
+            }
+        }
+
+        impl<E: NodeExpr<Output = Vec<Prop>>> NodeExpr for $expr<E> {
+            type Output = $output;
+
+            fn create_node_op<'g, G: GraphView + 'g>(
+                &self,
+                graph: G,
+            ) -> Result<Arc<dyn NodeOp<Output = $output> + 'g>, GraphError> {
+                let inner = self.0.create_node_op(graph)?;
+                Ok(Arc::new($op_ty { inner }))
+            }
+        }
+    };
+}
+
+impl_agg_expr!(SumExpr, SumNodeOp, Option<Prop>);
+impl_agg_expr!(AvgExpr, AvgNodeOp, Option<Prop>);
+impl_agg_expr!(MinExpr, MinNodeOp, Option<Prop>);
+impl_agg_expr!(MaxExpr, MaxNodeOp, Option<Prop>);
+impl_agg_expr!(FirstExpr, FirstNodeOp, Option<Prop>);
+impl_agg_expr!(LastExpr, LastNodeOp, Option<Prop>);
+impl_agg_expr!(LenExpr, LenNodeOp, usize);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QuantifiedNodeOp — applies any/all quantification over a temporal sequence
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub struct QuantifiedNodeOp<'g> {
+    inner: Arc<dyn NodeOp<Output = Vec<Prop>> + 'g>,
+    rhs: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    op: BinaryOp,
+    is_any: bool,
+}
+
+impl<'g> Clone for QuantifiedNodeOp<'g> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            rhs: self.rhs.clone(),
+            op: self.op,
+            is_any: self.is_any,
+        }
+    }
+}
+
+impl<'g> NodeOp for QuantifiedNodeOp<'g> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
+        let vals = self.inner.apply(storage, node);
+        let Some(rhs) = self.rhs.apply(storage, node) else {
+            return false;
+        };
+        if self.is_any {
+            vals.iter().any(|v| Prop::binary_cmp(&self.op, v, &rhs))
+        } else {
+            !vals.is_empty() && vals.iter().all(|v| Prop::binary_cmp(&self.op, v, &rhs))
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QuantifiedNodeFilter<E, Q, R> — leaf filter wrapping a quantified comparison
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub struct QuantifiedNodeFilter<E, Q, R>
+where
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+    R: NodeExpr<Output = Option<Prop>>,
+{
+    pub expr: E,
+    pub rhs: R,
+    pub op: BinaryOp,
+    _q: PhantomData<Q>,
+}
+
+impl<E, Q, R> QuantifiedNodeFilter<E, Q, R>
+where
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+    R: NodeExpr<Output = Option<Prop>>,
+{
+    pub fn new(expr: E, op: BinaryOp, rhs: R) -> Self {
+        Self {
+            expr,
+            rhs,
+            op,
+            _q: PhantomData,
+        }
+    }
+}
+
+impl<E, Q, R> Clone for QuantifiedNodeFilter<E, Q, R>
+where
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+    R: NodeExpr<Output = Option<Prop>>,
+{
+    fn clone(&self) -> Self {
+        Self {
+            expr: self.expr.clone(),
+            rhs: self.rhs.clone(),
+            op: self.op,
+            _q: PhantomData,
+        }
+    }
+}
+
+impl<E, Q, R> ComposableFilter for QuantifiedNodeFilter<E, Q, R>
+where
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+    R: NodeExpr<Output = Option<Prop>>,
+{
+}
+
+impl<E, Q, R> CreateFilter for QuantifiedNodeFilter<E, Q, R>
+where
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+    R: NodeExpr<Output = Option<Prop>>,
+{
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
+        NodeFilteredGraph<G, QuantifiedNodeOp<'graph>>;
+
+    type NodeFilter<'graph, G: GraphView + 'graph> = QuantifiedNodeOp<'graph>;
+
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        let inner = self.expr.create_node_op(graph.clone())?;
+        let rhs = self.rhs.create_node_op(graph)?;
+        Ok(QuantifiedNodeOp {
+            inner,
+            rhs,
+            op: self.op,
+            is_any: Q::IS_ANY,
+        })
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
+}
+
+impl<E, Q, R> TryAsCompositeFilter for QuantifiedNodeFilter<E, Q, R>
+where
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+    R: NodeExpr<Output = Option<Prop>>,
+{
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Context builders — carry wrap context through the builder chain
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Builder returned from `.any()` / `.all()` on a temporal expression.
+///
+/// Carries the wrapper context `W` (identity for `NodeFilter`, `Windowed` for windowed filters).
+/// Call `.eq(rhs)`, `.gt(rhs)` etc. to produce the final filter wrapped in `W`.
+pub struct QuantifiedContextBuilder<W, E, Q>
+where
+    W: Wrap + Clone,
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+{
+    pub(crate) wrap_ctx: W,
+    pub(crate) expr: E,
+    pub(crate) _q: PhantomData<Q>,
+}
+
+impl<W, E, Q> QuantifiedContextBuilder<W, E, Q>
+where
+    W: Wrap + Clone,
+    E: NodeExpr<Output = Vec<Prop>>,
+    Q: QuantifierMode,
+{
+    fn finish<R: NodeExpr<Output = Option<Prop>>>(
+        self,
+        op: BinaryOp,
+        rhs: R,
+    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+        self.wrap_ctx
+            .wrap(QuantifiedNodeFilter::new(self.expr, op, rhs))
+    }
+
+    pub fn eq<R: NodeExpr<Output = Option<Prop>>>(
+        self,
+        rhs: R,
+    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+        self.finish(BinaryOp::Eq, rhs)
+    }
+
+    pub fn ne<R: NodeExpr<Output = Option<Prop>>>(
+        self,
+        rhs: R,
+    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+        self.finish(BinaryOp::Ne, rhs)
+    }
+
+    pub fn gt<R: NodeExpr<Output = Option<Prop>>>(
+        self,
+        rhs: R,
+    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+        self.finish(BinaryOp::Gt, rhs)
+    }
+
+    pub fn ge<R: NodeExpr<Output = Option<Prop>>>(
+        self,
+        rhs: R,
+    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+        self.finish(BinaryOp::Ge, rhs)
+    }
+
+    pub fn lt<R: NodeExpr<Output = Option<Prop>>>(
+        self,
+        rhs: R,
+    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+        self.finish(BinaryOp::Lt, rhs)
+    }
+
+    pub fn le<R: NodeExpr<Output = Option<Prop>>>(
+        self,
+        rhs: R,
+    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+        self.finish(BinaryOp::Le, rhs)
+    }
+}
+
+/// Builder returned from aggregators (`.sum()`, `.avg()` etc.) on a temporal expression.
+///
+/// Carries the wrapper context `W` and the aggregator expression `E`.
+/// Call `.eq(rhs)`, `.gt(rhs)` etc. to produce the final filter wrapped in `W`.
+pub struct NodeExprContextBuilder<W, E>
+where
+    W: Wrap + Clone,
+    E: NodeExpr,
+{
+    pub(crate) wrap_ctx: W,
+    pub(crate) expr: E,
+}
+
+impl<W, E> NodeExprContextBuilder<W, E>
+where
+    W: Wrap + Clone,
+    E: NodeExpr,
+{
+    fn finish<R: NodeExpr<Output = E::Output>>(
+        self,
+        op: BinaryOp,
+        rhs: R,
+    ) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+        self.wrap_ctx.wrap(BinOpNodeFilter::new(self.expr, op, rhs))
+    }
+
+    pub fn eq<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+        self.finish(BinaryOp::Eq, rhs)
+    }
+
+    pub fn ne<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+        self.finish(BinaryOp::Ne, rhs)
+    }
+
+    pub fn gt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+        self.finish(BinaryOp::Gt, rhs)
+    }
+
+    pub fn ge<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+        self.finish(BinaryOp::Ge, rhs)
+    }
+
+    pub fn lt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+        self.finish(BinaryOp::Lt, rhs)
+    }
+
+    pub fn le<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+        self.finish(BinaryOp::Le, rhs)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TemporalPropContext<W> — entry point returned from `.temporal_property(name)`
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Builder returned from `.temporal_property(name)`.
+///
+/// `W` carries the wrapping context so that windowed temporal filters are correctly
+/// produced when called on a `Windowed<NodeFilter>`.
+///
+/// Usage:
+/// ```rust,ignore
+/// NodeFilter::temporal_property("score").any().gt(10i64)
+/// NodeFilter.window(0, 100).temporal_property("score").any().gt(10i64)
+/// NodeFilter::temporal_property("price").sum().gt(100i64)
+/// ```
+pub struct TemporalPropContext<W: Wrap + Clone> {
+    wrap_ctx: W,
+    expr: TemporalPropertyExpr,
+}
+
+impl<W: Wrap + Clone> TemporalPropContext<W> {
+    pub(crate) fn new(wrap_ctx: W, name: impl Into<String>) -> Self {
+        Self {
+            wrap_ctx,
+            expr: TemporalPropertyExpr::new(name),
+        }
+    }
+
+    pub fn any(self) -> QuantifiedContextBuilder<W, TemporalPropertyExpr, AnyMode> {
+        QuantifiedContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: self.expr,
+            _q: PhantomData,
+        }
+    }
+
+    pub fn all(self) -> QuantifiedContextBuilder<W, TemporalPropertyExpr, AllMode> {
+        QuantifiedContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: self.expr,
+            _q: PhantomData,
+        }
+    }
+
+    pub fn sum(self) -> NodeExprContextBuilder<W, SumExpr<TemporalPropertyExpr>> {
+        NodeExprContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: SumExpr(self.expr),
+        }
+    }
+
+    pub fn avg(self) -> NodeExprContextBuilder<W, AvgExpr<TemporalPropertyExpr>> {
+        NodeExprContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: AvgExpr(self.expr),
+        }
+    }
+
+    pub fn min(self) -> NodeExprContextBuilder<W, MinExpr<TemporalPropertyExpr>> {
+        NodeExprContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: MinExpr(self.expr),
+        }
+    }
+
+    pub fn max(self) -> NodeExprContextBuilder<W, MaxExpr<TemporalPropertyExpr>> {
+        NodeExprContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: MaxExpr(self.expr),
+        }
+    }
+
+    pub fn first(self) -> NodeExprContextBuilder<W, FirstExpr<TemporalPropertyExpr>> {
+        NodeExprContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: FirstExpr(self.expr),
+        }
+    }
+
+    pub fn last(self) -> NodeExprContextBuilder<W, LastExpr<TemporalPropertyExpr>> {
+        NodeExprContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: LastExpr(self.expr),
+        }
+    }
+
+    pub fn len(self) -> NodeExprContextBuilder<W, LenExpr<TemporalPropertyExpr>> {
+        NodeExprContextBuilder {
+            wrap_ctx: self.wrap_ctx,
+            expr: LenExpr(self.expr),
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TemporalExprOps — blanket trait for E: NodeExpr<Output = Vec<Prop>>
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Quantifier and aggregator operators for temporal property sequences.
+///
+/// Available on any `NodeExpr<Output = Vec<Prop>>` (e.g. `TemporalPropertyExpr`).
+pub trait TemporalExprOps: NodeExpr<Output = Vec<Prop>> + Sized {
+    fn any(self) -> QuantifiedContextBuilder<NoWrap, Self, AnyMode> {
+        QuantifiedContextBuilder {
+            wrap_ctx: NoWrap,
+            expr: self,
+            _q: PhantomData,
+        }
+    }
+
+    fn all(self) -> QuantifiedContextBuilder<NoWrap, Self, AllMode> {
+        QuantifiedContextBuilder {
+            wrap_ctx: NoWrap,
+            expr: self,
+            _q: PhantomData,
+        }
+    }
+
+    fn sum(self) -> SumExpr<Self> {
+        SumExpr(self)
+    }
+
+    fn avg(self) -> AvgExpr<Self> {
+        AvgExpr(self)
+    }
+
+    fn min(self) -> MinExpr<Self> {
+        MinExpr(self)
+    }
+
+    fn max(self) -> MaxExpr<Self> {
+        MaxExpr(self)
+    }
+
+    fn first(self) -> FirstExpr<Self> {
+        FirstExpr(self)
+    }
+
+    fn last(self) -> LastExpr<Self> {
+        LastExpr(self)
+    }
+
+    fn len(self) -> LenExpr<Self> {
+        LenExpr(self)
+    }
+}
+
+impl<E: NodeExpr<Output = Vec<Prop>>> TemporalExprOps for E {}
+
+/// Identity wrapper — used by `TemporalExprOps` blanket to avoid wrapping.
+#[derive(Debug, Clone, Copy)]
+pub struct NoWrap;
+
+impl Wrap for NoWrap {
+    type Wrapped<T> = T;
+
+    fn wrap<T>(&self, value: T) -> T {
+        value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS};
+    use crate::{
+        db::graph::views::filter::model::{
+            node_filter::{NodeFilter, TemporalNodeExprBuilderOps},
+            ViewWrapOps,
+        },
+        prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
+    };
+    use raphtory_api::core::entities::properties::prop::IntoProp;
 
     // Test graph: a→b, a→c, b→c
     // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
@@ -941,5 +1573,337 @@ mod tests {
         let filter = BinOpNodeFilter::new(ConstExpr(2usize), BinaryOp::Eq, ConstExpr(2usize));
         let g = build_test_graph();
         assert_eq!(filtered_names(filter, g), vec!["a", "b", "c"]);
+    }
+
+    // ── Temporal property helpers ─────────────────────────────────────────────
+
+    /// Graph with three nodes; "alice" has scores [1, 5, 10] at times 1, 2, 3
+    ///                           "bob"   has scores [2, 3]    at times 1, 2
+    ///                           "carol" has no score property
+    fn build_temporal_graph() -> Graph {
+        let g = Graph::new();
+        g.add_node(1, "alice", [("score", 1i64.into_prop())], None, None)
+            .unwrap();
+        g.add_node(2, "alice", [("score", 5i64.into_prop())], None, None)
+            .unwrap();
+        g.add_node(3, "alice", [("score", 10i64.into_prop())], None, None)
+            .unwrap();
+        g.add_node(1, "bob", [("score", 2i64.into_prop())], None, None)
+            .unwrap();
+        g.add_node(2, "bob", [("score", 3i64.into_prop())], None, None)
+            .unwrap();
+        g.add_node(1, "carol", NO_PROPS, None, None).unwrap();
+        let _ = NodeFilter; // suppress unused warning
+        g
+    }
+
+    fn temporal_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
+    where
+        F: CreateFilter,
+        for<'graph> F::EntityFiltered<'graph, Graph>: GraphViewOps<'graph>,
+    {
+        let mut names: Vec<String> = filter
+            .create_filter(g)
+            .unwrap()
+            .nodes()
+            .iter()
+            .map(|n| n.name())
+            .collect();
+        names.sort();
+        names
+    }
+
+    // ── any() quantifier ─────────────────────────────────────────────────────
+
+    #[test]
+    fn temporal_any_eq_selects_nodes_with_matching_value() {
+        // alice has 1, 5, 10; bob has 2, 3; carol has none
+        // any == 5 → alice only
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").any().eq(5i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    #[test]
+    fn temporal_any_gt_selects_nodes_with_at_least_one_value_above_threshold() {
+        // any > 4 → alice (has 5, 10), not bob (max 3), not carol (none)
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").any().gt(4i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    #[test]
+    fn temporal_any_gt_both_nodes_qualify() {
+        // any > 1 → alice (5, 10), bob (2, 3) — both qualify
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").any().gt(1i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
+    }
+
+    // ── all() quantifier ─────────────────────────────────────────────────────
+
+    #[test]
+    fn temporal_all_gt_requires_every_value() {
+        // all > 0 → alice (1,5,10 all > 0 ✓), bob (2,3 all > 0 ✓), carol excluded (empty)
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").all().gt(0i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
+    }
+
+    #[test]
+    fn temporal_all_gt_rejects_if_any_value_fails() {
+        // all > 4 → alice (1 fails) not included, bob (2, 3 fail) not included
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").all().gt(4i64);
+        assert!(temporal_filtered_names(filter, g).is_empty());
+    }
+
+    #[test]
+    fn temporal_all_requires_non_empty_sequence() {
+        // carol has no score → "all" over empty sequence returns false
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").all().ge(0i64);
+        let names = temporal_filtered_names(filter, g);
+        assert!(!names.contains(&"carol".to_string()));
+    }
+
+    // ── sum() aggregator ──────────────────────────────────────────────────────
+
+    #[test]
+    fn temporal_sum_gt_threshold() {
+        // alice sum = 16, bob sum = 5 → sum > 10 → alice only
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").sum().gt(10i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    #[test]
+    fn temporal_sum_eq() {
+        // bob sum = 5 → sum == 5 → bob only
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").sum().eq(5i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["bob"]);
+    }
+
+    // ── first() / last() aggregators ─────────────────────────────────────────
+
+    #[test]
+    fn temporal_first_value() {
+        // alice first = 1, bob first = 2 → first == 1 → alice only
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").first().eq(1i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    #[test]
+    fn temporal_last_value() {
+        // alice last = 10 → last > 9 → alice only
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").last().gt(9i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    // ── len() aggregator ──────────────────────────────────────────────────────
+
+    #[test]
+    fn temporal_len_count() {
+        // alice has 3 updates, bob has 2 → len == 3 → alice only
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").len().eq(3usize);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    #[test]
+    fn temporal_len_ge_2() {
+        // alice (3), bob (2) both have len >= 2; carol has 0
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").len().ge(2usize);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice", "bob"]);
+    }
+
+    // ── NodeFilter entry point ────────────────────────────────────────────────
+
+    #[test]
+    fn node_filter_temporal_property_entry_point() {
+        let g = build_temporal_graph();
+        let filter = NodeFilter::temporal_property("score").any().eq(5i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    // ── TemporalExprOps blanket ───────────────────────────────────────────────
+
+    #[test]
+    fn temporal_expr_ops_blanket_any() {
+        // Using the blanket TemporalExprOps on TemporalPropertyExpr directly
+        let g = build_temporal_graph();
+        let filter = TemporalPropertyExpr::new("score").any().eq(10i64);
+        assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    // ── Windowed temporal filter ──────────────────────────────────────────────
+
+    /// Apply a filter using the full two-step pipeline (filter_graph_view → create_filter).
+    /// Required for windowed filters where filter_graph_view applies the window.
+    fn windowed_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
+    where
+        F: CreateFilter + Clone,
+        for<'graph> F::EntityFiltered<'graph, F::FilteredGraph<'graph, Graph>>:
+            GraphViewOps<'graph>,
+    {
+        let fg = filter.filter_graph_view(g).unwrap();
+        let mut names: Vec<String> = filter
+            .create_filter(fg)
+            .unwrap()
+            .nodes()
+            .iter()
+            .map(|n| n.name())
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn windowed_temporal_any_restricts_to_window() {
+        // alice scores: t1=1, t2=5, t3=10
+        // window [1, 2) → only t=1 visible → score=1 only
+        // any == 5 in window [1,2) → false for all nodes
+        let g = build_temporal_graph();
+        let filter = NodeFilter
+            .window(1, 2)
+            .temporal_property("score")
+            .any()
+            .eq(5i64);
+        // window [1,2) shows t=1 only → alice has score=1, not 5
+        assert!(windowed_filtered_names(filter, g).is_empty());
+    }
+
+    #[test]
+    fn windowed_temporal_any_matches_in_window() {
+        // window [2, 3) → alice has score=5 (t=2), bob has score=3 (t=2)
+        let g = build_temporal_graph();
+        let filter = NodeFilter
+            .window(2, 3)
+            .temporal_property("score")
+            .any()
+            .eq(5i64);
+        assert_eq!(windowed_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    // ── Layered temporal filter ───────────────────────────────────────────────
+
+    /// Graph where temporal "score" updates are split across two named layers.
+    ///
+    /// alice: score [1, 5, 10] at t=1,2,3 — all added in "layer_a"
+    /// bob:   score [2, 3]     at t=1,2   — all added in "layer_b"
+    /// carol: no score property            — added in "layer_a" (makes her visible there)
+    ///
+    /// Because updates added without an explicit layer go into the static layer
+    /// (and are always visible regardless of the active LayeredGraph), we must use
+    /// an explicit layer on every `add_node` call that carries a property we want
+    /// to isolate.
+    fn build_layered_temporal_graph() -> Graph {
+        let g = Graph::new();
+        g.add_node(
+            1,
+            "alice",
+            [("score", 1i64.into_prop())],
+            None,
+            Some("layer_a"),
+        )
+        .unwrap();
+        g.add_node(
+            2,
+            "alice",
+            [("score", 5i64.into_prop())],
+            None,
+            Some("layer_a"),
+        )
+        .unwrap();
+        g.add_node(
+            3,
+            "alice",
+            [("score", 10i64.into_prop())],
+            None,
+            Some("layer_a"),
+        )
+        .unwrap();
+        g.add_node(
+            1,
+            "bob",
+            [("score", 2i64.into_prop())],
+            None,
+            Some("layer_b"),
+        )
+        .unwrap();
+        g.add_node(
+            2,
+            "bob",
+            [("score", 3i64.into_prop())],
+            None,
+            Some("layer_b"),
+        )
+        .unwrap();
+        g.add_node(1, "carol", NO_PROPS, None, Some("layer_a"))
+            .unwrap();
+        g
+    }
+
+    /// Run the full filter_graph_view → create_filter pipeline for a layered filter.
+    /// Identical in structure to `windowed_filtered_names`; factored separately for clarity.
+    fn layered_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
+    where
+        F: CreateFilter + Clone,
+        for<'graph> F::EntityFiltered<'graph, F::FilteredGraph<'graph, Graph>>:
+            GraphViewOps<'graph>,
+    {
+        let fg = filter.filter_graph_view(g).unwrap();
+        let mut names: Vec<String> = filter
+            .create_filter(fg)
+            .unwrap()
+            .nodes()
+            .iter()
+            .map(|n| n.name())
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn layered_temporal_any_restricts_to_layer_a_updates() {
+        // layer_a view: alice has scores [1, 5, 10], carol has none, bob has none
+        // any == 5 → only alice qualifies
+        let g = build_layered_temporal_graph();
+        let filter = NodeFilter
+            .layer("layer_a")
+            .temporal_property("score")
+            .any()
+            .eq(5i64);
+        assert_eq!(layered_filtered_names(filter, g), vec!["alice"]);
+    }
+
+    #[test]
+    fn layered_temporal_any_restricts_to_layer_b_updates() {
+        // layer_b view: bob has scores [2, 3], alice has none, carol has none
+        // any > 2 → bob qualifies (score=3 > 2), alice and carol do not
+        let g = build_layered_temporal_graph();
+        let filter = NodeFilter
+            .layer("layer_b")
+            .temporal_property("score")
+            .any()
+            .gt(2i64);
+        assert_eq!(layered_filtered_names(filter, g), vec!["bob"]);
+    }
+
+    #[test]
+    fn layered_temporal_sum_is_layer_scoped() {
+        // layer_a: alice sum = 1+5+10 = 16; layer_b: bob sum = 2+3 = 5
+        // layer_a sum > 10 → alice (16 > 10); carol (no score) excluded
+        let g = build_layered_temporal_graph();
+        let filter = NodeFilter
+            .layer("layer_a")
+            .temporal_property("score")
+            .sum()
+            .gt(10i64);
+        assert_eq!(layered_filtered_names(filter, g), vec!["alice"]);
     }
 }
