@@ -1073,28 +1073,26 @@ impl_agg_expr!(LastExpr, LastNodeOp, Option<Prop>);
 impl_agg_expr!(LenExpr, LenNodeOp, usize);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// QuantifiedNodeOp — applies any/all quantification over a temporal sequence
+// AnyNodeOp / AllNodeOp — quantified comparison over a temporal sequence
 // ─────────────────────────────────────────────────────────────────────────────
 
-pub struct QuantifiedNodeOp<'g> {
+pub struct AnyNodeOp<'g> {
     inner: Arc<dyn NodeOp<Output = Vec<Prop>> + 'g>,
     rhs: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
     op: BinaryOp,
-    is_any: bool,
 }
 
-impl<'g> Clone for QuantifiedNodeOp<'g> {
+impl<'g> Clone for AnyNodeOp<'g> {
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
             rhs: self.rhs.clone(),
             op: self.op,
-            is_any: self.is_any,
         }
     }
 }
 
-impl<'g> NodeOp for QuantifiedNodeOp<'g> {
+impl<'g> NodeOp for AnyNodeOp<'g> {
     type Output = bool;
 
     fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
@@ -1102,11 +1100,35 @@ impl<'g> NodeOp for QuantifiedNodeOp<'g> {
         let Some(rhs) = self.rhs.apply(storage, node) else {
             return false;
         };
-        if self.is_any {
-            vals.iter().any(|v| Prop::binary_cmp(&self.op, v, &rhs))
-        } else {
-            !vals.is_empty() && vals.iter().all(|v| Prop::binary_cmp(&self.op, v, &rhs))
+        vals.iter().any(|v| Prop::binary_cmp(&self.op, v, &rhs))
+    }
+}
+
+pub struct AllNodeOp<'g> {
+    inner: Arc<dyn NodeOp<Output = Vec<Prop>> + 'g>,
+    rhs: Arc<dyn NodeOp<Output = Option<Prop>> + 'g>,
+    op: BinaryOp,
+}
+
+impl<'g> Clone for AllNodeOp<'g> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            rhs: self.rhs.clone(),
+            op: self.op,
         }
+    }
+}
+
+impl<'g> NodeOp for AllNodeOp<'g> {
+    type Output = bool;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> bool {
+        let vals = self.inner.apply(storage, node);
+        let Some(rhs) = self.rhs.apply(storage, node) else {
+            return false;
+        };
+        !vals.is_empty() && vals.iter().all(|v| Prop::binary_cmp(&self.op, v, &rhs))
     }
 }
 
@@ -1166,17 +1188,13 @@ where
 {
 }
 
-impl<E, Q, R> CreateFilter for QuantifiedNodeFilter<E, Q, R>
+impl<E, R> CreateFilter for QuantifiedNodeFilter<E, AnyMode, R>
 where
     E: NodeExpr<Output = Vec<Prop>>,
-    Q: QuantifierMode,
     R: NodeExpr<Output = Option<Prop>>,
 {
-    type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, QuantifiedNodeOp<'graph>>;
-
-    type NodeFilter<'graph, G: GraphView + 'graph> = QuantifiedNodeOp<'graph>;
-
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, AnyNodeOp<'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = AnyNodeOp<'graph>;
     type FilteredGraph<'graph, G>
         = G
     where
@@ -1195,13 +1213,50 @@ where
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let inner = self.expr.create_node_op(graph.clone())?;
-        let rhs = self.rhs.create_node_op(graph)?;
-        Ok(QuantifiedNodeOp {
-            inner,
-            rhs,
+        Ok(AnyNodeOp {
+            inner: self.expr.create_node_op(graph.clone())?,
+            rhs: self.rhs.create_node_op(graph)?,
             op: self.op,
-            is_any: Q::IS_ANY,
+        })
+    }
+
+    fn filter_graph_view<'graph, G: GraphView + 'graph>(
+        &self,
+        graph: G,
+    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
+        Ok(graph)
+    }
+}
+
+impl<E, R> CreateFilter for QuantifiedNodeFilter<E, AllMode, R>
+where
+    E: NodeExpr<Output = Vec<Prop>>,
+    R: NodeExpr<Output = Option<Prop>>,
+{
+    type EntityFiltered<'graph, G: GraphViewOps<'graph>> = NodeFilteredGraph<G, AllNodeOp<'graph>>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = AllNodeOp<'graph>;
+    type FilteredGraph<'graph, G>
+        = G
+    where
+        Self: 'graph,
+        G: GraphViewOps<'graph>;
+
+    fn create_filter<'graph, G: GraphViewOps<'graph>>(
+        self,
+        graph: G,
+    ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let filter = self.create_node_filter(graph.clone())?;
+        Ok(NodeFilteredGraph::new(graph, filter))
+    }
+
+    fn create_node_filter<'graph, G: GraphView + 'graph>(
+        self,
+        graph: G,
+    ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
+        Ok(AllNodeOp {
+            inner: self.expr.create_node_op(graph.clone())?,
+            rhs: self.rhs.create_node_op(graph)?,
+            op: self.op,
         })
     }
 
@@ -1527,14 +1582,16 @@ impl Wrap for NoWrap {
 mod tests {
     use super::*;
     use crate::{
-        db::graph::views::filter::model::{
-            node_filter::{NodeFilter, TemporalNodeExprBuilderOps},
-            ViewWrapOps,
+        db::{
+            api::view::filter_ops::NodeSelect,
+            graph::views::filter::model::{
+                node_filter::{NodeFilter, TemporalNodeExprBuilderOps},
+                ViewWrapOps,
+            },
         },
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
     };
     use raphtory_api::core::entities::properties::prop::IntoProp;
-    use crate::db::api::view::filter_ops::NodeSelect;
 
     // Test graph: a→b, a→c, b→c
     // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
