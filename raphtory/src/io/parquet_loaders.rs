@@ -1,10 +1,9 @@
-use crate::arrow_loader::df_loaders::nodes::load_nodes_from_df_prefetch;
 use crate::{
     arrow_loader::{
         dataframe::*,
         df_loaders::{
             edges::{load_edges_from_df_prefetch, ColumnNames},
-            nodes::{load_node_props_from_df, load_nodes_from_df},
+            nodes::{load_node_props_from_df, load_nodes_from_df, load_nodes_from_df_prefetch},
             *,
         },
     },
