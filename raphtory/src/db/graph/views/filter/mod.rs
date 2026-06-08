@@ -52,13 +52,6 @@ impl CreateFilter for Unfiltered {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeExistsOp::new(graph))
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 pub trait CreateFilter: Sized {
@@ -86,11 +79,6 @@ pub trait CreateFilter: Sized {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError>;
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>;
 }
 
 impl<T: NodeFilterOp> CreateFilter for T {
@@ -127,15 +115,5 @@ impl<T: NodeFilterOp> CreateFilter for T {
         Self: 'graph,
     {
         Ok(self)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
-    where
-        Self: 'graph,
-    {
-        Ok(graph)
     }
 }

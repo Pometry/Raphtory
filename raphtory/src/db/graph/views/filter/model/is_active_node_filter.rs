@@ -4,7 +4,7 @@ use crate::{
         graph::views::filter::{
             model::{
                 edge_filter::CompositeEdgeFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                CompositeNodeFilter, TryAsCompositeFilter,
+                CompositeNodeFilter, CreateView, TryAsCompositeFilter,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -16,15 +16,17 @@ use crate::{
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IsActiveNode;
+pub struct IsActiveNode<E> {
+    view_expr: E,
+}
 
-impl fmt::Display for IsActiveNode {
+impl<E> fmt::Display for IsActiveNode<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "IS_ACTIVE_NODE")
     }
 }
 
-impl CreateFilter for IsActiveNode {
+impl<E: CreateView> CreateFilter for IsActiveNode<E> {
     type EntityFiltered<'graph, G>
         = NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>
     where
@@ -47,6 +49,7 @@ impl CreateFilter for IsActiveNode {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
+        let graph = self.view_expr.create_view(graph.clone())?;
         let op = self.create_node_filter(graph.clone())?;
         Ok(NodeFilteredGraph::new(graph, op))
     }
@@ -55,21 +58,15 @@ impl CreateFilter for IsActiveNode {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let op: Map<HistoryOp<G>, bool> = HistoryOp::new(graph).map(|h| !h.is_empty());
+        let op: Map<HistoryOp<G>, bool> =
+            HistoryOp::new(self.view_expr.create_view(graph)?).map(|h| !h.is_empty());
         Ok(op)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 
-impl ComposableFilter for IsActiveNode {}
+impl<E: CreateView> ComposableFilter for IsActiveNode<E> {}
 
-impl TryAsCompositeFilter for IsActiveNode {
+impl<E: CreateView> TryAsCompositeFilter for IsActiveNode<E> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Ok(CompositeNodeFilter::IsActiveNode(IsActiveNode))
     }

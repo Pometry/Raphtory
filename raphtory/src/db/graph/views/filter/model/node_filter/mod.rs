@@ -27,8 +27,8 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps,
-                NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
+                EntityMarker, InternalViewWrapOps, NodeViewFilterOps, NotFilter, OrFilter,
+                PropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -53,9 +53,9 @@ impl From<NodeFilter> for EntityMarker {
     }
 }
 
-impl NodeFilter {
+pub trait NodeFilterFactory: PropertyFilterFactory {
     #[inline]
-    pub fn id() -> Id {
+    fn id(&self) -> Id {
         Id
     }
 
@@ -64,7 +64,7 @@ impl NodeFilter {
     /// Returns `Name` which implements `NodeExprFilterOps` — use `.eq("Alice")`,
     /// `.contains("ali")`, `.is_in([…])`, etc. directly on the returned value.
     #[inline]
-    pub fn name() -> Name {
+    fn name(&self) -> Name {
         Name
     }
 
@@ -72,12 +72,13 @@ impl NodeFilter {
     ///
     /// Returns `Type` which implements `NodeExprFilterOps`.
     #[inline]
-    pub fn node_type() -> Type {
+    fn node_type(&self) -> Type {
         Type
     }
 
     /// Build a filter from a boolean column inside a TypedNodeState.
-    pub fn by_column<'graph, V, G, T>(
+    fn by_column<'graph, V, G, T>(
+        &self,
         state: &TypedNodeState<'graph, V, G, T>,
         col: &str,
     ) -> Result<NodeStateBoolColOp, GraphError>
@@ -89,23 +90,36 @@ impl NodeFilter {
     }
 
     /// Total degree expression — supports `.gt(n)`, `.lt(n)`, etc.
-    #[inline]
-    pub fn degree() -> DegreeExpr {
-        DegreeExpr(Direction::BOTH)
+    fn degree(&self) -> DegreeExpr<Self> {
+        DegreeExpr {
+            dir: Direction::BOTH,
+            view_expr: self.clone(),
+        }
     }
 
     /// In-degree expression.
-    #[inline]
-    pub fn in_degree() -> DegreeExpr {
-        DegreeExpr(Direction::IN)
+    fn in_degree(&self) -> DegreeExpr<Self> {
+        DegreeExpr {
+            dir: Direction::IN,
+            view_expr: self.clone(),
+        }
     }
 
     /// Out-degree expression.
     #[inline]
-    pub fn out_degree() -> DegreeExpr {
-        DegreeExpr(Direction::OUT)
+    fn out_degree(&self) -> DegreeExpr<Self> {
+        DegreeExpr {
+            dir: Direction::OUT,
+            view_expr: self.clone(),
+        }
     }
 
+    fn is_active(&self) -> IsActiveNode {
+        IsActiveNode
+    }
+}
+
+impl NodeFilter {
     /// Current (latest) value of a named property — serializable.
     #[inline]
     pub fn property(name: impl Into<String>) -> Property {
@@ -157,30 +171,8 @@ impl InternalViewWrapOps for NodeFilter {
     }
 }
 
-impl InternalPropertyFilterFactory for NodeFilter {
-    type Entity = NodeFilter;
-    type PropertyBuilder = PropertyFilterBuilder<Self::Entity>;
-    type MetadataBuilder = MetadataFilterBuilder<Self::Entity>;
-
-    fn entity(&self) -> Self::Entity {
-        NodeFilter
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        PropertyFilterBuilder(property, self.entity())
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        MetadataFilterBuilder(property, self.entity())
-    }
-}
-
 impl NodeViewFilterOps for NodeFilter {
     type Output<T: CombinedFilter> = T;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        IsActiveNode
-    }
 }
 
 #[derive(Debug, Clone)]

@@ -1,28 +1,4 @@
 pub(crate) use crate::db::graph::views::filter::model::and_filter::AndFilter;
-use crate::db::{
-    api::{
-        state::{
-            ops::{filter::NO_FILTER, Const},
-            NodeOp,
-        },
-        view::BoxableGraphView,
-    },
-    graph::views::filter::model::{
-        edge_filter::CompositeEdgeFilter,
-        is_active_edge_filter::IsActiveEdge,
-        is_active_node_filter::IsActiveNode,
-        is_deleted_filter::IsDeletedEdge,
-        is_self_loop_filter::IsSelfLoopEdge,
-        is_valid_filter::IsValidEdge,
-        latest_filter::Latest,
-        layered_filter::Layered,
-        property_filter::{
-            builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
-        },
-        snapshot_filter::{SnapshotAt, SnapshotLatest},
-        windowed_filter::Windowed,
-    },
-};
 pub use crate::{
     db::{
         api::view::internal::GraphView,
@@ -41,11 +17,9 @@ pub use crate::{
                         NodeExprContextBuilder, NodeExprFilterOps, Property,
                         QuantifiedContextBuilder, QuantifiedNodeFilter, QuantifierMode,
                         SetNodeFilter, SumExpr, TemporalExprOps, TemporalPropContext,
-                        TemporalPropertyExpr, UnaryNodeFilter,
+                        UnaryNodeFilter,
                     },
-                    node_filter::{
-                        NodeFilter, NodeNameFilter, NodeTypeFilter, TemporalNodeExprBuilderOps,
-                    },
+                    node_filter::NodeFilter,
                     not_filter::NotFilter,
                     or_filter::OrFilter,
                 },
@@ -57,9 +31,40 @@ pub use crate::{
     errors::GraphError,
     prelude::{GraphViewOps, TimeOps},
 };
+use crate::{
+    db::{
+        api::{
+            state::{
+                ops::{filter::NO_FILTER, Const},
+                NodeOp,
+            },
+            view::BoxableGraphView,
+        },
+        graph::views::{
+            filter::model::{
+                edge_filter::CompositeEdgeFilter,
+                is_active_edge_filter::IsActiveEdge,
+                is_active_node_filter::IsActiveNode,
+                is_deleted_filter::IsDeletedEdge,
+                is_self_loop_filter::IsSelfLoopEdge,
+                is_valid_filter::IsValidEdge,
+                latest_filter::Latest,
+                layered_filter::Layered,
+                node_expr::{NodeMetaOp, NodePropOp},
+                property_filter::{
+                    builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+                },
+                snapshot_filter::{SnapshotAt, SnapshotLatest},
+                windowed_filter::Windowed,
+            },
+            layer_graph::LayeredGraph,
+        },
+    },
+    prelude::LayerOps,
+};
 pub use node_filter::CompositeNodeFilter;
 use raphtory_api::core::{
-    entities::Layer,
+    entities::{properties::prop::Prop, Layer},
     storage::timeindex::{AsTime, EventTime},
     utils::time::IntoTime,
 };
@@ -121,13 +126,6 @@ impl CreateFilter for NoFilter {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NO_FILTER)
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 impl TryAsCompositeFilter for NoFilter {
@@ -179,22 +177,6 @@ pub trait ComposableFilter: Sized {
     }
 }
 
-pub trait InternalPropertyFilterBuilder: Send + Sync {
-    type Filter: CombinedFilter;
-    type ExprBuilder: InternalPropertyFilterBuilder;
-    type Marker: Into<EntityMarker> + Send + Sync + Clone + 'static;
-
-    fn property_ref(&self) -> PropertyRef;
-
-    fn ops(&self) -> &[Op];
-
-    fn entity(&self) -> Self::Marker;
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter;
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder;
-}
-
 pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
     fn create_dyn_filter<'graph>(
         &self,
@@ -205,11 +187,6 @@ pub trait DynCreateFilter: TryAsCompositeFilter + Send + Sync + 'static {
         &self,
         graph: Arc<dyn BoxableGraphView + 'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError>;
-
-    fn dyn_filter_graph_view<'graph>(
-        &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
 }
 
 impl<T> DynCreateFilter for T
@@ -228,13 +205,6 @@ where
         graph: Arc<dyn BoxableGraphView + 'graph>,
     ) -> Result<Arc<dyn NodeOp<Output = bool> + 'graph>, GraphError> {
         Ok(Arc::new(self.clone().create_node_filter(graph)?))
-    }
-
-    fn dyn_filter_graph_view<'graph>(
-        &self,
-        graph: Arc<dyn BoxableGraphView + 'graph>,
-    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
-        Ok(Arc::new(self.clone().filter_graph_view(graph)?))
     }
 }
 
@@ -265,131 +235,6 @@ impl<T: DynCreateFilter + ?Sized + 'static> CreateFilter for Arc<T> {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         self.deref().create_dyn_node_filter(Arc::new(graph))
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.deref().dyn_filter_graph_view(Arc::new(graph))
-    }
-}
-
-pub trait DynPropertyFilterBuilder: Send + Sync + 'static {
-    fn dyn_property_ref(&self) -> PropertyRef;
-
-    fn dyn_ops(&self) -> &[Op];
-
-    fn dyn_entity(&self) -> EntityMarker;
-
-    fn dyn_filter(&self, filter: PropertyFilterInput) -> Arc<dyn DynCreateFilter>;
-
-    fn dyn_into_expr_builder(
-        &self,
-        builder: PropertyExprBuilderInput,
-    ) -> Arc<dyn DynPropertyFilterBuilder>;
-}
-
-impl<T: InternalPropertyFilterBuilder + 'static> DynPropertyFilterBuilder for T {
-    fn dyn_property_ref(&self) -> PropertyRef {
-        self.property_ref()
-    }
-
-    fn dyn_ops(&self) -> &[Op] {
-        self.ops()
-    }
-
-    fn dyn_entity(&self) -> EntityMarker {
-        self.entity().into()
-    }
-
-    fn dyn_filter(&self, filter: PropertyFilterInput) -> Arc<dyn DynCreateFilter> {
-        Arc::new(self.filter(filter))
-    }
-
-    fn dyn_into_expr_builder(
-        &self,
-        builder: PropertyExprBuilderInput,
-    ) -> Arc<dyn DynPropertyFilterBuilder> {
-        Arc::new(self.with_expr_builder(builder))
-    }
-}
-
-impl InternalPropertyFilterBuilder for Arc<dyn DynPropertyFilterBuilder> {
-    type Filter = Arc<dyn DynCreateFilter>;
-    type ExprBuilder = Arc<dyn DynPropertyFilterBuilder>;
-    type Marker = EntityMarker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().dyn_property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().dyn_ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().dyn_entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.deref().dyn_filter(filter)
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.deref().dyn_into_expr_builder(builder)
-    }
-}
-
-impl InternalPropertyFilterBuilder for Arc<dyn DynTemporalPropertyFilterBuilder> {
-    type Filter = Arc<dyn DynCreateFilter>;
-    type ExprBuilder = Arc<dyn DynPropertyFilterBuilder>;
-    type Marker = EntityMarker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().dyn_property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().dyn_ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().dyn_entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.deref().dyn_filter(filter)
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.deref().dyn_into_expr_builder(builder)
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Arc<T> {
-    type Filter = T::Filter;
-    type ExprBuilder = T::ExprBuilder;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.deref().property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.deref().ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.deref().entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.deref().filter(filter)
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.deref().with_expr_builder(builder)
-    }
 }
 
 #[derive(Copy, Clone)]
@@ -399,91 +244,89 @@ pub enum EntityMarker {
     ExplodedEdge,
 }
 
-pub trait InternalPropertyFilterFactory {
-    type Entity: Clone + Send + Sync + Into<EntityMarker> + 'static;
-    type PropertyBuilder: InternalPropertyFilterBuilder + TemporalPropertyFilterFactory;
-    type MetadataBuilder: InternalPropertyFilterBuilder;
-
-    fn entity(&self) -> Self::Entity;
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder;
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder;
+#[derive(Clone)]
+pub struct PropertyExpr<E> {
+    view_expr: E,
+    name: String,
 }
 
-pub trait DynPropertyFilterFactory: Send + Sync + 'static {
-    fn dyn_entity(&self) -> EntityMarker;
+impl<E: CreateView + Clone> NodeExpr for PropertyExpr<E> {
+    type Output = Option<Prop>;
 
-    fn dyn_property_builder(&self, property: String) -> Arc<dyn DynTemporalPropertyFilterBuilder>;
-
-    fn dyn_metadata_builder(&self, property: String) -> Arc<dyn DynPropertyFilterBuilder>;
-}
-
-impl<T: InternalPropertyFilterFactory + Send + Sync + 'static> DynPropertyFilterFactory for T {
-    fn dyn_entity(&self) -> EntityMarker {
-        self.entity().into()
-    }
-
-    fn dyn_property_builder(&self, property: String) -> Arc<dyn DynTemporalPropertyFilterBuilder> {
-        Arc::new(self.property_builder(property))
-    }
-
-    fn dyn_metadata_builder(&self, property: String) -> Arc<dyn DynPropertyFilterBuilder> {
-        Arc::new(self.metadata_builder(property))
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
+        let prop_id = graph
+            .node_meta()
+            .get_prop_id(&self.name, false)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(NodePropOp { graph, prop_id }))
     }
 }
 
-impl InternalPropertyFilterFactory for Arc<dyn DynPropertyFilterFactory> {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
+#[derive(Clone)]
+pub struct MetadataExpr<E> {
+    view_expr: E,
+    name: String,
+}
 
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
+impl<E: CreateView + Clone> NodeExpr for MetadataExpr<E> {
+    type Output = Option<Prop>;
 
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
+        let prop_id = graph
+            .node_meta()
+            .get_prop_id(&self.name, true)
+            .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
+        Ok(Arc::new(NodeMetaOp { graph, prop_id }))
     }
 }
 
-pub trait PropertyFilterFactory: InternalPropertyFilterFactory {
-    fn property(&self, name: impl Into<String>) -> Self::PropertyBuilder {
-        self.property_builder(name.into())
-    }
+pub trait PropertyFilterFactory: Sized {
+    fn property(&self, name: impl Into<String>) -> PropertyExpr<Self>;
 
-    fn metadata(&self, name: impl Into<String>) -> Self::MetadataBuilder {
-        self.metadata_builder(name.into())
-    }
+    fn metadata(&self, name: impl Into<String>) -> MetadataExpr<Self>;
 }
 
-impl<T: InternalPropertyFilterFactory> PropertyFilterFactory for T {}
-
-pub trait TemporalPropertyFilterFactory: InternalPropertyFilterBuilder {
-    fn temporal(&self) -> Self::ExprBuilder {
-        let builder = PropertyExprBuilderInput {
-            prop_ref: PropertyRef::TemporalProperty(self.property_ref().name().to_string()),
-            ops: vec![],
-        };
-        self.with_expr_builder(builder)
+impl<T: CreateView + Clone> PropertyFilterFactory for T {
+    fn property(&self, name: impl Into<String>) -> PropertyExpr<Self> {
+        PropertyExpr {
+            view_expr: self.clone(),
+            name,
+        }
     }
-}
 
-pub trait DynTemporalPropertyFilterBuilder: DynPropertyFilterBuilder {
-    fn dyn_temporal(&self) -> Arc<dyn DynPropertyFilterBuilder>;
-}
-
-impl<T: TemporalPropertyFilterFactory + 'static> DynTemporalPropertyFilterBuilder for T {
-    fn dyn_temporal(&self) -> Arc<dyn DynPropertyFilterBuilder> {
-        Arc::new(self.temporal())
+    fn metadata(&self, name: impl Into<String>) -> MetadataExpr<Self> {
+        MetadataExpr {
+            view_expr: self.clone(),
+            name,
+        }
     }
 }
 
-impl TemporalPropertyFilterFactory for Arc<dyn DynTemporalPropertyFilterBuilder> {}
+pub trait DynPropertyFilterFactory {
+    fn property(&self, name: String) -> PropertyExpr<Arc<dyn DynCreateView>>;
+}
+
+pub struct TemporalPropertyExpr<E> {
+    view_expr: E,
+    name: String,
+}
+
+impl<T: CreateView + Clone> PropertyExpr<T> {
+    pub fn temporal(&self) -> TemporalPropertyExpr<T> {
+        TemporalPropertyExpr {
+            view_expr: self.view_expr.clone(),
+            name: self.name.clone(),
+        }
+    }
+}
 
 pub trait TryAsCompositeFilter: Send + Sync {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError>;
@@ -611,31 +454,70 @@ pub trait ViewWrapOps: InternalViewWrapOps + Sized {
 
 impl<T: InternalViewWrapOps + Sized> ViewWrapOps for T {}
 
-pub trait ViewWrapPropOps: InternalViewWrapOps + InternalPropertyFilterFactory + Sized {}
+pub trait CreateView: Clone {
+    type View<'graph, G: GraphView + 'graph>: GraphView + 'graph;
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError>;
+}
 
-impl<T> ViewWrapPropOps for T where T: InternalViewWrapOps + InternalPropertyFilterFactory + Sized {}
+pub trait DynCreateView {
+    fn dyn_create_view<'graph>(
+        &self,
+        view: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError>;
+}
+
+impl<T: CreateView> DynCreateView for T {
+    fn dyn_create_view<'graph>(
+        &self,
+        view: Arc<dyn BoxableGraphView + 'graph>,
+    ) -> Result<Arc<dyn BoxableGraphView + 'graph>, GraphError> {
+        Ok(Arc::new(self.create_view(view)?))
+    }
+}
+
+impl CreateView for Arc<dyn DynCreateView> {
+    type View<'graph, G: GraphView + 'graph> = Arc<dyn BoxableGraphView + 'graph>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        self.deref().dyn_create_view(Arc::new(view))
+    }
+}
+
+impl CreateView for NodeFilter {
+    type View<'graph, G: GraphView + 'graph> = G;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        Ok(view)
+    }
+}
+
+impl<T: CreateView> CreateView for Layered<T> {
+    type View<'graph, G: GraphView + 'graph> = LayeredGraph<G>;
+
+    fn create_view<'graph, G: GraphView + 'graph>(
+        &self,
+        view: G,
+    ) -> Result<Self::View<'graph, G>, GraphError> {
+        view.layers(self.layer)
+    }
+}
+
+pub trait ViewWrapPropOps: InternalViewWrapOps + PropertyFilterFactory + Sized {}
+
+impl<T> ViewWrapPropOps for T where T: InternalViewWrapOps + PropertyFilterFactory + Sized {}
 
 pub trait DynInternalViewWrapPropOps: DynInternalViewWrapOps + DynPropertyFilterFactory {}
 
 impl<T> DynInternalViewWrapPropOps for T where T: DynInternalViewWrapOps + DynPropertyFilterFactory {}
-
-impl InternalPropertyFilterFactory for Arc<dyn DynInternalViewWrapPropOps> {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
-    }
-}
 
 impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapPropOps> {
     type Window = Arc<dyn DynInternalViewWrapPropOps>;
@@ -750,24 +632,6 @@ impl NodeViewFilterOps for DynNodeViewProps {
     }
 }
 
-impl InternalPropertyFilterFactory for DynNodeViewProps {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
-    }
-}
-
 pub type DynEdgeViewProps = Arc<dyn DynEdgeViewFilterOps>;
 
 impl InternalViewWrapOps for DynEdgeViewProps {
@@ -799,23 +663,5 @@ impl EdgeViewFilterOps for DynEdgeViewProps {
 
     fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
         self.deref().dyn_is_self_loop()
-    }
-}
-
-impl InternalPropertyFilterFactory for DynEdgeViewProps {
-    type Entity = EntityMarker;
-    type PropertyBuilder = Arc<dyn DynTemporalPropertyFilterBuilder>;
-    type MetadataBuilder = Arc<dyn DynPropertyFilterBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.deref().dyn_entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.deref().dyn_property_builder(property)
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.deref().dyn_metadata_builder(property)
     }
 }

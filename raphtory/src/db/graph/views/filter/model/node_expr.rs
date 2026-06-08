@@ -14,7 +14,7 @@ use crate::{
                 filter_operator::{BinaryOp, Comparable, SetOp, UnaryOp},
                 property_filter::{evaluate::aggregate_values, Op},
                 ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
-                TryAsCompositeFilter, Wrap,
+                CreateView, InternalViewWrapOps, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
         },
@@ -24,7 +24,7 @@ use crate::{
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, GID, VID},
-    storage::arc_str::ArcStr,
+    storage::{arc_str::ArcStr, timeindex::EventTime},
     Direction,
 };
 use raphtory_storage::graph::graph::GraphStorage;
@@ -69,8 +69,8 @@ pub trait NodeExpr: Clone + Send + Sync + 'static {
 /// Evaluates a temporal property by pre-resolved column ID.
 #[derive(Clone)]
 pub(crate) struct NodePropOp<G> {
-    graph: G,
-    prop_id: usize,
+    pub(crate) graph: G,
+    pub(crate) prop_id: usize,
 }
 
 impl<G: GraphView> NodeOp for NodePropOp<G> {
@@ -84,8 +84,8 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
 /// Evaluates a metadata (static) field by pre-resolved column ID.
 #[derive(Clone)]
 pub(crate) struct NodeMetaOp<G> {
-    graph: G,
-    prop_id: usize,
+    pub(crate) graph: G,
+    pub(crate) prop_id: usize,
 }
 
 impl<G: GraphView> NodeOp for NodeMetaOp<G> {
@@ -104,9 +104,12 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 ///
 /// Delegates to `Degree<G>` from `db/api/state/ops/node.rs`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DegreeExpr(pub Direction);
+pub struct DegreeExpr<E> {
+    pub dir: Direction,
+    pub view_expr: E,
+}
 
-impl NodeExpr for DegreeExpr {
+impl<E: CreateView> NodeExpr for DegreeExpr<E> {
     type Output = usize;
 
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -114,8 +117,8 @@ impl NodeExpr for DegreeExpr {
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = usize> + 'g>, GraphError> {
         Ok(Arc::new(Degree {
-            dir: self.0,
-            view: graph,
+            dir: self.dir,
+            view: self.view_expr.create_view(graph),
         }))
     }
 }
@@ -472,6 +475,17 @@ where
     pub right: R,
 }
 
+// [0, 1, 2, 3] < Const(2) => [true, true, false, false]
+// [[0, 1], [0, 1, 2, 3]] < 2 => [[true, true], [true, true, false, false]]
+// ([[0, 1], [0, 1, 2, 3]] < 2).any() => [true, true]
+// ([[0, 1], [0, 1, 2, 3]] < 2).all() => [true, false]
+// ([[0, 1], [0, 1, 2, 3]] < 2).any().all() => true
+// ([[0, 1], [0, 1, 2, 3]] < 2).all().all() => false
+// ([[0, 1], [0, 1, 2, 3]] < 2).all().any() => true
+
+// AnyExpr<BinOpNodeFilter<L, R>>
+// NodeFilter.property("boolean_list_property").any()
+
 impl<L, R> BinOpNodeFilter<L, R>
 where
     L: NodeExpr,
@@ -539,13 +553,6 @@ where
             right,
             op: self.op,
         })
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 
@@ -637,13 +644,6 @@ where
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         let inner = self.expr.create_node_op(graph)?;
         Ok(UnaryNodeOp { inner, op: self.op })
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 
@@ -742,13 +742,6 @@ where
             op: self.op,
             values: self.values,
         })
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 
@@ -944,7 +937,7 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
     type Output = Vec<Prop>;
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Vec<Prop> {
-        self.graph
+        (&&self.graph)
             .node(node)
             .and_then(|n| {
                 n.properties()
@@ -1110,6 +1103,10 @@ pub struct AllNodeOp<'g> {
     op: BinaryOp,
 }
 
+pub struct AllNodeOp2<'g> {
+    inner: Arc<dyn NodeOp<Output = Vec<bool>> + 'g>,
+}
+
 impl<'g> Clone for AllNodeOp<'g> {
     fn clone(&self) -> Self {
         Self {
@@ -1219,13 +1216,6 @@ where
             op: self.op,
         })
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 impl<E, R> CreateFilter for QuantifiedNodeFilter<E, AllMode, R>
@@ -1258,13 +1248,6 @@ where
             rhs: self.rhs.create_node_op(graph)?,
             op: self.op,
         })
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 
@@ -1625,7 +1608,14 @@ mod tests {
     fn degree_ge_2_keeps_all_nodes() {
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(DegreeExpr(Direction::BOTH).ge(2usize), g),
+            filtered_names(
+                DegreeExpr {
+                    dir: Direction::BOTH,
+                    view_expr: NodeFilter
+                }
+                .ge(2usize),
+                g
+            ),
             vec!["a", "b", "c"]
         );
     }
@@ -1633,14 +1623,29 @@ mod tests {
     #[test]
     fn degree_eq_1_keeps_no_nodes() {
         let g = build_test_graph();
-        assert!(filtered_names(DegreeExpr(Direction::BOTH).eq(1usize), g).is_empty());
+        assert!(filtered_names(
+            DegreeExpr {
+                dir: Direction::BOTH,
+                view_expr: NodeFilter
+            }
+            .eq(1usize),
+            g
+        )
+        .is_empty());
     }
 
     #[test]
     fn degree_le_2_keeps_all_nodes() {
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(DegreeExpr(Direction::BOTH).le(2usize), g),
+            filtered_names(
+                DegreeExpr {
+                    dir: Direction::BOTH,
+                    view_expr: NodeFilter
+                }
+                .le(2usize),
+                g
+            ),
             vec!["a", "b", "c"]
         );
     }
@@ -1648,13 +1653,29 @@ mod tests {
     #[test]
     fn degree_gt_2_keeps_no_nodes() {
         let g = build_test_graph();
-        assert!(filtered_names(DegreeExpr(Direction::BOTH).gt(2usize), g).is_empty());
+        assert!(filtered_names(
+            DegreeExpr {
+                dir: Direction::BOTH,
+                view_expr: NodeFilter
+            }
+            .gt(2usize),
+            g
+        )
+        .is_empty());
     }
 
     #[test]
     fn degree_ne_2_keeps_no_nodes_when_all_are_2() {
         let g = build_test_graph();
-        assert!(filtered_names(DegreeExpr(Direction::BOTH).ne(2usize), g).is_empty());
+        assert!(filtered_names(
+            DegreeExpr {
+                dir: Direction::BOTH,
+                view_expr: NodeFilter
+            }
+            .ne(2usize),
+            g
+        )
+        .is_empty());
     }
 
     // ── expression-vs-expression: RHS can be another NodeExpr ────────────────
@@ -1664,7 +1685,17 @@ mod tests {
         // total=2, in-degrees: a=0, b=1, c=2 → total > in for a and b only
         let g = build_test_graph();
         assert_eq!(
-            filtered_names(DegreeExpr(Direction::BOTH).gt(DegreeExpr(Direction::IN)), g),
+            filtered_names(
+                DegreeExpr {
+                    dir: Direction::BOTH,
+                    view_expr: NodeFilter
+                }
+                .gt(DegreeExpr {
+                    dir: Direction::IN,
+                    view_expr: NodeFilter
+                }),
+                g
+            ),
             vec!["a", "b"]
         );
     }
