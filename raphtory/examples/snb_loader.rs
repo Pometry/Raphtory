@@ -114,6 +114,7 @@ fn load_snb_graph_v2(
             None,
             None,
             None,
+            None,
             true,
             None,
         )?;
@@ -469,15 +470,16 @@ fn main() {
         .nth(1)
         .map(|dir| PathBuf::from(dir))
         .unwrap_or_else(|| panic!("Usage: snb_loader <data_dir>"));
-    let graph_path = std::env::args()
-        .nth(2)
-        .map(|graph| PathBuf::from(graph))
-        .unwrap_or_else(|| parquet_dir.join("..").join("graph"));
     let filter = std::env::args()
-        .nth(3)
+        .nth(2)
         .map(|s| serde_json::from_str::<Filter>(&s))
         .transpose()
         .unwrap();
+
+    let graph_path = std::env::args()
+        .nth(3)
+        .map(|graph| PathBuf::from(graph))
+        .unwrap_or_else(|| parquet_dir.join("..").join("graph"));
     let graph = if !graph_path.exists() {
         Graph::new_at_path(&graph_path).unwrap()
     } else {
