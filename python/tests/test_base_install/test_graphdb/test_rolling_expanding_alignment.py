@@ -49,7 +49,7 @@ def test_rolling_month_alignment_default_true(example_graph):
 
     # Validate the first three windows
     for i, (exp_start, exp_end) in enumerate(
-        [(exp0_start, exp0_end), (exp1_start, exp1_end), (exp2_start, exp2_end)]
+            [(exp0_start, exp0_end), (exp1_start, exp1_end), (exp2_start, exp2_end)]
     ):
         w = windows[i]
         start = w.start.dt
@@ -218,7 +218,7 @@ def test_expanding_custom_align_month(example_graph):
 def test_expanding_custom_align_week(example_graph):
     g: Graph = example_graph
     ws = list(g.expanding("1 day", alignment_unit="weeks"))
-    exp_end0 = datetime(2025, 3, 14, 0, 0, 0, tzinfo=timezone.utc)
+    exp_end0 = datetime(2025, 3, 11, 0, 0, 0, tzinfo=timezone.utc)
     exp_end_last = datetime(2025, 11, 23, 0, 0, 0, tzinfo=timezone.utc)
     assert ws[0].end.dt == exp_end0
     assert ws[-1].end.dt == exp_end_last
@@ -227,10 +227,10 @@ def test_expanding_custom_align_week(example_graph):
 def test_week_alignment_epoch_buckets():
     g = Graph()
     g.add_edge("1970-01-10 12:00:00", 0, 1)  # 9.5 days after epoch
-    # weeks align to multiples of 7 days since 1970-01-01 00:00:00 UTC
+    # weeks align to Monday
     ws = list(g.rolling("1 week"))
-    exp_start0 = datetime(1970, 1, 8, 0, 0, 0, tzinfo=timezone.utc)
-    exp_end0 = datetime(1970, 1, 15, 0, 0, 0, tzinfo=timezone.utc)
+    exp_start0 = datetime(1970, 1, 5, 0, 0, 0, tzinfo=timezone.utc)
+    exp_end0 = datetime(1970, 1, 12, 0, 0, 0, tzinfo=timezone.utc)
     # only one window
     assert ws[0].start.dt == exp_start0
     assert ws[0].end.dt == exp_end0
