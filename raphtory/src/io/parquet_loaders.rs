@@ -1,3 +1,4 @@
+use crate::arrow_loader::df_loaders::nodes::load_nodes_from_df_prefetch;
 use crate::{
     arrow_loader::{
         dataframe::*,
@@ -89,7 +90,7 @@ pub fn load_nodes_from_parquet<
             schema.clone(),
         )?;
         df_view.check_cols_exist(&cols_to_check)?;
-        load_nodes_from_df(
+        load_nodes_from_df_prefetch(
             df_view,
             time,
             secondary_index,
