@@ -1652,12 +1652,9 @@ use crate::{
         IdentityGraphTransformer,
     };
     use raphtory::{
-        algorithms::alternating_mask::alternating_mask, db::{
+        algorithms::alternating_mask::alternating_mask, core::entities::VID, db::{
             api::view::{Filter, filter_ops::NodeSelect},
             graph::{
-                assertions::{
-                    TestVariants, assert_filter_nodes_results, assert_search_nodes_results, assert_select_nodes_results
-                },
                 views::filter::{
                     CreateFilter, model::{
                         ComposableFilter, CompositeNodeFilter, NodeViewFilterOps, PropertyFilterFactory, TryAsCompositeFilter, ViewWrapOps, degree_filter::DegreeFilterFactory, node_filter::ops::{NodeFilterOps, NodeIdFilterOps}, property_filter::ops::{ListAggOps, PropertyFilterOps}
@@ -1672,9 +1669,8 @@ use crate::{
         assert_filter_nodes_results, assert_search_nodes_results, assert_select_nodes_results,
         TestVariants,
     };
-    use raphtory_api::core::Direction;
     use raphtory_api::core::{Direction, entities::properties::prop::Prop};
-    use raphtory_core::entities::VID;
+    use raphtory::prelude::IntoProp;
     use raphtory::db::graph::views::filter::model::property_filter::ops::ElemQualifierOps;
     use proptest::proptest;
 
