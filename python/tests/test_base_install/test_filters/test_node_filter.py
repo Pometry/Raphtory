@@ -1019,7 +1019,7 @@ def test_filter_nodes_by_column():
     assert result_ids == expected_ids
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_name_all_is_invalid():
     def check(graph):
         with pytest.raises(AttributeError, match=r"has no attribute 'all'"):
@@ -1028,7 +1028,7 @@ def test_filter_nodes_for_node_name_all_is_invalid():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_filter_nodes_for_node_name_len_is_invalid():
     def check(graph):
         with pytest.raises(AttributeError, match=r"has no attribute 'len'"):

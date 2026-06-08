@@ -584,7 +584,8 @@ mod graphql_test {
     #[tokio::test]
     async fn test_degree_filter_nodes_and_select_gql() {
         let graph: MaterializedGraph = degree_graph_with_add_node_and_add_edge().into();
-        let setup = setup_with_graphs(&[("g", graph)]).await;
+        let tmp_dir = tempdir().unwrap();
+        let setup = setup_with_graphs(&[("g", graph)], tmp_dir.path()).await;
 
         let query = r#"
         {
