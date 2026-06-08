@@ -49,7 +49,7 @@ def test_rolling_month_alignment_default_true(example_graph):
 
     # Validate the first three windows
     for i, (exp_start, exp_end) in enumerate(
-            [(exp0_start, exp0_end), (exp1_start, exp1_end), (exp2_start, exp2_end)]
+        [(exp0_start, exp0_end), (exp1_start, exp1_end), (exp2_start, exp2_end)]
     ):
         w = windows[i]
         start = w.start.dt
