@@ -3,7 +3,10 @@ use crate::{
         api::{
             properties::PropertiesOps,
             state::ops::{Const, Degree, Id, Name, NodeOp, Type},
-            view::{internal::GraphView, NodeViewOps},
+            view::{
+                internal::{GraphView, NodeList},
+                NodeViewOps,
+            },
         },
         graph::views::filter::{
             model::{
@@ -26,7 +29,6 @@ use raphtory_api::core::{
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // NodeExpr — typed node expression with associated Output type
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,13 +259,13 @@ impl NodeExpr for ArcStr {
 }
 
 impl NodeExpr for &'static str {
-    type Output = String;
+    type Output = &'static str;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
-        Ok(Arc::new(Const(self.to_string())))
+    ) -> Result<Arc<dyn NodeOp<Output = &'static str> + 'g>, GraphError> {
+        Ok(Arc::new(Const(*self)))
     }
 }
 
@@ -275,6 +277,17 @@ impl NodeExpr for Prop {
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Ok(Arc::new(Const(Some(self.clone()))))
+    }
+}
+
+impl NodeExpr for GID {
+    type Output = GID;
+
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        _graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
+        Ok(Arc::new(Const(self.clone())))
     }
 }
 
@@ -293,6 +306,43 @@ macro_rules! impl_node_expr_for_numeric {
     };
 }
 
+#[derive(Debug, Clone, Copy)]
+struct AsProp<E>(E);
+
+#[derive(Debug, Clone, Copy)]
+struct AsPropOp<Op>(Op);
+
+impl<Op: NodeOp<Output: Into<Prop>>> NodeOp for AsPropOp<Op> {
+    type Output = Prop;
+
+    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
+        self.0.apply(storage, node).into()
+    }
+
+    fn domain(&self, storage: &GraphStorage) -> NodeList {
+        self.0.domain(storage)
+    }
+
+    fn const_value_in_domain(&self) -> Option<Self::Output> {
+        self.0.const_value_in_domain().map(|v| v.into())
+    }
+
+    fn const_value(&self) -> Option<Self::Output> {
+        self.0.const_value().map(|v| v.into())
+    }
+}
+
+impl<E: NodeExpr<Output: Into<Prop>>> NodeExpr for AsProp<E> {
+    type Output = Prop;
+
+    fn create_node_op<'g, G: GraphView + 'g>(
+        &self,
+        graph: G,
+    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
+        Ok(Arc::new(AsPropOp(self.0.create_node_op(graph)?)))
+    }
+}
+
 impl_node_expr_for_numeric!(i32, I32);
 impl_node_expr_for_numeric!(i64, I64);
 impl_node_expr_for_numeric!(u32, U32);
@@ -308,21 +358,16 @@ impl_node_expr_for_numeric!(u16, U16);
 /// Built-in types (`usize`, `String`, `Prop`, etc.) can be passed directly;
 /// `ConstExpr<T>` is only needed for custom attribute output types.
 #[derive(Clone)]
-pub struct ConstExpr<T: Comparable + Clone + Send + Sync + 'static>(pub T)
-where
-    Option<T>: Comparable;
+pub struct ConstExpr<T>(pub T);
 
-impl<T: Comparable + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T>
-where
-    Option<T>: Comparable,
-{
-    type Output = Option<T>;
+impl<T: Comparable + Clone + Send + Sync + 'static> NodeExpr for ConstExpr<T> {
+    type Output = T;
 
     fn create_node_op<'g, G: GraphView + 'g>(
         &self,
         _graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Option<T>> + 'g>, GraphError> {
-        Ok(Arc::new(Const(Some(self.0.clone()))))
+    ) -> Result<Arc<dyn NodeOp<Output = T> + 'g>, GraphError> {
+        Ok(Arc::new(Const(self.0.clone())))
     }
 }
 
@@ -1489,6 +1534,7 @@ mod tests {
         prelude::{AdditionOps, Graph, GraphViewOps, NodeViewOps, NO_PROPS},
     };
     use raphtory_api::core::entities::properties::prop::IntoProp;
+    use crate::db::api::view::filter_ops::NodeSelect;
 
     // Test graph: a→b, a→c, b→c
     // All nodes have total degree 2; in-degrees: a=0, b=1, c=2
@@ -1573,6 +1619,16 @@ mod tests {
         let filter = BinOpNodeFilter::new(ConstExpr(2usize), BinaryOp::Eq, ConstExpr(2usize));
         let g = build_test_graph();
         assert_eq!(filtered_names(filter, g), vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_id_filter_expr() {
+        let g = Graph::new();
+        g.add_node(0, 1, NO_PROPS, None, None).unwrap();
+        g.add_node(0, 6, NO_PROPS, None, None).unwrap();
+        let filter = Id.ge(GID::U64(5u64));
+
+        assert_eq!(g.nodes().select(filter).unwrap().id(), [6u64])
     }
 
     // ── Temporal property helpers ─────────────────────────────────────────────

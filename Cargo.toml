@@ -71,7 +71,7 @@ async-graphql = { version = "7.2.1", features = ["dynamic-schema"] }
 async-graphql-poem = "7.2.1"
 dynamic-graphql = "0.10.2"
 derive_more = "2.1.1"
-tikv-jemallocator = "0.6.1"
+tikv-jemallocator = "0.7.0"
 reqwest = { version = "0.13.3", default-features = false, features = [
     "multipart",
     "json",

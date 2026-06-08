@@ -114,7 +114,7 @@ proptest.workspace = true
 proptest-derive.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]
-tikv-jemallocator = "0.6.1"
+tikv-jemallocator = "0.7.0"
 
 [features]
 default = [] # we can't depend on ourselves but we want to share test-utils

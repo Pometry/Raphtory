@@ -64,6 +64,7 @@ macro_rules! impl_comparable_str {
 
 impl_comparable_str!(String);
 impl_comparable_str!(ArcStr);
+impl_comparable_str!(&'static str);
 
 impl Comparable for Prop {
     fn binary_cmp(op: &BinaryOp, left: &Prop, right: &Prop) -> bool {
