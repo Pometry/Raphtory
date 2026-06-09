@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use raphtory::{
     algorithms::{
-        centrality::pagerank::unweighted_page_rank,
+        centrality::{hits::hits, pagerank::unweighted_page_rank},
         components::weakly_connected_components,
         metrics::clustering_coefficient::{
             global_clustering_coefficient::global_clustering_coefficient,
@@ -17,7 +17,45 @@ use raphtory::{
 };
 use raphtory_benchmark::common::bench;
 use rayon::prelude::*;
+use core::num;
 use std::hint::black_box;
+
+fn build_sparse_graph_with_hub(num_nodes: usize, add_hub: bool) -> Graph {
+    let graph = Graph::new();
+
+    // Ensure all 100k nodes are present, including isolated vertices.
+    for node_id in 0..num_nodes {
+        graph
+            .add_node(node_id as i64, node_id as u64, NO_PROPS, None, None)
+            .unwrap();
+    }
+
+    // Baseline sparse graph: each node has 2 outgoing edges (< 5).
+    for node_id in 0..num_nodes {
+        let src = node_id as u64;
+        let dst1 = ((node_id + 1) % num_nodes) as u64;
+        let dst2 = ((node_id + 2) % num_nodes) as u64;
+
+        graph
+            .add_edge(node_id as i64, src, dst1, NO_PROPS, None)
+            .unwrap();
+        graph
+            .add_edge((num_nodes + node_id) as i64, src, dst2, NO_PROPS, None)
+            .unwrap();
+    }
+
+    // Hub-skewed variant: one node has 5,000 outgoing edges.
+    if add_hub {
+        for dst in 1..=(num_nodes - 1) {
+            graph
+                .add_edge((2 * num_nodes + dst) as i64, 0u64, dst as u64, NO_PROPS, None)
+                .unwrap();
+        }
+    }
+
+    graph
+}
+
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");
@@ -131,6 +169,48 @@ pub fn temporal_motifs(c: &mut Criterion) {
     group.finish();
 }
 
+pub fn multithreaded_hits_sparse_vs_hub(c: &mut Criterion) {
+    let mut group = c.benchmark_group("multithreaded_hits_sparse_vs_hub");
+
+    let num_nodes = 200_000usize;
+    let threads = Some(
+        std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4),
+    );
+
+    let sparse_graph = build_sparse_graph_with_hub(num_nodes, false);
+    let hub_graph = build_sparse_graph_with_hub(num_nodes, true);
+
+    group.sampling_mode(SamplingMode::Flat);
+    group.sample_size(10);
+    group.measurement_time(std::time::Duration::from_secs(20));
+
+    group.bench_with_input(
+        BenchmarkId::new("hits_sparse_under_5_edges", num_nodes),
+        &sparse_graph,
+        |b, graph| {
+            b.iter(|| {
+                let result = hits(graph, 20, threads);
+                black_box(result);
+            });
+        },
+    );
+
+    group.bench_with_input(
+        BenchmarkId::new("hits_sparse_with_5000_edge_hub", num_nodes),
+        &hub_graph,
+        |b, graph| {
+            b.iter(|| {
+                let result = hits(graph, 20, threads);
+                black_box(result);
+            });
+        },
+    );
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     local_triangle_count_analysis,
@@ -139,5 +219,6 @@ criterion_group!(
     graphgen_large_pagerank,
     graphgen_large_concomp,
     temporal_motifs,
+    multithreaded_hits_sparse_vs_hub,
 );
 criterion_main!(benches);
