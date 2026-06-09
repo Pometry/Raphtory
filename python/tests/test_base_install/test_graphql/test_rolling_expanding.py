@@ -4882,7 +4882,7 @@ def test_alignment():
                         "end": {
                             "timestamp": int(
                                 datetime(
-                                    2025, 4, 13, 0, 0, 0, tzinfo=timezone.utc
+                                    2025, 4, 10, 0, 0, 0, tzinfo=timezone.utc
                                 ).timestamp()
                                 * 1000
                             )
@@ -4892,7 +4892,7 @@ def test_alignment():
                         "end": {
                             "timestamp": int(
                                 datetime(
-                                    2025, 5, 13, 0, 0, 0, tzinfo=timezone.utc
+                                    2025, 5, 10, 0, 0, 0, tzinfo=timezone.utc
                                 ).timestamp()
                                 * 1000
                             )
@@ -5252,7 +5252,7 @@ def test_alignment():
                                             datetime(
                                                 2025,
                                                 5,
-                                                22,
+                                                19,
                                                 0,
                                                 0,
                                                 0,
@@ -5272,7 +5272,7 @@ def test_alignment():
                                             datetime(
                                                 2025,
                                                 7,
-                                                31,
+                                                28,
                                                 0,
                                                 0,
                                                 0,
@@ -5292,7 +5292,7 @@ def test_alignment():
                                             datetime(
                                                 2025,
                                                 10,
-                                                9,
+                                                6,
                                                 0,
                                                 0,
                                                 0,
@@ -5312,7 +5312,7 @@ def test_alignment():
                                             datetime(
                                                 2025,
                                                 12,
-                                                18,
+                                                15,
                                                 0,
                                                 0,
                                                 0,
