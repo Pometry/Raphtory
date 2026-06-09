@@ -1,5 +1,6 @@
 use arrow_schema::DataType;
 use serde::{Deserialize, Serialize};
+use std::cell::LazyCell;
 use std::{
     collections::HashMap,
     fmt,
@@ -76,6 +77,18 @@ impl Display for PropType {
     }
 }
 
+const CONTAINER_SIZE: LazyCell<usize> = LazyCell::new(|| {
+    std::env::var("RAPHTORY_PROP_CONTAINER_SIZE")
+        .ok()
+        .map(|size| {
+            size.parse::<usize>().unwrap_or_else(|_| {
+                eprintln!("RAPHTORY_PROP_CONTAINER_SIZE not set or invalid, defaulting to 64");
+                64
+            })
+        })
+        .unwrap_or(64)
+});
+
 impl PropType {
     pub fn inner(&self) -> Option<&PropType> {
         match self {
@@ -142,9 +155,8 @@ impl PropType {
 
     // This is the best guess for the size of one row of properties
     pub fn est_size(&self) -> usize {
-        const CONTAINER_SIZE: usize = 64;
         match self {
-            PropType::Str => CONTAINER_SIZE,
+            PropType::Str => *CONTAINER_SIZE,
             PropType::U8 | PropType::Bool => 1,
             PropType::U16 => 2,
             PropType::I32 | PropType::F32 | PropType::U32 => 4,
