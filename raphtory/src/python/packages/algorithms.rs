@@ -132,7 +132,7 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     NodeStateUsize: Mapping of nodes to their component ids.
+///     OutputNodeState: Mapping of nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn weakly_connected_components(

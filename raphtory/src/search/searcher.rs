@@ -80,12 +80,6 @@ impl<'a> Searcher<'a> {
 //  comparisons to filter apis results.
 #[cfg(test)]
 mod search_tests {
-    use super::*;
-    use crate::{db::graph::views::filter::model::node_filter::ops::NodeFilterOps, prelude::*};
-    use raphtory_api::core::utils::logging::global_info_logger;
-    use std::time::SystemTime;
-    use tracing::info;
-
     #[cfg(test)]
     mod search_nodes {
         use crate::{

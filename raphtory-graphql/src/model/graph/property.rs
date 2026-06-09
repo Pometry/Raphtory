@@ -222,7 +222,7 @@ fn prop_to_gql(prop: &Prop) -> GqlValue {
         Prop::F32(u) => Number::from_f64(*u as f64)
             .map(|number| GqlValue::Number(number))
             .unwrap_or(GqlValue::Null),
-        Prop::F64(u) => Number::from_f64(*u as f64)
+        Prop::F64(u) => Number::from_f64(*u)
             .map(|number| GqlValue::Number(number))
             .unwrap_or(GqlValue::Null),
         Prop::Bool(b) => GqlValue::Boolean(*b),

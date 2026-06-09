@@ -2,8 +2,8 @@ import { test as base, Page } from '@playwright/test';
 import { randomUUID } from 'crypto';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import path from 'path';
-import { loadSpec, seedGraphFromSpec } from './e2e/specs';
-import { deleteGraph, waitForLayoutToFinish } from './e2e/utils';
+import { copyGraph, deleteGraph } from './e2e/api';
+import { waitForLayoutToFinish } from './e2e/utils';
 
 const RAPHTORY_WORK_DIR =
     process.env.RAPHTORY_WORK_DIR ?? '/tmp/vanilla-graphs';
@@ -73,8 +73,7 @@ export const test = base.extend<MyFixtures & MyOptions>({
         for (const graphPath of isolatedGraphsConfig) {
             const graphName = graphPath.split('/').pop()!;
             const newPath = `${namespace}/${graphName}`;
-            const spec = loadSpec(graphName);
-            await seedGraphFromSpec(newPath, spec);
+            await copyGraph(graphPath, newPath);
             copiedGraphs.push(newPath);
         }
 

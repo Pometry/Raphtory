@@ -171,6 +171,7 @@ mod test {
             true,
             None,
             None,
+            None,
         )
         .expect("failed to load nodes from pretend df");
 

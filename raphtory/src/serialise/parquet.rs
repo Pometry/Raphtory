@@ -210,13 +210,13 @@ impl ParquetDecoder for MaterializedGraph {
     }
 }
 
-const EDGES_T_PATH: &str = "edges_t";
-const EDGES_D_PATH: &str = "edges_d"; // deletions
-const EDGES_C_PATH: &str = "edges_c";
-const NODES_T_PATH: &str = "nodes_t";
-const NODES_C_PATH: &str = "nodes_c";
-const GRAPH_T_PATH: &str = "graph_t";
-const GRAPH_C_PATH: &str = "graph_c";
+pub const EDGES_T_PATH: &str = "edges_t";
+pub const EDGES_D_PATH: &str = "edges_d"; // deletions
+pub const EDGES_C_PATH: &str = "edges_c";
+pub const NODES_T_PATH: &str = "nodes_t";
+pub const NODES_C_PATH: &str = "nodes_c";
+pub const GRAPH_T_PATH: &str = "graph_t";
+pub const GRAPH_C_PATH: &str = "graph_c";
 const GRAPH_TYPE: &str = "graph_type";
 const EVENT_GRAPH_TYPE: &str = "rap_event_graph";
 const PERSISTENT_GRAPH_TYPE: &str = "rap_persistent_graph";
@@ -415,6 +415,8 @@ fn decode_graph_storage(
             Some(TYPE_ID_COL),
             &c_prop_columns,
             None,
+            None,
+            None,
             batch_size,
             None,
         )?;
@@ -429,6 +431,8 @@ fn decode_graph_storage(
             TYPE_COL,
             TIME_COL,
             SECONDARY_INDEX_COL,
+            LAYER_COL,
+            LAYER_ID_COL,
         ];
         let (t_prop_columns, _) = collect_prop_columns(&t_node_path, &exclude)?;
         let t_prop_columns = t_prop_columns
@@ -448,7 +452,8 @@ fn decode_graph_storage(
             &[],
             None,
             None,
-            None,
+            Some(LAYER_COL),
+            Some(LAYER_ID_COL),
             batch_size,
             false,
             None,
@@ -550,6 +555,7 @@ fn decode_graph_storage(
             false,
         )?;
     }
+
     Ok(graph)
 }
 

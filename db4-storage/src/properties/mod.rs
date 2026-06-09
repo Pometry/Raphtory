@@ -142,121 +142,142 @@ impl Properties {
         col_id: usize,
         meta: &PropMapper,
         indices: impl Iterator<Item = usize>,
-    ) -> Option<ArrayRef> {
+    ) -> Result<Option<ArrayRef>, StorageError> {
         match column {
-            PropColumn::Empty(_) => None,
-            PropColumn::U32(lazy_vec) => Some(Arc::new(UInt32Array::from_iter(
+            PropColumn::Empty(_) => Ok(None),
+            PropColumn::U32(lazy_vec) => Ok(Some(Arc::new(UInt32Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::Bool(lazy_vec) => Some(Arc::new(BooleanArray::from_iter(
+            )))),
+            PropColumn::Bool(lazy_vec) => Ok(Some(Arc::new(BooleanArray::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::U8(lazy_vec) => Some(Arc::new(UInt8Array::from_iter(
+            )))),
+            PropColumn::U8(lazy_vec) => Ok(Some(Arc::new(UInt8Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::U16(lazy_vec) => Some(Arc::new(UInt16Array::from_iter(
+            )))),
+            PropColumn::U16(lazy_vec) => Ok(Some(Arc::new(UInt16Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::U64(lazy_vec) => Some(Arc::new(UInt64Array::from_iter(
+            )))),
+            PropColumn::U64(lazy_vec) => Ok(Some(Arc::new(UInt64Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::I32(lazy_vec) => Some(Arc::new(Int32Array::from_iter(
+            )))),
+            PropColumn::I32(lazy_vec) => Ok(Some(Arc::new(Int32Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::I64(lazy_vec) => Some(Arc::new(Int64Array::from_iter(
+            )))),
+            PropColumn::I64(lazy_vec) => Ok(Some(Arc::new(Int64Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::F32(lazy_vec) => Some(Arc::new(Float32Array::from_iter(
+            )))),
+            PropColumn::F32(lazy_vec) => Ok(Some(Arc::new(Float32Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::F64(lazy_vec) => Some(Arc::new(Float64Array::from_iter(
+            )))),
+            PropColumn::F64(lazy_vec) => Ok(Some(Arc::new(Float64Array::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i).copied()),
-            ))),
-            PropColumn::Str(lazy_vec) => Some(Arc::new(StringViewArray::from_iter(
+            )))),
+            PropColumn::Str(lazy_vec) => Ok(Some(Arc::new(StringViewArray::from_iter(
                 indices.map(|i| lazy_vec.get_opt(i)),
-            ))),
-            PropColumn::DTime(lazy_vec) => Some(Arc::new(
+            )))),
+            PropColumn::DTime(lazy_vec) => Ok(Some(Arc::new(
                 TimestampMillisecondArray::from_iter(
                     indices.map(|i| lazy_vec.get_opt(i).copied().map(|dt| dt.timestamp_millis())),
                 )
                 .with_timezone("UTC"),
-            )),
-            PropColumn::NDTime(lazy_vec) => Some(Arc::new(TimestampMillisecondArray::from_iter(
-                indices.map(|i| {
+            ))),
+            PropColumn::NDTime(lazy_vec) => Ok(Some(Arc::new(
+                TimestampMillisecondArray::from_iter(indices.map(|i| {
                     lazy_vec
                         .get_opt(i)
                         .copied()
                         .map(|dt| dt.and_utc().timestamp_millis())
-                }),
+                })),
             ))),
             PropColumn::Decimal(lazy_vec) => {
-                let scale = meta
-                    .get_dtype(col_id)
-                    .and_then(|dtype| match dtype {
-                        PropType::Decimal { scale } => Some(scale as i8),
-                        _ => None,
+                let prop_type = meta.get_dtype(col_id).ok_or_else(|| {
+                    StorageError::GenericFailure(format!(
+                        "Missing dtype for decimal column {col_id}"
+                    ))
+                })?;
+
+                let PropType::Decimal { scale } = prop_type else {
+                    return Err(StorageError::GenericFailure(format!(
+                        "Expected Decimal dtype for decimal column {col_id}, found {prop_type:?}"
+                    )));
+                };
+
+                let array = Decimal128Array::from_iter(indices.map(|i| {
+                    lazy_vec.get_opt(i).and_then(|big_decimal| {
+                        let (num, _) = big_decimal.as_bigint_and_scale();
+                        num.to_i128()
                     })
-                    .unwrap();
-                Some(Arc::new(
-                    Decimal128Array::from_iter(indices.map(|i| {
-                        lazy_vec.get_opt(i).and_then(|bd| {
-                            let (num, _) = bd.as_bigint_and_scale();
-                            num.to_i128()
-                        })
-                    }))
-                    .with_precision_and_scale(DECIMAL128_MAX_PRECISION, scale)
-                    .unwrap(),
-                ))
+                }))
+                .with_precision_and_scale(DECIMAL128_MAX_PRECISION, scale as i8)
+                .map_err(StorageError::ArrowRS)?;
+
+                Ok(Some(Arc::new(array)))
             }
             PropColumn::Map(lazy_vec) => {
-                let dt = meta
-                    .get_dtype(col_id)
-                    .as_ref()
-                    .map(arrow_dtype_from_prop_type)?;
+                let prop_type = meta.get_dtype(col_id).ok_or_else(|| {
+                    StorageError::GenericFailure(format!("Missing dtype for map column {col_id}"))
+                })?;
+
+                let dt = arrow_dtype_from_prop_type(&prop_type);
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
                     .map(|e| e.map(|m| SerdeArrowMap(m)));
 
-                let struct_array = struct_array_from_props(&dt, array_iter).ok()?;
+                let struct_array = struct_array_from_props(&dt, array_iter).map_err(|e| {
+                    StorageError::GenericFailure(format!(
+                        "Failed to build struct array for column{col_id}: {e}"
+                    ))
+                })?;
 
-                Some(Arc::new(struct_array))
+                Ok(Some(Arc::new(struct_array)))
             }
             PropColumn::List(lazy_vec) => {
-                let dt = meta
-                    .get_dtype(col_id)
-                    .as_ref()
-                    .map(arrow_dtype_from_prop_type)
-                    .unwrap();
+                let prop_type = meta.get_dtype(col_id).ok_or_else(|| {
+                    StorageError::GenericFailure(format!("Missing dtype for list column {col_id}"))
+                })?;
 
+                let dt = arrow_dtype_from_prop_type(&prop_type);
                 let array_iter = indices
                     .map(|i| lazy_vec.get_opt(i))
                     .map(|opt_list| opt_list.map(SerdeArrowList));
 
-                let list_array = list_array_from_props(&dt, array_iter).ok()?;
+                let list_array = list_array_from_props(&dt, array_iter).map_err(|e| {
+                    StorageError::GenericFailure(format!(
+                        "Failed to build list array for column {col_id}: {e}"
+                    ))
+                })?;
 
-                Some(Arc::new(list_array))
+                Ok(Some(Arc::new(list_array)))
             }
         }
     }
 
+    /// Convert the temporal property column with `col_id` into an Arrow array.
     pub fn take_t_column(
         &self,
         col_id: usize,
         meta: &PropMapper,
         indices: impl ExactSizeIterator<Item = usize>,
-    ) -> Option<ArrayRef> {
-        let column = self.t_properties.get(col_id)?;
+    ) -> Result<Option<ArrayRef>, StorageError> {
+        let Some(column) = self.t_properties.get(col_id) else {
+            return Ok(None);
+        };
+
         self.column_as_array(column, col_id, meta, indices)
     }
 
+    /// Convert the constant property column with `col_id` into an Arrow array.
     pub fn take_c_column(
         &self,
-        col: usize,
+        col_id: usize,
         meta: &PropMapper,
         indices: impl Iterator<Item = usize>,
-    ) -> Option<ArrayRef> {
-        let column = self.c_properties.get(col)?;
-        self.column_as_array(column, col, meta, indices)
+    ) -> Result<Option<ArrayRef>, StorageError> {
+        let Some(column) = self.c_properties.get(col_id) else {
+            return Ok(None);
+        };
+
+        self.column_as_array(column, col_id, meta, indices)
     }
 
     fn update_earliest_latest(&mut self, t: EventTime) {

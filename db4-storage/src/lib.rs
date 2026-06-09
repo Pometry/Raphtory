@@ -127,6 +127,7 @@ pub mod error {
     }
 
     impl StorageError {
+        /// Propagate external errors from other crates through StorageError.
         pub fn from_external<E: std::error::Error + Send + Sync + 'static>(error: E) -> Self {
             Self::External(Arc::new(error))
         }

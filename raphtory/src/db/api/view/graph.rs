@@ -93,7 +93,6 @@ pub trait GraphViewOps<'graph>: BoxableGraphView + Sized + Clone + 'graph {
     /// If a path is provided, it will be used to store the new graph
     /// (assuming the storage feature is enabled). Sets a new config.
     #[cfg(feature = "io")]
-    #[cfg(feature = "io")]
     fn materialize_at_with_config(
         &self,
         path: &(impl GraphPaths + ?Sized),
@@ -467,6 +466,8 @@ pub fn materialize_impl(
                             None,
                             &materialized,
                             true,
+                            None,
+                            None,
                         )
                     })
                 }
@@ -479,11 +480,15 @@ pub fn materialize_impl(
                             TYPE_COL,
                             TIME_COL,
                             SECONDARY_INDEX_COL,
+                            LAYER_COL,
+                            LAYER_ID_COL,
                         ],
                     );
                     let node_t_props_refs =
                         node_t_props.iter().map(String::as_str).collect::<Vec<_>>();
 
+                    // don't pass node layer ids because the graph may be filtered/windowed,
+                    // and any missing layer would introduce gaps in the layer mappers
                     load_nodes_from_df(
                         df_view,
                         TIME_COL,
@@ -497,6 +502,7 @@ pub fn materialize_impl(
                         &materialized,
                         true,
                         None,
+                        Some(LAYER_COL),
                         None,
                     )
                 }

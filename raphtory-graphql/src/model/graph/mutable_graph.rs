@@ -866,7 +866,7 @@ mod tests {
         },
     };
     use std::path::Path;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::TempDir;
 
     fn fake_embedding(_: &str) -> Vec<f32> {
         vec![1.0]

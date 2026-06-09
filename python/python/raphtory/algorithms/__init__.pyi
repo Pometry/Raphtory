@@ -427,7 +427,7 @@ def local_clustering_coefficient_batch(graph: Any, v: Any = None) -> OutputNodeS
         OutputNodeState: Mapping of vertices to lcc score
     """
 
-def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
+def weakly_connected_components(graph: GraphView) -> OutputNodeState:
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 
@@ -438,7 +438,7 @@ def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
         graph (GraphView): Raphtory graph
 
     Returns:
-        NodeStateUsize: Mapping of nodes to their component ids.
+        OutputNodeState: Mapping of nodes to their component ids.
     """
 
 def strongly_connected_components(graph: GraphView) -> OutputNodeState:

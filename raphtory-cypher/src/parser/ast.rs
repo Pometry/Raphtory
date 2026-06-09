@@ -279,6 +279,7 @@ pub enum Expr {
         op: BinOpType,
         left: Ex,
         right: Ex,
+        output_type: OutputType,
     },
     UnaryOp {
         op: UnaryOpType,

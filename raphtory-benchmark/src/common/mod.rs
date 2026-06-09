@@ -4,12 +4,12 @@
 pub mod vectors;
 
 use criterion::{
-    black_box, measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
+    measurement::WallTime, BatchSize, Bencher, BenchmarkGroup, BenchmarkId, Criterion,
 };
 use rand::{distr::Uniform, seq::*, Rng, SeedableRng};
 use raphtory::{db::api::view::StaticGraphViewOps, prelude::*};
 use raphtory_api::core::{storage::timeindex::AsTime, utils::logging::global_info_logger};
-use std::{collections::HashSet, iter};
+use std::{collections::HashSet, hint::black_box, iter};
 use tempfile::TempDir;
 use tracing::info;
 

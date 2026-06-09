@@ -75,7 +75,7 @@ impl Namespace {
         }
     }
 
-    pub(crate) fn local_path(&self) -> &str {
+    pub fn local_path(&self) -> &str {
         &self.relative_path
     }
 

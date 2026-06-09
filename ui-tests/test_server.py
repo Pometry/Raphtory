@@ -1,6 +1,8 @@
 import json
 import os
 import random
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 
 from raphtory import graphql, PersistentGraph, Graph
@@ -91,32 +93,39 @@ def build_from_spec(name):
 
 def __main__():
     port = int(os.environ.get("RAPHTORY_PORT", "1736"))
-    work_dir = os.environ.get("RAPHTORY_WORK_DIR", "/tmp/vanilla-graphs")
+    work_dir = os.environ.get(
+        "RAPHTORY_WORK_DIR", os.path.join(tempfile.gettempdir(), "vanilla-graphs")
+    )
 
-    os.system(f"rm -rf {work_dir}/vanilla")
-    os.system(f"rm -rf {work_dir}/new_folder")
-    os.system(f"mkdir -p {work_dir}/vanilla")
-    os.system(f"mkdir -p {work_dir}/new_folder")
+    for sub in ("vanilla", "new_folder"):
+        target = os.path.join(work_dir, sub)
+        shutil.rmtree(target, ignore_errors=True)
+        os.makedirs(target, exist_ok=True)
 
-    build_from_spec("event").save_to_file(f"{work_dir}/vanilla/event")
-    build_from_spec("persistent").save_to_file(f"{work_dir}/vanilla/persistent")
+    def graph_path(*parts):
+        return os.path.join(work_dir, *parts)
 
-    setup_large_graph(Graph()).save_to_file(f"{work_dir}/vanilla/large")
+    build_from_spec("event").save_to_file(graph_path("vanilla", "event"))
+    build_from_spec("persistent").save_to_file(graph_path("vanilla", "persistent"))
 
-    build_from_spec("filler").save_to_file(f"{work_dir}/vanilla/filler")
+    setup_large_graph(Graph()).save_to_file(graph_path("vanilla", "large"))
+
+    build_from_spec("filler").save_to_file(graph_path("vanilla", "filler"))
     g = build_from_spec("persistent_filler")
-    g.save_to_file(f"{work_dir}/vanilla/persistent_filler")
-    g.save_to_file(f"{work_dir}/new_folder/persistent_filler")
+    g.save_to_file(graph_path("vanilla", "persistent_filler"))
+    g.save_to_file(graph_path("new_folder", "persistent_filler"))
 
-    build_from_spec("second_filler").save_to_file(f"{work_dir}/vanilla/second_filler")
+    build_from_spec("second_filler").save_to_file(
+        graph_path("vanilla", "second_filler")
+    )
     g = build_from_spec("persistent_second_filler")
-    g.save_to_file(f"{work_dir}/new_folder/persistent_second_filler")
-    g.save_to_file(f"{work_dir}/vanilla/persistent_second_filler")
+    g.save_to_file(graph_path("new_folder", "persistent_second_filler"))
+    g.save_to_file(graph_path("vanilla", "persistent_second_filler"))
 
-    build_from_spec("variant_test").save_to_file(f"{work_dir}/vanilla/variant_test")
+    build_from_spec("variant_test").save_to_file(graph_path("vanilla", "variant_test"))
 
     build_from_spec("temporal_props").save_to_file(
-        f"{work_dir}/vanilla/temporal_props"
+        graph_path("vanilla", "temporal_props")
     )
 
     server = graphql.GraphServer(work_dir=work_dir)

@@ -14,7 +14,7 @@ use arrow_array::{
     },
     Array, ArrayRef, LargeListArray, StructArray,
 };
-use arrow_schema::{DataType, Field, FieldRef, TimeUnit};
+use arrow_schema::{DataType, Field, FieldRef, Fields, TimeUnit, DECIMAL128_MAX_PRECISION};
 use bigdecimal::{num_bigint::BigInt, BigDecimal};
 use chrono::{DateTime, NaiveDateTime, Utc};
 use itertools::Itertools;
@@ -24,6 +24,7 @@ use serde::{
     ser::{Error, SerializeMap, SerializeSeq},
     Deserialize, Serialize, Serializer,
 };
+use serde_arrow::ArrayBuilder;
 use std::{
     cmp::Ordering,
     collections::HashMap,
@@ -35,7 +36,8 @@ use std::{
 };
 use thiserror::Error;
 
-pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128; // equivalent to parquet decimal(38, 0)
+// Equivalent to parquet decimal(38, 0).
+pub const DECIMAL_MAX: i128 = 99999999999999999999999999999999999999i128;
 
 #[derive(Error, Debug)]
 #[error("Decimal {0} too large.")]
@@ -265,11 +267,13 @@ impl PartialOrd for Prop {
 }
 
 pub struct SerdeArrowProp<'a>(pub &'a Prop);
+
 #[derive(Clone, Copy, Debug)]
 pub struct SerdeArrowList<'a>(pub &'a PropArray);
 
 #[derive(Clone, Copy, Debug)]
 pub struct SerdeArrowArray<'a>(pub &'a ArrayRef);
+
 #[derive(Clone, Copy)]
 pub struct SerdeArrowMap<'a>(pub &'a HashMap<ArcStr, Prop, FxBuildHasher>);
 
@@ -286,9 +290,11 @@ impl<'a> Serialize for SerdeArrowList<'a> {
         match &self.0 {
             PropArray::Vec(list) => {
                 let mut state = serializer.serialize_seq(Some(self.0.len()))?;
+
                 for prop in list.iter() {
                     state.serialize_element(&SerdeArrowProp(prop))?;
                 }
+
                 state.end()
             }
             PropArray::Array(array) => SerdeArrowArray(array).serialize(serializer),
@@ -329,7 +335,22 @@ impl<'a> Serialize for SerdeArrowProp<'a> {
             Prop::NDTime(dt) => serializer.serialize_i64(dt.and_utc().timestamp_millis()),
             Prop::List(l) => SerdeArrowList(l).serialize(serializer),
             Prop::Map(m) => SerdeArrowMap(m).serialize(serializer),
-            Prop::Decimal(dec) => serializer.serialize_str(&dec.to_string()),
+            Prop::Decimal(dec) => {
+                // Serialize BigDecimal as string manually to match
+                // the Arrow Decimal128 format.
+                let (num, scale) = dec.as_bigint_and_scale();
+
+                let num_i128 = num.to_i128().ok_or_else(|| {
+                    serde::ser::Error::custom(format!(
+                        "decimal value {dec} is out of range for i128 representation"
+                    ))
+                })?;
+
+                let num_formatted =
+                    Decimal128Type::format_decimal(num_i128, DECIMAL128_MAX_PRECISION, scale as i8);
+
+                serializer.serialize_str(&num_formatted)
+            }
         }
     }
 }
@@ -342,6 +363,7 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
         let dtype = self.0.data_type();
         let len = self.0.len();
         let mut state = serializer.serialize_seq(Some(len))?;
+
         match dtype {
             DataType::Boolean => {
                 for v in self.0.as_boolean().iter() {
@@ -437,9 +459,11 @@ impl<'a> Serialize for SerdeArrowArray<'a> {
             }
             DataType::Decimal128(precision, scale) => {
                 for v in self.0.as_primitive::<Decimal128Type>().iter() {
+                    // i128 is not supported directly by serde_arrow,
+                    // so we format as string manually.
                     let element = v.map(|v| Decimal128Type::format_decimal(v, *precision, *scale));
+
                     state.serialize_element(&element)?
-                    // i128 not supported by serde_arrow!
                 }
             }
             DataType::Struct(_) => {
@@ -775,11 +799,7 @@ pub fn list_array_from_props<P: Serialize + fmt::Debug + Clone>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> Result<LargeListArray, serde_arrow::Error> {
-    use arrow_schema::{Field, Fields};
-    use serde_arrow::ArrayBuilder;
-
     let fields: Fields = vec![Field::new("value", dt.clone(), true)].into();
-
     let mut builder = ArrayBuilder::from_arrow(&fields)?;
 
     for value in props {
@@ -795,10 +815,7 @@ pub fn struct_array_from_props<P: Serialize>(
     dt: &DataType,
     props: impl IntoIterator<Item = Option<P>>,
 ) -> Result<StructArray, serde_arrow::Error> {
-    use serde_arrow::ArrayBuilder;
-
     let fields = [FieldRef::new(Field::new("value", dt.clone(), true))];
-
     let mut builder = ArrayBuilder::from_arrow(&fields)?;
 
     for p in props {
@@ -806,6 +823,7 @@ pub fn struct_array_from_props<P: Serialize>(
     }
 
     let arrays = builder.to_arrow()?;
+
     Ok(arrays.first().unwrap().as_struct().clone())
 }
 

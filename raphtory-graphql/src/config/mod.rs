@@ -14,7 +14,8 @@ mod tests {
         app_config::{load_config, AppConfigBuilder},
         otlp_config::TracingLevel,
     };
-    use std::{fs, path::PathBuf};
+    use std::fs;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_load_config_from_toml() {
@@ -32,10 +33,11 @@ mod tests {
             [auth]
             public_key = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
         "#;
-        let config_path = PathBuf::from("test_config.toml");
+        let config_file = NamedTempFile::with_suffix(".toml").unwrap();
+        let config_path = config_file.path();
         fs::write(&config_path, config_toml).unwrap();
 
-        let result = load_config(None, Some(config_path.clone()));
+        let result = load_config(None, Some(config_path.to_path_buf()));
 
         let expected_config = AppConfigBuilder::new()
             .with_log_level("DEBUG".to_string())
@@ -49,9 +51,6 @@ mod tests {
             .build();
 
         assert_eq!(result.unwrap(), expected_config);
-
-        // Cleanup: delete the test TOML file
-        fs::remove_file(config_path).unwrap();
     }
 
     #[test]
