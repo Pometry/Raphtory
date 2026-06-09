@@ -80,6 +80,16 @@ impl LayerPropSchema {
         union_into(&mut self.metadata, &other.metadata);
     }
 
+    /// Union temporal property presence bits into this schema
+    pub fn union_temporal_with(&mut self, bits: &[bool]) {
+        union_into(&mut self.temporal_props, bits);
+    }
+
+    /// Union metadata presence bits into this schema
+    pub fn union_metadata_with(&mut self, bits: &[bool]) {
+        union_into(&mut self.metadata, bits);
+    }
+
     /// Position-wise AND of the temporal-prop bits with the supplied visibility mask.
     /// Careful: Bits at positions beyond `mask.len()` are treated as not visible.
     pub fn intersect_temporal_with(&mut self, mask: &[bool]) {

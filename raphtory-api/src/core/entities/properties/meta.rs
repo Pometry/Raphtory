@@ -260,7 +260,7 @@ pub struct PropMapper {
 
     /// Per-layer property presence bitset; `layer_presence[layer_id][prop_id]`
     /// is true iff this property has been observed in this layer
-    layer_presence: Arc<RwLock<Vec<Vec<bool>>>>,
+    layer_prop_presence: Arc<RwLock<Vec<Vec<bool>>>>,
 }
 
 impl Deref for PropMapper {
@@ -284,7 +284,7 @@ impl PropMapper {
             id_mapper: DictMapper::new_with_private_fields(fields),
             row_size: AtomicUsize::new(row_size),
             dtypes: Arc::new(RwLock::new(dtypes)),
-            layer_presence: Arc::new(RwLock::new(Vec::new())),
+            layer_prop_presence: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -294,7 +294,7 @@ impl PropMapper {
     /// has prop `prop_id`.
     #[inline]
     pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
-        self.layer_presence
+        self.layer_prop_presence
             .read_recursive()
             .get(layer_id.0)
             .and_then(|row| row.get(prop_id))
@@ -307,8 +307,17 @@ impl PropMapper {
         if self.layer_has(layer_id, prop_id) {
             return;
         }
-        let mut guard = self.layer_presence.write();
+        let mut guard = self.layer_prop_presence.write();
         ensure_and_set(&mut guard, layer_id.0, prop_id);
+    }
+
+    /// Run `f` against the raw `&[bool]` of `layer_id`'s prop presence row, borrowing under a single read lock.
+    /// `f` can't acquire a write lock on layer_prop_presence or else it will deadlock.
+    #[inline]
+    pub fn with_layer_prop_bits<R>(&self, layer_id: LayerId, f: impl FnOnce(&[bool]) -> R) -> R {
+        let guard = self.layer_prop_presence.read_recursive();
+        let bits: &[bool] = guard.get(layer_id.0).map(|v| v.as_slice()).unwrap_or(&[]);
+        f(bits)
     }
 
     pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
@@ -317,12 +326,12 @@ impl PropMapper {
 
     pub fn deep_clone(&self) -> Self {
         let dtypes = self.dtypes.read_recursive().clone();
-        let layer_presence = self.layer_presence.read_recursive().clone();
+        let layer_presence = self.layer_prop_presence.read_recursive().clone();
         Self {
             id_mapper: self.id_mapper.deep_clone(),
             row_size: AtomicUsize::new(self.row_size.load(std::sync::atomic::Ordering::Relaxed)),
             dtypes: Arc::new(RwLock::new(dtypes)),
-            layer_presence: Arc::new(RwLock::new(layer_presence)),
+            layer_prop_presence: Arc::new(RwLock::new(layer_presence)),
         }
     }
 
@@ -438,7 +447,7 @@ impl PropMapper {
             dict_mapper: self.id_mapper.write(),
             d_types: self.dtypes.write(),
             row_size: &self.row_size,
-            layer_presence: self.layer_presence.write(),
+            layer_presence: self.layer_prop_presence.write(),
         }
     }
 }

@@ -47,9 +47,7 @@ impl<'a> NodesStorageEntry<'a> {
         for_all_variants!(self, nodes => nodes.iter())
     }
 
-    /// Union of node property presence across the supplied layers. Reads
-    /// from the per-layer bitsets on `Meta.temporal_prop_mapper` and
-    /// `Meta.metadata_mapper`.
+    /// Union of node property presence across the supplied layers.
     pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         let inner = match self {
             NodesStorageEntry::Mem(nodes) => nodes.storage(),
@@ -60,9 +58,9 @@ impl<'a> NodesStorageEntry<'a> {
         let mut schema = LayerPropSchema::new();
         for layer_id in layers.iter(num_layers) {
             meta.temporal_prop_mapper()
-                .for_each_in_layer(layer_id, |id| schema.insert_temporal(id));
+                .with_layer_prop_bits(layer_id, |bits| schema.union_temporal_with(bits));
             meta.metadata_mapper()
-                .for_each_in_layer(layer_id, |id| schema.insert_metadata(id));
+                .with_layer_prop_bits(layer_id, |bits| schema.union_metadata_with(bits));
         }
         schema
     }

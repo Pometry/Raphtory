@@ -160,9 +160,9 @@ impl<'a> EdgesStorageRef<'a> {
         let mut schema = LayerPropSchema::new();
         for layer_id in layers.iter(num_layers) {
             meta.temporal_prop_mapper()
-                .for_each_in_layer(layer_id, |id| schema.insert_temporal(id));
+                .with_layer_prop_bits(layer_id, |bits| schema.union_temporal_with(bits));
             meta.metadata_mapper()
-                .for_each_in_layer(layer_id, |id| schema.insert_metadata(id));
+                .with_layer_prop_bits(layer_id, |bits| schema.union_metadata_with(bits));
         }
         schema
     }
