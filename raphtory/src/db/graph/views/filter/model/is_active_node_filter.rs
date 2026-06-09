@@ -17,7 +17,7 @@ use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IsActiveNode<E> {
-    view_expr: E,
+    pub(crate) view_expr: E,
 }
 
 impl<E> fmt::Display for IsActiveNode<E> {
@@ -66,9 +66,11 @@ impl<E: CreateView> CreateFilter for IsActiveNode<E> {
 
 impl<E: CreateView> ComposableFilter for IsActiveNode<E> {}
 
-impl<E: CreateView> TryAsCompositeFilter for IsActiveNode<E> {
+impl<E: CreateView + TryAsCompositeFilter> TryAsCompositeFilter for IsActiveNode<E> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
-        Ok(CompositeNodeFilter::IsActiveNode(IsActiveNode))
+        Ok(CompositeNodeFilter::IsActiveNode(Box::new(
+            self.view_expr.try_as_composite_node_filter()?,
+        )))
     }
 
     fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {

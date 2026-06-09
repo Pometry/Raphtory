@@ -114,10 +114,14 @@ pub trait NodeFilterFactory: PropertyFilterFactory {
         }
     }
 
-    fn is_active(&self) -> IsActiveNode {
-        IsActiveNode
+    fn is_active(&self) -> IsActiveNode<Self> {
+        IsActiveNode {
+            view_expr: self.clone(),
+        }
     }
 }
+
+impl NodeFilterFactory for NodeFilter {}
 
 impl NodeFilter {
     /// Current (latest) value of a named property — serializable.
@@ -171,10 +175,6 @@ impl InternalViewWrapOps for NodeFilter {
     }
 }
 
-impl NodeViewFilterOps for NodeFilter {
-    type Output<T: CombinedFilter> = T;
-}
-
 #[derive(Debug, Clone)]
 pub struct NodeIdFilter(pub Filter);
 
@@ -217,13 +217,6 @@ impl CreateFilter for NodeIdFilter {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         validate(graph.id_type(), &self.0)?;
         Ok(NodeIdFilterOp::new(self.0))
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 
@@ -283,13 +276,6 @@ impl CreateFilter for NodeNameFilter {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeNameFilterOp::new(self.0))
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 
@@ -367,13 +353,6 @@ impl CreateFilter for NodeTypeFilter {
             .collect::<Vec<_>>();
         Ok(TypeId.mask(node_types_filter.into()))
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 impl TryAsCompositeFilter for NodeTypeFilter {
@@ -403,7 +382,7 @@ pub enum CompositeNodeFilter {
     SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
     SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
     Layered(Box<Layered<CompositeNodeFilter>>),
-    IsActiveNode(IsActiveNode),
+    IsActiveNode(Box<CompositeNodeFilter>),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Not(Box<CompositeNodeFilter>),
@@ -493,44 +472,6 @@ impl CreateFilter for CompositeNodeFilter {
             })),
             CompositeNodeFilter::Not(filter) => {
                 Ok(Arc::new(NotOp(filter.clone().create_node_filter(graph)?)))
-            }
-        }
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        match self.clone() {
-            CompositeNodeFilter::Id(i) => Ok(Arc::new(NodeIdFilter(i).filter_graph_view(graph)?)),
-            CompositeNodeFilter::Name(i) => {
-                Ok(Arc::new(NodeNameFilter(i).filter_graph_view(graph)?))
-            }
-            CompositeNodeFilter::Type(i) => {
-                Ok(Arc::new(NodeTypeFilter(i).filter_graph_view(graph)?))
-            }
-            CompositeNodeFilter::Property(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::Windowed(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::Layered(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::IsActiveNode(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
-            CompositeNodeFilter::And(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            CompositeNodeFilter::Or(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            CompositeNodeFilter::Not(f) => {
-                let base = *f;
-                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
             }
         }
     }

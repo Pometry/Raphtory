@@ -524,9 +524,9 @@ where
     L::Output: Comparable,
 {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
-        NodeFilteredGraph<G, BinOpNodeOp<'graph, L::Output>>;
+        NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = BinOpNodeOp<'graph, L::Output>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output=bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -548,11 +548,7 @@ where
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        Ok(BinOpNodeOp {
-            left,
-            right,
-            op: self.op,
-        })
+        Ok(left.bin_cmp(self.op, right))
     }
 }
 
