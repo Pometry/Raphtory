@@ -6,7 +6,7 @@ use raphtory_api::{
                 layer_schema::LayerPropSchema,
                 prop::{Prop, PropType},
             },
-            LayerIds,
+            LayerId, LayerIds,
         },
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
@@ -39,6 +39,12 @@ pub trait NodePropertySchemaOps: Send + Sync {
         }
         schema
     }
+
+    /// O(1) check: is temporal-prop `prop_id` present on any node in `layer_id`?
+    fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
+
+    /// O(1) check: is metadata-prop `prop_id` present on any node in `layer_id`?
+    fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool;
 }
 
 /// Same as `NodePropertySchemaOps` but for edge properties.
@@ -64,6 +70,12 @@ pub trait EdgePropertySchemaOps: Send + Sync {
         }
         schema
     }
+
+    /// O(1) check: is temporal-prop `prop_id` present on any edge in `layer_id`?
+    fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
+
+    /// O(1) check: is metadata-prop `prop_id` present on any edge in `layer_id`?
+    fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool;
 }
 
 /// Marker: delegate `NodePropertySchemaOps` through `Base`.
@@ -103,6 +115,14 @@ where
     fn node_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         self.base().node_layer_prop_schema(layers)
     }
+    #[inline]
+    fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().node_layer_has_temporal_prop(layer_id, prop_id)
+    }
+    #[inline]
+    fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().node_layer_has_metadata(layer_id, prop_id)
+    }
 }
 
 impl<G: InheritEdgePropertySchemaOps + Send + Sync> EdgePropertySchemaOps for G
@@ -132,6 +152,14 @@ where
     #[inline]
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().edge_visible_metadata_name(id)
+    }
+    #[inline]
+    fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().edge_layer_has_temporal_prop(layer_id, prop_id)
+    }
+    #[inline]
+    fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.base().edge_layer_has_metadata(layer_id, prop_id)
     }
     #[inline]
     fn edge_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {

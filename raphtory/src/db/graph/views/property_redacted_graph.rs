@@ -16,7 +16,7 @@ use raphtory_api::{
     core::{
         entities::{
             properties::{layer_schema::LayerPropSchema, prop::Prop},
-            LayerIds,
+            LayerId, LayerIds,
         },
         storage::arc_str::ArcStr,
     },
@@ -254,6 +254,16 @@ impl<G: GraphView> NodePropertySchemaOps for PropertyRedactedGraph<G> {
         self.graph.node_visible_metadata_name(id)
     }
 
+    fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        is_visible(&self.redaction.node_props_visible, prop_id)
+            && self.graph.node_layer_has_temporal_prop(layer_id, prop_id)
+    }
+
+    fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        is_visible(&self.redaction.node_meta_visible, prop_id)
+            && self.graph.node_layer_has_metadata(layer_id, prop_id)
+    }
+
     fn node_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         mask_schema(
             self.graph.node_layer_prop_schema(layers),
@@ -302,6 +312,16 @@ impl<G: GraphView> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
             return None;
         }
         self.graph.edge_visible_metadata_name(id)
+    }
+
+    fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        is_visible(&self.redaction.edge_props_visible, prop_id)
+            && self.graph.edge_layer_has_temporal_prop(layer_id, prop_id)
+    }
+
+    fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        is_visible(&self.redaction.edge_meta_visible, prop_id)
+            && self.graph.edge_layer_has_metadata(layer_id, prop_id)
     }
 
     fn edge_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {

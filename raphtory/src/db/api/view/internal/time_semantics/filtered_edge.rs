@@ -1,5 +1,8 @@
 use crate::{
-    db::api::view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
+    db::api::{
+        properties::internal::EdgePropertySchemaOps,
+        view::internal::{FilterOps, FilterState, FilterVariants, GraphView},
+    },
     prelude::{GraphViewOps, LayerOps},
 };
 use either::Either;
@@ -421,7 +424,10 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         view: G,
         layer_ids: &'a LayerIds,
     ) -> impl Iterator<Item = (LayerId, impl TPropOps<'a>)> + 'a {
+        let prune_view = view.clone();
         self.filtered_layer_ids_iter(view.clone(), layer_ids)
+            // skip layers we know don't have any edges with the property
+            .filter(move |&layer_id| prune_view.edge_layer_has_temporal_prop(layer_id, prop_id))
             .map(move |layer_id| {
                 (
                     layer_id,
@@ -439,7 +445,10 @@ impl<'a> FilteredEdgeStorageOps<'a> for EdgeEntryRef<'a> {
         let layer_ids = view.layer_ids();
         let mut values = self
             .metadata_iter(layer_ids, prop_id)
-            .filter(|(layer, _)| layer_filter(*layer));
+            // skip layers we know don't have any edge with the property
+            .filter(|(layer, _)| {
+                view.edge_layer_has_metadata(*layer, prop_id) && layer_filter(*layer)
+            });
         if view.num_layers() > 1 {
             let mut values = values.peekable();
             if values.peek().is_some() {

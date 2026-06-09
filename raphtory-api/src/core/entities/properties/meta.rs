@@ -232,6 +232,18 @@ impl Meta {
             self.temporal_prop_mapper.get_name(prop_id)
         }
     }
+
+    /// O(1) check: has temporal-prop `prop_id` been observed in `layer_id`?
+    #[inline]
+    pub fn temporal_layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.temporal_prop_mapper.layer_has(layer_id, prop_id)
+    }
+
+    /// O(1) check: has metadata-prop `prop_id` been observed in `layer_id`?
+    #[inline]
+    pub fn metadata_layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.metadata_mapper.layer_has(layer_id, prop_id)
+    }
 }
 
 /// Manages the mapping of property names to their IDs and types.
@@ -245,6 +257,10 @@ pub struct PropMapper {
 
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: AtomicUsize,
+
+    /// Per-layer property presence bitset; `layer_presence[layer_id][prop_id]`
+    /// is true iff this property has been observed in this layer
+    layer_presence: Arc<RwLock<Vec<Vec<bool>>>>,
 }
 
 impl Deref for PropMapper {
@@ -268,7 +284,31 @@ impl PropMapper {
             id_mapper: DictMapper::new_with_private_fields(fields),
             row_size: AtomicUsize::new(row_size),
             dtypes: Arc::new(RwLock::new(dtypes)),
+            layer_presence: Arc::new(RwLock::new(Vec::new())),
         }
+    }
+
+    /// O(1) check: has property `prop_id` ever been observed in `layer_id`?
+    /// `false` is authoritative; callers can safely skip column reads for
+    /// this (layer, prop). `true` means at least one entity in `layer_id`
+    /// has prop `prop_id`.
+    #[inline]
+    pub fn layer_has(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.layer_presence
+            .read_recursive()
+            .get(layer_id.0)
+            .and_then(|row| row.get(prop_id))
+            .copied()
+            .unwrap_or(false)
+    }
+
+    /// Mark `prop_id` as present in `layer_id`. only takes the write lock once per (layer, prop)
+    pub fn mark_prop_in_layer(&self, layer_id: LayerId, prop_id: usize) {
+        if self.layer_has(layer_id, prop_id) {
+            return;
+        }
+        let mut guard = self.layer_presence.write();
+        ensure_and_set(&mut guard, layer_id.0, prop_id);
     }
 
     pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
@@ -277,10 +317,12 @@ impl PropMapper {
 
     pub fn deep_clone(&self) -> Self {
         let dtypes = self.dtypes.read_recursive().clone();
+        let layer_presence = self.layer_presence.read_recursive().clone();
         Self {
             id_mapper: self.id_mapper.deep_clone(),
             row_size: AtomicUsize::new(self.row_size.load(std::sync::atomic::Ordering::Relaxed)),
             dtypes: Arc::new(RwLock::new(dtypes)),
+            layer_presence: Arc::new(RwLock::new(layer_presence)),
         }
     }
 
@@ -396,8 +438,21 @@ impl PropMapper {
             dict_mapper: self.id_mapper.write(),
             d_types: self.dtypes.write(),
             row_size: &self.row_size,
+            layer_presence: self.layer_presence.write(),
         }
     }
+}
+
+#[inline]
+fn ensure_and_set(presence: &mut Vec<Vec<bool>>, layer_idx: usize, prop_id: usize) {
+    if presence.len() <= layer_idx {
+        presence.resize_with(layer_idx + 1, Vec::new);
+    }
+    let row = &mut presence[layer_idx];
+    if row.len() <= prop_id {
+        row.resize(prop_id + 1, false);
+    }
+    row[prop_id] = true;
 }
 
 /// Write-locked view of a [`PropMapper`].
@@ -410,6 +465,9 @@ pub struct WriteLockedPropMapper<'a> {
 
     /// Estimated size in bytes of a single row of properties maintained by this mapper.
     row_size: &'a AtomicUsize,
+
+    /// Per-layer property presence bitset
+    layer_presence: RwLockWriteGuard<'a, Vec<Vec<bool>>>,
 }
 
 impl<'a> WriteLockedPropMapper<'a> {
@@ -502,6 +560,11 @@ impl<'a> WriteLockedPropMapper<'a> {
         dtype: PropType,
     ) -> Result<Option<Either<usize, usize>>, PropError> {
         fast_proptype_check(self.dict_mapper.map(), &self.d_types, prop, dtype)
+    }
+
+    /// Mark `prop_id` as present in `layer_id`
+    pub fn mark_in_layer(&mut self, layer_id: LayerId, prop_id: usize) {
+        ensure_and_set(&mut *self.layer_presence, layer_id.0, prop_id);
     }
 }
 

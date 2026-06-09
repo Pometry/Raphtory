@@ -155,6 +155,13 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
         self.l_counter.update_time(t.t());
+        // Mirror each (layer, prop_id) into the per-layer property presence bitset in Meta.
+        // `.inspect` runs once per emitted item as the iterator is consumed
+        let meta = self.mut_segment.node_meta().clone();
+        let props = props.into_iter().inspect(move |(id, _)| {
+            meta.temporal_prop_mapper()
+                .mark_prop_in_layer(layer_id, *id);
+        });
         let (is_new_node, add) = self.mut_segment.add_props(t, pos, layer_id, props);
         self.mut_segment.increment_est_size(add);
         if is_new_node && !self.page.has_node(pos, layer_id) {
@@ -178,6 +185,12 @@ impl<'a, MP: DerefMut<Target = MemNodeSegment> + 'a, NS: NodeSegmentOps> NodeWri
         layer_id: LayerId,
         props: impl IntoIterator<Item = (usize, P)>,
     ) {
+        // Mirror each (layer, prop_id) into the per-layer property presence bitset in Meta.
+        // `.inspect` runs once per emitted item as the iterator is consumed
+        let meta = self.mut_segment.node_meta().clone();
+        let props = props.into_iter().inspect(move |(id, _)| {
+            meta.metadata_mapper().mark_prop_in_layer(layer_id, *id);
+        });
         let (is_new_node, add) = self.mut_segment.update_metadata(pos, layer_id, props);
         self.mut_segment.increment_est_size(add);
         if is_new_node && !self.page.has_node(pos, layer_id) {

@@ -2,7 +2,7 @@ use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 use either::Either;
 use raphtory_api::core::entities::{
     properties::{layer_schema::LayerPropSchema, meta::STATIC_GRAPH_LAYER_ID},
-    LayerIds, EID,
+    LayerId, LayerIds, EID,
 };
 use raphtory_core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::ParallelIterator;
@@ -149,21 +149,46 @@ impl<'a> EdgesStorageRef<'a> {
         }
     }
 
-    /// Union of per-(segment, layer) edge property-presence schemas across the
-    /// supplied layers. Reads from the persisted `LayerStats` on disk and the
-    /// incrementally-tracked schema on the mem head.
+    /// Union of edge property presence across the supplied layers
     pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         let inner = match self {
             EdgesStorageRef::Mem(storage) => storage.storage(),
             EdgesStorageRef::Unlocked(storage) => storage.storage(),
         };
+        let meta = inner.edge_meta();
         let num_layers = inner.num_layers();
         let mut schema = LayerPropSchema::new();
-        for (_, seg) in inner.segments().iter() {
-            for layer_id in layers.iter(num_layers) {
-                schema.union_with(&seg.layer_schema(layer_id));
-            }
+        for layer_id in layers.iter(num_layers) {
+            meta.temporal_prop_mapper()
+                .for_each_in_layer(layer_id, |id| schema.insert_temporal(id));
+            meta.metadata_mapper()
+                .for_each_in_layer(layer_id, |id| schema.insert_metadata(id));
         }
         schema
+    }
+
+    /// O(1) check via the per-layer bitset cached on `Meta.temporal_prop_mapper`.
+    /// `false` is authoritative — callers can skip column reads for `(layer_id, prop_id)`.
+    pub fn layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            EdgesStorageRef::Mem(storage) => storage.storage(),
+            EdgesStorageRef::Unlocked(storage) => storage.storage(),
+        };
+        inner
+            .edge_meta()
+            .temporal_prop_mapper()
+            .layer_has(layer_id, prop_id)
+    }
+
+    /// O(1) check via the per-layer bitset cached on `Meta.metadata_mapper`.
+    pub fn layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            EdgesStorageRef::Mem(storage) => storage.storage(),
+            EdgesStorageRef::Unlocked(storage) => storage.storage(),
+        };
+        inner
+            .edge_meta()
+            .metadata_mapper()
+            .layer_has(layer_id, prop_id)
     }
 }

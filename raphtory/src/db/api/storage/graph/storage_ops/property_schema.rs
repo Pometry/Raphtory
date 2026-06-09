@@ -5,7 +5,7 @@ use crate::db::api::{
 };
 use raphtory_api::{
     core::{
-        entities::{properties::layer_schema::LayerPropSchema, LayerIds},
+        entities::{properties::layer_schema::LayerPropSchema, LayerId, LayerIds},
         storage::arc_str::ArcStr,
     },
     iter::IntoDynBoxed,
@@ -37,6 +37,14 @@ impl NodePropertySchemaOps for GraphStorage {
     fn node_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         self.nodes().layer_prop_schema(layers)
     }
+
+    fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.nodes().layer_has_temporal_prop(layer_id, prop_id)
+    }
+
+    fn node_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.nodes().layer_has_metadata(layer_id, prop_id)
+    }
 }
 
 impl EdgePropertySchemaOps for GraphStorage {
@@ -64,5 +72,13 @@ impl EdgePropertySchemaOps for GraphStorage {
 
     fn edge_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         self.edges().layer_prop_schema(layers)
+    }
+
+    fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.edges().layer_has_temporal_prop(layer_id, prop_id)
+    }
+
+    fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        self.edges().layer_has_metadata(layer_id, prop_id)
     }
 }

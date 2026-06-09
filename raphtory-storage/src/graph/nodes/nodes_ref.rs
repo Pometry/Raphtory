@@ -1,6 +1,8 @@
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
-use raphtory_api::core::entities::{properties::layer_schema::LayerPropSchema, LayerIds, VID};
+use raphtory_api::core::entities::{
+    properties::layer_schema::LayerPropSchema, LayerId, LayerIds, VID,
+};
 use rayon::iter::ParallelIterator;
 use storage::{Extension, ReadLockedNodes};
 
@@ -45,22 +47,48 @@ impl<'a> NodesStorageEntry<'a> {
         for_all_variants!(self, nodes => nodes.iter())
     }
 
-    /// Union of per-(segment, layer) node property-presence schemas across the
-    /// supplied layers. Reads from the persisted `LayerStats` on disk and the
-    /// incrementally-tracked schema on the mem head.
+    /// Union of node property presence across the supplied layers. Reads
+    /// from the per-layer bitsets on `Meta.temporal_prop_mapper` and
+    /// `Meta.metadata_mapper`.
     pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
         let inner = match self {
             NodesStorageEntry::Mem(nodes) => nodes.storage(),
             NodesStorageEntry::Unlocked(nodes) => nodes.storage(),
         };
+        let meta = inner.prop_meta();
         let num_layers = inner.num_layers();
         let mut schema = LayerPropSchema::new();
-        for seg in inner.segments_iter() {
-            for layer_id in layers.iter(num_layers) {
-                schema.union_with(&seg.layer_schema(layer_id));
-            }
+        for layer_id in layers.iter(num_layers) {
+            meta.temporal_prop_mapper()
+                .for_each_in_layer(layer_id, |id| schema.insert_temporal(id));
+            meta.metadata_mapper()
+                .for_each_in_layer(layer_id, |id| schema.insert_metadata(id));
         }
         schema
+    }
+
+    /// O(1) check
+    pub fn layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            NodesStorageEntry::Mem(nodes) => nodes.storage(),
+            NodesStorageEntry::Unlocked(nodes) => nodes.storage(),
+        };
+        inner
+            .prop_meta()
+            .temporal_prop_mapper()
+            .layer_has(layer_id, prop_id)
+    }
+
+    /// O(1) check
+    pub fn layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
+        let inner = match self {
+            NodesStorageEntry::Mem(nodes) => nodes.storage(),
+            NodesStorageEntry::Unlocked(nodes) => nodes.storage(),
+        };
+        inner
+            .prop_meta()
+            .metadata_mapper()
+            .layer_has(layer_id, prop_id)
     }
 
     /// Returns a parallel iterator over nodes row groups
