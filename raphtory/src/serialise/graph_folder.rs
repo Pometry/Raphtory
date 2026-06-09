@@ -234,6 +234,7 @@ pub trait GraphPaths {
             let mut file = File::open(self.meta_path()?)?;
             file.read_to_string(&mut json)?;
         }
+
         let metadata: Metadata = serde_json::from_str(&json)?;
         Ok(metadata.meta)
     }
@@ -245,11 +246,15 @@ pub trait GraphPaths {
             path: graph_path,
             meta: metadata,
         };
+
         let tmp_path = self.data_path()?.path.join(".tmp");
         let tmp_file = File::create(&tmp_path)?;
-        serde_json::to_writer(tmp_file, &meta)?;
+        serde_json::to_writer(&tmp_file, &meta)?;
+        tmp_file.sync_all()?; // Flush data to disk before rename.
+
         let path = self.meta_path()?;
         fs::rename(tmp_path, path)?;
+
         Ok(())
     }
 
