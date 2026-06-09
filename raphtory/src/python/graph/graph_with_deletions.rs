@@ -58,7 +58,7 @@ use crate::{prelude::IndexMutationOps, python::graph::index::PyIndexSpec};
 /// Arguments:
 ///     path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
 ///     config (Config, optional): Storage/config overrides. Defaults to None.
-#[derive(Clone)]
+///
 #[pyclass(name = "PersistentGraph", extends = PyGraphView, frozen, module="raphtory")]
 pub struct PyPersistentGraph {
     pub(crate) graph: PersistentGraph,
@@ -766,6 +766,7 @@ impl PyPersistentGraph {
                     layer,
                     layer_col,
                     None,
+                    None,
                     true,
                     arced_schema.clone(),
                 )?;
@@ -1089,6 +1090,8 @@ impl PyPersistentGraph {
                     None,
                     &metadata,
                     shared_metadata.as_ref(),
+                    None,
+                    None,
                     None,
                     arced_schema.clone(),
                 )?;

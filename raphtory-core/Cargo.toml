@@ -15,7 +15,6 @@ edition.workspace = true
 [dependencies]
 raphtory-api = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"] }
-hashbrown = { workspace = true }
 either = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 rustc-hash = { workspace = true }
@@ -23,11 +22,8 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 iter-enum = { workspace = true }
 bigdecimal = { workspace = true }
-lock_api = { workspace = true }
-rayon = { workspace = true }
 parking_lot = { workspace = true }
 itertools = { workspace = true }
-once_cell = { workspace = true }
 ouroboros = { workspace = true }
 arrow-array = { workspace = true }
 arrow-buffer = { workspace = true }

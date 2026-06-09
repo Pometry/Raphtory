@@ -129,7 +129,7 @@ fn graph_has_node_check_fail() {
 }
 
 #[test]
-fn windowed_graph_has_node() {
+fn windowed_graph_has_node_proptest() {
     proptest!(|(mut vs: Vec<(i64, u64)>)| {
         global_info_logger();
         prop_assume!(!vs.is_empty());
@@ -166,7 +166,7 @@ fn windowed_graph_has_node() {
 }
 
 #[test]
-fn windowed_graph_has_edge() {
+fn windowed_graph_has_edge_proptest() {
     proptest!(|(mut edges: Vec<(i64, (u64, u64))>)| {
         prop_assume!(!edges.is_empty());
 
@@ -200,7 +200,7 @@ fn windowed_graph_has_edge() {
 }
 
 #[test]
-fn windowed_graph_edge_count() {
+fn windowed_graph_edge_count_proptest() {
     proptest!(|(mut edges: Vec<(i64, (u64, u64))>, window: Range<i64>)| {
         global_info_logger();
         prop_assume!(window.end >= window.start);
@@ -231,7 +231,7 @@ fn windowed_graph_edge_count() {
 }
 
 #[test]
-fn trivial_window_has_all_edges() {
+fn trivial_window_has_all_edges_proptest() {
     proptest!(|(edges: Vec<(i64, u64, u64)>)| {
         let g = Graph::new();
         edges
@@ -249,7 +249,7 @@ fn trivial_window_has_all_edges() {
 }
 
 #[test]
-fn large_node_in_window() {
+fn large_node_in_window_proptest() {
     proptest!(|(dsts: Vec<u64>)| {
         let dsts: Vec<u64> = dsts.into_iter().unique().collect();
         let n = dsts.len();

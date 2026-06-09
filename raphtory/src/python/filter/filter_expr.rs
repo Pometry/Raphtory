@@ -19,7 +19,13 @@ use crate::{
 use pyo3::prelude::*;
 use std::sync::Arc;
 
-#[pyclass(frozen, name = "FilterExpr", module = "raphtory.filter", subclass)]
+#[pyclass(
+    frozen,
+    name = "FilterExpr",
+    module = "raphtory.filter",
+    subclass,
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyFilterExpr(pub Arc<dyn DynCreateFilter>);
 

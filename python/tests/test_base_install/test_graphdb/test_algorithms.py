@@ -1,3 +1,6 @@
+import tempfile
+
+import pandas
 import pytest
 from raphtory import Graph, algorithms, graph_loader
 from numpy.linalg import norm
@@ -52,6 +55,14 @@ def test_connected_components():
     c = actual[1]
     expected = {1: c, 2: c, 3: c, 4: c, 5: c, 6: c, 7: c, 8: c}
     assert actual == expected
+    with tempfile.NamedTemporaryFile() as f:
+        f.close()
+        actual.to_parquet(f.name)
+        df = pandas.read_parquet(f.name)
+        print(df)
+        assert dict(zip(df["id"], df["component_id"])) == {
+            str(n): c["component_id"] for n, c in expected.items()
+        }
 
 
 def test_largest_connected_component():

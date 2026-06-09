@@ -370,7 +370,7 @@ mod tests {
     use raphtory_api::core::storage::arc_str::OptionAsStr;
 
     #[test]
-    fn test_upsert_and_push() {
+    fn test_upsert_and_push_proptest() {
         proptest!(|(mut old_values in proptest::collection::vec(any::<Option<String>>(), 0..100usize), new_value in any::<String>(), new_index in 0..100usize)|{
             let mut col = StringCol::default();
             for v in &old_values {

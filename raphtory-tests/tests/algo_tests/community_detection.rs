@@ -124,12 +124,12 @@ fn test_all_nodes_assigned_inner_unweighted(edges: Vec<(u64, u64)>) {
 
 proptest! {
     #[test]
-    fn test_all_nodes_in_communities(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
+    fn test_all_nodes_in_communities_proptest(edges in any::<Vec<(u64, u64, f64)>>().prop_map(|mut v| {v.iter_mut().for_each(|(_, _, w)| *w = w.abs()); v})) {
         test_all_nodes_assigned_inner(edges)
     }
 
     #[test]
-    fn test_all_nodes_assigned_unweighted(edges in any::<Vec<(u8, u8)>>().prop_map(|v| v.into_iter().map(|(s, d)|  (s as u64, d as u64)).collect::<Vec<_>>())) {
+    fn test_all_nodes_assigned_unweighted_proptest(edges in any::<Vec<(u8, u8)>>().prop_map(|v| v.into_iter().map(|(s, d)|  (s as u64, d as u64)).collect::<Vec<_>>())) {
         test_all_nodes_assigned_inner_unweighted(edges)
     }
 }

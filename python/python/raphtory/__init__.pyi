@@ -73,7 +73,6 @@ __all__ = [
     "node_state",
     "filter",
     "iterables",
-    "gql",
     "nullmodels",
     "plottingutils",
 ]
@@ -1383,6 +1382,7 @@ class PersistentGraph(GraphView):
     Arguments:
         path (str | PathLike, optional): The path for persisting the graph (only works with disk storage enabled). Defaults to None.
         config (Config, optional): Storage/config overrides. Defaults to None.
+
     """
 
     def __new__(

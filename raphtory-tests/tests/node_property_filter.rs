@@ -257,7 +257,7 @@ fn test_node_property_filter_on_graph() {
 }
 
 #[test]
-fn test_filter_gt() {
+fn test_filter_gt_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
     )| {
@@ -280,7 +280,7 @@ fn test_filter_gt() {
 }
 
 #[test]
-fn test_filter_ge() {
+fn test_filter_ge_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
     )| {
@@ -302,7 +302,7 @@ fn test_filter_ge() {
 }
 
 #[test]
-fn test_filter_lt() {
+fn test_filter_lt_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
     )| {
@@ -324,7 +324,7 @@ fn test_filter_lt() {
 }
 
 #[test]
-fn test_filter_le() {
+fn test_filter_le_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
     )| {
@@ -346,7 +346,7 @@ fn test_filter_le() {
 }
 
 #[test]
-fn test_filter_eq() {
+fn test_filter_eq_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
     )| {
@@ -368,7 +368,7 @@ fn test_filter_eq() {
 }
 
 #[test]
-fn test_filter_ne() {
+fn test_filter_ne_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100), v in any::<i64>()
     )| {
@@ -390,7 +390,7 @@ fn test_filter_ne() {
 }
 
 #[test]
-fn test_filter_is_some() {
+fn test_filter_is_some_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100),
     )| {
@@ -412,7 +412,7 @@ fn test_filter_is_some() {
 }
 
 #[test]
-fn test_filter_is_none() {
+fn test_filter_is_none_proptest() {
     proptest!(|(
         edges in build_edge_list(100, 100), nodes in build_node_props(100)
     )| {

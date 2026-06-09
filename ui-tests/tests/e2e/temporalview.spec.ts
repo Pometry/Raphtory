@@ -1,56 +1,17 @@
-import { expect, Page } from '@playwright/test';
+import { expect } from '@playwright/test';
 import assert from 'assert';
 import { test } from '../fixtures';
 import {
+    expectStylingHex,
+    expectStylingHexInput,
     fillColorPickerHexInput,
-    navigateToSavedGraphBySavedGraphsTable,
+    hoverEdgeAndExpectTooltip,
     openTimeline,
-    waitForLayoutToFinish,
-} from './utils';
-
-async function setupGraphPage(
-    page: Page,
-    relativePath = 'graph/vanilla/event?initialNodes=%5B%5D',
-) {
-    await page.goto(`/${relativePath}`);
-    await waitForLayoutToFinish(page);
-    await openTimeline(page);
-    return page;
-}
-
-async function hoverEdgeAndExpectTooltip(
-    page: Page,
-    selector: string,
-    expectedTexts: string[],
-) {
-    const temporalViewIsHidden = await page
-        .locator('#temporal-view')
-        .isHidden();
-    if (temporalViewIsHidden) {
-        await openTimeline(page);
-        await page.waitForTimeout(500);
-    }
-
-    const line = page.locator(selector).first();
-    await expect(line).toHaveCount(1);
-
-    // Dispatch the enter event directly rather than moving the cursor: edges
-    // with identical timestamps (e.g. Ben→Pometry and Hamza→Pometry both at
-    // 1687132800000) render at the same X with the shorter line's vertical
-    // range entirely contained within the longer one, so a positional
-    // hit-test on the overlap lands on whichever is rendered last in DOM
-    // order — and raphtory's edge iteration order is non-deterministic.
-    // React polyfills onMouseEnter/onMouseLeave from native mouseover/
-    // mouseout via root-level delegation, so dispatch mouseover/mouseout
-    // (which bubble) rather than mouseenter/mouseleave (which don't).
-    await line.dispatchEvent('mouseover');
-    for (const text of expectedTexts) {
-        await expect(
-            page.getByText(text, { exact: true }).first(),
-        ).toBeVisible();
-    }
-    await line.dispatchEvent('mouseout');
-}
+    setupGraphPage,
+    styleAndSave,
+} from './graph.utils';
+import { navigateInSavedGraphs } from './saved-graphs.utils';
+import { waitForLayoutToFinish } from './utils';
 
 test('Close temporal view button and open again', async ({ page }) => {
     await setupGraphPage(page);
@@ -112,7 +73,10 @@ test('Temporal view hover over edges', async ({ page }) => {
 });
 
 test('Pin node and highlight', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'event');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'event',
+    });
     await openTimeline(page);
 
     await page
@@ -161,7 +125,10 @@ test('Zoom into timeline view', async ({ page }) => {
 });
 
 test('Highlight node from timeline view', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'event');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'event',
+    });
     await openTimeline(page);
     await page
         .locator('g')
@@ -195,11 +162,10 @@ test('Click prop event selects its row node', async ({ page }) => {
     // temporal property updates per node — the other vanilla seeds set
     // properties only at node creation, which Raphtory exposes as
     // single events that don't always render as visible PropEventItems.
-    await navigateToSavedGraphBySavedGraphsTable(
-        page,
-        'vanilla',
-        'temporal_props',
-    );
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'temporal_props',
+    });
     await openTimeline(page);
 
     // First prop event on Ben's row (regex prefix-match — actual key
@@ -314,7 +280,10 @@ test('Filter selected hides non-neighbour nodes from y-axis', async ({
 });
 
 test('Preview colour of edge on timeline view', async ({ page }) => {
-    await navigateToSavedGraphBySavedGraphsTable(page, 'vanilla', 'persistent');
+    await navigateInSavedGraphs(page, {
+        namespace: 'vanilla',
+        graphName: 'persistent',
+    });
     await openTimeline(page);
 
     await page.getByLabel('Edge ID Ben->Pedro_meets_1679356800000').click();
@@ -340,13 +309,12 @@ test.describe('Change colour of edge on timeline view', () => {
         await isolatedGraphs.navigateToGraph(page, 'filler');
         await openTimeline(page);
 
-        await page.getByLabel('Edge ID Ben->Pedro_meets_50').click();
-        await page.getByRole('tab', { name: 'Styling' }).click();
-        await fillColorPickerHexInput(page, 'F5A623');
-        await page.getByRole('button', { name: 'Save edge styles' }).click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            { kind: 'edge-instance', label: 'Edge ID Ben->Pedro_meets_50' },
+            { colourValue: 'F5A623' },
+            'Save edge styles',
+        );
         await page.waitForTimeout(2000);
         await expect(
             page
@@ -367,18 +335,12 @@ test.describe('Change colour only of exploded edge persists after save', () => {
         await isolatedGraphs.navigateToGraph(page, 'filler');
         await openTimeline(page);
 
-        await page.getByLabel('Edge ID Ben->Pedro_meets_50').click();
-        await page.getByRole('tab', { name: 'Styling' }).click();
-        const colorTextbox = page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox');
-        await colorTextbox.clear();
-        await colorTextbox.fill('F5A623');
-        await page.getByRole('button', { name: 'Save edge styles' }).click();
-        await expect(page.getByText('Styling updated')).toBeVisible({
-            timeout: 5000,
-        });
+        await styleAndSave(
+            page,
+            { kind: 'edge-instance', label: 'Edge ID Ben->Pedro_meets_50' },
+            { colourValue: 'F5A623' },
+            'Save edge styles',
+        );
         await page.waitForTimeout(2000);
         await expect(
             page
@@ -386,29 +348,21 @@ test.describe('Change colour only of exploded edge persists after save', () => {
                 .locator('path')
                 .first(),
         ).toHaveCSS('fill', 'rgb(245, 166, 35)');
-        const hexInputAfterSave = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterSave.toLowerCase()).toBe('f5a623');
+        await expectStylingHexInput(page, 'F5A623');
 
         await page.reload();
         await waitForLayoutToFinish(page);
         await openTimeline(page);
-        await page.getByLabel('Edge ID Ben->Pedro_meets_50').click();
-        await page.getByRole('tab', { name: 'Styling' }).click();
+        await expectStylingHex(
+            page,
+            { kind: 'edge-instance', label: 'Edge ID Ben->Pedro_meets_50' },
+            'F5A623',
+        );
         await expect(
             page
                 .getByLabel('Edge ID Ben->Pedro_meets_50')
                 .locator('path')
                 .first(),
         ).toHaveCSS('fill', 'rgb(245, 166, 35)');
-        const hexInputAfterReload = await page
-            .locator('div')
-            .filter({ hasText: /^Hex$/ })
-            .getByRole('textbox')
-            .inputValue();
-        expect(hexInputAfterReload.toLowerCase()).toBe('f5a623');
     });
 });

@@ -11,7 +11,7 @@
 import json
 import tempfile
 
-from utils import PORT, run_group_graphql_test
+from utils import run_group_graphql_test
 from raphtory import Graph
 from raphtory.graphql import GraphServer
 
@@ -65,7 +65,7 @@ def test_nodes_ids():
     ]
 
     tmp = tempfile.mkdtemp()
-    with GraphServer(tmp, create_index=True).start(PORT) as server:
+    with GraphServer(tmp, create_index=True).start() as server:
         client = server.get_client()
         client.send_graph(path="g", graph=graph)
         for query, path, expected in cases:

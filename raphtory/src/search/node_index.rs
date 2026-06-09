@@ -11,7 +11,7 @@ use crate::{
 };
 use ahash::HashSet;
 use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
-use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
+use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,

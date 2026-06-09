@@ -3,8 +3,8 @@ import {
     fillInCondition,
     searchForEntity,
     selectGraphInQueryBuilder,
-    waitForLayoutToFinish,
-} from './utils';
+} from './search.utils';
+import { waitForLayoutToFinish } from './utils';
 
 // Caller passes node names rather than a count because the search result row
 // order from raphtory is non-deterministic — selecting by name keeps tests

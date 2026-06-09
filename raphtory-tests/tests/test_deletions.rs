@@ -166,7 +166,7 @@ fn test_materialize_only_deletion() {
 }
 
 #[test]
-fn materialize_prop_test() {
+fn materialize_proptest() {
     proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true))| {
         let g = PersistentGraph::from(build_graph(&graph_f));
         let gm = g.materialize().unwrap();
@@ -175,7 +175,7 @@ fn materialize_prop_test() {
 }
 
 #[test]
-fn materialize_window_prop_test() {
+fn materialize_window_proptest() {
     proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>())| {
         let g = PersistentGraph::from(build_graph(&graph_f));
         let gw = g.window(w.start, w.end);
@@ -241,7 +241,7 @@ fn test_deletion_at_window_start() {
 }
 
 #[test]
-fn materialize_window_layers_prop_test() {
+fn materialize_window_layers_proptest() {
     proptest!(|(graph_f in build_graph_strat(10, 10, 10, 10, true), w in any::<Range<i64>>(), l in subsequence(&["a", "b"], 0..=2), num_threads in 1..=16usize)| {
         let pool = ThreadPoolBuilder::new().num_threads(num_threads).build().unwrap();
         pool.install(|| {
@@ -252,6 +252,23 @@ fn materialize_window_layers_prop_test() {
         })
 
     })
+}
+
+#[test]
+fn materialize_window_preserves_named_node_layer_props() {
+    let g = PersistentGraph::new();
+    g.add_node(1, 1, [("p", 1)], None, Some("b")).unwrap();
+    g.add_node(20, 2, [("p", 2)], None, Some("b")).unwrap();
+
+    let view = g.valid_layers(["a", "b"]).window(10, 30);
+    let materialized = view.materialize().unwrap();
+
+    assert_persistent_materialize_graph_equal(&view, &materialized);
+
+    let all_view = g.valid_layers(Vec::<&str>::new()).window(10, 30);
+    let all_materialized = all_view.materialize().unwrap();
+
+    assert_persistent_materialize_graph_equal(&all_view, &all_materialized);
 }
 
 #[test]

@@ -58,7 +58,7 @@ def init_graph(graph):
     for time, id, props, node_type in nodes:
         graph.add_node(time, id, props, node_type)
 
-    edge_data = [
+    edges = [
         (
             1,
             "1",
@@ -94,7 +94,7 @@ def init_graph(graph):
         (4, "John Mayer", "Jimmy Page", {"p2": 6, "p3": 1, "p20": "Gold_ship"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     return graph
@@ -142,7 +142,7 @@ def init_graph2(graph):
     for time, id, props, node_type in nodes:
         graph.add_node(time, id, props, node_type)
 
-    edge_data = [
+    edges = [
         (
             1,
             1,
@@ -170,14 +170,14 @@ def init_graph2(graph):
         (3, 2, 1, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     return graph
 
 
 def init_graph3(graph):
-    edge_data = [
+    edges = [
         (
             1,
             1,
@@ -222,7 +222,7 @@ def init_graph3(graph):
         (3, 2, 1, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     return graph
@@ -270,7 +270,7 @@ def init_graph4(graph):
     for time, id, props, node_type in nodes:
         graph.add_node(time, id, props, node_type)
 
-    edge_data = [
+    edges = [
         (
             1,
             1,
@@ -298,7 +298,7 @@ def init_graph4(graph):
         (3, 2, 1, {"p2": 6, "p3": 1, "p10": "Paper_airplane"}, None),
     ]
 
-    for time, src, dst, props, edge_type in edge_data:
+    for time, src, dst, props, edge_type in edges:
         graph.add_edge(time, src, dst, props, edge_type)
 
     graph.delete_edge(4, 3, 4, None, None)

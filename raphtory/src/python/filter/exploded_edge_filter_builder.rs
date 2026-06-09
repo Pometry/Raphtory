@@ -34,7 +34,6 @@ use std::sync::Arc;
 ///     ExplodedEdge.window(0, 10).is_active()
 ///     ExplodedEdge.layer("fire_nation").is_valid()
 #[pyclass(frozen, name = "ExplodedEdge", module = "raphtory.filter")]
-#[derive(Clone)]
 pub struct PyExplodedEdgeFilter;
 
 #[pymethods]

@@ -248,7 +248,7 @@ mod tadjset_tests {
     use proptest::{arbitrary::any, prop_assert, proptest};
 
     #[test]
-    fn insert_fuzz() {
+    fn insert_fuzz_proptest() {
         proptest!(|(input in any::<Vec<usize>>())| {
             let mut ts: AdjSet<usize, usize> = AdjSet::default();
             for (e, i) in input.iter().enumerate() {

@@ -241,7 +241,7 @@ mod io_tests {
     }
 
     #[test]
-    fn test_load_edges() {
+    fn test_load_edges_proptest() {
         proptest!(|(edges in build_edge_list(1000, 100), chunk_size in 1usize..=1000)| {
             let distinct_edges = edges.iter().map(|(src, dst, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
             let df_view = build_df(chunk_size, &edges);
@@ -427,7 +427,7 @@ mod io_tests {
     }
 
     #[test]
-    fn test_load_edges_str() {
+    fn test_load_edges_str_proptest() {
         proptest!(|(edges in build_edge_list_str(100, 100), chunk_size in 1usize..=100)| {
             let distinct_edges = edges.iter().map(|(src, dst, _, _, _)| (src, dst)).collect::<std::collections::HashSet<_>>().len();
             let df_view = build_df_str(chunk_size, &edges);
@@ -649,6 +649,7 @@ mod io_tests {
             true,
             None,
             None,
+            None,
         )
         .unwrap();
 
@@ -665,6 +666,8 @@ mod io_tests {
             None,
             &g,
             false,
+            None,
+            None,
         )
         .unwrap();
 
@@ -754,6 +757,7 @@ mod io_tests {
             Some("node_type"), // node_type_col (column name) — conflict!
             &g,
             true,
+            None,
             None,
             None,
         )
@@ -927,6 +931,7 @@ mod parquet_tests {
                         )],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),
@@ -1191,12 +1196,24 @@ mod parquet_tests {
                         c_props: vec![("b".to_string(), Prop::DTime(dt))],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),
         );
 
         build_and_check_parquet_encoding(nodes.into());
+    }
+
+    #[test]
+    fn node_only_layer_roundtrips_with_separate_edge_layer() {
+        let graph = Graph::new();
+        graph.add_node(0, 1, NO_PROPS, None, Some("a")).unwrap();
+        graph.add_edge(0, 2, 3, NO_PROPS, Some("b")).unwrap();
+
+        check_parquet_encoding(&graph, None);
+        assert_eq!(graph.valid_layers("a").count_nodes(), 1);
+        assert_eq!(graph.valid_layers("b").count_edges(), 1);
     }
 
     fn check_graph_props(nf: PropUpdatesFixture, only_timestamps: bool) {
@@ -1236,6 +1253,7 @@ mod parquet_tests {
                         c_props: vec![("b".to_string(), Prop::str("baa"))],
                     },
                     node_type: None,
+                    node_layer: None,
                 },
             )]
             .into(),
@@ -1244,7 +1262,7 @@ mod parquet_tests {
     }
 
     #[test]
-    fn write_graph_props_to_parquet() {
+    fn write_graph_props_to_parquet_proptest() {
         proptest!(|(props in build_props_dyn(0..=10))| {
             check_graph_props(props, true);
         });
@@ -1260,13 +1278,13 @@ mod parquet_tests {
     }
 
     #[test]
-    fn write_nodes_any_props_to_parquet() {
+    fn write_nodes_any_props_to_parquet_proptest() {
         proptest!(|(nodes in build_nodes_dyn(0..=10, 0..=10, 0..=10))| {
             build_and_check_parquet_encoding(nodes.into());
         });
     }
     #[test]
-    fn write_edges_any_props_to_parquet() {
+    fn write_edges_any_props_to_parquet_proptest() {
         proptest!(|(edges in build_edge_list_dyn(0..=10, 0..=10, 0..=10, 0..=10, true))| {
             build_and_check_parquet_encoding(edges.into());
         });
@@ -1291,7 +1309,7 @@ mod parquet_tests {
     }
 
     #[test]
-    fn write_graph_to_parquet() {
+    fn write_graph_to_parquet_proptest() {
         proptest!(|(graph in build_graph_strat(10, 10, 10, 10, true))| {
             build_and_check_parquet_encoding(graph);
         })
@@ -1349,6 +1367,24 @@ mod parquet_tests {
             Config::default(),
         )
         .unwrap();
+        assert_graph_equal(&g, &g2);
+    }
+
+    // Regression test for when graphs who call add_edge() before add_node() had issues with parquet encode/decode
+    // because layer ids would get overwritten in the layer mappers due to the layer id fast path being broken.
+    // The edge default layer would get resolved by name to layer id 1, and then overwritten by
+    // t_node fast path in ingestion (which sets layer ids directly and layer id 1 is not the edge default layer).
+    #[test]
+    fn test_parquet_node_layer_after_default_edge() {
+        let g = Graph::new();
+        // Edge first to register "_default" before t_node layers.
+        g.add_edge(0, 100u64, 200u64, NO_PROPS, None).unwrap();
+        g.add_node(0, 1u64, NO_PROPS, None, Some("a")).unwrap();
+        g.add_node(0, 2u64, NO_PROPS, None, Some("b")).unwrap();
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        g.encode_parquet(&temp_dir).unwrap();
+        let g2 = Graph::decode_parquet(&temp_dir, None, Config::default()).unwrap();
         assert_graph_equal(&g, &g2);
     }
 

@@ -52,19 +52,10 @@ fn bm_tadjset(c: &mut Criterion) {
         let mut rng = rand::rng();
         let range = Uniform::new(0, size * 10).unwrap();
 
-        let init_srcs: Vec<usize> = (&mut rng)
-            .sample_iter(&range)
-            .take(*size as usize)
-            .collect();
-        let init_dsts: Vec<usize> = (&mut rng)
-            .sample_iter(&range)
-            .take(*size as usize)
-            .collect();
+        let init_srcs: Vec<usize> = (&mut rng).sample_iter(&range).take(*size).collect();
+        let init_dsts: Vec<usize> = (&mut rng).sample_iter(&range).take(*size).collect();
         let t_range = Uniform::new(1646838523i64, 1678374523).unwrap();
-        let init_time: Vec<i64> = (&mut rng)
-            .sample_iter(&t_range)
-            .take(*size as usize)
-            .collect();
+        let init_time: Vec<i64> = (&mut rng).sample_iter(&t_range).take(*size).collect();
 
         let mut tadjset = AdjSet::default();
 
