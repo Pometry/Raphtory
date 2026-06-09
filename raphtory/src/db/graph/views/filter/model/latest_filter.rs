@@ -5,18 +5,10 @@ use crate::{
             filter::{
                 model::{
                     edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_active_node_filter::IsActiveNode,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    node_filter::builders::InternalNodeFilterBuilder,
-                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
                     windowed_filter::Windowed,
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, InternalPropertyFilterBuilder,
-                    InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, Op,
-                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    ComposableFilter, CompositeExplodedEdgeFilter,
+                    CompositeNodeFilter, InternalViewWrapOps,
+                    TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -55,40 +47,6 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Latest<T> {
     }
 }
 
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Latest<T> {
-    type FilterType = T::FilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Latest<T> {
-    type Filter = Latest<T::Filter>;
-    type ExprBuilder = Latest<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
 impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Latest<T> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         Ok(CompositeNodeFilter::Latest(Box::new(Latest::new(
@@ -123,7 +81,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T>
         G: GraphView + TimeOps<'graph> + Clone + 'graph;
 
     type FilteredGraph<'graph, G>
-        = WindowedGraph<T::FilteredGraph<'graph, G>>
+        = G
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -147,13 +105,6 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Latest<T>
     {
         self.inner.create_node_filter(graph)
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(self.inner.filter_graph_view(graph)?.latest())
-    }
 }
 
 impl<T: ComposableFilter> ComposableFilter for Latest<T> {}
@@ -162,53 +113,5 @@ impl<M> Wrap for Latest<M> {
     type Wrapped<T> = Latest<T>;
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         Latest::new(value)
-    }
-}
-
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Latest<T> {
-    type Entity = T::Entity;
-    type PropertyBuilder = Latest<T::PropertyBuilder>;
-    type MetadataBuilder = Latest<T::MetadataBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Latest<T> {}
-
-impl<U: NodeViewFilterOps> NodeViewFilterOps for Latest<U> {
-    type Output<T: CombinedFilter> = Latest<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        self.wrap(self.inner.is_active())
-    }
-}
-
-impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Latest<U> {
-    type Output<T: CombinedFilter> = Latest<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
     }
 }

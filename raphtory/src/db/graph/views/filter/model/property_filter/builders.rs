@@ -1,8 +1,19 @@
 use crate::db::graph::views::filter::model::{
     property_filter::{Op, PropertyFilter, PropertyFilterInput, PropertyRef},
-    CombinedFilter, EntityMarker, InternalPropertyFilterBuilder, TemporalPropertyFilterFactory,
-    Wrap,
+    CombinedFilter, EntityMarker, Wrap,
 };
+
+pub trait InternalPropertyFilterBuilder {
+    type Filter;
+    type ExprBuilder;
+    type Marker;
+
+    fn property_ref(&self) -> PropertyRef;
+    fn ops(&self) -> &[Op];
+    fn entity(&self) -> Self::Marker;
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter;
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder;
+}
 
 #[derive(Clone)]
 pub struct PropertyFilterBuilder<M>(pub String, pub M);
@@ -50,13 +61,6 @@ where
     fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
         builder.with_entity(self.entity())
     }
-}
-
-impl<T> TemporalPropertyFilterFactory for PropertyFilterBuilder<T>
-where
-    T: Into<EntityMarker> + Send + Sync + Clone + 'static,
-    PropertyFilter<T>: CombinedFilter,
-{
 }
 
 #[derive(Clone)]

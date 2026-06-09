@@ -11,11 +11,10 @@ pub trait Filter<'graph>: InternalFilter<'graph> {
         &self,
         filter: F,
     ) -> Result<
-        Self::Filtered<F::EntityFiltered<'graph, F::FilteredGraph<'graph, Self::Graph>>>,
+        Self::Filtered<F::EntityFiltered<'graph, Self::Graph>>,
         GraphError,
     > {
-        let fg = filter.filter_graph_view(self.base_graph().clone())?;
-        Ok(self.apply_filter(filter.create_filter(fg)?))
+        Ok(self.apply_filter(filter.create_filter(self.base_graph().clone())?))
     }
 }
 
@@ -24,11 +23,10 @@ pub trait NodeSelect<'graph>: InternalNodeSelect<'graph> {
         &self,
         filter: F,
     ) -> Result<
-        Self::IterFiltered<F::NodeFilter<'graph, F::FilteredGraph<'graph, Self::IterGraph>>>,
+        Self::IterFiltered<F::NodeFilter<'graph, Self::IterGraph>>,
         GraphError,
     > {
-        let fg = filter.filter_graph_view(self.iter_graph().clone())?;
-        Ok(self.apply_iter_filter(filter.create_node_filter(fg)?))
+        Ok(self.apply_iter_filter(filter.create_node_filter(self.iter_graph().clone())?))
     }
 }
 
@@ -37,11 +35,10 @@ pub trait EdgeSelect<'graph>: InternalEdgeSelect<'graph> {
         &self,
         filter: F,
     ) -> Result<
-        Self::IterFiltered<F::EntityFiltered<'graph, F::FilteredGraph<'graph, Self::IterGraph>>>,
+        Self::IterFiltered<F::EntityFiltered<'graph, Self::IterGraph>>,
         GraphError,
     > {
-        let fg = filter.filter_graph_view(self.iter_graph().clone())?;
-        Ok(self.apply_iter_filter(filter.create_filter(fg)?))
+        Ok(self.apply_iter_filter(filter.create_filter(self.iter_graph().clone())?))
     }
 }
 

@@ -1,8 +1,9 @@
 use crate::db::graph::views::filter::model::{
     property_filter::{
-        builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyFilterValue,
+        builders::{InternalPropertyFilterBuilder, PropertyExprBuilderInput},
+        Op, PropertyFilterInput, PropertyFilterValue,
     },
-    FilterOperator, InternalPropertyFilterBuilder,
+    FilterOperator,
 };
 use raphtory_api::core::{entities::properties::prop::Prop, storage::arc_str::ArcStr};
 use std::sync::Arc;

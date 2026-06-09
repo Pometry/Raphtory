@@ -59,12 +59,6 @@ impl CreateFilter for IsDeletedEdge {
         Ok(NodeExistsOp::new(IsDeletedGraph::new(graph)))
     }
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 impl ComposableFilter for IsDeletedEdge {}

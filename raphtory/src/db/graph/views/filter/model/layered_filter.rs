@@ -5,17 +5,9 @@ use crate::{
             filter::{
                 model::{
                     edge_filter::CompositeEdgeFilter,
-                    is_active_edge_filter::IsActiveEdge,
-                    is_active_node_filter::IsActiveNode,
-                    is_deleted_filter::IsDeletedEdge,
-                    is_self_loop_filter::IsSelfLoopEdge,
-                    is_valid_filter::IsValidEdge,
-                    node_filter::builders::InternalNodeFilterBuilder,
-                    property_filter::{builders::PropertyExprBuilderInput, PropertyFilterInput},
-                    CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, EdgeViewFilterOps, InternalPropertyFilterBuilder,
-                    InternalPropertyFilterFactory, InternalViewWrapOps, NodeViewFilterOps, Op,
-                    PropertyRef, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                    ComposableFilter, CompositeExplodedEdgeFilter,
+                    CompositeNodeFilter, InternalViewWrapOps,
+                    TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,
             },
@@ -67,40 +59,6 @@ impl<T: InternalViewWrapOps> InternalViewWrapOps for Layered<T> {
     }
 }
 
-impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for Layered<T> {
-    type FilterType = T::FilterType;
-
-    fn field_name(&self) -> &'static str {
-        self.inner.field_name()
-    }
-}
-
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder for Layered<T> {
-    type Filter = Layered<T::Filter>;
-    type ExprBuilder = Layered<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
 impl<T: TryAsCompositeFilter> TryAsCompositeFilter for Layered<T> {
     fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
         let filter = self.inner.try_as_composite_node_filter()?;
@@ -135,7 +93,7 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
         G: GraphView + 'graph;
 
     type FilteredGraph<'graph, G>
-        = LayeredGraph<T::FilteredGraph<'graph, G>>
+        = G
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -159,15 +117,6 @@ impl<T: CreateFilter + Clone + Send + Sync + 'static> CreateFilter for Layered<T
     {
         self.inner.create_node_filter(graph)
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.inner
-            .filter_graph_view(graph)?
-            .layers(self.layer.clone())
-    }
 }
 
 impl<T: ComposableFilter> ComposableFilter for Layered<T> {}
@@ -177,53 +126,5 @@ impl<M> Wrap for Layered<M> {
 
     fn wrap<T>(&self, value: T) -> Self::Wrapped<T> {
         Layered::new(self.layer.clone(), value)
-    }
-}
-
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory for Layered<T> {
-    type Entity = T::Entity;
-    type PropertyBuilder = Layered<T::PropertyBuilder>;
-    type MetadataBuilder = Layered<T::MetadataBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory for Layered<T> {}
-
-impl<U: NodeViewFilterOps> NodeViewFilterOps for Layered<U> {
-    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveNode> {
-        self.wrap(self.inner.is_active())
-    }
-}
-
-impl<U: EdgeViewFilterOps> EdgeViewFilterOps for Layered<U> {
-    type Output<T: CombinedFilter> = Layered<U::Output<T>>;
-
-    fn is_active(&self) -> Self::Output<IsActiveEdge> {
-        self.wrap(self.inner.is_active())
-    }
-
-    fn is_valid(&self) -> Self::Output<IsValidEdge> {
-        self.wrap(self.inner.is_valid())
-    }
-
-    fn is_deleted(&self) -> Self::Output<IsDeletedEdge> {
-        self.wrap(self.inner.is_deleted())
-    }
-
-    fn is_self_loop(&self) -> Self::Output<IsSelfLoopEdge> {
-        self.wrap(self.inner.is_self_loop())
     }
 }

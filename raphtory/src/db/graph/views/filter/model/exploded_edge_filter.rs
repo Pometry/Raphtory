@@ -17,17 +17,11 @@ use crate::{
                 node_filter::{
                     builders::InternalNodeFilterBuilder, CompositeNodeFilter, NodeFilter,
                 },
-                property_filter::{
-                    builders::{
-                        MetadataFilterBuilder, PropertyExprBuilderInput, PropertyFilterBuilder,
-                    },
-                    Op, PropertyFilter, PropertyFilterInput, PropertyRef,
-                },
+                property_filter::PropertyFilter,
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, CombinedFilter, EdgeViewFilterOps, EntityMarker,
-                InternalPropertyFilterBuilder, InternalPropertyFilterFactory, InternalViewWrapOps,
-                NotFilter, OrFilter, TemporalPropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                AndFilter, CombinedFilter, EdgeViewFilterOps, EntityMarker, InternalViewWrapOps,
+                NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
             },
             CreateFilter,
         },
@@ -72,24 +66,6 @@ impl InternalViewWrapOps for ExplodedEdgeFilter {
 
     fn build_window(self, start: EventTime, end: EventTime) -> Self::Window {
         Windowed::from_times(start, end, self)
-    }
-}
-
-impl InternalPropertyFilterFactory for ExplodedEdgeFilter {
-    type Entity = ExplodedEdgeFilter;
-    type PropertyBuilder = PropertyFilterBuilder<Self::Entity>;
-    type MetadataBuilder = MetadataFilterBuilder<Self::Entity>;
-
-    fn entity(&self) -> Self::Entity {
-        ExplodedEdgeFilter
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        PropertyFilterBuilder(property, self.entity())
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        MetadataFilterBuilder(property, self.entity())
     }
 }
 
@@ -159,62 +135,6 @@ impl<T: InternalNodeFilterBuilder> InternalNodeFilterBuilder for ExplodedEdgeEnd
     }
 }
 
-impl<T: InternalPropertyFilterBuilder> InternalPropertyFilterBuilder
-    for ExplodedEdgeEndpointWrapper<T>
-{
-    type Filter = ExplodedEdgeEndpointWrapper<T::Filter>;
-    type ExprBuilder = ExplodedEdgeEndpointWrapper<T::ExprBuilder>;
-    type Marker = T::Marker;
-
-    #[inline]
-    fn property_ref(&self) -> PropertyRef {
-        self.inner.property_ref()
-    }
-
-    #[inline]
-    fn ops(&self) -> &[Op] {
-        self.inner.ops()
-    }
-
-    #[inline]
-    fn entity(&self) -> Self::Marker {
-        self.inner.entity()
-    }
-
-    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
-        self.wrap(self.inner.filter(filter))
-    }
-
-    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
-        self.wrap(self.inner.with_expr_builder(builder))
-    }
-}
-
-impl<T: InternalPropertyFilterFactory> InternalPropertyFilterFactory
-    for ExplodedEdgeEndpointWrapper<T>
-{
-    type Entity = T::Entity;
-    type PropertyBuilder = ExplodedEdgeEndpointWrapper<T::PropertyBuilder>;
-    type MetadataBuilder = ExplodedEdgeEndpointWrapper<T::MetadataBuilder>;
-
-    fn entity(&self) -> Self::Entity {
-        self.inner.entity()
-    }
-
-    fn property_builder(&self, property: String) -> Self::PropertyBuilder {
-        self.wrap(self.inner.property_builder(property))
-    }
-
-    fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
-        self.wrap(self.inner.metadata_builder(property))
-    }
-}
-
-impl<T: TemporalPropertyFilterFactory> TemporalPropertyFilterFactory
-    for ExplodedEdgeEndpointWrapper<T>
-{
-}
-
 impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWrapper<T> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>>
         = ExplodedEdgeNodeFilteredGraph<G, T::NodeFilter<'graph, G>>
@@ -228,7 +148,7 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
         Self: 'graph,
         G: GraphView + 'graph;
     type FilteredGraph<'graph, G>
-        = T::FilteredGraph<'graph, G>
+        = G
     where
         Self: 'graph,
         G: GraphViewOps<'graph>;
@@ -253,13 +173,6 @@ impl<T: CreateFilter + Clone + 'static> CreateFilter for ExplodedEdgeEndpointWra
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        self.inner.filter_graph_view(graph)
     }
 }
 
@@ -410,50 +323,6 @@ impl CreateFilter for CompositeExplodedEdgeFilter {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        match self.clone() {
-            Self::Src(filter) => {
-                let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Src);
-                let filtered_graph = wrapped.filter_graph_view(graph)?;
-                Ok(Arc::new(filtered_graph))
-            }
-            Self::Dst(filter) => {
-                let wrapped = ExplodedEdgeEndpointWrapper::new(filter, Endpoint::Dst);
-                let filtered_graph = wrapped.filter_graph_view(graph)?;
-                Ok(Arc::new(filtered_graph))
-            }
-            Self::Property(p) => Ok(Arc::new(p.filter_graph_view(graph)?)),
-            Self::Windowed(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::Latest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::SnapshotAt(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::SnapshotLatest(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::Layered(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::IsActiveEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::IsValidEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::IsDeletedEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::IsSelfLoopEdge(pw) => Ok(Arc::new(pw.filter_graph_view(graph)?)),
-            Self::And(l, r) => {
-                let (l, r) = (*l, *r); // move out, no clone
-                Ok(Arc::new(
-                    AndFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            Self::Or(l, r) => {
-                let (l, r) = (*l, *r);
-                Ok(Arc::new(
-                    OrFilter { left: l, right: r }.filter_graph_view(graph)?,
-                ))
-            }
-            Self::Not(f) => {
-                let base = *f;
-                Ok(Arc::new(NotFilter(base).filter_graph_view(graph)?))
-            }
-        }
     }
 }
 

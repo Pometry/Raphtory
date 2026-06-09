@@ -36,19 +36,12 @@ impl<L, R> ComposableFilter for AndFilter<L, R> {}
 
 impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
     type EntityFiltered<'graph, G: GraphViewOps<'graph>>
-        = AndFilteredGraph<
-        G,
-        L::EntityFiltered<'graph, L::FilteredGraph<'graph, G>>,
-        R::EntityFiltered<'graph, R::FilteredGraph<'graph, G>>,
-    >
+        = AndFilteredGraph<G, L::EntityFiltered<'graph, G>, R::EntityFiltered<'graph, G>>
     where
         Self: 'graph;
 
     type NodeFilter<'graph, G: GraphView + 'graph>
-        = AndOp<
-        L::NodeFilter<'graph, L::FilteredGraph<'graph, G>>,
-        R::NodeFilter<'graph, R::FilteredGraph<'graph, G>>,
-    >
+        = AndOp<L::NodeFilter<'graph, G>, R::NodeFilter<'graph, G>>
     where
         Self: 'graph;
 
@@ -62,10 +55,8 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let l = self.left.filter_graph_view(graph.clone())?;
-        let r = self.right.filter_graph_view(graph.clone())?;
-        let left = self.left.create_filter(l)?;
-        let right = self.right.create_filter(r)?;
+        let left = self.left.create_filter(graph.clone())?;
+        let right = self.right.create_filter(graph.clone())?;
         let layer_ids = left.layer_ids().intersect(right.layer_ids());
         Ok(AndFilteredGraph {
             graph,
@@ -82,21 +73,9 @@ impl<L: CreateFilter, R: CreateFilter> CreateFilter for AndFilter<L, R> {
     where
         Self: 'graph,
     {
-        let l = self.left.filter_graph_view(graph.clone())?;
-        let r = self.right.filter_graph_view(graph.clone())?;
-        let left = self.left.create_node_filter(l)?;
-        let right = self.right.create_node_filter(r)?;
+        let left = self.left.create_node_filter(graph.clone())?;
+        let right = self.right.create_node_filter(graph)?;
         Ok(left.and(right))
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError>
-    where
-        Self: 'graph,
-    {
-        Ok(graph)
     }
 }
 

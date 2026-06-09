@@ -26,7 +26,7 @@ impl<E> fmt::Display for IsActiveNode<E> {
     }
 }
 
-impl<E: CreateView> CreateFilter for IsActiveNode<E> {
+impl<E: CreateView + 'static> CreateFilter for IsActiveNode<E> {
     type EntityFiltered<'graph, G>
         = NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>
     where
@@ -34,7 +34,7 @@ impl<E: CreateView> CreateFilter for IsActiveNode<E> {
         G: GraphViewOps<'graph>;
 
     type NodeFilter<'graph, G>
-        = Map<HistoryOp<'graph, G>, bool>
+        = Map<HistoryOp<'graph, E::View<'graph, G>>, bool>
     where
         Self: 'graph,
         G: GraphView + 'graph;
@@ -49,7 +49,6 @@ impl<E: CreateView> CreateFilter for IsActiveNode<E> {
         self,
         graph: G,
     ) -> Result<Self::EntityFiltered<'graph, G>, GraphError> {
-        let graph = self.view_expr.create_view(graph.clone())?;
         let op = self.create_node_filter(graph.clone())?;
         Ok(NodeFilteredGraph::new(graph, op))
     }
@@ -58,9 +57,7 @@ impl<E: CreateView> CreateFilter for IsActiveNode<E> {
         self,
         graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
-        let op: Map<HistoryOp<G>, bool> =
-            HistoryOp::new(self.view_expr.create_view(graph)?).map(|h| !h.is_empty());
-        Ok(op)
+        Ok(HistoryOp::new(self.view_expr.create_view(graph)?).map(|h| !h.is_empty()))
     }
 }
 

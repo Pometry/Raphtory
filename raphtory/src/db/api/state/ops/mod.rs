@@ -54,6 +54,7 @@ pub trait NodeOp: Send + Sync {
         rhs: Arc<dyn NodeOp<Output = Self::Output>>,
     ) -> Arc<dyn NodeOp<Output = bool>>
     where
+        Self: Clone + 'static,
         Self::Output: Comparable,
     {
         Arc::new(BinOpNodeOp {

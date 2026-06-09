@@ -65,12 +65,6 @@ impl CreateFilter for GraphFilter {
         Ok(NodeExistsOp::new(graph))
     }
 
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 impl TryAsCompositeFilter for GraphFilter {

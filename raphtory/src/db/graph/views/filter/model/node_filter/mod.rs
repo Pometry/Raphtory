@@ -27,8 +27,8 @@ use crate::{
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
                 AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
-                EntityMarker, InternalViewWrapOps, NodeViewFilterOps, NotFilter, OrFilter,
-                PropertyFilterFactory, TryAsCompositeFilter, Wrap,
+                CreateView, EntityMarker, InternalViewWrapOps, NodeViewFilterOps, NotFilter,
+                OrFilter, PropertyFilterFactory, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -53,7 +53,7 @@ impl From<NodeFilter> for EntityMarker {
     }
 }
 
-pub trait NodeFilterFactory: PropertyFilterFactory {
+pub trait NodeFilterFactory: PropertyFilterFactory + Clone {
     #[inline]
     fn id(&self) -> Id {
         Id
@@ -123,6 +123,22 @@ pub trait NodeFilterFactory: PropertyFilterFactory {
 
 impl NodeFilterFactory for NodeFilter {}
 
+impl TryAsCompositeFilter for NodeFilter {
+    fn try_as_composite_node_filter(&self) -> Result<CompositeNodeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_edge_filter(&self) -> Result<CompositeEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+
+    fn try_as_composite_exploded_edge_filter(
+        &self,
+    ) -> Result<CompositeExplodedEdgeFilter, GraphError> {
+        Err(GraphError::NotSupported)
+    }
+}
+
 impl NodeFilter {
     /// Current (latest) value of a named property — serializable.
     #[inline]
@@ -147,17 +163,17 @@ impl NodeFilter {
     }
 }
 
-/// Extension trait that adds `.temporal_property(name)` to any wrapper type.
+/// Extension trait that adds `.temporal_property(name)` to any view expression type.
 ///
-/// Implemented for all `W: Wrap + Clone` so that `NodeFilter`, `Windowed<NodeFilter>`,
-/// `Latest<NodeFilter>`, etc. all support the same entry point.
-pub trait TemporalNodeExprBuilderOps: Wrap + Clone + Sized {
+/// Implemented for all `T: CreateView + Clone` so that `NodeFilter`, `Windowed<NodeFilter>`,
+/// `Layered<NodeFilter>`, etc. all support the same entry point.
+pub trait TemporalNodeExprBuilderOps: CreateView + Clone + Send + Sync + Sized + 'static {
     fn temporal_property(self, name: impl Into<String>) -> TemporalPropContext<Self> {
         TemporalPropContext::new(self, name)
     }
 }
 
-impl<T: Wrap + Clone + Sized> TemporalNodeExprBuilderOps for T {}
+impl<T: CreateView + Clone + Sized + Send + Sync + 'static> TemporalNodeExprBuilderOps for T {}
 
 impl Wrap for NodeFilter {
     type Wrapped<T> = T;

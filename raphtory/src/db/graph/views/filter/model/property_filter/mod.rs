@@ -406,13 +406,6 @@ impl CreateFilter for PropertyFilter<NodeFilter> {
         let prop_id = self.resolve_prop_id(graph.node_meta(), false)?;
         Ok(NodePropertyFilterOp::new(graph, prop_id, self))
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 impl CreateFilter for PropertyFilter<EdgeFilter> {
@@ -440,13 +433,6 @@ impl CreateFilter for PropertyFilter<EdgeFilter> {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
     }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
-    }
 }
 
 impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
@@ -471,13 +457,6 @@ impl CreateFilter for PropertyFilter<ExplodedEdgeFilter> {
         _graph: G,
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Err(GraphError::NotNodeFilter)
-    }
-
-    fn filter_graph_view<'graph, G: GraphView + 'graph>(
-        &self,
-        graph: G,
-    ) -> Result<Self::FilteredGraph<'graph, G>, GraphError> {
-        Ok(graph)
     }
 }
 

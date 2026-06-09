@@ -12,6 +12,7 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter_operator::{BinaryOp, Comparable, SetOp, UnaryOp},
+                node_filter::NodeFilter,
                 property_filter::{evaluate::aggregate_values, Op},
                 ComposableFilter, CompositeExplodedEdgeFilter, CompositeNodeFilter, CreateFilter,
                 CreateView, InternalViewWrapOps, TryAsCompositeFilter, Wrap,
@@ -109,7 +110,7 @@ pub struct DegreeExpr<E> {
     pub view_expr: E,
 }
 
-impl<E: CreateView> NodeExpr for DegreeExpr<E> {
+impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for DegreeExpr<E> {
     type Output = usize;
 
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -118,7 +119,7 @@ impl<E: CreateView> NodeExpr for DegreeExpr<E> {
     ) -> Result<Arc<dyn NodeOp<Output = usize> + 'g>, GraphError> {
         Ok(Arc::new(Degree {
             dir: self.dir,
-            view: self.view_expr.create_view(graph),
+            view: self.view_expr.create_view(graph)?,
         }))
     }
 }
@@ -548,7 +549,7 @@ where
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        Ok(left.bin_cmp(self.op, right))
+        Ok(Arc::new(BinOpNodeOp { left, right, op: self.op }))
     }
 }
 
@@ -950,18 +951,22 @@ impl<G: GraphView> NodeOp for TemporalNodePropOp<G> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// All temporal values of a named property over the current view window.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TemporalPropertyExpr {
+#[derive(Clone)]
+pub struct TemporalPropertyExpr<E: Clone> {
+    pub view_expr: E,
     pub name: String,
 }
 
-impl TemporalPropertyExpr {
+impl TemporalPropertyExpr<NodeFilter> {
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
+        Self {
+            view_expr: NodeFilter,
+            name: name.into(),
+        }
     }
 }
 
-impl NodeExpr for TemporalPropertyExpr {
+impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropertyExpr<E> {
     type Output = Vec<Prop>;
 
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -972,6 +977,7 @@ impl NodeExpr for TemporalPropertyExpr {
             .node_meta()
             .get_prop_id_and_type(&self.name, false)
             .ok_or_else(|| GraphError::PropertyMissingError(self.name.clone()))?;
+        let graph = self.view_expr.create_view(graph)?;
         Ok(Arc::new(TemporalNodePropOp { graph, prop_id }))
     }
 }
@@ -1274,22 +1280,18 @@ where
 
 /// Builder returned from `.any()` / `.all()` on a temporal expression.
 ///
-/// Carries the wrapper context `W` (identity for `NodeFilter`, `Windowed` for windowed filters).
-/// Call `.eq(rhs)`, `.gt(rhs)` etc. to produce the final filter wrapped in `W`.
-pub struct QuantifiedContextBuilder<W, E, Q>
+/// Call `.eq(rhs)`, `.gt(rhs)` etc. to produce the final `QuantifiedNodeFilter`.
+pub struct QuantifiedContextBuilder<E, Q>
 where
-    W: Wrap + Clone,
     E: NodeExpr<Output = Vec<Prop>>,
     Q: QuantifierMode,
 {
-    pub(crate) wrap_ctx: W,
     pub(crate) expr: E,
     pub(crate) _q: PhantomData<Q>,
 }
 
-impl<W, E, Q> QuantifiedContextBuilder<W, E, Q>
+impl<E, Q> QuantifiedContextBuilder<E, Q>
 where
-    W: Wrap + Clone,
     E: NodeExpr<Output = Vec<Prop>>,
     Q: QuantifierMode,
 {
@@ -1297,101 +1299,90 @@ where
         self,
         op: BinaryOp,
         rhs: R,
-    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
-        self.wrap_ctx
-            .wrap(QuantifiedNodeFilter::new(self.expr, op, rhs))
+    ) -> QuantifiedNodeFilter<E, Q, R> {
+        QuantifiedNodeFilter::new(self.expr, op, rhs)
     }
 
     pub fn eq<R: NodeExpr<Output = Option<Prop>>>(
         self,
         rhs: R,
-    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+    ) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Eq, rhs)
     }
 
     pub fn ne<R: NodeExpr<Output = Option<Prop>>>(
         self,
         rhs: R,
-    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+    ) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Ne, rhs)
     }
 
     pub fn gt<R: NodeExpr<Output = Option<Prop>>>(
         self,
         rhs: R,
-    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+    ) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Gt, rhs)
     }
 
     pub fn ge<R: NodeExpr<Output = Option<Prop>>>(
         self,
         rhs: R,
-    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+    ) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Ge, rhs)
     }
 
     pub fn lt<R: NodeExpr<Output = Option<Prop>>>(
         self,
         rhs: R,
-    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+    ) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Lt, rhs)
     }
 
     pub fn le<R: NodeExpr<Output = Option<Prop>>>(
         self,
         rhs: R,
-    ) -> W::Wrapped<QuantifiedNodeFilter<E, Q, R>> {
+    ) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Le, rhs)
     }
 }
 
 /// Builder returned from aggregators (`.sum()`, `.avg()` etc.) on a temporal expression.
 ///
-/// Carries the wrapper context `W` and the aggregator expression `E`.
-/// Call `.eq(rhs)`, `.gt(rhs)` etc. to produce the final filter wrapped in `W`.
-pub struct NodeExprContextBuilder<W, E>
-where
-    W: Wrap + Clone,
-    E: NodeExpr,
-{
-    pub(crate) wrap_ctx: W,
+/// Call `.eq(rhs)`, `.gt(rhs)` etc. to produce the final `BinOpNodeFilter`.
+pub struct NodeExprContextBuilder<E: NodeExpr> {
     pub(crate) expr: E,
 }
 
-impl<W, E> NodeExprContextBuilder<W, E>
-where
-    W: Wrap + Clone,
-    E: NodeExpr,
-{
+impl<E: NodeExpr> NodeExprContextBuilder<E> {
     fn finish<R: NodeExpr<Output = E::Output>>(
         self,
         op: BinaryOp,
         rhs: R,
-    ) -> W::Wrapped<BinOpNodeFilter<E, R>> {
-        self.wrap_ctx.wrap(BinOpNodeFilter::new(self.expr, op, rhs))
+    ) -> BinOpNodeFilter<E, R> {
+        BinOpNodeFilter::new(self.expr, op, rhs)
     }
 
-    pub fn eq<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+    pub fn eq<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinOpNodeFilter<E, R> {
         self.finish(BinaryOp::Eq, rhs)
     }
 
-    pub fn ne<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+    pub fn ne<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinOpNodeFilter<E, R> {
         self.finish(BinaryOp::Ne, rhs)
     }
 
-    pub fn gt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+    pub fn gt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinOpNodeFilter<E, R> {
         self.finish(BinaryOp::Gt, rhs)
     }
 
-    pub fn ge<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+    pub fn ge<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinOpNodeFilter<E, R> {
         self.finish(BinaryOp::Ge, rhs)
     }
 
-    pub fn lt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+    pub fn lt<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinOpNodeFilter<E, R> {
         self.finish(BinaryOp::Lt, rhs)
     }
 
-    pub fn le<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> W::Wrapped<BinOpNodeFilter<E, R>> {
+    pub fn le<R: NodeExpr<Output = E::Output>>(self, rhs: R) -> BinOpNodeFilter<E, R> {
         self.finish(BinaryOp::Le, rhs)
     }
 }
@@ -1402,8 +1393,8 @@ where
 
 /// Builder returned from `.temporal_property(name)`.
 ///
-/// `W` carries the wrapping context so that windowed temporal filters are correctly
-/// produced when called on a `Windowed<NodeFilter>`.
+/// `E` is the view expression (e.g. `NodeFilter`, `Windowed<NodeFilter>`, `Layered<NodeFilter>`)
+/// that scopes which temporal property values are visible.
 ///
 /// Usage:
 /// ```rust,ignore
@@ -1411,81 +1402,79 @@ where
 /// NodeFilter.window(0, 100).temporal_property("score").any().gt(10i64)
 /// NodeFilter::temporal_property("price").sum().gt(100i64)
 /// ```
-pub struct TemporalPropContext<W: Wrap + Clone> {
-    wrap_ctx: W,
-    expr: TemporalPropertyExpr,
+pub struct TemporalPropContext<E: CreateView + Clone> {
+    view_expr: E,
+    name: String,
 }
 
-impl<W: Wrap + Clone> TemporalPropContext<W> {
-    pub(crate) fn new(wrap_ctx: W, name: impl Into<String>) -> Self {
+impl<E: CreateView + Clone + Send + Sync + 'static> TemporalPropContext<E> {
+    pub(crate) fn new(view_expr: E, name: impl Into<String>) -> Self {
         Self {
-            wrap_ctx,
-            expr: TemporalPropertyExpr::new(name),
+            view_expr,
+            name: name.into(),
         }
     }
 
-    pub fn any(self) -> QuantifiedContextBuilder<W, TemporalPropertyExpr, AnyMode> {
+    fn make_expr(self) -> TemporalPropertyExpr<E> {
+        TemporalPropertyExpr {
+            view_expr: self.view_expr,
+            name: self.name,
+        }
+    }
+
+    pub fn any(self) -> QuantifiedContextBuilder<TemporalPropertyExpr<E>, AnyMode> {
         QuantifiedContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: self.expr,
+            expr: self.make_expr(),
             _q: PhantomData,
         }
     }
 
-    pub fn all(self) -> QuantifiedContextBuilder<W, TemporalPropertyExpr, AllMode> {
+    pub fn all(self) -> QuantifiedContextBuilder<TemporalPropertyExpr<E>, AllMode> {
         QuantifiedContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: self.expr,
+            expr: self.make_expr(),
             _q: PhantomData,
         }
     }
 
-    pub fn sum(self) -> NodeExprContextBuilder<W, SumExpr<TemporalPropertyExpr>> {
+    pub fn sum(self) -> NodeExprContextBuilder<SumExpr<TemporalPropertyExpr<E>>> {
         NodeExprContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: SumExpr(self.expr),
+            expr: SumExpr(self.make_expr()),
         }
     }
 
-    pub fn avg(self) -> NodeExprContextBuilder<W, AvgExpr<TemporalPropertyExpr>> {
+    pub fn avg(self) -> NodeExprContextBuilder<AvgExpr<TemporalPropertyExpr<E>>> {
         NodeExprContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: AvgExpr(self.expr),
+            expr: AvgExpr(self.make_expr()),
         }
     }
 
-    pub fn min(self) -> NodeExprContextBuilder<W, MinExpr<TemporalPropertyExpr>> {
+    pub fn min(self) -> NodeExprContextBuilder<MinExpr<TemporalPropertyExpr<E>>> {
         NodeExprContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: MinExpr(self.expr),
+            expr: MinExpr(self.make_expr()),
         }
     }
 
-    pub fn max(self) -> NodeExprContextBuilder<W, MaxExpr<TemporalPropertyExpr>> {
+    pub fn max(self) -> NodeExprContextBuilder<MaxExpr<TemporalPropertyExpr<E>>> {
         NodeExprContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: MaxExpr(self.expr),
+            expr: MaxExpr(self.make_expr()),
         }
     }
 
-    pub fn first(self) -> NodeExprContextBuilder<W, FirstExpr<TemporalPropertyExpr>> {
+    pub fn first(self) -> NodeExprContextBuilder<FirstExpr<TemporalPropertyExpr<E>>> {
         NodeExprContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: FirstExpr(self.expr),
+            expr: FirstExpr(self.make_expr()),
         }
     }
 
-    pub fn last(self) -> NodeExprContextBuilder<W, LastExpr<TemporalPropertyExpr>> {
+    pub fn last(self) -> NodeExprContextBuilder<LastExpr<TemporalPropertyExpr<E>>> {
         NodeExprContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: LastExpr(self.expr),
+            expr: LastExpr(self.make_expr()),
         }
     }
 
-    pub fn len(self) -> NodeExprContextBuilder<W, LenExpr<TemporalPropertyExpr>> {
+    pub fn len(self) -> NodeExprContextBuilder<LenExpr<TemporalPropertyExpr<E>>> {
         NodeExprContextBuilder {
-            wrap_ctx: self.wrap_ctx,
-            expr: LenExpr(self.expr),
+            expr: LenExpr(self.make_expr()),
         }
     }
 }
@@ -1498,17 +1487,15 @@ impl<W: Wrap + Clone> TemporalPropContext<W> {
 ///
 /// Available on any `NodeExpr<Output = Vec<Prop>>` (e.g. `TemporalPropertyExpr`).
 pub trait TemporalExprOps: NodeExpr<Output = Vec<Prop>> + Sized {
-    fn any(self) -> QuantifiedContextBuilder<NoWrap, Self, AnyMode> {
+    fn any(self) -> QuantifiedContextBuilder<Self, AnyMode> {
         QuantifiedContextBuilder {
-            wrap_ctx: NoWrap,
             expr: self,
             _q: PhantomData,
         }
     }
 
-    fn all(self) -> QuantifiedContextBuilder<NoWrap, Self, AllMode> {
+    fn all(self) -> QuantifiedContextBuilder<Self, AllMode> {
         QuantifiedContextBuilder {
-            wrap_ctx: NoWrap,
             expr: self,
             _q: PhantomData,
         }
@@ -1882,17 +1869,14 @@ mod tests {
 
     // ── Windowed temporal filter ──────────────────────────────────────────────
 
-    /// Apply a filter using the full two-step pipeline (filter_graph_view → create_filter).
-    /// Required for windowed filters where filter_graph_view applies the window.
+    /// Apply a windowed temporal filter directly (view is embedded in the expression).
     fn windowed_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
     where
-        F: CreateFilter + Clone,
-        for<'graph> F::EntityFiltered<'graph, F::FilteredGraph<'graph, Graph>>:
-            GraphViewOps<'graph>,
+        F: CreateFilter,
+        for<'graph> F::EntityFiltered<'graph, Graph>: GraphViewOps<'graph>,
     {
-        let fg = filter.filter_graph_view(g).unwrap();
         let mut names: Vec<String> = filter
-            .create_filter(fg)
+            .create_filter(g)
             .unwrap()
             .nodes()
             .iter()
@@ -1988,17 +1972,14 @@ mod tests {
         g
     }
 
-    /// Run the full filter_graph_view → create_filter pipeline for a layered filter.
-    /// Identical in structure to `windowed_filtered_names`; factored separately for clarity.
+    /// Apply a layered temporal filter directly (view is embedded in the expression).
     fn layered_filtered_names<F>(filter: F, g: Graph) -> Vec<String>
     where
-        F: CreateFilter + Clone,
-        for<'graph> F::EntityFiltered<'graph, F::FilteredGraph<'graph, Graph>>:
-            GraphViewOps<'graph>,
+        F: CreateFilter,
+        for<'graph> F::EntityFiltered<'graph, Graph>: GraphViewOps<'graph>,
     {
-        let fg = filter.filter_graph_view(g).unwrap();
         let mut names: Vec<String> = filter
-            .create_filter(fg)
+            .create_filter(g)
             .unwrap()
             .nodes()
             .iter()
