@@ -155,16 +155,17 @@ impl PropType {
 
     // This is the best guess for the size of one row of properties
     pub fn est_size(&self) -> usize {
+        let container_size = *CONTAINER_SIZE;
         match self {
-            PropType::Str => *CONTAINER_SIZE,
+            PropType::Str => container_size,
             PropType::U8 | PropType::Bool => 1,
             PropType::U16 => 2,
             PropType::I32 | PropType::F32 | PropType::U32 => 4,
             PropType::I64 | PropType::F64 | PropType::U64 => 8,
             PropType::NDTime | PropType::DTime => 8,
-            PropType::List(p_type) => p_type.est_size() * CONTAINER_SIZE,
+            PropType::List(p_type) => p_type.est_size() * container_size,
             PropType::Map(p_map) => {
-                p_map.values().map(|v| v.est_size()).sum::<usize>() * CONTAINER_SIZE
+                p_map.values().map(|v| v.est_size()).sum::<usize>() * container_size
             }
             PropType::Decimal { .. } => 16,
             PropType::Empty => 0,
