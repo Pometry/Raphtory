@@ -57,6 +57,7 @@ use storage::{
     },
     Extension,
 };
+use crate::arrow_loader::df_loaders::{group_rows_by_vid_segment, secondary_index_at};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ColumnNames<'a> {
@@ -902,22 +903,6 @@ fn add_and_resolve_outbound_edges<
     }
 }
 
-fn group_rows_by_vid_segment(
-    vids: &[VID],
-    max_segment_len: u32,
-    num_segments: usize,
-) -> Vec<Vec<usize>> {
-    let mut rows_by_segment = vec![Vec::new(); num_segments];
-    for (row, vid) in vids.iter().enumerate() {
-        let (segment_id, _) = resolve_pos(vid.index(), max_segment_len);
-        let rows = rows_by_segment
-            .get_mut(segment_id)
-            .expect("segment not found while grouping by vid");
-        rows.push(row);
-    }
-    rows_by_segment
-}
-
 fn group_rows_by_eid_segment(
     eids: &[EID],
     max_segment_len: u32,
@@ -934,13 +919,6 @@ fn group_rows_by_eid_segment(
     rows_by_segment
 }
 
-#[inline(always)]
-fn secondary_index_at(col: &SecondaryIndexCol, row: usize) -> usize {
-    match col {
-        SecondaryIndexCol::DataFrame(arr) => arr.value(row) as usize,
-        SecondaryIndexCol::Range(range) => range.start + row,
-    }
-}
 
 pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[(GidRef<'_>, VID)],

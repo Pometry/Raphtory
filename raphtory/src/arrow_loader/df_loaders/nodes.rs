@@ -49,6 +49,7 @@ use crate::arrow_loader::{
 };
 #[cfg(feature = "progress")]
 use kdam::BarExt;
+use crate::arrow_loader::df_loaders::{group_rows_by_vid_segment, secondary_index_at};
 
 /// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]
@@ -271,20 +272,38 @@ pub fn load_nodes_from_df<
                 node_stats.update_time(time);
             };
 
+            let max_node_segment_len = write_locked_graph
+                .graph()
+                .storage()
+                .nodes()
+                .max_segment_len() as usize;
+            let rows_by_segment = group_rows_by_vid_segment(
+                src_vids,
+                max_node_segment_len as u32,
+                write_locked_graph.nodes.len(),
+            );
+
             write_locked_graph
                 .nodes
                 .par_iter_mut()
                 .enumerate()
                 .try_for_each(|(segment_id, shard)| {
-                    if !node_segments_touched[segment_id].load(Ordering::Relaxed) {
+                    let node_rows = &rows_by_segment[segment_id];
+
+                    if node_rows.is_empty() {
                         // we need to graph a writer nevertheless as it may have old data that needs to flush
                         if shard.segment().is_dirty() {
-                            let mut _writer = shard.writer();
+                            let _writer = shard.writer();
                         }
                         return Ok::<_, GraphError>(());
                     }
                     // Zip all columns for iteration.
-                    let zip = izip!(src_vids.iter(), time_col.iter(), secondary_index_col.iter(),);
+                    let zip = node_rows.iter().map(|&row| {
+                        let vid = &src_vids[row];
+                        let time = time_col[row];
+                        let secondary_index = secondary_index_at(&secondary_index_col, row);
+                        (row, vid, time, secondary_index)
+                    });
 
                     // resolve_nodes=false
                     // assumes we are loading our own graph, via the parquet loaders,
@@ -294,7 +313,7 @@ pub fn load_nodes_from_df<
                     }
                     let mut writer = shard.writer();
 
-                    for (row, (vid, time, secondary_index)) in zip.enumerate() {
+                    for (row, vid, time, secondary_index) in zip {
                         if let Some(mut_node) = writer.resolve_pos(*vid) {
                             let t = EventTime(time, secondary_index);
                             let layer_id = layer_col_resolved
