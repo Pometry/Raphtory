@@ -34,6 +34,7 @@ pub use crate::{
 use crate::{
     db::{
         api::{
+            properties::TemporalPropertyView,
             state::{
                 ops::{filter::NO_FILTER, Const},
                 NodeOp,
@@ -50,7 +51,8 @@ use crate::{
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{NodeMetaOp, NodePropOp},
+                node_expr::{NodeMetaOp, NodePropOp, TemporalPropertyExpr},
+                node_filter::NodeFilterFactory,
                 property_filter::{
                     builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
                 },
@@ -250,7 +252,9 @@ pub struct PropertyExpr<E> {
     name: String,
 }
 
-impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for PropertyExpr<E> {
+impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
+    for PropertyExpr<E>
+{
     type Output = Option<Prop>;
 
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -272,7 +276,9 @@ pub struct MetadataExpr<E> {
     name: String,
 }
 
-impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for MetadataExpr<E> {
+impl<E: CreateView + NodeFilterFactory + Clone + Send + Sync + 'static> NodeExpr
+    for MetadataExpr<E>
+{
     type Output = Option<Prop>;
 
     fn create_node_op<'g, G: GraphView + 'g>(
@@ -314,7 +320,7 @@ pub trait DynPropertyFilterFactory {
     fn property(&self, name: String) -> PropertyExpr<Arc<dyn DynCreateView>>;
 }
 
-impl<T: CreateView + Clone + Send + Sync + 'static> DynPropertyFilterFactory for T {
+impl<T: CreateView> DynPropertyFilterFactory for T {
     fn property(&self, name: String) -> PropertyExpr<Arc<dyn DynCreateView>> {
         PropertyExpr {
             view_expr: Arc::new(self.clone()) as Arc<dyn DynCreateView>,
@@ -323,13 +329,8 @@ impl<T: CreateView + Clone + Send + Sync + 'static> DynPropertyFilterFactory for
     }
 }
 
-pub struct TemporalPropertyExpr<E> {
-    view_expr: E,
-    name: String,
-}
-
-impl<T: CreateView + Clone> PropertyExpr<T> {
-    pub fn temporal(&self) -> TemporalPropertyExpr<T> {
+impl<E: CreateView> PropertyExpr<E> {
+    pub fn temporal(&self) -> TemporalPropertyExpr<E> {
         TemporalPropertyExpr {
             view_expr: self.view_expr.clone(),
             name: self.name.clone(),
@@ -463,7 +464,7 @@ pub trait ViewWrapOps: InternalViewWrapOps + Sized {
 
 impl<T: InternalViewWrapOps + Sized> ViewWrapOps for T {}
 
-pub trait CreateView: Clone {
+pub trait CreateView: Clone + Send + Sync + 'static {
     type View<'graph, G: GraphView + 'graph>: GraphView + 'graph;
     fn create_view<'graph, G: GraphView + 'graph>(
         &self,
@@ -524,9 +525,15 @@ pub trait ViewWrapPropOps: InternalViewWrapOps + PropertyFilterFactory + Sized {
 
 impl<T> ViewWrapPropOps for T where T: InternalViewWrapOps + PropertyFilterFactory + Sized {}
 
-pub trait DynInternalViewWrapPropOps: DynInternalViewWrapOps + DynPropertyFilterFactory + DynCreateView {}
+pub trait DynInternalViewWrapPropOps:
+    DynInternalViewWrapOps + DynPropertyFilterFactory + DynCreateView
+{
+}
 
-impl<T> DynInternalViewWrapPropOps for T where T: DynInternalViewWrapOps + DynPropertyFilterFactory + DynCreateView {}
+impl<T> DynInternalViewWrapPropOps for T where
+    T: DynInternalViewWrapOps + DynPropertyFilterFactory + DynCreateView
+{
+}
 
 impl InternalViewWrapOps for Arc<dyn DynInternalViewWrapPropOps> {
     type Window = Arc<dyn DynInternalViewWrapPropOps>;
@@ -584,7 +591,9 @@ pub trait DynNodeViewFilterOps: DynInternalViewWrapPropOps + TryAsCompositeFilte
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter>;
 }
 
-impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps + TryAsCompositeFilter> DynNodeViewFilterOps for T {
+impl<T: NodeViewFilterOps + DynInternalViewWrapPropOps + TryAsCompositeFilter> DynNodeViewFilterOps
+    for T
+{
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
         Arc::new(self.is_active())
     }
@@ -612,7 +621,9 @@ pub trait DynEdgeViewFilterOps: DynInternalViewWrapPropOps + TryAsCompositeFilte
     fn dyn_is_self_loop(&self) -> Arc<dyn DynCreateFilter>;
 }
 
-impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps + TryAsCompositeFilter> DynEdgeViewFilterOps for T {
+impl<T: EdgeViewFilterOps + DynInternalViewWrapPropOps + TryAsCompositeFilter> DynEdgeViewFilterOps
+    for T
+{
     fn dyn_is_active(&self) -> Arc<dyn DynCreateFilter> {
         Arc::new(self.is_active())
     }

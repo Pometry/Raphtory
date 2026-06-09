@@ -17,10 +17,14 @@ use raphtory_api::core::entities::VID;
 use raphtory_storage::graph::graph::GraphStorage;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, marker::PhantomData, ops::Deref, sync::Arc};
+use raphtory_api::core::entities::properties::prop::PropType;
 
 // this probably needs the 'graph lifetime to make bin_cmp work with ops that capture the graph
 pub trait NodeOp: Send + Sync {
     type Output: Clone + Send + Sync;
+
+    /// The output type of this operation used for validation
+    fn prop_type(&self) -> PropType;
 
     /// The domain of validity for this node op
     fn domain(&self, _storage: &GraphStorage) -> NodeList {

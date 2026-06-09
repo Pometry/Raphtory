@@ -24,12 +24,17 @@ use crate::{
     prelude::GraphViewOps,
 };
 use raphtory_api::core::{
-    entities::{properties::prop::Prop, GID, VID},
+    entities::{
+        properties::prop::{Prop, PropType},
+        GID, VID,
+    },
     storage::{arc_str::ArcStr, timeindex::EventTime},
     Direction,
 };
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
+use raphtory_api::core::entities::GidType;
+use raphtory_storage::core_ops::CoreGraphOps;
 // ─────────────────────────────────────────────────────────────────────────────
 // NodeExpr — typed node expression with associated Output type
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,7 +57,7 @@ use std::{collections::HashSet, hash::Hash, marker::PhantomData, sync::Arc};
 /// ```
 ///
 pub trait NodeExpr: Clone + Send + Sync + 'static {
-    type Output: Clone + Send + Sync + 'static;
+    type Output: Clone + Send + Sync + Into<Prop> + 'static;
 
     /// Compile the expression against a specific graph view.
     ///
@@ -61,6 +66,11 @@ pub trait NodeExpr: Clone + Send + Sync + 'static {
         &self,
         graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError>;
+
+    /// A priory known type (for early validation where possible)
+    fn prop_type(&self) -> PropType {
+        PropType::Empty
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,6 +90,10 @@ impl<G: GraphView> NodeOp for NodePropOp<G> {
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
         self.graph.node(node)?.properties().get_by_id(self.prop_id)
     }
+
+    fn prop_type(&self) -> PropType {
+        self.graph.node_meta().temporal_prop_mapper().get_dtype(self.prop_id).unwrap_or_default()
+    }
 }
 
 /// Evaluates a metadata (static) field by pre-resolved column ID.
@@ -94,6 +108,10 @@ impl<G: GraphView> NodeOp for NodeMetaOp<G> {
 
     fn apply(&self, _storage: &GraphStorage, node: VID) -> Option<Prop> {
         self.graph.node(node)?.metadata().get_by_id(self.prop_id)
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.graph.node_meta().metadata_mapper().get_dtype(self.prop_id).unwrap_or_default()
     }
 }
 
@@ -194,6 +212,10 @@ impl NodeExpr for Type {
     ) -> Result<Arc<dyn NodeOp<Output = Option<ArcStr>> + 'g>, GraphError> {
         Ok(Arc::new(Type))
     }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Str
+    }
 }
 
 /// `Name` from `db/api/state/ops/node.rs` used as a node expression.
@@ -205,6 +227,10 @@ impl NodeExpr for Name {
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
         Ok(Arc::new(Name))
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Str
     }
 }
 
@@ -238,6 +264,10 @@ impl NodeExpr for usize {
     ) -> Result<Arc<dyn NodeOp<Output = usize> + 'g>, GraphError> {
         Ok(Arc::new(Const(*self)))
     }
+
+    fn prop_type(&self) -> PropType {
+        PropType::U64
+    }
 }
 
 impl NodeExpr for String {
@@ -248,6 +278,10 @@ impl NodeExpr for String {
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = String> + 'g>, GraphError> {
         Ok(Arc::new(Const(self.clone())))
+    }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Str
     }
 }
 
@@ -260,6 +294,10 @@ impl NodeExpr for ArcStr {
     ) -> Result<Arc<dyn NodeOp<Output = Option<ArcStr>> + 'g>, GraphError> {
         Ok(Arc::new(Const(Some(self.clone()))))
     }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Str
+    }
 }
 
 impl NodeExpr for &'static str {
@@ -271,6 +309,10 @@ impl NodeExpr for &'static str {
     ) -> Result<Arc<dyn NodeOp<Output = &'static str> + 'g>, GraphError> {
         Ok(Arc::new(Const(*self)))
     }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Str
+    }
 }
 
 impl NodeExpr for Prop {
@@ -281,6 +323,10 @@ impl NodeExpr for Prop {
         _graph: G,
     ) -> Result<Arc<dyn NodeOp<Output = Option<Prop>> + 'g>, GraphError> {
         Ok(Arc::new(Const(Some(self.clone()))))
+    }
+
+    fn prop_type(&self) -> PropType {
+        self.dtype()
     }
 }
 
@@ -308,43 +354,6 @@ macro_rules! impl_node_expr_for_numeric {
             }
         }
     };
-}
-
-#[derive(Debug, Clone, Copy)]
-struct AsProp<E>(E);
-
-#[derive(Debug, Clone, Copy)]
-struct AsPropOp<Op>(Op);
-
-impl<Op: NodeOp<Output: Into<Prop>>> NodeOp for AsPropOp<Op> {
-    type Output = Prop;
-
-    fn apply(&self, storage: &GraphStorage, node: VID) -> Self::Output {
-        self.0.apply(storage, node).into()
-    }
-
-    fn domain(&self, storage: &GraphStorage) -> NodeList {
-        self.0.domain(storage)
-    }
-
-    fn const_value_in_domain(&self) -> Option<Self::Output> {
-        self.0.const_value_in_domain().map(|v| v.into())
-    }
-
-    fn const_value(&self) -> Option<Self::Output> {
-        self.0.const_value().map(|v| v.into())
-    }
-}
-
-impl<E: NodeExpr<Output: Into<Prop>>> NodeExpr for AsProp<E> {
-    type Output = Prop;
-
-    fn create_node_op<'g, G: GraphView + 'g>(
-        &self,
-        graph: G,
-    ) -> Result<Arc<dyn NodeOp<Output = Self::Output> + 'g>, GraphError> {
-        Ok(Arc::new(AsPropOp(self.0.create_node_op(graph)?)))
-    }
 }
 
 impl_node_expr_for_numeric!(i32, I32);
@@ -399,6 +408,10 @@ impl<'g, T: Comparable + Clone + Send + Sync + 'static> NodeOp for BinOpNodeOp<'
         let rv = self.right.apply(storage, node);
         T::binary_cmp(&self.op, &lv, &rv)
     }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -421,7 +434,17 @@ impl<'g, I: Clone + Send + Sync + 'static> NodeOp for UnaryNodeOp<'g, I> {
             UnaryOp::IsNone => v.is_none(),
         }
     }
+
+    fn prop_type(&self) -> PropType {
+        PropType::Bool
+    }
 }
+
+// graph.nodes.select(NodeFilter.property("bool_prop") || NodeFilter.degree() > 10) -> should work
+// graph.nodes.select(NodeFilter.property("str_prop") || NodeFilter.degree() > 10) -> should fail when you construct the filter
+// NodeFilter.degree() || ... should fail immediately when you try to construct the expression or ideally at compile-time
+
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SetNodeOp<'g, T> — evaluates is_in / is_not_in
@@ -527,7 +550,7 @@ where
     type EntityFiltered<'graph, G: GraphViewOps<'graph>> =
         NodeFilteredGraph<G, Self::NodeFilter<'graph, G>>;
 
-    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output=bool> + 'graph>;
+    type NodeFilter<'graph, G: GraphView + 'graph> = Arc<dyn NodeOp<Output = bool> + 'graph>;
 
     type FilteredGraph<'graph, G>
         = G
@@ -549,7 +572,11 @@ where
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         let left = self.left.create_node_op(graph.clone())?;
         let right = self.right.create_node_op(graph)?;
-        Ok(Arc::new(BinOpNodeOp { left, right, op: self.op }))
+        Ok(Arc::new(BinOpNodeOp {
+            left,
+            right,
+            op: self.op,
+        }))
     }
 }
 
@@ -1303,45 +1330,27 @@ where
         QuantifiedNodeFilter::new(self.expr, op, rhs)
     }
 
-    pub fn eq<R: NodeExpr<Output = Option<Prop>>>(
-        self,
-        rhs: R,
-    ) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn eq<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Eq, rhs)
     }
 
-    pub fn ne<R: NodeExpr<Output = Option<Prop>>>(
-        self,
-        rhs: R,
-    ) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn ne<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Ne, rhs)
     }
 
-    pub fn gt<R: NodeExpr<Output = Option<Prop>>>(
-        self,
-        rhs: R,
-    ) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn gt<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Gt, rhs)
     }
 
-    pub fn ge<R: NodeExpr<Output = Option<Prop>>>(
-        self,
-        rhs: R,
-    ) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn ge<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Ge, rhs)
     }
 
-    pub fn lt<R: NodeExpr<Output = Option<Prop>>>(
-        self,
-        rhs: R,
-    ) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn lt<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Lt, rhs)
     }
 
-    pub fn le<R: NodeExpr<Output = Option<Prop>>>(
-        self,
-        rhs: R,
-    ) -> QuantifiedNodeFilter<E, Q, R> {
+    pub fn le<R: NodeExpr<Output = Option<Prop>>>(self, rhs: R) -> QuantifiedNodeFilter<E, Q, R> {
         self.finish(BinaryOp::Le, rhs)
     }
 }
