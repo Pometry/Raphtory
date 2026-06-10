@@ -4,10 +4,8 @@ use crate::{
         graph::views::{
             filter::{
                 model::{
-                    edge_filter::CompositeEdgeFilter,
-                    windowed_filter::Windowed,
-                    ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, InternalViewWrapOps,
+                    edge_filter::CompositeEdgeFilter, windowed_filter::Windowed, ComposableFilter,
+                    CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
                     TryAsCompositeFilter, Wrap,
                 },
                 CreateFilter,

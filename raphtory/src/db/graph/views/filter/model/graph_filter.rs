@@ -64,7 +64,6 @@ impl CreateFilter for GraphFilter {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeExistsOp::new(graph))
     }
-
 }
 
 impl TryAsCompositeFilter for GraphFilter {

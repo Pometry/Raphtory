@@ -58,7 +58,6 @@ impl CreateFilter for IsSelfLoopEdge {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeExistsOp::new(IsSelfLoopGraph::new(graph)))
     }
-
 }
 
 impl ComposableFilter for IsSelfLoopEdge {}

@@ -58,7 +58,6 @@ impl CreateFilter for IsDeletedEdge {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeExistsOp::new(IsDeletedGraph::new(graph)))
     }
-
 }
 
 impl ComposableFilter for IsDeletedEdge {}

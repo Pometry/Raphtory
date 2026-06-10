@@ -9,7 +9,7 @@ use std::{collections::HashSet, fmt, fmt::Display, ops::Deref};
 use strsim::levenshtein;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Comparable — type-driven value comparison for BinOpNodeOp
+// Comparable — type-driven ordering/equality comparison for BinaryCmpNodeOp
 // ─────────────────────────────────────────────────────────────────────────────
 
 pub trait Comparable: Clone + Send + Sync + 'static {
@@ -25,7 +25,6 @@ impl Comparable for usize {
             BinaryOp::Le => left <= right,
             BinaryOp::Gt => left > right,
             BinaryOp::Ge => left >= right,
-            _ => false,
         }
     }
 }
@@ -42,20 +41,6 @@ macro_rules! impl_comparable_str {
                     BinaryOp::Le => l <= r,
                     BinaryOp::Gt => l > r,
                     BinaryOp::Ge => l >= r,
-                    BinaryOp::StartsWith => l.starts_with(r),
-                    BinaryOp::EndsWith => l.ends_with(r),
-                    BinaryOp::Contains => l.contains(r),
-                    BinaryOp::NotContains => !l.contains(r),
-                    BinaryOp::FuzzySearch {
-                        levenshtein_distance,
-                        prefix_match,
-                    } => {
-                        let l = l.to_lowercase();
-                        let r = r.to_lowercase();
-                        let lev = levenshtein(&r, &l) <= *levenshtein_distance;
-                        let prefix = *prefix_match && l.as_str().starts_with(r.as_str());
-                        lev || prefix
-                    }
                 }
             }
         }
@@ -82,7 +67,6 @@ impl Comparable for Prop {
                 .map(|o| o == Greater)
                 .unwrap_or(false),
             BinaryOp::Ge => left.partial_cmp(right).map(|o| o != Less).unwrap_or(false),
-            _ => false,
         }
     }
 }
@@ -97,7 +81,6 @@ impl Comparable for GID {
                 BinaryOp::Le => l <= r,
                 BinaryOp::Gt => l > r,
                 BinaryOp::Ge => l >= r,
-                _ => false,
             },
             (GID::Str(l), GID::Str(r)) => String::binary_cmp(op, l, r),
             _ => matches!(op, BinaryOp::Ne),
@@ -116,10 +99,75 @@ impl<T: Comparable> Comparable for Option<T> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// StringComparable — type-driven string comparison for StringOpNodeOp
+// ─────────────────────────────────────────────────────────────────────────────
+
+pub trait StringComparable: Clone + Send + Sync + 'static {
+    fn string_cmp(op: &StringOp, left: &Self, right: &Self) -> bool;
+}
+
+macro_rules! impl_string_comparable_str {
+    ($ty:ty) => {
+        impl StringComparable for $ty {
+            fn string_cmp(op: &StringOp, left: &$ty, right: &$ty) -> bool {
+                let (l, r): (&str, &str) = (left, right);
+                match op {
+                    StringOp::StartsWith => l.starts_with(r),
+                    StringOp::EndsWith => l.ends_with(r),
+                    StringOp::Contains => l.contains(r),
+                    StringOp::NotContains => !l.contains(r),
+                    StringOp::FuzzySearch {
+                        levenshtein_distance,
+                        prefix_match,
+                    } => {
+                        let l = l.to_lowercase();
+                        let r = r.to_lowercase();
+                        let lev = levenshtein(&r, &l) <= *levenshtein_distance;
+                        let prefix = *prefix_match && l.as_str().starts_with(r.as_str());
+                        lev || prefix
+                    }
+                }
+            }
+        }
+    };
+}
+
+impl_string_comparable_str!(String);
+impl_string_comparable_str!(ArcStr);
+impl_string_comparable_str!(&'static str);
+
+impl StringComparable for Prop {
+    fn string_cmp(op: &StringOp, left: &Prop, right: &Prop) -> bool {
+        match (left, right) {
+            (Prop::Str(l), Prop::Str(r)) => ArcStr::string_cmp(op, l, r),
+            _ => false,
+        }
+    }
+}
+
+impl StringComparable for GID {
+    fn string_cmp(op: &StringOp, left: &GID, right: &GID) -> bool {
+        match (left, right) {
+            (GID::Str(l), GID::Str(r)) => String::string_cmp(op, l, r),
+            _ => false,
+        }
+    }
+}
+
+impl<T: StringComparable> StringComparable for Option<T> {
+    fn string_cmp(op: &StringOp, left: &Option<T>, right: &Option<T>) -> bool {
+        match (left, right) {
+            (Some(l), Some(r)) => T::string_cmp(op, l, r),
+            _ => false,
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Focused operator enums for the NodeExpr expression system
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Binary comparison / string operators used by `BinOpNodeFilter`.
+/// Ordering and equality operators used by `BinaryCmpNodeFilter`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
     Eq,
@@ -128,14 +176,6 @@ pub enum BinaryOp {
     Le,
     Gt,
     Ge,
-    StartsWith,
-    EndsWith,
-    Contains,
-    NotContains,
-    FuzzySearch {
-        levenshtein_distance: usize,
-        prefix_match: bool,
-    },
 }
 
 impl Display for BinaryOp {
@@ -147,16 +187,34 @@ impl Display for BinaryOp {
             BinaryOp::Le => write!(f, "<="),
             BinaryOp::Gt => write!(f, ">"),
             BinaryOp::Ge => write!(f, ">="),
-            BinaryOp::StartsWith => write!(f, "STARTS_WITH"),
-            BinaryOp::EndsWith => write!(f, "ENDS_WITH"),
-            BinaryOp::Contains => write!(f, "CONTAINS"),
-            BinaryOp::NotContains => write!(f, "NOT_CONTAINS"),
-            BinaryOp::FuzzySearch {
+        }
+    }
+}
+
+/// String-only operators used by `StringNodeFilter`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StringOp {
+    StartsWith,
+    EndsWith,
+    Contains,
+    NotContains,
+    FuzzySearch {
+        levenshtein_distance: usize,
+        prefix_match: bool,
+    },
+}
+
+impl Display for StringOp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            StringOp::StartsWith => write!(f, "STARTS_WITH"),
+            StringOp::EndsWith => write!(f, "ENDS_WITH"),
+            StringOp::Contains => write!(f, "CONTAINS"),
+            StringOp::NotContains => write!(f, "NOT_CONTAINS"),
+            StringOp::FuzzySearch {
                 levenshtein_distance,
                 prefix_match,
-            } => {
-                write!(f, "FUZZY_SEARCH({},{})", levenshtein_distance, prefix_match)
-            }
+            } => write!(f, "FUZZY_SEARCH({},{})", levenshtein_distance, prefix_match),
         }
     }
 }
@@ -492,7 +550,7 @@ impl FilterOperator {
 
     /// Compare two optional values symmetrically.
     ///
-    /// Used by `BinOpNodeFilter` where both sides are expressions that may return `None`.
+    /// Used by `BinaryCmpNodeFilter` where both sides are expressions that may return `None`.
     /// Supports Eq, Ne, Lt, Le, Gt, Ge.  All other operators return `false`.
     pub fn compare_values<T>(&self, left: Option<&T>, right: Option<&T>) -> bool
     where

@@ -58,7 +58,6 @@ impl CreateFilter for IsActiveEdge {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeExistsOp::new(IsActiveGraph::new(graph)))
     }
-
 }
 
 impl ComposableFilter for IsActiveEdge {}

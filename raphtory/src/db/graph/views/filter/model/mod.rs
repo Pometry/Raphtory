@@ -10,14 +10,17 @@ pub use crate::{
                         CompositeExplodedEdgeFilter, ExplodedEdgeEndpointWrapper,
                         ExplodedEdgeFilter,
                     },
-                    filter_operator::{BinaryOp, Comparable, FilterOperator, SetOp, UnaryOp},
+                    filter_operator::{
+                        BinaryOp, Comparable, FilterOperator, SetOp, StringComparable, StringOp,
+                        UnaryOp,
+                    },
                     node_expr::{
-                        AllMode, AnyMode, AvgExpr, BinOpNodeFilter, ConstExpr, DegreeExpr,
-                        FirstExpr, LastExpr, LenExpr, MaxExpr, Metadata, MinExpr, NoWrap, NodeExpr,
+                        AllMode, AnyMode, AvgExpr, BinaryCmpNodeFilter, ConstExpr, DegreeExpr,
+                        FirstExpr, LastExpr, LenExpr, MaxExpr, Metadata, MinExpr, NodeExpr,
                         NodeExprContextBuilder, NodeExprFilterOps, Property,
                         QuantifiedContextBuilder, QuantifiedNodeFilter, QuantifierMode,
-                        SetNodeFilter, SumExpr, TemporalExprOps, TemporalPropContext,
-                        UnaryNodeFilter,
+                        SetNodeFilter, StringNodeFilter, SumExpr, TemporalExprOps,
+                        TemporalPropContext, UnaryNodeFilter,
                     },
                     node_filter::NodeFilter,
                     not_filter::NotFilter,
@@ -472,7 +475,7 @@ pub trait CreateView: Clone + Send + Sync + 'static {
     ) -> Result<Self::View<'graph, G>, GraphError>;
 }
 
-pub trait DynCreateView {
+pub trait DynCreateView: Send + Sync {
     fn dyn_create_view<'graph>(
         &self,
         view: Arc<dyn BoxableGraphView + 'graph>,

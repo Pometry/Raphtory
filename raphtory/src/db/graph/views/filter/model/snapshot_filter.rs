@@ -1,17 +1,13 @@
 use crate::{
     db::{
         api::view::internal::GraphView,
-        graph::views::{
-            filter::{
-                model::{
-                    edge_filter::CompositeEdgeFilter,
-                    windowed_filter::Windowed,
-                    ComposableFilter, CompositeExplodedEdgeFilter,
-                    CompositeNodeFilter, InternalViewWrapOps,
-                    TryAsCompositeFilter, Wrap,
-                },
-                CreateFilter,
+        graph::views::filter::{
+            model::{
+                edge_filter::CompositeEdgeFilter, windowed_filter::Windowed, ComposableFilter,
+                CompositeExplodedEdgeFilter, CompositeNodeFilter, InternalViewWrapOps,
+                TryAsCompositeFilter, Wrap,
             },
+            CreateFilter,
         },
     },
     errors::GraphError,

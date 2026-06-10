@@ -58,7 +58,6 @@ impl CreateFilter for IsValidEdge {
     ) -> Result<Self::NodeFilter<'graph, G>, GraphError> {
         Ok(NodeExistsOp::new(ValidGraph::new(graph)))
     }
-
 }
 
 impl ComposableFilter for IsValidEdge {}
