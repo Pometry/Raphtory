@@ -17,7 +17,6 @@ use raphtory_api::core::{
     entities::{
         EID, LayerId, VID,
         properties::{
-            layer_schema::LayerPropSchema,
             meta::Meta,
             prop::{AsPropRef, Prop},
         },
@@ -149,23 +148,6 @@ impl MemNodeSegment {
 
     pub fn get_layer(&self, layer_id: LayerId) -> Option<&SegmentContainer<AdjEntry>> {
         self.layers.get(layer_id.0)
-    }
-
-    /// Per-layer property-presence schema for this in-memory segment. Returns
-    /// an empty schema if the layer has no container in this segment (no matching SegmentContainer).
-    pub fn layer_schema(&self, layer_id: LayerId) -> LayerPropSchema {
-        self.layers
-            .get(layer_id.0)
-            .map(|c| c.layer_schema().clone())
-            .unwrap_or_default()
-    }
-
-    /// Iterator over (layer_id, schema) for every layer present in this in-memory segment.
-    pub fn layer_schemas(&self) -> impl Iterator<Item = (LayerId, &LayerPropSchema)> {
-        self.layers
-            .iter()
-            .enumerate()
-            .map(|(i, c)| (LayerId(i), c.layer_schema()))
     }
 
     pub fn degree(&self, n: LocalPOS, layer_id: LayerId, dir: Direction) -> usize {
