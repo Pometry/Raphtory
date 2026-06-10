@@ -2,11 +2,8 @@ use crate::db::api::view::BoxedLIter;
 use raphtory_api::{
     core::{
         entities::{
-            properties::{
-                layer_schema::LayerPropSchema,
-                prop::{Prop, PropType},
-            },
-            LayerId, LayerIds,
+            properties::prop::{Prop, PropType},
+            LayerId,
         },
         storage::{arc_str::ArcStr, timeindex::EventTime},
     },
@@ -27,19 +24,6 @@ pub trait NodePropertySchemaOps: Send + Sync {
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
 
-    /// Union of the (segment, layer) property presence bitsets for all node properties present in the layers.
-    /// Override for behaviour other than "all node properties registered globally".
-    fn node_layer_prop_schema(&self, _layers: &LayerIds) -> LayerPropSchema {
-        let mut schema = LayerPropSchema::new();
-        for id in self.node_visible_temporal_prop_ids() {
-            schema.insert_temporal(id);
-        }
-        for id in self.node_visible_metadata_ids() {
-            schema.insert_metadata(id);
-        }
-        schema
-    }
-
     /// O(1) check: is temporal-prop `prop_id` present on any node in `layer_id`?
     fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
 
@@ -57,19 +41,6 @@ pub trait EdgePropertySchemaOps: Send + Sync {
     fn edge_visible_metadata_id(&self, name: &str) -> Option<usize>;
     /// Returns `None` if `id` is not visible in this view (e.g. redacted).
     fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
-
-    /// Union of the (segment, layer) property presence bitsets for all edge properties present in the layers.
-    /// Override for behaviour other than "all edge properties registered globally".
-    fn edge_layer_prop_schema(&self, _layers: &LayerIds) -> LayerPropSchema {
-        let mut schema = LayerPropSchema::new();
-        for id in self.edge_visible_temporal_prop_ids() {
-            schema.insert_temporal(id);
-        }
-        for id in self.edge_visible_metadata_ids() {
-            schema.insert_metadata(id);
-        }
-        schema
-    }
 
     /// O(1) check: is temporal-prop `prop_id` present on any edge in `layer_id`?
     fn edge_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool;
@@ -110,10 +81,6 @@ where
     #[inline]
     fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
         self.base().node_visible_metadata_name(id)
-    }
-    #[inline]
-    fn node_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
-        self.base().node_layer_prop_schema(layers)
     }
     #[inline]
     fn node_layer_has_temporal_prop(&self, layer_id: LayerId, prop_id: usize) -> bool {
@@ -160,10 +127,6 @@ where
     #[inline]
     fn edge_layer_has_metadata(&self, layer_id: LayerId, prop_id: usize) -> bool {
         self.base().edge_layer_has_metadata(layer_id, prop_id)
-    }
-    #[inline]
-    fn edge_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
-        self.base().edge_layer_prop_schema(layers)
     }
 }
 

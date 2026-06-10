@@ -15,8 +15,8 @@ use crate::db::api::{
 use raphtory_api::{
     core::{
         entities::{
-            properties::{layer_schema::LayerPropSchema, prop::Prop},
-            LayerId, LayerIds,
+            properties::prop::Prop,
+            LayerId,
         },
         storage::arc_str::ArcStr,
     },
@@ -263,14 +263,6 @@ impl<G: GraphView> NodePropertySchemaOps for PropertyRedactedGraph<G> {
         is_visible(&self.redaction.node_meta_visible, prop_id)
             && self.graph.node_layer_has_metadata(layer_id, prop_id)
     }
-
-    fn node_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
-        mask_schema(
-            self.graph.node_layer_prop_schema(layers),
-            &self.redaction.node_props_visible,
-            &self.redaction.node_meta_visible,
-        )
-    }
 }
 
 impl<G: GraphView> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
@@ -323,25 +315,6 @@ impl<G: GraphView> EdgePropertySchemaOps for PropertyRedactedGraph<G> {
         is_visible(&self.redaction.edge_meta_visible, prop_id)
             && self.graph.edge_layer_has_metadata(layer_id, prop_id)
     }
-
-    fn edge_layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
-        mask_schema(
-            self.graph.edge_layer_prop_schema(layers),
-            &self.redaction.edge_props_visible,
-            &self.redaction.edge_meta_visible,
-        )
-    }
-}
-
-/// Mask out redacted bits from a layer property schema
-fn mask_schema(
-    mut schema: LayerPropSchema,
-    temporal_visible: &[bool],
-    metadata_visible: &[bool],
-) -> LayerPropSchema {
-    schema.intersect_temporal_with(temporal_visible);
-    schema.intersect_metadata_with(metadata_visible);
-    schema
 }
 
 // Graph-level property redaction: override InternalTemporalPropertiesOps and InternalMetadataOps

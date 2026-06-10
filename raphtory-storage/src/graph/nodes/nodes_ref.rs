@@ -1,8 +1,6 @@
 use super::node_ref::NodeStorageRef;
 use crate::graph::variants::storage_variants3::StorageVariants3;
-use raphtory_api::core::entities::{
-    properties::layer_schema::LayerPropSchema, LayerId, LayerIds, VID,
-};
+use raphtory_api::core::entities::{LayerId, VID};
 use rayon::iter::ParallelIterator;
 use storage::{Extension, ReadLockedNodes};
 
@@ -45,24 +43,6 @@ impl<'a> NodesStorageEntry<'a> {
 
     pub fn iter(&self) -> impl Iterator<Item = NodeStorageRef<'_>> {
         for_all_variants!(self, nodes => nodes.iter())
-    }
-
-    /// Union of node property presence across the supplied layers.
-    pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
-        let inner = match self {
-            NodesStorageEntry::Mem(nodes) => nodes.storage(),
-            NodesStorageEntry::Unlocked(nodes) => nodes.storage(),
-        };
-        let meta = inner.prop_meta();
-        let num_layers = inner.num_layers();
-        let mut schema = LayerPropSchema::new();
-        for layer_id in layers.iter(num_layers) {
-            meta.temporal_prop_mapper()
-                .with_layer_prop_bits(layer_id, |bits| schema.union_temporal_with(bits));
-            meta.metadata_mapper()
-                .with_layer_prop_bits(layer_id, |bits| schema.union_metadata_with(bits));
-        }
-        schema
     }
 
     /// O(1) check

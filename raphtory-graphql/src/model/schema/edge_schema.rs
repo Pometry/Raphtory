@@ -7,14 +7,10 @@ use crate::{
 use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
 use itertools::Itertools;
 use raphtory::{
-    db::{
-        api::{properties::internal::EdgePropertySchemaOps, view::StaticGraphViewOps},
-        graph::edge::EdgeView,
-    },
+    db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
     prelude::*,
 };
-use raphtory_api::core::entities::properties::{layer_schema::LayerPropSchema, meta::PropMapper};
-use raphtory_storage::layer_ops::InternalLayerOps;
+use raphtory_api::core::entities::properties::meta::PropMapper;
 use std::collections::HashSet;
 
 /// Describes edges between a specific pair of node types — the property and
@@ -61,11 +57,9 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     async fn properties(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
-            let layers = cloned.graph.layer_ids().clone();
-            let layer_schema = cloned.graph.edge_layer_prop_schema(&layers);
             let schema: SchemaAggregate = cloned
                 .edges()
-                .map(|e| collect_edge_property_schema(e, &layer_schema, false))
+                .map(collect_edge_property_schema)
                 .reduce(merge_schemas)
                 .unwrap_or_default();
             schema.into_iter().map(|prop| prop.into()).collect_vec()
@@ -76,11 +70,9 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     async fn metadata(&self) -> Vec<PropertySchema> {
         let cloned = self.clone();
         blocking_compute(move || {
-            let layers = cloned.graph.layer_ids().clone();
-            let layer_schema = cloned.graph.edge_layer_prop_schema(&layers);
             let schema: SchemaAggregate = cloned
                 .edges()
-                .map(|e| collect_edge_metadata_schema(e, &layer_schema, true))
+                .map(collect_edge_metadata_schema)
                 .reduce(merge_schemas)
                 .unwrap_or_default();
             schema.into_iter().map(|prop| prop.into()).collect_vec()
@@ -89,27 +81,11 @@ impl<G: StaticGraphViewOps> EdgeSchema<G> {
     }
 }
 
-fn collect_schema<P: PropertiesOps>(
-    props: P,
-    mapper: &PropMapper,
-    layer_schema: &LayerPropSchema,
-    is_metadata: bool,
-) -> SchemaAggregate {
+fn collect_schema<P: PropertiesOps>(props: P, mapper: &PropMapper) -> SchemaAggregate {
     props
         .iter()
         .zip(props.ids())
         .filter_map(|((key, value), id)| {
-            // skip properties not in the layer schema
-            // FIXME: Is this even necessary?
-            // `edge.properties()` should only return properties present somewhere in the graph (by definition)
-            // For PropertyRedactedGraph, hidden properties are filtered out by InternalTemporalPropertiesOps
-            // and InternalMetadataOps. I think the layer_schema is useless here.
-            if (is_metadata && !layer_schema.contains_metadata(id))
-                || (!is_metadata && !layer_schema.contains_temporal(id))
-            {
-                return None;
-            }
-
             let value = value?;
             let key_with_prop_type = (
                 key.to_string(),
@@ -125,20 +101,16 @@ fn collect_schema<P: PropertiesOps>(
 
 fn collect_edge_property_schema<'graph, G: GraphViewOps<'graph>>(
     edge: EdgeView<G>,
-    layer_schema: &LayerPropSchema,
-    is_metadata: bool,
 ) -> SchemaAggregate {
     let props = edge.properties();
     let mapper = edge.graph.edge_meta().temporal_prop_mapper();
-    collect_schema(props, mapper, layer_schema, is_metadata)
+    collect_schema(props, mapper)
 }
 
 fn collect_edge_metadata_schema<'graph, G: GraphViewOps<'graph>>(
     edge: EdgeView<G>,
-    layer_schema: &LayerPropSchema,
-    is_metadata: bool,
 ) -> SchemaAggregate {
     let props = edge.metadata();
     let mapper = edge.graph.edge_meta().metadata_mapper();
-    collect_schema(props, mapper, layer_schema, is_metadata)
+    collect_schema(props, mapper)
 }

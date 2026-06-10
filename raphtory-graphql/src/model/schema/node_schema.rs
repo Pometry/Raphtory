@@ -64,12 +64,6 @@ impl NodeSchema {
             .unwrap_or_else(|| DEFAULT_NODE_TYPE.to_string())
     }
     fn properties_inner(&self) -> Vec<PropertySchema> {
-        // Property presence schema across every layer. Shouldn't make a difference for normal `GraphStorage`.
-        // Masks redacted properties from `PropertyRedactedGraph`.
-        // FIXME: Shouldn't all ids in the PropMapper exist somewhere in the graph, thus be present in the LayerPropSchema?
-        // FIXME: For the PropertyRedactedGraph, isn't the same filtering already being applied in `node_visible_temporal_prop_ids`?
-        // FIXME: Do we even wanna do this?
-        let layer_schema = self.graph.node_layer_prop_schema(&LayerIds::All);
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_temporal_prop_ids().collect();
         let (keys, property_types): (Vec<_>, Vec<_>) = self
@@ -78,7 +72,7 @@ impl NodeSchema {
             .temporal_prop_mapper()
             .locked()
             .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id) && layer_schema.contains_temporal(*id))
+            .filter(|(id, _, _)| visible.contains(id))
             .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 
@@ -120,12 +114,6 @@ impl NodeSchema {
     }
 
     fn metadata_inner(&self) -> Vec<PropertySchema> {
-        // Property presence schema across every layer. Shouldn't make a difference for normal `GraphStorage`.
-        // Masks redacted properties from `PropertyRedactedGraph`.
-        // FIXME: Shouldn't all ids in the PropMapper exist somewhere in the graph, thus be present in the LayerPropSchema?
-        // FIXME: For the PropertyRedactedGraph, isn't the same filtering already being applied in `node_visible_temporal_prop_ids`?
-        // FIXME: Do we even wanna do this?
-        let layer_schema = self.graph.node_layer_prop_schema(&LayerIds::All);
         let visible: std::collections::HashSet<usize> =
             self.graph.node_visible_metadata_ids().collect();
         let (keys, property_types): (Vec<_>, Vec<_>) = self
@@ -134,7 +122,7 @@ impl NodeSchema {
             .metadata_mapper()
             .locked()
             .iter_ids_and_types()
-            .filter(|(id, _, _)| visible.contains(id) && layer_schema.contains_metadata(*id))
+            .filter(|(id, _, _)| visible.contains(id))
             .map(|(_, name, dtype)| (name.to_string(), dtype.to_string()))
             .unzip();
 

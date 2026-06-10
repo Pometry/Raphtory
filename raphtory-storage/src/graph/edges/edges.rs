@@ -1,8 +1,7 @@
 use super::{edge_entry::EdgeStorageEntry, unlocked::UnlockedEdges};
 use either::Either;
 use raphtory_api::core::entities::{
-    properties::{layer_schema::LayerPropSchema, meta::STATIC_GRAPH_LAYER_ID},
-    LayerId, LayerIds, EID,
+    properties::meta::STATIC_GRAPH_LAYER_ID, LayerId, LayerIds, EID,
 };
 use raphtory_core::entities::edges::edge_ref::EdgeRef;
 use rayon::iter::ParallelIterator;
@@ -147,24 +146,6 @@ impl<'a> EdgesStorageRef<'a> {
             EdgesStorageRef::Mem(storage) => storage.storage().num_edges(),
             EdgesStorageRef::Unlocked(storage) => storage.storage().num_edges(),
         }
-    }
-
-    /// Union of edge property presence across the supplied layers
-    pub fn layer_prop_schema(&self, layers: &LayerIds) -> LayerPropSchema {
-        let inner = match self {
-            EdgesStorageRef::Mem(storage) => storage.storage(),
-            EdgesStorageRef::Unlocked(storage) => storage.storage(),
-        };
-        let meta = inner.edge_meta();
-        let num_layers = inner.num_layers();
-        let mut schema = LayerPropSchema::new();
-        for layer_id in layers.iter(num_layers) {
-            meta.temporal_prop_mapper()
-                .with_layer_prop_bits(layer_id, |bits| schema.union_temporal_with(bits));
-            meta.metadata_mapper()
-                .with_layer_prop_bits(layer_id, |bits| schema.union_metadata_with(bits));
-        }
-        schema
     }
 
     /// O(1) check via the per-layer bitset cached on `Meta.temporal_prop_mapper`.
