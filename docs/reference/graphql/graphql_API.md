@@ -3367,6 +3367,11 @@ Ordered list of view operations; each entry is a one-of variant applied to the r
 <td></td>
 </tr>
 <tr>
+<td colspan="2" align="right" valign="top">weight</td>
+<td valign="top"><a href="#string">String</a></td>
+<td></td>
+</tr>
+<tr>
 <td colspan="2" valign="top"><strong id="graphalgorithmplugin.shortest_path">shortest_path</strong></td>
 <td valign="top">[<a href="#shortestpathoutput">ShortestPathOutput</a>!]!</td>
 <td></td>
