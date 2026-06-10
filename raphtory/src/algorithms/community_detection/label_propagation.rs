@@ -16,12 +16,18 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 
 #[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
 pub struct LabelPropState {
     #[serde(skip)]
     nbors: HashMap<usize, usize>,
     pub community_id: usize,
+    #[serde(skip)]
+    is_changed: bool, // derive(Default) initializes to false
 }
 
 /// Computes components using a label propagation algorithm
@@ -52,6 +58,10 @@ where
     let global_diff = accumulators::sum::<usize>(2);
     ctx.global_agg_reset(global_diff);
 
+    let num_nodes = g.count_nodes();
+    let active: Arc<Vec<AtomicBool>> =
+        Arc::new((0..num_nodes).map(|_| AtomicBool::new(false)).collect());
+
     let step1 = ATask::new(move |s| {
         let id = s.node.index();
         let state: &mut LabelPropState = s.get_mut();
@@ -59,10 +69,29 @@ where
             .as_ref()
             .and_then(|map| map.get(&id).copied())
             .unwrap_or(id);
+        state.is_changed = true; // the actual initialization
         Step::Continue
     });
 
+    let active_step2 = Arc::clone(&active);
     let step2 = ATask::new(move |s: &mut EvalNodeView<_, LabelPropState>| {
+        if s.prev().is_changed {
+            for nbor in s.neighbours() {
+                active_step2[nbor.state_pos].store(true, Ordering::Relaxed);
+            }
+        }
+        Step::Continue
+    });
+
+    let active_step3 = Arc::clone(&active);
+    let step3 = ATask::new(move |s: &mut EvalNodeView<_, LabelPropState>| {
+        // Gate: consume this node's activation flag atomically.
+        if !active_step3[s.state_pos].swap(false, Ordering::AcqRel) {
+            s.get_mut().is_changed = false;
+            // NB: this leaves community_id unchanged
+            return Step::Continue;
+        }
+
         let prev_id = s.prev().community_id;
         let nbor_iter = s.neighbours();
         let state: &mut LabelPropState = s.get_mut();
@@ -82,13 +111,14 @@ where
         {
             state.community_id = label;
         }
-        if state.community_id != prev_id {
+        state.is_changed = state.community_id != prev_id;
+        if state.is_changed {
             s.global_update(&global_diff, 1);
         }
         Step::Continue
     });
 
-    let step3 = Job::Check(Box::new(move |state: &GlobalState<ComputeStateVec>| {
+    let step4 = Job::Check(Box::new(move |state: &GlobalState<ComputeStateVec>| {
         if state.read(&global_diff) > 0 {
             Step::Continue
         } else {
@@ -99,7 +129,7 @@ where
     let mut runner: TaskRunner<G, _> = TaskRunner::new(ctx);
     runner.run(
         vec![Job::new(step1)],
-        vec![Job::new(step2), step3],
+        vec![Job::read_only(step2), Job::new(step3), step4],
         None,
         |_, _, _, local, index| {
             TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
