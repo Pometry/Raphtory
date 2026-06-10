@@ -28,11 +28,12 @@ impl<'py> IntoPyObject<'py> for &GID {
     }
 }
 
-impl<'source> FromPyObject<'source> for GID {
-    fn extract_bound(id: &Bound<'source, PyAny>) -> PyResult<Self> {
-        id.extract::<String>()
+impl<'py> FromPyObject<'_, 'py> for GID {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        ob.extract::<String>()
             .map(GID::Str)
-            .or_else(|_| id.extract::<u64>().map(GID::U64))
+            .or_else(|_| ob.extract::<u64>().map(GID::U64))
             .map_err(|_| {
                 let msg = "IDs need to be strings or an unsigned integers";
                 PyTypeError::new_err(msg)

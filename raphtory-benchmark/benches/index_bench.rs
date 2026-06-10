@@ -1,6 +1,7 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use raphtory::prelude::{Graph, IndexMutationOps, StableDecode, StableEncode};
 use raphtory_benchmark::graph_gen::raph_social::generate_graph;
+use std::hint::black_box;
 use tempfile::TempDir;
 
 fn bench_graph_init_index(c: &mut Criterion) {
@@ -27,7 +28,6 @@ fn bench_graph_index_load(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("graph_index_load");
     group.sample_size(100);
-
     group.bench_function(BenchmarkId::from_parameter("load_once"), |b| {
         b.iter(|| Graph::decode(black_box(&path)).unwrap());
     });

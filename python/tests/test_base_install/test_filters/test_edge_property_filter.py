@@ -1,11 +1,11 @@
 from filters_setup import U32_MAX, U64_MAX, I64_MAX, U16_MAX, U8_MAX
 from raphtory import filter, Prop
 from filters_setup import init_graph, init_graph3, create_test_graph2
-from utils import with_disk_variants
+from utils import with_variants
 import pytest
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_eq():
     def check(graph):
         filter_expr = filter.Edge.property("p2") == 2
@@ -16,7 +16,7 @@ def test_filter_edges_for_property_eq():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_ne():
     def check(graph):
         filter_expr = filter.Edge.property("p2") != 2
@@ -36,7 +36,7 @@ def test_filter_edges_for_property_ne():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_lt():
     def check(graph):
         filter_expr = filter.Edge.property("p2") < 10
@@ -57,7 +57,7 @@ def test_filter_edges_for_property_lt():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_le():
     def check(graph):
         filter_expr = filter.Edge.property("p2") <= 6
@@ -78,7 +78,7 @@ def test_filter_edges_for_property_le():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_gt():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 2
@@ -98,7 +98,7 @@ def test_filter_edges_for_property_gt():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_edges_for_property_ge():
     def check(graph):
         filter_expr = filter.Edge.property("p2") >= 2
@@ -119,7 +119,7 @@ def test_edges_for_property_ge():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_in():
     def check(graph):
         filter_expr = filter.Edge.property("p2").is_in([])
@@ -162,7 +162,7 @@ def test_filter_edges_for_property_in():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_not_in():
     def check(graph):
         filter_expr = filter.Edge.property("p2").is_not_in([6])
@@ -173,7 +173,7 @@ def test_filter_edges_for_property_not_in():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_is_some():
     def check(graph):
         filter_expr = filter.Edge.property("p2").is_some()
@@ -194,7 +194,7 @@ def test_filter_edges_for_property_is_some():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_is_none():
     def check(graph):
         filter_expr = filter.Edge.property("p3").is_none()
@@ -205,7 +205,7 @@ def test_filter_edges_for_property_is_none():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_starts_with():
     def check(graph):
         filter_expr = filter.Edge.property("p10").starts_with("Paper")
@@ -260,7 +260,7 @@ def test_filter_edges_for_property_starts_with():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_ends_with():
     def check(graph):
         filter_expr = filter.Edge.property("p10").ends_with("ship")
@@ -303,7 +303,7 @@ def test_filter_edges_for_property_ends_with():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_contains():
     def check(graph):
         filter_expr = filter.Edge.property("p10").contains("Paper")
@@ -336,7 +336,7 @@ def test_filter_edges_for_property_contains():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_property_not_contains():
     def check(graph):
         filter_expr = filter.Edge.property("p10").not_contains("ship")
@@ -371,7 +371,7 @@ def test_filter_edges_for_property_not_contains():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph)
 def test_filter_edges_for_not_property():
     def check(graph):
         filter_expr = filter.Edge.property("p3").is_none()
@@ -395,7 +395,7 @@ def _pairs(edges):
 
 
 # ------ SUM ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_u8s():
     def check(graph):
         # [1,2,3] -> 6
@@ -405,7 +405,7 @@ def test_edge_property_sum_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_u16s():
     def check(graph):
         # [1000,2000] -> 3000
@@ -415,7 +415,7 @@ def test_edge_property_sum_u16s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_u32s():
     def check(graph):
         # [2_000_000,3_000_000] -> 5_000_000
@@ -425,7 +425,7 @@ def test_edge_property_sum_u32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_u64s():
     def check(graph):
         # [1,2] -> 3
@@ -435,7 +435,7 @@ def test_edge_property_sum_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_i32s():
     def check(graph):
         # [1,-2,3] -> 2
@@ -445,7 +445,7 @@ def test_edge_property_sum_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_i64s():
     def check(graph):
         # [-1,-2] -> -3
@@ -455,7 +455,7 @@ def test_edge_property_sum_i64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_f32s():
     def check(graph):
         expr = filter.Edge.property("p_f32s").sum() == Prop.f64(3.0)
@@ -464,7 +464,7 @@ def test_edge_property_sum_f32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_sum_f64s():
     def check(graph):
         # [1.5,2.5] -> 4.0
@@ -475,7 +475,7 @@ def test_edge_property_sum_f64s():
 
 
 # ------ AVG ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_avg_u8s():
     def check(graph):
         expr = filter.Edge.property("p_u8s").avg() == Prop.f64(2.0)  # 6/3
@@ -484,7 +484,7 @@ def test_edge_property_avg_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_avg_u16s():
     def check(graph):
         expr = filter.Edge.property("p_u16s").avg() == Prop.f64(1500.0)
@@ -493,7 +493,7 @@ def test_edge_property_avg_u16s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_avg_u32s():
     def check(graph):
         expr = filter.Edge.property("p_u32s").avg() == Prop.f64(2_500_000.0)
@@ -502,7 +502,7 @@ def test_edge_property_avg_u32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_avg_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").avg() == Prop.f64(1.5)
@@ -511,7 +511,7 @@ def test_edge_property_avg_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_avg_i32s():
     def check(graph):
         expr = filter.Edge.property("p_i32s").avg() == Prop.f64((1 - 2 + 3) / 3.0)
@@ -520,7 +520,7 @@ def test_edge_property_avg_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_avg_i64s():
     def check(graph):
         expr = filter.Edge.property("p_i64s").avg() == Prop.f64((-1 - 2) / 2.0)
@@ -529,7 +529,7 @@ def test_edge_property_avg_i64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_avg_f64s():
     def check(graph):
         expr = filter.Edge.property("p_f64s").avg() == Prop.f64(2.0)  # (1.5+2.5)/2
@@ -539,7 +539,7 @@ def test_edge_property_avg_f64s():
 
 
 # ------ LEN ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_u8s():
     def check(graph):
         expr = filter.Edge.property("p_u8s").len() == Prop.u64(3)
@@ -548,7 +548,7 @@ def test_edge_property_len_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_u16s():
     def check(graph):
         expr = filter.Edge.property("p_u16s").len() == Prop.u64(2)
@@ -557,7 +557,7 @@ def test_edge_property_len_u16s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_u32s():
     def check(graph):
         expr = filter.Edge.property("p_u32s").len() == Prop.u64(2)
@@ -566,7 +566,7 @@ def test_edge_property_len_u32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").len() == Prop.u64(2)
@@ -575,7 +575,7 @@ def test_edge_property_len_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_i32s():
     def check(graph):
         expr = filter.Edge.property("p_i32s").len() == Prop.u64(3)
@@ -584,7 +584,7 @@ def test_edge_property_len_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_i64s():
     def check(graph):
         expr = filter.Edge.property("p_i64s").len() == Prop.u64(2)
@@ -593,7 +593,7 @@ def test_edge_property_len_i64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_f64s():
     def check(graph):
         expr = filter.Edge.property("p_f64s").len() == Prop.u64(2)
@@ -602,7 +602,7 @@ def test_edge_property_len_f64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_strs():
     def check(graph):
         expr = filter.Edge.property("p_strs").len() == Prop.u64(3)
@@ -611,7 +611,7 @@ def test_edge_property_len_strs():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_bools():
     def check(graph):
         expr = filter.Edge.property("p_bools").len() == Prop.u64(2)
@@ -620,7 +620,7 @@ def test_edge_property_len_bools():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_len_zero_on_empty_lists():
     def check(graph):
         expr = filter.Edge.property("p_u8s").len() == Prop.u64(0)
@@ -630,7 +630,7 @@ def test_edge_property_len_zero_on_empty_lists():
 
 
 # ------ MIN ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_min_u8s():
     def check(graph):
         expr = filter.Edge.property("p_u8s").min() == Prop.u8(1)
@@ -639,7 +639,7 @@ def test_edge_property_min_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_min_u16s():
     def check(graph):
         expr = filter.Edge.property("p_u16s").min() == Prop.u16(1000)
@@ -648,7 +648,7 @@ def test_edge_property_min_u16s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_min_u32s():
     def check(graph):
         expr = filter.Edge.property("p_u32s").min() == Prop.u32(1_000_000)
@@ -657,7 +657,7 @@ def test_edge_property_min_u32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_min_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").min() == Prop.u64(1)
@@ -666,7 +666,7 @@ def test_edge_property_min_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_min_i32s():
     def check(graph):
         # [-100,0,100] on (d->a)
@@ -676,7 +676,7 @@ def test_edge_property_min_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_min_i64s():
     def check(graph):
         expr = filter.Edge.property("p_i64s").min() == Prop.i64(-2)
@@ -685,7 +685,7 @@ def test_edge_property_min_i64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_min_f64s():
     def check(graph):
         # [-1.5,0.0,1.5] on (d->a)
@@ -696,7 +696,7 @@ def test_edge_property_min_f64s():
 
 
 # ------ MAX ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_max_u8s():
     def check(graph):
         # [255] for (d->a)
@@ -706,7 +706,7 @@ def test_edge_property_max_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_max_u16s():
     def check(graph):
         expr = filter.Edge.property("p_u16s").max() == Prop.u16(65535)
@@ -715,7 +715,7 @@ def test_edge_property_max_u16s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_max_u32s():
     def check(graph):
         expr = filter.Edge.property("p_u32s").max() == Prop.u32(U32_MAX)
@@ -724,7 +724,7 @@ def test_edge_property_max_u32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_max_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").max() == Prop.u64(U64_MAX)
@@ -733,7 +733,7 @@ def test_edge_property_max_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_max_i32s():
     def check(graph):
         expr = filter.Edge.property("p_i32s").max() == Prop.i32(2_147_483_647)
@@ -742,7 +742,7 @@ def test_edge_property_max_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_max_i64s():
     def check(graph):
         expr = filter.Edge.property("p_i64s").max() == Prop.i64(I64_MAX)
@@ -751,7 +751,7 @@ def test_edge_property_max_i64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_max_f64s():
     def check(graph):
         expr = filter.Edge.property("p_f64s").max() == Prop.f64(3.0)
@@ -761,7 +761,7 @@ def test_edge_property_max_f64s():
 
 
 # ------ last ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_last_sum_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").temporal().last().sum() == Prop.u64(30)
@@ -771,7 +771,7 @@ def test_edge_property_temporal_last_sum_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_last_avg_i32s():
     def check(graph):
         expr = filter.Edge.property("p_i32s").temporal().last().avg() == Prop.f64(
@@ -783,7 +783,7 @@ def test_edge_property_temporal_last_avg_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_last_min_u8s():
     def check(graph):
         expr = filter.Edge.property("p_u8s").temporal().last().min() == Prop.u8(1)
@@ -793,7 +793,7 @@ def test_edge_property_temporal_last_min_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_last_max_f64s():
     def check(graph):
         expr = filter.Edge.property("p_f64s").temporal().last().max() == Prop.f64(1.5)
@@ -803,7 +803,7 @@ def test_edge_property_temporal_last_max_f64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_last_len_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").temporal().last().len() == Prop.u64(2)
@@ -814,7 +814,7 @@ def test_edge_property_temporal_last_len_u64s():
 
 
 # ------ all ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_all_sum_i64s():
     def check(graph):
         expr = filter.Edge.property("p_i64s").temporal().all().sum() == Prop.i64(-3)
@@ -824,7 +824,7 @@ def test_edge_property_temporal_all_sum_i64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_all_avg_f32s():
     def check(graph):
         expr = filter.Edge.property("p_f32s").temporal().all().avg() == Prop.f64(2.0)
@@ -834,7 +834,7 @@ def test_edge_property_temporal_all_avg_f32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_all_min_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").temporal().all().min() == Prop.u64(1)
@@ -844,7 +844,7 @@ def test_edge_property_temporal_all_min_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_all_max_u32s():
     def check(graph):
         expr = filter.Edge.property("p_u32s").temporal().all().max() == Prop.u32(
@@ -856,7 +856,7 @@ def test_edge_property_temporal_all_max_u32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_all_len_u16s():
     def check(graph):
         expr = filter.Edge.property("p_u16s").temporal().all().len() == Prop.u64(2)
@@ -867,7 +867,7 @@ def test_edge_property_temporal_all_len_u16s():
 
 
 # ------ first ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_first_sum_u8s():
     def check(graph):
         expr = filter.Edge.property("p_u8s").temporal().first().sum() == Prop.u64(6)
@@ -877,7 +877,7 @@ def test_edge_property_temporal_first_sum_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_first_avg_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").temporal().first().avg() == Prop.f64(30.0)
@@ -887,7 +887,7 @@ def test_edge_property_temporal_first_avg_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_first_min_i32s():
     def check(graph):
         expr = filter.Edge.property("p_i32s").temporal().first().min() == Prop.i32(-2)
@@ -897,7 +897,7 @@ def test_edge_property_temporal_first_min_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_first_max_f64s():
     def check(graph):
         expr = filter.Edge.property("p_f64s").temporal().first().max() == Prop.f64(1.5)
@@ -907,7 +907,7 @@ def test_edge_property_temporal_first_max_f64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_first_len_u32s():
     def check(graph):
         expr = filter.Edge.property("p_u32s").temporal().first().len() == Prop.u64(0)
@@ -918,7 +918,7 @@ def test_edge_property_temporal_first_len_u32s():
 
 
 # ------ any ------
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_any_sum_u64s():
     def check(graph):
         expr = filter.Edge.property("p_u64s").temporal().any().sum() == Prop.u64(3)
@@ -928,7 +928,7 @@ def test_edge_property_temporal_any_sum_u64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_any_avg_i32s():
     def check(graph):
         expr = filter.Edge.property("p_i32s").temporal().any().avg() == Prop.f64(0.0)
@@ -938,7 +938,7 @@ def test_edge_property_temporal_any_avg_i32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_any_min_f32s():
     def check(graph):
         expr = filter.Edge.property("p_f32s").temporal().any().min() == Prop.f32(-1.5)
@@ -948,7 +948,7 @@ def test_edge_property_temporal_any_min_f32s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_any_max_u8s():
     def check(graph):
         expr = filter.Edge.property("p_u8s").temporal().any().max() == Prop.u8(U8_MAX)
@@ -958,7 +958,7 @@ def test_edge_property_temporal_any_max_u8s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_temporal_any_len_f64s():
     def check(graph):
         expr = filter.Edge.property("p_f64s").temporal().any().len() == Prop.u64(3)
@@ -968,7 +968,7 @@ def test_edge_property_temporal_any_len_f64s():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_empty_list_agg():
     def check(graph):
         expr = filter.Edge.property("p_i64s").len() == Prop.u64(0)
@@ -978,7 +978,7 @@ def test_edge_empty_list_agg():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_overflow_max_values():
     def check(graph):
         # max checks
@@ -1023,7 +1023,7 @@ def test_edge_overflow_max_values():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_unsupported_ops_agg():
     def check(graph):
         # STARTS_WITH on SUM
@@ -1059,7 +1059,7 @@ def test_edge_unsupported_ops_agg():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_any():
     def check(graph):
         expr = filter.Edge.property("p_u8s").any() == Prop.u8(2)
@@ -1068,7 +1068,7 @@ def test_edge_property_any():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_property_all():
     def check(graph):
         expr = filter.Edge.property("p_bools").all() == Prop.bool(True)
@@ -1077,7 +1077,7 @@ def test_edge_property_all():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_first_any():
     def check(graph):
         expr = filter.Edge.property("p_u64s").temporal().first().any() == Prop.u64(2)
@@ -1086,7 +1086,7 @@ def test_edge_temporal_property_first_any():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_first_all():
     def check(graph):
         expr = filter.Edge.property("p_bools").temporal().first().all() == Prop.bool(
@@ -1097,7 +1097,7 @@ def test_edge_temporal_property_first_all():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_last_any():
     def check(graph):
         expr = filter.Edge.property("p_i64s").temporal().last().any() == Prop.i64(-2)
@@ -1106,7 +1106,7 @@ def test_edge_temporal_property_last_any():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_last_all():
     def check(graph):
         expr = filter.Edge.property("p_f32s").temporal().last().all() == Prop.f32(3.0)
@@ -1115,7 +1115,7 @@ def test_edge_temporal_property_last_all():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_all_any():
     def check(graph):
         expr = filter.Edge.property("p_bools").temporal().all().any() == Prop.bool(
@@ -1126,7 +1126,7 @@ def test_edge_temporal_property_all_any():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_all_all():
     def check(graph):
         expr = filter.Edge.property("p_bools").temporal().all().all() == Prop.bool(
@@ -1137,7 +1137,7 @@ def test_edge_temporal_property_all_all():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_any_any():
     def check(graph):
         expr = filter.Edge.property("p_strs").temporal().any().any() == Prop.str("x")
@@ -1146,7 +1146,7 @@ def test_edge_temporal_property_any_any():
     return check
 
 
-@with_disk_variants(create_test_graph2, variants=["graph"])
+@with_variants(create_test_graph2)
 def test_edge_temporal_property_any_all():
     def check(graph):
         expr = filter.Edge.property("p_strs").temporal().any().all() == Prop.str(
@@ -1157,7 +1157,7 @@ def test_edge_temporal_property_any_all():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 5
@@ -1185,7 +1185,7 @@ def test_edges_getitem_property_filter_expr():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_exploded_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") == 4
@@ -1232,131 +1232,217 @@ def test_exploded_edges_getitem_property_filter_expr():
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_nested_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 5
-        result_ids = graph.nodes.edges[filter_expr].id.collect()
-        expected_ids = [
-            [("2", "1"), ("3", "1")],
-            [("2", "1")],
-            [("3", "1"), ("3", "4")],
-            [("3", "4")],
-            [("David Gilmour", "John Mayer")],
-            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
-            [("John Mayer", "Jimmy Page")],
-        ]
+        result_ids = dict(
+            zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr].id))
+        )
+        expected_ids = {
+            "1": [("2", "1"), ("3", "1")],
+            "2": [("2", "1")],
+            "3": [("3", "1"), ("3", "4")],
+            "4": [("3", "4")],
+            "David Gilmour": [("David Gilmour", "John Mayer")],
+            "John Mayer": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
+            "Jimmy Page": [("John Mayer", "Jimmy Page")],
+        }
         assert result_ids == expected_ids
 
         filter_expr2 = filter.Edge.property("p20") == "Gold_ship"
-        result_ids = graph.nodes.edges[filter_expr][filter_expr2].id.collect()
-        expected_ids = [
-            [],
-            [],
-            [],
-            [],
-            [],
-            [("John Mayer", "Jimmy Page")],
-            [("John Mayer", "Jimmy Page")],
-        ]
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                (sorted(v) for v in graph.nodes.edges[filter_expr][filter_expr2].id),
+            )
+        )
+        expected_ids = {
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [("John Mayer", "Jimmy Page")],
+            "Jimmy Page": [("John Mayer", "Jimmy Page")],
+        }
         assert result_ids == expected_ids
 
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = graph.nodes.edges[filter_expr3].id.collect()
-        expected_ids = [
-            [],
-            [],
-            [],
-            [],
-            [],
-            [("John Mayer", "Jimmy Page")],
-            [("John Mayer", "Jimmy Page")],
-        ]
+        result_ids = dict(
+            zip(graph.nodes.id, (sorted(v) for v in graph.nodes.edges[filter_expr3].id))
+        )
+        expected_ids = {
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [("John Mayer", "Jimmy Page")],
+            "Jimmy Page": [("John Mayer", "Jimmy Page")],
+        }
         assert result_ids == expected_ids
 
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_nested_exploded_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") == 4
         filter_expr2 = filter.ExplodedEdge.property("p2") == 4
 
         # Test 1
-        result_ids = graph.nodes.edges[filter_expr].explode()[filter_expr2].id.collect()
-        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                (
+                    sorted(v)
+                    for v in graph.nodes.edges[filter_expr].explode()[filter_expr2].id
+                ),
+            )
+        )
+        expected_ids = {
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
-        result_ids = graph.nodes.edges[filter_expr].explode()[filter_expr2].id.collect()
-        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                (
+                    sorted(v)
+                    for v in graph.nodes.edges[filter_expr].explode()[filter_expr2].id
+                ),
+            )
+        )
+        expected_ids = {
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
         # Test 2
         filter_expr = filter.ExplodedEdge.property("p20") == "Gold_ship"
         filter_expr2 = filter.ExplodedEdge.property("p2") == 4
-        result_ids = graph.nodes.edges.explode()[filter_expr][filter_expr2].id.collect()
-        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                graph.nodes.edges.explode()[filter_expr][filter_expr2].id.collect(),
+            )
+        )
+        expected_ids = {
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
         filter_expr = filter.ExplodedEdge.property("p20") == "Gold_ship"
         filter_expr2 = filter.ExplodedEdge.property("p2") == 4
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = graph.nodes.edges.explode()[filter_expr3].id.collect()
-        expected_ids = [[("1", "2")], [("1", "2")], [], [], [], [], []]
+        result_ids = dict(
+            zip(graph.nodes.id, graph.nodes.edges.explode()[filter_expr3].id.collect())
+        )
+        expected_ids = {
+            "1": [("1", "2")],
+            "2": [("1", "2")],
+            "3": [],
+            "4": [],
+            "David Gilmour": [],
+            "John Mayer": [],
+            "Jimmy Page": [],
+        }
         assert result_ids == expected_ids
 
     return check
 
 
-@with_disk_variants(init_graph)
+@with_variants(init_graph)
 def test_nodes_nested_edges_getitem_property_filter_expr():
     def check(graph):
         filter_expr = filter.Edge.property("p2") > 5
-        result_ids = graph.nodes.neighbours.edges[filter_expr].id.collect()
-        expected_ids = [
-            [("2", "1"), ("3", "1"), ("3", "4")],
-            [("2", "1"), ("3", "1"), ("3", "1"), ("3", "4")],
-            [("2", "1"), ("3", "1"), ("2", "1"), ("3", "4")],
-            [("3", "1"), ("3", "4")],
-            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
-            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
-            [("David Gilmour", "John Mayer"), ("John Mayer", "Jimmy Page")],
-        ]
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                (sorted(v) for v in graph.nodes.neighbours.edges[filter_expr].id),
+            )
+        )
+        expected_ids = {
+            "1": [("2", "1"), ("3", "1"), ("3", "4")],
+            "2": [("2", "1"), ("3", "1"), ("3", "1"), ("3", "4")],
+            "3": [("2", "1"), ("2", "1"), ("3", "1"), ("3", "4")],
+            "4": [("3", "1"), ("3", "4")],
+            "David Gilmour": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
+            "John Mayer": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
+            "Jimmy Page": [
+                ("David Gilmour", "John Mayer"),
+                ("John Mayer", "Jimmy Page"),
+            ],
+        }
         assert result_ids == expected_ids
 
         filter_expr2 = filter.Edge.property("p20") == "Gold_ship"
-        result_ids = graph.nodes.neighbours.edges[filter_expr][
-            filter_expr2
-        ].id.collect()
-        expected_ids = [
-            [],
-            [],
-            [],
-            [],
-            [("John Mayer", "Jimmy Page")],
-            [("John Mayer", "Jimmy Page")],
-            [("John Mayer", "Jimmy Page")],
-        ]
+        result_ids = dict(
+            zip(
+                graph.nodes.id,
+                graph.nodes.neighbours.edges[filter_expr][filter_expr2].id.collect(),
+            )
+        )
+        expected_ids = {
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "David Gilmour": [("John Mayer", "Jimmy Page")],
+            "John Mayer": [("John Mayer", "Jimmy Page")],
+            "Jimmy Page": [("John Mayer", "Jimmy Page")],
+        }
         assert result_ids == expected_ids
 
         filter_expr3 = filter_expr & filter_expr2
-        result_ids = graph.nodes.neighbours.edges[filter_expr3].id.collect()
-        expected_ids = [
-            [],
-            [],
-            [],
-            [],
-            [("John Mayer", "Jimmy Page")],
-            [("John Mayer", "Jimmy Page")],
-            [("John Mayer", "Jimmy Page")],
-        ]
+        result_ids = dict(
+            zip(graph.nodes.id, graph.nodes.neighbours.edges[filter_expr3].id.collect())
+        )
+        expected_ids = {
+            "1": [],
+            "2": [],
+            "3": [],
+            "4": [],
+            "David Gilmour": [("John Mayer", "Jimmy Page")],
+            "John Mayer": [("John Mayer", "Jimmy Page")],
+            "Jimmy Page": [("John Mayer", "Jimmy Page")],
+        }
         assert result_ids == expected_ids
 
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph"])
+@with_variants(init_graph)
 def test_edge_property_temporal_sum():
     def check(graph):
         expr = filter.Edge.property("p2").temporal().sum() < 10
@@ -1374,7 +1460,7 @@ def test_edge_property_temporal_sum():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph"])
+@with_variants(init_graph)
 def test_edge_property_temporal_avg():
     def check(graph):
         expr = filter.Edge.property("p2").temporal().avg() == 6.0
@@ -1390,7 +1476,7 @@ def test_edge_property_temporal_avg():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph"])
+@with_variants(init_graph)
 def test_edge_property_temporal_min():
     def check(graph):
         expr = filter.Edge.property("p3").temporal().min() == 1
@@ -1406,7 +1492,7 @@ def test_edge_property_temporal_min():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph"])
+@with_variants(init_graph)
 def test_edge_property_temporal_max():
     def check(graph):
         expr = filter.Edge.property("p2").temporal().max() == 6
@@ -1422,7 +1508,7 @@ def test_edge_property_temporal_max():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph"])
+@with_variants(init_graph)
 def test_edge_property_temporal_len():
     def check(graph):
         expr = filter.Edge.property("p3").temporal().len() == Prop.u64(1)
@@ -1438,7 +1524,7 @@ def test_edge_property_temporal_len():
     return check
 
 
-@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_temporal_layer_eq():
     def check(graph):
         expr = (
@@ -1450,7 +1536,7 @@ def test_filter_edges_temporal_layer_eq():
     return check
 
 
-@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_temporal_layer_eq_is_empty():
     def check(graph):
         expr = (
@@ -1462,7 +1548,7 @@ def test_filter_edges_temporal_layer_eq_is_empty():
     return check
 
 
-@with_disk_variants(init_graph, variants="graph")
+@with_variants(init_graph, variants=["graph"])
 def test_filter_edges_at():
     def check(graph):
         expr = filter.Edge.at(1).property("p10").temporal().last() == "Paper_airplane"
@@ -1477,7 +1563,7 @@ def test_filter_edges_at():
     return check
 
 
-@with_disk_variants(init_graph, variants="persistent_graph")
+@with_variants(init_graph, variants=["persistent_graph"])
 def test_filter_edges_at_persistent():
     def check(graph):
         expr = filter.Edge.at(3).property("p10").temporal().last() == "Paper_airplane"
@@ -1486,7 +1572,7 @@ def test_filter_edges_at_persistent():
     return check
 
 
-@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_before():
     def check(graph):
         expr = (
@@ -1500,7 +1586,7 @@ def test_filter_edges_before():
     return check
 
 
-@with_disk_variants(init_graph, variants="graph")
+@with_variants(init_graph, variants=["graph"])
 def test_filter_edges_after():
     def check(graph):
         expr = (
@@ -1514,7 +1600,7 @@ def test_filter_edges_after():
     return check
 
 
-@with_disk_variants(init_graph, variants="persistent_graph")
+@with_variants(init_graph, variants=["persistent_graph"])
 def test_filter_edges_after_persistent():
     def check(graph):
         expr = (
@@ -1528,7 +1614,7 @@ def test_filter_edges_after_persistent():
     return check
 
 
-@with_disk_variants(init_graph, variants="graph")
+@with_variants(init_graph, variants=["graph"])
 def test_filter_edges_latest():
     def check(graph):
         expr = filter.Edge.latest().property("p2").temporal().sum() >= 0
@@ -1545,7 +1631,7 @@ def test_filter_edges_latest():
     return check
 
 
-@with_disk_variants(init_graph, variants="persistent_graph")
+@with_variants(init_graph, variants=["persistent_graph"])
 def test_filter_edges_latest_persistent():
     def check(graph):
         expr = (
@@ -1559,7 +1645,7 @@ def test_filter_edges_latest_persistent():
     return check
 
 
-@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_snapshot_at():
     def check(graph):
         expr = (
@@ -1582,7 +1668,7 @@ def test_filter_edges_snapshot_at():
     return check
 
 
-@with_disk_variants(init_graph, variants=("graph", "persistent_graph"))
+@with_variants(init_graph)
 def test_filter_edges_snapshot_latest():
     def check(graph):
         expr = (
@@ -1600,7 +1686,7 @@ def test_filter_edges_snapshot_latest():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("graph"))
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_layer_latest():
     def check(graph):
         expr = (
@@ -1613,7 +1699,7 @@ def test_filter_edges_layer_latest():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("graph"))
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_latest_layer():
     def check(graph):
         expr = (
@@ -1626,7 +1712,7 @@ def test_filter_edges_latest_layer():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("graph"))
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_window():
     def check(graph):
         expr = filter.Graph.window(1, 3)
@@ -1635,7 +1721,7 @@ def test_filter_edges_graph_filter_window():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("graph"))
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_layer():
     def check(graph):
         expr = filter.Graph.layer("fire_nation")
@@ -1644,7 +1730,7 @@ def test_filter_edges_graph_filter_layer():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("graph"))
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_window_layer():
     def check(graph):
         expr = filter.Graph.window(1, 3).layer("fire_nation")
@@ -1653,7 +1739,7 @@ def test_filter_edges_graph_filter_window_layer():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("graph"))
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_at():
     def check(graph):
         expr = filter.Graph.at(2)
@@ -1662,7 +1748,7 @@ def test_filter_edges_graph_filter_at():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("persistent_graph"))
+@with_variants(init_graph3, variants=["persistent_graph"])
 def test_filter_edges_graph_filter_before():
     def check(graph):
         expr = filter.Graph.before(4)
@@ -1677,7 +1763,7 @@ def test_filter_edges_graph_filter_before():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("persistent_graph"))
+@with_variants(init_graph3, variants=["persistent_graph"])
 def test_filter_edges_graph_filter_after():
     def check(graph):
         expr = filter.Graph.after(7)
@@ -1692,7 +1778,7 @@ def test_filter_edges_graph_filter_after():
     return check
 
 
-@with_disk_variants(init_graph3, variants=("graph"))
+@with_variants(init_graph3, variants=["graph"])
 def test_filter_edges_graph_filter_latest():
     def check(graph):
         expr = filter.Graph.latest()
@@ -1701,7 +1787,7 @@ def test_filter_edges_graph_filter_latest():
     return check
 
 
-@with_disk_variants(init_graph3, variants=(["graph", "persistent_graph"]))
+@with_variants(init_graph3)
 def test_filter_edges_graph_filter_snapshot_at():
     def check(graph):
         expr = filter.Graph.snapshot_at(7)
@@ -1716,7 +1802,7 @@ def test_filter_edges_graph_filter_snapshot_at():
     return check
 
 
-@with_disk_variants(init_graph3, variants=(["graph", "persistent_graph"]))
+@with_variants(init_graph3)
 def test_filter_edges_graph_filter_snapshot_latest():
     def check(graph):
         expr = filter.Graph.snapshot_latest()

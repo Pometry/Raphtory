@@ -36,7 +36,7 @@ use std::{
 
 /// PyEdge is a Python class that represents an edge in the graph.
 /// An edge is a directed connection between two nodes.
-#[pyclass(name = "Edge", subclass, module = "raphtory", frozen)]
+#[pyclass(name = "Edge", subclass, module = "raphtory", frozen, from_py_object)]
 #[derive(Clone)]
 pub struct PyEdge {
     pub edge: EdgeView<DynamicGraph>,

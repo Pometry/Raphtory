@@ -1,22 +1,23 @@
-use super::time_from_input;
 use crate::{
     core::entities::nodes::node_ref::AsNodeRef,
-    db::{api::view::StaticGraphViewOps, graph::edge::EdgeView},
+    db::{
+        api::{
+            mutation::{time_from_input_session, TryIntoInputTime},
+            view::StaticGraphViewOps,
+        },
+        graph::edge::EdgeView,
+    },
     errors::{into_graph_err, GraphError},
 };
-use raphtory_api::core::{
-    entities::edges::edge_ref::EdgeRef,
-    utils::time::{IntoTimeWithFormat, TryIntoInputTime},
+use raphtory_api::core::{entities::edges::edge_ref::EdgeRef, utils::time::IntoTimeWithFormat};
+use raphtory_storage::{
+    durability_ops::DurabilityOps,
+    mutation::addition_ops::{EdgeWriteLock, InternalAdditionOps},
 };
-use raphtory_storage::mutation::{
-    addition_ops::InternalAdditionOps, deletion_ops::InternalDeletionOps,
-};
+use storage::wal::{GraphWalOps, WalOps};
 
 pub trait DeletionOps:
-    InternalDeletionOps<Error: Into<GraphError>>
-    + InternalAdditionOps<Error: Into<GraphError>>
-    + StaticGraphViewOps
-    + Sized
+    InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Sized
 {
     fn delete_edge<V: AsNodeRef, T: TryIntoInputTime>(
         &self,
@@ -25,23 +26,58 @@ pub trait DeletionOps:
         dst: V,
         layer: Option<&str>,
     ) -> Result<EdgeView<Self>, GraphError> {
-        let ti = time_from_input(self, t).map_err(into_graph_err)?;
-        let src_id = self
-            .resolve_node(src.as_node_ref())
-            .map_err(into_graph_err)?
-            .inner();
-        let dst_id = self
-            .resolve_node(dst.as_node_ref())
-            .map_err(into_graph_err)?
-            .inner();
-        let layer = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
-        let eid = self
-            .internal_delete_edge(ti, src_id, dst_id, layer)
-            .map_err(into_graph_err)?
-            .inner();
+        let transaction_manager = self.core_graph().transaction_manager()?;
+        let wal = self.core_graph().wal()?;
+        let transaction_id = transaction_manager.begin_transaction();
+        let session = self.write_session().map_err(|err| err.into())?;
+        let src = src.as_node_ref();
+        let dst = dst.as_node_ref();
+
+        self.validate_gids(
+            [src, dst]
+                .iter()
+                .filter_map(|node_ref| node_ref.as_gid_ref()),
+        )
+        .map_err(into_graph_err)?;
+
+        let ti = time_from_input_session(&session, t)?;
+        let src_gid = src.as_gid_ref();
+        let dst_gid = dst.as_gid_ref();
+        let layer_id = self.resolve_layer(layer).map_err(into_graph_err)?.inner();
+
+        let mut writer = self
+            .atomic_add_edge(src, dst, None)
+            .map_err(into_graph_err)?;
+
+        let src_id = writer.src().inner();
+        let dst_id = writer.dst().inner();
+        let edge_id = writer.eid().inner();
+
+        let lsn = wal.log_delete_edge(
+            transaction_id,
+            ti,
+            src_gid,
+            src_id,
+            dst_gid,
+            dst_id,
+            edge_id,
+            layer,
+            layer_id,
+        )?;
+
+        writer.internal_delete_edge(ti, layer_id);
+
+        writer.set_lsn(lsn);
+        transaction_manager.end_transaction(transaction_id);
+        drop(writer);
+
+        if let Err(e) = wal.flush(lsn) {
+            return Err(GraphError::FatalWriteError(e));
+        }
+
         Ok(EdgeView::new(
             self.clone(),
-            EdgeRef::new_outgoing(eid, src_id, dst_id).at_layer(layer),
+            EdgeRef::new_outgoing(edge_id, src_id, dst_id).at_layer(layer_id),
         ))
     }
 
@@ -58,11 +94,7 @@ pub trait DeletionOps:
     }
 }
 
-impl<
-        T: InternalDeletionOps<Error: Into<GraphError>>
-            + InternalAdditionOps<Error: Into<GraphError>>
-            + StaticGraphViewOps
-            + Sized,
-    > DeletionOps for T
+impl<T: InternalAdditionOps<Error: Into<GraphError>> + StaticGraphViewOps + Sized> DeletionOps
+    for T
 {
 }

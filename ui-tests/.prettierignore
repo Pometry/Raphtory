@@ -1,0 +1,10 @@
+# Ignore artifacts:
+build
+coverage
+dist
+types/
+# Ignore build dependencies
+node_modules/
+pnpm-lock.yaml
+*bundled*
+genql/

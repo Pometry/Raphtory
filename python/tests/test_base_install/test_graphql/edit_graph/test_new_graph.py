@@ -8,8 +8,8 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 
 def test_new_graph_succeeds():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """mutation {
           newGraph(
@@ -25,8 +25,8 @@ def test_new_graph_succeeds():
 
 def test_new_graph_fails_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")
@@ -45,13 +45,13 @@ def test_new_graph_fails_if_graph_found():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'test/path/g1' already exists" in str(excinfo.value)
 
 
 def test_client_new_graph_works():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         client.new_graph("path/to/event_graph", "EVENT")
         client.new_graph("path/to/persistent_graph", "PERSISTENT")
 
@@ -63,8 +63,8 @@ def test_client_new_graph_works():
 
 def test_client_new_graph_broken_type():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
         with pytest.raises(Exception) as excinfo:
             client.new_graph("path/to/event_graph", "EVENdddT")
         assert "Invalid value for argument" in str(excinfo.value)

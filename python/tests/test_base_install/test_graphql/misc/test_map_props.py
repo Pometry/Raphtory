@@ -13,10 +13,10 @@ TEST_PROPS = {
 
 def test_map_props():
     work_dir = tempfile.mkdtemp()
-    server = server = GraphServer(work_dir)
-    with server.start():
+    server = GraphServer(work_dir)
+    with server.start() as server:
         temp_dir = tempfile.mkdtemp()
-        client = RaphtoryClient("http://localhost:1736")
+        client = server.get_client()
         g = Graph()
         g.update_metadata({"test": TEST_PROPS})
         node = g.add_node(0, "test")
@@ -27,8 +27,9 @@ def test_map_props():
         check_test_prop(client)
 
     work_dir = tempfile.mkdtemp()
-    server = server = GraphServer(work_dir)
-    with server.start():
+    server = GraphServer(work_dir)
+    with server.start() as server:
+        client = server.get_client()
         client.new_graph("test", "EVENT")
         rg = client.remote_graph("test")
         rg.update_metadata({"test": TEST_PROPS})

@@ -1,0 +1,72 @@
+{
+    "graphType": "EVENT",
+    "nodes": [
+        {
+            "time": 0,
+            "name": "Person0",
+            "nodeType": "Person",
+            "properties": { "status": "active", "code": "A1" }
+        },
+        {
+            "time": 1,
+            "name": "Person1",
+            "nodeType": "Person",
+            "properties": { "status": "inactive", "code": "B2" }
+        },
+        {
+            "time": 2,
+            "name": "Person2",
+            "nodeType": "Person",
+            "properties": { "status": "active", "code": "C3" }
+        },
+        {
+            "time": 3,
+            "name": "Person3",
+            "nodeType": "Person",
+            "properties": { "status": "inactive", "code": "D4" }
+        },
+        {
+            "time": 4,
+            "name": "Person4",
+            "nodeType": "Person",
+            "properties": { "status": "active", "code": "E5" }
+        },
+        {
+            "time": 5,
+            "name": "Person5",
+            "nodeType": "Person",
+            "properties": { "status": "inactive", "code": "F6" }
+        },
+        {
+            "time": 6,
+            "name": "Person6",
+            "nodeType": "Person",
+            "properties": { "status": "active", "code": "G7" }
+        },
+        {
+            "time": 7,
+            "name": "Person7",
+            "nodeType": "Person",
+            "properties": { "status": "inactive", "code": "H8" }
+        },
+        {
+            "time": 8,
+            "name": "Person8",
+            "nodeType": "Person",
+            "properties": { "status": "active", "code": "I9" }
+        },
+        {
+            "time": 9,
+            "name": "Person9",
+            "nodeType": "Person",
+            "properties": { "status": "inactive", "code": "J10" }
+        },
+        {
+            "time": 10,
+            "name": "Person10",
+            "nodeType": "Person",
+            "properties": { "status": "active", "code": "K11" }
+        }
+    ],
+    "edges": []
+}

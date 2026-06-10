@@ -1,47 +1,119 @@
-use crate::paths::ExistingGraphFolder;
-use once_cell::sync::OnceCell;
+use crate::{
+    paths::{ExistingGraphFolder, ValidGraphPaths},
+    rayon::blocking_compute,
+};
+#[cfg(feature = "search")]
+use raphtory::prelude::IndexMutationOps;
 use raphtory::{
     core::entities::nodes::node_ref::AsNodeRef,
     db::{
-        api::view::{
-            internal::{
-                InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+        api::{
+            storage::storage::Config,
+            view::{
+                internal::{
+                    InheritEdgeHistoryFilter, InheritNodeHistoryFilter, InheritStorageOps, Static,
+                },
+                Base, InheritViewOps, MaterializedGraph,
             },
-            Base, InheritViewOps, MaterializedGraph,
         },
         graph::{edge::EdgeView, node::NodeView},
     },
     errors::{GraphError, GraphResult},
-    prelude::{CacheOps, EdgeViewOps, IndexMutationOps},
-    serialise::GraphFolder,
-    storage::core_ops::CoreGraphOps,
-    vectors::{cache::VectorCache, vectorised_graph::VectorisedGraph},
+    prelude::{EdgeViewOps, StableDecode},
+    serialise::GraphPaths,
+    vectors::{storage::LazyDiskVectorCache, vectorised_graph::VectorisedGraph},
 };
 use raphtory_storage::{
-    core_ops::InheritCoreGraphOps, graph::graph::GraphStorage, layer_ops::InheritLayerOps,
-    mutation::InheritMutationOps,
+    core_ops::InheritCoreGraphOps, layer_ops::InheritLayerOps, mutation::InheritMutationOps,
 };
-
-#[cfg(feature = "storage")]
-use {raphtory::prelude::IntoGraph, raphtory_storage::disk::DiskGraphStorage};
+use std::{
+    future::poll_fn,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    task::Poll,
+};
 
 #[derive(Clone)]
 pub struct GraphWithVectors {
+    inner: Arc<GraphWithVectorsInner>,
+}
+
+pub struct GraphWithVectorsInner {
     pub graph: MaterializedGraph,
     pub vectors: Option<VectorisedGraph<MaterializedGraph>>,
-    pub(crate) folder: OnceCell<GraphFolder>,
+    pub folder: ExistingGraphFolder,
+    pub is_dirty: AtomicBool,
+    pub is_flushing: AtomicBool,
 }
 
 impl GraphWithVectors {
-    pub(crate) fn new(
+    pub fn new(
         graph: MaterializedGraph,
         vectors: Option<VectorisedGraph<MaterializedGraph>>,
+        folder: ExistingGraphFolder,
     ) -> Self {
-        Self {
+        let inner = Arc::new(GraphWithVectorsInner {
             graph,
             vectors,
-            folder: Default::default(),
-        }
+            folder,
+            is_dirty: AtomicBool::new(false),
+            is_flushing: AtomicBool::new(false),
+        });
+        Self { inner }
+    }
+
+    /// Calls `Arc::into_inner` on the underlying Arc until we hold the only reference and returns it
+    pub async fn into_inner(self) -> GraphWithVectorsInner {
+        let mut inner = Some(self.inner);
+        let future = poll_fn(move |_ctx| {
+            match inner.take() {
+                None => {
+                    unreachable!("poll called after ready returned")
+                }
+                Some(inner_arc) => {
+                    match Arc::try_unwrap(inner_arc) {
+                        Ok(inner) => Poll::Ready(inner),
+                        Err(inner_arc) => {
+                            inner = Some(inner_arc); // put back
+                            Poll::Pending
+                        }
+                    }
+                }
+            }
+        });
+        future.await
+    }
+    pub fn graph(&self) -> &MaterializedGraph {
+        &self.inner.graph
+    }
+
+    pub fn vectors(&self) -> Option<&VectorisedGraph<MaterializedGraph>> {
+        self.inner.vectors.as_ref()
+    }
+
+    pub fn folder(&self) -> &ExistingGraphFolder {
+        &self.inner.folder
+    }
+    pub fn set_dirty(&self, is_dirty: bool) {
+        self.inner.is_dirty.store(is_dirty, Ordering::Release);
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.inner.is_dirty.load(Ordering::Acquire)
+    }
+
+    pub fn is_flushing(&self) -> bool {
+        self.inner.is_flushing.load(Ordering::Acquire)
+    }
+
+    pub fn set_flushing(&self, is_flushing: bool) {
+        self.inner.is_flushing.store(is_flushing, Ordering::Release)
+    }
+
+    pub fn ref_count(&self) -> usize {
+        Arc::strong_count(&self.inner)
     }
 
     /// Generates and stores embeddings for a batch of nodes.
@@ -49,7 +121,7 @@ impl GraphWithVectors {
         &self,
         nodes: Vec<T>,
     ) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
+        if let Some(vectors) = &self.inner.vectors {
             vectors.update_nodes(nodes).await?;
         }
 
@@ -61,67 +133,52 @@ impl GraphWithVectors {
         &self,
         edges: Vec<(T, T)>,
     ) -> GraphResult<()> {
-        if let Some(vectors) = &self.vectors {
+        if let Some(vectors) = &self.inner.vectors {
             vectors.update_edges(edges).await?;
         }
 
         Ok(())
     }
 
-    pub(crate) fn write_updates(&self) -> Result<(), GraphError> {
-        match self.graph.core_graph() {
-            GraphStorage::Mem(_) | GraphStorage::Unlocked(_) => self.graph.write_updates(),
-            #[cfg(feature = "storage")]
-            GraphStorage::Disk(_) => Ok(()),
-        }
-    }
-
-    pub(crate) fn read_from_folder(
+    pub(crate) async fn read_from_folder(
         folder: &ExistingGraphFolder,
-        cache: Option<VectorCache>,
+        cache: &LazyDiskVectorCache,
         create_index: bool,
+        config: Config,
     ) -> Result<Self, GraphError> {
-        let graph_path = &folder.get_graph_path();
-        let graph = if graph_path.is_dir() {
-            get_disk_graph_from_path(folder)?
+        let folder_clone = folder.clone();
+        let graph_folder = folder.graph_folder();
+        let graph = if graph_folder.read_metadata()?.is_diskgraph {
+            blocking_compute(move || {
+                MaterializedGraph::load_with_config(folder_clone.graph_folder(), config)
+            })
+            .await?
         } else {
-            MaterializedGraph::load_cached(folder.clone())?
+            blocking_compute(move || {
+                MaterializedGraph::decode_with_config(folder_clone.graph_folder(), config)
+            })
+            .await?
         };
-        let vectors = cache.and_then(|cache| {
-            VectorisedGraph::read_from_path(&folder.get_vectors_path(), graph.clone(), cache).ok()
-        });
-        println!("Graph loaded = {}", folder.get_original_path_str());
+        let vectors =
+            VectorisedGraph::read_from_path(&folder.vectors_path()?, graph.clone(), cache)
+                .await
+                .ok();
+
+        println!("Graph loaded = {}", folder.local_path());
+        #[cfg(feature = "search")]
         if create_index {
             graph.create_index()?;
-            graph.write_updates()?;
         }
-        Ok(Self {
-            graph: graph.clone(),
-            vectors,
-            folder: OnceCell::with_value(folder.clone().into()),
-        })
+
+        Ok(Self::new(graph, vectors, folder.clone()))
     }
-}
-
-#[cfg(feature = "storage")]
-fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
-    let disk_graph = DiskGraphStorage::load_from_dir(&path.get_graph_path())
-        .map_err(|e| GraphError::LoadFailure(e.to_string()))?;
-    let graph: MaterializedGraph = disk_graph.into_graph().into(); // TODO: We currently have no way to identify disk graphs as MaterializedGraphs
-    println!("Disk Graph loaded = {}", path.get_original_path().display());
-    Ok(graph)
-}
-
-#[cfg(not(feature = "storage"))]
-fn get_disk_graph_from_path(path: &ExistingGraphFolder) -> Result<MaterializedGraph, GraphError> {
-    Err(GraphError::GraphNotFound(path.to_error_path()))
 }
 
 impl Base for GraphWithVectors {
     type Base = MaterializedGraph;
     #[inline]
     fn base(&self) -> &Self::Base {
-        &self.graph
+        &self.inner.graph
     }
 }
 

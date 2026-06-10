@@ -15,7 +15,6 @@ edition.workspace = true
 
 [dependencies]
 raphtory = { workspace = true }
-pometry-storage = { workspace = true, optional = true }
 arrow.workspace = true
 arrow-buffer.workspace = true
 arrow-schema.workspace = true
@@ -42,6 +41,3 @@ pretty_assertions.workspace = true
 tempfile.workspace = true
 tokio.workspace = true
 clap.workspace = true
-
-[features]
-storage = ["raphtory/storage", "dep:pometry-storage"]

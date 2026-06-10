@@ -987,6 +987,7 @@ def test_apply_view_after():
     nodes {
       applyViews(views: [{after: 6}]) {
         list {
+          name
           history {
             timestamps {
               list
@@ -1042,11 +1043,11 @@ def test_apply_view_after():
             "nodes": {
                 "applyViews": {
                     "list": [
-                        {"history": {"timestamps": {"list": []}}},
-                        {"history": {"timestamps": {"list": []}}},
-                        {"history": {"timestamps": {"list": []}}},
-                        {"history": {"timestamps": {"list": []}}},
-                        {"history": {"timestamps": {"list": []}}},
+                        {"name": "1", "history": {"timestamps": {"list": []}}},
+                        {"name": "2", "history": {"timestamps": {"list": []}}},
+                        {"name": "3", "history": {"timestamps": {"list": []}}},
+                        {"name": "6", "history": {"timestamps": {"list": []}}},
+                        {"name": "7", "history": {"timestamps": {"list": []}}},
                     ]
                 }
             },
@@ -1080,7 +1081,7 @@ def test_apply_view_after():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_shrink_window():
@@ -1190,7 +1191,7 @@ def test_apply_view_shrink_window():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_shrink_start():
@@ -1300,7 +1301,7 @@ def test_apply_view_shrink_start():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_shrink_end():
@@ -1412,7 +1413,7 @@ def test_apply_view_shrink_end():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_layers():
@@ -1544,7 +1545,7 @@ def test_apply_view_layers():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_layer():
@@ -1671,7 +1672,7 @@ def test_apply_view_layer():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_exclude_layer():
@@ -1861,7 +1862,7 @@ def test_apply_view_exclude_layer():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_exclude_layers():
@@ -2045,7 +2046,7 @@ def test_apply_view_exclude_layers():
             },
         }
     }
-    run_graphql_test(query, correct, graph)
+    run_graphql_test(query, correct, graph, sort_output=True)
 
 
 def test_apply_view_type_filter():
@@ -3214,7 +3215,7 @@ def test_valid_graph():
     correct = {
         "graph": {
             "applyViews": {
-                "edges": {"list": [{"id": ["6", "7"], "latestTime": {"timestamp": 5}}]}
+                "edges": {"list": [{"id": [6, 7], "latestTime": {"timestamp": 5}}]}
             }
         }
     }

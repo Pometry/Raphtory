@@ -1,10 +1,10 @@
 from raphtory import filter
 from filters_setup import init_graph, create_test_graph
-from utils import with_disk_variants
+from utils import with_variants
 import pytest
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_src_property_eq():
     def check(graph):
         expr = filter.Edge.src().property("p2") == 2
@@ -15,7 +15,7 @@ def test_edges_src_property_eq():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_dst_property_contains():
     def check(graph):
         # dst node "3" has p20 == "Gold_boat"; dst node "4" has p20 updated from Gold_boat to Gold_ship so it doesn't appear here
@@ -27,7 +27,7 @@ def test_edges_dst_property_contains():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_dst_property_any_contains():
     def check(graph):
         # dst node "3" has p20 == "Gold_boat"; dst node "4" has p20 updated from Gold_boat to Gold_ship so it appears with .temporal().any()
@@ -39,7 +39,7 @@ def test_edges_dst_property_any_contains():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_dst_property_gt():
     def check(graph):
         expr = filter.Edge.dst().property("p100") > 55
@@ -52,7 +52,7 @@ def test_edges_dst_property_gt():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+@with_variants(create_test_graph)
 def test_edges_src_property_temporal_sum():
     def check(graph):
         expr = filter.Edge.src().property("prop6").temporal().last().sum() == 12
@@ -63,7 +63,7 @@ def test_edges_src_property_temporal_sum():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+@with_variants(create_test_graph)
 def test_edges_src_property_any_equals():
     def check(graph):
         # src node "d" doesn't exist as src; src of edges are a,b,c; node "a" has prop8 = [2,3,3]
@@ -75,7 +75,7 @@ def test_edges_src_property_any_equals():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+@with_variants(create_test_graph)
 def test_edges_src_metadata_sum_with_same_name_property():
     def check(graph):
         # src node "a" metadata prop1 sum == 36
@@ -88,7 +88,7 @@ def test_edges_src_metadata_sum_with_same_name_property():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+@with_variants(create_test_graph)
 def test_edges_src_metadata_avg():
     def check(graph):
         expr = filter.Edge.src().metadata("prop2").avg() <= 2.0
@@ -99,7 +99,7 @@ def test_edges_src_metadata_avg():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_src_property_and_edge_property():
     def check(graph):
         expr = (filter.Edge.src().property("p2") == 2) & (
@@ -112,7 +112,7 @@ def test_edges_src_property_and_edge_property():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_src_and_dst_property():
     def check(graph):
         expr = (filter.Edge.src().property("p2") == 2) & (
@@ -125,7 +125,7 @@ def test_edges_src_and_dst_property():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_src_or_dst_property():
     def check(graph):
         expr = (filter.Edge.src().property("p2") == 2) | (
@@ -138,7 +138,7 @@ def test_edges_src_or_dst_property():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+@with_variants(create_test_graph)
 def test_edges_src_property_and_dst_name():
     def check(graph):
         expr = (filter.Edge.src().property("prop1") >= 20) & (
@@ -151,7 +151,7 @@ def test_edges_src_property_and_dst_name():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+@with_variants(create_test_graph)
 def test_edges_src_metadata_and_edge_property():
     def check(graph):
         expr = (filter.Edge.src().metadata("prop1").sum() == 36) & (
@@ -165,7 +165,7 @@ def test_edges_src_metadata_and_edge_property():
 
 
 # node_type endpoint filters
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_src_node_type_eq():
     def check(graph):
         expr = filter.Edge.src().node_type() == "fire_nation"
@@ -176,7 +176,7 @@ def test_edges_src_node_type_eq():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_dst_node_type_contains():
     def check(graph):
         expr = filter.Edge.dst().node_type().contains("nomads")
@@ -187,7 +187,7 @@ def test_edges_dst_node_type_contains():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_src_and_dst_node_type():
     def check(graph):
         expr = filter.Edge.src().node_type().starts_with(
@@ -200,7 +200,7 @@ def test_edges_src_and_dst_node_type():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_src_or_dst_node_type():
     def check(graph):
         expr = (filter.Edge.src().node_type() == "air_nomads") | (
@@ -213,7 +213,7 @@ def test_edges_src_or_dst_node_type():
     return check
 
 
-@with_disk_variants(init_graph, variants=["graph", "event_disk_graph"])
+@with_variants(init_graph, variants=["graph"])
 def test_edges_not_src_node_type():
     def check(graph):
         expr = ~filter.Edge.src().node_type().contains("fire")
@@ -231,7 +231,7 @@ def test_edges_not_src_node_type():
     return check
 
 
-@with_disk_variants(create_test_graph, variants=("graph", "persistent_graph"))
+@with_variants(create_test_graph)
 def test_edges_src_node_type_eq_compose_with_edge_prop():
     def check(graph):
         # edge ("c","d") has eprop1 > 20 but src node_type isn't fire_nation, so not included here

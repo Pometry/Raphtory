@@ -2,7 +2,7 @@ use crate::{
     core::state::compute_state::ComputeStateVec,
     db::{
         api::{
-            state::NodeState,
+            state::{GenericNodeState, TypedNodeState},
             view::{graph::GraphViewOps, NodeViewOps, StaticGraphViewOps},
         },
         task::{
@@ -14,11 +14,12 @@ use crate::{
     },
 };
 use rand::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-#[derive(Clone, Debug, Default)]
-struct FastRPState {
-    embedding_state: Vec<f64>,
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct FastRPState {
+    pub embedding_state: Vec<f64>,
 }
 
 /// Computes the embeddings of each vertex of a graph using the Fast RP algorithm
@@ -43,7 +44,7 @@ pub fn fast_rp<G>(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> NodeState<'static, Vec<f64>, G>
+) -> TypedNodeState<'static, FastRPState, G>
 where
     G: StaticGraphViewOps,
 {
@@ -53,7 +54,7 @@ where
     let beta = normalization_strength - 1.0;
     let num_iters = iter_weights.len() - 1;
     let weights = Arc::new(iter_weights);
-    let seed = seed.unwrap_or(rand::thread_rng().gen());
+    let seed = seed.unwrap_or(rand::rng().random());
 
     // initialize each vertex with a random vector according to FastRP's construction rules
     let step1 = {
@@ -97,8 +98,13 @@ where
         vec![Job::new(step1)],
         vec![Job::read_only(step2)],
         None,
-        |_, _, _, local: Vec<FastRPState>| {
-            NodeState::new_from_eval_mapped(g.clone(), local, |v| v.embedding_state)
+        |_, _, _, local: Vec<FastRPState>, index| {
+            TypedNodeState::new(GenericNodeState::new_from_eval_with_index(
+                g.clone(),
+                local,
+                index,
+                None,
+            ))
         },
         threads,
         num_iters,

@@ -1,6 +1,5 @@
 name: Run Python test
-permissions:
-  contents: write
+permissions: { }
 on:
   workflow_call:
     inputs:
@@ -32,10 +31,8 @@ jobs:
         os: [ macos-latest, ubuntu-latest, windows-latest ]
     runs-on: '${{ matrix.os }}'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout
-        with:
-          ref: ${{ github.head_ref }}
       - uses: maxim-lobanov/setup-xcode@v1
         name: Xcode version
         if: "contains(matrix.os, 'macOS')"

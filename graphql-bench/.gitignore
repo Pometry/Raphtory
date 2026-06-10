@@ -11,11 +11,8 @@ reports
 terraform.tfstate
 terraform.tfstate.backup
 .virtual_documents
-data/apache
 node_modules
 dist
 output.csv.gz
-output.json
+data
 
-!data/apache/master/graph.tar.xz
-!data/apache/master/.raph

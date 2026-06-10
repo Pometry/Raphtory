@@ -4,7 +4,7 @@ use crate::{
     core::state::{accumulator_id::accumulators, compute_state::ComputeStateVec},
     db::{
         api::{
-            state::NodeState,
+            state::{GenericNodeState, TypedNodeState},
             view::{internal::GraphView, NodeViewOps, *},
         },
         graph::views::node_subgraph::NodeSubgraph,
@@ -21,9 +21,15 @@ use num_traits::Zero;
 use raphtory_api::core::{entities::VID, storage::timeindex::AsTime};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
+use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, mem, ops::Add, slice::Iter};
 use tracing::debug;
 ///////////////////////////////////////////////////////
+
+#[derive(Clone, PartialEq, Serialize, Deserialize, Debug, Default)]
+pub struct MotifState {
+    pub motif_counter: Vec<usize>,
+}
 
 // State objects for three node motifs
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -208,19 +214,12 @@ where
         for v in u.neighbours() {
             // Find triangles on the UV edge
             let intersection_nbs = {
-                match (
-                    u.entry(&neighbours_set)
-                        .read_ref()
-                        .unwrap_or(&FxHashSet::default()),
-                    v.entry(&neighbours_set)
-                        .read_ref()
-                        .unwrap_or(&FxHashSet::default()),
-                ) {
-                    (u_set, v_set) => {
-                        let intersection = u_set.intersection(v_set).cloned().collect::<Vec<_>>();
-                        intersection
-                    }
-                }
+                let default = FxHashSet::default();
+                let u_entry = u.entry(&neighbours_set);
+                let u_set = u_entry.read_ref().unwrap_or(&default);
+                let v_entry = v.entry(&neighbours_set);
+                let v_set = v_entry.read_ref().unwrap_or(&default);
+                u_set.intersection(v_set).cloned().collect::<Vec<_>>()
             };
 
             if intersection_nbs.is_empty() {
@@ -298,11 +297,11 @@ where
         vec![Job::new(neighbourhood_update_step)],
         vec![Job::new(intersection_compute_step)],
         None,
-        |_, _, _els, mut local| {
+        |_, _, _els, mut local, index| {
             let mut tri_motifs = HashMap::new();
-            for node in graph.nodes() {
+            for node in kcore_subgraph.nodes() {
                 let v_gid = node.name();
-                let triangle = mem::take(&mut local[node.node.0].triangle);
+                let triangle = mem::take(&mut local[index.index(&node.node).unwrap()].triangle);
                 if triangle.is_empty() {
                     tri_motifs.insert(v_gid.clone(), vec![[0; 8]; delta_len]);
                 } else {
@@ -335,7 +334,7 @@ pub fn temporal_three_node_motif<G>(
     g: &G,
     delta: i64,
     threads: Option<usize>,
-) -> NodeState<'static, Vec<usize>, G>
+) -> TypedNodeState<'static, MotifState, G>
 where
     G: StaticGraphViewOps,
 {
@@ -360,12 +359,12 @@ where
         vec![Job::new(star_motif_step)],
         vec![],
         None,
-        |_, _, _, local| {
+        |_, _, _, local, index| {
             let values: Vec<_> = g
                 .nodes()
                 .par_iter()
                 .map(|n| {
-                    let mc = &local[n.node.index()];
+                    let mc = &local[index.index(&n.node).unwrap()];
                     let v_gid = n.name();
                     let triangles = triadic_motifs
                         .get(&v_gid)
@@ -381,8 +380,11 @@ where
                     counts.extend_from_slice(triangles);
                     counts
                 })
+                .map(|value| MotifState {
+                    motif_counter: value,
+                })
                 .collect();
-            NodeState::new_from_values(g.clone(), values)
+            TypedNodeState::new(GenericNodeState::new_from_eval(g.clone(), values, None))
         },
         threads,
         1,

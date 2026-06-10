@@ -107,7 +107,7 @@ def test_graph_timestamp_list_properties():
         ],
     )
 
-    assert g.node("a")["array_column"] == [1, 2, 3]
+    assert g.node("a")["array_column"].tolist() == [1, 2, 3]
 
     assert g.node("a")["date_column_ms"] == df["date_column_ms"][0]
     assert g.node("a")["date_column_us"] == df["date_column_us"][0]
@@ -1107,7 +1107,12 @@ def compare_df(df1, df2):
 
 
 def normalise_dict(d):
-    s = json.dumps(d, ensure_ascii=True, sort_keys=True)
+    s = json.dumps(
+        d,
+        ensure_ascii=True,
+        sort_keys=True,
+        default=lambda o: o.tolist() if isinstance(o, np.ndarray) else o,
+    )
     return s
 
 

@@ -16,6 +16,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RUST_VERSION: "1.91.1"
+
 jobs:
   python-linux:
     runs-on: ubuntu-latest
@@ -38,7 +41,7 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
@@ -54,6 +57,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
           manylinux: 2_28
           before-script-linux: |
@@ -104,7 +108,7 @@ jobs:
             ARCH=$(uname -m)
             if [ "$ARCH" = "aarch64" ]; then
               echo "Running on aarch64 architecture"
-              rustup override set stable-msvc
+              # rustup override set stable-msvc
               FILE="protoc-27.2-linux-aarch_64.zip"
             else
               FILE="protoc-27.2-linux-x86_64.zip"
@@ -130,7 +134,7 @@ jobs:
         uses: arduino/setup-protoc@v3
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
@@ -147,6 +151,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
@@ -174,7 +179,7 @@ jobs:
             ~/.cargo/git/db/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.base }}
       - uses: actions/setup-python@v4
@@ -190,6 +195,7 @@ jobs:
           working-directory: ./python
           command: build
           target: ${{ matrix.target }}
+          rust-toolchain: ${{ env.RUST_VERSION }}
           args: --release --out dist -i python3.11 -i python3.12 -i python3.13 -i python3.14
       - name: Upload wheels to gh artifact
         uses: actions/upload-artifact@v4
@@ -201,7 +207,7 @@ jobs:
     name: Publish to PyPi
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: pyartifacts-*
           merge-multiple: true
@@ -219,7 +225,7 @@ jobs:
           skip_existing: true
           verify_metadata: false
       - name: Deleting artifacts
-        uses: geekyeggo/delete-artifact@v2
+        uses: geekyeggo/delete-artifact@v6
         with:
           failOnError: false
           name: |

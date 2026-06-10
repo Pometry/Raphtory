@@ -27,7 +27,7 @@ from raphtory import algorithms
 import pandas as pd
 
 edges_df = pd.read_csv(
-    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0]
+    "../data/OBS_data.txt", sep="\t", header=0, usecols=[0, 1, 2, 3, 4], parse_dates=[0], dayfirst=True,
 )
 edges_df["DateTime"] = pd.to_datetime(edges_df["DateTime"])
 edges_df.dropna(axis=0, inplace=True)
@@ -50,7 +50,7 @@ print(g)
 ///
 
 ```{.python continuation hide}
-assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime(timestamp=1560419400000, event_id=0), latest_time=EventTime(timestamp=1562756700000, event_id=18446744073709551615))"
+assert str(g) == "Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime(t=1560419400000, dt=2019-06-13T09:50:00+00:00, event_id=0), latest_time=EventTime(t=1562756700000, dt=2019-07-10T11:05:00+00:00, event_id=3196))"
 ```
 
 You can print the state of the graph object to verify it exists. Note that the `earliest_time` and `latest_time` are given in Raphtory's `EventTime` format.
@@ -58,7 +58,7 @@ You can print the state of the graph object to verify it exists. Note that the `
 !!! Output
 
     ```output
-    Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime(timestamp=1560419400000, event_id=0), latest_time=EventTime(timestamp=1562756700000, event_id=18446744073709551615))
+    Graph(number_of_nodes=22, number_of_edges=290, number_of_temporal_edges=3196, earliest_time=EventTime(t=1560419400000, dt=2019-06-13T09:50:00+00:00, event_id=0), latest_time=EventTime(t=1562756700000, dt=2019-07-10T11:05:00+00:00, event_id=3196))
     ```
 
 For more details, see [Creating a graph](../ingestion/1_intro.md).
@@ -72,14 +72,14 @@ Continuing from the previous example, you can use the PageRank algorithm to find
 /// tab | :fontawesome-brands-python: Python
 ```{.python continuation}
 results = algorithms.pagerank(g)
-top_5 = results.top_k(5)
+top_5 = results.top_k({"pagerank_score":"desc"}, 5)
 for rank, (node, score) in enumerate(top_5.items(),1):
-    print(f"Rank {rank}: {node.name} with a score of {score:.5f}")
+    print(f"Rank {rank}: {node.name} with a score of {score['pagerank_score']:.5f}")
 ```
 ///
 
 ```{.python continuation hide}
-assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE'), 5)}") == "PETOULETTE's ranking is 0.0599"
+assert str(f"PETOULETTE's ranking is {round(results.get('PETOULETTE')['pagerank_score'], 5)}") == "PETOULETTE's ranking is 0.0599"
 ```
 
 !!! Output

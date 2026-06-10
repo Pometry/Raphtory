@@ -1,12 +1,15 @@
+use std::sync::Arc;
+
 use crate::{
     db::api::view::DynamicGraph,
     python::types::repr::{Repr, StructReprBuilder},
     vectors::{Document, DocumentEntity, Embedding},
 };
 use pyo3::{prelude::*, IntoPyObjectExt};
+use pyo3_arrow::PyArray;
 
 /// A document corresponding to a graph entity. Used to generate embeddings.
-#[pyclass(name = "Document", module = "raphtory.vectors", frozen)]
+#[pyclass(name = "Document", module = "raphtory.vectors", frozen, from_py_object)]
 #[derive(Clone)]
 pub struct PyDocument(pub(crate) Document<DynamicGraph>);
 
@@ -32,7 +35,7 @@ impl PyDocument {
     /// Returns:
     ///     Optional[Any]:
     #[getter]
-    fn entity(&self, py: Python) -> PyResult<PyObject> {
+    fn entity(&self, py: Python) -> PyResult<Py<PyAny>> {
         match &self.0.entity {
             DocumentEntity::Node(entity) => entity.clone().into_py_any(py),
             DocumentEntity::Edge(entity) => entity.clone().into_py_any(py),
@@ -49,7 +52,12 @@ impl PyDocument {
     }
 }
 
-#[pyclass(name = "Embedding", module = "raphtory.vectors", frozen)]
+#[pyclass(
+    name = "Embedding",
+    module = "raphtory.vectors",
+    frozen,
+    from_py_object
+)]
 #[derive(Clone)]
 pub struct PyEmbedding(pub Embedding);
 
@@ -63,6 +71,14 @@ impl Repr for PyEmbedding {
 impl PyEmbedding {
     fn __repr__(&self) -> String {
         self.repr()
+    }
+
+    /// Returns the embedding as a `pyarrow.Array` of floats.
+    ///
+    /// Returns:
+    ///     pyarrow.Array:
+    fn to_arrow(&self) -> PyArray {
+        PyArray::from_array_ref(Arc::new(self.0.inner().clone()))
     }
 }
 

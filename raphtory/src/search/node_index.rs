@@ -1,8 +1,5 @@
 use crate::{
-    core::{
-        entities::VID,
-        storage::timeindex::{AsTime, EventTime},
-    },
+    core::{entities::VID, storage::timeindex::EventTime},
     db::{api::view::IndexSpec, graph::node::NodeView},
     errors::GraphError,
     prelude::*,
@@ -13,9 +10,8 @@ use crate::{
     },
 };
 use ahash::HashSet;
-use raphtory_api::core::storage::{arc_str::ArcStr, dict_mapper::MaybeNew};
-use raphtory_storage::graph::graph::GraphStorage;
-use rayon::{iter::IntoParallelIterator, prelude::ParallelIterator};
+use raphtory_storage::graph::{graph::GraphStorage, nodes::node_storage_ops::NodeStorageOps};
+use rayon::prelude::ParallelIterator;
 use std::{
     fmt::{Debug, Formatter},
     path::PathBuf,
@@ -134,7 +130,7 @@ impl NodeIndex {
 
     pub(crate) fn print(&self) -> Result<(), GraphError> {
         let searcher = get_reader(&self.entity_index.index)?.searcher();
-        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000))?;
+        let top_docs = searcher.search(&AllQuery, &TopDocs::with_limit(1000).order_by_score())?;
         println!("Total node doc count: {}", top_docs.len());
         for (_score, doc_address) in top_docs {
             let doc: TantivyDocument = searcher.doc(doc_address)?;
@@ -194,14 +190,14 @@ impl NodeIndex {
         &self,
         node_id: u64,
         node_name: String,
-        node_type: Option<ArcStr>,
+        node_type: Option<&str>,
     ) -> TantivyDocument {
         let mut document = TantivyDocument::new();
         document.add_u64(self.node_id_field, node_id);
         document.add_text(self.node_name_field, node_name.clone());
         document.add_text(self.node_name_tokenized_field, node_name);
         if let Some(node_type) = node_type {
-            document.add_text(self.node_type_field, node_type.clone());
+            document.add_text(self.node_type_field, node_type);
             document.add_text(self.node_type_tokenized_field, node_type);
         }
         document
@@ -216,11 +212,7 @@ impl NodeIndex {
         let node_name = node.name();
         let node_type = node.node_type();
 
-        let node_doc = self.create_document(node_id, node_name.clone(), node_type.clone());
-        // println!(
-        //     "Indexing Node Document: {}",
-        //     node_doc.to_json(&self.entity_index.index.schema()) // assumes `self.index` has `schema() -> &Schema`
-        // );
+        let node_doc = self.create_document(node_id, node_name.clone(), node_type.as_deref());
         writer.add_document(node_doc)?;
 
         Ok(())
@@ -230,13 +222,11 @@ impl NodeIndex {
         // Index nodes fields
         let mut writer = self.entity_index.index.writer(100_000_000)?;
 
-        (0..graph.count_nodes())
-            .into_par_iter()
-            .try_for_each(|v_id| {
-                let node = NodeView::new_internal(graph, VID(v_id));
-                self.index_node(node, &writer)?;
-                Ok::<(), GraphError>(())
-            })?;
+        graph.nodes().par_iter().try_for_each(|node| {
+            let node = NodeView::new_internal(graph, node.vid());
+            self.index_node(node, &writer)?;
+            Ok::<(), GraphError>(())
+        })?;
 
         writer.commit()?;
         Ok(())
@@ -255,31 +245,29 @@ impl NodeIndex {
         Ok(())
     }
 
+    pub(crate) fn add_new_node(
+        &self,
+        node_id: VID,
+        name: String,
+        node_type: Option<&str>,
+    ) -> Result<(), GraphError> {
+        let vid_u64 = node_id.as_u64(); // Check if the node document is already in the index,
+                                        // if it does skip adding a new doc for same node
+
+        let mut writer = self.entity_index.index.writer(100_000_000)?;
+        let node_doc = self.create_document(vid_u64, name, node_type);
+        writer.add_document(node_doc)?;
+        writer.commit()?;
+        Ok(())
+    }
+
     pub(crate) fn add_node_update(
         &self,
-        graph: &GraphStorage,
         t: EventTime,
-        node_id: MaybeNew<VID>,
+        node_id: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        let node = graph
-            .node(VID(node_id.inner().as_u64() as usize))
-            .expect("Node for internal id should exist.")
-            .at(t.t());
-        let vid_u64 = node_id.inner().as_u64();
-
-        // Check if the node document is already in the index,
-        // if it does skip adding a new doc for same node
-        node_id
-            .if_new(|_| {
-                let mut writer = self.entity_index.index.writer(100_000_000)?;
-                let node_doc = self.create_document(vid_u64, node.name(), node.node_type());
-                writer.add_document(node_doc)?;
-                writer.commit()?;
-                Ok::<(), GraphError>(())
-            })
-            .transpose()?;
-
+        let vid_u64 = node_id.as_u64();
         let indexes = self.entity_index.temporal_property_indexes.read_recursive();
         for (prop_id, prop_value) in indexed_props(props, &indexes) {
             if let Some(index) = &indexes[prop_id] {

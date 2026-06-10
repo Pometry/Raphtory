@@ -1,4 +1,4 @@
-use crate::model::graph::{property::Value, timeindex::GqlTimeInput};
+use crate::model::graph::{node_id::GqlNodeId, property::Value, timeindex::GqlTimeInput};
 use async_graphql::dynamic::ValueAccessor;
 use dynamic_graphql::{
     internal::{
@@ -12,20 +12,27 @@ use raphtory::{
         filter::{Filter, FilterValue},
         filter_operator::FilterOperator,
         graph_filter::GraphFilter,
+        is_active_edge_filter::IsActiveEdge,
+        is_active_node_filter::IsActiveNode,
+        is_deleted_filter::IsDeletedEdge,
+        is_self_loop_filter::IsSelfLoopEdge,
+        is_valid_filter::IsValidEdge,
         latest_filter::Latest as LatestWrap,
         layered_filter::Layered,
         node_filter::{CompositeNodeFilter, NodeFilter},
         property_filter::{Op, PropertyFilter, PropertyFilterValue, PropertyRef},
         snapshot_filter::{SnapshotAt as SnapshotAtWrap, SnapshotLatest as SnapshotLatestWrap},
         windowed_filter::Windowed,
-        DynView, DynViewFilter, ViewWrapOps,
+        ComposableFilter, DynFilter, DynView, NoFilter, ViewWrapOps,
     },
     errors::GraphError,
 };
 use raphtory_api::core::{
     entities::{properties::prop::Prop, Layer, GID},
     storage::timeindex::{AsTime, EventTime},
+    utils::time::IntoTime,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
     collections::HashSet,
@@ -35,7 +42,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(InputObject, Clone, Debug)]
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct Window {
     /// Window start time.
     pub start: GqlTimeInput,
@@ -54,11 +61,11 @@ pub enum GraphViewCollection {
     /// Single excluded layer.
     ExcludeLayer(String),
     /// Subgraph nodes.
-    Subgraph(Vec<String>),
+    Subgraph(Vec<GqlNodeId>),
     /// Subgraph node types.
     SubgraphNodeTypes(Vec<String>),
     /// List of excluded nodes.
-    ExcludeNodes(Vec<String>),
+    ExcludeNodes(Vec<GqlNodeId>),
     /// Valid state.
     Valid(bool),
     /// Window between a start and end time.
@@ -255,13 +262,20 @@ pub enum PathFromNodeViewCollection {
     ShrinkEnd(GqlTimeInput),
 }
 
-#[derive(Enum, Copy, Clone, Debug)]
+#[derive(Enum, Copy, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum NodeField {
-    /// Node id.
+    /// Node ID field.
+    ///
+    /// Represents the graph’s node identifier (numeric or string-backed in the API).
     NodeId,
-    /// Node name.
+    /// Node name field.
+    ///
+    /// Represents the human-readable node name (string).
     NodeName,
-    /// Node type.
+    /// Node type field.
+    ///
+    /// Represents the optional node type assigned at node creation (string).
     NodeType,
 }
 
@@ -279,45 +293,112 @@ impl Display for NodeField {
     }
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Filters an entity property or metadata field by name and condition.
+///
+/// This input is used by both node and edge filters when targeting
+/// a specific property key (or metadata key) and applying a `PropCondition`.
+///
+/// Fields:
+/// - `name`: The property key to query.
+/// - `where_`: The condition to apply to that property’s value.
+///
+/// Example (GraphQL):
+/// ```graphql
+/// { Property: { name: "weight", where: { Gt: 0.5 } } }
+/// ```
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct PropertyFilterNew {
+    /// Property (or metadata) key.
     pub name: String,
+    /// Condition applied to the property value.
+    ///
+    /// Exposed as `where` in GraphQL.
     #[graphql(name = "where")]
+    #[serde(rename = "where")]
     pub where_: PropCondition,
 }
 
-#[derive(OneOfInput, Clone, Debug)]
+/// Boolean expression over a property value.
+///
+/// `PropCondition` is used inside `PropertyFilterNew.where` to describe
+/// how a property’s value should be matched.
+///
+/// It supports:
+/// - comparisons (`Eq`, `Gt`, `Le`, …),
+/// - string predicates (`Contains`, `StartsWith`, …),
+/// - set membership (`IsIn`, `IsNotIn`),
+/// - presence checks (`IsSome`, `IsNone`),
+/// - boolean composition (`And`, `Or`, `Not`),
+/// - and list/aggregate qualifiers (`First`, `Sum`, `Len`, …).
+///
+/// Notes:
+/// - `Value` is interpreted according to the property’s type.
+/// - Aggregators/qualifiers like `Sum` and `Len` apply when the underlying
+///   property is list-like or aggregatable (depending on your engine rules).
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum PropCondition {
+    /// Equality: property value equals the given value.
     Eq(Value),
+    /// Inequality: property value does not equal the given value.
     Ne(Value),
+    /// Greater-than: property value is greater than the given value.
     Gt(Value),
+    /// Greater-than-or-equal: property value is >= the given value.
     Ge(Value),
+    /// Less-than: property value is less than the given value.
     Lt(Value),
+    /// Less-than-or-equal: property value is <= the given value.
     Le(Value),
 
+    /// String prefix match against the property's string representation.
     StartsWith(Value),
+    /// String suffix match against the property's string representation.
     EndsWith(Value),
+    /// Substring match against the property's string representation.
     Contains(Value),
+    /// Negated substring match against the property's string representation.
     NotContains(Value),
 
+    /// Set membership: property value is contained in the given list of values.
     IsIn(Value),
+    /// Negated set membership: property value is not contained in the given list of values.
     IsNotIn(Value),
 
+    /// Presence check: property value is present (not null/missing).
+    ///
+    /// When set to `true`, requires the property to exist.
     IsSome(bool),
+    /// Absence check: property value is missing / null.
+    ///
+    /// When set to `true`, requires the property to be missing.
     IsNone(bool),
 
+    /// Logical AND over nested conditions.
     And(Vec<PropCondition>),
+    /// Logical OR over nested conditions.
     Or(Vec<PropCondition>),
+    /// Logical NOT over a nested condition.
     Not(Wrapped<PropCondition>),
 
+    /// Applies the nested condition to the **first** element of a list-like property.
     First(Wrapped<PropCondition>),
+    /// Applies the nested condition to the **last** element of a list-like property.
     Last(Wrapped<PropCondition>),
+    /// Requires that **any** element of a list-like property matches the nested condition.
     Any(Wrapped<PropCondition>),
+    /// Requires that **all** elements of a list-like property match the nested condition.
     All(Wrapped<PropCondition>),
+
+    /// Applies the nested condition to the **sum** of a numeric list-like property.
     Sum(Wrapped<PropCondition>),
+    /// Applies the nested condition to the **average** of a numeric list-like property.
     Avg(Wrapped<PropCondition>),
+    /// Applies the nested condition to the **minimum** element of a list-like property.
     Min(Wrapped<PropCondition>),
+    /// Applies the nested condition to the **maximum** element of a list-like property.
     Max(Wrapped<PropCondition>),
+    /// Applies the nested condition to the **length** of a list-like property.
     Len(Wrapped<PropCondition>),
 }
 
@@ -361,60 +442,132 @@ impl PropCondition {
     }
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Graph view restriction to a time window, optionally chaining another `GraphFilter`.
+///
+/// Used by `GqlGraphFilter::Window`.
+///
+/// - `start` and `end` define the window (inclusive start, exclusive end).
+/// - `expr` optionally nests another graph filter to apply *within* this window.
+///
+/// Example (GraphQL):
+/// ```graphql
+/// { Window: { start: 0, end: 10, expr: { Layers: { names: ["A"] } } } }
+/// ```
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphWindowExpr {
+    /// Window start time (inclusive).
     pub start: GqlTimeInput,
+    /// Window end time (exclusive).
     pub end: GqlTimeInput,
+    /// Optional nested filter applied after the window restriction.
     pub expr: Option<Wrapped<GqlGraphFilter>>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Graph view restriction to a single time bound, optionally chaining another `GraphFilter`.
+///
+/// Used by `At`, `Before`, and `After` graph filters.
+///
+/// Example:
+/// `{ At: { time: 5, expr: { Layers: { names: ["L1"] } } } }`
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphTimeExpr {
+    /// Reference time for the operation.
     pub time: GqlTimeInput,
+    /// Optional nested filter applied after the time restriction.
     pub expr: Option<Wrapped<GqlGraphFilter>>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Graph view restriction that takes only a nested expression.
+///
+/// Used for unary view operations like `Latest` and `SnapshotLatest`.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphUnaryExpr {
+    /// Optional nested filter applied after the unary operation.
     pub expr: Option<Wrapped<GqlGraphFilter>>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Graph view restriction by layer membership, optionally chaining another `GraphFilter`.
+///
+/// Used by `GqlGraphFilter::Layers`.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct GraphLayersExpr {
+    /// Layer names to include.
     pub names: Vec<String>,
+    /// Optional nested filter applied after the layer restriction.
     pub expr: Option<Wrapped<GqlGraphFilter>>,
 }
 
-#[derive(OneOfInput, Clone, Debug)]
+/// GraphQL input type for restricting a graph view.
+///
+/// `GraphFilter` controls the **evaluation scope** for subsequent node/edge filters:
+/// - time windows (`Window`)
+/// - time points (`At`)
+/// - open-ended ranges (`Before`, `After`)
+/// - latest evaluation (`Latest`)
+/// - snapshots (`SnapshotAt`, `SnapshotLatest`)
+/// - layer membership (`Layers`)
+///
+/// These filters can be nested via the `expr` field on the corresponding
+/// `*Expr` input objects to form pipelines.
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "GraphFilter")]
+#[serde(rename_all = "camelCase")]
 pub enum GqlGraphFilter {
+    /// Restrict evaluation to a time window (inclusive start, exclusive end).
     Window(GraphWindowExpr),
+    /// Restrict evaluation to a single point in time.
     At(GraphTimeExpr),
+    /// Restrict evaluation to times strictly before the given time.
     Before(GraphTimeExpr),
+    /// Restrict evaluation to times strictly after the given time.
     After(GraphTimeExpr),
 
+    /// Evaluate against the latest available state.
     Latest(GraphUnaryExpr),
+    /// Evaluate against a snapshot of the graph at a given time.
     SnapshotAt(GraphTimeExpr),
+    /// Evaluate against the most recent snapshot of the graph.
     SnapshotLatest(GraphUnaryExpr),
 
+    /// Restrict evaluation to one or more layers.
     Layers(GraphLayersExpr),
 }
 
-#[derive(OneOfInput, Clone, Debug)]
+/// Boolean expression over a built-in node field (ID, name, or type).
+///
+/// This is used by `NodeFieldFilterNew.where_` when filtering a specific
+/// `NodeField`.
+///
+/// Supports comparisons, string predicates, and set membership.
+/// (Presence checks and aggregations are handled via property filters instead.)
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum NodeFieldCondition {
+    /// Equality.
     Eq(Value),
+    /// Inequality.
     Ne(Value),
+    /// Greater-than.
     Gt(Value),
+    /// Greater-than-or-equal.
     Ge(Value),
+    /// Less-than.
     Lt(Value),
+    /// Less-than-or-equal.
     Le(Value),
 
+    /// String prefix match.
     StartsWith(Value),
+    /// String suffix match.
     EndsWith(Value),
+    /// Substring match.
     Contains(Value),
+    /// Negated substring match.
     NotContains(Value),
 
+    /// Set membership.
     IsIn(Value),
+    /// Negated set membership.
     IsNotIn(Value),
 }
 
@@ -438,120 +591,330 @@ impl NodeFieldCondition {
     }
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Filters a built-in node field (`id`, `name`, `type`) using a `NodeFieldCondition`.
+///
+/// Example (GraphQL):
+/// ```graphql
+/// { Node: { field: NodeName, where: { Contains: "ali" } } }
+/// ```
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeFieldFilterNew {
+    /// Which built-in field to filter.
     pub field: NodeField,
+    /// Condition applied to the selected field.
+    ///
+    /// Exposed as `where` in GraphQL.
     #[graphql(name = "where")]
+    #[serde(rename = "where")]
     pub where_: NodeFieldCondition,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Restricts node evaluation to a time window and applies a nested `NodeFilter`.
+///
+/// Used by `GqlNodeFilter::Window`.
+///
+/// The window is inclusive of `start` and exclusive of `end`.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeWindowExpr {
+    /// Window start time (inclusive).
     pub start: GqlTimeInput,
+    /// Window end time (exclusive).
     pub end: GqlTimeInput,
+    /// Filter evaluated within the restricted window.
     pub expr: Wrapped<GqlNodeFilter>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Restricts node evaluation to a single time bound and applies a nested `NodeFilter`.
+///
+/// Used by `At`, `Before`, and `After` node filters.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeTimeExpr {
+    /// Reference time for the operation.
     pub time: GqlTimeInput,
+    /// Filter evaluated within the restricted time scope.
     pub expr: Wrapped<GqlNodeFilter>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Applies a unary node-view operation and then evaluates a nested `NodeFilter`.
+///
+/// Used by `Latest` and `SnapshotLatest` node filters.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeUnaryExpr {
+    /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlNodeFilter>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Restricts node evaluation to one or more layers and applies a nested `NodeFilter`.
+///
+/// Used by `GqlNodeFilter::Layers`.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct NodeLayersExpr {
+    /// Layer names to include.
     pub names: Vec<String>,
+    /// Filter evaluated within the layer-restricted view.
     pub expr: Wrapped<GqlNodeFilter>,
 }
 
-#[derive(OneOfInput, Clone, Debug)]
+/// GraphQL input type for filtering nodes.
+///
+/// `NodeFilter` represents a composable boolean expression evaluated
+/// against nodes in a graph. Filters can target:
+///
+/// - built-in node fields (`Node` / `NodeFieldFilterNew`),
+/// - node properties and metadata,
+/// - temporal properties,
+/// - temporal scope (windows, snapshots, latest),
+/// - and layer membership,
+/// - plus node state predicates (e.g. `IsActive`).
+///
+/// Filters can be combined recursively using logical operators
+/// (`And`, `Or`, `Not`).
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "NodeFilter")]
+#[serde(rename_all = "camelCase")]
 pub enum GqlNodeFilter {
-    /// Node filter.
+    /// Filters a built-in node field (ID, name, or type).
     Node(NodeFieldFilterNew),
-    /// Property filter.
+
+    /// Filters a node property by name and condition.
     Property(PropertyFilterNew),
-    /// Metadata filter.
+
+    /// Filters a node metadata field by name and condition.
+    ///
+    /// Metadata is shared across all temporal versions of a node.
     Metadata(PropertyFilterNew),
-    /// Temporal property filter.
+
+    /// Filters a temporal node property by name and condition.
+    ///
+    /// Used when the property value varies over time and must be evaluated
+    /// within a temporal context.
     TemporalProperty(PropertyFilterNew),
-    /// AND operator.
+
+    /// Logical AND over multiple node filters.
     And(Vec<GqlNodeFilter>),
-    /// OR operator.
+
+    /// Logical OR over multiple node filters.
     Or(Vec<GqlNodeFilter>),
-    /// NOT operator.
+
+    /// Logical NOT over a nested node filter.
     Not(Wrapped<GqlNodeFilter>),
 
+    /// Restricts evaluation to a time window (inclusive start, exclusive end).
     Window(NodeWindowExpr),
+    /// Restricts evaluation to a single point in time.
     At(NodeTimeExpr),
+    /// Restricts evaluation to times strictly before the given time.
     Before(NodeTimeExpr),
+    /// Restricts evaluation to times strictly after the given time.
     After(NodeTimeExpr),
+    /// Evaluates predicates against the latest available node state.
     Latest(NodeUnaryExpr),
+    /// Evaluates predicates against a snapshot of the graph at a given time.
     SnapshotAt(NodeTimeExpr),
+    /// Evaluates predicates against the most recent snapshot of the graph.
     SnapshotLatest(NodeUnaryExpr),
+    /// Restricts evaluation to nodes belonging to one or more layers.
     Layers(NodeLayersExpr),
+
+    /// Matches nodes that have at least one event in the current view/window.
+    ///
+    /// When `true`, only active nodes are matched.
+    IsActive(bool),
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Restricts edge evaluation to a time window and applies a nested `EdgeFilter`.
+///
+/// Used by `GqlEdgeFilter::Window`.
+///
+/// The window is inclusive of `start` and exclusive of `end`.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeWindowExpr {
+    /// Window start time (inclusive).
     pub start: GqlTimeInput,
+    /// Window end time (exclusive).
     pub end: GqlTimeInput,
+    /// Filter evaluated within the restricted window.
     pub expr: Wrapped<GqlEdgeFilter>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Restricts edge evaluation to a single time bound and applies a nested `EdgeFilter`.
+///
+/// Used by `At`, `Before`, and `After` edge filters.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeTimeExpr {
+    /// Reference time for the operation.
     pub time: GqlTimeInput,
+    /// Filter evaluated within the restricted time scope.
     pub expr: Wrapped<GqlEdgeFilter>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Applies a unary edge-view operation and then evaluates a nested `EdgeFilter`.
+///
+/// Used by `Latest` and `SnapshotLatest` edge filters.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeUnaryExpr {
+    /// Filter evaluated after applying the unary operation.
     pub expr: Wrapped<GqlEdgeFilter>,
 }
 
-#[derive(InputObject, Clone, Debug)]
+/// Restricts edge evaluation to one or more layers and applies a nested `EdgeFilter`.
+///
+/// Used by `GqlEdgeFilter::Layers`.
+#[derive(InputObject, Clone, Debug, Serialize, Deserialize)]
 pub struct EdgeLayersExpr {
+    /// Layer names to include.
     pub names: Vec<String>,
+    /// Filter evaluated within the layer-restricted view.
     pub expr: Wrapped<GqlEdgeFilter>,
 }
 
-#[derive(OneOfInput, Clone, Debug)]
+/// GraphQL input type for filtering edges.
+///
+/// `EdgeFilter` represents a composable boolean expression evaluated
+/// against edges in a graph. Filters can target:
+///
+/// - edge **endpoints** (source / destination nodes),
+/// - edge **properties** and **metadata**,
+/// - **temporal scope** (windows, snapshots, latest),
+/// - **layer membership**,
+/// - and **structural edge state** (active, valid, deleted, self-loop).
+///
+/// Filters can be combined recursively using logical operators
+/// (`And`, `Or`, `Not`).
+///
+/// Examples (GraphQL):
+/// ```graphql
+/// {
+///   edges(filter: {
+///     And: [
+///       { IsActive: true },
+///       { Property: { name: "weight", gt: 0.5 } }
+///     ]
+///   }) {
+///     src
+///     dst
+///   }
+/// }
+/// ```
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
 #[graphql(name = "EdgeFilter")]
+#[serde(rename_all = "camelCase")]
 pub enum GqlEdgeFilter {
-    /// Source node filter.
+    /// Applies a filter to the **source node** of the edge.
+    ///
+    /// The nested `NodeFilter` is evaluated against the source endpoint.
+    ///
+    /// Example:
+    /// `{ Src: { Name: { contains: "alice" } } }`
     Src(Wrapped<GqlNodeFilter>),
-    /// Destination node filter.
+
+    /// Applies a filter to the **destination node** of the edge.
+    ///
+    /// The nested `NodeFilter` is evaluated against the destination endpoint.
+    ///
+    /// Example:
+    /// `{ Dst: { Id: { eq: 42 } } }`
     Dst(Wrapped<GqlNodeFilter>),
-    /// Property filter.
+
+    /// Filters an edge **property** by name and value.
+    ///
+    /// Applies to static or temporal properties depending on context.
+    ///
+    /// Example:
+    /// `{ Property: { name: "weight", gt: 0.5 } }`
     Property(PropertyFilterNew),
-    /// Metadata filter.
+
+    /// Filters an edge **metadata field**.
+    ///
+    /// Metadata is shared across all temporal versions of an edge.
+    ///
+    /// Example:
+    /// `{ Metadata: { name: "source", eq: "imported" } }`
     Metadata(PropertyFilterNew),
-    /// Temporal property filter.
+
+    /// Filters a **temporal edge property**.
+    ///
+    /// Used when the property value varies over time and must be
+    /// evaluated within a temporal context.
+    ///
+    /// Example:
+    /// `{ TemporalProperty: { name: "status", eq: "active" } }`
     TemporalProperty(PropertyFilterNew),
-    /// AND operator.
+
+    /// Logical **AND** over multiple edge filters.
+    ///
+    /// All nested filters must evaluate to `true`.
+    ///
+    /// Example:
+    /// `{ And: [ { IsActive: true }, { IsValid: true } ] }`
     And(Vec<GqlEdgeFilter>),
-    /// OR operator.
+
+    /// Logical **OR** over multiple edge filters.
+    ///
+    /// At least one nested filter must evaluate to `true`.
+    ///
+    /// Example:
+    /// `{ Or: [ { IsDeleted: true }, { IsSelfLoop: true } ] }`
     Or(Vec<GqlEdgeFilter>),
-    /// NOT operator.
+
+    /// Logical **NOT** over a nested edge filter.
+    ///
+    /// Negates the result of the wrapped filter.
+    ///
+    /// Example:
+    /// `{ Not: { IsDeleted: true } }`
     Not(Wrapped<GqlEdgeFilter>),
 
+    /// Restricts edge evaluation to a **time window**.
+    ///
+    /// The window is inclusive of `start` and exclusive of `end`.
     Window(EdgeWindowExpr),
+
+    /// Restricts edge evaluation to a **single point in time**.
     At(EdgeTimeExpr),
+
+    /// Restricts edge evaluation to times **strictly before** a given time.
     Before(EdgeTimeExpr),
+
+    /// Restricts edge evaluation to times **strictly after** a given time.
     After(EdgeTimeExpr),
+
+    /// Evaluates edge predicates against the **latest available state**.
     Latest(EdgeUnaryExpr),
+
+    /// Evaluates edge predicates against a **snapshot** of the graph
+    /// at a specific time.
     SnapshotAt(EdgeTimeExpr),
+
+    /// Evaluates edge predicates against the **most recent snapshot**
+    /// of the graph.
     SnapshotLatest(EdgeUnaryExpr),
+
+    /// Restricts evaluation to edges belonging to one or more **layers**.
+    ///
+    /// Example:
+    /// `{ Layers: { values: ["fire_nation", "air_nomads"] } }`
     Layers(EdgeLayersExpr),
+
+    /// Matches edges that have at least one event in the current view/window.
+    ///
+    /// When `true`, only active edges are matched.
+    IsActive(bool),
+
+    /// Matches edges that are structurally valid (i.e. not deleted)
+    /// in the current view/window.
+    IsValid(bool),
+
+    /// Matches edges that have been deleted in the current view/window.
+    IsDeleted(bool),
+
+    /// Matches edges that are **self-loops**
+    /// (source node == destination node).
+    IsSelfLoop(bool),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct Wrapped<T>(Box<T>);
 impl<T> Deref for Wrapped<T> {
     type Target = T;
@@ -1064,13 +1427,15 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::Window(w) => {
                 let inner: CompositeNodeFilter = w.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.0, w.end.0, inner,
+                    w.start.into_time(),
+                    w.end.into_time(),
+                    inner,
                 ))))
             }
 
             GqlNodeFilter::At(t) => {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
-                let et: EventTime = t.time.0;
+                let et = t.time.into_time();
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
                     et,
                     EventTime::end(et.t().saturating_add(1)),
@@ -1082,14 +1447,14 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
                     EventTime::start(i64::MIN),
-                    EventTime::end(t.time.0.t()),
+                    EventTime::end(t.time.t()),
                     inner,
                 ))))
             }
 
             GqlNodeFilter::After(t) => {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
-                let start = EventTime::start(t.time.0.t().saturating_add(1));
+                let start = EventTime::start(t.time.t().saturating_add(1));
                 Ok(CompositeNodeFilter::Windowed(Box::new(Windowed::new(
                     start,
                     EventTime::end(i64::MAX),
@@ -1107,7 +1472,7 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             GqlNodeFilter::SnapshotAt(t) => {
                 let inner: CompositeNodeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::SnapshotAt(Box::new(
-                    SnapshotAtWrap::new(t.time.0, inner),
+                    SnapshotAtWrap::new(t.time.into_time(), inner),
                 )))
             }
 
@@ -1119,17 +1484,17 @@ impl TryFrom<GqlNodeFilter> for CompositeNodeFilter {
             }
 
             GqlNodeFilter::Layers(l) => {
-                if l.names.is_empty() {
-                    return Err(GraphError::InvalidGqlFilter(
-                        "NodeFilter.layers.names must be non-empty".into(),
-                    ));
-                }
                 let layer = Layer::from(l.names.clone());
                 let inner: CompositeNodeFilter = l.expr.deref().clone().try_into()?;
                 Ok(CompositeNodeFilter::Layered(Box::new(Layered::new(
                     layer, inner,
                 ))))
             }
+
+            GqlNodeFilter::IsActive(true) => Ok(CompositeNodeFilter::IsActiveNode(IsActiveNode)),
+            GqlNodeFilter::IsActive(false) => Ok(CompositeNodeFilter::Not(Box::new(
+                CompositeNodeFilter::IsActiveNode(IsActiveNode),
+            ))),
         }
     }
 }
@@ -1229,13 +1594,15 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             GqlEdgeFilter::Window(w) => {
                 let inner: CompositeEdgeFilter = w.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
-                    w.start.0, w.end.0, inner,
+                    w.start.into_time(),
+                    w.end.into_time(),
+                    inner,
                 ))))
             }
 
             GqlEdgeFilter::At(t) => {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
-                let et: EventTime = t.time.0;
+                let et = t.time.into_time();
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
                     et,
                     EventTime::end(et.t().saturating_add(1)),
@@ -1247,14 +1614,14 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
                     EventTime::start(i64::MIN),
-                    EventTime::end(t.time.0.t()),
+                    EventTime::end(t.time.t()),
                     inner,
                 ))))
             }
 
             GqlEdgeFilter::After(t) => {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
-                let start = EventTime::start(t.time.0.t().saturating_add(1));
+                let start = EventTime::start(t.time.t().saturating_add(1));
                 Ok(CompositeEdgeFilter::Windowed(Box::new(Windowed::new(
                     start,
                     EventTime::end(i64::MAX),
@@ -1272,7 +1639,7 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
             GqlEdgeFilter::SnapshotAt(t) => {
                 let inner: CompositeEdgeFilter = t.expr.deref().clone().try_into()?;
                 Ok(CompositeEdgeFilter::SnapshotAt(Box::new(
-                    SnapshotAtWrap::new(t.time.0, inner),
+                    SnapshotAtWrap::new(t.time.into_time(), inner),
                 )))
             }
 
@@ -1290,6 +1657,28 @@ impl TryFrom<GqlEdgeFilter> for CompositeEdgeFilter {
                     layer, inner,
                 ))))
             }
+
+            GqlEdgeFilter::IsActive(true) => Ok(CompositeEdgeFilter::IsActiveEdge(IsActiveEdge)),
+            GqlEdgeFilter::IsActive(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsActiveEdge(IsActiveEdge),
+            ))),
+
+            GqlEdgeFilter::IsValid(true) => Ok(CompositeEdgeFilter::IsValidEdge(IsValidEdge)),
+            GqlEdgeFilter::IsValid(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsValidEdge(IsValidEdge),
+            ))),
+
+            GqlEdgeFilter::IsDeleted(true) => Ok(CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge)),
+            GqlEdgeFilter::IsDeleted(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsDeletedEdge(IsDeletedEdge),
+            ))),
+
+            GqlEdgeFilter::IsSelfLoop(true) => {
+                Ok(CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge))
+            }
+            GqlEdgeFilter::IsSelfLoop(false) => Ok(CompositeEdgeFilter::Not(Box::new(
+                CompositeEdgeFilter::IsSelfLoopEdge(IsSelfLoopEdge),
+            ))),
         }
     }
 }
@@ -1359,4 +1748,91 @@ impl TryFrom<GqlGraphFilter> for DynView {
             }
         })
     }
+}
+
+/// Row-level visibility filter for `grantGraphFilteredReadOnly`.
+/// Compose node, edge, and graph-level sub-filters with `and` / `or`.
+#[derive(OneOfInput, Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum GraphRowFilter {
+    /// Filter by node properties, fields, or temporal state.
+    Node(GqlNodeFilter),
+    /// Filter by edge properties, source/destination, or temporal state.
+    Edge(GqlEdgeFilter),
+    /// Apply a graph-level view (window, snapshot, layer restriction, …).
+    Graph(GqlGraphFilter),
+    /// All sub-filters must pass (intersection).
+    And(Vec<GraphRowFilter>),
+    /// At least one sub-filter must pass (union).
+    /// Cross-type sub-filters (e.g. `Node` and `Edge` together) produce a proper graph union:
+    /// a node is visible if it matches the node filter or has a visible edge,
+    /// and an edge is visible if it matches the edge filter or both its endpoints are visible.
+    Or(Vec<GraphRowFilter>),
+}
+
+impl TryFrom<GraphRowFilter> for DynFilter {
+    type Error = GraphError;
+
+    fn try_from(value: GraphRowFilter) -> Result<Self, Self::Error> {
+        let filter = match value {
+            GraphRowFilter::Node(filter) => {
+                Arc::new(CompositeNodeFilter::try_from(filter)?) as DynFilter
+            }
+            GraphRowFilter::Edge(filter) => {
+                Arc::new(CompositeEdgeFilter::try_from(filter)?) as DynFilter
+            }
+            GraphRowFilter::Graph(filter) => DynView::try_from(filter)?,
+            GraphRowFilter::And(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                let first = filters.next().transpose()?;
+                match first {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.and(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+            GraphRowFilter::Or(filters) => {
+                let mut filters = filters.into_iter().map(DynFilter::try_from);
+                let first = filters.next().transpose()?;
+                match first {
+                    Some(first) => filters.try_fold(first, |combined, filter| {
+                        Ok::<_, GraphError>(Arc::new(combined.or(filter?)) as DynFilter)
+                    })?,
+                    None => Arc::new(NoFilter) as DynFilter,
+                }
+            }
+        };
+        Ok(filter)
+    }
+}
+
+/// Property/metadata keys to hide per entity type.
+#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct HiddenKeys {
+    /// Keys to strip from node property/metadata responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node: Option<Vec<String>>,
+    /// Keys to strip from edge property/metadata responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edge: Option<Vec<String>>,
+    /// Keys to strip from graph-own property/metadata responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub graph: Option<Vec<String>>,
+}
+
+/// Top-level access filter accepted by `grantGraphFilteredReadOnly`.
+/// Separates row-level visibility (which entities are returned) from column-level
+/// visibility (which property keys appear on returned entities).
+#[derive(InputObject, Clone, Debug, Default, Serialize, Deserialize)]
+pub struct GraphAccessFilter {
+    /// Row-level filter: which nodes/edges/graph-view are visible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filter: Option<GraphRowFilter>,
+    /// Temporal property keys to hide per entity type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_properties: Option<HiddenKeys>,
+    /// Metadata keys to hide per entity type.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hidden_metadata: Option<HiddenKeys>,
 }

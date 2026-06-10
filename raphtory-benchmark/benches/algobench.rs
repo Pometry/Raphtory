@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use raphtory::{
     algorithms::{
         centrality::pagerank::unweighted_page_rank,
@@ -17,6 +17,7 @@ use raphtory::{
 };
 use raphtory_benchmark::common::bench;
 use rayon::prelude::*;
+use std::hint::black_box;
 
 pub fn local_triangle_count_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("local_triangle_count");

@@ -15,9 +15,9 @@ homepage.workspace = true
 [dependencies]
 raphtory = { workspace = true, features = [
     'vectors',
-    'search',
     "io",
 ] }
+tempfile = { workspace = true }
 raphtory-api = { workspace = true }
 raphtory-storage = { workspace = true }
 base64 = { workspace = true }
@@ -41,18 +41,17 @@ tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 walkdir = { workspace = true }
-ordered-float = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 url = { workspace = true }
-base64-compat = { workspace = true }
 reqwest = { workspace = true }
 rustc-hash = { workspace = true }
-moka = { workspace = true }
 rayon = { workspace = true }
 ahash = { workspace = true }
-strum = {workspace = true}
-strum_macros = {workspace = true}
+strum = { workspace = true }
+strum_macros = { workspace = true }
+bigdecimal = { workspace = true, features = ["serde"] }
+quick_cache = { workspace = true }
 
 # python binding optional dependencies
 pyo3 = { workspace = true, optional = true }
@@ -62,14 +61,12 @@ zip = { workspace = true }
 clap = { workspace = true }
 rust-embed = { workspace = true }
 
-
-
 [dev-dependencies]
+parking_lot = { workspace = true }
 tempfile = { workspace = true }
 pretty_assertions = { workspace = true }
-arrow-array = { workspace = true }
 
 [features]
-storage = ["raphtory/storage"]
 python = ["dep:pyo3", "raphtory/python"]
 search = ["raphtory/search"]
+panic-on-drop = ["raphtory/panic-on-drop"]

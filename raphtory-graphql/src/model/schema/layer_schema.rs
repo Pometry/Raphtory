@@ -6,6 +6,8 @@ use raphtory::{
     prelude::*,
 };
 
+/// Describes a single edge layer — its name and the per `(srcType, dstType)`
+/// edge schemas observed within it.
 #[derive(ResolvedObject)]
 pub(crate) struct LayerSchema<G: StaticGraphViewOps> {
     graph: LayeredGraph<G>,

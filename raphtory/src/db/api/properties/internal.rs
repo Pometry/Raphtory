@@ -8,9 +8,99 @@ use raphtory_api::{
     iter::IntoDynBoxed,
 };
 
+/// Graph-level trait controlling which node temporal-property IDs are visible in this view.
+/// The default (for all base graph types) returns every ID from the schema.
+/// `PropertyRedactedGraph` overrides it to filter out hidden keys.
+pub trait NodePropertySchemaOps: Send + Sync {
+    fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
+    fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
+    fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
+    fn node_visible_metadata_id(&self, name: &str) -> Option<usize>;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
+}
+
+/// Same as `NodePropertySchemaOps` but for edge properties.
+pub trait EdgePropertySchemaOps: Send + Sync {
+    fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize>;
+    fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize>;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr>;
+    fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize>;
+    fn edge_visible_metadata_id(&self, name: &str) -> Option<usize>;
+    /// Returns `None` if `id` is not visible in this view (e.g. redacted).
+    fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr>;
+}
+
+/// Marker: delegate `NodePropertySchemaOps` through `Base`.
+pub trait InheritNodePropertySchemaOps: Base {}
+/// Marker: delegate `EdgePropertySchemaOps` through `Base`.
+pub trait InheritEdgePropertySchemaOps: Base {}
+
+impl<G: InheritNodePropertySchemaOps + Send + Sync> NodePropertySchemaOps for G
+where
+    G::Base: NodePropertySchemaOps,
+{
+    #[inline]
+    fn node_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().node_visible_temporal_prop_ids()
+    }
+    #[inline]
+    fn node_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
+        self.base().node_visible_temporal_prop_id(name)
+    }
+    #[inline]
+    fn node_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
+        self.base().node_visible_temporal_prop_name(id)
+    }
+    #[inline]
+    fn node_visible_metadata_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().node_visible_metadata_ids()
+    }
+    #[inline]
+    fn node_visible_metadata_id(&self, name: &str) -> Option<usize> {
+        self.base().node_visible_metadata_id(name)
+    }
+    #[inline]
+    fn node_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
+        self.base().node_visible_metadata_name(id)
+    }
+}
+
+impl<G: InheritEdgePropertySchemaOps + Send + Sync> EdgePropertySchemaOps for G
+where
+    G::Base: EdgePropertySchemaOps,
+{
+    #[inline]
+    fn edge_visible_temporal_prop_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().edge_visible_temporal_prop_ids()
+    }
+    #[inline]
+    fn edge_visible_temporal_prop_id(&self, name: &str) -> Option<usize> {
+        self.base().edge_visible_temporal_prop_id(name)
+    }
+    #[inline]
+    fn edge_visible_temporal_prop_name(&self, id: usize) -> Option<ArcStr> {
+        self.base().edge_visible_temporal_prop_name(id)
+    }
+    #[inline]
+    fn edge_visible_metadata_ids(&self) -> BoxedLIter<'_, usize> {
+        self.base().edge_visible_metadata_ids()
+    }
+    #[inline]
+    fn edge_visible_metadata_id(&self, name: &str) -> Option<usize> {
+        self.base().edge_visible_metadata_id(name)
+    }
+    #[inline]
+    fn edge_visible_metadata_name(&self, id: usize) -> Option<ArcStr> {
+        self.base().edge_visible_metadata_name(id)
+    }
+}
+
 pub trait InternalTemporalPropertyViewOps {
     fn dtype(&self, id: usize) -> PropType;
-    fn temporal_value(&self, id: usize) -> Option<Prop>;
 
     fn temporal_iter(&self, id: usize) -> BoxedLIter<'_, (EventTime, Prop)>;
 
@@ -22,6 +112,9 @@ pub trait InternalTemporalPropertyViewOps {
     fn temporal_history_iter_rev(&self, id: usize) -> BoxedLIter<'_, EventTime> {
         self.temporal_iter_rev(id).map(|(t, _)| t).into_dyn_boxed()
     }
+
+    /// Return the latest temporal prop value.
+    fn temporal_value(&self, id: usize) -> Option<Prop>;
 
     fn temporal_values_iter(&self, id: usize) -> BoxedLIter<'_, Prop> {
         self.temporal_iter(id).map(|(_, v)| v).into_dyn_boxed()
@@ -41,14 +134,19 @@ pub trait TemporalPropertiesRowView {
 pub trait InternalMetadataOps: Send + Sync {
     /// Find id for property name (note this only checks the meta-data, not if the property actually exists for the entity)
     fn get_metadata_id(&self, name: &str) -> Option<usize>;
+
     fn get_metadata_name(&self, id: usize) -> ArcStr;
+
     fn metadata_ids(&self) -> BoxedLIter<'_, usize>;
+
     fn metadata_keys(&self) -> BoxedLIter<'_, ArcStr> {
         Box::new(self.metadata_ids().map(|id| self.get_metadata_name(id)))
     }
+
     fn metadata_values(&self) -> BoxedLIter<'_, Option<Prop>> {
         Box::new(self.metadata_ids().map(|k| self.get_metadata(k)))
     }
+
     fn get_metadata(&self, id: usize) -> Option<Prop>;
 }
 

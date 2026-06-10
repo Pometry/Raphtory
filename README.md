@@ -35,7 +35,7 @@
 &nbsp 
 <a href="https://www.pometry.com"><img src="https://user-images.githubusercontent.com/6665739/202438989-2859f8b8-30fb-4402-820a-563049e1fdb3.png" height="20" align="center"/> Pometry</a> 
 &nbsp
-<a href="https://www.raphtory.com/user-guide/installation/">🧙Tutorial</a> 
+<a href="https://www.raphtory.com/docs/getting-started/quickstart">🧙Tutorial</a> 
 &nbsp
 <a href="https://github.com/Raphtory/Raphtory/issues">🐛 Report a Bug</a> 
 &nbsp

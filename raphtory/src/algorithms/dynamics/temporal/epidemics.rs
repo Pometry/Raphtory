@@ -1,18 +1,22 @@
 use crate::{
     core::entities::{nodes::node_ref::AsNodeRef, VID},
     db::api::{
-        state::{Index, NodeState},
+        state::{GenericNodeState, TypedNodeState},
         view::StaticGraphViewOps,
     },
     prelude::*,
 };
-use indexmap::IndexSet;
-use rand::{distributions::Bernoulli, seq::IteratorRandom, Rng};
-use rand_distr::{Distribution, Exp};
+use rand::{
+    distr::{Bernoulli, Distribution},
+    seq::IteratorRandom,
+    Rng,
+};
+use rand_distr::Exp;
 use raphtory_api::core::{
     storage::timeindex::AsTime,
     utils::time::{ParseTimeError, TryIntoTime},
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Reverse,
     collections::{hash_map::Entry, BinaryHeap, HashMap},
@@ -25,13 +29,13 @@ pub struct Probability(f64);
 
 impl Probability {
     pub fn sample<R: Rng + ?Sized>(self, rng: &mut R) -> bool {
-        rng.gen_bool(self.0)
+        rng.random_bool(self.0)
     }
 }
 
 pub struct Number(pub usize);
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct Infected {
     pub infected: i64,
     pub active: i64,
@@ -189,7 +193,7 @@ pub fn temporal_SEIR<
     initial_infection: T,
     seeds: S,
     rng: &mut R,
-) -> Result<NodeState<'static, Infected, G>, SeedError>
+) -> Result<TypedNodeState<'static, Infected, G>, SeedError>
 where
     SeedError: From<P::Error>,
 {
@@ -243,12 +247,13 @@ where
             }
         }
     }
-    let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
-    Ok(NodeState::new(
+    //let (index, values): (IndexSet<_, ahash::RandomState>, Vec<_>) = states.into_iter().unzip();
+    Ok(TypedNodeState::new(GenericNodeState::new_from_map(
         g.clone(),
-        values.into(),
-        Some(Index::new(index)),
-    ))
+        states,
+        |value| value,
+        None,
+    )))
 }
 
 #[cfg(test)]
@@ -257,13 +262,11 @@ mod test {
         algorithms::dynamics::temporal::epidemics::{temporal_SEIR, Number},
         prelude::*,
     };
-    use rand::{rngs::SmallRng, Rng, SeedableRng};
-    use rand_distr::{Distribution, Exp};
+    use rand::{distr::Distribution, rngs::SmallRng, Rng, SeedableRng};
+    use rand_distr::Exp;
     use raphtory_api::core::utils::logging::global_info_logger;
     use rayon::prelude::*;
     use stats::{mean, stddev};
-    #[cfg(feature = "storage")]
-    use tempfile::TempDir;
     use tracing::info;
 
     fn correct_res(x: f64) -> f64 {
@@ -297,7 +300,7 @@ mod test {
             .scan(0, |v, _| {
                 let new_v: f64 = dist.sample(rng);
                 let floor_v = new_v.floor();
-                let new_v = if rng.gen_bool(new_v - floor_v) {
+                let new_v = if rng.random_bool(new_v - floor_v) {
                     new_v.ceil() as i64
                 } else {
                     floor_v as i64
@@ -384,37 +387,5 @@ mod test {
         let p = 0.1;
 
         inner_test(event_rate, recovery_rate, p);
-    }
-
-    #[cfg(feature = "storage")]
-    #[test]
-    fn compare_disk_with_in_mem() {
-        let event_rate = 0.00000001;
-        let recovery_rate = 0.000000001;
-        let p = 0.3;
-
-        let mut rng = SmallRng::seed_from_u64(0);
-        let g = generate_graph(1000, event_rate, &mut rng);
-        let test_dir = TempDir::new().unwrap();
-        let disk_graph = g.persist_as_disk_graph(test_dir.path()).unwrap();
-        let mut rng = SmallRng::seed_from_u64(0);
-        let res_arrow = temporal_SEIR(
-            &disk_graph,
-            Some(recovery_rate),
-            None,
-            p,
-            0,
-            Number(1),
-            &mut rng,
-        )
-        .unwrap();
-
-        let mut rng = SmallRng::seed_from_u64(0);
-        let res_mem =
-            temporal_SEIR(&g, Some(recovery_rate), None, p, 0, Number(1), &mut rng).unwrap();
-
-        assert!(res_mem
-            .iter()
-            .all(|(key, val)| res_arrow.get_by_node(key.id()).unwrap() == val));
     }
 }

@@ -1,33 +1,43 @@
 use crate::{
     auth::{AuthenticatedGraphQL, MutationAuth},
+    auth_policy::AuthorizationPolicy,
     config::app_config::{load_config, AppConfig},
-    data::{Data, EmbeddingConf},
+    data::Data,
     model::{
         plugins::{entry_point::EntryPoint, operation::Operation},
         App,
     },
     observability::open_telemetry::OpenTelemetry,
+    paths::ExistingGraphFolder,
     routes::{health, version, PublicFilesEndpoint},
     server::ServerError::SchemaError,
+    GQLError,
 };
 use config::ConfigError;
+use once_cell::sync::Lazy;
 use opentelemetry::trace::TracerProvider;
-use opentelemetry_sdk::trace::{Tracer, TracerProvider as TP};
+use opentelemetry_sdk::trace::{SdkTracerProvider as TP, Tracer};
 use poem::{
     get,
-    listener::TcpListener,
+    listener::{Acceptor, Listener, TcpListener},
     middleware::{Compression, CompressionEndpoint, Cors, CorsEndpoint},
     web::CompressionLevel,
     EndpointExt, Route, Server,
 };
 use raphtory::{
-    errors::GraphResult,
-    vectors::{cache::VectorCache, embeddings::EmbeddingFunction, template::DocumentTemplate},
+    db::api::storage::storage::Config,
+    vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
 };
 use serde_json::json;
 use std::{
     fs::create_dir_all,
+    future::Future,
+    io::ErrorKind,
+    ops::Deref,
     path::{Path, PathBuf},
+    pin::Pin,
+    sync::RwLock,
+    task::{Context, Poll},
 };
 use thiserror::Error;
 use tokio::{
@@ -41,13 +51,32 @@ use tokio::{
     task,
     task::JoinHandle,
 };
-use tracing::{debug, error, info};
+use tracing::{debug, info, warn};
 use tracing_subscriber::{
     fmt, fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt, Registry,
 };
 use url::ParseError;
 
 pub const DEFAULT_PORT: u16 = 1736;
+
+type ServerExtensionFn = Box<dyn Fn(GraphServer, Option<&Path>) -> GraphServer + Send + Sync>;
+
+static SERVER_EXTENSION: Lazy<RwLock<Option<ServerExtensionFn>>> = Lazy::new(|| RwLock::new(None));
+
+pub fn register_server_extension(f: ServerExtensionFn) {
+    *SERVER_EXTENSION.write().unwrap() = Some(f);
+}
+
+pub fn apply_server_extension(server: GraphServer, path: Option<&Path>) -> GraphServer {
+    match SERVER_EXTENSION.read().unwrap().as_ref() {
+        Some(ext) => ext(server, path),
+        None => server,
+    }
+}
+
+pub fn has_server_extension() -> bool {
+    SERVER_EXTENSION.read().unwrap().is_some()
+}
 
 #[derive(Error, Debug)]
 pub enum ServerError {
@@ -77,10 +106,18 @@ impl From<ServerError> for io::Error {
     }
 }
 
+type SchemaDataInjector = std::sync::Arc<
+    dyn Fn(async_graphql::dynamic::SchemaBuilder) -> async_graphql::dynamic::SchemaBuilder
+        + Send
+        + Sync,
+>;
+
 /// A struct for defining and running a Raphtory GraphQL server
+#[derive(Clone)]
 pub struct GraphServer {
     data: Data,
     config: AppConfig,
+    schema_data: Vec<SchemaDataInjector>,
 }
 
 pub fn register_query_plugin<
@@ -108,72 +145,114 @@ impl GraphServer {
     ///
     /// Returns:
     ///     IoResult:
-    pub fn new(
+    pub async fn new(
         work_dir: PathBuf,
         app_config: Option<AppConfig>,
         config_path: Option<PathBuf>,
+        graph_config: Config,
     ) -> IoResult<Self> {
         if !work_dir.exists() {
             create_dir_all(&work_dir)?;
         }
         let config = load_config(app_config, config_path).map_err(ServerError::ConfigError)?;
-        let data = Data::new(work_dir.as_path(), &config);
-        Ok(Self { data, config })
+        let data = Data::new(work_dir.as_path(), &config, graph_config);
+        Ok(Self {
+            data,
+            config,
+            schema_data: Vec::new(),
+        })
     }
 
-    /// Turn off index for all graphs
-    pub fn turn_off_index(mut self) -> Self {
-        self.data.create_index = false;
+    /// Returns the working directory for this server.
+    pub fn work_dir(&self) -> &Path {
+        &self.data.work_dir
+    }
+
+    pub fn turn_off_index(&mut self) {
+        self.data.create_index = false; // FIXME: why does this exist yet?
+    }
+
+    /// Set the authorization policy used for graph access checks.
+    pub fn with_auth_policy(mut self, policy: std::sync::Arc<dyn AuthorizationPolicy>) -> Self {
+        self.data.set_auth_policy(policy);
         self
     }
 
-    pub async fn set_embeddings<F: EmbeddingFunction + Clone + 'static>(
-        mut self,
-        embedding: F,
-        cache: &Path,
-        // or maybe it could be in a standard location like /tmp/raphtory/embedding_cache
-        global_template: Option<DocumentTemplate>,
-    ) -> GraphResult<Self> {
-        self.data.embedding_conf = Some(EmbeddingConf {
-            cache: VectorCache::on_disk(cache, embedding).await?, // TODO: better do this lazily, actually do it when running the server
-            global_template,
-            individual_templates: Default::default(),
-        });
-        Ok(self)
+    /// Inject arbitrary typed data into the GQL schema (accessible via `ctx.data::<T>()`).
+    pub fn with_schema_data<T: std::any::Any + Send + Sync + 'static>(mut self, data: T) -> Self {
+        let data = std::sync::Arc::new(std::sync::Mutex::new(Some(data)));
+        self.schema_data.push(std::sync::Arc::new(move |sb| {
+            let data = data
+                .lock()
+                .unwrap()
+                .take()
+                .expect("schema data injector called more than once");
+            sb.data(data)
+        }));
+        self
     }
 
-    /// Vectorise a subset of the graphs of the server.
+    /// Vectorise all the graphs in the server working directory.
     ///
     /// Arguments:
-    ///   * graph_names - the names of the graphs to vectorise. All if None is provided.
-    ///   * embedding - the embedding function to translate documents to embeddings.
-    ///   * cache - the directory to use as cache for the embeddings.
+    ///   * name - the name of the graph to vectorise.
     ///   * template - the template to use for creating documents.
     ///
     /// Returns:
     /// A new server object containing the vectorised graphs.
-    pub fn with_vectorised_graphs(
-        mut self,
-        graph_names: Vec<String>,
-        template: DocumentTemplate,
-    ) -> Self {
-        if let Some(embedding_conf) = &mut self.data.embedding_conf {
-            for graph_name in graph_names {
-                embedding_conf
-                    .individual_templates
-                    .insert(graph_name.into(), template.clone());
-            }
+    pub async fn vectorise_all_graphs(
+        &self,
+        template: &DocumentTemplate,
+        embeddings: OpenAIEmbeddings,
+    ) -> Result<(), GQLError> {
+        let vector_cache = self.data.vector_cache.resolve().await?;
+        let model = vector_cache.openai(embeddings.into()).await?;
+        for folder in self.data.get_all_graph_folders() {
+            self.data
+                .vectorise_folder(&folder, template, model.clone()) // TODO: avoid clone, just ask for a ref
+                .await?;
         }
-        self
+        Ok(())
+    }
+
+    /// Vectorise the graph 'name' in the server working directory.
+    ///
+    /// Arguments:
+    ///   * path - the path of the graph to vectorise.
+    ///   * template - the template to use for creating documents.
+    pub async fn vectorise_graph(
+        &self,
+        path: &str,
+        template: &DocumentTemplate,
+        embeddings: OpenAIEmbeddings,
+    ) -> Result<(), GQLError> {
+        let vetor_cache = self.data.vector_cache.resolve();
+        let model = vetor_cache.await?.openai(embeddings.into()).await?;
+        let folder = ExistingGraphFolder::try_from(self.data.work_dir.clone(), path)?;
+        self.data.vectorise_folder(&folder, template, model).await
     }
 
     /// Start the server on the default port and return a handle to it.
-    pub async fn start(self) -> IoResult<RunningGraphServer> {
-        self.start_with_port(DEFAULT_PORT).await
+    /// If the default port is in use,
+    pub async fn start(&self) -> IoResult<RunningGraphServer> {
+        match self.start_with_port(DEFAULT_PORT).await {
+            Ok(server) => Ok(server),
+            Err(err) => {
+                if matches!(err.kind(), ErrorKind::AddrInUse) {
+                    warn!("Default port {DEFAULT_PORT} already in use, retrying with port=0");
+                    self.start_with_port(0).await
+                } else {
+                    Err(err)
+                }
+            }
+        }
     }
 
     /// Start the server on the given port and return a handle to it.
-    pub async fn start_with_port(self, port: u16) -> IoResult<RunningGraphServer> {
+    pub async fn start_with_port(&self, port: u16) -> IoResult<RunningGraphServer> {
+        let acceptor = TcpListener::bind(format!("0.0.0.0:{port}"))
+            .into_acceptor()
+            .await?;
         // set up opentelemetry first of all
         let config = self.config.clone();
         let filter = config.logging.get_log_env();
@@ -197,18 +276,7 @@ impl GraphServer {
             }
         };
 
-        self.data.vectorise_all_graphs_that_are_not().await?;
         let work_dir = self.data.work_dir.clone();
-
-        // Otherwise evictions are only triggered when the cache is actively touched
-        let cache_clone = self.data.cache.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
-            loop {
-                interval.tick().await;
-                cache_clone.run_pending_tasks().await;
-            }
-        });
 
         // it is important that this runs after algorithms have been pushed to PLUGIN_ALGOS static variable
         let app = self
@@ -217,7 +285,22 @@ impl GraphServer {
 
         let (signal_sender, signal_receiver) = mpsc::channel(1);
 
-        info!("UI listening on 0.0.0.0:{port}, live at: http://localhost:{port}");
+        let actual_port = acceptor
+            .local_addr()
+            .into_iter()
+            .next()
+            .unwrap()
+            .as_socket_addr()
+            .unwrap()
+            .port();
+        let server_task = Server::new_with_acceptor(acceptor).run_with_graceful_shutdown(
+            app,
+            server_termination(signal_receiver, tp),
+            None,
+        );
+        let server_result = AbortOnDrop(tokio::spawn(server_task));
+
+        info!("UI listening on 0.0.0.0:{actual_port}, live at: http://localhost:{actual_port}");
         debug!(
             "Server configurations: {}",
             json!({
@@ -226,23 +309,40 @@ impl GraphServer {
             })
         );
 
-        let server_task = Server::new(TcpListener::bind(format!("0.0.0.0:{port}")))
-            .run_with_graceful_shutdown(app, server_termination(signal_receiver, tp), None);
-        let server_result = tokio::spawn(server_task);
-
         Ok(RunningGraphServer {
             signal_sender,
             server_result,
+            port: actual_port,
         })
     }
 
     async fn generate_endpoint(
-        self,
+        &self,
         tracer: Option<Tracer>,
     ) -> Result<CompressionEndpoint<CorsEndpoint<Route>>, ServerError> {
-        let schema_builder = App::create_schema();
-        let schema_builder = schema_builder.data(self.data);
-        let schema_builder = schema_builder.extension(MutationAuth);
+        let schema_cfg = &self.config.schema;
+        let mut schema_builder = App::create_schema()
+            .data(self.data.clone())
+            .data(self.config.concurrency.clone());
+        for inject in &self.schema_data {
+            schema_builder = inject(schema_builder);
+        }
+        schema_builder = schema_builder.extension(MutationAuth);
+        if let Some(depth) = schema_cfg.max_query_depth {
+            schema_builder = schema_builder.limit_depth(depth);
+        }
+        if let Some(complexity) = schema_cfg.max_query_complexity {
+            schema_builder = schema_builder.limit_complexity(complexity);
+        }
+        if let Some(recursive_depth) = schema_cfg.max_recursive_depth {
+            schema_builder = schema_builder.limit_recursive_depth(recursive_depth);
+        }
+        if let Some(max_directives) = schema_cfg.max_directives_per_field {
+            schema_builder = schema_builder.limit_directives(max_directives);
+        }
+        if schema_cfg.disable_introspection {
+            schema_builder = schema_builder.disable_introspection();
+        }
         let trace_level = self.config.tracing.tracing_level.clone();
         let schema = if let Some(t) = tracer {
             schema_builder
@@ -257,8 +357,8 @@ impl GraphServer {
             .nest(
                 "/",
                 PublicFilesEndpoint::new(
-                    self.config.public_dir,
-                    AuthenticatedGraphQL::new(schema, self.config.auth),
+                    self.config.public_dir.clone(),
+                    AuthenticatedGraphQL::new(schema, self.config.clone()),
                 ),
             )
             .at("/health", get(health))
@@ -279,11 +379,37 @@ impl GraphServer {
     }
 }
 
+#[derive(Debug)]
+pub struct AbortOnDrop<T>(pub JoinHandle<T>);
+
+impl<T> Drop for AbortOnDrop<T> {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+impl<T> Deref for AbortOnDrop<T> {
+    type Target = JoinHandle<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> Future for AbortOnDrop<T> {
+    type Output = <JoinHandle<T> as Future>::Output;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.0).poll(cx)
+    }
+}
+
 /// A Raphtory server handler
 #[derive(Debug)]
 pub struct RunningGraphServer {
     signal_sender: Sender<()>,
-    server_result: JoinHandle<IoResult<()>>,
+    server_result: AbortOnDrop<IoResult<()>>,
+    port: u16,
 }
 
 impl RunningGraphServer {
@@ -294,9 +420,11 @@ impl RunningGraphServer {
 
     /// Wait until server completion.
     pub async fn wait(self) -> IoResult<()> {
-        self.server_result
-            .await
-            .expect("Couldn't join tokio task for the server")
+        self.server_result.await.expect("Server panicked")
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
     }
 
     // TODO: make this optional with some python feature flag
@@ -349,8 +477,9 @@ mod server_tests {
     use crate::server::GraphServer;
     use chrono::prelude::*;
     use raphtory::{
+        db::api::storage::storage::Config,
         prelude::{AdditionOps, Graph, StableEncode, NO_PROPS},
-        vectors::{embeddings::EmbeddingResult, template::DocumentTemplate, Embedding},
+        vectors::{storage::OpenAIEmbeddings, template::DocumentTemplate},
     };
     use raphtory_api::core::utils::logging::global_info_logger;
     use tempfile::tempdir;
@@ -361,7 +490,9 @@ mod server_tests {
     async fn test_server_start_stop() {
         global_info_logger();
         let tmp_dir = tempdir().unwrap();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default())
+            .await
+            .unwrap();
         info!("Calling start at time {}", Local::now());
         let handler = server.start_with_port(0);
         sleep(Duration::from_secs(1)).await;
@@ -369,35 +500,25 @@ mod server_tests {
         handler.await.unwrap().stop().await
     }
 
-    #[derive(thiserror::Error, Debug)]
-    enum SomeError {
-        #[error("A variant of this error")]
-        Variant,
-    }
-
-    async fn failing_embedding(_texts: Vec<String>) -> EmbeddingResult<Vec<Embedding>> {
-        Err(SomeError::Variant.into())
-    }
-
     #[tokio::test]
     async fn test_server_start_with_failing_embedding() {
         let tmp_dir = tempdir().unwrap();
         let graph = Graph::new();
-        graph.add_node(0, 0, NO_PROPS, None).unwrap();
+        graph.add_node(0, 0, NO_PROPS, None, None).unwrap();
         graph.encode(tmp_dir.path().join("g")).unwrap();
 
         global_info_logger();
-        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None).unwrap();
+        let server = GraphServer::new(tmp_dir.path().to_path_buf(), None, None, Config::default())
+            .await
+            .unwrap();
         let template = DocumentTemplate {
             node_template: Some("{{ name }}".to_owned()),
             ..Default::default()
         };
-        let cache_dir = tempdir().unwrap();
-        let handler = server
-            .set_embeddings(failing_embedding, cache_dir.path(), Some(template))
-            .await
-            .unwrap()
-            .start_with_port(0);
+        let model = OpenAIEmbeddings::new("whatever", "wrong-api-base");
+        let result = server.vectorise_all_graphs(&template, model).await;
+        assert!(result.is_err());
+        let handler = server.start_with_port(0);
         sleep(Duration::from_secs(5)).await;
         handler.await.unwrap().stop().await
     }

@@ -14,7 +14,7 @@ edition.workspace = true
 
 [dependencies]
 raphtory-api = { workspace = true }
-dashmap = { workspace = true }
+dashmap = { workspace = true, features = ["raw-api"] }
 either = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 rustc-hash = { workspace = true }
@@ -22,12 +22,13 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 iter-enum = { workspace = true }
 bigdecimal = { workspace = true }
-lock_api = { workspace = true }
-rayon = { workspace = true }
 parking_lot = { workspace = true }
 itertools = { workspace = true }
-once_cell = { workspace = true }
 ouroboros = { workspace = true }
+arrow-array = { workspace = true }
+arrow-buffer = { workspace = true }
+arrow-data = { workspace = true }
+arrow-schema = { workspace = true }
 regex = { workspace = true }
 pyo3 = { workspace = true, optional = true }
 
@@ -35,5 +36,4 @@ pyo3 = { workspace = true, optional = true }
 proptest = { workspace = true }
 
 [features]
-arrow = ["raphtory-api/arrow"]
 python = ["dep:pyo3", "raphtory-api/python"]

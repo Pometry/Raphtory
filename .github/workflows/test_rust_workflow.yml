@@ -12,9 +12,10 @@ jobs:
   rust-test-no-storage:
     if: ${{ !inputs.skip_tests }}
     name: Rust Tests
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     env:
       RUST_BACKTRACE: 1
+      CARGO_BUILD_JOBS: 2
     strategy:
       matrix:
         include:
@@ -22,13 +23,7 @@ jobs:
           - os: ubuntu-latest
           - os: windows-latest
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1
-        name: Xcode version
-        if: "contains(matrix.os, 'macOS')"
-        with:
-          xcode-version: latest-stable
-      - uses: actions/checkout@v3
-        name: Checkout
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Free up space (ubuntu)
@@ -49,29 +44,34 @@ jobs:
         with:
           cache-all-crates: true
       - name: Install nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest@0.9.99
+        uses: taiki-e/install-action@nextest
+      - name: Install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Run all Tests (no disk_graph)
         env:
           RUSTFLAGS: -Awarnings
           TEMPDIR: ${{ runner.temp }}
         run: |
-          cargo nextest run --all --no-default-features --cargo-profile build-fast
+          cargo nextest run --workspace --no-default-features --cargo-profile build-fast
+      - name: Check all features
+        env:
+          RUSTFLAGS: -Awarnings
+        run: |
+          cargo hack check --workspace --all-targets --each-feature  --skip extension-module,default
   doc-test:
     if: ${{ !inputs.skip_tests }}
     name: "Doc tests"
-    runs-on: '${{ matrix.os }}'
+    runs-on: "${{ matrix.os }}"
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
       - uses: ./.github/actions/setup_rust
         name: Setup Rust
       - name: Install Protoc

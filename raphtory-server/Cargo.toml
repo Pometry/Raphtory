@@ -1,0 +1,13 @@
+[package]
+name = "raphtory-server"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "raphtory-server"
+path = "src/main.rs"
+
+[dependencies]
+raphtory-graphql = { workspace = true }
+auth = { workspace = true }
+tokio = { workspace = true }

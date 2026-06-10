@@ -15,13 +15,17 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
@@ -60,6 +64,17 @@ class FilterExpr(object):
         """Return value|self."""
 
 class FilterOps(object):
+    """
+    Builds property filter expressions.
+
+    This object represents “a property access” plus optional list/aggregate
+    qualifiers (e.g. `first`, `len`, `sum`) and can emit a `filter.FilterExpr` via
+    comparisons such as `==`, `<`, `is_in`, etc.
+
+    Returned expressions can be combined with `&`, `|`, and `~` at the
+    `filter.FilterExpr` level (where supported).
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -78,13 +93,33 @@ class FilterOps(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def all(self): ...
-    def any(self): ...
-    def avg(self): ...
+    def all(self) -> filter.PropertyFilterOps:
+        """
+        Requires that **all** elements match when the underlying property is list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
+    def any(self) -> filter.PropertyFilterOps:
+        """
+        Requires that **any** element matches when the underlying property is list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
+    def avg(self) -> filter.PropertyFilterOps:
+        """
+        Averages list elements when the underlying property is numeric and list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
     def contains(self, value: Prop) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property's
-        string representation contains the given value.
+        Checks whether the property's string representation contains the given value.
 
         Arguments:
             value (Prop): Substring that must appear within the value.
@@ -95,8 +130,7 @@ class FilterOps(object):
 
     def ends_with(self, value: Prop) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property's
-        string representation ends with the given value.
+        Checks whether the property's string representation ends with the given value.
 
         Arguments:
             value (Prop): Suffix to check for.
@@ -105,13 +139,19 @@ class FilterOps(object):
             filter.FilterExpr: A filter expression evaluating suffix matching.
         """
 
-    def first(self): ...
+    def first(self) -> filter.PropertyFilterOps:
+        """
+        Selects the first element when the underlying property is list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
     def fuzzy_search(
         self, prop_value: str, levenshtein_distance: int, prefix_match: bool
     ) -> filter.FilterExpr:
         """
-        Returns a filter expression that performs fuzzy matching
-        against the property's string value.
+        Performs fuzzy matching against the property's string value.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
@@ -126,8 +166,7 @@ class FilterOps(object):
 
     def is_in(self, values: list[Prop]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property
-        is contained within the specified iterable of values.
+        Checks whether the property is contained within the specified iterable of values.
 
         Arguments:
             values (list[Prop]): Iterable of property values to match against.
@@ -138,8 +177,7 @@ class FilterOps(object):
 
     def is_none(self) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property
-        value is `None` / missing.
+        Checks whether the property value is `None` / missing.
 
         Returns:
             filter.FilterExpr: A filter expression evaluating `value is None`.
@@ -147,8 +185,7 @@ class FilterOps(object):
 
     def is_not_in(self, values: list[Prop]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property
-        is **not** contained within the specified iterable of values.
+        Checks whether the property is **not** contained within the specified iterable of values.
 
         Arguments:
             values (list[Prop]): Iterable of property values to exclude.
@@ -159,21 +196,47 @@ class FilterOps(object):
 
     def is_some(self) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property
-        value is present (not `None`).
+        Checks whether the property value is present (not `None`).
 
         Returns:
             filter.FilterExpr: A filter expression evaluating `value is not None`.
         """
 
-    def last(self): ...
-    def len(self): ...
-    def max(self): ...
-    def min(self): ...
+    def last(self) -> filter.PropertyFilterOps:
+        """
+        Selects the last element when the underlying property is list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
+    def len(self) -> filter.PropertyFilterOps:
+        """
+        Returns the list length when the underlying property is list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
+    def max(self) -> filter.PropertyFilterOps:
+        """
+        Returns the maximum list element when the underlying property is list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
+    def min(self) -> filter.PropertyFilterOps:
+        """
+        Returns the minimum list element when the underlying property is list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
     def not_contains(self, value: Prop) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property's
-        string representation **does not** contain the given value.
+        Checks whether the property's string representation **does not** contain the given value.
 
         Arguments:
             value (Prop): Substring that must not appear within the value.
@@ -184,8 +247,7 @@ class FilterOps(object):
 
     def starts_with(self, value: Prop) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the property's
-        string representation starts with the given value.
+        Checks whether the property's string representation starts with the given value.
 
         Arguments:
             value (Prop): Prefix to check for.
@@ -194,42 +256,237 @@ class FilterOps(object):
             filter.FilterExpr: A filter expression evaluating prefix matching.
         """
 
-    def sum(self): ...
+    def sum(self) -> filter.PropertyFilterOps:
+        """
+        Sums list elements when the underlying property is numeric and list-like.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
 
 class PropertyFilterOps(FilterOps):
-    def temporal(self): ...
+    """
+    Builds property filter expressions with access to temporal qualifiers.
+
+    Exported as: `filter.PropertyFilterOps`
+
+    This extends `FilterOps` and provides `.temporal()` to explicitly select
+    temporal property evaluation semantics (where supported by the query context).
+    """
+
+    def temporal(self) -> filter.FilterOps:
+        """
+        Selects temporal evaluation for the property.
+
+        Returns:
+            filter.FilterOps: A property expression builder operating on temporal values.
+        """
 
 class Node(object):
+    """
+    Constructs node filter expressions.
+
+    Each method returns either:
+    - a field-specific filter builder, or
+    - a view-restricted filter context, or
+    - a boolean predicate over node state.
+    """
+
     @staticmethod
-    def after(time): ...
+    def after(time: int) -> filter.NodeViewPropsFilterBuilder:
+        """
+        Restricts node evaluation to times strictly after the given time.
+
+        Arguments:
+            time (int): Lower time bound.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def at(time): ...
+    def at(time: int) -> filter.NodeViewPropsFilterBuilder:
+        """
+        Restricts node evaluation to a single point in time.
+
+        Arguments:
+            time (int): Event time.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def before(time): ...
+    def before(time: int) -> filter.NodeViewPropsFilterBuilder:
+        """
+        Restricts node evaluation to times strictly before the given time.
+
+        Arguments:
+            time (int): Upper time bound.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def id(): ...
+    def by_state_column(state: OutputNodeState, col: str) -> filter.FilterExpr:
+        """
+        Build a node filter from a boolean column of an existing node-state result.
+
+        Arguments:
+            state (OutputNodeState): A pre-computed node state (e.g. from an algorithm).
+            col (str): Name of the boolean column on `state` whose values determine inclusion.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def latest(): ...
+    def id() -> filter.NodeIdFilterBuilder:
+        """
+        Selects the node ID field for filtering.
+
+        Returns:
+            filter.NodeIdFilterBuilder:
+        """
+
     @staticmethod
-    def layer(layer): ...
+    def is_active() -> filter.FilterExpr:
+        """
+        Matches nodes that have at least one event in the current view.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def layers(layers): ...
+    def latest() -> filter.NodeViewPropsFilterBuilder:
+        """
+        Evaluates filters against the latest available state of each node.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def metadata(name): ...
+    def layer(layer: str) -> filter.NodeViewPropsFilterBuilder:
+        """
+        Restricts evaluation to nodes belonging to the given layer.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def name(): ...
+    def layers(layers: list[str]) -> filter.NodeViewPropsFilterBuilder:
+        """
+        Restricts evaluation to nodes belonging to any of the given layers.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def node_type(): ...
+    def metadata(name: str) -> filter.FilterOps:
+        """
+        Filters a node metadata field by name.
+
+        Metadata is shared across all temporal versions of a node.
+
+        Arguments:
+            name (str): Metadata key.
+
+        Returns:
+            filter.FilterOps:
+        """
+
     @staticmethod
-    def property(name): ...
+    def name() -> filter.NodeNameFilterBuilder:
+        """
+        Selects the node name field for filtering.
+
+        Returns:
+            filter.NodeNameFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_at(time): ...
+    def node_type() -> filter.NodeTypeFilterBuilder:
+        """
+        Selects the node type field for filtering.
+
+        Returns:
+            filter.NodeTypeFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_latest(): ...
+    def property(name: str) -> filter.PropertyFilterOps:
+        """
+        Filters a node property by name.
+
+        The property may be static or temporal depending on the query context.
+
+        Arguments:
+            name (str): Property key.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
     @staticmethod
-    def window(start, end): ...
+    def snapshot_at(time: int) -> filter.NodeViewPropsFilterBuilder:
+        """
+        Evaluates filters against a snapshot of the graph at a given time.
+
+        Arguments:
+            time (int): Snapshot time.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
+    @staticmethod
+    def snapshot_latest() -> filter.NodeViewPropsFilterBuilder:
+        """
+        Evaluates filters against the most recent snapshot of the graph.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
+
+    @staticmethod
+    def window(start: int, end: int) -> filter.NodeViewPropsFilterBuilder:
+        """
+        Restricts node evaluation to the given time window.
+
+        The window is inclusive of `start` and exclusive of `end`.
+
+        Arguments:
+            start (int): Start time.
+            end (int): End time.
+
+        Returns:
+            filter.NodeViewPropsFilterBuilder:
+        """
 
 class NodeIdFilterBuilder(object):
+    """
+    Filters nodes by their ID value.
+
+    Supports numeric and string IDs and produces a `FilterExpr`
+    that can be used in node queries.
+
+    Examples:
+        Node.id() == 1
+        Node.id().is_in([1, 2, 3])
+        Node.id().starts_with("user:")
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -339,6 +596,16 @@ class NodeIdFilterBuilder(object):
         """
 
 class NodeNameFilterBuilder(object):
+    """
+    Filters nodes by their name.
+
+    Comparisons are performed on the node's string name.
+
+    Examples:
+        Node.name() == "alice"
+        Node.name().contains("ali")
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -448,6 +715,16 @@ class NodeNameFilterBuilder(object):
         """
 
 class NodeTypeFilterBuilder(object):
+    """
+    Filters nodes by their node type.
+
+    The node type corresponds to the optional type assigned at node creation.
+
+    Examples:
+        Node.node_type() == "fire_nation"
+        Node.node_type().is_not_in(["air_nomads"])
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -557,41 +834,286 @@ class NodeTypeFilterBuilder(object):
         """
 
 class Edge(object):
+    """
+    Entry point for constructing edge filter expressions.
+
+    The `Edge` filter provides:
+    - endpoint filters via `src()` and `dst()`,
+    - property and metadata filters,
+    - view restrictions (time windows, snapshots, layers),
+    - and structural predicates over edge state (active/valid/deleted/self-loop).
+
+    Examples:
+        Edge.src().id() == 1
+        Edge.property("weight") > 0.5
+        Edge.window(0, 10).is_active()
+        Edge.layer("fire_nation").is_valid()
+    """
+
     @staticmethod
-    def after(time): ...
+    def after(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts edge evaluation to times strictly after the given time.
+
+        Arguments:
+            time (int): Lower time bound.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def at(time): ...
+    def at(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts edge evaluation to a single point in time.
+
+        Arguments:
+            time (int): Event time.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def before(time): ...
+    def before(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts edge evaluation to times strictly before the given time.
+
+        Arguments:
+            time (int): Upper time bound.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def dst(): ...
+    def dst() -> filter.EdgeEndpoint:
+        """
+        Selects the edge **destination endpoint** for filtering.
+
+        Returns:
+            filter.EdgeEndpoint:
+        """
+
     @staticmethod
-    def latest(): ...
+    def is_active() -> filter.FilterExpr:
+        """
+        Matches edges that have at least one event in the current view.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def layer(layer): ...
+    def is_deleted() -> filter.FilterExpr:
+        """
+        Matches edges that have been deleted.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def layers(layers): ...
+    def is_self_loop() -> filter.FilterExpr:
+        """
+        Matches edges that are self-loops (source == destination).
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def metadata(name): ...
+    def is_valid() -> filter.FilterExpr:
+        """
+        Matches edges that are structurally valid in the current view.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def property(name): ...
+    def latest() -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Evaluates edge predicates against the latest available edge state.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_at(time): ...
+    def layer(layer: str) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts evaluation to edges belonging to the given layer.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_latest(): ...
+    def layers(layers: list[str]) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts evaluation to edges belonging to any of the given layers.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def src(): ...
+    def metadata(name: str) -> filter.FilterOps:
+        """
+        Filters an edge metadata field by name.
+
+        Metadata is shared across all temporal versions of an edge.
+
+        Arguments:
+            name (str): Metadata key.
+
+        Returns:
+            filter.FilterOps:
+        """
+
     @staticmethod
-    def window(start, end): ...
+    def property(name: str) -> filter.PropertyFilterOps:
+        """
+        Filters an edge property by name.
+
+        The property may be static or temporal depending on the query context.
+
+        Arguments:
+            name (str): Property key.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
+    @staticmethod
+    def snapshot_at(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Evaluates edge predicates against a snapshot of the graph at a given time.
+
+        Arguments:
+            time (int): Snapshot time.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
+    @staticmethod
+    def snapshot_latest() -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Evaluates edge predicates against the most recent snapshot of the graph.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
+    @staticmethod
+    def src() -> filter.EdgeEndpoint:
+        """
+        Selects the edge **source endpoint** for filtering.
+
+        Returns:
+            filter.EdgeEndpoint:
+        """
+
+    @staticmethod
+    def window(start: int, end: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts edge evaluation to the given time window.
+
+        The window is inclusive of `start` and exclusive of `end`.
+
+        Arguments:
+            start (int): Start time.
+            end (int): End time.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
 
 class EdgeEndpoint(object):
-    def id(self): ...
-    def metadata(self, name): ...
-    def name(self): ...
-    def node_type(self): ...
-    def property(self, name): ...
+    """
+    Entry point for filtering an edge endpoint (source or destination).
+
+    An `EdgeEndpoint` is obtained from `Edge.src()` or `Edge.dst()` and allows
+    you to filter on endpoint fields (id, name, type) as well as endpoint
+    properties and metadata.
+
+    Examples:
+        Edge.src().id() == 1
+        Edge.dst().name().starts_with("user:")
+        Edge.src().property("country") == "UK"
+    """
+
+    def id(self) -> filter.EdgeEndpointIdFilter:
+        """
+        Selects the endpoint node ID field for filtering.
+
+        Returns:
+            filter.EdgeEndpointIdFilter:
+        """
+
+    def metadata(self, name: str) -> filter.FilterOps:
+        """
+        Filters an endpoint node metadata field by name.
+
+        Metadata is shared across all temporal versions of a node.
+
+        Arguments:
+            name (str): Metadata key.
+
+        Returns:
+            filter.FilterOps:
+        """
+
+    def name(self) -> filter.EdgeEndpointNameFilter:
+        """
+        Selects the endpoint node name field for filtering.
+
+        Returns:
+            filter.EdgeEndpointNameFilter:
+        """
+
+    def node_type(self) -> filter.EdgeEndpointTypeFilter:
+        """
+        Selects the endpoint node type field for filtering.
+
+        Returns:
+            filter.EdgeEndpointTypeFilter:
+        """
+
+    def property(self, name: str) -> filter.PropertyFilterOps:
+        """
+        Filters an endpoint node property by name.
+
+        The property may be static or temporal depending on the query context.
+
+        Arguments:
+            name (str): Property key.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
 
 class EdgeEndpointIdFilter(object):
+    """
+    Filters an edge endpoint by its node ID.
+
+    This builder produces `FilterExpr` predicates over the **source** or
+    **destination** endpoint of an edge (depending on where it was obtained).
+
+    Examples:
+        Edge.src().id() == 1
+        Edge.dst().id().is_in([1, 2, 3])
+        Edge.src().id().starts_with("user:")
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -612,8 +1134,7 @@ class EdgeEndpointIdFilter(object):
 
     def contains(self, value: str) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the string
-        representation of the endpoint ID contains the given substring.
+        Checks whether the string representation of the endpoint ID contains the given substring.
 
         Arguments:
             value (str): Substring to search for.
@@ -624,8 +1145,7 @@ class EdgeEndpointIdFilter(object):
 
     def ends_with(self, value: str) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the string
-        representation of the endpoint ID ends with the given suffix.
+        Checks whether the string representation of the endpoint ID ends with the given suffix.
 
         Arguments:
             value (str): Suffix to check for.
@@ -638,8 +1158,7 @@ class EdgeEndpointIdFilter(object):
         self, value: str, levenshtein_distance: int, prefix_match: bool
     ) -> filter.FilterExpr:
         """
-        Returns a filter expression that performs fuzzy matching
-        against the string representation of the endpoint ID.
+        Performs fuzzy matching against the string representation of the endpoint ID.
 
         Uses a specified Levenshtein distance and optional prefix matching.
 
@@ -654,8 +1173,7 @@ class EdgeEndpointIdFilter(object):
 
     def is_in(self, values: list[int]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the endpoint ID
-        is contained within the specified iterable of IDs.
+        Checks whether the endpoint ID is contained within the specified iterable of IDs.
 
         Arguments:
             values (list[int]): Iterable of node IDs to match against.
@@ -666,8 +1184,7 @@ class EdgeEndpointIdFilter(object):
 
     def is_not_in(self, values: list[int]) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the endpoint ID
-        is **not** contained within the specified iterable of IDs.
+        Checks whether the endpoint ID is **not** contained within the specified iterable of IDs.
 
         Arguments:
             values (list[int]): Iterable of node IDs to exclude.
@@ -678,8 +1195,7 @@ class EdgeEndpointIdFilter(object):
 
     def not_contains(self, value: str) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the string
-        representation of the endpoint ID **does not** contain the given substring.
+        Checks whether the string representation of the endpoint ID **does not** contain the given substring.
 
         Arguments:
             value (str): Substring to exclude.
@@ -690,8 +1206,7 @@ class EdgeEndpointIdFilter(object):
 
     def starts_with(self, value: str) -> filter.FilterExpr:
         """
-        Returns a filter expression that checks whether the string
-        representation of the endpoint ID starts with the given prefix.
+        Checks whether the string representation of the endpoint ID starts with the given prefix.
 
         Arguments:
             value (str): Prefix to check for.
@@ -701,6 +1216,17 @@ class EdgeEndpointIdFilter(object):
         """
 
 class EdgeEndpointNameFilter(object):
+    """
+    Filters an edge endpoint by its node name.
+
+    This builder produces `FilterExpr` predicates over the **source** or
+    **destination** endpoint node name.
+
+    Examples:
+        Edge.src().name() == "alice"
+        Edge.dst().name().contains("ali")
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -810,6 +1336,17 @@ class EdgeEndpointNameFilter(object):
         """
 
 class EdgeEndpointTypeFilter(object):
+    """
+    Filters an edge endpoint by its node type.
+
+    This builder produces `FilterExpr` predicates over the **source** or
+    **destination** endpoint node type.
+
+    Examples:
+        Edge.src().node_type() == "fire_nation"
+        Edge.dst().node_type().is_not_in(["air_nomads"])
+    """
+
     def __eq__(self, value):
         """Return self==value."""
 
@@ -919,45 +1456,313 @@ class EdgeEndpointTypeFilter(object):
         """
 
 class ExplodedEdge(object):
+    """
+    Entry point for constructing **exploded edge** filter expressions.
+
+    An **exploded edge** represents an edge view where temporal events are treated
+    as individually addressable edge instances (i.e. “event-level” edges), rather
+    than a single aggregated edge across time.
+
+    This filter provides:
+    - property and metadata filters,
+    - view restrictions (time windows, snapshots, layers),
+    - and structural predicates over exploded edge state (active/valid/deleted/self-loop).
+
+    Examples:
+        ExplodedEdge.property("weight") > 0.5
+        ExplodedEdge.window(0, 10).is_active()
+        ExplodedEdge.layer("fire_nation").is_valid()
+    """
+
     @staticmethod
-    def after(time): ...
+    def after(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts exploded edge evaluation to times strictly after the given time.
+
+        Arguments:
+            time (int): Lower time bound.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def at(time): ...
+    def at(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts exploded edge evaluation to a single point in time.
+
+        Arguments:
+            time (int): Event time.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def before(time): ...
+    def before(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts exploded edge evaluation to times strictly before the given time.
+
+        Arguments:
+            time (int): Upper time bound.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def latest(): ...
+    def is_active() -> filter.FilterExpr:
+        """
+        Matches exploded edges that have at least one event in the current view.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def layer(layer): ...
+    def is_deleted() -> filter.FilterExpr:
+        """
+        Matches exploded edges that have been deleted.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def layers(layers): ...
+    def is_self_loop() -> filter.FilterExpr:
+        """
+        Matches exploded edges that are self-loops (source == destination).
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def metadata(name): ...
+    def is_valid() -> filter.FilterExpr:
+        """
+        Matches exploded edges that are structurally valid in the current view.
+
+        Returns:
+            filter.FilterExpr:
+        """
+
     @staticmethod
-    def property(name): ...
+    def latest() -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Evaluates exploded edge predicates against the latest available state.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_at(time): ...
+    def layer(layer: str) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts evaluation to exploded edges belonging to the given layer.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_latest(): ...
+    def layers(layers: list[str]) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts evaluation to exploded edges belonging to any of the given layers.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
     @staticmethod
-    def window(start, end): ...
+    def metadata(name: str) -> filter.FilterOps:
+        """
+        Filters an exploded edge metadata field by name.
+
+        Metadata is shared across all temporal versions of an exploded edge.
+
+        Arguments:
+            name (str): Metadata key.
+
+        Returns:
+            filter.FilterOps:
+        """
+
+    @staticmethod
+    def property(name: str) -> filter.PropertyFilterOps:
+        """
+        Filters an exploded edge property by name.
+
+        The property may be static or temporal depending on the query context.
+
+        Arguments:
+            name (str): Property key.
+
+        Returns:
+            filter.PropertyFilterOps:
+        """
+
+    @staticmethod
+    def snapshot_at(time: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Evaluates exploded edge predicates against a snapshot of the graph at a given time.
+
+        Arguments:
+            time (int): Snapshot time.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
+    @staticmethod
+    def snapshot_latest() -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Evaluates exploded edge predicates against the most recent snapshot of the graph.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
+
+    @staticmethod
+    def window(start: int, end: int) -> filter.EdgeViewPropsFilterBuilder:
+        """
+        Restricts exploded edge evaluation to the given time window.
+
+        The window is inclusive of `start` and exclusive of `end`.
+
+        Arguments:
+            start (int): Start time.
+            end (int): End time.
+
+        Returns:
+            filter.EdgeViewPropsFilterBuilder:
+        """
 
 class Graph(object):
+    """
+    Entry point for constructing **graph-level view filters**.
+
+    The `Graph` filter restricts *when* and *where* the graph is evaluated,
+    independent of node or edge predicates. It defines the **temporal scope**
+    (windows, snapshots, latest state) and **layer scope** for subsequent
+    node and edge filters.
+
+    All methods are static and return a `ViewFilterBuilder`, which can then
+    be refined further or combined with node/edge predicates.
+
+    Examples:
+        Graph.window(0, 10)
+        Graph.at(5)
+        Graph.latest().layer("fire_nation")
+        Graph.layers(["A", "B"]).snapshot_latest()
+    """
+
     @staticmethod
-    def after(time): ...
+    def after(time: int) -> filter.ViewFilterBuilder:
+        """
+        Restricts evaluation to times strictly after the given time.
+
+        Arguments:
+            time (int): Lower time bound.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def at(time): ...
+    def at(time: int) -> filter.ViewFilterBuilder:
+        """
+        Restricts evaluation to a single point in time.
+
+        Arguments:
+            time (int): Event time.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def before(time): ...
+    def before(time: int) -> filter.ViewFilterBuilder:
+        """
+        Restricts evaluation to times strictly before the given time.
+
+        Arguments:
+            time (int): Upper time bound.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def latest(): ...
+    def latest() -> filter.ViewFilterBuilder:
+        """
+        Evaluates filters against the latest available state of the graph.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def layer(layer): ...
+    def layer(layer: str) -> filter.ViewFilterBuilder:
+        """
+        Restricts evaluation to a single layer.
+
+        Arguments:
+            layer (str): Layer name.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def layers(layers): ...
+    def layers(layers: list[str]) -> filter.ViewFilterBuilder:
+        """
+        Restricts evaluation to any of the given layers.
+
+        Arguments:
+            layers (list[str]): Layer names.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_at(time): ...
+    def snapshot_at(time: int) -> filter.ViewFilterBuilder:
+        """
+        Evaluates filters against a snapshot of the graph at a given time.
+
+        Arguments:
+            time (int): Snapshot time.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def snapshot_latest(): ...
+    def snapshot_latest() -> filter.ViewFilterBuilder:
+        """
+        Evaluates filters against the most recent snapshot of the graph.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """
+
     @staticmethod
-    def window(start, end): ...
+    def window(start: int, end: int) -> filter.ViewFilterBuilder:
+        """
+        Restricts evaluation to events within a time window.
+
+        The window is inclusive of `start` and exclusive of `end`.
+
+        Arguments:
+            start (int): Start time.
+            end (int): End time.
+
+        Returns:
+            filter.ViewFilterBuilder:
+        """

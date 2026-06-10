@@ -7,24 +7,24 @@ use crate::{
     errors::GraphError,
     prelude::*,
     search::{edge_index::EdgeIndex, node_index::NodeIndex, searcher::Searcher},
-    serialise::GraphFolder,
+    serialise::{GraphFolder, GraphPaths, InnerGraphFolder},
 };
 use parking_lot::RwLock;
-use raphtory_api::core::storage::dict_mapper::MaybeNew;
+use raphtory_api::core::{entities::LayerId, storage::dict_mapper::MaybeNew};
 use raphtory_storage::graph::graph::GraphStorage;
 use std::{
     ffi::OsStr,
     fmt::Debug,
     fs,
     fs::File,
+    io::{Seek, Write},
     ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tempfile::TempDir;
-use uuid::Uuid;
 use walkdir::WalkDir;
-use zip::{write::FileOptions, ZipArchive, ZipWriter};
+use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 #[derive(Clone)]
 pub struct Index {
@@ -43,7 +43,7 @@ impl Index {
 #[derive(Clone)]
 pub struct ImmutableGraphIndex {
     pub(crate) index: Index,
-    pub(crate) path: Arc<GraphFolder>,
+    pub(crate) path: Arc<InnerGraphFolder>,
     pub index_spec: Arc<IndexSpec>,
 }
 
@@ -58,7 +58,7 @@ impl MutableGraphIndex {
     pub fn update(&self, graph: &GraphStorage, index_spec: IndexSpec) -> Result<(), GraphError> {
         let mut existing_spec = self.index_spec.write();
 
-        if let Some(diff_spec) = IndexSpec::diff(&*existing_spec, &index_spec) {
+        if let Some(diff_spec) = IndexSpec::diff(&existing_spec, &index_spec) {
             let path = get_node_index_path(&self.path);
             self.index
                 .node_index
@@ -71,20 +71,28 @@ impl MutableGraphIndex {
 
             // self.index.print()?;
 
-            *existing_spec = IndexSpec::union(&*existing_spec, &diff_spec);
+            *existing_spec = IndexSpec::union(&existing_spec, &diff_spec);
         }
 
         Ok(())
     }
 
+    pub(crate) fn add_new_node(
+        &self,
+        node_id: VID,
+        name: String,
+        node_type: Option<&str>,
+    ) -> Result<(), GraphError> {
+        self.index.node_index.add_new_node(node_id, name, node_type)
+    }
+
     pub(crate) fn add_node_update(
         &self,
-        graph: &GraphStorage,
         t: EventTime,
-        v: MaybeNew<VID>,
+        v: VID,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
-        self.index.node_index.add_node_update(graph, t, v, props)?;
+        self.index.node_index.add_node_update(t, v, props)?;
         Ok(())
     }
 
@@ -110,7 +118,7 @@ impl MutableGraphIndex {
         graph: &GraphStorage,
         edge_id: MaybeNew<EID>,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.index
@@ -121,7 +129,7 @@ impl MutableGraphIndex {
     pub(crate) fn add_edge_metadata(
         &self,
         edge_id: EID,
-        layer: usize,
+        layer: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.index
@@ -132,7 +140,7 @@ impl MutableGraphIndex {
     pub(crate) fn update_edge_metadata(
         &self,
         edge_id: EID,
-        layer: usize,
+        layer: LayerId,
         props: &[(usize, Prop)],
     ) -> Result<(), GraphError> {
         self.index
@@ -181,7 +189,7 @@ impl GraphIndex {
             let temp_dir = match cached_graph_path {
                 // Creates index in a temp dir within cache graph dir.
                 // The intention is to avoid creating index in a tmp dir that could be on another file system.
-                Some(path) => TempDir::new_in(path.get_base_path())?,
+                Some(path) => TempDir::new_in(path.root())?,
                 None => TempDir::new()?,
             };
 
@@ -213,7 +221,7 @@ impl GraphIndex {
     pub fn load_from_path(path: &GraphFolder) -> Result<GraphIndex, GraphError> {
         if path.is_zip() {
             let index_path = TempDir::new()?;
-            unzip_index(&path.get_base_path(), index_path.path())?;
+            unzip_index(&path.root(), index_path.path())?;
 
             let (index, index_spec) = load_indexes(index_path.path())?;
 
@@ -223,93 +231,55 @@ impl GraphIndex {
                 index_spec: Arc::new(RwLock::new(index_spec)),
             }))
         } else {
-            let index_path = path.get_index_path();
+            let index_path = path.index_path()?;
             let (index, index_spec) = load_indexes(index_path.as_path())?;
 
             Ok(GraphIndex::Immutable(ImmutableGraphIndex {
                 index,
-                path: Arc::new(path.clone()),
+                path: Arc::new(path.data_path()?),
                 index_spec: Arc::new(index_spec),
             }))
         }
     }
 
-    pub(crate) fn persist_to_disk(&self, path: &GraphFolder) -> Result<(), GraphError> {
+    pub(crate) fn persist_to_disk(&self, path: &impl GraphPaths) -> Result<(), GraphError> {
         let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
-        let path = path.get_index_path();
-        let path = path.as_path();
-
-        let temp_path = &path.with_extension(format!("tmp-{}", Uuid::new_v4()));
-
-        copy_dir_recursive(&source_path, temp_path)?;
-
-        // Always overwrite the existing graph index when persisting, since the in-memory
-        // working index may have newer updates. The persisted index is decoupled from the
-        // active one, and changes remain in memory unless explicitly saved.
-        // This behavior mirrors how the in-memory graph works — updates are not persisted
-        // unless manually saved, except when using the cached view (see db/graph/views/cached_view).
-        // This however is reached only when write_updates, otherwise graph is not allowed to be written to
-        // the existing location anyway. See GraphError::NonEmptyGraphFolder.
-        if path.exists() {
-            fs::remove_dir_all(path)
-                .map_err(|_e| GraphError::FailedToRemoveExistingGraphIndex(path.to_path_buf()))?;
+        let path = path.index_path()?;
+        if source_path != path {
+            copy_dir_recursive(&source_path, &path)?;
         }
-
-        fs::rename(temp_path, path).map_err(|e| {
-            GraphError::IOErrorMsg(format!("Failed to rename temp index folder: {}", e))
-        })?;
-
         Ok(())
     }
 
-    pub(crate) fn persist_to_disk_zip(&self, path: &GraphFolder) -> Result<(), GraphError> {
-        let file = File::options()
-            .read(true)
-            .write(true)
-            .open(path.get_base_path())?;
-        let mut zip = ZipWriter::new_append(file)?;
-
+    pub(crate) fn persist_to_disk_zip<W: Write + Seek>(
+        &self,
+        writer: &mut ZipWriter<W>,
+        prefix: &str,
+    ) -> Result<(), GraphError> {
         let source_path = self.path().ok_or(GraphError::CannotPersistRamIndex)?;
-
         for entry in WalkDir::new(&source_path)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.path().is_file())
         {
-            let rel_path = entry
-                .path()
-                .strip_prefix(&source_path)
-                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to strip path: {}", e)))?;
+            let rel_path = entry.path().strip_prefix(&source_path)?;
 
-            let zip_entry_name = PathBuf::from("index")
-                .join(rel_path)
-                .to_string_lossy()
-                .into_owned();
-            zip.start_file::<_, ()>(zip_entry_name, FileOptions::default())
-                .map_err(|e| {
-                    GraphError::IOErrorMsg(format!("Failed to start zip file entry: {}", e))
-                })?;
+            let zip_entry_name = Path::new(prefix).join(rel_path);
+            writer.start_file_from_path(zip_entry_name, SimpleFileOptions::default())?;
 
-            let mut f = File::open(entry.path())
-                .map_err(|e| GraphError::IOErrorMsg(format!("Failed to open index file: {}", e)))?;
+            let mut f = File::open(entry.path())?;
 
-            std::io::copy(&mut f, &mut zip).map_err(|e| {
-                GraphError::IOErrorMsg(format!("Failed to write zip content: {}", e))
-            })?;
+            std::io::copy(&mut f, writer)?;
         }
-
-        zip.finish()
-            .map_err(|e| GraphError::IOErrorMsg(format!("Failed to finalize zip: {}", e)))?;
-
         Ok(())
     }
 
     pub fn make_mutable_if_needed(&mut self) -> Result<(), GraphError> {
         if let GraphIndex::Immutable(immutable) = self {
-            let temp_dir = TempDir::new_in(&immutable.path.get_base_path())?;
+            let temp_dir = TempDir::new_in(immutable.path.as_ref())?;
             let temp_path = temp_dir.path();
 
-            copy_dir_recursive(&immutable.path.get_index_path(), temp_path)?;
+            copy_dir_recursive(&immutable.path.index_path(), temp_path)?;
 
             let node_index = NodeIndex::load_from_path(&temp_path.join("nodes"))?;
             let edge_index = EdgeIndex::load_from_path(&temp_path.join("edges"))?;
@@ -342,7 +312,7 @@ impl GraphIndex {
 
     pub fn path(&self) -> Option<PathBuf> {
         match self {
-            GraphIndex::Immutable(i) => Some(i.path.get_index_path()),
+            GraphIndex::Immutable(i) => Some(i.path.index_path()),
             GraphIndex::Mutable(m) => m.path.as_ref().map(|p| p.path().to_path_buf()),
             GraphIndex::Empty => None,
         }
@@ -476,136 +446,4 @@ fn load_indexes(index_path: &Path) -> Result<(Index, IndexSpec), GraphError> {
         },
         index_spec,
     ))
-}
-
-#[cfg(test)]
-mod graph_index_test {
-    use crate::prelude::{AdditionOps, Graph, GraphViewOps};
-
-    use crate::db::graph::views::filter::model::{
-        edge_filter::EdgeFilter, node_filter::NodeFilter, property_filter::ops::PropertyFilterOps,
-        PropertyFilterFactory,
-    };
-    #[cfg(feature = "search")]
-    use crate::{
-        db::graph::assertions::{search_edges, search_nodes},
-        prelude::IndexMutationOps,
-    };
-
-    fn init_nodes_graph(graph: Graph) -> Graph {
-        graph
-            .add_node(1, 1, [("p1", 1), ("p2", 2)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(2, 1, [("p6", 6)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(2, 2, [("p4", 5)], Some("fire_nation"))
-            .unwrap();
-        graph
-            .add_node(3, 3, [("p2", 4), ("p3", 3)], Some("water_tribe"))
-            .unwrap();
-        graph
-    }
-
-    fn init_edges_graph(graph: Graph) -> Graph {
-        graph
-            .add_edge(1, 1, 2, [("p1", 1), ("p2", 2)], None)
-            .unwrap();
-        graph.add_edge(2, 1, 2, [("p6", 6)], None).unwrap();
-        graph.add_edge(2, 2, 3, [("p4", 5)], None).unwrap();
-        graph
-            .add_edge(3, 3, 4, [("p2", 4), ("p3", 3)], None)
-            .unwrap();
-        graph
-    }
-
-    #[test]
-    fn test_if_bulk_load_create_graph_index_is_ok() {
-        let graph = Graph::new();
-        let graph = init_nodes_graph(graph);
-
-        assert_eq!(graph.count_nodes(), 3);
-
-        graph.create_index_in_ram().unwrap();
-    }
-
-    #[test]
-    fn test_if_adding_nodes_to_existing_graph_index_is_ok() {
-        let graph = Graph::new();
-        graph.create_index_in_ram().unwrap();
-
-        let graph = init_nodes_graph(graph);
-
-        assert_eq!(graph.count_nodes(), 3);
-    }
-
-    #[test]
-    fn test_if_adding_edges_to_existing_graph_index_is_ok() {
-        let graph = Graph::new();
-        // Creates graph index
-        graph.create_index_in_ram().unwrap();
-
-        let graph = init_edges_graph(graph);
-
-        assert_eq!(graph.count_edges(), 3);
-    }
-
-    #[test]
-    fn test_node_metadata_graph_index_is_ok() {
-        let graph = Graph::new();
-        let graph = init_nodes_graph(graph);
-        graph.create_index_in_ram().unwrap();
-        graph.node(1).unwrap().add_metadata([("x", 1u64)]).unwrap();
-
-        let filter = NodeFilter.metadata("x").eq(1u64);
-        assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
-
-        graph
-            .node(1)
-            .unwrap()
-            .update_metadata([("x", 2u64)])
-            .unwrap();
-        let filter = NodeFilter.metadata("x").eq(1u64);
-        assert_eq!(search_nodes(&graph, filter.clone()), Vec::<&str>::new());
-
-        graph
-            .node(1)
-            .unwrap()
-            .update_metadata([("x", 2u64)])
-            .unwrap();
-        let filter = NodeFilter.metadata("x").eq(2u64);
-        assert_eq!(search_nodes(&graph, filter.clone()), vec!["1"]);
-    }
-
-    #[test]
-    fn test_edge_metadata_graph_index_is_ok() {
-        let graph = Graph::new();
-        let graph = init_edges_graph(graph);
-        graph.create_index_in_ram().unwrap();
-        graph
-            .edge(1, 2)
-            .unwrap()
-            .add_metadata([("x", 1u64)], None)
-            .unwrap();
-
-        let filter = EdgeFilter.metadata("x").eq(1u64);
-        assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
-
-        graph
-            .edge(1, 2)
-            .unwrap()
-            .update_metadata([("x", 2u64)], None)
-            .unwrap();
-        let filter = EdgeFilter.metadata("x").eq(1u64);
-        assert_eq!(search_edges(&graph, filter.clone()), Vec::<&str>::new());
-
-        graph
-            .edge(1, 2)
-            .unwrap()
-            .update_metadata([("x", 2u64)], None)
-            .unwrap();
-        let filter = EdgeFilter.metadata("x").eq(2u64);
-        assert_eq!(search_edges(&graph, filter.clone()), vec!["1->2"]);
-    }
 }

@@ -5,7 +5,7 @@ from filters_setup import (
     init_nodes_graph2,
     combined,
 )
-from utils import with_disk_variants
+from utils import with_variants
 
 
 def init_graph_for_event_ids(graph):
@@ -18,7 +18,7 @@ def init_graph_for_event_ids(graph):
     return graph
 
 
-@with_disk_variants(init_nodes_graph)
+@with_variants(init_nodes_graph)
 def test_metadata_semantics():
     def check(graph):
         filter_expr = filter.Node.metadata("p1") == 1
@@ -29,7 +29,7 @@ def test_metadata_semantics():
     return check
 
 
-@with_disk_variants(init_nodes_graph)
+@with_variants(init_nodes_graph)
 def test_temporal_any_semantics():
     def check(graph):
         filter_expr = filter.Node.property("p1").temporal().any() == 1
@@ -40,7 +40,7 @@ def test_temporal_any_semantics():
     return check
 
 
-@with_disk_variants(
+@with_variants(
     init_fn=combined([init_nodes_graph, init_graph_for_event_ids]),
 )
 def test_temporal_any_semantics_for_event_ids():
@@ -55,7 +55,7 @@ def test_temporal_any_semantics_for_event_ids():
     return check
 
 
-@with_disk_variants(init_nodes_graph)
+@with_variants(init_nodes_graph)
 def test_temporal_last_semantics():
     def check(graph):
         filter_expr = filter.Node.property("p1").temporal().last() == 1
@@ -66,7 +66,7 @@ def test_temporal_last_semantics():
     return check
 
 
-@with_disk_variants(
+@with_variants(
     init_fn=combined([init_nodes_graph, init_graph_for_event_ids]),
 )
 def test_temporal_latest_semantics_for_event_ids():
@@ -79,7 +79,7 @@ def test_temporal_latest_semantics_for_event_ids():
     return check
 
 
-@with_disk_variants(init_nodes_graph)
+@with_variants(init_nodes_graph)
 def test_property_semantics():
     def check(graph):
         filter_expr = filter.Node.property("p1") == 1
@@ -91,7 +91,7 @@ def test_property_semantics():
     return check
 
 
-@with_disk_variants(
+@with_variants(
     init_fn=combined([init_nodes_graph, init_graph_for_event_ids]),
 )
 def test_property_semantics_for_event_ids():
@@ -104,7 +104,7 @@ def test_property_semantics_for_event_ids():
     return check
 
 
-@with_disk_variants(init_nodes_graph1)
+@with_variants(init_nodes_graph1)
 def test_property_semantics_only_metadata():
     def check(graph):
         filter_expr = filter.Node.metadata("p1") == 1
@@ -115,7 +115,7 @@ def test_property_semantics_only_metadata():
     return check
 
 
-@with_disk_variants(init_nodes_graph2)
+@with_variants(init_nodes_graph2)
 def test_property_semantics_only_temporal():
     def check(graph):
         filter_expr = filter.Node.property("p1") == 1

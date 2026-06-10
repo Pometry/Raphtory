@@ -1,14 +1,11 @@
 use crate::python::{
     client::raphtory_client::PyRaphtoryClient,
-    server::{is_online, wait_server, BridgeCommand},
-    RUNNING_SERVER_CONSUMED_MSG, WAIT_CHECK_INTERVAL_MILLIS,
+    server::{wait_server, BridgeCommand},
+    RUNNING_SERVER_CONSUMED_MSG,
 };
 use crossbeam_channel::Sender as CrossbeamSender;
-use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyObject, PyResult, Python};
-use std::{
-    thread::{sleep, JoinHandle},
-    time::Duration,
-};
+use pyo3::{exceptions::PyException, pyclass, pymethods, Py, PyAny, PyResult, Python};
+use std::thread::JoinHandle;
 use tokio::{self, io::Result as IoResult};
 use tracing::error;
 
@@ -48,26 +45,6 @@ impl PyRunningGraphServer {
         }
     }
 
-    pub(crate) fn wait_for_server_online(&self, url: &String, timeout_ms: u64) -> PyResult<()> {
-        let num_intervals = timeout_ms / WAIT_CHECK_INTERVAL_MILLIS;
-        for _ in 0..num_intervals {
-            let join_handle = &self.server_handler.as_ref().unwrap().join_handle;
-            if join_handle.is_finished() {
-                // this error will never be presented to the user, the result coming from the server task will instead
-                return Err(PyException::new_err("Server task finished too early"));
-            }
-            if is_online(url) {
-                return Ok(());
-            } else {
-                sleep(Duration::from_millis(WAIT_CHECK_INTERVAL_MILLIS))
-            }
-        }
-        Err(PyException::new_err(format!(
-            "Failed to start server in {} milliseconds",
-            timeout_ms
-        )))
-    }
-
     pub(crate) fn stop_server(&mut self, py: Python) -> PyResult<()> {
         Self::apply_if_alive(self, |handler| {
             match handler.sender.send(BridgeCommand::StopServer) {
@@ -79,16 +56,16 @@ impl PyRunningGraphServer {
             Ok(())
         })?;
         let server = &mut self.server_handler;
-        py.allow_threads(|| wait_server(server))
+        py.detach(|| wait_server(server))
     }
 }
 
 #[pymethods]
 impl PyRunningGraphServer {
-    /// Get the client for the server
+    /// Get the client for the server.
     ///
     /// Returns:
-    /// RaphtoryClient: the client
+    ///     RaphtoryClient: the client.
     pub(crate) fn get_client(&self) -> PyResult<PyRaphtoryClient> {
         // TODO: return an authenticated server with rw access to everything?
         self.apply_if_alive(|handler| {
@@ -98,10 +75,15 @@ impl PyRunningGraphServer {
         })
     }
 
-    /// Stop the server and wait for it to finish
+    /// Get the port the server is listening on
+    pub fn port(&self) -> PyResult<u16> {
+        self.apply_if_alive(|handler| Ok(handler.port))
+    }
+
+    /// Stop the server and wait for it to finish.
     ///
     /// Returns:
-    /// None:
+    ///     None:
     pub(crate) fn stop(&mut self, py: Python) -> PyResult<()> {
         self.stop_server(py)
     }
@@ -113,9 +95,9 @@ impl PyRunningGraphServer {
     fn __exit__(
         &mut self,
         py: Python,
-        _exc_type: PyObject,
-        _exc_val: PyObject,
-        _exc_tb: PyObject,
+        _exc_type: Py<PyAny>,
+        _exc_val: Py<PyAny>,
+        _exc_tb: Py<PyAny>,
     ) -> PyResult<()> {
         self.stop_server(py)
     }

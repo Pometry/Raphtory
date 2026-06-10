@@ -300,7 +300,7 @@ def test_import_edges():
     g2 = Graph()
     g2.import_edges(g.edges)
     assert g2.count_edges() == 3
-    assert g.edges.id == g2.edges.id
+    assert sorted(g.edges.id) == sorted(g2.edges.id)
 
 
 def test_import_edges_iterator():
@@ -314,4 +314,4 @@ def test_import_edges_iterator():
     g2 = Graph()
     g2.import_edges(iter(g.edges))
     assert g2.count_edges() == 3
-    assert g.edges.id == g2.edges.id
+    assert sorted(g.edges.id) == sorted(g2.edges.id)

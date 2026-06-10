@@ -21,7 +21,7 @@ use crate::{
     },
     prelude::{NodeStateOps, NO_PROPS},
 };
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use rand::{prelude::IndexedRandom, rngs::StdRng, SeedableRng};
 use raphtory_api::core::storage::timeindex::AsTime;
 use tracing::error;
 
@@ -58,7 +58,7 @@ pub fn random_attachment(
     if let Some(seed_value) = seed {
         rng = StdRng::from_seed(seed_value);
     } else {
-        rng = StdRng::from_entropy();
+        rng = StdRng::from_os_rng();
     }
     let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let mut ids = graph.nodes().id().iter_values().collect::<Vec<_>>();
@@ -68,7 +68,7 @@ pub fn random_attachment(
         max_id = next_id(graph, Some(max_id));
         latest_time += 1;
         graph
-            .add_node(latest_time, &max_id, NO_PROPS, None)
+            .add_node(latest_time, &max_id, NO_PROPS, None, None)
             .map_err(|err| error!("{:?}", err))
             .ok();
         ids.push(max_id.clone());
@@ -106,7 +106,7 @@ mod random_graph_test {
         let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_node(i, i as u64, NO_PROPS, None)
+                .add_node(i, i as u64, NO_PROPS, None, None)
                 .map_err(|err| error!("{:?}", err))
                 .ok();
         }

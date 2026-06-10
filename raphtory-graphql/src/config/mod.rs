@@ -1,10 +1,12 @@
 pub mod app_config;
 pub mod auth_config;
 pub mod cache_config;
+pub mod concurrency_config;
 #[cfg(feature = "search")]
 pub mod index_config;
 pub mod log_config;
 pub mod otlp_config;
+pub mod schema_config;
 
 #[cfg(test)]
 mod tests {
@@ -12,7 +14,8 @@ mod tests {
         app_config::{load_config, AppConfigBuilder},
         otlp_config::TracingLevel,
     };
-    use std::{fs, path::PathBuf};
+    use std::fs;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_load_config_from_toml() {
@@ -30,17 +33,17 @@ mod tests {
             [auth]
             public_key = "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno="
         "#;
-        let config_path = PathBuf::from("test_config.toml");
+        let config_file = NamedTempFile::with_suffix(".toml").unwrap();
+        let config_path = config_file.path();
         fs::write(&config_path, config_toml).unwrap();
 
-        let result = load_config(None, Some(config_path.clone()));
+        let result = load_config(None, Some(config_path.to_path_buf()));
 
         let expected_config = AppConfigBuilder::new()
             .with_log_level("DEBUG".to_string())
             .with_tracing(true)
             .with_tracing_level(TracingLevel::ESSENTIAL)
             .with_cache_capacity(30)
-            .with_cache_tti_seconds(1000)
             .with_auth_public_key(Some(
                 "MCowBQYDK2VwAyEADdrWr1kTLj+wSHlr45eneXmOjlHo3N1DjLIvDa2ozno=".to_owned(),
             ))
@@ -48,17 +51,11 @@ mod tests {
             .build();
 
         assert_eq!(result.unwrap(), expected_config);
-
-        // Cleanup: delete the test TOML file
-        fs::remove_file(config_path).unwrap();
     }
 
     #[test]
     fn test_load_config_with_custom_cache() {
-        let app_config = AppConfigBuilder::new()
-            .with_cache_capacity(50)
-            .with_cache_tti_seconds(1200)
-            .build();
+        let app_config = AppConfigBuilder::new().with_cache_capacity(50).build();
 
         let result = load_config(Some(app_config.clone()), None);
 

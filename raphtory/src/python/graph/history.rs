@@ -20,14 +20,8 @@ use raphtory_api::{
 use raphtory_core::utils::iter::GenLockedIter;
 use std::sync::Arc;
 
-impl Repr for EventTime {
-    fn repr(&self) -> String {
-        self.to_string()
-    }
-}
-
 /// History of updates for an object. Provides access to time entries and derived views such as timestamps, datetimes, event ids, and intervals.
-#[pyclass(name = "History", module = "raphtory", frozen)]
+#[pyclass(name = "History", module = "raphtory", frozen, from_py_object)]
 #[derive(Clone)]
 pub struct PyHistory {
     history: History<'static, Arc<dyn InternalHistoryOps>>,
@@ -231,7 +225,7 @@ impl PyHistory {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyHistory>() {
+        if let Ok(py_hist) = other.cast::<PyHistory>() {
             return self.history.eq(&py_hist.get().history);
         }
         // compare timestamps only
@@ -295,18 +289,19 @@ impl<'py, T: IntoArcDynHistoryOps> IntoPyObject<'py> for History<'_, T> {
     }
 }
 
-impl<'py> FromPyObject<'py> for History<'static, Arc<dyn InternalHistoryOps>> {
-    fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let py_history = ob.downcast::<PyHistory>()?;
+impl<'py> FromPyObject<'_, 'py> for History<'static, Arc<dyn InternalHistoryOps>> {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
+        let py_history = ob.cast::<PyHistory>()?;
         Ok(py_history.get().history.clone())
     }
 }
 
 /// History view that exposes timestamps in milliseconds since the Unix epoch.
-#[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen)]
-#[derive(Clone, PartialEq, Eq)]
+#[pyclass(name = "HistoryTimestamp", module = "raphtory", frozen, from_py_object)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct PyHistoryTimestamp {
-    history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
+    pub history_t: HistoryTimestamp<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
@@ -397,7 +392,7 @@ impl PyHistoryTimestamp {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyHistoryTimestamp>() {
+        if let Ok(py_hist) = other.cast::<PyHistoryTimestamp>() {
             return self.history_t.iter().eq(py_hist.get().history_t.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {
@@ -466,10 +461,10 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryTimestam
 }
 
 /// History view that exposes UTC datetimes.
-#[pyclass(name = "HistoryDateTime", module = "raphtory", frozen)]
-#[derive(Clone, PartialEq, Eq)]
+#[pyclass(name = "HistoryDateTime", module = "raphtory", frozen, from_py_object)]
+#[derive(PartialEq, Eq, Clone)]
 pub struct PyHistoryDateTime {
-    history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
+    pub history_dt: HistoryDateTime<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
@@ -583,7 +578,7 @@ impl PyHistoryDateTime {
             }
             None
         };
-        if let Ok(py_hist) = other.downcast::<PyHistoryDateTime>() {
+        if let Ok(py_hist) = other.cast::<PyHistoryDateTime>() {
             return self.history_dt.iter().eq(py_hist.get().history_dt.iter());
         }
         if let Some(iterator) = dt_iter_opt {
@@ -652,10 +647,10 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryDateTime
 }
 
 /// History view that exposes event ids of time entries. They are used for ordering within the same timestamp.
-#[pyclass(name = "HistoryEventId", module = "raphtory", frozen)]
+#[pyclass(name = "HistoryEventId", module = "raphtory", frozen, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyHistoryEventId {
-    history_s: HistoryEventId<Arc<dyn InternalHistoryOps>>,
+    pub history_s: HistoryEventId<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
@@ -746,7 +741,7 @@ impl PyHistoryEventId {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyHistoryEventId>() {
+        if let Ok(py_hist) = other.cast::<PyHistoryEventId>() {
             return self.history_s.iter().eq(py_hist.get().history_s.iter());
         }
         if let Ok(list) = other.extract::<Vec<usize>>() {
@@ -815,10 +810,10 @@ impl<'py, T: InternalHistoryOps + 'static> IntoPyObject<'py> for HistoryEventId<
 }
 
 /// View over the intervals between consecutive timestamps, expressed in milliseconds.
-#[pyclass(name = "Intervals", module = "raphtory", frozen)]
+#[pyclass(name = "Intervals", module = "raphtory", frozen, from_py_object)]
 #[derive(Clone, PartialEq, Eq)]
 pub struct PyIntervals {
-    intervals: Intervals<Arc<dyn InternalHistoryOps>>,
+    pub intervals: Intervals<Arc<dyn InternalHistoryOps>>,
 }
 
 #[pymethods]
@@ -909,7 +904,7 @@ impl PyIntervals {
     /// Returns:
     ///     bool: True if equal, otherwise False.
     fn __eq__(&self, other: &Bound<PyAny>) -> bool {
-        if let Ok(py_hist) = other.downcast::<PyIntervals>() {
+        if let Ok(py_hist) = other.cast::<PyIntervals>() {
             return self.intervals.iter().eq(py_hist.get().intervals.iter());
         }
         if let Ok(list) = other.extract::<Vec<i64>>() {

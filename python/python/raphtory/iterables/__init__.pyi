@@ -16,13 +16,17 @@ from raphtory.algorithms import *
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 
@@ -75,6 +79,16 @@ __all__ = [
     "NestedResultUtcDateTimeIterable",
     "MetadataListList",
     "PyNestedPropsIterable",
+    "PyPropValueListList",
+    "PyTemporalPropsList",
+    "PyTemporalPropsListList",
+    "PyPropHistValueList",
+    "PyPropHistValueListList",
+    "PyTemporalPropList",
+    "PyTemporalPropListList",
+    "PyPropHistItemsList",
+    "PyPropHistItemsListList",
+    "PropIterable",
 ]
 
 class NestedUtcDateTimeIterable(object):
@@ -105,7 +119,13 @@ class NestedUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class NestedGIDIterable(object):
     def __eq__(self, value):
@@ -135,9 +155,29 @@ class NestedGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
 
 class GIDIterable(object):
     def __eq__(self, value):
@@ -167,9 +207,29 @@ class GIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
 
 class StringIterable(object):
     def __eq__(self, value):
@@ -199,7 +259,13 @@ class StringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
 
 class OptionArcStringIterable(object):
     def __eq__(self, value):
@@ -229,7 +295,13 @@ class OptionArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
 
 class UsizeIterable(object):
     def __eq__(self, value):
@@ -259,11 +331,45 @@ class UsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def mean(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def mean(self) -> float:
+        """
+        Mean of all values in the iterable.
+
+        Returns:
+            float:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def sum(self) -> Any:
+        """
+        Sum of all values in the iterable.
+
+        Returns:
+            Any:
+        """
 
 class OptionI64Iterable(object):
     def __eq__(self, value):
@@ -293,9 +399,29 @@ class OptionI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
 
 class NestedOptionArcStringIterable(object):
     def __eq__(self, value):
@@ -325,7 +451,13 @@ class NestedOptionArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class NestedStringIterable(object):
     def __eq__(self, value):
@@ -355,7 +487,13 @@ class NestedStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class NestedOptionI64Iterable(object):
     def __eq__(self, value):
@@ -385,9 +523,29 @@ class NestedOptionI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
 
 class NestedI64VecIterable(object):
     def __eq__(self, value):
@@ -417,7 +575,13 @@ class NestedI64VecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class NestedUsizeIterable(object):
     def __eq__(self, value):
@@ -447,11 +611,45 @@ class NestedUsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def mean(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def mean(self) -> Any:
+        """
+        Per-row mean of values (one entry per outer row).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def sum(self) -> Any:
+        """
+        Per-row sum of values (one entry per outer row).
+
+        Returns:
+            Any:
+        """
 
 class BoolIterable(object):
     def __eq__(self, value):
@@ -481,7 +679,13 @@ class BoolIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
 
 class ArcStringIterable(object):
     def __iter__(self):
@@ -493,7 +697,13 @@ class ArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
 
 class NestedVecUtcDateTimeIterable(object):
     def __eq__(self, value):
@@ -523,7 +733,13 @@ class NestedVecUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class OptionVecUtcDateTimeIterable(object):
     def __eq__(self, value):
@@ -553,7 +769,13 @@ class OptionVecUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
 
 class GIDGIDIterable(object):
     def __eq__(self, value):
@@ -583,9 +805,29 @@ class GIDGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
 
 class NestedGIDGIDIterable(object):
     def __eq__(self, value):
@@ -615,9 +857,29 @@ class NestedGIDGIDIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
 
 class NestedBoolIterable(object):
     def __eq__(self, value):
@@ -647,7 +909,13 @@ class NestedBoolIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class U64Iterable(object):
     def __eq__(self, value):
@@ -677,11 +945,45 @@ class U64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def mean(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def mean(self) -> float:
+        """
+        Mean of all values in the iterable.
+
+        Returns:
+            float:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def sum(self) -> Any:
+        """
+        Sum of all values in the iterable.
+
+        Returns:
+            Any:
+        """
 
 class OptionUtcDateTimeIterable(object):
     def __eq__(self, value):
@@ -711,7 +1013,13 @@ class OptionUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
 
 class ArcStringVecIterable(object):
     def __eq__(self, value):
@@ -741,7 +1049,13 @@ class ArcStringVecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
 
 class NestedArcStringVecIterable(object):
     def __eq__(self, value):
@@ -771,7 +1085,13 @@ class NestedArcStringVecIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class NestedEventTimeIterable(object):
     def __eq__(self, value):
@@ -801,7 +1121,14 @@ class NestedEventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
     @property
     def dt(self) -> NestedResultUtcDateTimeIterable:
         """
@@ -823,8 +1150,22 @@ class NestedEventTimeIterable(object):
             NestedUsizeIterable: Nested iterable of event ids associated to each EventTime.
         """
 
-    def max(self): ...
-    def min(self): ...
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
     @property
     def t(self) -> NestedI64Iterable:
         """
@@ -844,7 +1185,13 @@ class NestedArcStringIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
 
 class NestedOptionEventTimeIterable(object):
     def __eq__(self, value):
@@ -874,7 +1221,14 @@ class NestedOptionEventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
     @property
     def dt(self) -> NestedResultOptionUtcDateTimeIterable:
         """
@@ -896,8 +1250,22 @@ class NestedOptionEventTimeIterable(object):
             NestedOptionUsizeIterable: Nested iterable of event ids associated to each EventTime, if available.
         """
 
-    def max(self): ...
-    def min(self): ...
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
     @property
     def t(self) -> NestedOptionI64Iterable:
         """
@@ -997,7 +1365,14 @@ class EventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
     @property
     def dt(self) -> ResultUtcDateTimeIterable:
         """
@@ -1019,8 +1394,22 @@ class EventTimeIterable(object):
             UsizeIterable: Iterable of event ids associated to each EventTime.
         """
 
-    def max(self): ...
-    def min(self): ...
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
     @property
     def t(self) -> I64Iterable:
         """
@@ -1058,7 +1447,14 @@ class OptionEventTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
     @property
     def dt(self) -> ResultOptionUtcDateTimeIterable:
         """
@@ -1080,8 +1476,22 @@ class OptionEventTimeIterable(object):
             OptionUsizeIterable: Iterable of event ids associated to each EventTime, if available.
         """
 
-    def max(self): ...
-    def min(self): ...
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
     @property
     def t(self) -> OptionI64Iterable:
         """
@@ -1280,9 +1690,29 @@ class OptionUsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
 
 class ResultOptionUtcDateTimeIterable(object):
     def __iter__(self):
@@ -1294,7 +1724,13 @@ class ResultOptionUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[Optional[datetime]]:
+        """
+        Materialise the iterable as a list of optional datetimes, raising if any element produced an error.
+
+        Returns:
+            list[Optional[datetime]]: one entry per element (None where absent).
+        """
 
 class I64Iterable(object):
     def __eq__(self, value):
@@ -1324,11 +1760,45 @@ class I64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def mean(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def max(self) -> Any:
+        """
+        Maximum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def mean(self) -> float:
+        """
+        Mean of all values in the iterable.
+
+        Returns:
+            float:
+        """
+
+    def min(self) -> Any:
+        """
+        Minimum value in the iterable, or `None` if empty.
+
+        Returns:
+            Any:
+        """
+
+    def sum(self) -> Any:
+        """
+        Sum of all values in the iterable.
+
+        Returns:
+            Any:
+        """
 
 class ResultUtcDateTimeIterable(object):
     def __iter__(self):
@@ -1340,7 +1810,13 @@ class ResultUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[datetime]:
+        """
+        Materialise the iterable as a list of datetimes, raising if any element produced an error.
+
+        Returns:
+            list[datetime]: one datetime per element.
+        """
 
 class NestedHistoryTimestampIterable(object):
     def __iter__(self):
@@ -1528,9 +2004,29 @@ class NestedOptionUsizeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def min(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
 
 class NestedResultOptionUtcDateTimeIterable(object):
     def __iter__(self):
@@ -1542,7 +2038,13 @@ class NestedResultOptionUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list[Optional[datetime]]]:
+        """
+        Materialise the iterable as a nested list of optional datetimes, raising if any element produced an error.
+
+        Returns:
+            list[list[Optional[datetime]]]: one inner list per outer element (entries are None where absent).
+        """
 
 class NestedI64Iterable(object):
     def __eq__(self, value):
@@ -1572,11 +2074,45 @@ class NestedI64Iterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
-    def max(self): ...
-    def mean(self): ...
-    def min(self): ...
-    def sum(self): ...
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def max(self) -> Any:
+        """
+        Per-row maximum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def mean(self) -> Any:
+        """
+        Per-row mean of values (one entry per outer row).
+
+        Returns:
+            Any:
+        """
+
+    def min(self) -> Any:
+        """
+        Per-row minimum value (or None for empty rows).
+
+        Returns:
+            Any:
+        """
+
+    def sum(self) -> Any:
+        """
+        Per-row sum of values (one entry per outer row).
+
+        Returns:
+            Any:
+        """
 
 class NestedResultUtcDateTimeIterable(object):
     def __iter__(self):
@@ -1588,7 +2124,13 @@ class NestedResultUtcDateTimeIterable(object):
     def __repr__(self):
         """Return repr(self)."""
 
-    def collect(self): ...
+    def collect(self) -> list[list[datetime]]:
+        """
+        Materialise the iterable as a nested list of datetimes, raising if any element produced an error.
+
+        Returns:
+            list[list[datetime]]: one inner list per outer element.
+        """
 
 class MetadataListList(object):
     def __contains__(self, key):
@@ -1618,11 +2160,48 @@ class MetadataListList(object):
     def __ne__(self, value):
         """Return self!=value."""
 
-    def as_dict(self): ...
-    def get(self, key): ...
-    def items(self): ...
-    def keys(self): ...
-    def values(self): ...
+    def as_dict(self) -> dict[str, list]:
+        """
+        Materialise as a dict mapping each key to a list of value lists.
+
+        Returns:
+            dict[str, list]:
+        """
+
+    def get(self, key: str) -> Optional[PyPropValueListList]:
+        """
+        Look up the metadata for `key` across all entities.
+
+        Arguments:
+            key (str): metadata key.
+
+        Returns:
+            Optional[PyPropValueListList]:
+        """
+
+    def items(self) -> list[tuple[str, PyPropValueListList]]:
+        """
+        Pairs of `(key, value list-of-lists)` for every metadata key.
+
+        Returns:
+            list[tuple[str, PyPropValueListList]]:
+        """
+
+    def keys(self) -> list[str]:
+        """
+        Metadata keys present across the underlying entities.
+
+        Returns:
+            list[str]:
+        """
+
+    def values(self) -> list[PyPropValueListList]:
+        """
+        Per-key list of value lists.
+
+        Returns:
+            list[PyPropValueListList]:
+        """
 
 class PyNestedPropsIterable(object):
     def __contains__(self, key):
@@ -1660,7 +2239,7 @@ class PyNestedPropsIterable(object):
             dict[str, List[List[PropValue]]]:
         """
 
-    def get(self, key: str):
+    def get(self, key: str) -> Optional[PyPropValueListList]:
         """
         Get property value.
 
@@ -1668,7 +2247,7 @@ class PyNestedPropsIterable(object):
             key (str): the name of the property.
 
         Returns:
-            PyPropValueListList:
+            Optional[PyPropValueListList]:
         """
 
     def items(self) -> list[Tuple[str, List[PropValue]]]:
@@ -1679,21 +2258,21 @@ class PyNestedPropsIterable(object):
             list[Tuple[str, List[PropValue]]]:
         """
 
-    def keys(self):
+    def keys(self) -> list[str]:
         """
         Get the names for all properties.
 
         Returns:
-            List[Str]:
+            list[str]:
         """
 
     @property
-    def temporal(self):
+    def temporal(self) -> list[list[TemporalProperty]]:
         """
         Get a view of the temporal properties only.
 
         Returns:
-            List[List[temporalprop]]:
+            list[list[TemporalProperty]]:
         """
 
     def values(self) -> list[list[list[PropValue]]]:
@@ -1703,4 +2282,794 @@ class PyNestedPropsIterable(object):
 
         Returns:
             list[list[list[PropValue]]]:
+        """
+
+class PyPropValueListList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def average(self) -> list[PropValue]:
+        """
+        Compute the average of all property values. Alias for mean().
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def count(self) -> UsizeIterable:
+        """
+        Number of properties (or rows of properties).
+
+        Returns:
+            UsizeIterable:
+        """
+
+    def drop_none(self) -> PyPropValueListList:
+        """
+        Drop missing entries from each row.
+
+        Returns:
+            PyPropValueListList:
+        """
+
+    def flatten(self) -> PyPropValueList:
+        """
+        Flatten the nested iterable into a single list of values.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def max(self) -> list[PropValue]:
+        """
+        Find the maximum property value and its associated time.
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def mean(self) -> PyPropValueList:
+        """
+        Mean property value across each row.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def median(self) -> PyPropValueList:
+        """
+        Median property value across each row.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def min(self) -> list[PropValue]:
+        """
+        Min property value.
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def sum(self) -> list[PropValue]:
+        """
+        Sum of property values.
+
+        Returns:
+            list[PropValue]:
+        """
+
+class PyTemporalPropsList(object):
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def get(self, key: str) -> Optional[PyTemporalPropList]:
+        """
+        Look up a temporal property by key.
+
+        Arguments:
+            key (str): property key.
+
+        Returns:
+            Optional[PyTemporalPropList]:
+        """
+
+    def histories(self) -> dict[str, PyPropHistItemsList]:
+        """
+        Full update history of each property across the underlying entities.
+
+        Returns:
+            dict[str, PyPropHistItemsList]:
+        """
+
+    def items(self) -> list[tuple[str, PyTemporalPropList]]:
+        """
+        Pairs of `(key, temporal property list)` for every property key.
+
+        Returns:
+            list[tuple[str, PyTemporalPropList]]:
+        """
+
+    def keys(self) -> list[str]:
+        """
+        Property keys present across the underlying entities.
+
+        Returns:
+            list[str]:
+        """
+
+    def latest(self) -> dict[str, PyPropValueList]:
+        """
+        Latest value of each property across the underlying entities.
+
+        Returns:
+            dict[str, PyPropValueList]:
+        """
+
+    def values(self) -> list[PyTemporalPropList]:
+        """
+        Per-key list of temporal property views.
+
+        Returns:
+            list[PyTemporalPropList]:
+        """
+
+class PyTemporalPropsListList(object):
+    def __contains__(self, key):
+        """Return bool(key in self)."""
+
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __getitem__(self, key):
+        """Return self[key]."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def get(self, key: str) -> Optional[PyTemporalPropListList]:
+        """
+        Look up a nested temporal property by key.
+
+        Arguments:
+            key (str): property key.
+
+        Returns:
+            Optional[PyTemporalPropListList]:
+        """
+
+    def histories(self) -> dict[str, PyPropHistItemsListList]:
+        """
+        Full update history of each property across the nested entities.
+
+        Returns:
+            dict[str, PyPropHistItemsListList]:
+        """
+
+    def items(self) -> list[tuple[str, PyTemporalPropListList]]:
+        """
+        Pairs of `(key, nested temporal property list)` for every property key.
+
+        Returns:
+            list[tuple[str, PyTemporalPropListList]]:
+        """
+
+    def keys(self) -> list[str]:
+        """
+        Property keys present across the underlying entities.
+
+        Returns:
+            list[str]:
+        """
+
+    def latest(self) -> dict[str, PyPropValueListList]:
+        """
+        Latest value of each property across the nested entities.
+
+        Returns:
+            dict[str, PyPropValueListList]:
+        """
+
+    def values(self) -> list[PyTemporalPropListList]:
+        """
+        Per-key list of nested temporal property views.
+
+        Returns:
+            list[PyTemporalPropListList]:
+        """
+
+class PyPropHistValueList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def average(self) -> list[PropValue]:
+        """
+        Compute the average of all property values. Alias for mean().
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def count(self) -> UsizeIterable:
+        """
+        Number of properties (or rows of properties).
+
+        Returns:
+            UsizeIterable:
+        """
+
+    def flatten(self) -> PropIterable:
+        """
+        Flatten the per-row history values into a single iterable of values.
+
+        Returns:
+            PropIterable:
+        """
+
+    def max(self) -> list[PropValue]:
+        """
+        Find the maximum property value and its associated time.
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def mean(self) -> list[PropValue]:
+        """
+        Compute the mean of all property values.
+
+        Returns:
+            list[PropValue]: The mean of each property values, or None if count is zero.
+        """
+
+    def median(self) -> PyPropValueList:
+        """
+        Median property value of each row.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def min(self) -> list[PropValue]:
+        """
+        Min property value.
+
+        Returns:
+            list[PropValue]:
+        """
+
+    def sum(self) -> list[PropValue]:
+        """
+        Sum of property values.
+
+        Returns:
+            list[PropValue]:
+        """
+
+class PyPropHistValueListList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def count(self) -> NestedUsizeIterable:
+        """
+        Number of properties (or rows of properties).
+
+        Returns:
+            NestedUsizeIterable:
+        """
+
+    def flatten(self) -> PyPropHistValueList:
+        """
+        Flatten the nested history-values list to a single history-values list.
+
+        Returns:
+            PyPropHistValueList:
+        """
+
+    def max(self) -> list[list[PropValue]]:
+        """
+        Find the maximum property value and its associated time.
+
+        Returns:
+            list[list[PropValue]]:
+        """
+
+    def mean(self) -> PyPropValueListList:
+        """
+        Mean property value across each row.
+
+        Returns:
+            PyPropValueListList:
+        """
+
+    def median(self) -> list[list[PropValue]]:
+        """
+        Median
+
+         Returns:
+            list[list[PropValue]]:
+        """
+
+    def min(self) -> list[list[PropValue]]:
+        """
+        Min property value.
+
+        Returns:
+            list[list[PropValue]]:
+        """
+
+    def sum(self) -> list[list[PropValue]]:
+        """
+        Sum of property values.
+
+        Returns:
+            list[list[PropValue]]:
+        """
+
+class PyTemporalPropList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def at(self, t: TimeInput) -> PyPropValueList:
+        """
+        Value of each entity's property at the given time (latest update at or before `t`).
+
+        Arguments:
+            t (TimeInput): the time at which to evaluate the property.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    @property
+    def history(self) -> HistoryIterable:
+        """
+        Update history (one history per underlying entity).
+
+        Returns:
+            HistoryIterable:
+        """
+
+    def items(self) -> PyPropHistItemsList:
+        """
+        Per-entity list of `(time, value)` pairs across each entity's history.
+
+        Returns:
+            PyPropHistItemsList:
+        """
+
+    def value(self) -> PyPropValueList:
+        """
+        Latest value of each entity's property.
+
+        Returns:
+            PyPropValueList:
+        """
+
+    def values(self) -> PyPropHistValueList:
+        """
+        Per-entity list of property values across each entity's history.
+
+        Returns:
+            PyPropHistValueList:
+        """
+
+class PyTemporalPropListList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def at(self, t: TimeInput) -> PyPropValueListList:
+        """
+        Value of each inner entity's property at the given time.
+
+        Arguments:
+            t (TimeInput): the time at which to evaluate the property.
+
+        Returns:
+            PyPropValueListList:
+        """
+
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+    def flatten(self) -> PyTemporalPropList:
+        """
+        Flatten the nested temporal property list to a single list of temporal properties.
+
+        Returns:
+            PyTemporalPropList:
+        """
+
+    @property
+    def history(self) -> NestedHistoryIterable:
+        """
+        Update history (per outer entity, per inner entity).
+
+        Returns:
+            NestedHistoryIterable:
+        """
+
+    def items(self) -> PyPropHistItemsListList:
+        """
+        Nested list of `(time, value)` pairs across each inner entity's history.
+
+        Returns:
+            PyPropHistItemsListList:
+        """
+
+    def value(self) -> PyPropValueListList:
+        """
+        Latest value of each inner entity's property.
+
+        Returns:
+            PyPropValueListList:
+        """
+
+    def values(self) -> PyPropHistValueListList:
+        """
+        Nested list of property values across each inner entity's history.
+
+        Returns:
+            PyPropHistValueListList:
+        """
+
+class PyPropHistItemsList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+class PyPropHistItemsListList(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def collect(self) -> list[list]:
+        """
+        Materialise the nested iterable as a list of lists.
+
+        Returns:
+            list[list]:
+        """
+
+class PropIterable(object):
+    def __eq__(self, value):
+        """Return self==value."""
+
+    def __ge__(self, value):
+        """Return self>=value."""
+
+    def __gt__(self, value):
+        """Return self>value."""
+
+    def __iter__(self):
+        """Implement iter(self)."""
+
+    def __le__(self, value):
+        """Return self<=value."""
+
+    def __len__(self):
+        """Return len(self)."""
+
+    def __lt__(self, value):
+        """Return self<value."""
+
+    def __ne__(self, value):
+        """Return self!=value."""
+
+    def __repr__(self):
+        """Return repr(self)."""
+
+    def average(self) -> PropValue:
+        """
+        Compute the average of all property values. Alias for mean().
+
+        Returns:
+            PropValue: The average of each property values, or None if count is zero.
+        """
+
+    def collect(self) -> list:
+        """
+        Materialise the iterable as a Python list.
+
+        Returns:
+            list:
+        """
+
+    def count(self) -> int:
+        """
+        Number of properties (or rows of properties).
+
+        Returns:
+            int:
+        """
+
+    def max(self) -> PropValue:
+        """
+        Find the maximum property value and its associated time.
+
+        Returns:
+            PropValue:
+        """
+
+    def mean(self) -> PropValue:
+        """
+        Compute the mean of all property values.
+
+        Returns:
+            PropValue: The mean of each property values, or None if count is zero.
+        """
+
+    def median(self) -> PropValue:
+        """
+        Median property values.
+
+        Returns:
+            PropValue:
+        """
+
+    def min(self) -> PropValue:
+        """
+        Min property value.
+
+        Returns:
+            PropValue:
+        """
+
+    def sum(self) -> PropValue:
+        """
+        Sum of property values.
+
+        Returns:
+            PropValue:
         """

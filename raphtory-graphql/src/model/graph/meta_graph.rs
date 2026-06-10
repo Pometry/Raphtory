@@ -1,12 +1,25 @@
-use crate::{model::graph::property::GqlProperty, paths::ExistingGraphFolder};
-use dynamic_graphql::{ResolvedObject, ResolvedObjectFields};
-use raphtory::{errors::GraphError, serialise::metadata::GraphMetadata};
+use crate::{
+    data::Data,
+    model::graph::property::GqlProperty,
+    paths::{ExistingGraphFolder, ValidGraphPaths},
+};
+use async_graphql::Context;
+use dynamic_graphql::{ResolvedObject, ResolvedObjectFields, Result};
+use raphtory::{
+    db::api::storage::storage::read_constant_graph_properties,
+    errors::GraphError,
+    prelude::{GraphViewOps, PropertiesOps},
+    serialise::{metadata::GraphMetadata, parquet::decode_graph_metadata, GraphPaths},
+};
 use std::{cmp::Ordering, sync::Arc};
 use tokio::sync::OnceCell;
 
-///
+/// Lightweight summary of a stored graph — its name, path, counts, and
+/// filesystem timestamps — served without deserializing the full graph.
+/// Useful for listing what's available on the server before committing to a
+/// full load.
 #[derive(ResolvedObject, Clone)]
-pub(crate) struct MetaGraph {
+pub struct MetaGraph {
     folder: ExistingGraphFolder,
     meta: Arc<OnceCell<GraphMetadata>>,
 }
@@ -39,10 +52,15 @@ impl MetaGraph {
         }
     }
 
-    async fn meta(&self) -> Result<&GraphMetadata, GraphError> {
-        self.meta
+    pub fn local_path(&self) -> &str {
+        self.folder.local_path()
+    }
+
+    async fn meta(&self) -> Result<&GraphMetadata> {
+        Ok(self
+            .meta
             .get_or_try_init(|| self.folder.read_metadata_async())
-            .await
+            .await?)
     }
 }
 
@@ -56,26 +74,26 @@ impl MetaGraph {
 
     /// Returns path of graph.
     async fn path(&self) -> String {
-        self.folder.get_original_path_str().to_owned()
+        self.folder.local_path().into()
     }
 
     /// Returns the timestamp for the creation of the graph.
-    async fn created(&self) -> Result<i64, GraphError> {
-        self.folder.created_async().await
+    async fn created(&self) -> Result<i64> {
+        Ok(self.folder.created_async().await?)
     }
 
     /// Returns the graph's last opened timestamp according to system time.
-    async fn last_opened(&self) -> Result<i64, GraphError> {
-        self.folder.last_opened_async().await
+    async fn last_opened(&self) -> Result<i64> {
+        Ok(self.folder.last_opened_async().await?)
     }
 
     /// Returns the graph's last updated timestamp.
-    async fn last_updated(&self) -> Result<i64, GraphError> {
-        self.folder.last_updated_async().await
+    async fn last_updated(&self) -> Result<i64> {
+        Ok(self.folder.last_updated_async().await?)
     }
 
     /// Returns the number of nodes in the graph.
-    async fn node_count(&self) -> Result<usize, GraphError> {
+    async fn node_count(&self) -> Result<usize> {
         Ok(self.meta().await?.node_count)
     }
 
@@ -83,18 +101,44 @@ impl MetaGraph {
     ///
     /// Returns:
     ///     int:
-    async fn edge_count(&self) -> Result<usize, GraphError> {
+    async fn edge_count(&self) -> Result<usize> {
         Ok(self.meta().await?.edge_count)
     }
 
     /// Returns the metadata of the graph.
-    async fn metadata(&self) -> Result<Vec<GqlProperty>, GraphError> {
-        Ok(self
-            .meta()
-            .await?
-            .metadata
-            .iter()
-            .map(|(key, prop)| GqlProperty::new(key.to_string(), prop.clone()))
+    ///
+    /// Reads metadata without forcing a full graph load: from the
+    /// in-memory cache if the graph is already loaded, otherwise directly
+    /// from disk (parquet metadata for parquet-backed graphs, the
+    /// `graph_props` segment for disk-backed graphs). This keeps
+    /// `MetaGraph.metadata` cheap for namespace listings of many graphs.
+    async fn metadata(&self, ctx: &Context<'_>) -> Result<Vec<GqlProperty>> {
+        let data: &Data = ctx.data_unchecked();
+        if let Some(graph) = data.get_cached_graph(self.folder.local_path()).await {
+            return Ok(graph
+                .graph()
+                .metadata()
+                .iter()
+                .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key.into(), prop)))
+                .collect());
+        }
+
+        if self.meta().await?.is_diskgraph {
+            let graph_path = self
+                .folder
+                .graph_folder()
+                .graph_path()
+                .map_err(GraphError::from)?;
+            let pairs = read_constant_graph_properties(&graph_path).map_err(GraphError::from)?;
+            return Ok(pairs
+                .into_iter()
+                .map(|(key, prop)| GqlProperty::new(key.to_string(), prop))
+                .collect());
+        }
+
+        Ok(decode_graph_metadata(self.folder.graph_folder())?
+            .into_iter()
+            .filter_map(|(key, value)| value.map(|prop| GqlProperty::new(key, prop)))
             .collect())
     }
 }

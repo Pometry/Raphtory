@@ -1,0 +1,37 @@
+{
+    "graphType": "PERSISTENT",
+    "nodes": [
+        { "time": 0, "name": "None" },
+        {
+            "time": 10,
+            "name": "Ben",
+            "nodeType": "Person",
+            "properties": { "age": 30 }
+        },
+        {
+            "time": 20,
+            "name": "Hamza",
+            "nodeType": "Person",
+            "properties": { "age": 30 }
+        },
+        { "time": 60, "name": "Pometry", "nodeType": "Company" }
+    ],
+    "edges": [
+        {
+            "time": 40,
+            "src": "Ben",
+            "dst": "Hamza",
+            "layer": "meets",
+            "properties": { "where": "London" }
+        },
+        {
+            "time": 50,
+            "src": "Ben",
+            "dst": "Pedro",
+            "layer": "meets",
+            "properties": { "where": "Madrid" }
+        },
+        { "time": 60, "src": "Ben", "dst": "Pometry", "layer": "founds" },
+        { "time": 60, "src": "Hamza", "dst": "Pometry", "layer": "founds" }
+    ]
+}

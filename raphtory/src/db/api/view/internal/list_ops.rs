@@ -2,8 +2,9 @@ use crate::{
     core::entities::{EID, VID},
     db::api::{state::Index, view::Base},
 };
+use raphtory_storage::graph::graph::GraphStorage;
 use rayon::{iter::Either, prelude::*};
-use std::hash::Hash;
+use std::{hash::Hash, sync::Arc};
 
 pub trait ListOps {
     fn node_list(&self) -> NodeList;
@@ -28,7 +29,7 @@ where
 
 #[derive(Debug)]
 pub enum List<I> {
-    All { len: usize },
+    All,
     List { elems: Index<I> },
 }
 
@@ -38,7 +39,7 @@ pub type EdgeList = List<EID>;
 impl<I> Clone for List<I> {
     fn clone(&self) -> Self {
         match self {
-            List::All { len } => List::All { len: *len },
+            List::All => List::All,
             List::List { elems } => List::List {
                 elems: elems.clone(),
             },
@@ -49,10 +50,7 @@ impl<I> Clone for List<I> {
 impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
     pub fn intersection(&self, other: &List<I>) -> List<I> {
         match (self, other) {
-            (List::All { len: a }, List::All { len: b }) => {
-                let len = *a.min(b);
-                List::All { len }
-            }
+            (List::All, List::All) => List::All,
             (List::List { .. }, List::All { .. }) => self.clone(),
             (List::All { .. }, List::List { .. }) => other.clone(),
             (List::List { elems: a }, List::List { elems: b }) => {
@@ -62,45 +60,61 @@ impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync> List<I> {
         }
     }
 
-    pub fn par_iter(&self) -> impl IndexedParallelIterator<Item = I> + '_ {
+    pub fn union(&self, other: &List<I>) -> List<I> {
         match self {
-            List::All { len } => Either::Left((0..*len).into_par_iter().map(From::from)),
-            List::List { elems } => Either::Right(elems.par_iter()),
+            List::All => List::All,
+            List::List { elems: left } => match other {
+                List::All => List::All,
+                List::List { elems: right } => List::List {
+                    elems: left.union(right),
+                },
+            },
         }
     }
 
-    pub fn into_par_iter(self) -> impl IndexedParallelIterator<Item = I> {
+    pub fn unfiltered(&self) -> bool {
+        matches!(self, List::All)
+    }
+
+    pub fn is_empty(&self) -> bool {
         match self {
-            List::All { len } => Either::Left((0..len).into_par_iter().map(From::from)),
-            List::List { elems } => Either::Right(elems.into_par_iter()),
+            List::All => false,
+            List::List { elems } => elems.is_empty(),
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = I> + '_ {
-        match self {
-            List::All { len } => Either::Left((0..*len).map(From::from)),
-            List::List { elems } => Either::Right(elems.iter()),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        match self {
-            List::All { len } => *len,
-            List::List { elems } => elems.len(),
+    pub fn empty() -> Self {
+        List::List {
+            elems: Index::default(),
         }
     }
 }
 
-impl<I: Copy + Eq + Hash + Into<usize> + From<usize> + Send + Sync + 'static> IntoIterator
-    for List<I>
-{
-    type Item = I;
-    type IntoIter = Box<dyn Iterator<Item = Self::Item> + Send + Sync>;
-
-    fn into_iter(self) -> Self::IntoIter {
+impl List<VID> {
+    pub fn nodes_iter(self, g: &GraphStorage) -> impl Iterator<Item = VID> {
         match self {
-            List::All { len } => Box::new((0..len).map(From::from)),
-            List::List { elems } => Box::new(elems.into_iter()),
+            List::All => {
+                let sc = g.node_segment_counts();
+                Either::Left(sc.into_iter())
+            }
+            List::List { elems } => Either::Right(elems.into_iter()),
+        }
+    }
+
+    pub fn into_index(self, g: &GraphStorage) -> Index<VID> {
+        match self {
+            List::All => Index::Full(Arc::new(g.node_state_index())),
+            List::List { elems } => elems,
+        }
+    }
+
+    pub fn nodes_par_iter(self, g: &GraphStorage) -> impl ParallelIterator<Item = VID> {
+        match self {
+            List::All => {
+                let sc = g.node_segment_counts();
+                Either::Left(sc.into_par_iter())
+            }
+            List::List { elems } => Either::Right(elems.into_par_iter()),
         }
     }
 }

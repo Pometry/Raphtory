@@ -63,12 +63,12 @@ mod neo_loader_test {
         let relation_type = relation.typ();
 
         graph
-            .add_node(actor_born, actor_name.clone(), NO_PROPS, None)
+            .add_node(actor_born, actor_name.clone(), NO_PROPS, None, None)
             .unwrap()
             .add_metadata([("type", "actor")])
             .unwrap();
         graph
-            .add_node(film_release, film_title.clone(), NO_PROPS, None)
+            .add_node(film_release, film_title.clone(), NO_PROPS, None, None)
             .unwrap()
             .add_metadata([
                 ("type", "film".into_prop()),

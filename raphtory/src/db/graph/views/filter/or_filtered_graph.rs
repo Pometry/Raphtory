@@ -1,6 +1,8 @@
 use crate::{
     db::api::{
-        properties::internal::InheritPropertiesOps,
+        properties::internal::{
+            InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
+        },
         view::internal::{
             Immutable, InheritLayerOps, InheritListOps, InheritMaterialize, InheritStorageOps,
             InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
@@ -11,14 +13,14 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{LayerIds, ELID},
+        entities::{LayerId, LayerIds, ELID},
         storage::timeindex::EventTime,
     },
     inherit::Base,
 };
 use raphtory_storage::{
     core_ops::InheritCoreGraphOps,
-    graph::{edges::edge_ref::EdgeStorageRef, nodes::node_ref::NodeStorageRef},
+    graph::{edges::edge_ref::EdgeEntryRef, nodes::node_ref::NodeStorageRef},
 };
 
 #[derive(Debug, Clone)]
@@ -45,6 +47,14 @@ impl<'graph, G: GraphViewOps<'graph>, L, R> InheritLayerOps for OrFilteredGraph<
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritListOps for OrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritMaterialize for OrFilteredGraph<G, L, R> {}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritPropertiesOps for OrFilteredGraph<G, L, R> {}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritNodePropertySchemaOps
+    for OrFilteredGraph<G, L, R>
+{
+}
+impl<'graph, G: GraphViewOps<'graph>, L, R> InheritEdgePropertySchemaOps
+    for OrFilteredGraph<G, L, R>
+{
+}
 impl<'graph, G: GraphViewOps<'graph>, L, R> InheritTimeSemantics for OrFilteredGraph<G, L, R> {}
 
 impl<G, L: InternalNodeFilterOps, R: InternalNodeFilterOps> InternalNodeFilterOps
@@ -79,7 +89,7 @@ impl<G, L: InternalEdgeLayerFilterOps, R: InternalEdgeLayerFilterOps> InternalEd
             && self.right.internal_layer_filter_edge_list_trusted()
     }
 
-    fn internal_filter_edge_layer(&self, edge: EdgeStorageRef, layer: usize) -> bool {
+    fn internal_filter_edge_layer(&self, edge: EdgeEntryRef, layer: LayerId) -> bool {
         self.left.internal_filter_edge_layer(edge, layer)
             || self.right.internal_filter_edge_layer(edge, layer)
     }
@@ -117,7 +127,7 @@ impl<G, L: InternalEdgeFilterOps, R: InternalEdgeFilterOps> InternalEdgeFilterOp
     }
 
     #[inline]
-    fn internal_filter_edge(&self, edge: EdgeStorageRef, layer_ids: &LayerIds) -> bool {
+    fn internal_filter_edge(&self, edge: EdgeEntryRef, layer_ids: &LayerIds) -> bool {
         self.left.internal_filter_edge(edge, layer_ids)
             || self.right.internal_filter_edge(edge, layer_ids)
     }

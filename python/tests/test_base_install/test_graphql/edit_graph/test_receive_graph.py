@@ -16,7 +16,7 @@ def test_receive_graph_fails_if_no_graph_found():
         query = """{ receiveGraph(path: "g2") }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'g2' does not exist" in str(excinfo.value)
 
 
 def test_receive_graph_succeeds_if_graph_found():
@@ -28,13 +28,11 @@ def test_receive_graph_succeeds_if_graph_found():
         g.add_edge(1, "ben", "hamza")
         g.add_edge(2, "haaroon", "hamza")
         g.add_edge(3, "ben", "haaroon")
-
-        g.save_to_file(os.path.join(work_dir, "g1"))
-
+        client.send_graph("g1", g)
         query = """{ receiveGraph(path: "g1") }"""
         received_graph = client.query(query)["receiveGraph"]
 
-        decoded_bytes = base64.b64decode(received_graph)
+        decoded_bytes = base64.urlsafe_b64decode(received_graph)
         g = Graph.deserialise(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]
 
@@ -62,7 +60,7 @@ def test_receive_graph_fails_if_no_graph_found_at_namespace():
         query = """{ receiveGraph(path: "shivam/g2") }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'shivam/g2' does not exist" in str(excinfo.value)
 
 
 def test_receive_graph_succeeds_if_graph_found_at_namespace():
@@ -81,7 +79,7 @@ def test_receive_graph_succeeds_if_graph_found_at_namespace():
         query = """{ receiveGraph(path: "shivam/g2") }"""
         received_graph = client.query(query)["receiveGraph"]
 
-        decoded_bytes = base64.b64decode(received_graph)
+        decoded_bytes = base64.urlsafe_b64decode(received_graph)
 
         g = Graph.deserialise(decoded_bytes)
         assert g.nodes.name == ["ben", "hamza", "haaroon"]

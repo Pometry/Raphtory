@@ -3,9 +3,9 @@ use crate::{
     db::{
         api::{
             state::{
-                ops,
-                ops::{DynNodeFilter, HistoryOp},
-                LazyNodeState, NodeOp, NodeState,
+                ops::{ArrowMap, DynNodeFilter, HistoryOp, IntoArrowNodeOp, Map},
+                AvgIntervalStruct, IntervalStruct, IntervalsStruct, LazyNodeState, NodeOp,
+                NodeState,
             },
             view::{DynamicGraph, GraphViewOps},
         },
@@ -27,15 +27,14 @@ use pyo3::{
 };
 use std::collections::HashMap;
 
-use crate::db::graph::nodes::IntoDynNodes;
+use crate::db::{api::state::OutputTypedNodeState, graph::nodes::IntoDynNodes};
 pub(crate) use crate::{
     db::api::state::{ops::IntoDynNodeOp, NodeStateOps, OrderedNodeStateOps},
     prelude::*,
-    py_borrowing_iter,
     python::graph::node_state::node_state::ops::NodeFilterOp,
 };
 
-type HistoryIntervals<G> = ops::Map<HistoryOp<'static, G>, PyIntervals>;
+type HistoryIntervals<G> = ArrowMap<Map<HistoryOp<'static, G>, PyIntervals>, IntervalsStruct>;
 impl_lazy_node_state!(
     IntervalsView<HistoryIntervals<DynamicGraph>>,
     "NodeStateIntervals",
@@ -58,13 +57,13 @@ impl IntervalsView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryIntervals<DynamicGraph>, Option<f64>>,
+        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<f64>>, AvgIntervalStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.mean());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 
     /// Calculate the median interval in milliseconds for each node.
@@ -75,13 +74,13 @@ impl IntervalsView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryIntervals<DynamicGraph>, Option<i64>>,
+        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<i64>>, IntervalStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.median());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 
     /// Calculate the maximum interval in milliseconds for each node.
@@ -92,13 +91,13 @@ impl IntervalsView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryIntervals<DynamicGraph>, Option<i64>>,
+        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<i64>>, IntervalStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.max());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 
     /// Calculate the minimum interval in milliseconds for each node.
@@ -109,25 +108,25 @@ impl IntervalsView {
         &self,
     ) -> LazyNodeState<
         'static,
-        ops::Map<HistoryIntervals<DynamicGraph>, Option<i64>>,
+        ArrowMap<Map<HistoryIntervals<DynamicGraph>, Option<i64>>, IntervalStruct>,
         DynamicGraph,
         DynamicGraph,
         DynNodeFilter,
     > {
         let op = self.inner.op.clone().map(|v| v.min());
-        LazyNodeState::new(op, self.inner.nodes())
+        LazyNodeState::new(op.into_arrow_node_op(), self.inner.nodes())
     }
 }
 
 // types needed for LazyNodeStates generated above.
-type IntervalsFloat<G> = ops::Map<HistoryIntervals<G>, Option<f64>>;
+type IntervalsFloat<G> = ArrowMap<Map<HistoryIntervals<G>, Option<f64>>, AvgIntervalStruct>;
 impl_lazy_node_state_ord!(
     IntervalsFloatView<IntervalsFloat<DynamicGraph>>,
     "NodeStateOptionF64",
     "Optional[float]"
 );
 
-type IntervalsI64<G> = ops::Map<HistoryIntervals<G>, Option<i64>>;
+type IntervalsI64<G> = ArrowMap<Map<HistoryIntervals<G>, Option<i64>>, IntervalStruct>;
 impl_lazy_node_state_ord!(
     IntervalsIntegerView<IntervalsI64<DynamicGraph>>,
     "NodeStateOptionI64",

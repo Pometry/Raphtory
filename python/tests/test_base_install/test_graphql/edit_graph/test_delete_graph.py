@@ -8,8 +8,8 @@ from raphtory.graphql import GraphServer, RaphtoryClient
 
 def test_delete_graph_fails_if_graph_not_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         query = """mutation {
           deleteGraph(
@@ -18,20 +18,19 @@ def test_delete_graph_fails_if_graph_not_found():
         }"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'ben/g5' does not exist" in str(excinfo.value)
 
 
 def test_delete_graph_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")
         g.add_edge(2, "haaroon", "hamza")
         g.add_edge(3, "ben", "haaroon")
-
-        g.save_to_file(os.path.join(work_dir, "g1"))
+        client.send_graph("g1", g)
 
         query = """mutation {
           deleteGraph(
@@ -43,13 +42,13 @@ def test_delete_graph_succeeds_if_graph_found():
         query = """{graph(path: "g1") {nodes {list {name}}}}"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'g1' does not exist" in str(excinfo.value)
 
 
 def test_delete_graph_using_client_api_succeeds_if_graph_found():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")
@@ -62,13 +61,13 @@ def test_delete_graph_using_client_api_succeeds_if_graph_found():
         query = """{graph(path: "g1") {nodes {list {name}}}}"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'g1' does not exist" in str(excinfo.value)
 
 
 def test_delete_graph_succeeds_if_graph_found_at_namespace():
     work_dir = tempfile.mkdtemp()
-    with GraphServer(work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")
@@ -87,4 +86,4 @@ def test_delete_graph_succeeds_if_graph_found_at_namespace():
         query = """{graph(path: "g1") {nodes {list {name}}}}"""
         with pytest.raises(Exception) as excinfo:
             client.query(query)
-        assert "Graph not found" in str(excinfo.value)
+        assert "Graph 'g1' does not exist" in str(excinfo.value)

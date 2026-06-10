@@ -39,8 +39,9 @@ impl PartialEq for PyPropsComp {
     }
 }
 
-impl<'source> FromPyObject<'source> for PyPropsComp {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyPropsComp {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<PyMetadata>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyProperties>>() {
@@ -250,8 +251,9 @@ impl Repr for PyProperties {
 #[derive(PartialEq, Clone)]
 pub struct PyPropsListCmp(HashMap<ArcStr, PyPropValueListCmp>);
 
-impl<'source> FromPyObject<'source> for PyPropsListCmp {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyPropsListCmp {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<MetadataView>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PropertiesView>>() {
@@ -372,7 +374,7 @@ impl PropertiesView {
     /// Get a view of the temporal properties only.
     ///
     /// Returns:
-    ///     List[TemporalProp]:
+    ///     list[TemporalProperty]:
     #[getter]
     pub fn temporal(&self) -> PyTemporalPropsList {
         let builder = self.builder.clone();
@@ -404,8 +406,9 @@ py_eq!(PyNestedPropsIterable, PyMetadataListListCmp);
 #[derive(PartialEq, Clone)]
 pub struct PyMetadataListListCmp(HashMap<ArcStr, PyPropValueListListCmp>);
 
-impl<'source> FromPyObject<'source> for PyMetadataListListCmp {
-    fn extract_bound(ob: &Bound<'source, PyAny>) -> PyResult<Self> {
+impl<'py> FromPyObject<'_, 'py> for PyMetadataListListCmp {
+    type Error = PyErr;
+    fn extract(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Self> {
         if let Ok(sp) = ob.extract::<PyRef<MetadataListList>>() {
             Ok(sp.deref().into())
         } else if let Ok(p) = ob.extract::<PyRef<PyNestedPropsIterable>>() {
@@ -450,7 +453,7 @@ impl PyNestedPropsIterable {
     ///     key (str): the name of the property.
     ///
     /// Returns:
-    ///     PyPropValueListList:
+    ///     Optional[PyPropValueListList]:
     pub fn get(&self, key: &str) -> Option<PyPropValueListList> {
         self.__contains__(key).then(|| {
             let builder = self.builder.clone();
@@ -481,7 +484,7 @@ impl PyNestedPropsIterable {
     /// Get the names for all properties.
     ///
     /// Returns:
-    ///     List[Str]:
+    ///     list[str]:
     pub fn keys(&self) -> Vec<ArcStr> {
         self.iter()
             .filter_map(|mut it| it.next())
@@ -517,7 +520,7 @@ impl PyNestedPropsIterable {
     /// Get a view of the temporal properties only.
     ///
     /// Returns:
-    ///     List[List[temporalprop]]:
+    ///     list[list[TemporalProperty]]:
     #[getter]
     pub fn temporal(&self) -> PyTemporalPropsListList {
         let builder = self.builder.clone();

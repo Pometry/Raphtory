@@ -1,11 +1,15 @@
 use crate::{
     db::{
         api::{
-            state::ops::{
-                filter::{
-                    AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp, OrOp,
+            state::{
+                ops::{
+                    filter::{
+                        AndOp, MaskOp, NodeIdFilterOp, NodeNameFilterOp, NodeTypeFilterOp, NotOp,
+                        OrOp,
+                    },
+                    NodeOp, TypeId,
                 },
-                NodeOp, TypeId,
+                NodeStateValue, TypedNodeState,
             },
             view::{internal::GraphView, BoxableGraphView},
         },
@@ -13,18 +17,20 @@ use crate::{
             model::{
                 edge_filter::CompositeEdgeFilter,
                 filter::Filter,
+                is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
                 node_filter::{
                     builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
                     validate::validate,
                 },
+                node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
-                AndFilter, ComposableFilter, CompositeExplodedEdgeFilter, EntityMarker,
-                InternalPropertyFilterFactory, InternalViewWrapOps, NotFilter, OrFilter,
-                TryAsCompositeFilter, Wrap,
+                AndFilter, CombinedFilter, ComposableFilter, CompositeExplodedEdgeFilter,
+                EntityMarker, InternalPropertyFilterFactory, InternalViewWrapOps,
+                NodeViewFilterOps, NotFilter, OrFilter, TryAsCompositeFilter, Wrap,
             },
             node_filtered_graph::NodeFilteredGraph,
             CreateFilter,
@@ -48,6 +54,7 @@ impl From<NodeFilter> for EntityMarker {
         EntityMarker::Node
     }
 }
+
 impl NodeFilter {
     #[inline]
     pub fn id() -> NodeIdFilterBuilder {
@@ -62,6 +69,18 @@ impl NodeFilter {
     #[inline]
     pub fn node_type() -> NodeTypeFilterBuilder {
         NodeTypeFilterBuilder
+    }
+
+    /// Build a filter from a boolean column inside a TypedNodeState.
+    pub fn by_column<'graph, V, G, T>(
+        state: &TypedNodeState<'graph, V, G, T>,
+        col: &str,
+    ) -> Result<NodeStateBoolColOp, GraphError>
+    where
+        V: NodeStateValue + 'graph,
+        T: Clone + Send + Sync + 'graph,
+    {
+        state.bool_col_filter(col)
     }
 }
 
@@ -96,6 +115,14 @@ impl InternalPropertyFilterFactory for NodeFilter {
 
     fn metadata_builder(&self, property: String) -> Self::MetadataBuilder {
         MetadataFilterBuilder(property, self.entity())
+    }
+}
+
+impl NodeViewFilterOps for NodeFilter {
+    type Output<T: CombinedFilter> = T;
+
+    fn is_active(&self) -> Self::Output<IsActiveNode> {
+        IsActiveNode
     }
 }
 
@@ -268,7 +295,7 @@ impl CreateFilter for NodeTypeFilter {
         let node_types_filter = graph
             .node_meta()
             .node_type_meta()
-            .get_keys()
+            .keys()
             .iter()
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
@@ -285,7 +312,7 @@ impl CreateFilter for NodeTypeFilter {
         let node_types_filter = graph
             .node_meta()
             .node_type_meta()
-            .get_keys()
+            .keys()
             .iter()
             .map(|k| self.0.matches(Some(k))) // TODO: _default check
             .collect::<Vec<_>>();
@@ -325,6 +352,7 @@ pub enum CompositeNodeFilter {
     SnapshotAt(Box<SnapshotAt<CompositeNodeFilter>>),
     SnapshotLatest(Box<SnapshotLatest<CompositeNodeFilter>>),
     Layered(Box<Layered<CompositeNodeFilter>>),
+    IsActiveNode(IsActiveNode),
     And(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Or(Box<CompositeNodeFilter>, Box<CompositeNodeFilter>),
     Not(Box<CompositeNodeFilter>),
@@ -339,6 +367,7 @@ impl Display for CompositeNodeFilter {
             CompositeNodeFilter::Latest(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::SnapshotAt(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::SnapshotLatest(filter) => write!(f, "{}", filter),
+            CompositeNodeFilter::IsActiveNode(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::Node(filter) => write!(f, "{}", filter),
             CompositeNodeFilter::And(left, right) => write!(f, "({} AND {})", left, right),
             CompositeNodeFilter::Or(left, right) => write!(f, "({} OR {})", left, right),
@@ -401,6 +430,7 @@ impl CreateFilter for CompositeNodeFilter {
                 let dyn_graph: Arc<dyn BoxableGraphView + 'graph> = Arc::new(graph);
                 i.create_node_filter(dyn_graph)
             }
+            CompositeNodeFilter::IsActiveNode(i) => Ok(Arc::new(i.create_node_filter(graph)?)),
             CompositeNodeFilter::And(l, r) => Ok(Arc::new(AndOp {
                 left: l.clone().create_node_filter(graph.clone())?,
                 right: r.clone().create_node_filter(graph.clone())?,
@@ -434,6 +464,7 @@ impl CreateFilter for CompositeNodeFilter {
             CompositeNodeFilter::Latest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::SnapshotAt(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::SnapshotLatest(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
+            CompositeNodeFilter::IsActiveNode(i) => Ok(Arc::new(i.filter_graph_view(graph)?)),
             CompositeNodeFilter::And(l, r) => {
                 let (l, r) = (*l, *r);
                 Ok(Arc::new(

@@ -2,8 +2,8 @@ use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use raphtory::{graph_loader::lotr_graph::lotr_graph, prelude::*};
 use raphtory_api::core::storage::timeindex::AsTime;
 use raphtory_benchmark::common::{
-    bootstrap_graph, run_graph_ops_benches, run_large_ingestion_benchmarks,
-    run_proto_decode_benchmark, run_proto_encode_benchmark,
+    bootstrap_graph, run_decode_benchmark, run_encode_benchmark, run_graph_ops_benches,
+    run_large_ingestion_benchmarks,
 };
 
 pub fn base(c: &mut Criterion) {
@@ -50,10 +50,10 @@ pub fn base(c: &mut Criterion) {
     }
 
     run_graph_ops_benches(c, "lotr_graph", graph.clone(), layered_graph);
-    let mut proto_group = c.benchmark_group("lotr_graph");
-    run_proto_decode_benchmark(&mut proto_group, graph.clone());
-    run_proto_encode_benchmark(&mut proto_group, graph.clone());
-    proto_group.finish();
+    let mut encode_decode_group = c.benchmark_group("lotr_graph");
+    run_decode_benchmark(&mut encode_decode_group, graph.clone());
+    run_encode_benchmark(&mut encode_decode_group, graph.clone());
+    encode_decode_group.finish();
 }
 
 criterion_group!(benches, base);

@@ -26,6 +26,7 @@ use crate::{
         EdgeFilter, EdgeViewOps, GraphViewOps, LayerOps, NodeFilter, NodeViewOps, PropertiesOps,
     },
 };
+use either::Either;
 use itertools::Itertools;
 use raphtory_api::core::{
     entities::{
@@ -33,12 +34,12 @@ use raphtory_api::core::{
             meta::Meta,
             prop::{sort_comparable_props, Prop, PropType},
         },
-        EID,
+        LayerId, EID,
     },
     storage::timeindex::EventTime,
 };
 use raphtory_storage::graph::{
-    edges::{edge_ref::EdgeStorageRef, edge_storage_ops::EdgeStorageOps},
+    edges::{edge_ref::EdgeEntryRef, edge_storage_ops::EdgeStorageOps},
     nodes::{node_ref::NodeStorageRef, node_storage_ops::NodeStorageOps},
 };
 use std::{collections::HashSet, fmt, fmt::Display, sync::Arc};
@@ -307,9 +308,11 @@ impl<M> PropertyFilter<M> {
                 {
                     let semantics = graph.node_time_semantics();
                     let core_node = graph.core_node(node_view.node);
+                    let prop_ids: Arc<[usize]> = graph.node_visible_temporal_prop_ids().collect();
 
-                    let node_update_count =
-                        semantics.node_updates(core_node.as_ref(), graph).count();
+                    let node_update_count = semantics
+                        .node_updates(core_node.as_ref(), graph, prop_ids)
+                        .count();
                     let prop_time_count = seq.len();
 
                     // Missing at any timepoint? Leading temporal ALL must fail.
@@ -327,7 +330,7 @@ impl<M> PropertyFilter<M> {
         &self,
         graph: &G,
         prop_id: usize,
-        edge: EdgeStorageRef,
+        edge: EdgeEntryRef,
     ) -> bool {
         let edge = EdgeView::new(graph, edge.out_ref());
         match self.prop_ref {
@@ -357,9 +360,16 @@ impl<M> PropertyFilter<M> {
         prop_id: usize,
         e: EID,
         t: EventTime,
-        layer: usize,
+        layer: LayerId,
     ) -> bool {
-        let edge = EdgeView::new(graph, graph.core_edge(e).out_ref().at(t).at_layer(layer));
+        let edge = EdgeView::new(
+            graph,
+            graph
+                .core_edge(Either::Left(e))
+                .out_ref()
+                .at(t)
+                .at_layer(layer),
+        );
         match self.prop_ref {
             PropertyRef::Metadata(_) => {
                 let props = edge.metadata();

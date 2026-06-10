@@ -1,9 +1,8 @@
 #![allow(non_snake_case)]
 
-#[cfg(feature = "storage")]
-use crate::python::graph::disk_graph::PyDiskGraph;
 use crate::{
     algorithms::{
+        alternating_mask::alternating_mask as alternating_mask_rs,
         bipartite::max_weight_matching::{max_weight_matching as mwm, Matching},
         centrality::{
             betweenness::betweenness_centrality as betweenness_rs,
@@ -16,7 +15,7 @@ use crate::{
         },
         components,
         cores::k_core::k_core_set,
-        dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, Infected, SeedError},
+        dynamics::temporal::epidemics::{temporal_SEIR as temporal_SEIR_rs, SeedError},
         embeddings::fast_rp::fast_rp as fast_rp_rs,
         layout::{
             cohesive_fruchterman_reingold::cohesive_fruchterman_reingold as cohesive_fruchterman_reingold_rs,
@@ -59,10 +58,10 @@ use crate::{
     },
     db::{
         api::{
-            state::{ops::filter::NO_FILTER, Index, NodeState},
+            state::{ops::filter::NO_FILTER, Index, OutputTypedNodeState},
             view::internal::DynamicGraph,
         },
-        graph::{node::NodeView, nodes::Nodes},
+        graph::nodes::Nodes,
     },
     errors::GraphError,
     prelude::Graph,
@@ -72,13 +71,10 @@ use crate::{
         utils::PyNodeRef,
     },
 };
-#[cfg(feature = "storage")]
-use pometry_storage::algorithms::connected_components::connected_components as connected_components_rs;
 use pyo3::{prelude::*, types::PyList};
 use rand::{prelude::StdRng, SeedableRng};
-use raphtory_api::core::{storage::timeindex::EventTime, Direction};
+use raphtory_api::core::{entities::LayerIds, storage::timeindex::EventTime, Direction};
 use raphtory_storage::core_ops::CoreGraphOps;
-use std::collections::HashSet;
 
 /// Helper function to parse single-vertex or multi-vertex parameters to a Vec of vertices
 fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
@@ -91,7 +87,7 @@ fn process_node_param(param: &Bound<PyAny>) -> PyResult<Vec<PyNodeRef>> {
         return Ok(vec![single_node]);
     }
 
-    if let Ok(py_list) = param.downcast::<PyList>() {
+    if let Ok(py_list) = param.cast::<PyList>() {
         let mut nodes = Vec::new();
         for item in py_list.iter() {
             let num = item.extract::<PyNodeRef>()?;
@@ -136,11 +132,13 @@ pub fn local_triangle_count(graph: &PyGraphView, v: PyNodeRef) -> Option<usize> 
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     NodeStateUsize: Mapping of nodes to their component ids.
+///     OutputNodeState: Mapping of nodes to their component ids.
 #[pyfunction]
 #[pyo3(signature = (graph))]
-pub fn weakly_connected_components(graph: &PyGraphView) -> NodeState<'static, usize, DynamicGraph> {
-    components::weakly_connected_components(&graph.graph)
+pub fn weakly_connected_components(
+    graph: &PyGraphView,
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    components::weakly_connected_components(&graph.graph).to_output_nodestate()
 }
 
 /// Strongly connected components
@@ -151,20 +149,13 @@ pub fn weakly_connected_components(graph: &PyGraphView) -> NodeState<'static, us
 ///     graph (GraphView): Raphtory graph
 ///
 /// Returns:
-///     NodeStateUsize: Mapping of nodes to their component ids
+///     OutputNodeState: NodeState mapping nodes to their component ids
 #[pyfunction]
 #[pyo3(signature = (graph))]
 pub fn strongly_connected_components(
     graph: &PyGraphView,
-) -> NodeState<'static, usize, DynamicGraph> {
-    components::strongly_connected_components(&graph.graph)
-}
-
-#[cfg(feature = "storage")]
-#[pyfunction]
-#[pyo3(signature = (graph))]
-pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
-    connected_components_rs(graph.0.as_ref())
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    components::strongly_connected_components(&graph.graph).to_output_nodestate()
 }
 
 /// In components -- Finding the "in-component" of a node in a directed graph involves identifying all nodes that can be reached following only incoming edges.
@@ -180,10 +171,11 @@ pub fn connected_components(graph: &PyDiskGraph) -> Vec<usize> {
 pub fn in_components(
     graph: &PyGraphView,
     filter: Option<PyFilterExpr>,
-) -> Result<NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph>, GraphError> {
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::in_components_filtered(&graph.graph, None, f),
-        None => Ok(components::in_components(&graph.graph, None)),
+        Some(f) => components::in_components_filtered(&graph.graph, None, f)
+            .map(|result| result.to_output_nodestate()),
+        None => Ok(components::in_components(&graph.graph, None).to_output_nodestate()),
     }
 }
 
@@ -200,10 +192,11 @@ pub fn in_components(
 pub fn in_component(
     node: &PyNode,
     filter: Option<PyFilterExpr>,
-) -> Result<NodeState<'static, usize, DynamicGraph>, GraphError> {
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::in_component_filtered(node.node.clone(), f),
-        None => Ok(components::in_component(node.node.clone())),
+        Some(f) => components::in_component_filtered(node.node.clone(), f)
+            .map(|result| result.to_output_nodestate()),
+        None => Ok(components::in_component(node.node.clone()).to_output_nodestate()),
     }
 }
 
@@ -220,10 +213,11 @@ pub fn in_component(
 pub fn out_components(
     graph: &PyGraphView,
     filter: Option<PyFilterExpr>,
-) -> Result<NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph>, GraphError> {
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::out_components_filtered(&graph.graph, None, f),
-        None => Ok(components::out_components(&graph.graph, None)),
+        Some(f) => components::out_components_filtered(&graph.graph, None, f)
+            .map(|result| result.to_output_nodestate()),
+        None => Ok(components::out_components(&graph.graph, None).to_output_nodestate()),
     }
 }
 
@@ -240,10 +234,11 @@ pub fn out_components(
 pub fn out_component(
     node: &PyNode,
     filter: Option<PyFilterExpr>,
-) -> Result<NodeState<'static, usize, DynamicGraph>, GraphError> {
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     match filter {
-        Some(f) => components::out_component_filtered(node.node.clone(), f),
-        None => Ok(components::out_component(node.node.clone())),
+        Some(f) => components::out_component_filtered(node.node.clone(), f)
+            .map(|result| result.to_output_nodestate()),
+        None => Ok(components::out_component(node.node.clone()).to_output_nodestate()),
     }
 }
 
@@ -263,7 +258,7 @@ pub fn out_component(
 ///     damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 ///
 /// Returns:
-///     NodeStateF64: Mapping of nodes to their pagerank value.
+///     OutputNodeState: NodeState mapping nodes to their pagerank score.
 #[pyfunction]
 #[pyo3(signature = (graph, iter_count=20, max_diff=None, use_l2_norm=true, damping_factor=0.85))]
 pub fn pagerank(
@@ -272,7 +267,7 @@ pub fn pagerank(
     max_diff: Option<f64>,
     use_l2_norm: bool,
     damping_factor: Option<f64>,
-) -> NodeState<'static, f64, DynamicGraph> {
+) -> OutputTypedNodeState<'static, DynamicGraph> {
     unweighted_page_rank(
         &graph.graph,
         Some(iter_count),
@@ -281,6 +276,7 @@ pub fn pagerank(
         use_l2_norm,
         damping_factor,
     )
+    .to_output_nodestate()
 }
 
 /// Temporally reachable nodes -- the nodes that are reachable by a time respecting path followed out from a set of seed nodes at a starting time.
@@ -306,7 +302,7 @@ pub fn temporally_reachable_nodes(
     start_time: i64,
     seed_nodes: Vec<PyNodeRef>,
     stop_nodes: Option<Vec<PyNodeRef>>,
-) -> NodeState<'static, Vec<(i64, String)>, DynamicGraph> {
+) -> OutputTypedNodeState<'static, DynamicGraph> {
     temporal_reachability_rs(
         &graph.graph,
         None,
@@ -315,6 +311,7 @@ pub fn temporally_reachable_nodes(
         seed_nodes,
         stop_nodes,
     )
+    .to_output_nodestate()
 }
 
 /// Local clustering coefficient - measures the degree to which nodes in a graph tend to cluster together.
@@ -332,7 +329,6 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
     local_clustering_coefficient_rs(&graph.graph, v)
 }
 
-#[pyfunction]
 /// Returns the Local clustering coefficient (batch, intersection) for each specified node in a graph. This measures the degree to which one or multiple nodes in a graph tend to cluster together.
 ///
 /// Uses path-counting for its triangle-counting step.
@@ -342,15 +338,18 @@ pub fn local_clustering_coefficient(graph: &PyGraphView, v: PyNodeRef) -> Option
 ///     v: vec of node ids, if empty, will return results for every node in the graph
 ///
 /// Returns:
-///     dict[NodeState]:
+///     OutputNodeState: Mapping of vertices to lcc score
+#[pyfunction]
+#[pyo3(signature = (graph, v=None))]
 pub fn local_clustering_coefficient_batch(
     graph: &PyGraphView,
-    v: &Bound<PyAny>,
-) -> PyResult<NodeState<'static, f64, DynamicGraph>> {
-    match process_node_param(v) {
-        Ok(v) => Ok(local_clustering_coefficient_batch_rs(&graph.graph, v)),
-        Err(e) => Err(e),
+    v: Option<&Bound<PyAny>>,
+) -> PyResult<OutputTypedNodeState<'static, DynamicGraph>> {
+    if v.is_some() {
+        let v = process_node_param(v.unwrap())?;
+        return Ok(local_clustering_coefficient_batch_rs(&graph.graph, v).to_output_nodestate());
     }
+    Ok(local_clustering_coefficient_batch_rs(&graph.graph, vec![0; 0]).to_output_nodestate())
 }
 
 /// Graph density - measures how dense or sparse a graph is.
@@ -458,8 +457,8 @@ pub fn global_reciprocity(graph: &PyGraphView) -> f64 {
 ///     NodeStateF64: Mapping of nodes to their reciprocity value.
 ///
 #[pyfunction]
-pub fn all_local_reciprocity(graph: &PyGraphView) -> NodeState<'static, f64, DynamicGraph> {
-    all_local_reciprocity_rs(&graph.graph)
+pub fn all_local_reciprocity(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
+    all_local_reciprocity_rs(&graph.graph).to_output_nodestate()
 }
 
 /// Computes the number of connected triplets within a graph
@@ -594,6 +593,7 @@ pub fn global_temporal_three_node_motif_multi(
 /// Arguments:
 ///     graph (GraphView): A directed raphtory graph
 ///     delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+///     threads (int, optional): Number of threads to use. Defaults to None.
 ///
 /// Returns:
 ///     NodeStateMotifs: A mapping from nodes to lists of motif counts (40 counts in the same order as the global motif counts) with the number of each motif that node participates in.
@@ -607,8 +607,8 @@ pub fn local_temporal_three_node_motifs(
     graph: &PyGraphView,
     delta: i64,
     threads: Option<usize>,
-) -> NodeState<'static, Vec<usize>, DynamicGraph> {
-    local_three_node_rs(&graph.graph, delta, threads)
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    local_three_node_rs(&graph.graph, delta, threads).to_output_nodestate()
 }
 
 /// HITS (Hubs and Authority) Algorithm:
@@ -632,8 +632,8 @@ pub fn hits(
     graph: &PyGraphView,
     iter_count: usize,
     threads: Option<usize>,
-) -> NodeState<'static, (f32, f32), DynamicGraph> {
-    hits_rs(&graph.graph, iter_count, threads)
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    hits_rs(&graph.graph, iter_count, threads).to_output_nodestate()
 }
 
 /// Sums the weights of edges in the graph based on the specified direction.
@@ -657,8 +657,8 @@ pub fn balance(
     graph: &PyGraphView,
     name: String,
     direction: Direction,
-) -> Result<NodeState<'static, f64, DynamicGraph>, GraphError> {
-    balance_rs(&graph.graph, name.clone(), direction)
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
+    balance_rs(&graph.graph, name.clone(), direction).map(|result| result.to_output_nodestate())
 }
 
 /// Computes the degree centrality of all nodes in the graph. The values are normalized
@@ -669,11 +669,11 @@ pub fn balance(
 ///     graph (GraphView): The graph view on which the operation is to be performed.
 ///
 /// Returns:
-///     NodeStateF64: Mapping of nodes to their associated degree centrality.
+///     OutputNodeState: NodeState mapping nodes to their associated degree centrality.
 #[pyfunction]
 #[pyo3[signature = (graph)]]
-pub fn degree_centrality(graph: &PyGraphView) -> NodeState<'static, f64, DynamicGraph> {
-    degree_centrality_rs(&graph.graph)
+pub fn degree_centrality(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
+    degree_centrality_rs(&graph.graph).to_output_nodestate()
 }
 
 /// Returns the largest degree found in the graph
@@ -718,8 +718,8 @@ pub fn single_source_shortest_path(
     graph: &PyGraphView,
     source: PyNodeRef,
     cutoff: Option<usize>,
-) -> NodeState<'static, Nodes<'static, DynamicGraph>, DynamicGraph> {
-    single_source_shortest_path_rs(&graph.graph, source, cutoff)
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    single_source_shortest_path_rs(&graph.graph, source, cutoff).to_output_nodestate()
 }
 
 /// Finds the shortest paths from a single source to multiple targets in a graph.
@@ -742,8 +742,9 @@ pub fn dijkstra_single_source_shortest_paths(
     targets: Vec<PyNodeRef>,
     direction: Direction,
     weight: Option<&str>,
-) -> Result<NodeState<'static, (f64, Nodes<'static, DynamicGraph>), DynamicGraph>, GraphError> {
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, GraphError> {
     dijkstra_single_source_shortest_paths_rs(&graph.graph, source, targets, weight, direction)
+        .map(|result| result.to_output_nodestate())
 }
 
 /// Computes the betweenness centrality for nodes in a given graph.
@@ -762,29 +763,32 @@ pub fn betweenness_centrality(
     graph: &PyGraphView,
     k: Option<usize>,
     normalized: bool,
-) -> NodeState<'static, f64, DynamicGraph> {
-    betweenness_rs(&graph.graph, k, normalized)
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    betweenness_rs(&graph.graph, k, normalized).to_output_nodestate()
 }
 
 /// Computes components using a label propagation algorithm
 ///
 /// Arguments:
 ///     graph (GraphView): A reference to the graph
+///     iter_count (int): Number of iterations. Defaults to 20.
 ///     seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 ///
 /// Returns:
-///     list[set[Node]]: A list of sets each containing nodes that have been grouped
+///     OutputNodeState: NodeState mapping nodes to community id
 ///
 #[pyfunction]
-#[pyo3[signature = (graph, seed=None)]]
+#[pyo3[signature = (graph, iter_count=20, seed=None)]]
 pub fn label_propagation(
     graph: &PyGraphView,
+    iter_count: usize,
     seed: Option<[u8; 32]>,
-) -> PyResult<Vec<HashSet<NodeView<'static, DynamicGraph>>>> {
-    match label_propagation_rs(&graph.graph, seed) {
-        Ok(result) => Ok(result),
-        Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
-    }
+) -> OutputTypedNodeState<'static, DynamicGraph> {
+    label_propagation_rs(&graph.graph, iter_count, seed, None).to_output_nodestate()
+    // match  {
+    //Ok(result) => Ok(result),
+    //Err(err_msg) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(err_msg)),
+    // }
 }
 
 /// Determines which nodes are in the k-core for a given value of k
@@ -807,10 +811,10 @@ pub fn k_core(
     threads: Option<usize>,
 ) -> Nodes<'static, DynamicGraph> {
     let v_set = k_core_set(&graph.graph, k, iter_count, threads);
-    let index = if v_set.len() == graph.graph.unfiltered_num_nodes() {
-        None
+    let index = if v_set.len() == graph.graph.unfiltered_num_nodes(&LayerIds::All) {
+        Index::for_graph(graph.graph.clone())
     } else {
-        Some(Index::from_iter(v_set))
+        Index::from_iter(v_set)
     };
     Nodes::new_filtered(graph.graph.clone(), graph.graph.clone(), NO_FILTER, index)
 }
@@ -851,9 +855,9 @@ pub fn temporal_SEIR(
     recovery_rate: Option<f64>,
     incubation_rate: Option<f64>,
     rng_seed: Option<u64>,
-) -> Result<NodeState<'static, Infected, DynamicGraph>, SeedError> {
+) -> Result<OutputTypedNodeState<'static, DynamicGraph>, SeedError> {
     let mut rng = match rng_seed {
-        None => StdRng::from_entropy(),
+        None => StdRng::from_os_rng(),
         Some(seed) => StdRng::seed_from_u64(seed),
     };
     temporal_SEIR_rs(
@@ -865,6 +869,7 @@ pub fn temporal_SEIR(
         seeds,
         &mut rng,
     )
+    .map(|result| result.to_output_nodestate())
 }
 
 /// Louvain algorithm for community detection
@@ -884,8 +889,9 @@ pub fn louvain(
     resolution: f64,
     weight_prop: Option<&str>,
     tol: Option<f64>,
-) -> NodeState<'static, usize, DynamicGraph> {
+) -> OutputTypedNodeState<'static, DynamicGraph> {
     louvain_rs::<ModularityUnDir, _>(&graph.graph, resolution, weight_prop, tol)
+        .to_output_nodestate()
 }
 
 /// Fruchterman Reingold layout algorithm
@@ -909,7 +915,7 @@ pub fn fruchterman_reingold(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> NodeState<'static, [f32; 2], DynamicGraph> {
+) -> OutputTypedNodeState<'static, DynamicGraph> {
     fruchterman_reingold_rs(
         &graph.graph,
         iterations,
@@ -918,6 +924,7 @@ pub fn fruchterman_reingold(
         cooloff_factor,
         dt,
     )
+    .to_output_nodestate()
 }
 
 /// Cohesive version of `fruchterman_reingold` that adds virtual edges between isolated nodes
@@ -941,7 +948,7 @@ pub fn cohesive_fruchterman_reingold(
     node_start_size: f32,
     cooloff_factor: f32,
     dt: f32,
-) -> NodeState<'static, [f32; 2], DynamicGraph> {
+) -> OutputTypedNodeState<'static, DynamicGraph> {
     cohesive_fruchterman_reingold_rs(
         &graph.graph,
         iter_count,
@@ -950,6 +957,7 @@ pub fn cohesive_fruchterman_reingold(
         cooloff_factor,
         dt,
     )
+    .to_output_nodestate()
 }
 
 /// Temporal rich club coefficient
@@ -982,7 +990,7 @@ pub fn temporal_rich_club_coefficient(
 ) -> PyResult<f64> {
     let py_iterator = views.try_iter()?;
     let views = py_iterator
-        .map(|view| view.and_then(|view| Ok(view.downcast::<PyGraphView>()?.get().graph.clone())))
+        .map(|view| view.and_then(|view| Ok(view.cast::<PyGraphView>()?.get().graph.clone())))
         .collect::<PyResult<Vec<_>>>()?;
     Ok(temporal_rich_club_rs(&graph.graph, views, k, window_size))
 }
@@ -1057,7 +1065,7 @@ pub fn fast_rp(
     iter_weights: Vec<f64>,
     seed: Option<u64>,
     threads: Option<usize>,
-) -> NodeState<'static, Vec<f64>, DynamicGraph> {
+) -> OutputTypedNodeState<'static, DynamicGraph> {
     fast_rp_rs(
         &graph.graph,
         embedding_dim,
@@ -1066,4 +1074,18 @@ pub fn fast_rp(
         seed,
         threads,
     )
+    .to_output_nodestate()
+}
+
+/// Alternating mask algorithm. It is a mock algorithm suitable only for testing purposes.
+///
+/// Arguments:
+///     graph (GraphView): The graph view on which the operation is to be performed.
+///
+/// Returns:
+///     OutputNodeState: NodeState mapping nodes to their associated alternating masks.
+#[pyfunction]
+#[pyo3[signature = (graph)]]
+pub fn alternating_mask(graph: &PyGraphView) -> OutputTypedNodeState<'static, DynamicGraph> {
+    alternating_mask_rs(&graph.graph).to_output_nodestate()
 }

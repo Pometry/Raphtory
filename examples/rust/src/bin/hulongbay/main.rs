@@ -138,7 +138,7 @@ fn try_main() -> Result<(), Box<dyn Error>> {
         .rev()
         .take(50)
         .for_each(|(cc, count)| {
-            info!("CC {} has {} nodes", cc, count);
+            info!("CC {:?} has {} nodes", cc, count);
         });
 
     info!(

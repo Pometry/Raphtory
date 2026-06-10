@@ -4,15 +4,12 @@ CURRENT_TIME := $(shell date +"%Y-%m-%dT%H-%M-%S")
 K6_IP=$(shell terraform output k6_ip | jq -r '.')
 RAPHTORY_IP=$(shell terraform output raphtory_ip | jq -r '.')
 
-data/apache/master/graph:
-	@echo "Unzipping apache master graph"
-	@cd data/apache/master && tar -Jxf graph.tar.xz -C .
 
 build:
 	pnpm install --frozen-lockfile
 	pnpm build
 
-bench-local: data/apache/master/graph build
+bench-local: build
 	pnpm concurrently --raw --kill-others --names 'raphtory,bench' 'python server.py' 'sleep 10 && k6 run --out csv=output.csv.gz dist/bench.js' || :
 	python process-k6-output.py
 

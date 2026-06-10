@@ -17,7 +17,7 @@ pub trait Operation<'a, A: Send + Sync + 'static> {
 
     fn apply<'b>(
         entry_point: &A,
-        ctx: ResolverContext,
+        ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>>;
 
     fn register_operation(name: &str, registry: Registry, parent: Object) -> (Registry, Object) {
@@ -52,7 +52,7 @@ impl<'a> Operation<'a, MutationPlugin> for NoOpMutation {
 
     fn apply<'b>(
         _entry_point: &MutationPlugin,
-        _ctx: ResolverContext,
+        _ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         Box::pin(async move { Ok(Some(FieldValue::value("no-op".to_owned()))) })
     }
@@ -73,7 +73,7 @@ impl<'a> Operation<'a, QueryPlugin> for NoOpQuery {
 
     fn apply<'b>(
         _entry_point: &QueryPlugin,
-        _ctx: ResolverContext,
+        _ctx: ResolverContext<'b>,
     ) -> BoxFuture<'b, FieldResult<Option<FieldValue<'b>>>> {
         Box::pin(async move { Ok(Some(FieldValue::value("no-op".to_owned()))) })
     }

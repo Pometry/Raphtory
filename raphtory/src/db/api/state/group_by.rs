@@ -1,7 +1,8 @@
+use super::node_state_ops::ToOwnedValue;
 use crate::{
     db::{
         api::state::{ops::Const, Index},
-        graph::{nodes::Nodes, views::node_subgraph::NodeSubgraph},
+        graph::{nodes::Nodes, views::node_subgraph::UnfilteredSubgraph},
     },
     prelude::{GraphViewOps, NodeStateOps},
 };
@@ -13,8 +14,8 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 #[derive(Clone, Debug)]
 pub struct NodeGroups<V, G> {
-    groups: Arc<[(V, Index<VID>)]>,
-    graph: G,
+    pub groups: Arc<[(V, Index<VID>)]>,
+    pub graph: G,
 }
 
 impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGroups<V, G> {
@@ -41,7 +42,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    Some(nodes.clone()),
+                    nodes.clone(),
                 ),
             )
         })
@@ -57,7 +58,7 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
         })
     }
 
-    pub fn into_iter_subgraphs(self) -> impl Iterator<Item = (V, NodeSubgraph<G>)>
+    pub fn into_iter_subgraphs(self) -> impl Iterator<Item = (V, UnfilteredSubgraph<G>)>
     where
         V: Clone,
     {
@@ -67,14 +68,11 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
         })
     }
 
-    pub fn iter_subgraphs(&self) -> impl Iterator<Item = (&V, NodeSubgraph<G>)> {
+    pub fn iter_subgraphs(&self) -> impl Iterator<Item = (&V, UnfilteredSubgraph<G>)> {
         self.groups.iter().map(|(v, nodes)| {
             (
                 v,
-                NodeSubgraph {
-                    graph: self.graph.clone(),
-                    nodes: nodes.clone(),
-                },
+                UnfilteredSubgraph::new(self.graph.clone(), nodes.clone()),
             )
         })
     }
@@ -87,20 +85,17 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
                     self.graph.clone(),
                     self.graph.clone(),
                     Const(true),
-                    Some(nodes.clone()),
+                    nodes.clone(),
                 ),
             )
         })
     }
 
-    pub fn group_subgraph(&self, index: usize) -> Option<(&V, NodeSubgraph<G>)> {
+    pub fn group_subgraph(&self, index: usize) -> Option<(&V, UnfilteredSubgraph<G>)> {
         self.groups.get(index).map(|(v, nodes)| {
             (
                 v,
-                NodeSubgraph {
-                    graph: self.graph.clone(),
-                    nodes: nodes.clone(),
-                },
+                UnfilteredSubgraph::new(self.graph.clone(), nodes.clone()),
             )
         })
     }
@@ -114,15 +109,15 @@ impl<'graph, V: Hash + Eq + Send + Sync + Clone, G: GraphViewOps<'graph>> NodeGr
     }
 }
 
-pub trait NodeStateGroupBy<'graph>: NodeStateOps<'graph> {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph>;
+pub trait NodeStateGroupBy<'a, 'graph: 'a>: NodeStateOps<'a, 'graph> {
+    fn groups(&'a self) -> NodeGroups<Self::OwnedValue, Self::Graph>;
 }
 
-impl<'graph, S: NodeStateOps<'graph>> NodeStateGroupBy<'graph> for S
+impl<'a, 'graph: 'a, S: NodeStateOps<'a, 'graph>> NodeStateGroupBy<'a, 'graph> for S
 where
     S::OwnedValue: Hash + Eq + Debug,
 {
-    fn groups(&self) -> NodeGroups<Self::OwnedValue, Self::Graph> {
-        self.group_by(|v| v.clone())
+    fn groups(&'a self) -> NodeGroups<Self::OwnedValue, Self::Graph> {
+        self.group_by(|v| v.to_owned_value())
     }
 }

@@ -17,8 +17,8 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name():
     g.save_to_zip(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.upload_graph(path="g", file_path=g_file_path, overwrite=False)
 
         query = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -41,8 +41,8 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_non_zip():
     g.save_to_file(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.upload_graph(path="g", file_path=g_file_path, overwrite=False)
 
         query = """{graph(path: "g") {nodes {list {name}}}}"""
@@ -66,11 +66,11 @@ def test_upload_graph_fails_if_graph_already_exists():
 
     tmp_work_dir = tempfile.mkdtemp()
     g.save_to_file(os.path.join(tmp_work_dir, "g"))
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         with pytest.raises(Exception) as excinfo:
             client.upload_graph(path="g", file_path=g_file_path)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'g' already exists" in str(excinfo.value)
 
 
 def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
@@ -83,8 +83,8 @@ def test_upload_graph_succeeds_if_graph_already_exists_with_overwrite_enabled():
     g.save_to_file(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")
@@ -123,8 +123,8 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
     g.save_to_zip(g_file_path)
 
     tmp_work_dir = tempfile.mkdtemp()
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
 
         query = """{graph(path: "shivam/g") {nodes {list {name}}}}"""
@@ -135,6 +135,8 @@ def test_upload_graph_succeeds_if_no_graph_found_with_same_name_at_namespace():
                 }
             }
         }
+        g2 = client.receive_graph("shivam/g")
+    assert g2.has_node("ben")
 
 
 def test_upload_graph_fails_if_graph_already_exists_at_namespace():
@@ -149,11 +151,11 @@ def test_upload_graph_fails_if_graph_already_exists_at_namespace():
     tmp_work_dir = tempfile.mkdtemp()
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
         with pytest.raises(Exception) as excinfo:
             client.upload_graph(path="shivam/g", file_path=g_file_path, overwrite=False)
-        assert "Graph already exists by name" in str(excinfo.value)
+        assert "Graph 'shivam/g' already exists" in str(excinfo.value)
 
 
 def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwrite_enabled():
@@ -165,8 +167,8 @@ def test_upload_graph_succeeds_if_graph_already_exists_at_namespace_with_overwri
     os.makedirs(os.path.join(tmp_work_dir, "shivam"), exist_ok=True)
     g.save_to_file(os.path.join(tmp_work_dir, "shivam", "g"))
 
-    with GraphServer(tmp_work_dir).start():
-        client = RaphtoryClient("http://localhost:1736")
+    with GraphServer(tmp_work_dir).start() as server:
+        client = server.get_client()
 
         g = Graph()
         g.add_edge(1, "ben", "hamza")

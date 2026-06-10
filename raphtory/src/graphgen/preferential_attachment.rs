@@ -62,7 +62,7 @@ pub fn ba_preferential_attachment(
     if let Some(seed_value) = seed {
         rng = StdRng::from_seed(seed_value);
     } else {
-        rng = StdRng::from_entropy();
+        rng = StdRng::from_os_rng();
     }
     let mut latest_time = graph.latest_time().map_or(0, |t| t.t());
     let view = graph;
@@ -75,7 +75,7 @@ pub fn ba_preferential_attachment(
     while ids.len() < edges_per_step {
         max_id = next_id(view, Some(max_id));
         graph
-            .add_node(latest_time, &max_id, NO_PROPS, None)
+            .add_node(latest_time, &max_id, NO_PROPS, None, None)
             .map_err(|err| error!("{:?}", err))
             .ok();
         degrees.push(0);
@@ -101,7 +101,7 @@ pub fn ba_preferential_attachment(
 
         for _ in 0..edges_per_step {
             let mut sum = 0;
-            let rand_num = rng.gen_range(1..=normalisation);
+            let rand_num = rng.random_range(1..=normalisation);
             for pos in 0..ids.len() {
                 if !positions_to_skip.contains(&pos) {
                     sum += degrees[pos];
@@ -146,7 +146,7 @@ mod preferential_attachment_tests {
         let graph = Graph::new();
         for i in 0..10 {
             graph
-                .add_node(i, i as u64, NO_PROPS, None)
+                .add_node(i, i as u64, NO_PROPS, None, None)
                 .map_err(|err| error!("{:?}", err))
                 .ok();
         }

@@ -19,13 +19,17 @@ import raphtory.filter as filter
 from raphtory.vectors import *
 from raphtory.node_state import *
 from raphtory.graphql import *
+from raphtory.gql import *
 from raphtory.typing import *
 import numpy as np
 from numpy.typing import NDArray
 from datetime import datetime
+import pandas
 from pandas import DataFrame
+import pyarrow  # type: ignore[import-untyped]
 from pyarrow import DataType  # type: ignore[import-untyped]
 from os import PathLike
+from decimal import Decimal
 import networkx as nx  # type: ignore
 import pyvis  # type: ignore
 from raphtory.iterables import *
@@ -40,6 +44,7 @@ __all__ = [
     "average_degree",
     "directed_graph_density",
     "degree_centrality",
+    "alternating_mask",
     "max_degree",
     "min_degree",
     "max_out_degree",
@@ -203,7 +208,7 @@ def directed_graph_density(graph: GraphView) -> float:
         float: Directed graph density of graph.
     """
 
-def degree_centrality(graph: GraphView) -> NodeStateF64:
+def degree_centrality(graph: GraphView) -> OutputNodeState:
     """
     Computes the degree centrality of all nodes in the graph. The values are normalized
     by dividing each result with the maximum possible degree. Graphs with self-loops can have
@@ -213,7 +218,18 @@ def degree_centrality(graph: GraphView) -> NodeStateF64:
         graph (GraphView): The graph view on which the operation is to be performed.
 
     Returns:
-        NodeStateF64: Mapping of nodes to their associated degree centrality.
+        OutputNodeState: NodeState mapping nodes to their associated degree centrality.
+    """
+
+def alternating_mask(graph: GraphView) -> OutputNodeState:
+    """
+    Alternating mask algorithm. It is a mock algorithm suitable only for testing purposes.
+
+    Arguments:
+        graph (GraphView): The graph view on which the operation is to be performed.
+
+    Returns:
+        OutputNodeState: NodeState mapping nodes to their associated alternating masks.
     """
 
 def max_degree(graph: GraphView) -> int:
@@ -288,7 +304,7 @@ def pagerank(
     max_diff: Optional[float] = None,
     use_l2_norm: bool = True,
     damping_factor: float = 0.85,
-) -> NodeStateF64:
+) -> OutputNodeState:
     """
     Pagerank -- pagerank centrality value of the nodes in a graph
 
@@ -306,7 +322,7 @@ def pagerank(
         damping_factor (float): The damping factor for the PageRank calculation. Defaults to 0.85.
 
     Returns:
-        NodeStateF64: Mapping of nodes to their pagerank value.
+        OutputNodeState: NodeState mapping nodes to their pagerank score.
     """
 
 def single_source_shortest_path(
@@ -397,7 +413,7 @@ def local_clustering_coefficient(graph: GraphView, v: NodeInput) -> float:
         float: the local clustering coefficient of node v in graph.
     """
 
-def local_clustering_coefficient_batch(graph: Any, v: Any):
+def local_clustering_coefficient_batch(graph: Any, v: Any = None) -> OutputNodeState:
     """
     Returns the Local clustering coefficient (batch, intersection) for each specified node in a graph. This measures the degree to which one or multiple nodes in a graph tend to cluster together.
 
@@ -408,10 +424,10 @@ def local_clustering_coefficient_batch(graph: Any, v: Any):
         v: vec of node ids, if empty, will return results for every node in the graph
 
     Returns:
-        dict[NodeState]:
+        OutputNodeState: Mapping of vertices to lcc score
     """
 
-def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
+def weakly_connected_components(graph: GraphView) -> OutputNodeState:
     """
     Weakly connected components -- partitions the graph into node sets which are mutually reachable by an undirected path
 
@@ -422,10 +438,10 @@ def weakly_connected_components(graph: GraphView) -> NodeStateUsize:
         graph (GraphView): Raphtory graph
 
     Returns:
-        NodeStateUsize: Mapping of nodes to their component ids.
+        OutputNodeState: Mapping of nodes to their component ids.
     """
 
-def strongly_connected_components(graph: GraphView) -> NodeStateUsize:
+def strongly_connected_components(graph: GraphView) -> OutputNodeState:
     """
     Strongly connected components
 
@@ -435,7 +451,7 @@ def strongly_connected_components(graph: GraphView) -> NodeStateUsize:
         graph (GraphView): Raphtory graph
 
     Returns:
-        NodeStateUsize: Mapping of nodes to their component ids
+        OutputNodeState: NodeState mapping nodes to their component ids
     """
 
 def in_components(
@@ -584,7 +600,7 @@ def global_temporal_three_node_motif_multi(
     """
 
 def local_temporal_three_node_motifs(
-    graph: GraphView, delta: int, threads=None
+    graph: GraphView, delta: int, threads: Optional[int] = None
 ) -> NodeStateMotifs:
     """
     Computes the number of each type of motif that each node participates in. See global_temporal_three_node_motifs for a summary of the motifs involved.
@@ -592,6 +608,7 @@ def local_temporal_three_node_motifs(
     Arguments:
         graph (GraphView): A directed raphtory graph
         delta (int): Maximum time difference between the first and last edge of the motif. NB if time for edges was given as a UNIX epoch, this should be given in seconds, otherwise milliseconds should be used (if edge times were given as string)
+        threads (int, optional): Number of threads to use. Defaults to None.
 
     Returns:
         NodeStateMotifs: A mapping from nodes to lists of motif counts (40 counts in the same order as the global motif counts) with the number of each motif that node participates in.
@@ -644,17 +661,18 @@ def balance(
     """
 
 def label_propagation(
-    graph: GraphView, seed: Optional[bytes] = None
-) -> list[set[Node]]:
+    graph: GraphView, iter_count: int = 20, seed: Optional[bytes] = None
+) -> OutputNodeState:
     """
     Computes components using a label propagation algorithm
 
     Arguments:
         graph (GraphView): A reference to the graph
+        iter_count (int): Number of iterations. Defaults to 20.
         seed (bytes, optional): Array of 32 bytes of u8 which is set as the rng seed
 
     Returns:
-        list[set[Node]]: A list of sets each containing nodes that have been grouped
+        OutputNodeState: NodeState mapping nodes to community id
 
     """
 

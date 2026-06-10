@@ -1,4 +1,3 @@
-pub mod edges;
 pub mod graph;
 pub mod nodes;
 pub mod properties;

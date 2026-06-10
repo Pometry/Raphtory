@@ -1,347 +1,803 @@
 use crate::{
+    auth::ContextValidation,
+    auth_policy::{AuthorizationPolicy, GraphPermission, PermissionLevel},
+    cache::GraphCache,
     config::app_config::AppConfig,
     graph::GraphWithVectors,
-    model::blocking_io,
-    paths::{valid_path, ExistingGraphFolder, ValidGraphFolder},
+    model::{
+        blocking_io,
+        graph::{
+            filtering::{GraphAccessFilter, GraphRowFilter, HiddenKeys},
+            namespace::Namespace,
+            namespaced_item::NamespacedItem,
+            vectorised_graph::GqlVectorisedGraph,
+        },
+    },
+    paths::{
+        mark_dirty, ExistingGraphFolder, InternalPathValidationError, PathValidationError,
+        ValidGraphPaths, ValidWriteableGraphFolder,
+    },
+    rayon::blocking_compute,
+    GQLError,
 };
-use itertools::Itertools;
-use moka::future::Cache;
+use async_graphql::Context;
+use dynamic_graphql::Enum;
 use raphtory::{
-    db::api::view::MaterializedGraph,
-    errors::{GraphError, InvalidPathReason},
-    prelude::CacheOps,
+    db::{
+        api::{
+            storage::storage::Config,
+            view::{DynamicGraph, Filter, GraphViewOps, IntoDynamic, MaterializedGraph},
+        },
+        graph::views::{filter::model::DynFilter, property_redacted_graph::PropertyRedaction},
+    },
+    errors::GraphError,
+    prelude::AdditionOps,
+    serialise::GraphPaths,
     vectors::{
-        cache::VectorCache, template::DocumentTemplate, vectorisable::Vectorisable,
-        vectorised_graph::VectorisedGraph,
+        cache::CachedEmbeddingModel, storage::LazyDiskVectorCache, template::DocumentTemplate,
+        vectorisable::Vectorisable, vectorised_graph::VectorisedGraph,
     },
 };
 use std::{
-    collections::HashMap,
+    fs, io,
+    io::{Read, Seek},
+    ops::Deref,
     path::{Path, PathBuf},
     sync::Arc,
 };
-use tokio::fs;
 use tracing::{error, warn};
 use walkdir::WalkDir;
 
-#[derive(Clone)]
-pub struct EmbeddingConf {
-    pub(crate) cache: VectorCache,
-    pub(crate) global_template: Option<DocumentTemplate>,
-    pub(crate) individual_templates: HashMap<PathBuf, DocumentTemplate>,
+pub const DIRTY_PATH: &'static str = ".dirty";
+
+#[derive(thiserror::Error, Debug)]
+pub enum MutationErrorInner {
+    #[error(transparent)]
+    GraphError(#[from] GraphError),
+    #[error(transparent)]
+    IO(#[from] io::Error),
+    #[error(transparent)]
+    InvalidInternal(#[from] InternalPathValidationError),
+    #[error("Cache operation failed, simultaneous mutation occurred")]
+    CacheReplacementError,
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum InsertionError {
+    #[error("Failed to insert graph {graph}: {error}")]
+    Insertion {
+        graph: String,
+        error: MutationErrorInner,
+    },
+    #[error(transparent)]
+    PathValidation(#[from] PathValidationError),
+    #[error("Failed to insert graph {graph}: {error}")]
+    GraphError { graph: String, error: GraphError },
+}
+
+impl InsertionError {
+    pub fn from_inner(graph: &str, error: MutationErrorInner) -> Self {
+        InsertionError::Insertion {
+            graph: graph.to_string(),
+            error,
+        }
+    }
+
+    pub fn from_graph_err(graph: &str, error: GraphError) -> Self {
+        InsertionError::GraphError {
+            graph: graph.to_string(),
+            error,
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum DeletionError {
+    #[error("Failed to delete graph {graph}: {error}")]
+    Insertion {
+        graph: String,
+        error: MutationErrorInner,
+    },
+    #[error(transparent)]
+    PathValidation(#[from] PathValidationError),
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum MoveError {
+    #[error("Failed to move graph: {0}")]
+    Insertion(#[from] InsertionError),
+    #[error("Failed to move graph: {0}")]
+    Deletion(#[from] DeletionError),
+}
+
+impl DeletionError {
+    fn from_inner(graph: &str, error: MutationErrorInner) -> Self {
+        DeletionError::Insertion {
+            graph: graph.to_string(),
+            error,
+        }
+    }
+}
+
+/// Get relative path as String joined with `"/"` for use with the validation methods.
+/// The path is not validated here!
 pub(crate) fn get_relative_path(
-    work_dir: PathBuf,
+    work_dir: &Path,
     path: &Path,
-    namespace: bool,
-) -> Result<String, InvalidPathReason> {
-    let path_buf = path.strip_prefix(work_dir.clone())?.to_path_buf();
-    let components = path_buf
-        .components()
-        .into_iter()
-        .map(|c| {
-            c.as_os_str()
-                .to_str()
-                .ok_or(InvalidPathReason::NonUTFCharacters)
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    //a safe unwrap as checking above
-    let path_str = components.into_iter().join("/");
-    valid_path(work_dir, &path_str, namespace)?;
+) -> Result<String, InternalPathValidationError> {
+    let relative = path.strip_prefix(work_dir)?;
+    let mut path_str = String::new();
+    let mut components = relative.components().map(|component| {
+        component
+            .as_os_str()
+            .to_str()
+            .ok_or(InternalPathValidationError::NonUTFCharacters)
+    });
+    if let Some(first) = components.next() {
+        path_str.push_str(first?);
+    }
+    for component in components {
+        path_str.push('/');
+        path_str.push_str(component?);
+    }
     Ok(path_str)
 }
 
+/// Inner struct with a drop implementation that cleans up the graphs
+pub struct DataInner {
+    pub(crate) work_dir: PathBuf,
+    pub(crate) cache: GraphCache,
+    pub(crate) vector_cache: LazyDiskVectorCache,
+    pub(crate) graph_conf: Config,
+    pub(crate) auth_policy: Option<Arc<dyn AuthorizationPolicy>>,
+}
+
+/// Outer data struct that wraps the inner data to make sure it is only dropped once
 #[derive(Clone)]
 pub struct Data {
-    pub(crate) work_dir: PathBuf,
-    pub(crate) cache: Cache<PathBuf, GraphWithVectors>,
+    inner: Arc<DataInner>,
     pub(crate) create_index: bool,
-    pub(crate) embedding_conf: Option<EmbeddingConf>,
+}
+
+impl Deref for Data {
+    type Target = DataInner;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref()
+    }
+}
+
+/// flushes the graph to avoid errors due to writing to deleted directory
+async fn invalidate_graph(old_graph: Option<GraphWithVectors>) {
+    if let Some(old_graph) = old_graph {
+        let inner = old_graph.into_inner().await;
+        blocking_compute(move || {
+            if let Err(e) = inner.graph.flush() {
+                error!(
+                    "Failed to flush old graph {} before replacing: {e}",
+                    inner.folder.local_path()
+                )
+            }
+        })
+        .await;
+    }
 }
 
 impl Data {
-    pub fn new(work_dir: &Path, configs: &AppConfig) -> Self {
+    pub fn new(work_dir: &Path, configs: &AppConfig, graph_conf: Config) -> Self {
         let cache_configs = &configs.cache;
 
-        let cache = Cache::<PathBuf, GraphWithVectors>::builder()
-            .max_capacity(cache_configs.capacity)
-            .time_to_idle(std::time::Duration::from_secs(cache_configs.tti_seconds))
-            .eviction_listener(|_, graph, _| {
-                graph
-                    .write_updates()
-                    .unwrap_or_else(|err| error!("Write on eviction failed: {err:?}"))
-                // FIXME: don't have currently a way to know which embedding updates are pending
-            })
-            .build();
+        let cache = GraphCache::new(cache_configs.capacity as usize);
 
         #[cfg(feature = "search")]
         let create_index = configs.index.create_index;
         #[cfg(not(feature = "search"))]
         let create_index = false;
 
+        // TODO: make vector feature optional?
+
         Self {
-            work_dir: work_dir.to_path_buf(),
-            cache,
+            inner: Arc::new(DataInner {
+                work_dir: work_dir.to_path_buf(),
+                cache,
+                vector_cache: LazyDiskVectorCache::new(work_dir.join(".vector-cache")),
+                graph_conf,
+                auth_policy: None,
+            }),
             create_index,
-            embedding_conf: Default::default(),
         }
     }
 
-    pub async fn get_graph(
+    pub(crate) fn set_auth_policy(&mut self, policy: Arc<dyn AuthorizationPolicy>) {
+        Arc::get_mut(&mut self.inner)
+            .expect("Data is not uniquely owned when setting auth_policy")
+            .auth_policy = Some(policy);
+    }
+
+    pub fn validate_path_for_insert(
         &self,
         path: &str,
-    ) -> Result<(GraphWithVectors, ExistingGraphFolder), Arc<GraphError>> {
-        let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
-        let graph_folder_clone = graph_folder.clone();
+        overwrite: bool,
+    ) -> Result<ValidWriteableGraphFolder, PathValidationError> {
+        if overwrite {
+            ValidWriteableGraphFolder::try_existing_or_new(self.work_dir.clone(), path)
+        } else {
+            ValidWriteableGraphFolder::try_new(self.work_dir.clone(), path)
+        }
+    }
+
+    /// Validates that `ns_path` exists and is a namespace, returning the `Namespace`
+    /// so callers can enumerate descendants via `get_all_children()`.
+    pub fn get_namespace(&self, ns_path: &str) -> Result<Namespace, PathValidationError> {
+        Namespace::try_new(self.work_dir.clone(), ns_path.to_string())
+    }
+
+    /// # ⚠ Bypasses all permission checks — do not call from resolvers directly.
+    /// Use `get_graph_with_read_permission`, `get_raw_graph_with_read_permission`, or
+    /// `get_graph_with_write_permission` instead.
+    async fn get_graph(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
         self.cache
-            .try_get_with(path.into(), self.read_graph_from_folder(graph_folder_clone))
+            .get_or_insert(path.into(), self.read_graph_from_disk(path))
             .await
-            .map(|graph| (graph, graph_folder))
+    }
+
+    /// Test-only: direct graph load without permission checks.
+    #[cfg(test)]
+    pub(crate) async fn get_graph_for_test(
+        &self,
+        path: &str,
+    ) -> Result<GraphWithVectors, GQLError> {
+        self.get_graph(path).await
+    }
+
+    pub async fn get_cached_graph(&self, path: &str) -> Option<GraphWithVectors> {
+        self.cache.get(path.into())
     }
 
     pub async fn insert_graph(
         &self,
-        path: &str,
+        writeable_folder: ValidWriteableGraphFolder,
         graph: MaterializedGraph,
-    ) -> Result<(), GraphError> {
-        // TODO: replace ValidGraphFolder with ValidNonExistingGraphFolder !!!!!!!!!
-        // or even a NewGraphFolder, so that we try to create the graph file and if that is sucessful
-        // we can write to it and its guaranteed to me atomic
-        let folder = ValidGraphFolder::try_from(self.work_dir.clone(), path)?;
-        match ExistingGraphFolder::try_from(self.work_dir.clone(), path) {
-            Ok(_) => Err(GraphError::GraphNameAlreadyExists(folder.to_error_path())),
-            Err(_) => {
-                fs::create_dir_all(folder.get_base_path()).await?;
-                let folder_clone = folder.clone();
-                let graph_clone = graph.clone();
-                blocking_io(move || graph_clone.cache(folder_clone)).await?;
-                let vectors = self.vectorise(graph.clone(), &folder).await;
-                let graph = GraphWithVectors::new(graph, vectors);
-                graph
-                    .folder
-                    .get_or_try_init(|| Ok::<_, GraphError>(folder.into()))?;
-                self.cache.insert(path.into(), graph).await;
-                Ok(())
-            }
-        }
-    }
-
-    pub async fn delete_graph(&self, path: &str) -> Result<(), GraphError> {
-        let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
-        fs::remove_dir_all(graph_folder.get_base_path()).await?;
-        self.cache.remove(&PathBuf::from(path)).await;
+    ) -> Result<(), InsertionError> {
+        let key = writeable_folder.local_path().to_owned();
+        let config = self.graph_conf.clone();
+        self.cache
+            .insert_or_replace_with(&key, |old_graph| async {
+                invalidate_graph(old_graph).await;
+                blocking_compute(move || {
+                    let (is_dirty, new_graph) = writeable_folder.write_graph_data(graph, config)?;
+                    let folder = writeable_folder.finish()?;
+                    let graph = GraphWithVectors::new(new_graph, None, folder.as_existing()?);
+                    graph.set_dirty(is_dirty);
+                    Ok::<_, InsertionError>(graph)
+                })
+                .await
+            })
+            .await?;
         Ok(())
     }
 
-    fn resolve_template(&self, graph: &Path) -> Option<&DocumentTemplate> {
-        let conf = self.embedding_conf.as_ref()?;
-        conf.individual_templates
-            .get(graph)
-            .or(conf.global_template.as_ref())
+    /// Insert a graph serialized from a graph folder.
+    pub async fn insert_graph_as_bytes<R: Read + Seek + Send + 'static>(
+        &self,
+        folder: ValidWriteableGraphFolder,
+        bytes: R,
+    ) -> Result<(), InsertionError> {
+        let conf = self.graph_conf.clone();
+        self.cache
+            .invalidate_with(&folder.local_path().to_string(), |old_graph| async {
+                invalidate_graph(old_graph).await;
+                blocking_io(move || {
+                    folder.write_graph_bytes(bytes, conf)?;
+                    folder.finish()
+                })
+                .await
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn delete_graph_inner(
+        &self,
+        graph_folder: ExistingGraphFolder,
+    ) -> Result<(), MutationErrorInner> {
+        let key = graph_folder.local_path().to_string();
+        let dirty_file = mark_dirty(graph_folder.root())?;
+        self.cache
+            .invalidate_with(&key, |old_graph| async {
+                invalidate_graph(old_graph).await;
+                blocking_io(move || {
+                    fs::remove_dir_all(graph_folder.root())?;
+                    fs::remove_file(dirty_file)?;
+                    Ok::<_, MutationErrorInner>(())
+                })
+                .await
+            })
+            .await?;
+        Ok(())
+    }
+
+    pub async fn delete_graph(&self, path: &str) -> Result<(), DeletionError> {
+        let graph_folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
+        self.delete_graph_inner(graph_folder)
+            .await
+            .map_err(|err| DeletionError::from_inner(path, err))?;
+        Ok(())
+    }
+
+    pub async fn delete_namespace(
+        &self,
+        path: &str,
+        descendants: &Vec<NamespacedItem>,
+    ) -> Result<(), DeletionError> {
+        if path.is_empty() {
+            return Err(DeletionError::PathValidation(
+                PathValidationError::EmptyPath,
+            ));
+        }
+        let namespace = Namespace::try_new(self.work_dir.clone(), path.to_string())?;
+        let root = namespace.current_dir().to_path_buf();
+        let dirty_file = mark_dirty(&root).map_err(|err| {
+            DeletionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        for item in descendants {
+            if let NamespacedItem::MetaGraph(g) = item {
+                self.cache
+                    .invalidate_with(g.local_path(), |old_graph| async {
+                        invalidate_graph(old_graph).await;
+                    })
+                    .await;
+            }
+        }
+        blocking_io(move || {
+            fs::remove_dir_all(&root)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| DeletionError::from_inner(path, err))?;
+        Ok(())
+    }
+
+    pub async fn create_namespace(&self, path: &str) -> Result<(), InsertionError> {
+        let target = crate::paths::validate_path_for_namespace_create(self.work_dir.clone(), path)?;
+        let mut cleanup_root = target.as_path();
+        while let Some(parent) = cleanup_root.parent() {
+            if parent.is_dir() {
+                break;
+            }
+            cleanup_root = parent;
+        }
+        let dirty_file = mark_dirty(cleanup_root).map_err(|err| {
+            InsertionError::from_inner(path, MutationErrorInner::InvalidInternal(err))
+        })?;
+        blocking_io(move || {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            fs::create_dir(&target)?;
+            fs::remove_file(dirty_file)?;
+            Ok::<_, MutationErrorInner>(())
+        })
+        .await
+        .map_err(|err| InsertionError::from_inner(path, err))?;
+        Ok(())
     }
 
     async fn vectorise_with_template(
         &self,
         graph: MaterializedGraph,
-        folder: &ValidGraphFolder,
+        folder: &impl ValidGraphPaths,
         template: &DocumentTemplate,
+        model: CachedEmbeddingModel,
     ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let conf = self.embedding_conf.as_ref()?;
         let vectors = graph
             .vectorise(
-                conf.cache.clone(),
+                model,
                 template.clone(),
-                Some(&folder.get_vectors_path()),
+                Some(&folder.graph_folder().vectors_path().ok()?),
                 true, // verbose
             )
             .await;
         match vectors {
             Ok(vectors) => Some(vectors),
             Err(error) => {
-                let name = folder.get_original_path_str();
+                let name = folder.local_path();
                 warn!("An error occurred when trying to vectorise graph {name}: {error}");
                 None
             }
         }
     }
 
-    async fn vectorise(
+    pub(crate) async fn vectorise_folder(
         &self,
-        graph: MaterializedGraph,
-        folder: &ValidGraphFolder,
-    ) -> Option<VectorisedGraph<MaterializedGraph>> {
-        let template = self.resolve_template(folder.get_original_path())?;
-        self.vectorise_with_template(graph, folder, template).await
-    }
-
-    async fn vectorise_folder(&self, folder: &ExistingGraphFolder) -> Option<()> {
-        // it's important that we check if there is a valid template set for this graph path
-        // before actually loading the graph, otherwise we are loading the graph for no reason
-        let template = self.resolve_template(folder.get_original_path())?;
-        let graph = self
-            .read_graph_from_folder(folder.clone())
-            .await
-            .ok()?
-            .graph;
-        self.vectorise_with_template(graph, folder, template).await;
-        Some(())
-    }
-
-    pub(crate) async fn vectorise_all_graphs_that_are_not(&self) -> Result<(), GraphError> {
-        for folder in self.get_all_graph_folders() {
-            if !folder.get_vectors_path().exists() {
-                self.vectorise_folder(&folder).await;
-            }
-        }
+        folder: &ExistingGraphFolder,
+        template: &DocumentTemplate,
+        model: CachedEmbeddingModel,
+    ) -> Result<(), GQLError> {
+        let cloned_folder = folder.clone();
+        self.cache
+            .insert_or_replace_with(folder.local_path(), move |old_graph| async {
+                let graph = match old_graph {
+                    None => self
+                        .read_graph_from_disk_inner(cloned_folder.clone())
+                        .await?
+                        .graph()
+                        .clone(),
+                    Some(old_graph) => old_graph.graph().clone(),
+                };
+                let vectors = self
+                    .vectorise_with_template(graph.clone(), folder, template, model)
+                    .await;
+                Ok::<_, GQLError>(GraphWithVectors::new(graph, vectors, cloned_folder))
+            })
+            .await?;
         Ok(())
     }
 
-    // TODO: return iter
-    pub fn get_all_graph_folders(&self) -> Vec<ExistingGraphFolder> {
+    pub fn get_all_graph_folders(&self) -> impl Iterator<Item = ExistingGraphFolder> {
         let base_path = self.work_dir.clone();
         WalkDir::new(&self.work_dir)
             .into_iter()
-            .filter_map(|e| {
+            .filter_map(move |e| {
                 let entry = e.ok()?;
                 let path = entry.path();
-                let relative = get_relative_path(base_path.clone(), path, false).ok()?;
+                let relative = get_relative_path(&base_path, path).ok()?;
                 let folder = ExistingGraphFolder::try_from(base_path.clone(), &relative).ok()?;
                 Some(folder)
             })
-            .collect()
     }
 
-    async fn read_graph_from_folder(
+    async fn read_graph_from_disk_inner(
         &self,
         folder: ExistingGraphFolder,
     ) -> Result<GraphWithVectors, GraphError> {
-        let cache = self.embedding_conf.as_ref().map(|conf| conf.cache.clone());
         let create_index = self.create_index;
-        blocking_io(move || GraphWithVectors::read_from_folder(&folder, cache, create_index)).await
+        let config = self.graph_conf.clone();
+        let cache = self.vector_cache.clone();
+        GraphWithVectors::read_from_folder(&folder, &cache, create_index, config).await
+    }
+
+    async fn read_graph_from_disk(&self, path: &str) -> Result<GraphWithVectors, GQLError> {
+        let folder = ExistingGraphFolder::try_from(self.work_dir.clone(), path)?;
+        Ok(self.read_graph_from_disk_inner(folder).await?)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Permission types and helpers
+// ---------------------------------------------------------------------------
+
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum PermissionError {
+    /// Graph exists but caller has no namespace visibility — hide graph existence.
+    #[error("Graph does not exist")]
+    GraphNotFound,
+    /// Caller has introspect-only access; cannot read graph data.
+    #[error(
+        "Access denied: introspect-only access to graph '{graph}' — \
+         use graphMetadata(path:) for counts and timestamps, or namespace listings to browse graphs"
+    )]
+    IntrospectOnly { graph: String },
+    /// Caller has read-only access but the operation requires write.
+    #[error("Access denied: WRITE permission required for graph '{graph}'")]
+    GraphWriteRequired { graph: String },
+
+    /// Caller has filtered read-only access but the opration requires unfiltered read
+    #[error("Access denied: unfiltered READ permissions required for graph '{graph}'")]
+    GraphUnfilteredReadRequired { graph: String },
+    /// Caller lacks write permission on the destination namespace.
+    #[error(
+        "Access denied: WRITE required on namespace '{namespace}' to {operation} graph '{graph}'"
+    )]
+    NamespaceWriteRequired {
+        namespace: String,
+        graph: String,
+        operation: String,
+    },
+}
+
+#[derive(Enum)]
+#[graphql(name = "GraphType")]
+pub enum GqlGraphType {
+    /// Persistent.
+    Persistent,
+    /// Event.
+    Event,
+}
+
+/// Returns the namespace portion of a graph path: everything before the last `/`.
+/// For top-level graphs (no `/`), returns `""` (the root namespace).
+pub(crate) fn parent_namespace(path: &str) -> &str {
+    path.rfind('/').map(|i| &path[..i]).unwrap_or("")
+}
+
+/// Checks that the caller has at least READ permission for the graph at `path`.
+/// Returns the effective `GraphPermission` (including any stored filter) on success.
+/// When denied and the caller has no INTROSPECT on the parent namespace, returns a
+/// "Graph does not exist" error to avoid leaking that the graph is present.
+fn require_at_least_read(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) -> async_graphql::Result<GraphPermission> {
+    if let Some(policy) = policy {
+        return match policy.graph_permissions(ctx, path) {
+            Err(msg) => {
+                warn!(graph = path, "Access denied by auth policy");
+                let ns = parent_namespace(path);
+                if policy.namespace_permissions(ctx, ns).is_some() {
+                    Err(msg.into())
+                } else {
+                    Err(PermissionError::GraphNotFound.into())
+                }
+            }
+            Ok(perm) => {
+                if let Some(p) = perm.at_least_read() {
+                    Ok(p)
+                } else {
+                    warn!(
+                        graph = path,
+                        "Introspect-only access — graph() denied; use graphMetadata() instead"
+                    );
+                    Err(PermissionError::IntrospectOnly {
+                        graph: path.to_string(),
+                    }
+                    .into())
+                }
+            }
+        };
+    }
+    Ok(GraphPermission::Write)
+}
+
+pub(crate) fn require_graph_write(
+    ctx: &Context<'_>,
+    policy: &Option<Arc<dyn AuthorizationPolicy>>,
+    path: &str,
+) -> async_graphql::Result<()> {
+    match policy {
+        None => ctx.require_jwt_write_access().map_err(Into::into),
+        Some(p) => {
+            p.graph_permissions(ctx, path)
+                .map_err(async_graphql::Error::from)?
+                .at_least_write()
+                .ok_or_else(|| {
+                    async_graphql::Error::from(PermissionError::GraphWriteRequired {
+                        graph: path.to_string(),
+                    })
+                })?;
+            Ok(())
+        }
+    }
+}
+
+/// Applies a `GraphRowFilter` to a `DynamicGraph`.
+async fn apply_graph_filter(
+    graph: DynamicGraph,
+    row_filter: GraphRowFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    blocking_compute(move || apply_row_filter_sync(graph, row_filter)).await
+}
+
+fn apply_row_filter_sync(
+    graph: DynamicGraph,
+    filter: GraphRowFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    // And sub-filters are applied sequentially so that DynView (window/snapshot/layer)
+    // sub-filters wrap the graph view before subsequent node/edge predicate filters run.
+    if let GraphRowFilter::And(filters) = filter {
+        return filters
+            .into_iter()
+            .try_fold(graph, |g, f| apply_row_filter_sync(g, f));
+    }
+    let dyn_filter = DynFilter::try_from(filter).map_err(|e| {
+        error!(error = %e, "filter conversion failed");
+        async_graphql::Error::new("internal error applying access filter")
+    })?;
+    Ok(graph
+        .filter(dyn_filter)
+        .map_err(|e| {
+            error!(error = %e, "failed to apply filter");
+            async_graphql::Error::new("internal error applying access filter")
+        })?
+        .into_dynamic())
+}
+
+fn build_redaction(filter: &GraphAccessFilter) -> PropertyRedaction {
+    let hp = filter.hidden_properties.as_ref();
+    let hm = filter.hidden_metadata.as_ref();
+    fn collect(
+        keys: Option<&HiddenKeys>,
+        pick: fn(&HiddenKeys) -> Option<&Vec<String>>,
+    ) -> std::collections::HashSet<String> {
+        keys.and_then(pick)
+            .map(|v| v.iter().cloned().collect())
+            .unwrap_or_default()
+    }
+    PropertyRedaction {
+        node_hidden_props: collect(hp, |h| h.node.as_ref()),
+        node_hidden_meta: collect(hm, |h| h.node.as_ref()),
+        edge_hidden_props: collect(hp, |h| h.edge.as_ref()),
+        edge_hidden_meta: collect(hm, |h| h.edge.as_ref()),
+        graph_hidden_props: collect(hp, |h| h.graph.as_ref()),
+        graph_hidden_meta: collect(hm, |h| h.graph.as_ref()),
+    }
+}
+
+async fn apply_access_filter(
+    graph: DynamicGraph,
+    f: &GraphAccessFilter,
+) -> async_graphql::Result<DynamicGraph> {
+    let graph = if let Some(ref row_filter) = f.filter {
+        apply_graph_filter(graph, row_filter.clone()).await?
+    } else {
+        graph
+    };
+    let redaction = build_redaction(f);
+    if redaction.has_restrictions() {
+        Ok(graph.exclude_properties(&redaction).into_dynamic())
+    } else {
+        Ok(graph)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Data permission methods
+// ---------------------------------------------------------------------------
+
+impl Data {
+    /// Loads and filters the graph using an already-verified permission. Private shared core.
+    async fn load_and_filter(
+        &self,
+        path: &str,
+        perm: GraphPermission,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+        let gwv = self.get_graph(path).await?;
+        let typed_graph = match graph_type {
+            Some(GqlGraphType::Event) => match gwv.graph() {
+                MaterializedGraph::EventGraph(g) => MaterializedGraph::EventGraph(g.clone()),
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::EventGraph(g.event_graph())
+                }
+            },
+            Some(GqlGraphType::Persistent) => match gwv.graph() {
+                MaterializedGraph::EventGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.persistent_graph())
+                }
+                MaterializedGraph::PersistentGraph(g) => {
+                    MaterializedGraph::PersistentGraph(g.clone())
+                }
+            },
+            None => gwv.graph().clone(),
+        };
+        let raw = typed_graph.into_dynamic();
+        let graph = if let GraphPermission::Read {
+            filter: Some(ref f),
+        } = perm
+        {
+            apply_access_filter(raw, f).await?
+        } else {
+            raw
+        };
+        Ok((gwv.folder().clone(), graph))
+    }
+
+    /// For the `graph()` resolver: permission denial → `Ok(None)` (null to client, hides
+    /// existence and access level). Load failure → `Err` (graph was deleted, etc.).
+    pub async fn get_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<Option<(ExistingGraphFolder, DynamicGraph)>> {
+        match require_at_least_read(ctx, &self.auth_policy, path) {
+            Ok(perm) => self.load_and_filter(path, perm, graph_type).await.map(Some),
+            Err(_) => Ok(None),
+        }
+    }
+
+    /// For resolvers that must surface the specific denial reason (`receive_graph`,
+    /// `create_subgraph`). A caller with no namespace visibility gets "does not exist"
+    /// (hides graph existence). A caller who can already see the graph in listings gets
+    /// "Access denied" (they already know it's there; now they know they need READ).
+    pub(crate) async fn get_graph_requiring_read(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+        graph_type: Option<GqlGraphType>,
+    ) -> async_graphql::Result<(ExistingGraphFolder, DynamicGraph)> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        self.load_and_filter(path, perm, graph_type).await
+    }
+
+    /// Checks read permission then returns the raw `GraphWithVectors` (unfiltered).
+    /// Use for copy/move operations where the caller needs the raw storage handle —
+    /// O(1) Arc clone, no materialization. Row filters are intentionally not applied:
+    /// the destination will have its own access controls.
+    pub(crate) async fn get_raw_graph_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<GraphWithVectors> {
+        let res = require_at_least_read(ctx, &self.auth_policy, path)?;
+        if res.level() < PermissionLevel::Read {
+            Err(PermissionError::GraphUnfilteredReadRequired {
+                graph: path.to_string(),
+            })?;
+        }
+        let graph = self.get_graph(path).await?;
+        Ok(graph)
+    }
+
+    /// Checks write permission then returns the raw `GraphWithVectors` for mutation operations.
+    pub(crate) async fn get_graph_with_write_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<GraphWithVectors> {
+        require_graph_write(ctx, &self.auth_policy, path)?;
+        let graph = self.get_graph(path).await?;
+        Ok(graph)
+    }
+
+    /// Checks read permission then returns the vectorised graph, if any.
+    /// Returns `None` for filtered-access users: embeddings are computed from the full graph
+    /// and search results cannot be retroactively row-filtered.
+    pub(crate) async fn get_vectors_with_read_permission(
+        &self,
+        ctx: &Context<'_>,
+        path: &str,
+    ) -> async_graphql::Result<Option<GqlVectorisedGraph>> {
+        let perm = require_at_least_read(ctx, &self.auth_policy, path)?;
+        if matches!(perm, GraphPermission::Read { filter: Some(_) }) {
+            return Ok(None);
+        }
+        let graph = self.get_graph(path).await?;
+        Ok(graph.vectors().cloned().map(|g| g.into()))
+    }
+}
+
+impl Drop for DataInner {
+    fn drop(&mut self) {
+        self.cache.flush_and_clear();
     }
 }
 
 #[cfg(test)]
 pub(crate) mod data_tests {
-    use super::ValidGraphFolder;
-    use crate::{
-        config::app_config::{AppConfig, AppConfigBuilder},
-        data::Data,
-    };
+    use super::InsertionError;
+    use crate::{config::app_config::AppConfigBuilder, data::Data};
     use itertools::Itertools;
-    use raphtory::{db::api::view::MaterializedGraph, errors::GraphError, prelude::*};
-    use std::{collections::HashMap, fs, fs::File, io, path::Path, time::Duration};
+    use raphtory::{
+        db::api::view::{internal::InternalStorageOps, MaterializedGraph},
+        prelude::*,
+        serialise::GraphPaths,
+    };
+    use std::{collections::HashMap, fs, path::Path, time::Duration};
     use tokio::time::sleep;
 
-    #[cfg(feature = "storage")]
-    use raphtory_storage::{core_ops::CoreGraphOps, graph::graph::GraphStorage};
-
-    #[cfg(feature = "storage")]
-    fn copy_dir_recursive(source_dir: &Path, target_dir: &Path) -> Result<(), GraphError> {
-        fs::create_dir_all(target_dir)?;
-        for entry in fs::read_dir(source_dir)? {
-            let entry = entry?;
-            let entry_path = entry.path();
-            let target_path = target_dir.join(entry.file_name());
-
-            if entry_path.is_dir() {
-                copy_dir_recursive(&entry_path, &target_path)?;
-            } else {
-                fs::copy(&entry_path, &target_path)?;
-            }
-        }
-        Ok(())
-    }
-
-    // This function creates files that mimic disk graph for tests
-    fn create_ipc_files_in_dir(dir_path: &Path) -> io::Result<()> {
-        if !dir_path.exists() {
-            fs::create_dir_all(dir_path)?;
-        }
-
-        let file_paths = ["file1.ipc", "file2.txt", "file3.ipc"];
-
-        for &file_name in &file_paths {
-            let file_path = dir_path.join(file_name);
-            File::create(file_path)?;
-        }
-
-        Ok(())
-    }
-
     fn create_graph_folder(path: &Path) {
+        // Use empty graph to create folder structure
         fs::create_dir_all(path).unwrap();
-        File::create(path.join(".raph")).unwrap();
-        File::create(path.join("graph")).unwrap();
+        let graph = Graph::new();
+        graph.encode(path).unwrap();
     }
 
-    pub(crate) fn save_graphs_to_work_dir(
-        work_dir: &Path,
+    pub(crate) async fn save_graphs_to_work_dir(
+        data: &Data,
         graphs: &HashMap<String, MaterializedGraph>,
-    ) -> Result<(), GraphError> {
+    ) -> Result<(), InsertionError> {
         for (name, graph) in graphs.into_iter() {
-            let data = Data::new(work_dir, &AppConfig::default());
-            let folder = ValidGraphFolder::try_from(data.work_dir, name)?;
-
-            #[cfg(feature = "storage")]
-            if let GraphStorage::Disk(dg) = graph.core_graph() {
-                let disk_graph_path = dg.graph_dir();
-                copy_dir_recursive(disk_graph_path, &folder.get_graph_path())?;
-                File::create(folder.get_meta_path())?;
-            } else {
-                graph.encode(folder)?;
-            }
-
-            #[cfg(not(feature = "storage"))]
-            graph.encode(folder)?;
+            let folder = data.validate_path_for_insert(name, true)?;
+            data.insert_graph(folder, graph.clone()).await?;
         }
         Ok(())
-    }
-
-    #[tokio::test]
-    #[cfg(feature = "storage")]
-    async fn test_get_disk_graph_from_path() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
-
-        let graph = Graph::new();
-        graph
-            .add_edge(0, 1, 2, [("name", "test_e1")], None)
-            .unwrap();
-        graph
-            .add_edge(0, 1, 3, [("name", "test_e2")], None)
-            .unwrap();
-
-        let base_path = tmp_graph_dir.path().to_owned();
-        let graph_path = base_path.join("test_dg");
-        fs::create_dir(&graph_path).unwrap();
-        File::create(graph_path.join(".raph")).unwrap();
-        let _ = DiskGraphStorage::from_graph(&graph, &graph_path.join("graph")).unwrap();
-
-        let data = Data::new(&base_path, &Default::default());
-        let res = data.get_graph("test_dg").await.unwrap().0;
-        assert_eq!(res.graph.into_events().unwrap().count_edges(), 2);
-
-        // Dir path doesn't exists
-        let res = data.get_graph("test_dg1").await;
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.to_string().contains("Graph not found"));
-        }
-
-        // Dir path exists but is not a disk graph path
-        // let tmp_graph_dir = tempfile::tempdir().unwrap();
-        // let res = read_graph_from_path(base_path, "");
-        let res = data.get_graph("").await;
-        assert!(res.is_err());
-        if let Err(err) = res {
-            assert!(err.to_string().contains("Graph not found"));
-        }
     }
 
     #[tokio::test]
     async fn test_save_graphs_to_work_dir() {
-        let tmp_graph_dir = tempfile::tempdir().unwrap();
         let tmp_work_dir = tempfile::tempdir().unwrap();
 
         let graph = Graph::new();
@@ -353,24 +809,14 @@ pub(crate) mod data_tests {
             .add_edge(0, 1, 3, [("name", "test_e2")], None)
             .unwrap();
 
-        #[cfg(feature = "storage")]
-        let graph2: MaterializedGraph = graph
-            .persist_as_disk_graph(tmp_graph_dir.path())
-            .unwrap()
-            .into();
-
         let graph: MaterializedGraph = graph.into();
 
         let mut graphs = HashMap::new();
 
         graphs.insert("test_g".to_string(), graph);
+        let data = Data::new(tmp_work_dir.path(), &Default::default(), Default::default());
 
-        #[cfg(feature = "storage")]
-        graphs.insert("test_dg".to_string(), graph2);
-
-        save_graphs_to_work_dir(tmp_work_dir.path(), &graphs).unwrap();
-
-        let data = Data::new(tmp_work_dir.path(), &Default::default());
+        save_graphs_to_work_dir(&data, &graphs).await.unwrap();
 
         for graph in graphs.keys() {
             assert!(data.get_graph(graph).await.is_ok(), "could not get {graph}")
@@ -392,75 +838,58 @@ pub(crate) mod data_tests {
         graph.encode(&tmp_work_dir.path().join("test_g")).unwrap();
         graph.encode(&tmp_work_dir.path().join("test_g2")).unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 
-        let data = Data::new(tmp_work_dir.path(), &configs);
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
 
-        assert!(!data.cache.contains_key(Path::new("test_g")));
-        assert!(!data.cache.contains_key(Path::new("test_g2")));
+        assert!(!data.cache.contains_key("test_g"));
+        assert!(!data.cache.contains_key("test_g2"));
 
         // Test size based eviction
         data.get_graph("test_g2").await.unwrap();
-        assert!(data.cache.contains_key(Path::new("test_g2")));
-        assert!(!data.cache.contains_key(Path::new("test_g")));
+        assert!(data.cache.contains_key("test_g2"));
+        assert!(!data.cache.contains_key("test_g"));
 
         data.get_graph("test_g").await.unwrap(); // wait for any eviction
-        data.cache.run_pending_tasks().await;
         assert_eq!(data.cache.iter().count(), 1);
-
-        sleep(Duration::from_secs(3)).await;
-        assert!(!data.cache.contains_key(Path::new("test_g")));
-        assert!(!data.cache.contains_key(Path::new("test_g2")));
-        // FIXME: this test is not doing anything because calling cache.contains_key() runs
-        // any pending evictions. To actually test it we need this assertion:
-        //   assert_eq!(data.cache.entry_count(), 0);
-        // Which currently does not work because the server task to trigger evictions is not running
-        // in this context. The problem is if we do run it by creating a server and calling
-        // server.start() the server gets consumed and we loose access to the cache to be able to run
-        // the check. If rework the server implementation and this becomes feasible we should change
-        // this test
     }
 
     #[tokio::test]
     async fn test_get_graph_paths() {
         let temp_dir = tempfile::tempdir().unwrap();
         let work_dir = temp_dir.path();
+
         let g0_path = work_dir.join("g0");
         let g1_path = work_dir.join("g1");
         let g2_path = work_dir.join("shivam/investigations/2024-12-22/g2");
-        let g3_path = work_dir.join("shivam/investigations/g3"); // Graph
+        let g3_path = work_dir.join("shivam/investigations/g3.with.dots"); // Graph
         let g4_path = work_dir.join("shivam/investigations/g4"); // Disk graph dir
         let g5_path = work_dir.join("shivam/investigations/g5"); // Empty dir
         let g6_path = work_dir.join("shivam/investigations/g6"); // File that is not a graph
+        let g7_path = work_dir.join(".graph"); // Invalid hidden path
 
         create_graph_folder(&g0_path);
         create_graph_folder(&g1_path);
         create_graph_folder(&g2_path);
         create_graph_folder(&g3_path);
+        create_graph_folder(&g4_path);
+        create_graph_folder(&g7_path);
 
-        fs::create_dir_all(&g4_path.join("graph")).unwrap();
-        File::create(g4_path.join(".raph")).unwrap();
-        create_ipc_files_in_dir(&g4_path.join("graph")).unwrap();
-
+        // Empty, non-graph folder
         fs::create_dir_all(&g5_path).unwrap();
 
+        // Simulate non-graph folder with random files
         fs::create_dir_all(&g6_path).unwrap();
         fs::write(g6_path.join("random-file"), "some-random-content").unwrap();
 
-        let configs = AppConfigBuilder::new()
-            .with_cache_capacity(1)
-            .with_cache_tti_seconds(2)
-            .build();
+        let configs = AppConfigBuilder::new().with_cache_capacity(1).build();
 
-        let data = Data::new(work_dir, &configs);
+        let data = Data::new(work_dir, &configs, Default::default());
 
         let paths = data
             .get_all_graph_folders()
             .into_iter()
-            .map(|folder| folder.get_base_path().to_path_buf())
+            .map(|folder| folder.0.root().to_path_buf())
             .collect_vec();
 
         assert_eq!(paths.len(), 5);
@@ -469,12 +898,180 @@ pub(crate) mod data_tests {
         assert!(paths.contains(&g2_path));
         assert!(paths.contains(&g3_path));
         assert!(paths.contains(&g4_path));
-        assert!(!paths.contains(&g5_path)); // Empty dir is ignored
+        assert!(!paths.contains(&g5_path)); // Empty folder is ignored
+        assert!(!paths.contains(&g6_path)); // Non-graph folder is ignored
+        assert!(!paths.contains(&g7_path)); // Hidden path is ignored
 
         assert!(data
             .get_graph("shivam/investigations/2024-12-22/g2")
             .await
             .is_ok());
+
         assert!(data.get_graph("some/random/path").await.is_err());
+        assert!(data.get_graph(".graph").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_drop_skips_write_when_graph_is_not_dirty() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+
+        // Create two graphs and save them to disk
+        let graph1 = Graph::new();
+        graph1
+            .add_edge(0, 1, 2, [("name", "test_e1")], None)
+            .unwrap();
+        graph1
+            .add_edge(0, 1, 3, [("name", "test_e2")], None)
+            .unwrap();
+
+        let graph2 = Graph::new();
+        graph2
+            .add_edge(0, 2, 3, [("name", "test_e3")], None)
+            .unwrap();
+        graph2
+            .add_edge(0, 2, 4, [("name", "test_e4")], None)
+            .unwrap();
+
+        let graph1_path = tmp_work_dir.path().join("test_graph1");
+        let graph2_path = tmp_work_dir.path().join("test_graph2");
+        graph1.encode(&graph1_path).unwrap();
+        graph2.encode(&graph2_path).unwrap();
+
+        // Record modification times before any operations
+        let graph1_metadata = fs::metadata(&graph1_path).unwrap();
+        let graph2_metadata = fs::metadata(&graph2_path).unwrap();
+        let graph1_original_time = graph1_metadata.modified().unwrap();
+        let graph2_original_time = graph2_metadata.modified().unwrap();
+
+        let configs = AppConfigBuilder::new().with_cache_capacity(10).build();
+
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+
+        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
+        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+
+        // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
+        if loaded_graph1.graph().disk_storage_path().is_some() {
+            assert!(
+                !loaded_graph1.is_dirty(),
+                "Graph1 should not be dirty when loaded from disk"
+            );
+            assert!(
+                !loaded_graph2.is_dirty(),
+                "Graph2 should not be dirty when loaded from disk"
+            );
+
+            // Modify only graph1 to make it dirty
+            loaded_graph1.set_dirty(true);
+            assert!(
+                loaded_graph1.is_dirty(),
+                "Graph1 should be dirty after modification"
+            );
+
+            // Drop the Data instance - this should trigger serialization
+            drop(data);
+
+            // Check modification times after drop
+            let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
+            let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();
+            let graph1_modified_time = graph1_metadata_after.modified().unwrap();
+            let graph2_modified_time = graph2_metadata_after.modified().unwrap();
+
+            // Graph1 (dirty) modification time should be different
+            assert_ne!(
+                graph1_original_time, graph1_modified_time,
+                "Graph1 (dirty) should have been written to disk on drop"
+            );
+
+            // Graph2 (not dirty) modification time should be the same
+            assert_eq!(
+                graph2_original_time, graph2_modified_time,
+                "Graph2 (not dirty) should not have been written to disk on drop"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_eviction_skips_write_when_graph_is_not_dirty() {
+        let tmp_work_dir = tempfile::tempdir().unwrap();
+
+        // Create two graphs and save them to disk
+        let graph1 = Graph::new();
+        graph1
+            .add_edge(0, 1, 2, [("name", "test_e1")], None)
+            .unwrap();
+        graph1
+            .add_edge(0, 1, 3, [("name", "test_e2")], None)
+            .unwrap();
+
+        let graph2 = Graph::new();
+        graph2
+            .add_edge(0, 2, 3, [("name", "test_e3")], None)
+            .unwrap();
+        graph2
+            .add_edge(0, 2, 4, [("name", "test_e4")], None)
+            .unwrap();
+
+        let graph1_path = tmp_work_dir.path().join("test_graph1");
+        let graph2_path = tmp_work_dir.path().join("test_graph2");
+        graph1.encode(&graph1_path).unwrap();
+        graph2.encode(&graph2_path).unwrap();
+
+        // Record modification times before any operations
+        let graph1_metadata = fs::metadata(&graph1_path).unwrap();
+        let graph2_metadata = fs::metadata(&graph2_path).unwrap();
+        let graph1_original_time = graph1_metadata.modified().unwrap();
+        let graph2_original_time = graph2_metadata.modified().unwrap();
+
+        // Create cache with time to idle 3 seconds to force eviction
+        let configs = AppConfigBuilder::new().with_cache_capacity(10).build();
+
+        let data = Data::new(tmp_work_dir.path(), &configs, Default::default());
+
+        // Load first graph
+        let loaded_graph1 = data.get_graph("test_graph1").await.unwrap();
+        assert!(
+            !loaded_graph1.is_dirty(),
+            "Graph1 should not be dirty when loaded from disk"
+        );
+
+        // Modify graph1 to make it dirty
+        loaded_graph1.set_dirty(true);
+        assert!(
+            loaded_graph1.is_dirty(),
+            "Graph1 should be dirty after modification"
+        );
+
+        // Load second graph
+        println!("Loading second graph");
+        let loaded_graph2 = data.get_graph("test_graph2").await.unwrap();
+        assert!(
+            !loaded_graph2.is_dirty(),
+            "Graph2 should not be dirty when loaded from disk"
+        );
+
+        // Sleep to trigger eviction
+        sleep(Duration::from_secs(3)).await;
+
+        // TODO: This test doesn't work with disk storage right now, make sure modification dates actually update correctly!
+        if loaded_graph1.graph().disk_storage_path().is_some() {
+            // Check modification times after eviction
+            let graph1_metadata_after = fs::metadata(&graph1_path).unwrap();
+            let graph2_metadata_after = fs::metadata(&graph2_path).unwrap();
+            let graph1_modified_time = graph1_metadata_after.modified().unwrap();
+            let graph2_modified_time = graph2_metadata_after.modified().unwrap();
+
+            // Graph1 (dirty) modification time should be different
+            assert_ne!(
+                graph1_original_time, graph1_modified_time,
+                "Graph1 (dirty) should have been written to disk on eviction"
+            );
+
+            // Graph2 (not dirty) modification time should be the same
+            assert_eq!(
+                graph2_original_time, graph2_modified_time,
+                "Graph2 (not dirty) should not have been written to disk on eviction"
+            );
+        }
     }
 }

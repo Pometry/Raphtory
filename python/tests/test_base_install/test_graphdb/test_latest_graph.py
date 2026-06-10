@@ -117,46 +117,112 @@ def test_persistent_edge_latest():
 
     assert wg.edge(1, 4).latest().is_active()
 
-    assert g.edges.latest().earliest_time.collect() == [6, 6, None]
-    assert g.edges.latest().latest_time.collect() == [6, 6, None]
+    assert dict(zip(g.edges.id, g.edges.latest().earliest_time.collect())) == {
+        (1, 2): 6,
+        (1, 3): 6,
+        (1, 4): None,
+    }
+    assert dict(zip(g.edges.id, g.edges.latest().latest_time.collect())) == {
+        (1, 2): 6,
+        (1, 3): 6,
+        (1, 4): None,
+    }
 
-    assert g.edges.latest().is_active().collect() == [False, True, False]
-    assert g.edges.latest().is_deleted().collect() == [False, False, True]
-    assert g.edges.latest().is_valid().collect() == [True, True, False]
+    assert dict(zip(g.edges.id, g.edges.latest().is_active().collect())) == {
+        (1, 2): False,
+        (1, 3): True,
+        (1, 4): False,
+    }
+    assert dict(zip(g.edges.id, g.edges.latest().is_deleted().collect())) == {
+        (1, 2): False,
+        (1, 3): False,
+        (1, 4): True,
+    }
+    assert dict(zip(g.edges.id, g.edges.latest().is_valid().collect())) == {
+        (1, 2): True,
+        (1, 3): True,
+        (1, 4): False,
+    }
 
     assert wg.edges.latest().earliest_time.collect() == [5, 5, 5]
     assert wg.edges.latest().latest_time.collect() == [5, 5, 5]
-    assert wg.edges.latest().is_active().collect() == [False, True, True]
-    assert wg.edges.latest().is_deleted().collect() == [False, False, False]
+    assert dict(zip(g.edges.id, wg.edges.latest().is_active().collect())) == {
+        (1, 2): False,
+        (1, 3): True,
+        (1, 4): True,
+    }
+    assert dict(zip(g.edges.id, wg.edges.latest().is_deleted().collect())) == {
+        (1, 2): False,
+        (1, 3): False,
+        (1, 4): False,
+    }
     assert wg.edges.latest().is_valid().collect() == [True, True, True]
 
-    assert g.nodes.edges.latest().earliest_time.collect() == [
-        [6, 6, None],
-        [6],
-        [6],
-        [None],
-    ]
-    assert g.nodes.edges.latest().latest_time.collect() == [
-        [6, 6, None],
-        [6],
-        [6],
-        [None],
-    ]
-    assert g.nodes.edges.latest().is_active().collect() == [
-        [False, True, False],
-        [False],
-        [True],
-        [False],
-    ]
+    res = {
+        n.id: {e: v for e, v in zip(n.edges.id, ev)}
+        for n, ev in zip(g.nodes, g.nodes.edges.latest().earliest_time.collect())
+    }
+    assert res == {
+        1: {(1, 2): 6, (1, 3): 6, (1, 4): None},
+        2: {(1, 2): 6},
+        3: {(1, 3): 6},
+        4: {(1, 4): None},
+    }
 
-    assert wg.nodes.edges.latest().earliest_time.collect() == [[5, 5, 5], [5], [5], [5]]
-    assert wg.nodes.edges.latest().latest_time.collect() == [[5, 5, 5], [5], [5], [5]]
-    assert wg.nodes.edges.latest().is_active().collect() == [
-        [False, True, True],
-        [False],
-        [True],
-        [True],
-    ]
+    res = {
+        n.id: {e: v for e, v in zip(n.edges.id, ev)}
+        for n, ev in zip(g.nodes, g.nodes.edges.latest().latest_time.collect())
+    }
+    assert res == {
+        1: {(1, 2): 6, (1, 3): 6, (1, 4): None},
+        2: {(1, 2): 6},
+        3: {(1, 3): 6},
+        4: {(1, 4): None},
+    }
+
+    res = {
+        n.id: {e: v for e, v in zip(n.edges.id, ev)}
+        for n, ev in zip(g.nodes, g.nodes.edges.latest().is_active().collect())
+    }
+    assert res == {
+        1: {(1, 2): False, (1, 3): True, (1, 4): False},
+        2: {(1, 2): False},
+        3: {(1, 3): True},
+        4: {(1, 4): False},
+    }
+
+    res = {
+        n.id: {e: v for e, v in zip(n.edges.id, ev)}
+        for n, ev in zip(g.nodes, wg.nodes.edges.latest().earliest_time.collect())
+    }
+    assert res == {
+        1: {(1, 2): 5, (1, 3): 5, (1, 4): 5},
+        2: {(1, 2): 5},
+        3: {(1, 3): 5},
+        4: {(1, 4): 5},
+    }
+
+    res = {
+        n.id: {e: v for e, v in zip(n.edges.id, ev)}
+        for n, ev in zip(g.nodes, wg.nodes.edges.latest().latest_time.collect())
+    }
+    assert res == {
+        1: {(1, 2): 5, (1, 3): 5, (1, 4): 5},
+        2: {(1, 2): 5},
+        3: {(1, 3): 5},
+        4: {(1, 4): 5},
+    }
+
+    res = {
+        n.id: {e: v for e, v in zip(n.edges.id, ev)}
+        for n, ev in zip(g.nodes, wg.nodes.edges.latest().is_active().collect())
+    }
+    assert res == {
+        1: {(1, 2): False, (1, 3): True, (1, 4): True},
+        2: {(1, 2): False},
+        3: {(1, 3): True},
+        4: {(1, 4): True},
+    }
 
 
 def test_persistent_node_latest():

@@ -29,6 +29,7 @@
 pub mod centrality;
 pub mod community_detection;
 
+pub mod alternating_mask;
 pub mod bipartite;
 pub mod components;
 pub mod cores;

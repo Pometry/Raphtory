@@ -89,7 +89,7 @@ mod task_tests {
             vec![],
             vec![Job::new(step1)],
             None,
-            |egs, _, _, _| egs.finalize(&count),
+            |egs, _, _, _, _| egs.finalize(&count),
             Some(2),
             1,
             None,
