@@ -20,7 +20,7 @@ use crate::{
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{DegreeExpr, Metadata, Property, TemporalPropContext},
+                node_expr::{DegreeExpr, Metadata, Property, TemporalProp},
                 node_filter::validate::validate,
                 node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
@@ -158,8 +158,8 @@ impl NodeFilter {
     /// Chain with `.any()`, `.all()`, `.sum()`, `.avg()`, `.min()`, `.max()`,
     /// `.first()`, `.last()`, or `.len()` to produce a filter or scalar expression.
     #[inline]
-    pub fn temporal_property(name: impl Into<String>) -> TemporalPropContext<NodeFilter> {
-        TemporalPropContext::new(NodeFilter, name)
+    pub fn temporal_property(name: impl Into<String>) -> TemporalProp<NodeFilter> {
+        TemporalProp::new(NodeFilter, name)
     }
 }
 
@@ -168,8 +168,8 @@ impl NodeFilter {
 /// Implemented for all `T: CreateView + Clone` so that `NodeFilter`, `Windowed<NodeFilter>`,
 /// `Layered<NodeFilter>`, etc. all support the same entry point.
 pub trait TemporalNodeExprBuilderOps: CreateView + Clone + Send + Sync + Sized + 'static {
-    fn temporal_property(self, name: impl Into<String>) -> TemporalPropContext<Self> {
-        TemporalPropContext::new(self, name)
+    fn temporal_property(self, name: impl Into<String>) -> TemporalProp<Self> {
+        TemporalProp::new(self, name)
     }
 }
 

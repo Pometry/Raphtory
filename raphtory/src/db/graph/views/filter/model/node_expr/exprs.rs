@@ -396,11 +396,11 @@ impl NodeExpr for Metadata {
 ///
 /// Produces `Prop::List` of every recorded value within the view.
 ///
-/// Not constructed directly — created internally by the builder chain started
+/// Not constructed directly — created internally by the fluent chain started
 /// by `NodeFilter::temporal_property(name)`:
 ///
 /// ```rust,ignore
-/// // NodeFilter::temporal_property("score") returns TemporalPropContext, not this type.
+/// // NodeFilter::temporal_property("score") returns TemporalProp, not this type.
 /// // TemporalPropertyExpr is created inside .any() / .all() / .sum() etc., e.g.:
 /// //   .any().gt(10i64)  →  QuantifiedNodeFilter<TemporalPropertyExpr<..>, AnyMode, i64>
 /// //   .sum().gt(100i64) →  BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, i64>
@@ -440,13 +440,13 @@ impl<E: CreateView + Clone + Send + Sync + 'static> NodeExpr for TemporalPropert
 // Aggregator Exprs — NodeExpr wrappers producing a single scalar
 //
 // Each wraps a NodeExpr<Output = Prop> (typically TemporalPropertyExpr) and reduces
-// the Prop::List it produces to a scalar.  They are not constructed directly —
-// TemporalPropContext / TemporalExprOps methods return NodeExprContextBuilder<XxxExpr<..>>:
+// the Prop::List it produces to a scalar.  Not constructed directly —
+// TemporalProp / TemporalExprOps methods return Aggregated<XxxExpr<..>>:
 //
-//   .temporal_property("v").sum()  → NodeExprContextBuilder<SumExpr<TemporalPropertyExpr<..>>>
-//   .temporal_property("v").len()  → NodeExprContextBuilder<LenExpr<TemporalPropertyExpr<..>>>
+//   .temporal_property("v").sum()  → Aggregated<SumExpr<TemporalPropertyExpr<..>>>
+//   .temporal_property("v").len()  → Aggregated<LenExpr<TemporalPropertyExpr<..>>>
 //
-// Calling .gt() / .eq() etc. on the builder then produces:
+// Calling .gt() / .eq() etc. on Aggregated then produces:
 //   BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, RHS>
 // ─────────────────────────────────────────────────────────────────────────────
 

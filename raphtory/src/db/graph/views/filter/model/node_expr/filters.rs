@@ -80,7 +80,7 @@ mod sealed {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Sealed marker trait used as a type parameter on [`QuantifiedNodeFilter`] and
-/// [`QuantifiedContextBuilder`] to distinguish `any` vs `all` semantics at compile time.
+/// [`Quantified`] to distinguish `any` vs `all` semantics at compile time.
 /// Never instantiated — only used as `<AnyMode>` / `<AllMode>` in type positions.
 pub trait QuantifierMode: sealed::Sealed + Clone + Copy + Send + Sync + 'static {}
 
@@ -587,7 +587,7 @@ where
 /// A node filter that applies a [`BinaryOp`] to every temporal value and reduces
 /// the results using `Q` ([`AnyMode`] or [`AllMode`]).
 ///
-/// Not constructed directly — returned by `QuantifiedContextBuilder::gt/eq/…`:
+/// Not constructed directly — returned by `Quantified::gt/eq/…`:
 /// ```rust,ignore
 /// // NodeFilter::temporal_property("score").any().gt(10i64)
 /// //   → QuantifiedNodeFilter<TemporalPropertyExpr<NodeFilter>, AnyMode, i64>
@@ -739,18 +739,18 @@ where
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Context builders — carry expression through the builder chain
+// Quantified / Aggregated / TemporalProp — intermediate types in the fluent chain
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Intermediate builder returned by [`TemporalPropContext::any`] / [`TemporalPropContext::all`].
+/// Returned by [`TemporalProp::any`] / [`TemporalProp::all`].
 ///
 /// Carries the temporal expression `E` and the quantifier `Q` until a comparison
 /// operator is called, which produces the final [`QuantifiedNodeFilter`]:
 /// ```rust,ignore
-/// NodeFilter::temporal_property("score").any()   // → QuantifiedContextBuilder<TemporalPropertyExpr<..>, AnyMode>
+/// NodeFilter::temporal_property("score").any()   // → Quantified<TemporalPropertyExpr<..>, AnyMode>
 ///     .gt(10i64)                                  // → QuantifiedNodeFilter<TemporalPropertyExpr<..>, AnyMode, i64>
 /// ```
-pub struct QuantifiedContextBuilder<E, Q>
+pub struct Quantified<E, Q>
 where
     E: NodeExpr<Output = Prop>,
     Q: QuantifierMode,
@@ -759,7 +759,7 @@ where
     pub(crate) _q: PhantomData<Q>,
 }
 
-impl<E, Q> QuantifiedContextBuilder<E, Q>
+impl<E, Q> Quantified<E, Q>
 where
     E: NodeExpr<Output = Prop>,
     Q: QuantifierMode,
@@ -797,19 +797,19 @@ where
     }
 }
 
-/// Intermediate builder returned by [`TemporalPropContext::sum`], `.avg()`, `.min()` etc.
+/// Returned by [`TemporalProp::sum`], `.avg()`, `.min()` etc.
 ///
 /// Wraps the aggregator expression `E` (e.g. `SumExpr<TemporalPropertyExpr<..>>`) until
 /// a comparison operator is called, which produces a [`BinaryCmpNodeFilter`]:
 /// ```rust,ignore
-/// NodeFilter::temporal_property("price").sum()   // → NodeExprContextBuilder<SumExpr<TemporalPropertyExpr<..>>>
+/// NodeFilter::temporal_property("price").sum()   // → Aggregated<SumExpr<TemporalPropertyExpr<..>>>
 ///     .gt(100i64)                                 // → BinaryCmpNodeFilter<SumExpr<TemporalPropertyExpr<..>>, i64>
 /// ```
-pub struct NodeExprContextBuilder<E: NodeExpr> {
+pub struct Aggregated<E: NodeExpr> {
     pub(crate) expr: E,
 }
 
-impl<E: NodeExpr> NodeExprContextBuilder<E> {
+impl<E: NodeExpr> Aggregated<E> {
     fn finish<R: NodeExpr<Output = E::Output>>(
         self,
         op: BinaryOp,
@@ -844,7 +844,7 @@ impl<E: NodeExpr> NodeExprContextBuilder<E> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TemporalPropContext<E> — entry point returned from `.temporal_property(name)`
+// TemporalProp<E> — entry point returned from `.temporal_property(name)`
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Entry point returned by `NodeFilter::temporal_property(name)`.
@@ -852,26 +852,26 @@ impl<E: NodeExpr> NodeExprContextBuilder<E> {
 /// `E` is the view expression (e.g. `NodeFilter`, `Windowed<NodeFilter>`, `Layered<NodeFilter>`)
 /// that scopes which temporal property values are visible.
 ///
-/// Calling a method on this builder creates the next step in the chain:
+/// Calling a method produces the next step in the chain:
 /// ```rust,ignore
-/// NodeFilter::temporal_property("score")         // → TemporalPropContext<NodeFilter>
-///     .any()                                      // → QuantifiedContextBuilder<TemporalPropertyExpr<..>, AnyMode>
+/// NodeFilter::temporal_property("score")         // → TemporalProp<NodeFilter>
+///     .any()                                      // → Quantified<TemporalPropertyExpr<..>, AnyMode>
 ///     .gt(10i64)                                  // → QuantifiedNodeFilter<.., AnyMode, i64>
 ///
-/// NodeFilter::temporal_property("price")         // → TemporalPropContext<NodeFilter>
-///     .sum()                                      // → NodeExprContextBuilder<SumExpr<TemporalPropertyExpr<..>>>
+/// NodeFilter::temporal_property("price")         // → TemporalProp<NodeFilter>
+///     .sum()                                      // → Aggregated<SumExpr<TemporalPropertyExpr<..>>>
 ///     .gt(100i64)                                 // → BinaryCmpNodeFilter<SumExpr<..>, i64>
 ///
 /// NodeFilter.window(0, 100)
-///     .temporal_property("score")                // → TemporalPropContext<Windowed<NodeFilter>>
+///     .temporal_property("score")                // → TemporalProp<Windowed<NodeFilter>>
 ///     .any().gt(10i64)
 /// ```
-pub struct TemporalPropContext<E: CreateView + Clone> {
+pub struct TemporalProp<E: CreateView + Clone> {
     pub(crate) view_expr: E,
     pub(crate) name: String,
 }
 
-impl<E: CreateView + Clone + Send + Sync + 'static> TemporalPropContext<E> {
+impl<E: CreateView + Clone + Send + Sync + 'static> TemporalProp<E> {
     pub(crate) fn new(view_expr: E, name: impl Into<String>) -> Self {
         Self {
             view_expr,
@@ -886,58 +886,58 @@ impl<E: CreateView + Clone + Send + Sync + 'static> TemporalPropContext<E> {
         }
     }
 
-    pub fn any(self) -> QuantifiedContextBuilder<TemporalPropertyExpr<E>, AnyMode> {
-        QuantifiedContextBuilder {
+    pub fn any(self) -> Quantified<TemporalPropertyExpr<E>, AnyMode> {
+        Quantified {
             expr: self.make_expr(),
             _q: PhantomData,
         }
     }
 
-    pub fn all(self) -> QuantifiedContextBuilder<TemporalPropertyExpr<E>, AllMode> {
-        QuantifiedContextBuilder {
+    pub fn all(self) -> Quantified<TemporalPropertyExpr<E>, AllMode> {
+        Quantified {
             expr: self.make_expr(),
             _q: PhantomData,
         }
     }
 
-    pub fn sum(self) -> NodeExprContextBuilder<SumExpr<TemporalPropertyExpr<E>>> {
-        NodeExprContextBuilder {
+    pub fn sum(self) -> Aggregated<SumExpr<TemporalPropertyExpr<E>>> {
+        Aggregated {
             expr: SumExpr(self.make_expr()),
         }
     }
 
-    pub fn avg(self) -> NodeExprContextBuilder<AvgExpr<TemporalPropertyExpr<E>>> {
-        NodeExprContextBuilder {
+    pub fn avg(self) -> Aggregated<AvgExpr<TemporalPropertyExpr<E>>> {
+        Aggregated {
             expr: AvgExpr(self.make_expr()),
         }
     }
 
-    pub fn min(self) -> NodeExprContextBuilder<MinExpr<TemporalPropertyExpr<E>>> {
-        NodeExprContextBuilder {
+    pub fn min(self) -> Aggregated<MinExpr<TemporalPropertyExpr<E>>> {
+        Aggregated {
             expr: MinExpr(self.make_expr()),
         }
     }
 
-    pub fn max(self) -> NodeExprContextBuilder<MaxExpr<TemporalPropertyExpr<E>>> {
-        NodeExprContextBuilder {
+    pub fn max(self) -> Aggregated<MaxExpr<TemporalPropertyExpr<E>>> {
+        Aggregated {
             expr: MaxExpr(self.make_expr()),
         }
     }
 
-    pub fn first(self) -> NodeExprContextBuilder<FirstExpr<TemporalPropertyExpr<E>>> {
-        NodeExprContextBuilder {
+    pub fn first(self) -> Aggregated<FirstExpr<TemporalPropertyExpr<E>>> {
+        Aggregated {
             expr: FirstExpr(self.make_expr()),
         }
     }
 
-    pub fn last(self) -> NodeExprContextBuilder<LastExpr<TemporalPropertyExpr<E>>> {
-        NodeExprContextBuilder {
+    pub fn last(self) -> Aggregated<LastExpr<TemporalPropertyExpr<E>>> {
+        Aggregated {
             expr: LastExpr(self.make_expr()),
         }
     }
 
-    pub fn len(self) -> NodeExprContextBuilder<LenExpr<TemporalPropertyExpr<E>>> {
-        NodeExprContextBuilder {
+    pub fn len(self) -> Aggregated<LenExpr<TemporalPropertyExpr<E>>> {
+        Aggregated {
             expr: LenExpr(self.make_expr()),
         }
     }
@@ -1106,15 +1106,15 @@ impl<E: NodeExpr> NodeExprFilterOps for E {}
 ///
 /// Available on any `NodeExpr<Output = Prop>` that returns a `Prop::List` (e.g. [`TemporalPropertyExpr`]).
 pub trait TemporalExprOps: NodeExpr<Output = Prop> + Sized {
-    fn any(self) -> QuantifiedContextBuilder<Self, AnyMode> {
-        QuantifiedContextBuilder {
+    fn any(self) -> Quantified<Self, AnyMode> {
+        Quantified {
             expr: self,
             _q: PhantomData,
         }
     }
 
-    fn all(self) -> QuantifiedContextBuilder<Self, AllMode> {
-        QuantifiedContextBuilder {
+    fn all(self) -> Quantified<Self, AllMode> {
+        Quantified {
             expr: self,
             _q: PhantomData,
         }
