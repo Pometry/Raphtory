@@ -14,10 +14,7 @@ use crate::db::api::{
 };
 use raphtory_api::{
     core::{
-        entities::{
-            properties::prop::Prop,
-            LayerId,
-        },
+        entities::{properties::prop::Prop, LayerId},
         storage::arc_str::ArcStr,
     },
     inherit::Base,

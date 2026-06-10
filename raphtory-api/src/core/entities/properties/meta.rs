@@ -311,15 +311,6 @@ impl PropMapper {
         ensure_and_set(&mut guard, layer_id.0, prop_id);
     }
 
-    /// Run `f` against the raw `&[bool]` of `layer_id`'s prop presence row, borrowing under a single read lock.
-    /// `f` can't acquire a write lock on layer_prop_presence or else it will deadlock.
-    #[inline]
-    pub fn with_layer_prop_bits<R>(&self, layer_id: LayerId, f: impl FnOnce(&[bool]) -> R) -> R {
-        let guard = self.layer_prop_presence.read_recursive();
-        let bits: &[bool] = guard.get(layer_id.0).map(|v| v.as_slice()).unwrap_or(&[]);
-        f(bits)
-    }
-
     pub fn d_types(&self) -> impl Deref<Target = Vec<PropType>> + '_ {
         self.dtypes.read_recursive()
     }
