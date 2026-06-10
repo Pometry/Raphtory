@@ -490,6 +490,45 @@ fn layered_temporal_sum_is_layer_scoped() {
     assert_eq!(layered_filtered_names(filter, g), vec!["alice"]);
 }
 
+// ── is_true() / is_false() ───────────────────────────────────────────────
+
+/// Graph with bool "active" property:
+///   "on"  — active = true
+///   "off" — active = false
+///   "na"  — no active property
+fn build_bool_graph() -> Graph {
+    let g = Graph::new();
+    g.add_node(0, "on", [("active", true.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "off", [("active", false.into_prop())], None, None)
+        .unwrap();
+    g.add_node(0, "na", NO_PROPS, None, None).unwrap();
+    g
+}
+
+#[test]
+fn is_true_keeps_only_true_nodes() {
+    let g = build_bool_graph();
+    let filter = NodeFilter::property("active").is_true();
+    assert_eq!(filtered_names(filter, g), vec!["on"]);
+}
+
+#[test]
+fn is_false_keeps_only_false_nodes() {
+    let g = build_bool_graph();
+    let filter = NodeFilter::property("active").is_false();
+    assert_eq!(filtered_names(filter, g), vec!["off"]);
+}
+
+#[test]
+fn is_true_excludes_absent_property() {
+    // "na" has no "active" property — must not appear
+    let g = build_bool_graph();
+    let filter = NodeFilter::property("active").is_true();
+    let names = filtered_names(filter, g);
+    assert!(!names.contains(&"na".to_string()));
+}
+
 // ── Runtime validation via prop_type() ───────────────────────────────────
 
 #[test]

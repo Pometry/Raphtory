@@ -1051,6 +1051,20 @@ pub trait NodeExprFilterOps: NodeExpr + Sized {
         }
     }
 
+    fn is_true(self) -> BinaryCmpNodeFilter<Self, Prop>
+    where
+        Self: NodeExpr<Output = Option<Prop>>,
+    {
+        self.eq(Prop::Bool(true))
+    }
+
+    fn is_false(self) -> BinaryCmpNodeFilter<Self, Prop>
+    where
+        Self: NodeExpr<Output = Option<Prop>>,
+    {
+        self.eq(Prop::Bool(false))
+    }
+
     fn is_in<Inner, Iter>(self, values: Iter) -> SetNodeFilter<Self, Inner>
     where
         Self: NodeExpr<Output = Option<Inner>>,
