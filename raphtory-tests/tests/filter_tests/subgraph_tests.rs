@@ -53,46 +53,21 @@ mod test_nodes_filters_node_subgraph {
         assert_filter_nodes_results, assert_search_nodes_results, TestGraphVariants, TestVariants,
     };
 
-    fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        let nodes = vec![
-            (6, "N1", vec![("p1", Prop::U64(2u64))]),
-            (7, "N1", vec![("p1", Prop::U64(1u64))]),
-            (6, "N2", vec![("p1", Prop::U64(1u64))]),
-            (7, "N2", vec![("p1", Prop::U64(2u64))]),
-            (8, "N3", vec![("p1", Prop::U64(1u64))]),
-            (9, "N4", vec![("p1", Prop::U64(1u64))]),
-            (5, "N5", vec![("p1", Prop::U64(1u64))]),
-            (6, "N5", vec![("p1", Prop::U64(2u64))]),
-            (5, "N6", vec![("p1", Prop::U64(1u64))]),
-            (6, "N6", vec![("p1", Prop::U64(1u64))]),
-            (3, "N7", vec![("p1", Prop::U64(1u64))]),
-            (5, "N7", vec![("p1", Prop::U64(1u64))]),
-            (3, "N8", vec![("p1", Prop::U64(1u64))]),
-            (4, "N8", vec![("p1", Prop::U64(2u64))]),
-        ];
-
-        for (id, name, props) in &nodes {
-            graph
-                .add_node(*id, name, props.clone(), None, None)
-                .unwrap();
-        }
-
-        graph
-    }
+    use crate::filter_tests::{init_graph, Edges, Nodes};
 
     #[test]
     fn test_search_nodes_subgraph() {
         let filter = NodeFilter.property("p1").eq(1u64);
         let expected_results = ["N1", "N3", "N4", "N6", "N7"];
         assert_filter_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             NodeSubgraphTransformer(None),
             filter.clone(),
             &expected_results,
             TestVariants::All,
         );
         assert_search_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             NodeSubgraphTransformer(None),
             filter,
             &expected_results,
@@ -104,14 +79,14 @@ mod test_nodes_filters_node_subgraph {
         let filter = NodeFilter.property("p1").le(1u64);
         let expected_results = vec!["N3", "N4"];
         assert_filter_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             NodeSubgraphTransformer(node_names.clone()),
             filter.clone(),
             &expected_results,
             TestVariants::All,
         );
         assert_search_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             NodeSubgraphTransformer(node_names),
             filter,
             &expected_results,
@@ -125,14 +100,14 @@ mod test_nodes_filters_node_subgraph {
         let filter = NodeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1", "N3", "N6"];
         assert_filter_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter.clone(),
             &expected_results,
             vec![TestGraphVariants::Graph],
         );
         assert_search_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter,
             &expected_results,
@@ -143,14 +118,14 @@ mod test_nodes_filters_node_subgraph {
         let filter = NodeFilter.property("p1").gt(0u64);
         let expected_results = vec!["N3"];
         assert_filter_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
             filter.clone(),
             &expected_results,
             vec![TestGraphVariants::Graph],
         );
         assert_search_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(node_names, 6..9),
             filter,
             &expected_results,
@@ -163,14 +138,14 @@ mod test_nodes_filters_node_subgraph {
         let filter = NodeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1", "N3", "N6", "N7"];
         assert_filter_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter.clone(),
             &expected_results,
             TestVariants::PersistentOnly,
         );
         assert_search_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter,
             &expected_results,
@@ -182,14 +157,14 @@ mod test_nodes_filters_node_subgraph {
         let filter = NodeFilter.property("p1").ge(1u64);
         let expected_results = vec!["N2", "N3", "N5"];
         assert_filter_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
             filter.clone(),
             &expected_results,
             TestVariants::PersistentOnly,
         );
         assert_search_nodes_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::Untyped, Edges::None),
             WindowedNodeSubgraphTransformer(node_names, 6..9),
             filter,
             &expected_results,
@@ -217,30 +192,7 @@ mod test_edges_filters_node_subgraph {
         NodeSubgraphTransformer, WindowedNodeSubgraphTransformer,
     };
 
-    fn init_graph<G: StaticGraphViewOps + AdditionOps>(graph: G) -> G {
-        let edges = vec![
-            (6, "N1", "N2", vec![("p1", Prop::U64(2u64))]),
-            (7, "N1", "N2", vec![("p1", Prop::U64(1u64))]),
-            (6, "N2", "N3", vec![("p1", Prop::U64(1u64))]),
-            (7, "N2", "N3", vec![("p1", Prop::U64(2u64))]),
-            (8, "N3", "N4", vec![("p1", Prop::U64(1u64))]),
-            (9, "N4", "N5", vec![("p1", Prop::U64(1u64))]),
-            (5, "N5", "N6", vec![("p1", Prop::U64(1u64))]),
-            (6, "N5", "N6", vec![("p1", Prop::U64(2u64))]),
-            (5, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
-            (6, "N6", "N7", vec![("p1", Prop::U64(1u64))]),
-            (3, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
-            (5, "N7", "N8", vec![("p1", Prop::U64(1u64))]),
-            (3, "N8", "N1", vec![("p1", Prop::U64(1u64))]),
-            (4, "N8", "N1", vec![("p1", Prop::U64(2u64))]),
-        ];
-
-        for (id, src, tgt, props) in &edges {
-            graph.add_edge(*id, src, tgt, props.clone(), None).unwrap();
-        }
-
-        graph
-    }
+    use crate::filter_tests::{init_graph, Edges, Nodes};
 
     #[test]
     fn test_edges_filters() {
@@ -248,14 +200,14 @@ mod test_edges_filters_node_subgraph {
         let filter = EdgeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1->N2", "N3->N4", "N4->N5", "N6->N7", "N7->N8"];
         assert_filter_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             NodeSubgraphTransformer(None),
             filter.clone(),
             &expected_results,
             TestVariants::EventOnly,
         );
         assert_search_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             NodeSubgraphTransformer(None),
             filter,
             &expected_results,
@@ -267,14 +219,14 @@ mod test_edges_filters_node_subgraph {
         let filter = EdgeFilter.property("p1").le(1u64);
         let expected_results = vec!["N3->N4", "N4->N5"];
         assert_filter_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             NodeSubgraphTransformer(node_names.clone()),
             filter.clone(),
             &expected_results,
             TestVariants::EventOnly,
         );
         assert_search_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             NodeSubgraphTransformer(node_names),
             filter,
             &expected_results,
@@ -287,14 +239,14 @@ mod test_edges_filters_node_subgraph {
         let filter = EdgeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1->N2", "N3->N4", "N6->N7"];
         assert_filter_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter.clone(),
             &expected_results,
             TestVariants::EventOnly,
         );
         assert_search_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter,
             &expected_results,
@@ -306,14 +258,14 @@ mod test_edges_filters_node_subgraph {
         let filter = EdgeFilter.property("p1").ge(1u64);
         let expected_results = vec!["N2->N3", "N3->N4"];
         assert_filter_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
             filter.clone(),
             &expected_results,
             TestVariants::EventOnly,
         );
         assert_search_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(node_names, 6..9),
             filter,
             &expected_results,
@@ -327,14 +279,14 @@ mod test_edges_filters_node_subgraph {
         let filter = EdgeFilter.property("p1").eq(1u64);
         let expected_results = vec!["N1->N2", "N3->N4", "N6->N7", "N7->N8"];
         assert_filter_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter.clone(),
             &expected_results,
             vec![],
         );
         assert_search_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(None, 6..9),
             filter,
             &expected_results,
@@ -351,14 +303,14 @@ mod test_edges_filters_node_subgraph {
         let filter = EdgeFilter.property("p1").lt(2u64);
         let expected_results = vec!["N3->N4"];
         assert_filter_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(node_names.clone(), 6..9),
             filter.clone(),
             &expected_results,
             vec![],
         );
         assert_search_edges_results(
-            init_graph,
+            |graph| init_graph(graph, Nodes::None, Edges::Unlayered),
             WindowedNodeSubgraphTransformer(node_names, 6..9),
             filter,
             &expected_results,
