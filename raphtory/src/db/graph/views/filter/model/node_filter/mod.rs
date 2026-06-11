@@ -20,7 +20,7 @@ use crate::{
                 is_active_node_filter::IsActiveNode,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{DegreeExpr, Metadata, Property, TemporalProp},
+                node_expr::{DegreeExpr, Metadata, Property},
                 node_filter::validate::validate,
                 node_state_filter::NodeStateBoolColOp,
                 property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
@@ -151,29 +151,7 @@ impl NodeFilter {
     pub fn metadata(name: impl Into<String>) -> Metadata {
         Metadata::new(name)
     }
-
-    /// Full temporal history of a named property as a sequence of `Prop` values.
-    ///
-    /// Values are scoped to the current view window (all time if no window applied).
-    /// Chain with `.any()`, `.all()`, `.sum()`, `.avg()`, `.min()`, `.max()`,
-    /// `.first()`, `.last()`, or `.len()` to produce a filter or scalar expression.
-    #[inline]
-    pub fn temporal_property(name: impl Into<String>) -> TemporalProp<NodeFilter> {
-        TemporalProp::new(NodeFilter, name)
-    }
 }
-
-/// Extension trait that adds `.temporal_property(name)` to any view expression type.
-///
-/// Implemented for all `T: CreateView + Clone` so that `NodeFilter`, `Windowed<NodeFilter>`,
-/// `Layered<NodeFilter>`, etc. all support the same entry point.
-pub trait TemporalNodeExprBuilderOps: CreateView + Clone + Send + Sync + Sized + 'static {
-    fn temporal_property(self, name: impl Into<String>) -> TemporalProp<Self> {
-        TemporalProp::new(self, name)
-    }
-}
-
-impl<T: CreateView + Clone + Sized + Send + Sync + 'static> TemporalNodeExprBuilderOps for T {}
 
 impl Wrap for NodeFilter {
     type Wrapped<T> = T;

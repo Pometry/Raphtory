@@ -53,7 +53,7 @@ use crate::{
                 is_valid_filter::IsValidEdge,
                 latest_filter::Latest,
                 layered_filter::Layered,
-                node_expr::{NodeMetaOp, NodePropOp, TemporalPropertyExpr},
+                node_expr::{NodeMetaOp, NodePropOp},
                 node_filter::NodeFilterFactory,
                 property_filter::{
                     builders::{
@@ -397,12 +397,9 @@ where
     }
 }
 
-impl<E: CreateView> PropertyExpr<E> {
-    pub fn temporal(&self) -> TemporalPropertyExpr<E> {
-        TemporalPropertyExpr {
-            view_expr: self.view_expr.clone(),
-            name: self.name.clone(),
-        }
+impl<E: CreateView + Clone + Send + Sync + 'static> PropertyExpr<E> {
+    pub fn temporal(&self) -> TemporalProp<E> {
+        TemporalProp::new(self.view_expr.clone(), self.name.clone())
     }
 }
 

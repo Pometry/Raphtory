@@ -4,8 +4,7 @@ use crate::{
         api::{state::ops::Id, view::filter_ops::NodeSelect},
         graph::views::filter::{
             model::{
-                filter_operator::BinaryOp,
-                node_filter::{NodeFilter, TemporalNodeExprBuilderOps},
+                filter_operator::BinaryOp, node_filter::NodeFilter, PropertyFilterFactory,
                 ViewWrapOps,
             },
             CreateFilter,
@@ -315,7 +314,7 @@ fn temporal_len_ge_2() {
 #[test]
 fn node_filter_temporal_property_entry_point() {
     let g = build_temporal_graph();
-    let filter = NodeFilter::temporal_property("score").any().eq(5i64);
+    let filter = NodeFilter.property("score").temporal().any().eq(5i64);
     assert_eq!(temporal_filtered_names(filter, g), vec!["alice"]);
 }
 
@@ -356,7 +355,8 @@ fn windowed_temporal_any_restricts_to_window() {
     let g = build_temporal_graph();
     let filter = NodeFilter
         .window(1, 2)
-        .temporal_property("score")
+        .property("score")
+        .temporal()
         .any()
         .eq(5i64);
     // window [1,2) shows t=1 only → alice has score=1, not 5
@@ -369,7 +369,8 @@ fn windowed_temporal_any_matches_in_window() {
     let g = build_temporal_graph();
     let filter = NodeFilter
         .window(2, 3)
-        .temporal_property("score")
+        .property("score")
+        .temporal()
         .any()
         .eq(5i64);
     assert_eq!(windowed_filtered_names(filter, g), vec!["alice"]);
@@ -458,7 +459,8 @@ fn layered_temporal_any_restricts_to_layer_a_updates() {
     let g = build_layered_temporal_graph();
     let filter = NodeFilter
         .layer("layer_a")
-        .temporal_property("score")
+        .property("score")
+        .temporal()
         .any()
         .eq(5i64);
     assert_eq!(layered_filtered_names(filter, g), vec!["alice"]);
@@ -471,7 +473,8 @@ fn layered_temporal_any_restricts_to_layer_b_updates() {
     let g = build_layered_temporal_graph();
     let filter = NodeFilter
         .layer("layer_b")
-        .temporal_property("score")
+        .property("score")
+        .temporal()
         .any()
         .gt(2i64);
     assert_eq!(layered_filtered_names(filter, g), vec!["bob"]);
@@ -484,7 +487,8 @@ fn layered_temporal_sum_is_layer_scoped() {
     let g = build_layered_temporal_graph();
     let filter = NodeFilter
         .layer("layer_a")
-        .temporal_property("score")
+        .property("score")
+        .temporal()
         .sum()
         .gt(10i64);
     assert_eq!(layered_filtered_names(filter, g), vec!["alice"]);
