@@ -156,8 +156,6 @@ pub mod prelude {
 
     pub use crate::db::graph::views::filter::model::{node_filter::NodeFilter, EdgeFilter};
 
-    pub use crate::db::graph::views::filter::model::node_expr::NodeExprFilterOps;
-
     pub use storage::{persist::config::ConfigOps, Config};
 
     #[cfg(feature = "io")]

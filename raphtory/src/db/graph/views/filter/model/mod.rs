@@ -56,7 +56,11 @@ use crate::{
                 node_expr::{NodeMetaOp, NodePropOp, TemporalPropertyExpr},
                 node_filter::NodeFilterFactory,
                 property_filter::{
-                    builders::PropertyExprBuilderInput, Op, PropertyFilterInput, PropertyRef,
+                    builders::{
+                        InternalPropertyFilterBuilder, PropertyExprBuilder,
+                        PropertyExprBuilderInput,
+                    },
+                    Op, PropertyFilterInput, PropertyRef,
                 },
                 snapshot_filter::{SnapshotAt, SnapshotLatest},
                 windowed_filter::Windowed,
@@ -328,6 +332,68 @@ impl<T: CreateView> DynPropertyFilterFactory for T {
             view_expr: Arc::new(self.clone()) as Arc<dyn DynCreateView>,
             name,
         }
+    }
+}
+
+impl<E> InternalPropertyFilterBuilder for PropertyExpr<E>
+where
+    E: Into<EntityMarker> + Send + Sync + Clone + 'static,
+    crate::prelude::PropertyFilter<E>: CombinedFilter,
+    PropertyExprBuilder<E>: InternalPropertyFilterBuilder,
+{
+    type Filter = crate::prelude::PropertyFilter<E>;
+    type ExprBuilder = PropertyExprBuilder<E>;
+    type Marker = E;
+
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::Property(self.name.clone())
+    }
+
+    fn ops(&self) -> &[Op] {
+        &[]
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.view_expr.clone()
+    }
+
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        filter.with_entity(self.entity())
+    }
+
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        builder.with_entity(self.entity())
+    }
+}
+
+impl<E> InternalPropertyFilterBuilder for MetadataExpr<E>
+where
+    E: Into<EntityMarker> + Send + Sync + Clone + 'static,
+    crate::prelude::PropertyFilter<E>: CombinedFilter,
+    PropertyExprBuilder<E>: InternalPropertyFilterBuilder,
+{
+    type Filter = crate::prelude::PropertyFilter<E>;
+    type ExprBuilder = PropertyExprBuilder<E>;
+    type Marker = E;
+
+    fn property_ref(&self) -> PropertyRef {
+        PropertyRef::Metadata(self.name.clone())
+    }
+
+    fn ops(&self) -> &[Op] {
+        &[]
+    }
+
+    fn entity(&self) -> Self::Marker {
+        self.view_expr.clone()
+    }
+
+    fn filter(&self, filter: PropertyFilterInput) -> Self::Filter {
+        filter.with_entity(self.entity())
+    }
+
+    fn with_expr_builder(&self, builder: PropertyExprBuilderInput) -> Self::ExprBuilder {
+        builder.with_entity(self.entity())
     }
 }
 

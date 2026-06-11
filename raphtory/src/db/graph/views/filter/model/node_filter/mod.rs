@@ -140,24 +140,6 @@ impl TryAsCompositeFilter for NodeFilter {
 }
 
 impl NodeFilter {
-    /// Node name expression — `NodeExpr<Output = String>` — use `.eq("Alice")` etc.
-    #[inline]
-    pub fn name() -> Name {
-        Name
-    }
-
-    /// Node GID expression — `NodeExpr<Output = GID>`.
-    #[inline]
-    pub fn id() -> Id {
-        Id
-    }
-
-    /// Node type expression — `NodeExpr<Output = Option<ArcStr>>`.
-    #[inline]
-    pub fn node_type() -> Type {
-        Type
-    }
-
     /// Current (latest) value of a named property — serializable.
     #[inline]
     pub fn property(name: impl Into<String>) -> Property {

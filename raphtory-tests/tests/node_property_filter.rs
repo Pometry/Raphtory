@@ -6,7 +6,7 @@ use raphtory::{
         graph::{
             graph::assert_edges_equal,
             views::filter::model::{
-                node_filter::{ops::NodeFilterOps, NodeFilter},
+                node_filter::{ops::NodeFilterOps, NodeFilter, NodeFilterFactory},
                 property_filter::ops::PropertyFilterOps,
                 ComposableFilter, PropertyFilterFactory,
             },
@@ -34,7 +34,8 @@ fn test_node_filter_on_nodes() {
     g.add_node(2, "David", [("band", "Pink Floyd")], None, None)
         .unwrap();
 
-    let filter_expr = NodeFilter::name()
+    let filter_expr = NodeFilter
+        .name()
         .eq("John")
         .and(NodeFilter.property("band").eq("Dead & Company"));
     let filtered_nodes = g.nodes().filter(filter_expr).unwrap();
