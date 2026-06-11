@@ -1,7 +1,11 @@
 use itertools::Itertools;
 use proptest::prelude::*;
 use raphtory::{
-    algorithms::motifs::triangle_count::triangle_count, db::graph::graph::assert_graph_equal,
+    algorithms::motifs::triangle_count::triangle_count,
+    db::{
+        api::view::internal::{FilterOps, FilterState},
+        graph::graph::assert_graph_equal,
+    },
     prelude::*,
 };
 use raphtory_api::core::storage::timeindex::AsTime;
@@ -41,6 +45,9 @@ fn test_materialize_no_edges() {
         assert_graph_equal(&actual, &sg);
     });
 }
+
+#[test]
+fn test_optimisation_flags() {}
 
 #[test]
 fn test_mask_the_window_50pc() {
@@ -111,6 +118,7 @@ fn masked_always_equals_proptest() {
             if !layers.is_empty() && earliest < middle && middle < latest {
                 let subgraph = graph.layers(layers).unwrap().window(earliest, middle);
                 let masked = subgraph.cache_view();
+                assert_eq!(masked.filter_state(), FilterState::BothIndependent);
                 assert_graph_equal(&subgraph, &masked);
             }
         });

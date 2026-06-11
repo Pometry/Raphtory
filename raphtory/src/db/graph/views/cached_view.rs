@@ -5,10 +5,11 @@ use crate::{
             InheritEdgePropertySchemaOps, InheritNodePropertySchemaOps, InheritPropertiesOps,
         },
         view::internal::{
-            EdgeTimeSemanticsOps, FilterOps, Immutable, InheritEdgeHistoryFilter, InheritLayerOps,
-            InheritListOps, InheritMaterialize, InheritNodeHistoryFilter, InheritStorageOps,
-            InheritTimeSemantics, InternalEdgeFilterOps, InternalEdgeLayerFilterOps,
-            InternalExplodedEdgeFilterOps, InternalLayerOps, InternalNodeFilterOps, Static,
+            EdgeTimeSemanticsOps, FilterOps, GraphTimeSemanticsOps, GraphView, Immutable,
+            InheritEdgeHistoryFilter, InheritLayerOps, InheritListOps, InheritMaterialize,
+            InheritNodeHistoryFilter, InheritStorageOps, InheritTimeSemantics,
+            InternalEdgeFilterOps, InternalEdgeLayerFilterOps, InternalExplodedEdgeFilterOps,
+            InternalLayerOps, InternalNodeFilterOps, Static, TimeSemantics,
         },
     },
     prelude::{GraphViewOps, LayerOps},
@@ -16,10 +17,11 @@ use crate::{
 };
 use raphtory_api::{
     core::{
-        entities::{LayerId, ELID},
+        entities::{properties::prop::Prop, LayerId, ELID},
         storage::timeindex::{AsTime, EventTime},
     },
     inherit::Base,
+    iter::BoxedLIter,
 };
 use raphtory_storage::{
     core_ops::CoreGraphOps,
@@ -32,6 +34,7 @@ use rayon::prelude::*;
 use roaring::RoaringTreemap;
 use std::{
     fmt::{Debug, Formatter},
+    ops::Range,
     sync::Arc,
 };
 use storage::EdgeEntryRef;
@@ -62,9 +65,8 @@ impl<'graph, G: GraphViewOps<'graph>> Base for CachedView<G> {
 }
 
 impl<'graph, G: GraphViewOps<'graph>> Immutable for CachedView<G> {}
-
+impl<'graph, G: GraphView> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritCoreGraphOps for CachedView<G> {}
-impl<'graph, G: GraphViewOps<'graph>> InheritTimeSemantics for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritPropertiesOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritNodePropertySchemaOps for CachedView<G> {}
 impl<'graph, G: GraphViewOps<'graph>> InheritEdgePropertySchemaOps for CachedView<G> {}
@@ -188,6 +190,14 @@ impl<'graph, G: GraphViewOps<'graph>> InternalExplodedEdgeFilterOps for CachedVi
     fn node_filter_includes_exploded_edge_filter(&self) -> bool {
         true
     }
+
+    fn edge_filter_includes_exploded_edge_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_layer_filter_includes_exploded_edge_filter(&self) -> bool {
+        true
+    }
 }
 
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for CachedView<G> {
@@ -208,11 +218,19 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeLayerFilterOps for CachedView<
     fn node_filter_includes_edge_layer_filter(&self) -> bool {
         true
     }
+
+    fn edge_filter_includes_edge_layer_filter(&self) -> bool {
+        true
+    }
+
+    fn exploded_edge_filter_includes_edge_layer_filter(&self) -> bool {
+        true
+    }
 }
 impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
     #[inline]
     fn internal_edge_filtered(&self) -> bool {
-        self.graph.internal_edge_filtered()
+        self.graph.internal_edge_filtered() || self.graph.window_filtered()
     }
 
     #[inline]
@@ -235,6 +253,17 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
                 .any(|id| self.layered_mask.get(id.0).is_some_and(filter_fn)),
         }
     }
+    fn edge_filter_includes_window_filter(&self) -> bool {
+        true
+    }
+
+    fn edge_layer_filter_includes_edge_filter(&self) -> bool {
+        true
+    }
+
+    fn exploded_edge_filter_includes_edge_filter(&self) -> bool {
+        true
+    }
 
     fn node_filter_includes_edge_filter(&self) -> bool {
         true
@@ -243,7 +272,7 @@ impl<'graph, G: GraphViewOps<'graph>> InternalEdgeFilterOps for CachedView<G> {
 
 impl<'graph, G: GraphViewOps<'graph>> InternalNodeFilterOps for CachedView<G> {
     fn internal_nodes_filtered(&self) -> bool {
-        self.graph.internal_nodes_filtered()
+        self.graph.internal_nodes_filtered() || self.graph.window_filtered()
     }
     fn internal_node_list_trusted(&self) -> bool {
         self.graph.internal_node_list_trusted()
