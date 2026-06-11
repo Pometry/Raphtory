@@ -1,7 +1,7 @@
 use crate::merge_impl::{KMergeBy, MergeBy, MergeByGe, MergeByLt, MergeByRev, MergePredicate};
 use std::iter::{FusedIterator, Rev};
 
-pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
+pub trait FastMergeExt: Iterator {
     /// Return an iterator adaptor that flattens an iterator of iterators by
     /// merging them according to the given closure. Uses tree merge for up to 8 iterators.
     ///
@@ -18,7 +18,11 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
     >(
         self,
         cmp_fn: F,
-    ) -> FastMerge<<Self::Item as IntoIterator>::IntoIter, F> {
+    ) -> FastMerge<<Self::Item as IntoIterator>::IntoIter, F>
+    where
+        Self: Sized,
+        Self::Item: IntoIterator,
+    {
         FastMerge::new(self.map(|i| i.into_iter()), cmp_fn)
     }
 
@@ -30,6 +34,8 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
     /// Iterator element type is `Self::Item`.
     fn fast_merge(self) -> FastMerge<<Self::Item as IntoIterator>::IntoIter, MergeByLt>
     where
+        Self: Sized,
+        Self::Item: IntoIterator,
         <Self::Item as IntoIterator>::Item: Ord,
     {
         FastMerge::new(self.map(|i| i.into_iter()), MergeByLt)
@@ -53,6 +59,8 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
         first: F,
     ) -> FastMerge<Rev<<Self::Item as IntoIterator>::IntoIter>, MergeByRev<F>>
     where
+        Self: Sized,
+        Self::Item: IntoIterator,
         <Self::Item as IntoIterator>::IntoIter: DoubleEndedIterator,
     {
         FastMerge::new(self.map(|iter| iter.into_iter().rev()), MergeByRev(first))
@@ -66,6 +74,8 @@ pub trait FastMergeExt: Iterator<Item: IntoIterator> + Sized {
     /// Iterator element type is `Self::Item`.
     fn fast_merge_rev(self) -> FastMerge<Rev<<Self::Item as IntoIterator>::IntoIter>, MergeByGe>
     where
+        Self: Sized,
+        Self::Item: IntoIterator,
         <Self::Item as IntoIterator>::Item: Ord,
         <Self::Item as IntoIterator>::IntoIter: DoubleEndedIterator,
     {
