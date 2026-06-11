@@ -36,62 +36,170 @@ def assert_filter(graph, filter_expr, metric, manual_expr, context):
     )
 
     filtered_event_nodes = sort_vids(graph.filter(filter_expr).nodes.id)
-    assert filtered_event_nodes == expected_filter_nodes, (
-        f"{context} failed for event graph"
-    )
+    assert (
+        filtered_event_nodes == expected_filter_nodes
+    ), f"{context} failed for event graph"
 
     selected_event_nodes = sort_vids(graph.nodes[filter_expr].id)
-    assert selected_event_nodes == expected_select_nodes, (
-        f"{context} failed for event graph select"
-    )
+    assert (
+        selected_event_nodes == expected_select_nodes
+    ), f"{context} failed for event graph select"
 
     persistent_graph = graph.persistent_graph()
 
     filtered_persistent_nodes = sort_vids(persistent_graph.filter(filter_expr).nodes.id)
-    assert filtered_persistent_nodes == expected_filter_nodes, (
-        f"{context} failed for persistent graph"
-    )
+    assert (
+        filtered_persistent_nodes == expected_filter_nodes
+    ), f"{context} failed for persistent graph"
 
     selected_persistent_nodes = sort_vids(persistent_graph.nodes[filter_expr].id)
-    assert selected_persistent_nodes == expected_select_nodes, (
-        f"{context} failed for persistent graph select"
-    )
+    assert (
+        selected_persistent_nodes == expected_select_nodes
+    ), f"{context} failed for persistent graph select"
 
 
 @pytest.mark.parametrize("value", range(0, 15))
 def test_degree_filter_both_direction_comparison(value):
     graph = degree_graph_with_add_node_and_add_edge(Graph())
 
-    assert_filter(graph, filter.Node.degree() < value, "both", lambda d: d < value, f"BOTH < {value}")
-    assert_filter(graph, filter.Node.degree() <= value, "both", lambda d: d <= value, f"BOTH <= {value}")
-    assert_filter(graph, filter.Node.degree() == value, "both", lambda d: d == value, f"BOTH == {value}")
-    assert_filter(graph, filter.Node.degree() != value, "both", lambda d: d != value, f"BOTH != {value}")
-    assert_filter(graph, filter.Node.degree() >= value, "both", lambda d: d >= value, f"BOTH >= {value}")
-    assert_filter(graph, filter.Node.degree() > value, "both", lambda d: d > value, f"BOTH > {value}")
+    assert_filter(
+        graph,
+        filter.Node.degree() < value,
+        "both",
+        lambda d: d < value,
+        f"BOTH < {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() <= value,
+        "both",
+        lambda d: d <= value,
+        f"BOTH <= {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() == value,
+        "both",
+        lambda d: d == value,
+        f"BOTH == {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() != value,
+        "both",
+        lambda d: d != value,
+        f"BOTH != {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() >= value,
+        "both",
+        lambda d: d >= value,
+        f"BOTH >= {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() > value,
+        "both",
+        lambda d: d > value,
+        f"BOTH > {value}",
+    )
 
 
 @pytest.mark.parametrize("value", range(0, 15))
 def test_degree_filter_in_direction_comparison(value):
     graph = degree_graph_with_add_node_and_add_edge(Graph())
 
-    assert_filter(graph, filter.Node.in_degree() < value, "in", lambda d: d < value, f"IN < {value}")
-    assert_filter(graph, filter.Node.in_degree() <= value, "in", lambda d: d <= value, f"IN <= {value}")
-    assert_filter(graph, filter.Node.in_degree() == value, "in", lambda d: d == value, f"IN == {value}")
-    assert_filter(graph, filter.Node.in_degree() != value, "in", lambda d: d != value, f"IN != {value}")
-    assert_filter(graph, filter.Node.in_degree() >= value, "in", lambda d: d >= value, f"IN >= {value}")
-    assert_filter(graph, filter.Node.in_degree() > value, "in", lambda d: d > value, f"IN > {value}")
+    assert_filter(
+        graph,
+        filter.Node.in_degree() < value,
+        "in",
+        lambda d: d < value,
+        f"IN < {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() <= value,
+        "in",
+        lambda d: d <= value,
+        f"IN <= {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() == value,
+        "in",
+        lambda d: d == value,
+        f"IN == {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() != value,
+        "in",
+        lambda d: d != value,
+        f"IN != {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() >= value,
+        "in",
+        lambda d: d >= value,
+        f"IN >= {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() > value,
+        "in",
+        lambda d: d > value,
+        f"IN > {value}",
+    )
 
 
 @pytest.mark.parametrize("value", range(0, 15))
 def test_degree_filter_out_direction_comparison(value):
     graph = degree_graph_with_add_node_and_add_edge(Graph())
 
-    assert_filter(graph, filter.Node.out_degree() < value, "out", lambda d: d < value, f"OUT < {value}")
-    assert_filter(graph, filter.Node.out_degree() <= value, "out", lambda d: d <= value, f"OUT <= {value}")
-    assert_filter(graph, filter.Node.out_degree() == value, "out", lambda d: d == value, f"OUT == {value}")
-    assert_filter(graph, filter.Node.out_degree() != value, "out", lambda d: d != value, f"OUT != {value}")
-    assert_filter(graph, filter.Node.out_degree() >= value, "out", lambda d: d >= value, f"OUT >= {value}")
-    assert_filter(graph, filter.Node.out_degree() > value, "out", lambda d: d > value, f"OUT > {value}")
+    assert_filter(
+        graph,
+        filter.Node.out_degree() < value,
+        "out",
+        lambda d: d < value,
+        f"OUT < {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() <= value,
+        "out",
+        lambda d: d <= value,
+        f"OUT <= {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() == value,
+        "out",
+        lambda d: d == value,
+        f"OUT == {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() != value,
+        "out",
+        lambda d: d != value,
+        f"OUT != {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() >= value,
+        "out",
+        lambda d: d >= value,
+        f"OUT >= {value}",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() > value,
+        "out",
+        lambda d: d > value,
+        f"OUT > {value}",
+    )
 
 
 @pytest.mark.parametrize("value", range(0, 15))
@@ -330,26 +438,134 @@ def test_degree_filter_with_string_threshold(value):
     threshold_str = str(value)
     parsed_str = int(threshold_str)
 
-    assert_filter(graph, filter.Node.degree() < threshold_str, "both", lambda d: d < parsed_str, f"BOTH < string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.degree() <= threshold_str, "both", lambda d: d <= parsed_str, f"BOTH <= string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.degree() == threshold_str, "both", lambda d: d == parsed_str, f"BOTH == string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.degree() != threshold_str, "both", lambda d: d != parsed_str, f"BOTH != string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.degree() >= threshold_str, "both", lambda d: d >= parsed_str, f"BOTH >= string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.degree() > threshold_str, "both", lambda d: d > parsed_str, f"BOTH > string threshold parsed to u64 ({threshold_str})")
+    assert_filter(
+        graph,
+        filter.Node.degree() < threshold_str,
+        "both",
+        lambda d: d < parsed_str,
+        f"BOTH < string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() <= threshold_str,
+        "both",
+        lambda d: d <= parsed_str,
+        f"BOTH <= string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() == threshold_str,
+        "both",
+        lambda d: d == parsed_str,
+        f"BOTH == string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() != threshold_str,
+        "both",
+        lambda d: d != parsed_str,
+        f"BOTH != string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() >= threshold_str,
+        "both",
+        lambda d: d >= parsed_str,
+        f"BOTH >= string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.degree() > threshold_str,
+        "both",
+        lambda d: d > parsed_str,
+        f"BOTH > string threshold parsed to u64 ({threshold_str})",
+    )
 
-    assert_filter(graph, filter.Node.in_degree() < threshold_str, "in", lambda d: d < parsed_str, f"IN < string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.in_degree() <= threshold_str, "in", lambda d: d <= parsed_str, f"IN <= string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.in_degree() == threshold_str, "in", lambda d: d == parsed_str, f"IN == string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.in_degree() != threshold_str, "in", lambda d: d != parsed_str, f"IN != string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.in_degree() >= threshold_str, "in", lambda d: d >= parsed_str, f"IN >= string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.in_degree() > threshold_str, "in", lambda d: d > parsed_str, f"IN > string threshold parsed to u64 ({threshold_str})")
+    assert_filter(
+        graph,
+        filter.Node.in_degree() < threshold_str,
+        "in",
+        lambda d: d < parsed_str,
+        f"IN < string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() <= threshold_str,
+        "in",
+        lambda d: d <= parsed_str,
+        f"IN <= string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() == threshold_str,
+        "in",
+        lambda d: d == parsed_str,
+        f"IN == string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() != threshold_str,
+        "in",
+        lambda d: d != parsed_str,
+        f"IN != string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() >= threshold_str,
+        "in",
+        lambda d: d >= parsed_str,
+        f"IN >= string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree() > threshold_str,
+        "in",
+        lambda d: d > parsed_str,
+        f"IN > string threshold parsed to u64 ({threshold_str})",
+    )
 
-    assert_filter(graph, filter.Node.out_degree() < threshold_str, "out", lambda d: d < parsed_str, f"OUT < string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.out_degree() <= threshold_str, "out", lambda d: d <= parsed_str, f"OUT <= string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.out_degree() == threshold_str, "out", lambda d: d == parsed_str, f"OUT == string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.out_degree() != threshold_str, "out", lambda d: d != parsed_str, f"OUT != string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.out_degree() >= threshold_str, "out", lambda d: d >= parsed_str, f"OUT >= string threshold parsed to u64 ({threshold_str})")
-    assert_filter(graph, filter.Node.out_degree() > threshold_str, "out", lambda d: d > parsed_str, f"OUT > string threshold parsed to u64 ({threshold_str})")
+    assert_filter(
+        graph,
+        filter.Node.out_degree() < threshold_str,
+        "out",
+        lambda d: d < parsed_str,
+        f"OUT < string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() <= threshold_str,
+        "out",
+        lambda d: d <= parsed_str,
+        f"OUT <= string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() == threshold_str,
+        "out",
+        lambda d: d == parsed_str,
+        f"OUT == string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() != threshold_str,
+        "out",
+        lambda d: d != parsed_str,
+        f"OUT != string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() >= threshold_str,
+        "out",
+        lambda d: d >= parsed_str,
+        f"OUT >= string threshold parsed to u64 ({threshold_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree() > threshold_str,
+        "out",
+        lambda d: d > parsed_str,
+        f"OUT > string threshold parsed to u64 ({threshold_str})",
+    )
 
 
 @pytest.mark.parametrize("value", range(0, 15))
@@ -359,9 +575,27 @@ def test_degree_filter_with_string_is_in(value):
     threshold_b_str = str(value + 1)
     set_values = [int(threshold_a_str), int(threshold_b_str)]
 
-    assert_filter(graph, filter.Node.degree().is_in([threshold_a_str, threshold_b_str]), "both", lambda d: d in set_values, f"BOTH is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})")
-    assert_filter(graph, filter.Node.in_degree().is_in([threshold_a_str, threshold_b_str]), "in", lambda d: d in set_values, f"IN is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})")
-    assert_filter(graph, filter.Node.out_degree().is_in([threshold_a_str, threshold_b_str]), "out", lambda d: d in set_values, f"OUT is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})")
+    assert_filter(
+        graph,
+        filter.Node.degree().is_in([threshold_a_str, threshold_b_str]),
+        "both",
+        lambda d: d in set_values,
+        f"BOTH is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree().is_in([threshold_a_str, threshold_b_str]),
+        "in",
+        lambda d: d in set_values,
+        f"IN is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree().is_in([threshold_a_str, threshold_b_str]),
+        "out",
+        lambda d: d in set_values,
+        f"OUT is_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
+    )
 
 
 @pytest.mark.parametrize("value", range(0, 15))
@@ -371,9 +605,27 @@ def test_degree_filter_with_string_is_not_in(value):
     threshold_b_str = str(value + 1)
     set_values = [int(threshold_a_str), int(threshold_b_str)]
 
-    assert_filter(graph, filter.Node.degree().is_not_in([threshold_a_str, threshold_b_str]), "both", lambda d: d not in set_values, f"BOTH is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})")
-    assert_filter(graph, filter.Node.in_degree().is_not_in([threshold_a_str, threshold_b_str]), "in", lambda d: d not in set_values, f"IN is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})")
-    assert_filter(graph, filter.Node.out_degree().is_not_in([threshold_a_str, threshold_b_str]), "out", lambda d: d not in set_values, f"OUT is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})")
+    assert_filter(
+        graph,
+        filter.Node.degree().is_not_in([threshold_a_str, threshold_b_str]),
+        "both",
+        lambda d: d not in set_values,
+        f"BOTH is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.in_degree().is_not_in([threshold_a_str, threshold_b_str]),
+        "in",
+        lambda d: d not in set_values,
+        f"IN is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
+    )
+    assert_filter(
+        graph,
+        filter.Node.out_degree().is_not_in([threshold_a_str, threshold_b_str]),
+        "out",
+        lambda d: d not in set_values,
+        f"OUT is_not_in(string thresholds parsed to u64) ({threshold_a_str}, {threshold_b_str})",
+    )
 
 
 @pytest.mark.parametrize("value", range(0, 15))
@@ -570,8 +822,6 @@ def test_degree_filter_with_float_is_not_in(value):
         lambda d: d not in set_values,
         f"OUT is_not_in(float thresholds cast to u64) ({value}, {value + 1})",
     )
-
-
 
 
 @with_variants(init_graph)
