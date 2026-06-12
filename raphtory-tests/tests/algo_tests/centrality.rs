@@ -5,7 +5,7 @@ use itertools::Itertools;
 use raphtory::{
     algorithms::centrality::{
         betweenness::betweenness_centrality, degree_centrality::degree_centrality, hits::hits,
-        pagerank::unweighted_page_rank,
+        pagerank::page_rank,
     },
     prelude::*,
 };
@@ -153,7 +153,7 @@ fn test_page_rank() {
             ("3".to_string(), 0.20916),
             ("4".to_string(), 0.20195),
         ]);
-        let results = unweighted_page_rank(graph, Some(1000), Some(1), None, true, None)
+        let results = page_rank(graph, None, Some(1000), Some(1), None, true, None)
             .to_hashmap(|value| value.score);
         assert_eq_hashmaps_approx(&results, &expected, 1e-5);
     });
@@ -207,8 +207,7 @@ fn motif_page_rank() {
             ("9".to_string(), 0.06186),
             ("5".to_string(), 0.19658),
         ]);
-
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None)
+        let results = page_rank(graph, None, Some(1000), Some(4), None, true, None)
             .to_hashmap(|value| value.score);
 
         assert_eq_hashmaps_approx(&results, &expected, 1e-5);
@@ -228,8 +227,7 @@ fn two_nodes_page_rank() {
     test_storage!(&graph, |graph| {
         let expected: HashMap<String, f64> =
             HashMap::from([("1".to_string(), 0.5), ("2".to_string(), 0.5)]);
-
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, false, None)
+        let results = page_rank(graph, None, Some(1000), Some(4), None, false, None)
             .to_hashmap(|value| value.score);
 
         assert_eq_hashmaps_approx(&results, &expected, 1e-3);
@@ -252,8 +250,7 @@ fn three_nodes_page_rank_one_dangling() {
             ("2".to_string(), 0.393),
             ("3".to_string(), 0.303),
         ]);
-
-        let results = unweighted_page_rank(graph, Some(10), Some(4), None, false, None)
+        let results = page_rank(graph, None, Some(10), Some(4), None, false, None)
             .to_hashmap(|value| value.score);
 
         assert_eq_hashmaps_approx(&results, &expected, 1e-3);
@@ -302,10 +299,138 @@ fn dangling_page_rank() {
             ("10".to_string(), 0.117),
             ("11".to_string(), 0.122),
         ]);
-
-        let results = unweighted_page_rank(graph, Some(1000), Some(4), None, true, None)
+        let results = page_rank(graph, None, Some(1000), Some(4), None, true, None)
             .to_hashmap(|value| value.score);
 
         assert_eq_hashmaps_approx(&results, &expected, 1e-3);
+    });
+}
+#[test]
+fn page_rank_non_uniform_weights() {
+    let graph = Graph::new();
+    graph
+        .add_edge(0, 1, 2, [("weight", Prop::F64(0.37))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 1, 3, [("weight", Prop::F64(4.2))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 2, 1, [("weight", Prop::F64(0.9))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 2, 4, [("weight", Prop::F64(1.7))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 1, [("weight", Prop::F64(2.6))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 2, [("weight", Prop::F64(0.05))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 4, 3, [("weight", Prop::F64(3.3))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 4, 1, [("weight", Prop::F64(0.8))], None)
+        .unwrap();
+
+    test_storage!(&graph, |graph| {
+        let expected: HashMap<String, f64> = HashMap::from([
+            ("1".to_string(), 0.42499),
+            ("2".to_string(), 0.07353),
+            ("3".to_string(), 0.42311),
+            ("4".to_string(), 0.07837),
+        ]);
+        let results = page_rank(
+            graph,
+            Some("weight"),
+            Some(1000),
+            Some(1),
+            Some(1e-10),
+            true,
+            None,
+        )
+        .to_hashmap(|value| value.score);
+
+        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
+    });
+}
+
+#[test]
+fn page_rank_dangling_weighted() {
+    let graph = Graph::new();
+    graph
+        .add_edge(0, 1, 2, [("weight", Prop::F64(0.12))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 1, 3, [("weight", Prop::F64(7.1))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 2, 4, [("weight", Prop::F64(0.004))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 1, [("weight", Prop::F64(1.9))], None)
+        .unwrap();
+    graph
+        .add_edge(0, 3, 5, [("weight", Prop::F64(0.63))], None)
+        .unwrap();
+
+    test_storage!(&graph, |graph| {
+        let expected: HashMap<String, f64> = HashMap::from([
+            ("1".to_string(), 0.28736),
+            ("2".to_string(), 0.08587),
+            ("3".to_string(), 0.32201),
+            ("4".to_string(), 0.15480),
+            ("5".to_string(), 0.14997),
+        ]);
+        let results = page_rank(
+            graph,
+            Some("weight"),
+            Some(1000),
+            Some(1),
+            Some(1e-10),
+            true,
+            None,
+        )
+        .to_hashmap(|value| value.score);
+
+        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
+    });
+}
+
+#[test]
+fn page_rank_uniform_weights_match_unweighted() {
+    let graph = Graph::new();
+    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
+    for (src, dst) in edges {
+        graph
+            .add_edge(0, src, dst, [("weight", Prop::F64(1.0))], None)
+            .unwrap();
+    }
+
+    test_storage!(&graph, |graph| {
+        let expected = page_rank(graph, None, Some(1000), Some(1), None, true, None)
+            .to_hashmap(|value| value.score);
+        let results = page_rank(graph, Some("weight"), Some(1000), Some(1), None, true, None)
+            .to_hashmap(|value| value.score);
+
+        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
+    });
+}
+
+#[test]
+fn page_rank_missing_property_defaults_to_unweighted() {
+    let graph = Graph::new();
+    let edges = vec![(1, 2), (1, 4), (2, 3), (3, 1), (4, 1)];
+    for (src, dst) in edges {
+        graph.add_edge(0, src, dst, NO_PROPS, None).unwrap();
+    }
+
+    test_storage!(&graph, |graph| {
+        let expected = page_rank(graph, None, Some(1000), Some(1), None, true, None)
+            .to_hashmap(|value| value.score);
+        let results = page_rank(graph, Some("weight"), Some(1000), Some(1), None, true, None)
+            .to_hashmap(|value| value.score);
+
+        assert_eq_hashmaps_approx(&results, &expected, 1e-5);
     });
 }
