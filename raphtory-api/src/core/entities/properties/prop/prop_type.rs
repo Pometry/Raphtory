@@ -1,7 +1,7 @@
 use arrow_schema::DataType;
 use serde::{Deserialize, Serialize};
-use std::cell::LazyCell;
 use std::{
+    cell::LazyCell,
     collections::HashMap,
     fmt,
     fmt::{Display, Formatter},

@@ -3,7 +3,7 @@ use crate::{
         dataframe::*,
         df_loaders::{
             edges::{load_edges_from_df_prefetch, ColumnNames},
-            nodes::{load_node_props_from_df, load_nodes_from_df, load_nodes_from_df_prefetch},
+            nodes::{load_node_props_from_df, load_nodes_from_df_prefetch},
             *,
         },
     },

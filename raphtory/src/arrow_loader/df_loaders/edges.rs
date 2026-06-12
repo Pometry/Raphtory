@@ -5,9 +5,10 @@ use kdam::BarExt;
 
 use crate::{
     arrow_loader::{
-        dataframe::{DFChunk, DFView, SecondaryIndexCol},
+        dataframe::{DFChunk, DFView},
         df_loaders::{
-            extract_secondary_index_col, process_shared_properties, resolve_nodes_with_cache,
+            extract_secondary_index_col, group_rows_by_vid_segment, process_shared_properties,
+            resolve_nodes_with_cache, secondary_index_at,
         },
         layer_col::lift_layer_col,
         node_col::NodeCol,
@@ -57,7 +58,6 @@ use storage::{
     },
     Extension,
 };
-use crate::arrow_loader::df_loaders::{group_rows_by_vid_segment, secondary_index_at};
 
 #[derive(Debug, Copy, Clone)]
 pub struct ColumnNames<'a> {
@@ -918,7 +918,6 @@ fn group_rows_by_eid_segment(
     }
     rows_by_segment
 }
-
 
 pub fn store_node_ids<NS: NodeSegmentOps<Extension = Extension>>(
     gid_str_cache: &[(GidRef<'_>, VID)],
