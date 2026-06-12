@@ -3644,6 +3644,16 @@ fn materialize_window_proptest() {
 }
 
 #[test]
+fn test_window_layers() {
+    let g = Graph::new();
+    g.add_node(2, 0, NO_PROPS, None, None).unwrap();
+    g.add_edge(0, 1, 0, NO_PROPS, Some("a")).unwrap();
+
+    let gw = g.window(1, 3);
+    assert_graph_equal(&gw, &gw.materialize().unwrap())
+}
+
+#[test]
 fn test_node_on_layer() {
     let g = Graph::new();
     g.add_node(0, 0, NO_PROPS, None, Some("a")).unwrap();

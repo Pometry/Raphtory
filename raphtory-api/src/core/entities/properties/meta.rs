@@ -1,7 +1,7 @@
 use crate::core::{
     entities::{
         properties::prop::{check_for_unification, unify_types, PropError, PropType},
-        LayerId,
+        LayerId, LayerIds,
     },
     storage::{
         arc_str::ArcStr,
@@ -28,8 +28,10 @@ pub const NODE_ID_IDX: usize = 0;
 pub const NODE_TYPE_PROP_KEY: &str = "_raphtory_node_type";
 pub const NODE_TYPE_IDX: usize = 1;
 
-pub const STATIC_GRAPH_LAYER: &str = "_static_graph";
+pub const STATIC_GRAPH_LAYER_NAME: &str = "_static_graph";
 pub const STATIC_GRAPH_LAYER_ID: LayerId = LayerId(0);
+
+pub const STATIC_GRAPH_LAYER: LayerIds = LayerIds::One(STATIC_GRAPH_LAYER_ID);
 
 /// The type ID for nodes that don't have a specified type.
 pub const DEFAULT_NODE_TYPE_ID: usize = 0;
