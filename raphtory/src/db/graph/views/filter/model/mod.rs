@@ -56,6 +56,7 @@ use raphtory_api::core::{
 use std::{ops::Deref, sync::Arc};
 
 pub mod and_filter;
+pub mod degree_filter;
 pub mod edge_filter;
 pub mod exploded_edge_filter;
 pub mod filter;
@@ -75,8 +76,6 @@ pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
 pub mod windowed_filter;
-pub mod degree_filter;
-
 
 #[derive(Debug, Copy, Clone)]
 pub struct NoFilter;

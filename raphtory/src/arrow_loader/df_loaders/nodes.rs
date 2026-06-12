@@ -40,7 +40,8 @@ use crate::arrow_loader::df_loaders::build_progress_bar;
 use crate::arrow_loader::{
     dataframe::{DFChunk, DFView},
     df_loaders::{
-        extract_secondary_index_col, process_shared_properties, resolve_nodes_and_type_with_cache,
+        extract_secondary_index_col, group_rows_by_vid_segment, process_shared_properties,
+        resolve_nodes_and_type_with_cache, secondary_index_at,
     },
     layer_col::{lift_layer_col, lift_node_type_col, LayerCol},
     node_col::NodeCol,
@@ -49,7 +50,6 @@ use crate::arrow_loader::{
 };
 #[cfg(feature = "progress")]
 use kdam::BarExt;
-use crate::arrow_loader::df_loaders::{group_rows_by_vid_segment, secondary_index_at};
 
 /// If layer_id_col is provided, then layer_col must also be provided
 #[allow(clippy::too_many_arguments)]

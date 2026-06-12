@@ -1,8 +1,14 @@
 use crate::{
     db::graph::views::filter::model::{
-        NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps, degree_filter::DegreeFilterFactory, node_filter::{
-            NodeFilter, builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder}, ops::{NodeFilterOps, NodeIdFilterOps}
-        }, node_state_filter::NodeStateBoolColOp, property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder}
+        degree_filter::DegreeFilterFactory,
+        node_filter::{
+            builders::{NodeIdFilterBuilder, NodeNameFilterBuilder, NodeTypeFilterBuilder},
+            ops::{NodeFilterOps, NodeIdFilterOps},
+            NodeFilter,
+        },
+        node_state_filter::NodeStateBoolColOp,
+        property_filter::builders::{MetadataFilterBuilder, PropertyFilterBuilder},
+        NodeViewFilterOps, PropertyFilterFactory, ViewWrapOps,
     },
     python::{
         filter::{
