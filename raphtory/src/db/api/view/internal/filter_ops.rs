@@ -1,7 +1,4 @@
-use crate::db::api::view::internal::{
-    EdgeTimeSemanticsOps, GraphView, InternalEdgeFilterOps, InternalNodeFilterOps,
-    NodeTimeSemanticsOps,
-};
+use crate::db::api::view::internal::{EdgeTimeSemanticsOps, GraphView, NodeTimeSemanticsOps};
 use either::Either;
 use iter_enum::{
     DoubleEndedIterator, ExactSizeIterator, FusedIterator, IndexedParallelIterator, Iterator,
@@ -140,10 +137,9 @@ impl<G: GraphView> FilterOps for G {
             }
         }
 
-        if self.internal_nodes_filtered() {
-            if !self.internal_filter_node(node, self.layer_ids()) {
-                return false;
-            }
+        // call this to optimise the cached view of a windowed graph
+        if !self.internal_filter_node(node, self.layer_ids()) {
+            return false;
         }
 
         if (self.window_filtered() && !self.node_filter_includes_window_filter())
@@ -230,16 +226,13 @@ impl<G: GraphView> FilterOps for G {
 
     #[inline]
     fn filter_edge(&self, edge: EdgeEntryRef) -> bool {
-        if self.internal_edge_filtered() {
-            if !self.internal_filter_edge(edge, self.layer_ids()) {
-                return false;
-            }
+        // we need to call this to optimise the cached view
+        if !self.internal_filter_edge(edge, self.layer_ids()) {
+            return false;
         }
 
-        if self.is_layer_filtered() {
-            if !edge.has_layer(self.layer_ids()) {
-                return false;
-            }
+        if !edge.has_layer(self.layer_ids()) {
+            return false;
         }
 
         if self.internal_nodes_filtered() {

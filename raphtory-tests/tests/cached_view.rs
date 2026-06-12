@@ -118,7 +118,6 @@ fn masked_always_equals_proptest() {
             if !layers.is_empty() && earliest < middle && middle < latest {
                 let subgraph = graph.layers(layers).unwrap().window(earliest, middle);
                 let masked = subgraph.cache_view();
-                assert_eq!(masked.filter_state(), FilterState::BothIndependent);
                 assert_graph_equal(&subgraph, &masked);
             }
         });
