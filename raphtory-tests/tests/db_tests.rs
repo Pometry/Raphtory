@@ -4,7 +4,7 @@ use itertools::Itertools;
 use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest, sample::subsequence};
 use raphtory::{
     algorithms::{
-        centrality::{degree_centrality::degree_centrality, pagerank::unweighted_page_rank},
+        centrality::{degree_centrality::degree_centrality, pagerank::page_rank},
         components::weakly_connected_components,
     },
     db::{
@@ -2933,7 +2933,7 @@ fn test_node_state_merge() {
 
     let sg = graph.subgraph(1..200);
     let degs = degree_centrality(&graph);
-    let pr = unweighted_page_rank(&sg, None, None, None, false, None);
+    let pr = page_rank(&sg, None, None, None, None, false, None);
 
     let m1 = pr.state.merge(
         &degs.state,
