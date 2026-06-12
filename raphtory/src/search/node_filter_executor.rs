@@ -249,6 +249,9 @@ impl<'a> NodeFilterExecutor<'a> {
             CompositeNodeFilter::Property(filter) => {
                 self.filter_property_index(graph, filter, limit, offset)
             }
+            CompositeNodeFilter::Degree(_) => {
+                todo!("Implement degree based filtering using graph indices")
+            }
             CompositeNodeFilter::Windowed(filter) => {
                 let start = filter.start.t();
                 let end = filter.end.t();

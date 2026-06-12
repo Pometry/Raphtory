@@ -75,6 +75,8 @@ pub mod or_filter;
 pub mod property_filter;
 pub mod snapshot_filter;
 pub mod windowed_filter;
+pub mod degree_filter;
+
 
 #[derive(Debug, Copy, Clone)]
 pub struct NoFilter;
